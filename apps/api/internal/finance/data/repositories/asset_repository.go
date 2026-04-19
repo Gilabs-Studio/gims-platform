@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AssetListParams struct {
@@ -58,13 +59,25 @@ func (r *assetRepository) FindByID(ctx context.Context, id string, withDetails b
 	return &item, nil
 }
 
-var assetAllowedSort = map[string]string{
-	"created_at":       "fixed_assets.created_at",
-	"updated_at":       "fixed_assets.updated_at",
-	"acquisition_date": "fixed_assets.acquisition_date",
-	"code":             "fixed_assets.code",
-	"name":             "fixed_assets.name",
-	"book_value":       "fixed_assets.book_value",
+var assetAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "fixed_assets", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "fixed_assets", Name: "updated_at"},
+	},
+	"acquisition_date": {
+		Column: clause.Column{Table: "fixed_assets", Name: "acquisition_date"},
+	},
+	"code": {
+		Column: clause.Column{Table: "fixed_assets", Name: "code"},
+	},
+	"name": {
+		Column: clause.Column{Table: "fixed_assets", Name: "name"},
+	},
+	"book_value": {
+		Column: clause.Column{Table: "fixed_assets", Name: "book_value"},
+	},
 }
 
 func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error) {
@@ -101,14 +114,16 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	}
 
 	sortCol := assetAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = assetAllowedSort["acquisition_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

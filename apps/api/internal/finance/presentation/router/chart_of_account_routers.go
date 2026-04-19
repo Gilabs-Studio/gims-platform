@@ -14,7 +14,11 @@ const (
 )
 
 func RegisterChartOfAccountRoutes(rg *gin.RouterGroup, h *handler.ChartOfAccountHandler) {
-	g := rg.Group("/chart-of-accounts")
+	registerChartOfAccountRoutesInGroup(rg.Group("/chart-of-accounts"), h)
+	registerChartOfAccountRoutesInGroup(rg.Group("/accounting/coa"), h)
+}
+
+func registerChartOfAccountRoutesInGroup(g *gin.RouterGroup, h *handler.ChartOfAccountHandler) {
 	g.GET("/tree", middleware.RequirePermission(coaRead), h.Tree)
 	g.GET("", middleware.RequirePermission(coaRead), h.List)
 	g.GET("/", middleware.RequirePermission(coaRead), h.List)

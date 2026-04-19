@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type FinancialClosingListParams struct {
@@ -39,11 +40,19 @@ func (r *financialClosingRepository) FindByID(ctx context.Context, id string) (*
 	return &item, nil
 }
 
-var financialClosingAllowedSort = map[string]string{
-	"created_at":      "financial_closings.created_at",
-	"updated_at":      "financial_closings.updated_at",
-	"period_end_date": "financial_closings.period_end_date",
-	"status":          "financial_closings.status",
+var financialClosingAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "financial_closings", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "financial_closings", Name: "updated_at"},
+	},
+	"period_end_date": {
+		Column: clause.Column{Table: "financial_closings", Name: "period_end_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "financial_closings", Name: "status"},
+	},
 }
 
 func (r *financialClosingRepository) List(ctx context.Context, params FinancialClosingListParams) ([]financeModels.FinancialClosing, int64, error) {
@@ -57,14 +66,16 @@ func (r *financialClosingRepository) List(ctx context.Context, params FinancialC
 	}
 
 	sortCol := financialClosingAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = financialClosingAllowedSort["period_end_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

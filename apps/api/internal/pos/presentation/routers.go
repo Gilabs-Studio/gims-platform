@@ -1,14 +1,21 @@
 package presentation
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	feedbackDataRepos "github.com/gilabs/gims/api/internal/feedback/data/repositories"
+	feedbackUC "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
 	invDataRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	loyaltyUsecasePkg "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
@@ -18,10 +25,16 @@ import (
 )
 
 // RegisterRoutes registers all POS domain routes under /api/v1/pos.
+// loyaltyUC is optional; pass nil to disable loyalty integration.
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}) {
+}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase) {
+	credentialCipher, err := securityInfra.NewCredentialCipher(config.AppConfig.Security.XenditCredentialEncryptionKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize Xendit credential cipher: %v", err))
+	}
+
 	// ─── Repositories ────────────────────────────────────────────────────────
 
 	floorPlanRepo := repositories.NewFloorPlanRepository(db)
@@ -43,16 +56,30 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// ─── Usecases ────────────────────────────────────────────────────────────
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
-	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo)
+	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
+	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo, credentialCipher)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
-	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo)
+	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 
 	// ─── Handlers ────────────────────────────────────────────────────────────
 
 	floorPlanH := handler.NewFloorPlanHandler(floorPlanUC)
 	orderH := handler.NewPOSOrderHandler(orderUC)
+
+	// Build receipt handler and attach feedback usecase for QR code generation
+	// (best-effort: silently disabled when no active form exists for an outlet).
 	receiptH := handler.NewPOSReceiptHandler(orderUC, paymentRepo, configRepo, outletRepo)
+	fbUC := feedbackUC.NewFeedbackUsecase(
+		feedbackDataRepos.NewFeedbackFormRepository(db),
+		feedbackDataRepos.NewFeedbackTokenRepository(db),
+		feedbackDataRepos.NewFeedbackResponseRepository(db),
+		outletRepo,
+	)
+	receiptH = receiptH.WithFeedbackUsecase(fbUC)
+	if loyaltyUC != nil {
+		receiptH = receiptH.WithLoyaltyUsecase(loyaltyUC)
+		paymentUC = paymentUC.WithLoyaltyUsecase(loyaltyUC)
+	}
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)
@@ -71,4 +98,3 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Xendit webhook is unauthenticated (token verified inside the handler by Xendit signature)
 	r.POST("/api/v1/pos/payments/xendit/webhook", paymentH.XenditWebhook)
 }
-

@@ -10,6 +10,18 @@ type ProcessPaymentRequest struct {
 	Notes           *string `json:"notes"`
 	// CustomerName optionally captures the customer name on receipt (F&B use-case)
 	CustomerName *string `json:"customer_name"`
+	// CustomerID links the payment to an existing customer master record when selected.
+	CustomerID *string `json:"customer_id"`
+	// CustomerPhone optionally captures the customer phone for SO/invoice records
+	CustomerPhone *string `json:"customer_phone"`
+	// CustomerEmail optionally captures the customer email for SO/invoice records
+	CustomerEmail *string `json:"customer_email"`
+	// LoyaltyMemberID links the order to an existing loyalty member so points are
+	// awarded automatically after payment.
+	LoyaltyMemberID *string `json:"loyalty_member_id"`
+	// LoyaltyRewardID stores a selected reward choice that will be redeemed
+	// atomically when payment is finalized.
+	LoyaltyRewardID *string `json:"loyalty_reward_id"`
 	// ChannelCode specifies the Xendit payment channel (e.g. QRIS, BCA, DANA, OVO)
 	ChannelCode *string `json:"channel_code"`
 }

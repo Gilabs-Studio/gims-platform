@@ -14,20 +14,33 @@ type JournalLineRequest struct {
 }
 
 type CreateJournalEntryRequest struct {
-	EntryDate         string               `json:"entry_date" binding:"required"`
-	Description       string               `json:"description"`
-	ReferenceType     *string              `json:"reference_type"`
-	ReferenceID       *string              `json:"reference_id"`
-	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
-	IsSystemGenerated bool                 `json:"is_system_generated"`
-	SourceDocumentURL *string              `json:"source_document_url"`
+	CompanyID                    string               `json:"company_id" binding:"required,uuid"`
+	FiscalYearID                 *string              `json:"fiscal_year_id"`
+	EntryDate                    string               `json:"entry_date" binding:"required"`
+	Reference                    string               `json:"reference"`
+	Description                  string               `json:"description"`
+	ReferenceType                *string              `json:"reference_type"`
+	ReferenceID                  *string              `json:"reference_id"`
+	JournalType                  *string              `json:"journal_type"`
+	CurrencyCode                 string               `json:"currency_code"`
+	ExchangeRate                 *float64             `json:"exchange_rate"`
+	Lines                        []JournalLineRequest `json:"lines" binding:"required,min=2"`
+	IsSystemGenerated            bool                 `json:"is_system_generated"`
+	SkipControlAccountValidation bool                 `json:"-"`
+	SourceDocumentURL            *string              `json:"source_document_url"`
 }
 
 type UpdateJournalEntryRequest struct {
+	CompanyID     string               `json:"company_id" binding:"required,uuid"`
+	FiscalYearID  *string              `json:"fiscal_year_id"`
 	EntryDate     string               `json:"entry_date" binding:"required"`
+	Reference     string               `json:"reference"`
 	Description   string               `json:"description"`
 	ReferenceType *string              `json:"reference_type"`
 	ReferenceID   *string              `json:"reference_id"`
+	JournalType   *string              `json:"journal_type"`
+	CurrencyCode  string               `json:"currency_code"`
+	ExchangeRate  *float64             `json:"exchange_rate"`
 	Lines         []JournalLineRequest `json:"lines" binding:"required,min=2"`
 }
 
@@ -35,10 +48,25 @@ type UpdateJournalEntryRequest struct {
 // reference_type is always forced to "MANUAL_ADJUSTMENT" on the backend.
 // description is required for audit trail.
 type CreateAdjustmentJournalRequest struct {
-	EntryDate         string               `json:"entry_date" binding:"required"`
-	Description       string               `json:"description" binding:"required,min=3"`
-	SourceDocumentURL *string              `json:"source_document_url"`
-	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
+	CompanyID                    string               `json:"company_id" binding:"required,uuid"`
+	FiscalYearID                 *string              `json:"fiscal_year_id"`
+	EntryDate                    string               `json:"entry_date" binding:"required"`
+	Description                  string               `json:"description" binding:"required,min=3"`
+	Reference                    string               `json:"reference"`
+	CurrencyCode                 string               `json:"currency_code"`
+	ExchangeRate                 *float64             `json:"exchange_rate"`
+	SourceDocumentURL            *string              `json:"source_document_url"`
+	Lines                        []JournalLineRequest `json:"lines" binding:"required,min=2"`
+	SkipControlAccountValidation bool                 `json:"-"`
+}
+
+// CreateOpeningBalanceJournalRequest is an internal command payload for opening balance journals.
+// Opening balances are journal-driven and are not persisted on Chart of Account rows.
+type CreateOpeningBalanceJournalRequest struct {
+	AccountID   string  `json:"account_id" binding:"required,uuid"`
+	Amount      float64 `json:"amount" binding:"required"`
+	EntryDate   *string `json:"entry_date"`
+	Description *string `json:"description"`
 }
 
 type ListJournalEntriesRequest struct {
@@ -46,7 +74,10 @@ type ListJournalEntriesRequest struct {
 	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search        string                       `form:"search"`
 	Domain        *string                      `form:"domain" binding:"omitempty,oneof=sales purchase inventory stock cash_bank finance adjustment valuation"`
-	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted reversed"`
+	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted reversed cancelled"`
+	CompanyID     string                       `form:"company_id"`
+	FiscalYearID  *string                      `form:"fiscal_year_id"`
+	JournalType   *string                      `form:"journal_type"`
 	StartDate     *string                      `form:"start_date"`
 	EndDate       *string                      `form:"end_date"`
 	SortBy        string                       `form:"sort_by"`
@@ -65,12 +96,17 @@ type JournalLineResponse struct {
 
 type JournalEntryResponse struct {
 	ID            string                      `json:"id"`
+	CompanyID     string                      `json:"company_id,omitempty"`
+	FiscalYearID  *string                     `json:"fiscal_year_id,omitempty"`
+	JournalNumber string                      `json:"journal_number,omitempty"`
 	EntryDate     time.Time                   `json:"entry_date"`
+	Reference     string                      `json:"reference,omitempty"`
 	Description   string                      `json:"description"`
 	ReferenceType *string                     `json:"reference_type"`
 	ReferenceID   *string                     `json:"reference_id"`
 	ReferenceCode *string                     `json:"reference_code"`
 	Status        financeModels.JournalStatus `json:"status"`
+	JournalType   string                      `json:"journal_type"`
 	PostedAt      *time.Time                  `json:"posted_at"`
 	PostedBy      *string                     `json:"posted_by"`
 	PostedByName  *string                     `json:"posted_by_name,omitempty"`
@@ -91,6 +127,10 @@ type JournalEntryResponse struct {
 	Lines             []JournalLineResponse `json:"lines"`
 	DebitTotal        float64               `json:"debit_total"`
 	CreditTotal       float64               `json:"credit_total"`
+	CurrencyCode      string                `json:"currency_code"`
+	ExchangeRate      float64               `json:"exchange_rate"`
+	IsReversal        bool                  `json:"is_reversal"`
+	ReversedFrom      *string               `json:"reversed_from,omitempty"`
 	IsValuation       bool                  `json:"is_valuation"`
 	Source            string                `json:"source"`
 	ValuationRunID    *string               `json:"valuation_run_id,omitempty"`
@@ -183,6 +223,10 @@ type BankAccountFormOption struct {
 // JournalEntryFormDataResponse for journal entry form options.
 type JournalEntryFormDataResponse struct {
 	ChartOfAccounts []COAFormOption `json:"chart_of_accounts"`
+	JournalTypes    []EnumOption    `json:"journal_types"`
+	ReferenceTypes  []EnumOption    `json:"reference_types"`
+	Currencies      []EnumOption    `json:"currencies"`
+	Statuses        []EnumOption    `json:"statuses"`
 }
 
 // ===== Valuation DTOs =====
@@ -261,25 +305,25 @@ type BulkApproveValuationResponse struct {
 
 // ValuationRunResponse is the API response for a valuation run record.
 type ValuationRunResponse struct {
-	ID             string                  `json:"id"`
-	ReferenceID    string                  `json:"reference_id"`
-	ValuationType  string                  `json:"valuation_type"`
-	PeriodStart    string                  `json:"period_start"`
-	PeriodEnd      string                  `json:"period_end"`
-	Status         string                  `json:"status"`
-	TotalDebit     float64                 `json:"total_debit"`
-	TotalCredit    float64                 `json:"total_credit"`
-	TotalDelta     float64                 `json:"total_delta"`
-	JournalEntryID *string                 `json:"journal_entry_id,omitempty"`
-	ErrorMessage   *string                 `json:"error_message,omitempty"`
-	
+	ID             string  `json:"id"`
+	ReferenceID    string  `json:"reference_id"`
+	ValuationType  string  `json:"valuation_type"`
+	PeriodStart    string  `json:"period_start"`
+	PeriodEnd      string  `json:"period_end"`
+	Status         string  `json:"status"`
+	TotalDebit     float64 `json:"total_debit"`
+	TotalCredit    float64 `json:"total_credit"`
+	TotalDelta     float64 `json:"total_delta"`
+	JournalEntryID *string `json:"journal_entry_id,omitempty"`
+	ErrorMessage   *string `json:"error_message,omitempty"`
+
 	// Approval Tracking (audit trail)
 	IsLocked      bool    `json:"is_locked"`
 	LockedAt      *string `json:"locked_at,omitempty"`
 	ApprovedBy    *string `json:"approved_by,omitempty"`
 	ApprovedAt    *string `json:"approved_at,omitempty"`
 	ApprovalNotes string  `json:"approval_notes,omitempty"`
-	
+
 	CreatedBy   *string                 `json:"created_by,omitempty"`
 	CompletedAt *string                 `json:"completed_at,omitempty"`
 	Items       []ValuationItemResponse `json:"items,omitempty"`

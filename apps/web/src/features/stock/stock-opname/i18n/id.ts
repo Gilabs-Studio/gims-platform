@@ -9,6 +9,8 @@ export const stockOpnameId = {
     reject: "Tolak",
     post: "Posting",
     addItem: "Tambah Item",
+    export: "Ekspor",
+    openMapping: "Buka Mapping",
   },
   table: {
     opname_no: "No. Opname",
@@ -28,8 +30,10 @@ export const stockOpnameId = {
   },
   status: {
     draft: "Draf",
+    pending_approval: "Menunggu Persetujuan",
     pending: "Menunggu",
     approved: "Disetujui",
+    completed: "Selesai",
     posted: "Tercatat",
     rejected: "Ditolak",
     canceled: "Dibatalkan",
@@ -66,6 +70,23 @@ export const stockOpnameId = {
     tabs: {
       items: "Item",
       info: "Informasi",
+      ledger: "Ledger Stok",
+    },
+    ledger: {
+      product: "Produk",
+      selectProduct: "Pilih produk",
+      totalRecords: "Total Data",
+      empty: "Tidak ada entri ledger stok untuk produk ini.",
+      columns: {
+        date: "Tanggal",
+        type: "Tipe",
+        transaction: "Transaksi",
+        qty: "Qty",
+        unitCost: "Harga Unit",
+        averageCost: "Harga Rata-rata",
+        runningQty: "Qty Berjalan",
+        stockValue: "Nilai Stok",
+      },
     },
   },
   deleteConfirmation: {
@@ -75,5 +96,16 @@ export const stockOpnameId = {
   deleteItemConfirmation: {
     title: "Hapus Item",
     description: "Apakah Anda yakin ingin menghapus item ini?",
+  },
+  errors: {
+    mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum posting stock opname.",
+    accountNotPostable: "Akun yang dipilih tidak postable.",
+    accountInactive: "Akun yang dipilih tidak aktif.",
+    periodClosed: "Periode akuntansi sudah ditutup. Posting tidak diizinkan.",
+    concurrentLockConflict: "Data sedang diproses oleh proses lain. Silakan coba lagi.",
+  },
+  messages: {
+    exportEmpty: "Tidak ada data stock opname untuk diekspor.",
+    exportSuccess: "Stock opname berhasil diekspor.",
   },
 };

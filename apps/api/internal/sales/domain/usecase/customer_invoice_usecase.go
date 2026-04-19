@@ -17,6 +17,8 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	loyaltyDto "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
+	loyaltyUsecase "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -51,6 +53,7 @@ type CustomerInvoiceUsecase interface {
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error)
 	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
+	SetLoyaltyUsecase(luc loyaltyUsecase.LoyaltyUsecase)
 }
 
 type customerInvoiceUsecase struct {
@@ -63,6 +66,13 @@ type customerInvoiceUsecase struct {
 	mappingUC      finUsecase.SystemAccountMappingUsecase // Deprecated: use engine instead
 	engine         accounting.AccountingEngine
 	auditService   audit.AuditService
+	loyaltyUC      loyaltyUsecase.LoyaltyUsecase // Optional: awards loyalty points when invoice is PAID
+}
+
+// SetLoyaltyUsecase injects the loyalty usecase for awarding points on invoice payment.
+// It is called after construction to avoid circular import issues during wiring.
+func (uc *customerInvoiceUsecase) SetLoyaltyUsecase(luc loyaltyUsecase.LoyaltyUsecase) {
+	uc.loyaltyUC = luc
 }
 
 // NewCustomerInvoiceUsecase creates a new CustomerInvoiceUsecase
@@ -731,6 +741,11 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		"payment_at":    req.PaymentAt,
 	})
 
+	// Award loyalty points when a non-POS invoice transitions to PAID.
+	if newStatus == models.CustomerInvoiceStatusPaid {
+		go uc.tryEarnLoyaltyPointsForInvoice(context.Background(), updatedInvoice)
+	}
+
 	if newStatus == models.CustomerInvoiceStatusSubmitted {
 		actorUserID, _ := ctx.Value("user_id").(string)
 		if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
@@ -1010,6 +1025,51 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversed(ctx context
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
 	return uc.triggerSalesInvoiceJournalReversed(ctx, invoice, "Manual reversal via status change")
+}
+
+// tryEarnLoyaltyPointsForInvoice awards loyalty points for a fully-paid non-POS customer invoice.
+// It runs in a background goroutine — errors are logged and never surface to the caller.
+func (uc *customerInvoiceUsecase) tryEarnLoyaltyPointsForInvoice(ctx context.Context, invoice *models.CustomerInvoice) {
+	if uc.loyaltyUC == nil || invoice == nil {
+		return
+	}
+
+	// Only process invoices that are linked to a Sales Order.
+	if invoice.SalesOrderID == nil {
+		return
+	}
+
+	// Fetch the linked Sales Order to check its source type and customer.
+	so, err := uc.salesOrderRepo.FindByID(ctx, *invoice.SalesOrderID)
+	if err != nil || so == nil {
+		return
+	}
+
+	// Skip POS-sourced orders — loyalty points are already awarded by the POS payment flow.
+	if so.SourceType == "POS" {
+		return
+	}
+
+	if so.CustomerID == nil {
+		return
+	}
+
+	// Lookup the loyalty member for this customer.
+	memberResp, err := uc.loyaltyUC.GetMemberByCustomerID(ctx, *so.CustomerID)
+	if err != nil || memberResp == nil {
+		// Customer is not a loyalty member — nothing to do.
+		return
+	}
+
+	_, err = uc.loyaltyUC.EarnPoints(ctx, &loyaltyDto.EarnPointsRequest{
+		MemberID:        memberResp.ID,
+		TransactionID:   invoice.ID,
+		TransactionType: "sales_order",
+		TotalAmount:     invoice.Amount,
+	})
+	if err != nil {
+		log.Printf("[loyalty] failed to earn points for invoice %s (member %s): %v", invoice.ID, memberResp.ID, err)
+	}
 }
 
 // isValidStatusTransition checks if the status transition is valid

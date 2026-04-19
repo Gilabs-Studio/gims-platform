@@ -23,22 +23,18 @@ func (r *stockMovementRepository) Create(ctx context.Context, movement *models.S
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Get current balance for this product + warehouse
 		var lastBalance float64
-		
+
 		var lastMovement models.StockMovement
 		err := tx.Where("warehouse_id = ? AND product_id = ?", movement.WarehouseID, movement.ProductID).
 			Order("created_at desc").
 			First(&lastMovement).Error
-			
+
 		if err == nil {
 			lastBalance = lastMovement.Balance
 		}
 
-		// 2. Calculate new balance
-		if movement.MovementType == models.MovementTypeIn || movement.MovementType == models.MovementTypeAdjust {
-			movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
-		} else {
-			movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
-		}
+		// 2. Calculate new balance using directional quantities.
+		movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
 
 		// 3. Create record
 		if err := tx.Create(movement).Error; err != nil {
@@ -108,13 +104,13 @@ func (r *stockMovementRepository) GetLastBalance(ctx context.Context, warehouseI
 		Where("warehouse_id = ? AND product_id = ?", warehouseID, productID).
 		Order("created_at desc").
 		First(&lastMovement).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return 0, nil
 		}
 		return 0, err
 	}
-	
+
 	return lastMovement.Balance, nil
 }

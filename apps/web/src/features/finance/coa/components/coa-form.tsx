@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,8 @@ type Props = {
     type: CoaType;
     parent_id?: string | null;
     is_active: boolean;
+    is_postable?: boolean;
+    is_protected?: boolean;
   } | null;
   parentOptions: Array<Pick<ChartOfAccount, "id" | "code" | "name">>;
 };
@@ -59,6 +61,8 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
   const createMutation = useCreateFinanceCoa();
   const updateMutation = useUpdateFinanceCoa();
 
+  const isProtected = mode === "edit" && (initialData?.is_protected ?? false);
+
   const defaultValues: CoaFormValues = useMemo(
     () => ({
       code: initialData?.code ?? "",
@@ -66,12 +70,15 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
       type: initialData?.type ?? "ASSET",
       parent_id: initialData?.parent_id ?? null,
       is_active: initialData?.is_active ?? true,
+      is_postable: initialData?.is_postable ?? true,
     }),
     [initialData],
   );
 
+  type ZodResolverSchemaArg = Parameters<typeof zodResolver>[0];
+
   const form = useForm<CoaFormValues>({
-    resolver: zodResolver(coaFormSchema),
+    resolver: zodResolver(coaFormSchema as unknown as ZodResolverSchemaArg) as unknown as Resolver<CoaFormValues>,
     defaultValues,
   });
 
@@ -91,6 +98,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
         type: values.type,
         parent_id: values.parent_id ?? null,
         is_active: values.is_active ?? true,
+        is_postable: values.is_postable ?? true,
       };
 
       if (mode === "create") {
@@ -120,9 +128,23 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
           className="space-y-4"
           onSubmit={form.handleSubmit(onSubmit)}
         >
+          {isProtected && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {t("messages.protectedAccount")}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="code">{t("fields.code")}</Label>
-            <Input id="code" {...form.register("code")} />
+            <Input
+              id="code"
+              {...form.register("code")}
+              disabled={isProtected || (mode === "create" && (form.watch("parent_id") ?? null) !== null)}
+              placeholder={mode === "create" && (form.watch("parent_id") ?? null) !== null ? t("messages.autoCodeFromParent") : undefined}
+            />
+            {mode === "create" && (form.watch("parent_id") ?? null) !== null && (
+              <p className="text-xs text-muted-foreground">{t("messages.autoCodeHint")}</p>
+            )}
             {form.formState.errors.code && (
               <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
             )}
@@ -130,7 +152,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
 
           <div className="space-y-2">
             <Label htmlFor="name">{t("fields.name")}</Label>
-            <Input id="name" {...form.register("name")} />
+            <Input id="name" {...form.register("name")} disabled={isProtected} />
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
             )}
@@ -144,6 +166,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 onValueChange={(v) => {
                   form.setValue("type", v as CoaType, { shouldDirty: true });
                 }}
+                disabled={isProtected}
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("placeholders.select")} />
@@ -167,7 +190,11 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 value={form.watch("parent_id") ?? "__none__"}
                 onValueChange={(v) => {
                   form.setValue("parent_id", v === "__none__" ? null : v, { shouldDirty: true });
+                  if (mode === "create" && v !== "__none__") {
+                    form.setValue("code", "", { shouldDirty: true, shouldValidate: true });
+                  }
                 }}
+                disabled={isProtected}
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("placeholders.select")} />
@@ -201,8 +228,28 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 form.setValue("is_active", checked, { shouldDirty: true });
               }}
               className="cursor-pointer"
+              disabled={isProtected}
             />
           </div>
+
+          {mode === "create" && (
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium">{t("fields.isPostable")}</div>
+                <div className="text-xs text-muted-foreground">
+                  {(form.watch("is_postable") ?? true) ? t("status.postable") : t("status.nonPostable")}
+                </div>
+              </div>
+              <Switch
+                checked={form.watch("is_postable") ?? true}
+                onCheckedChange={(checked) => {
+                  form.setValue("is_postable", checked, { shouldDirty: true });
+                }}
+                className="cursor-pointer"
+                disabled={isProtected}
+              />
+            </div>
+          )}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button

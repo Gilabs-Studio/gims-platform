@@ -138,9 +138,6 @@ func SeedAll() error {
 	if err := SeedLeaveType(); err != nil {
 		return err
 	}
-	if err := SeedBankAccounts(); err != nil {
-		return err
-	}
 
 	// ================================================================
 	// FINANCE SEEDER - CRITICAL ORDER (DO NOT REORDER)
@@ -155,13 +152,33 @@ func SeedAll() error {
 		return err
 	}
 
-	// 3. Validate integrity (fail-fast if broken)
+	// 3. System Account Mappings (required by validation and accounting engine)
+	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
+	// 4. Validate integrity (fail-fast if broken)
 	if err := ValidateFinanceSeeder(); err != nil {
+		return err
+	}
+
+	// 5. Finance Foundation Phase 0 defaults for PT. GiLabs
+	if err := SeedFinanceFoundationFiscalYear(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationTaxConfiguration(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationInventorySettings(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationOpeningBalance(); err != nil {
 		return err
 	}
 	// ================================================================
 
-	if err := SeedSystemAccountMappings(); err != nil {
+	// Bank account seed depends on canonical chart_of_accounts records.
+	if err := SeedBankAccounts(); err != nil {
 		return err
 	}
 
@@ -351,6 +368,21 @@ func SeedAll() error {
 		return err
 	}
 
+	// Feedback seeder (default forms per outlet for POS QR code feedback)
+	if err := SeedFeedback(); err != nil {
+		return err
+	}
+
+	// Loyalty seeder (default programs with Bronze/Silver/Gold/Platinum tiers)
+	if err := SeedLoyalty(); err != nil {
+		return err
+	}
+
+	// Loyalty member seeder (demo registered customers for POS lookup/redeem flows)
+	if err := SeedLoyaltyMembers(); err != nil {
+		return err
+	}
+
 	// Opening Balances seeder: Creates GL entries for inventory to match subledger
 	// (Must come BEFORE SeedJournalReconciliation)
 	if err := SeedOpeningBalances(); err != nil {
@@ -449,7 +481,7 @@ func seedMasterData() error {
 		return err
 	}
 
-	if err := SeedBankAccounts(); err != nil {
+	if err := SeedChartOfAccounts(); err != nil {
 		return err
 	}
 
@@ -461,11 +493,35 @@ func seedMasterData() error {
 		return err
 	}
 
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
+
 	if err := SeedFinanceSettings(); err != nil {
 		return err
 	}
 
 	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
+	if err := ValidateFinanceSeeder(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationFiscalYear(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationTaxConfiguration(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationInventorySettings(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationOpeningBalance(); err != nil {
 		return err
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CashBankJournalListParams struct {
@@ -48,13 +49,25 @@ func (r *cashBankJournalRepository) FindByID(ctx context.Context, id string, wit
 	return &item, nil
 }
 
-var cashBankAllowedSort = map[string]string{
-	"created_at":       "cash_bank_journals.created_at",
-	"updated_at":       "cash_bank_journals.updated_at",
-	"transaction_date": "cash_bank_journals.transaction_date",
-	"status":           "cash_bank_journals.status",
-	"type":             "cash_bank_journals.type",
-	"total_amount":     "cash_bank_journals.total_amount",
+var cashBankAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "updated_at"},
+	},
+	"transaction_date": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "transaction_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "status"},
+	},
+	"type": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "type"},
+	},
+	"total_amount": {
+		Column: clause.Column{Table: "cash_bank_journals", Name: "total_amount"},
+	},
 }
 
 func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJournalListParams) ([]financeModels.CashBankJournal, int64, error) {
@@ -91,14 +104,16 @@ func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJou
 	}
 
 	sortCol := cashBankAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = cashBankAllowedSort["transaction_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

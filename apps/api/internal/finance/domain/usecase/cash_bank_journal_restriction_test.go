@@ -22,9 +22,18 @@ type mockSettingsService struct {
 func (m *mockSettingsService) GetCOACode(ctx context.Context, key string) (string, error) {
 	return m.codes[key], nil
 }
-func (m *mockSettingsService) GetValue(ctx context.Context, key string) (string, error) { return "", nil }
-func (m *mockSettingsService) GetAll(ctx context.Context) ([]models.FinanceSetting, error) { return nil, nil }
-func (m *mockSettingsService) Upsert(ctx context.Context, key, value, desc, cat string) error { return nil }
+func (m *mockSettingsService) GetCOAByKey(ctx context.Context, key string) (string, error) {
+	return m.codes[key], nil
+}
+func (m *mockSettingsService) GetValue(ctx context.Context, key string) (string, error) {
+	return "", nil
+}
+func (m *mockSettingsService) GetAll(ctx context.Context) ([]models.FinanceSetting, error) {
+	return nil, nil
+}
+func (m *mockSettingsService) Upsert(ctx context.Context, key, value, desc, cat string) error {
+	return nil
+}
 
 func TestCashBankJournal_ControlAccountRestriction(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})

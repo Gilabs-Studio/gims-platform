@@ -5,11 +5,36 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatCurrency } from "@/lib/utils";
+import { PosLoyaltyLookup } from "@/features/loyalty/components/pos-loyalty-lookup";
 import type { CartItem, POSConfig } from "../types";
+import type { LoyaltyMemberLookup } from "@/features/loyalty/types";
+
+function normalizeRate(rate: number | undefined, fallback: number): number {
+  if (rate === undefined || Number.isNaN(rate)) return fallback;
+  if (rate <= 0) return 0;
+  if (rate > 1) return rate / 100;
+  return rate;
+}
+
+function formatRatePercent(rate: number): string {
+  const percent = rate * 100;
+  if (Number.isInteger(percent)) return `${percent}`;
+  return percent.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function truncateProductName(name: string, maxLength = 24): string {
+  if (name.length <= maxLength) return name;
+  return `${name.slice(0, maxLength)}...`;
+}
 
 interface POSCartPanelProps {
   items: CartItem[];
   config?: POSConfig;
+  outletId?: string;
+  loyaltyLookup?: LoyaltyMemberLookup;
+  onLoyaltyMemberFound?: (lookup: LoyaltyMemberLookup) => void;
+  onLoyaltyEnrollRequest?: (name: string) => void;
+  onLoyaltyClear?: () => void;
   onIncrement: (productId: string) => void;
   onDecrement: (productId: string) => void;
   onRemove: (productId: string) => void;
@@ -20,6 +45,11 @@ interface POSCartPanelProps {
 export function POSCartPanel({
   items,
   config,
+  outletId,
+  loyaltyLookup,
+  onLoyaltyMemberFound,
+  onLoyaltyEnrollRequest,
+  onLoyaltyClear,
   onIncrement,
   onDecrement,
   onRemove,
@@ -27,21 +57,35 @@ export function POSCartPanel({
   isPending,
 }: POSCartPanelProps) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-  const taxRate = config?.tax_rate ?? 0.11;
-  const serviceRate = config?.service_charge_rate ?? 0;
+  const taxRate = normalizeRate(config?.tax_rate, 0.11);
+  const serviceRate = normalizeRate(config?.service_charge_rate, 0);
   const taxAmount = subtotal * taxRate;
   const serviceAmount = subtotal * serviceRate;
   const total = subtotal + taxAmount + serviceAmount;
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-3 p-6">
-        <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center">
-          <ShoppingCart className="h-6 w-6 opacity-40" />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium">Cart is empty</p>
-          <p className="text-xs text-muted-foreground/70 mt-0.5">Tap a product to add it</p>
+      <div className="flex flex-col h-full overflow-hidden">
+        {outletId && onLoyaltyMemberFound && onLoyaltyEnrollRequest && onLoyaltyClear && (
+          <>
+            <PosLoyaltyLookup
+              outletId={outletId}
+              onMemberFound={onLoyaltyMemberFound}
+              onEnrollRequest={onLoyaltyEnrollRequest}
+              onClear={onLoyaltyClear}
+              selectedMemberId={loyaltyLookup?.member_id}
+            />
+            <Separator />
+          </>
+        )}
+        <div className="flex flex-col flex-1 items-center justify-center text-muted-foreground gap-3 p-6">
+          <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <ShoppingCart className="h-6 w-6 opacity-40" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium">Cart is empty</p>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">Tap a product to add it</p>
+          </div>
         </div>
       </div>
     );
@@ -49,17 +93,34 @@ export function POSCartPanel({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* Loyalty member lookup */}
+      {outletId && onLoyaltyMemberFound && onLoyaltyEnrollRequest && onLoyaltyClear && (
+        <>
+          <PosLoyaltyLookup
+            outletId={outletId}
+            onMemberFound={onLoyaltyMemberFound}
+            onEnrollRequest={onLoyaltyEnrollRequest}
+            onClear={onLoyaltyClear}
+            selectedMemberId={loyaltyLookup?.member_id}
+          />
+          <Separator />
+        </>
+      )}
+
       {/* Item list */}
       <ScrollArea className="flex-1">
         <div className="px-3 py-2 space-y-0.5">
           {items.map((item) => (
             <div
               key={item.product_id}
-              className="flex items-center gap-2 py-2.5 border-b last:border-0"
+              className="flex items-start gap-2 py-2.5 border-b last:border-0 overflow-hidden"
             >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-tight truncate">
-                  {item.product_name}
+              <div className="flex-1 min-w-0 pr-1">
+                <p
+                  className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-tight"
+                  title={item.product_name}
+                >
+                  {truncateProductName(item.product_name)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
                   {formatCurrency(item.unit_price)} × {item.quantity}
@@ -69,7 +130,7 @@ export function POSCartPanel({
                   </span>
                 </p>
               </div>
-              <div className="flex items-center gap-0.5 shrink-0">
+              <div className="flex w-[94px] items-center justify-end gap-0.5 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -111,13 +172,13 @@ export function POSCartPanel({
         </div>
         {taxAmount > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>Tax ({(taxRate * 100).toFixed(0)}%)</span>
+            <span>Tax ({formatRatePercent(taxRate)}%)</span>
             <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
           </div>
         )}
         {serviceAmount > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>Service ({(serviceRate * 100).toFixed(0)}%)</span>
+            <span>Service ({formatRatePercent(serviceRate)}%)</span>
             <span className="tabular-nums">{formatCurrency(serviceAmount)}</span>
           </div>
         )}

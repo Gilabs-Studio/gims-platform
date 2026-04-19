@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
@@ -22,8 +22,6 @@ import type { JournalEntry } from "../types";
 import {
   useDeleteFinanceJournal,
   useFinanceJournals,
-  usePostFinanceJournal,
-  useReverseFinanceJournal,
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
@@ -49,16 +47,15 @@ function getInitialOpenJournalFromURL(): string | null {
 export function JournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
+  const initialOpenJournalId = getInitialOpenJournalFromURL();
 
   const canCreate = useUserPermission("journal.create");
-  const canUpdate = useUserPermission("journal.update");
-  const canDelete = useUserPermission("journal.delete");
-  const canPost = useUserPermission("journal.post");
-  const canReverse = useUserPermission("journal.reverse");
   const canViewTrialBalance = useUserPermission("trial_balance_report.read");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -73,11 +70,12 @@ export function JournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(getInitialOpenJournalFromURL);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(initialOpenJournalId);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
-  const [viewOpen, setViewOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState<boolean>(!!initialOpenJournalId);
   const [trialBalanceOpen, setTrialBalanceOpen] = useState(false);
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
@@ -86,6 +84,8 @@ export function JournalsList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    status: statusFilter === "all" ? undefined : (statusFilter as JournalEntry["status"]),
+    journal_type: typeFilter === "all" ? undefined : typeFilter,
     start_date: startDate || undefined,
     end_date: endDate || undefined,
     sort_by: "entry_date",
@@ -96,14 +96,6 @@ export function JournalsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteFinanceJournal();
-  const postMutation = usePostFinanceJournal();
-  const reverseMutation = useReverseFinanceJournal();
-
-  useEffect(() => {
-    if (selectedId) {
-      setViewOpen(true);
-    }
-  }, [selectedId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -143,8 +135,9 @@ export function JournalsList() {
             {canCreate && (
               <Button
                 onClick={() => {
+                  setViewOpen(false);
                   setFormMode("create");
-                  setSelectedId(null);
+                  setSelectedFormId(null);
                   setFormOpen(true);
                 }}
                 className="cursor-pointer"
@@ -182,6 +175,54 @@ export function JournalsList() {
             }}
           />
         </div>
+        <div className="w-full sm:w-48 space-y-2">
+          <Label>{t("fields.status")}</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" className="w-full justify-between cursor-pointer">
+                {statusFilter === "all" ? "All" : t(`status.${statusFilter}`)}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setStatusFilter("all"); setPage(1); }}>
+                All
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setStatusFilter("draft"); setPage(1); }}>
+                {t("status.draft")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setStatusFilter("posted"); setPage(1); }}>
+                {t("status.posted")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setStatusFilter("cancelled"); setPage(1); }}>
+                {t("status.cancelled")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setStatusFilter("reversed"); setPage(1); }}>
+                {t("status.reversed")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="w-full sm:w-56 space-y-2">
+          <Label>{t("fields.journalType")}</Label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" className="w-full justify-between cursor-pointer">
+                {typeFilter === "all" ? "All" : typeFilter.replaceAll("_", " ")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setTypeFilter("all"); setPage(1); }}>
+                All
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setTypeFilter("GENERAL"); setPage(1); }}>
+                GENERAL
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => { setTypeFilter("ADJUSTMENT"); setPage(1); }}>
+                ADJUSTMENT
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="flex-1" />
       </div>
 
@@ -198,12 +239,15 @@ export function JournalsList() {
           <JournalActionMenu
             row={row}
             onView={(id: string) => {
-              setSelectedId(id);
+              setFormOpen(false);
+              setSelectedViewId(id);
               setViewOpen(true);
             }}
             onEdit={(id: string) => {
+              setViewOpen(false);
+              setSelectedViewId(null);
               setFormMode("edit");
-              setSelectedId(id);
+              setSelectedFormId(id);
               setFormOpen(true);
             }}
             onDelete={(id: string) => {
@@ -229,15 +273,15 @@ export function JournalsList() {
         }}
       />
 
-      <JournalForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedId} />
+      <JournalForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedFormId} />
 
       <JournalDetailModal
         open={viewOpen}
         onOpenChange={(open) => {
           setViewOpen(open);
-          if (!open) setSelectedId(null);
+          if (!open) setSelectedViewId(null);
         }}
-        id={selectedId}
+        id={selectedViewId}
       />
 
       <JournalSourceDetailModal

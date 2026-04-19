@@ -22,6 +22,17 @@ function deriveStatus(order: { status: string } | null, durationSec: number): Li
   return "AVAILABLE";
 }
 
+function buildTableSeatCountMap(objects: LayoutObject[]): Map<string, number> {
+  const seatCountMap = new Map<string, number>();
+
+  for (const obj of objects) {
+    if (obj.type !== "chair" || !obj.parentId) continue;
+    seatCountMap.set(obj.parentId, (seatCountMap.get(obj.parentId) ?? 0) + 1);
+  }
+
+  return seatCountMap;
+}
+
 interface UseLiveTableOptions {
   outletId?: string;
   floorPlanId?: string;
@@ -82,6 +93,8 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     return layoutObjects.filter((obj) => obj.type === "table");
   }, [layoutObjects]);
 
+  const tableSeatCountMap = useMemo(() => buildTableSeatCountMap(layoutObjects), [layoutObjects]);
+
   // Load all open orders for this outlet (poll every 15s for real-time status).
   const {
     data: ordersData,
@@ -114,19 +127,21 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     return tableObjects.map((obj) => {
       const tableLabel = obj.label ?? obj.tableNumber?.toString() ?? obj.id;
       const order = tableOrderMap.get(tableLabel) ?? null;
+      const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
       const durationSec =
         order && typeof nowProp === "number"
           ? Math.floor((nowProp - new Date(order.created_at).getTime()) / 1000)
           : 0;
       return {
         tableObj: obj,
+        seatCount,
         status: deriveStatus(order, durationSec),
         order,
         durationSec,
         isOverThreshold: durationSec > WARN_THRESHOLD_SEC,
       };
     });
-  }, [tableObjects, tableOrderMap, nowProp]);
+  }, [tableObjects, tableOrderMap, tableSeatCountMap, nowProp]);
 
   const isLoading = plansLoading || planDetailLoading || ordersLoading;
 

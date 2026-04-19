@@ -35,6 +35,7 @@ func SeedInventory() error {
 			InitialQuantity:  100,
 			CurrentQuantity:  100,
 			ReservedQuantity: 0,
+			CostPrice:        product.CostPrice,
 		}
 
 		var existing inventoryModels.InventoryBatch
@@ -54,6 +55,8 @@ func SeedInventory() error {
 			"initial_quantity":  batch.InitialQuantity,
 			"current_quantity":  batch.CurrentQuantity,
 			"reserved_quantity": batch.ReservedQuantity,
+			"cost_price":        batch.CostPrice,
+			"is_active":         true,
 			"updated_at":        time.Now(),
 		}).Error; err != nil {
 			return err
@@ -99,6 +102,13 @@ func SeedInventory() error {
 		// Base batch creation helper
 		createBatch := func(whID string, qty float64, expiryDays int) inventoryModels.InventoryBatch {
 			expDate := time.Now().AddDate(0, 0, expiryDays)
+			costPrice := product.CostPrice
+			if costPrice <= 0 {
+				costPrice = product.CurrentHpp
+			}
+			if costPrice <= 0 {
+				costPrice = 1
+			}
 			return inventoryModels.InventoryBatch{
 				BatchNumber:      fmt.Sprintf("BATCH-%s-%d", product.Code, rand.Intn(10000)),
 				ProductID:        product.ID,
@@ -106,6 +116,7 @@ func SeedInventory() error {
 				InitialQuantity:  qty,
 				CurrentQuantity:  qty,
 				ReservedQuantity: 0,
+				CostPrice:        costPrice,
 				ExpiryDate:       &expDate,
 			}
 		}
@@ -155,6 +166,13 @@ func SeedInventory() error {
 	// We attach them to the first product in the first warehouse.
 	firstProduct := products[0]
 	firstWarehouse := warehouses[0]
+	specialBatchCost := firstProduct.CostPrice
+	if specialBatchCost <= 0 {
+		specialBatchCost = firstProduct.CurrentHpp
+	}
+	if specialBatchCost <= 0 {
+		specialBatchCost = 1
+	}
 
 	// Expiring within 30 days: expires in 10 days, still has healthy quantity
 	expiringAt := time.Now().AddDate(0, 0, 10)
@@ -165,6 +183,7 @@ func SeedInventory() error {
 		InitialQuantity:  50,
 		CurrentQuantity:  50,
 		ReservedQuantity: 0,
+		CostPrice:        specialBatchCost,
 		ExpiryDate:       &expiringAt,
 		IsActive:         true,
 	}
@@ -178,6 +197,7 @@ func SeedInventory() error {
 		InitialQuantity:  30,
 		CurrentQuantity:  30,
 		ReservedQuantity: 0,
+		CostPrice:        specialBatchCost,
 		ExpiryDate:       &expiredAt,
 		IsActive:         true,
 	}

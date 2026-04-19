@@ -33,16 +33,14 @@ export function ShipDialog({
   const t = useTranslations("delivery");
   const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber);
 
-  // Update state when initialTrackingNumber changes or dialog opens
-  if (open && trackingNumber === "" && initialTrackingNumber !== "" && trackingNumber !== initialTrackingNumber) {
-     setTrackingNumber(initialTrackingNumber);
-  }
-
-  // Effect to reset or set initial value when dialog opens
+  // When dialog opens or initialTrackingNumber changes, reset the input value.
+  // Schedule the update asynchronously to avoid synchronous setState inside the effect.
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const id = window.setTimeout(() => {
       setTrackingNumber(initialTrackingNumber || "");
-    }
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [open, initialTrackingNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,20 +61,21 @@ export function ShipDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+        <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
           <p className="font-semibold flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Stock & Financial Impact
+            {t("stockImpact.title")}
           </p>
-          <p className="mt-1">
-            Shipping this order will:
-          </p>
-          <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
-            <li>Deduct stock from <strong>{t("warehouse")}</strong>.</li>
-            <li>Post <strong>COGS Journal</strong> via Accounting Engine.</li>
+          <p className="mt-1 text-warning/90">{t("stockImpact.description")}</p>
+          <ul className="mt-1 ml-2 list-inside list-disc space-y-0.5 text-warning/90">
+            <li>
+              {t("stockImpact.items.deductStock")}&nbsp;
+              <strong>{t("warehouse")}</strong>.
+            </li>
+            <li>{t("stockImpact.items.postCOGS")}</li>
           </ul>
-          <p className="mt-2 text-[10px] uppercase font-bold tracking-wider opacity-70">
-            Action is atomic and irreversible.
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-warning/80">
+            {t("stockImpact.disclaimer")}
           </p>
         </div>
         <form onSubmit={handleSubmit}>

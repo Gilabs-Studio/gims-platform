@@ -7,7 +7,13 @@ const (
 	StaffRoleID          = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
 	ViewerRoleID         = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
 	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
+	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
+	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
+	AccountantRoleID     = "b8e8a9b0-d1e2-4f3a-5b6c-7d8e9f0a1b2c"
 	AuditorRoleID        = "c9f9b0c1-e2f3-4a5b-6c7d-8e9f0a1b2c3d"
+	AROfficerRoleID      = "d1a1c2d3-e4f5-4a6b-8c9d-0e1f2a3b4c5d"
+	APOfficerRoleID      = "e2b2d3e4-f5a6-4b7c-9d0e-1f2a3b4c5d6e"
+	CashierRoleID        = "f3c3e4f5-a6b7-4c8d-0e1f-2a3b4c5d6e7f"
 	OutletManagerRoleID  = "da0ab1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c" // Outlet-scoped manager role
 )
 
@@ -26,8 +32,8 @@ const (
 // Organization IDs (Fixed)
 const (
 	// Company
-	GiLabsCompanyID    = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
-	MieGacoanCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
+	GiLabsCompanyID     = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+	MieGacoanCompanyID  = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
 	KimiaFarmaCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000002"
 
 	// Divisions
@@ -66,17 +72,17 @@ const (
 
 // Employee IDs (Fixed)
 const (
-	AdminEmployeeID        = "11111111-1111-1111-1111-111111111111"
-	ManagerEmployeeID      = "22222222-2222-2222-2222-222222222222"
-	StaffEmployeeID        = "33333333-3333-3333-3333-333333333333"
-	SalesRep1EmployeeID    = "44444444-4444-4444-4444-444444444444"
-	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
-	FinanceStaffEmployeeID    = "66666666-6666-6666-6666-666666666666"
-	HRStaffEmployeeID         = "77777777-7777-7777-7777-777777777777"
-	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1 - Sudirman
-	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2 - Kelapa Gading
-	OutletManager3EmployeeID  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" // Outlet Manager 3 - Kimia Farma Sudirman
-	OutletManager4EmployeeID  = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" // Outlet Manager 4 - Kimia Farma Pondok Indah
+	AdminEmployeeID          = "11111111-1111-1111-1111-111111111111"
+	ManagerEmployeeID        = "22222222-2222-2222-2222-222222222222"
+	StaffEmployeeID          = "33333333-3333-3333-3333-333333333333"
+	SalesRep1EmployeeID      = "44444444-4444-4444-4444-444444444444"
+	SalesRep2EmployeeID      = "55555555-5555-5555-5555-555555555555"
+	FinanceStaffEmployeeID   = "66666666-6666-6666-6666-666666666666"
+	HRStaffEmployeeID        = "77777777-7777-7777-7777-777777777777"
+	OutletManager1EmployeeID = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1 - Sudirman
+	OutletManager2EmployeeID = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2 - Kelapa Gading
+	OutletManager3EmployeeID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" // Outlet Manager 3 - Kimia Farma Sudirman
+	OutletManager4EmployeeID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" // Outlet Manager 4 - Kimia Farma Pondok Indah
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)
@@ -96,6 +102,12 @@ const (
 	Customer4ID = "c0000002-0000-0000-0000-000000000004" // RS Siloam Hospitals Surabaya
 	Customer5ID = "c0000002-0000-0000-0000-000000000005" // Apotek Kimia Farma Cabang Bekasi
 	Customer6ID = "c0000002-0000-0000-0000-000000000006" // Puskesmas Cempaka Putih
+)
+
+// Loyalty member IDs (Fixed - hex only: 0-9, a-f)
+const (
+	LoyaltyMember1ID = "d0000001-0000-0000-0000-000000000001"
+	LoyaltyMember2ID = "d0000001-0000-0000-0000-000000000002"
 )
 
 // Outlet IDs (Fixed - hex only: 0-9, a-f)

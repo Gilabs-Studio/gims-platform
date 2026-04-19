@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type BudgetListParams struct {
@@ -47,13 +48,25 @@ func (r *budgetRepository) FindByID(ctx context.Context, id string, withItems bo
 	return &item, nil
 }
 
-var budgetAllowedSort = map[string]string{
-	"created_at":   "budgets.created_at",
-	"updated_at":   "budgets.updated_at",
-	"start_date":   "budgets.start_date",
-	"end_date":     "budgets.end_date",
-	"status":       "budgets.status",
-	"total_amount": "budgets.total_amount",
+var budgetAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "budgets", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "budgets", Name: "updated_at"},
+	},
+	"start_date": {
+		Column: clause.Column{Table: "budgets", Name: "start_date"},
+	},
+	"end_date": {
+		Column: clause.Column{Table: "budgets", Name: "end_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "budgets", Name: "status"},
+	},
+	"total_amount": {
+		Column: clause.Column{Table: "budgets", Name: "total_amount"},
+	},
 }
 
 func (r *budgetRepository) List(ctx context.Context, params BudgetListParams) ([]financeModels.Budget, int64, error) {
@@ -81,14 +94,16 @@ func (r *budgetRepository) List(ctx context.Context, params BudgetListParams) ([
 	}
 
 	sortCol := budgetAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = budgetAllowedSort["start_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

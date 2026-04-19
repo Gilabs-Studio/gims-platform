@@ -132,6 +132,34 @@ func TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain(t *testi
 	require.Nil(t, types)
 }
 
+func TestBuildOpeningBalanceLines_ShouldDebitAccountCreditEquity_ForAsset(t *testing.T) {
+	t.Parallel()
+
+	lines := buildOpeningBalanceLines("coa-asset", financeModels.AccountTypeAsset, 1000, "coa-equity")
+
+	require.Len(t, lines, 2)
+	require.Equal(t, "coa-asset", lines[0].ChartOfAccountID)
+	require.Equal(t, 1000.0, lines[0].Debit)
+	require.Equal(t, 0.0, lines[0].Credit)
+	require.Equal(t, "coa-equity", lines[1].ChartOfAccountID)
+	require.Equal(t, 0.0, lines[1].Debit)
+	require.Equal(t, 1000.0, lines[1].Credit)
+}
+
+func TestBuildOpeningBalanceLines_ShouldDebitEquityCreditAccount_ForLiability(t *testing.T) {
+	t.Parallel()
+
+	lines := buildOpeningBalanceLines("coa-liability", financeModels.AccountTypeLiability, 2500, "coa-equity")
+
+	require.Len(t, lines, 2)
+	require.Equal(t, "coa-equity", lines[0].ChartOfAccountID)
+	require.Equal(t, 2500.0, lines[0].Debit)
+	require.Equal(t, 0.0, lines[0].Credit)
+	require.Equal(t, "coa-liability", lines[1].ChartOfAccountID)
+	require.Equal(t, 0.0, lines[1].Debit)
+	require.Equal(t, 2500.0, lines[1].Credit)
+}
+
 type stubChartOfAccountRepository struct {
 	items []financeModels.ChartOfAccount
 }
@@ -177,6 +205,39 @@ func (s stubChartOfAccountRepository) FindByCode(ctx context.Context, code strin
 	return nil, gorm.ErrRecordNotFound
 }
 
+func (s stubChartOfAccountRepository) GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	return s.FindByCode(ctx, code)
+}
+
+func (s stubChartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
+	for _, item := range s.items {
+		if item.Code == "39999" {
+			return &item, nil
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (s stubChartOfAccountRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) HasJournalLines(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) IsUsedInJournal(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) UpdateIsPostable(ctx context.Context, id string, isPostable bool) error {
+	return nil
+}
+
+func (s stubChartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context) error {
+	return nil
+}
+
 type stubFinanceReportRepository struct {
 	balances       []repositories.GLAccountBalance
 	lines          []financeModels.JournalLine
@@ -188,11 +249,27 @@ func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Ti
 	return s.balances, nil
 }
 
-func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string) ([]financeModels.JournalLine, error) {
+func (s stubFinanceReportRepository) GetAccountBalancesByAccounts(_ context.Context, accountIDs []string, _ time.Time, _ time.Time, _ *string, _ *string) (map[string]repositories.GLAccountBalance, error) {
+	result := make(map[string]repositories.GLAccountBalance, len(accountIDs))
+	byID := make(map[string]repositories.GLAccountBalance, len(s.balances))
+	for _, b := range s.balances {
+		byID[b.ChartOfAccountID] = b
+	}
+	for _, id := range accountIDs {
+		if item, ok := byID[id]; ok {
+			result[id] = item
+			continue
+		}
+		result[id] = repositories.GLAccountBalance{ChartOfAccountID: id}
+	}
+	return result, nil
+}
+
+func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string, *string) ([]financeModels.JournalLine, error) {
 	return s.lines, nil
 }
 
-func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string) (float64, error) {
+func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string, _ *string) (float64, error) {
 	if s.getNetProfitFn != nil {
 		return s.getNetProfitFn(startDate, endDate), nil
 	}
@@ -216,7 +293,7 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
+	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, false)
 
 	require.NoError(t, err)
 	require.Len(t, res.Assets, 1)
@@ -245,7 +322,7 @@ func TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements(t *test
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil)
+	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil, nil)
 
 	require.NoError(t, err)
 	require.Len(t, res.Revenues, 1)
@@ -273,11 +350,11 @@ func TestFinanceReportUsecase_ShouldRespectIncludeZeroFlag_InBalanceSheet(t *tes
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
+	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, false)
 	require.NoError(t, err)
 	require.Len(t, hideZero.Assets, 1)
 
-	showZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, true)
+	showZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, true)
 	require.NoError(t, err)
 	require.Len(t, showZero.Assets, 2)
 }
@@ -308,7 +385,7 @@ func TestFinanceReportUsecase_ShouldComposeFinalEquity_FromRetainedAndCurrentPro
 	}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, false)
+	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 700.0, res.EquityTotal)
 	require.Equal(t, 200.0, res.RetainedEarnings)

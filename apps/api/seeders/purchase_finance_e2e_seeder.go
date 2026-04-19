@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -27,8 +27,8 @@ import (
 // SeedPurchaseFinanceE2E creates realistic end-to-end Purchase and Finance data
 // spanning 2025 (historical) and 2026 (current year) with correct business flows:
 //
-//	PR → PO → GR → Supplier Invoice → Payment
-//	     ↓        ↓           ↓            ↓
+//	PR  PO  GR  Supplier Invoice  Payment
+//	                                    
 //	  Journal  Stock+Journal  AP Journal  Payment Journal
 //
 // Also seeds: Down Payments, Revenue journals, Expense journals,
@@ -43,7 +43,7 @@ func SeedPurchaseFinanceE2E() error {
 			log.Println("Minimal Purchase-Finance data already seeded, skipping...")
 			return nil
 		}
-		log.Println("Seeding minimal Purchase → Finance flow (PO → GR → SI → PAY)...")
+		log.Println("Seeding minimal Purchase  Finance flow (PO  GR  SI  PAY)...")
 		return db.Transaction(func(tx *gorm.DB) error {
 			adminID := getAdminID(tx)
 
@@ -74,11 +74,11 @@ func SeedPurchaseFinanceE2E() error {
 			}
 
 			// COA mapping
-			invCOA := getCOAID(tx, "11400")
-			grirCOA := getCOAID(tx, "21100")
-			apCOA := getCOAID(tx, "21000")
-			vatCOA := getCOAID(tx, "11800")
-			bankCOA := getCOAID(tx, "11100")
+			invCOA := getCOAID(tx, "11310")
+			grirCOA := getCOAID(tx, "11440")
+			apCOA := getCOAID(tx, "21100")
+			vatCOA := getCOAID(tx, "11420")
+			bankCOA := getCOAID(tx, "11101")
 
 			now := time.Now()
 			if err := seedMinimalPurchaseFlow(tx, purchaseFlowInput{
@@ -155,10 +155,10 @@ func SeedPurchaseFinanceE2E() error {
 		return nil
 	}
 
-	log.Println("Seeding comprehensive Purchase → Finance E2E data (2025-2026)...")
+	log.Println("Seeding comprehensive Purchase  Finance E2E data (2025-2026)...")
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		// ─────────────────── Dependencies ───────────────────
+		//  Dependencies 
 
 		adminID := getAdminID(tx)
 
@@ -198,18 +198,10 @@ func SeedPurchaseFinanceE2E() error {
 			return nil
 		}
 
-		// ─────────────────── Ensure extra COA ───────────────────
+		//  Ensure extra COA 
 		extraCOA := []financeModels.ChartOfAccount{
-			{Code: "31000", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
-			{Code: "32000", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
-			{Code: "4200", Name: "Service Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
-			{Code: "5100", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6300", Name: "Salary Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6400", Name: "Rent Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6500", Name: "Utility Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6600", Name: "Marketing Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeCashBank, IsActive: true},
-			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeCashBank, IsActive: true},
+			{Code: "71900", Name: "Pendapatan Lain-lain", Type: financeModels.AccountTypeRevenue, IsActive: true},
+			{Code: "81200", Name: "Beban Administrasi Bank", Type: financeModels.AccountTypeExpense, IsActive: true},
 		}
 		for i := range extraCOA {
 			tx.Clauses(clause.OnConflict{
@@ -226,22 +218,22 @@ func SeedPurchaseFinanceE2E() error {
 			return c.ID
 		}
 
-		invCOA := getCOA("11400")  // Inventory
-		grirCOA := getCOA("21100") // GR/IR Clearing
-		apCOA := getCOA("21000")   // AP
-		vatCOA := getCOA("11800")  // VAT Input
-		cashCOA := getCOA("11100") // Cash
-		salesCOA := getCOA("4100") // Sales Revenue
-		serviceCOA := getCOA("4200")
-		cogsCOA := getCOA("5100")
-		salaryCOA := getCOA("6300")
-		rentCOA := getCOA("6400")
-		utilityCOA := getCOA("6500")
-		marketingCOA := getCOA("6600")
+		invCOA := getCOA("11310")   // Inventory
+		grirCOA := getCOA("11440")  // GR/IR Clearing
+		apCOA := getCOA("21100")    // AP
+		vatCOA := getCOA("11420")   // VAT Input
+		cashCOA := getCOA("11101")  // Cash
+		salesCOA := getCOA("41100") // Sales Revenue
+		serviceCOA := getCOA("71900")
+		cogsCOA := getCOA("51000")
+		salaryCOA := getCOA("62100")
+		rentCOA := getCOA("62200")
+		utilityCOA := getCOA("62310")
+		marketingCOA := getCOA("61200")
 		capitalCOA := getCOA("31000")
-		retainedCOA := getCOA("32000")
-		arCOA := getCOA("1100")
-		bankBcaCOA := getCOA("11200")
+		retainedCOA := getCOA("33000")
+		arCOA := getCOA("11210")
+		bankBcaCOA := getCOA("11111")
 
 		// Get bank's linked COA if available
 		bankCOA := cashCOA
@@ -249,7 +241,7 @@ func SeedPurchaseFinanceE2E() error {
 			bankCOA = *bankAccount.ChartOfAccountID
 		}
 
-		// ─────────────────── HISTORICAL DATA: 2025 (full year) ───────────────────
+		//  HISTORICAL DATA: 2025 (full year) 
 
 		type purchaseScenario struct {
 			month    int
@@ -266,7 +258,7 @@ func SeedPurchaseFinanceE2E() error {
 		}
 
 		scenarios2025 := []purchaseScenario{
-			// 2025 — 3 historical records with diverse statuses
+			// 2025  3 historical records with diverse statuses
 			{3, "001", 30, 45000, 11, "PAID", 1.0, 0, 0, true, 500000},
 			{7, "002", 50, 62000, 11, "PAID", 1.0, 1, 1, false, 0},
 			{11, "003", 40, 48000, 11, "PARTIAL", 0.6, 2, 2, false, 0},
@@ -303,10 +295,10 @@ func SeedPurchaseFinanceE2E() error {
 			}
 		}
 
-		// ─────────────────── CURRENT YEAR: 2026 ───────────────────
+		//  CURRENT YEAR: 2026 
 
 		scenarios2026 := []purchaseScenario{
-			// 2026 — early-stage POs only (DRAFT/SUBMITTED); no GR/SI created
+			// 2026  early-stage POs only (DRAFT/SUBMITTED); no GR/SI created
 			{1, "001", 30, 58000, 11, "DRAFT", 0, 0, 0, false, 0},
 			{2, "002", 20, 72000, 11, "SUBMITTED", 0, 1, 1, false, 0},
 		}
@@ -319,7 +311,7 @@ func SeedPurchaseFinanceE2E() error {
 				qty:         sc.qty,
 				price:       sc.price,
 				taxRate:     sc.taxRate,
-				poStatus:    sc.status, // "DRAFT" or "SUBMITTED" — GR/SI skipped automatically
+				poStatus:    sc.status, // "DRAFT" or "SUBMITTED"  GR/SI skipped automatically
 				payRatio:    sc.payRatio,
 				product:     products[sc.prodIdx%len(products)],
 				supplier:    suppliers[sc.suppIdx%len(suppliers)],
@@ -340,7 +332,7 @@ func SeedPurchaseFinanceE2E() error {
 			}
 		}
 
-		// ─────────────────── REVENUE JOURNALS (2025-2026) ───────────────────
+		//  REVENUE JOURNALS (2025-2026) 
 
 		revenueEntries := []struct {
 			date      time.Time
@@ -402,7 +394,7 @@ func SeedPurchaseFinanceE2E() error {
 				})
 		}
 
-		// ─────────────────── EXPENSE JOURNALS (2025-2026) ───────────────────
+		//  EXPENSE JOURNALS (2025-2026) 
 
 		type monthlyExpense struct {
 			date   time.Time
@@ -507,7 +499,7 @@ func SeedPurchaseFinanceE2E() error {
 				})
 		}
 
-		// ─────────────────── EQUITY JOURNALS ───────────────────
+		//  EQUITY JOURNALS 
 		if capitalCOA != "" && bankBcaCOA != "" {
 			createJournal(tx, time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
 				"Initial Capital Investment", nil, nil, adminID,
@@ -526,7 +518,7 @@ func SeedPurchaseFinanceE2E() error {
 				})
 		}
 
-		// ─────────────────── CUSTOMER PAYMENT COLLECTIONS ───────────────────
+		//  CUSTOMER PAYMENT COLLECTIONS 
 		if arCOA != "" && bankCOA != "" {
 			collections := []struct {
 				date   time.Time
@@ -554,14 +546,14 @@ func SeedPurchaseFinanceE2E() error {
 	})
 }
 
-// ─────────────────── Helpers ───────────────────
+//  Helpers 
 
 type purchaseFlowInput struct {
 	year, month                             int
 	tag                                     string
 	qty, price                              float64
 	taxRate                                 float64
-	poStatus                                string // "DRAFT", "SUBMITTED", "APPROVED" — defaults to APPROVED if empty
+	poStatus                                string // "DRAFT", "SUBMITTED", "APPROVED"  defaults to APPROVED if empty
 	payStatus                               string // "PAID", "PARTIAL", "UNPAID"
 	payRatio                                float64
 	product                                 productModels.Product
@@ -636,7 +628,7 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		PurchaseOrderID: po.ID,
 		SupplierID:      in.supplier.ID,
 		ReceiptDate:     &receiptDate,
-		Status:          purchaseModels.GoodsReceiptStatusClosed, // CLOSED — required for SI creation
+		Status:          purchaseModels.GoodsReceiptStatusClosed, // CLOSED  required for SI creation
 		CreatedBy:       in.adminID,
 		ClosedAt:        &receiptDate,
 		Items: []purchaseModels.GoodsReceiptItem{
@@ -1141,3 +1133,6 @@ func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *str
 		log.Printf("SUCCESS: Created journal entry via usecase for %v (%v)", refTypeValue, refIDValue)
 	}
 }
+
+
+

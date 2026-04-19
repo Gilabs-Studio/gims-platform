@@ -7,6 +7,7 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
+  TrialBalanceParams,
   TrialBalanceResponse,
   UpdateJournalEntryInput,
   ValuationPreview,
@@ -15,9 +16,17 @@ import type {
   CashBankSubLedgerEntry,
   ListCashBankSubLedgerParams,
   CashBankSubLedgerApiResponse,
+  AdjustmentApprovalActionInput,
+  AdjustmentApprovalHistoryItem,
+  JournalTemplate,
+  ListJournalTemplateParams,
+  CreateJournalTemplateInput,
+  UseJournalTemplateResponse,
+  JournalEntryFormDataResponse,
 } from "../types";
 
-const BASE_URL = "/finance/journal-entries";
+const BASE_URL = "/finance/journals";
+const TEMPLATE_BASE_URL = "/finance/journal-templates";
 
 export const financeJournalsService = {
   list: async (
@@ -132,6 +141,14 @@ export const financeJournalsService = {
     return response.data;
   },
 
+  cancel: async (id: string): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/cancel`,
+      null,
+    );
+    return response.data;
+  },
+
   reverse: async (id: string): Promise<ApiResponse<JournalEntry>> => {
     const response = await apiClient.post<ApiResponse<JournalEntry>>(
       `${BASE_URL}/${id}/reverse`,
@@ -170,6 +187,77 @@ export const financeJournalsService = {
   reverseAdjustment: async (id: string): Promise<ApiResponse<JournalEntry>> => {
     const response = await apiClient.post<ApiResponse<JournalEntry>>(
       `${BASE_URL}/adjustment/${id}/reverse`,
+    );
+    return response.data;
+  },
+
+  submitAdjustmentApproval: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/submit-approval`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  approveAdjustment: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/approve`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  rejectAdjustment: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/reject`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  getAdjustmentApprovalHistory: async (
+    id: string,
+  ): Promise<ApiResponse<AdjustmentApprovalHistoryItem[]>> => {
+    const response = await apiClient.get<ApiResponse<AdjustmentApprovalHistoryItem[]>>(
+      `${BASE_URL}/${id}/approvals`,
+    );
+    return response.data;
+  },
+
+  listJournalTemplates: async (
+    params?: ListJournalTemplateParams,
+  ): Promise<ApiResponse<JournalTemplate[]>> => {
+    const response = await apiClient.get<ApiResponse<JournalTemplate[]>>(
+      TEMPLATE_BASE_URL,
+      { params },
+    );
+    return response.data;
+  },
+
+  createJournalTemplate: async (
+    data: CreateJournalTemplateInput,
+  ): Promise<ApiResponse<JournalTemplate>> => {
+    const response = await apiClient.post<ApiResponse<JournalTemplate>>(
+      TEMPLATE_BASE_URL,
+      data,
+    );
+    return response.data;
+  },
+
+  useJournalTemplate: async (
+    id: string,
+  ): Promise<ApiResponse<UseJournalTemplateResponse>> => {
+    const response = await apiClient.post<ApiResponse<UseJournalTemplateResponse>>(
+      `${TEMPLATE_BASE_URL}/${id}/use`,
     );
     return response.data;
   },
@@ -224,10 +312,9 @@ export const financeJournalsService = {
     return response.data;
   },
 
-  trialBalance: async (params?: {
-    start_date?: string;
-    end_date?: string;
-  }): Promise<ApiResponse<TrialBalanceResponse>> => {
+  trialBalance: async (
+    params?: TrialBalanceParams,
+  ): Promise<ApiResponse<TrialBalanceResponse>> => {
     const response = await apiClient.get<ApiResponse<TrialBalanceResponse>>(
       `/finance/reports/trial-balance`,
       {
@@ -286,6 +373,15 @@ export const financeJournalsService = {
       `${BASE_URL}/valuation/runs/bulk-approve`,
       { run_ids: runIds },
     );
+    return response.data;
+  },
+
+  getFormData: async (): Promise<
+    ApiResponse<JournalEntryFormDataResponse>
+  > => {
+    const response = await apiClient.get<
+      ApiResponse<JournalEntryFormDataResponse>
+    >(`${BASE_URL}/form-data`);
     return response.data;
   },
 };

@@ -22,11 +22,11 @@ import (
 )
 
 // SeedIntegrationFlow creates a coherent dataset that demonstrates cross-module
-// relations Purchase → Stock → Sales → Finance.
+// relations Purchase  Stock  Sales  Finance.
 func SeedIntegrationFlow() error {
 	db := database.DB
 
-	log.Println("Seeding enhanced integration flow (purchase → stock → sales → finance)...")
+	log.Println("Seeding enhanced integration flow (purchase  stock  sales  finance)...")
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Admin user
@@ -45,6 +45,12 @@ func SeedIntegrationFlow() error {
 		adminID := adminUser.ID
 		if adminID == "" {
 			adminID = "00000000-0000-0000-0000-000000000000"
+		}
+
+		companyID, err := findPTGiLabsCompanyID(tx)
+		if err != nil {
+			log.Printf("Skipping integration_flow_seeder.go due to missing company dependency: %v", err)
+			return nil
 		}
 
 		// 2) Get common dependencies
@@ -107,7 +113,7 @@ func SeedIntegrationFlow() error {
 				continue
 			}
 
-			// A) Purchase Order — status is varied per index to cover all flow states.
+			// A) Purchase Order  status is varied per index to cover all flow states.
 			poQty := 10.0 + float64(i*5)
 			poPrice := prod.CostPrice
 			if poPrice <= 0 {
@@ -213,10 +219,11 @@ func SeedIntegrationFlow() error {
 			}
 
 			// 3. Journal: Dr Inventory / Cr GR-IR
-			invCoa := getCOA(tx, "11400")
-			grirCoa := getCOA(tx, "21100")
+			invCoa := getCOA(tx, "11310")
+			grirCoa := getCOA(tx, "11440")
 			if invCoa != "" && grirCoa != "" {
 				je := financeModels.JournalEntry{
+					CompanyID:     companyID,
 					EntryDate:     receiptDate,
 					Description:   fmt.Sprintf("Accrual for %s", gr.Code),
 					ReferenceType: stringPtr("GoodsReceipt"),
@@ -263,10 +270,11 @@ func SeedIntegrationFlow() error {
 			}
 
 			// RECORDING: AP JOURNAL (Dr GR/IR, Dr VAT / Cr AP)
-			apCoa := getCOA(tx, "21000")
-			vatCoa := getCOA(tx, "11800")
+			apCoa := getCOA(tx, "21100")
+			vatCoa := getCOA(tx, "11420")
 			if apCoa != "" && grirCoa != "" && vatCoa != "" {
 				je := financeModels.JournalEntry{
+					CompanyID:     companyID,
 					EntryDate:     receiptDate,
 					Description:   fmt.Sprintf("AP Invoice %s", si.Code),
 					ReferenceType: stringPtr("SupplierInvoice"),
@@ -282,7 +290,7 @@ func SeedIntegrationFlow() error {
 				_ = tx.Create(&je).Error
 			}
 
-			// D) Purchase Payment (Triggers Payment Journal) — only for the last two APPROVED sets.
+			// D) Purchase Payment (Triggers Payment Journal)  only for the last two APPROVED sets.
 			if i >= 4 {
 				pp := purchaseModels.PurchasePayment{
 					SupplierInvoiceID: si.ID,
@@ -314,11 +322,12 @@ func SeedIntegrationFlow() error {
 				if baItem.ChartOfAccountID != nil {
 					cashCoa = *baItem.ChartOfAccountID
 				} else {
-					cashCoa = getCOA(tx, "11100")
+					cashCoa = getCOA(tx, "11101")
 				}
 
 				if apCoa != "" && cashCoa != "" {
 					je := financeModels.JournalEntry{
+						CompanyID:     companyID,
 						EntryDate:     now,
 						Description:   fmt.Sprintf("Payment for %s", si.Code),
 						ReferenceType: stringPtr("PurchasePayment"),
@@ -486,8 +495,14 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 			adminID = "00000000-0000-0000-0000-000000000000"
 		}
 
+		companyID, err := findPTGiLabsCompanyID(tx)
+		if err != nil {
+			return err
+		}
+
 		refType := "SupplierInvoice"
 		je := financeModels.JournalEntry{
+			CompanyID:     companyID,
 			EntryDate:     time.Now(),
 			Description:   "Integration seed(backfill): Supplier invoice journal",
 			ReferenceType: &refType,

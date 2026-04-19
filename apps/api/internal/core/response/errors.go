@@ -4,15 +4,20 @@ import "net/http"
 
 // Standard Error Codes
 const (
-	ErrCodeValidationError    = "VALIDATION_ERROR"
-	ErrCodeUnauthorized       = "UNAUTHORIZED"
-	ErrCodeForbidden          = "FORBIDDEN"
-	ErrCodeNotFound           = "NOT_FOUND"
-	ErrCodeConflict           = "CONFLICT"
-	ErrCodeInternalServerError = "INTERNAL_SERVER_ERROR"
-	ErrCodeServiceUnavailable = "SERVICE_UNAVAILABLE"
-	ErrCodeBadRequest         = "BAD_REQUEST"
-	ErrCodeQueryTimeout       = "QUERY_TIMEOUT"
+	ErrCodeValidationError        = "VALIDATION_ERROR"
+	ErrCodeUnauthorized           = "UNAUTHORIZED"
+	ErrCodeForbidden              = "FORBIDDEN"
+	ErrCodeNotFound               = "NOT_FOUND"
+	ErrCodeConflict               = "CONFLICT"
+	ErrCodeConcurrentLockConflict = "CONCURRENT_LOCK_CONFLICT"
+	ErrCodeAccountNotPostable     = "ACCOUNT_NOT_POSTABLE"
+	ErrCodeAccountInactive        = "ACCOUNT_INACTIVE"
+	ErrCodePeriodClosed           = "PERIOD_CLOSED"
+	ErrCodeMappingNotConfigured   = "MAPPING_NOT_CONFIGURED"
+	ErrCodeInternalServerError    = "INTERNAL_SERVER_ERROR"
+	ErrCodeServiceUnavailable     = "SERVICE_UNAVAILABLE"
+	ErrCodeBadRequest             = "BAD_REQUEST"
+	ErrCodeQueryTimeout           = "QUERY_TIMEOUT"
 )
 
 // ErrorInfo structure for error definition
@@ -48,6 +53,31 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusConflict,
 		Message:    "Resource conflict",
 		Code:       ErrCodeConflict,
+	},
+	ErrCodeConcurrentLockConflict: {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Concurrent update conflict",
+		Code:       ErrCodeConcurrentLockConflict,
+	},
+	ErrCodeAccountNotPostable: {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Selected account is not postable",
+		Code:       ErrCodeAccountNotPostable,
+	},
+	ErrCodeAccountInactive: {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Selected account is inactive",
+		Code:       ErrCodeAccountInactive,
+	},
+	ErrCodePeriodClosed: {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Accounting period is closed",
+		Code:       ErrCodePeriodClosed,
+	},
+	ErrCodeMappingNotConfigured: {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Required system account mapping is not configured",
+		Code:       ErrCodeMappingNotConfigured,
 	},
 	ErrCodeInternalServerError: {
 		HTTPStatus: http.StatusInternalServerError,

@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
                 : "img-src 'self' https: data: blob:",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "script-src-elem 'self' 'unsafe-inline'",
+              "worker-src 'self' blob:",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               // Allow localhost connections in development for API calls

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -399,6 +400,15 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 
 // GetInventoryMetrics returns high-level inventory summary for owner/admin dashboards
 func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.InventoryMetrics, error) {
+	permissionScope, _ := ctx.Value("permission_scope").(string)
+	permissionScope = strings.ToUpper(strings.TrimSpace(permissionScope))
+	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
+	warehouseScoped := permissionScope == "WAREHOUSE"
+
+	if warehouseScoped && len(warehouseIDs) == 0 {
+		return &dto.InventoryMetrics{}, nil
+	}
+
 	// CTE to aggregate product-warehouse stock levels
 	metricsQuery := `
 		WITH stock_levels AS (
@@ -413,6 +423,13 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 			JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL
 			JOIN warehouses w ON w.id = ib.warehouse_id AND w.deleted_at IS NULL
 			WHERE p.deleted_at IS NULL
+	`
+	metricsArgs := make([]interface{}, 0, 1)
+	if warehouseScoped {
+		metricsQuery += "\n\t\t\tAND w.id IN ?"
+		metricsArgs = append(metricsArgs, warehouseIDs)
+	}
+	metricsQuery += `
 			GROUP BY w.id, p.id, p.min_stock, p.max_stock
 		)
 		SELECT
@@ -439,7 +456,7 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 	}
 
 	var raw rawMetrics
-	if err := r.DB(ctx).Raw(metricsQuery).Scan(&raw).Error; err != nil {
+	if err := r.DB(ctx).Raw(metricsQuery, metricsArgs...).Scan(&raw).Error; err != nil {
 		return nil, err
 	}
 
@@ -447,13 +464,19 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 	var expiringCount int64
 	var expiredCount int64
 
-	r.DB(ctx).Table("inventory_batches").
-		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'").
-		Count(&expiringCount)
+	expiringQuery := r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'")
+	if warehouseScoped {
+		expiringQuery = expiringQuery.Where("warehouse_id IN ?", warehouseIDs)
+	}
+	expiringQuery.Count(&expiringCount)
 
-	r.DB(ctx).Table("inventory_batches").
-		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date < CURRENT_DATE").
-		Count(&expiredCount)
+	expiredQuery := r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date < CURRENT_DATE")
+	if warehouseScoped {
+		expiredQuery = expiredQuery.Where("warehouse_id IN ?", warehouseIDs)
+	}
+	expiredQuery.Count(&expiredCount)
 
 	return &dto.InventoryMetrics{
 		TotalItems:           raw.TotalItems,
@@ -519,8 +542,14 @@ func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID
 }
 
 func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
+	batchID := strings.TrimSpace(req.InventoryBatchID)
+	var inventoryBatchID *string
+	if batchID != "" {
+		inventoryBatchID = &batchID
+	}
+
 	movement := models.StockMovement{
-		InventoryBatchID: &req.InventoryBatchID,
+		InventoryBatchID: inventoryBatchID,
 		ProductID:        req.ProductID,
 		WarehouseID:      req.WarehouseID,
 		MovementType:     models.StockMovementType(req.Type),

@@ -14,6 +14,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"github.com/google/uuid"
@@ -32,8 +33,11 @@ type AssetUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.AssetResponse, error)
 	List(ctx context.Context, req *dto.ListAssetsRequest) ([]dto.AssetResponse, int64, error)
 	Depreciate(ctx context.Context, id string, req *dto.DepreciateAssetRequest) (*dto.AssetResponse, error)
+	PreviewBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationPreviewResponse, error)
+	RunBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
 	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
+	PreviewDisposal(ctx context.Context, id string, req *dto.PreviewDisposalRequest) (*dto.PreviewDisposalResponse, error)
 	Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error)
 	Sell(ctx context.Context, id string, req *dto.SellAssetRequest) (*dto.AssetResponse, error)
 	Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error)
@@ -65,6 +69,7 @@ type assetUsecase struct {
 	auditLogRepo   repositories.AssetAuditLogRepository
 	assignmentRepo repositories.AssetAssignmentRepository
 	mapper         *mapper.AssetMapper
+	journalUC      JournalEntryUsecase
 }
 
 func NewAssetUsecase(
@@ -77,12 +82,17 @@ func NewAssetUsecase(
 	attachmentRepo repositories.AssetAttachmentRepository,
 	auditLogRepo repositories.AssetAuditLogRepository,
 	assignmentRepo repositories.AssetAssignmentRepository,
+	journalUC ...JournalEntryUsecase,
 ) AssetUsecase {
-	return &assetUsecase{
+	uc := &assetUsecase{
 		db: db, coaRepo: coaRepo, catRepo: catRepo, locRepo: locRepo,
 		repo: repo, mapper: mapper,
 		attachmentRepo: attachmentRepo, auditLogRepo: auditLogRepo, assignmentRepo: assignmentRepo,
 	}
+	if len(journalUC) > 0 {
+		uc.journalUC = journalUC[0]
+	}
+	return uc
 }
 
 func parseAssetDateStrict(value string) (time.Time, error) {
@@ -99,6 +109,180 @@ func ymPeriod(t time.Time) string {
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
+}
+
+func normalizeCurrencyCode(raw string) string {
+	code := strings.ToUpper(strings.TrimSpace(raw))
+	if len(code) != 3 {
+		return "IDR"
+	}
+	for _, ch := range code {
+		if ch < 'A' || ch > 'Z' {
+			return "IDR"
+		}
+	}
+	return code
+}
+
+func currencyCodeFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return "IDR"
+	}
+	ctxCurrencyCode, _ := ctx.Value("currency_code").(string)
+	return normalizeCurrencyCode(ctxCurrencyCode)
+}
+
+func (uc *assetUsecase) resolveCompanyIDForDepreciation(
+	ctx context.Context,
+	assetCompanyID *string,
+	actorID string,
+) (string, error) {
+	candidateIDs := make([]string, 0, 3)
+
+	if assetCompanyID != nil {
+		candidateIDs = append(candidateIDs, strings.TrimSpace(*assetCompanyID))
+	}
+
+	ctxCompanyID, _ := ctx.Value("company_id").(string)
+	candidateIDs = append(candidateIDs, strings.TrimSpace(ctxCompanyID))
+
+	if actorID != "" {
+		var employee struct {
+			CompanyID *string `gorm:"column:company_id"`
+		}
+		err := uc.db.WithContext(ctx).
+			Table("employees").
+			Select("company_id").
+			Where("user_id = ? AND deleted_at IS NULL", actorID).
+			Order("updated_at desc").
+			Limit(1).
+			Take(&employee).Error
+		if err == nil && employee.CompanyID != nil {
+			candidateIDs = append(candidateIDs, strings.TrimSpace(*employee.CompanyID))
+		}
+	}
+
+	for _, candidateID := range candidateIDs {
+		if candidateID == "" {
+			continue
+		}
+		if _, err := uuid.Parse(candidateID); err == nil {
+			return candidateID, nil
+		}
+	}
+
+	return "", errors.New("asset company_id is required for depreciation journal")
+}
+
+func batchDepreciationDate(year int, month int) (time.Time, error) {
+	if month < 1 || month > 12 {
+		return time.Time{}, errors.New("period_month must be between 1 and 12")
+	}
+	if year < 1900 || year > 3000 {
+		return time.Time{}, errors.New("period_year is out of valid range")
+	}
+	return time.Date(year, time.Month(month), 1, 0, 0, 0, 0, apptime.Location()), nil
+}
+
+func (uc *assetUsecase) computeBatchDepreciationPreviewItem(
+	ctx context.Context,
+	asset *financeModels.Asset,
+	period string,
+	currencyCode string,
+) dto.BatchDepreciationPreviewItem {
+	item := dto.BatchDepreciationPreviewItem{
+		AssetID:      asset.ID,
+		AssetCode:    asset.Code,
+		AssetName:    asset.Name,
+		CurrencyCode: currencyCode,
+	}
+
+	if asset.Category == nil {
+		item.SkipReason = "asset category not found"
+		return item
+	}
+
+	cat := asset.Category
+	item.Method = string(cat.DepreciationMethod)
+
+	if !asset.CanDepreciate() {
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "asset cannot be depreciated"
+		return item
+	}
+
+	var existing financeModels.AssetDepreciation
+	err := uc.db.WithContext(ctx).
+		Where("asset_id = ? AND period = ?", asset.ID, period).
+		First(&existing).Error
+	if err == nil {
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "already depreciated for this period"
+		return item
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "failed to check existing depreciation"
+		return item
+	}
+
+	remainingFloor := math.Max(0, asset.BookValue-asset.SalvageValue)
+	if remainingFloor <= 0.000001 {
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "asset is fully depreciated"
+		return item
+	}
+
+	amount := 0.0
+	switch cat.DepreciationMethod {
+	case financeModels.DepreciationMethodStraightLine:
+		lifeMonths := asset.GetUsefulLifeMonths()
+		if lifeMonths <= 0 {
+			item.OpeningBookValue = round2(asset.BookValue)
+			item.ProjectedBookValue = round2(asset.BookValue)
+			item.SkipReason = "invalid useful_life_months"
+			return item
+		}
+		base := asset.AcquisitionCost - asset.SalvageValue
+		if base < 0 {
+			base = 0
+		}
+		amount = base / float64(lifeMonths)
+	case financeModels.DepreciationMethodDecliningBalance:
+		if cat.DepreciationRate <= 0 {
+			item.OpeningBookValue = round2(asset.BookValue)
+			item.ProjectedBookValue = round2(asset.BookValue)
+			item.SkipReason = "depreciation_rate is required for declining balance"
+			return item
+		}
+		amount = asset.BookValue * cat.DepreciationRate
+	default:
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "unsupported depreciation_method"
+		return item
+	}
+
+	amount = round2(amount)
+	if amount <= 0 {
+		item.OpeningBookValue = round2(asset.BookValue)
+		item.ProjectedBookValue = round2(asset.BookValue)
+		item.SkipReason = "depreciation amount must be > 0"
+		return item
+	}
+	if amount > remainingFloor {
+		amount = round2(remainingFloor)
+	}
+
+	item.OpeningBookValue = round2(asset.BookValue)
+	item.DepreciationAmount = amount
+	item.ProjectedBookValue = round2(asset.BookValue - amount)
+	item.Eligible = true
+	return item
 }
 
 func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest) (*dto.AssetResponse, error) {
@@ -513,6 +697,156 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 	return &res, nil
 }
 
+func (uc *assetUsecase) PreviewBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationPreviewResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	depreciationDate, err := batchDepreciationDate(req.PeriodYear, req.PeriodMonth)
+	if err != nil {
+		return nil, err
+	}
+	period := ymPeriod(depreciationDate)
+
+	var assets []financeModels.Asset
+	q := uc.db.WithContext(ctx).
+		Model(&financeModels.Asset{}).
+		Preload("Category").
+		Where("status = ?", financeModels.AssetStatusActive)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+	if err := q.Order("code asc").Find(&assets).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.BatchDepreciationPreviewItem, 0, len(assets))
+	eligible := 0
+	skipped := 0
+	currencyCode := currencyCodeFromContext(ctx)
+	for i := range assets {
+		item := uc.computeBatchDepreciationPreviewItem(ctx, &assets[i], period, currencyCode)
+		if item.Eligible {
+			eligible++
+		} else {
+			skipped++
+		}
+		items = append(items, item)
+	}
+
+	return &dto.BatchDepreciationPreviewResponse{
+		PeriodMonth: req.PeriodMonth,
+		PeriodYear:  req.PeriodYear,
+		CurrencyCode: currencyCode,
+		TotalAssets: len(items),
+		Eligible:    eligible,
+		Skipped:     skipped,
+		Items:       items,
+	}, nil
+}
+
+func (uc *assetUsecase) RunBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationRunResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	depreciationDate, err := batchDepreciationDate(req.PeriodYear, req.PeriodMonth)
+	if err != nil {
+		return nil, err
+	}
+	period := ymPeriod(depreciationDate)
+
+	preview, err := uc.PreviewBatchDepreciation(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.BatchDepreciationRunItem, 0, len(preview.Items))
+	posted := 0
+	skipped := 0
+	failed := 0
+	currencyCode := preview.CurrencyCode
+	if currencyCode == "" {
+		currencyCode = currencyCodeFromContext(ctx)
+	}
+
+	for _, p := range preview.Items {
+		runItem := dto.BatchDepreciationRunItem{
+			AssetID:      p.AssetID,
+			AssetCode:    p.AssetCode,
+			AssetName:    p.AssetName,
+			CurrencyCode: p.CurrencyCode,
+			Amount:       p.DepreciationAmount,
+		}
+		if runItem.CurrencyCode == "" {
+			runItem.CurrencyCode = currencyCode
+		}
+
+		if !p.Eligible {
+			runItem.Status = "skipped"
+			runItem.Reason = p.SkipReason
+			skipped++
+			items = append(items, runItem)
+			continue
+		}
+
+		asOfDate := depreciationDate.Format("2006-01-02")
+		if _, err := uc.Depreciate(ctx, p.AssetID, &dto.DepreciateAssetRequest{AsOfDate: asOfDate}); err != nil {
+			runItem.Status = "failed"
+			runItem.Reason = err.Error()
+			failed++
+			items = append(items, runItem)
+			continue
+		}
+
+		var dep financeModels.AssetDepreciation
+		if err := uc.db.WithContext(ctx).
+			Where("asset_id = ? AND period = ?", p.AssetID, period).
+			Order("created_at desc").
+			First(&dep).Error; err != nil {
+			runItem.Status = "failed"
+			runItem.Reason = "failed to load depreciation record"
+			failed++
+			items = append(items, runItem)
+			continue
+		}
+
+		if _, err := uc.ApproveDepreciation(ctx, dep.ID); err != nil {
+			runItem.Status = "failed"
+			runItem.Reason = err.Error()
+			failed++
+			items = append(items, runItem)
+			continue
+		}
+
+		var approvedDep financeModels.AssetDepreciation
+		_ = uc.db.WithContext(ctx).
+			Select("id", "journal_entry_id").
+			Where("id = ?", dep.ID).
+			First(&approvedDep).Error
+
+		runItem.Status = "posted"
+		runItem.JournalEntryID = approvedDep.JournalEntryID
+		posted++
+		items = append(items, runItem)
+	}
+
+	return &dto.BatchDepreciationRunResponse{
+		PeriodMonth: req.PeriodMonth,
+		PeriodYear:  req.PeriodYear,
+		CurrencyCode: currencyCode,
+		Processed:   len(items),
+		Posted:      posted,
+		Skipped:     skipped,
+		Failed:      failed,
+		Items:       items,
+	}, nil
+}
+
 func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -540,6 +874,35 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		return nil, err
 	}
 
+	companyID, err := uc.resolveCompanyIDForDepreciation(ctx, asset.CompanyID, actorID)
+	if err != nil {
+		return nil, err
+	}
+
+	expenseAccountID := strings.TrimSpace(cat.DepreciationExpenseAccountID)
+	accumulatedDepreciationAccountID := strings.TrimSpace(cat.AccumulatedDepreciationAccountID)
+	if expenseAccountID == "" || accumulatedDepreciationAccountID == "" {
+		return nil, errors.New("asset category depreciation accounts are not configured")
+	}
+	if _, err := uuid.Parse(expenseAccountID); err != nil {
+		return nil, errors.New("depreciation expense account id is invalid")
+	}
+	if _, err := uuid.Parse(accumulatedDepreciationAccountID); err != nil {
+		return nil, errors.New("accumulated depreciation account id is invalid")
+	}
+
+	currencyCode := "IDR"
+	if ctxCurrencyCode, ok := ctx.Value("currency_code").(string); ok {
+		if normalizedCurrency := strings.ToUpper(strings.TrimSpace(ctxCurrencyCode)); normalizedCurrency != "" {
+			currencyCode = normalizedCurrency
+		}
+	}
+
+	var actorIDPtr *string
+	if _, err := uuid.Parse(actorID); err == nil {
+		actorIDPtr = &actorID
+	}
+
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, dep.DepreciationDate); err != nil {
 			return err
@@ -549,14 +912,20 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		refType := reference.RefTypeAssetDepreciation
 
 		je := &financeModels.JournalEntry{
+			CompanyID:     companyID,
 			EntryDate:     dep.DepreciationDate,
 			Description:   fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, dep.Period),
 			ReferenceType: &refType,
 			ReferenceID:   &dep.ID,
 			Status:        financeModels.JournalStatusPosted,
+			JournalType:   financeModels.JournalTypeGeneral,
+			DebitTotal:    dep.Amount,
+			CreditTotal:   dep.Amount,
+			CurrencyCode:  currencyCode,
+			ExchangeRate:  1,
 			PostedAt:      &now,
-			PostedBy:      &actorID,
-			CreatedBy:     &actorID,
+			PostedBy:      actorIDPtr,
+			CreatedBy:     actorIDPtr,
 		}
 		if err := tx.Create(je).Error; err != nil {
 			return err
@@ -564,18 +933,22 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 
 		debit := &financeModels.JournalLine{
 			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.DepreciationExpenseAccountID,
+			ChartOfAccountID: expenseAccountID,
 			Debit:            dep.Amount,
 			Memo:             "Depreciation expense",
 		}
-		tx.Create(debit)
+		if err := tx.Create(debit).Error; err != nil {
+			return err
+		}
 		credit := &financeModels.JournalLine{
 			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.AccumulatedDepreciationAccountID,
+			ChartOfAccountID: accumulatedDepreciationAccountID,
 			Credit:           dep.Amount,
 			Memo:             "Accumulated depreciation",
 		}
-		tx.Create(credit)
+		if err := tx.Create(credit).Error; err != nil {
+			return err
+		}
 
 		if err := tx.Model(&financeModels.AssetDepreciation{}).Where("id = ?", dep.ID).Updates(map[string]interface{}{
 			"status":           financeModels.AssetDepreciationStatusApproved,
@@ -684,6 +1057,74 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 	return &res, nil
 }
 
+func (uc *assetUsecase) disposalGainLossAccount(cat *financeModels.AssetCategory, gainLossAmount float64) *string {
+	if gainLossAmount >= 0 {
+		if cat.DisposalGainAccountID != nil && strings.TrimSpace(*cat.DisposalGainAccountID) != "" {
+			return cat.DisposalGainAccountID
+		}
+		account := cat.DepreciationExpenseAccountID
+		return &account
+	}
+	if cat.DisposalLossAccountID != nil && strings.TrimSpace(*cat.DisposalLossAccountID) != "" {
+		return cat.DisposalLossAccountID
+	}
+	account := cat.DepreciationExpenseAccountID
+	return &account
+}
+
+func (uc *assetUsecase) PreviewDisposal(ctx context.Context, id string, req *dto.PreviewDisposalRequest) (*dto.PreviewDisposalResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrAssetNotFound
+		}
+		return nil, err
+	}
+
+	cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	bookValue := round2(asset.BookValue)
+	if bookValue <= 0 {
+		bookValue = round2(asset.AcquisitionCost - asset.AccumulatedDepreciation)
+	}
+	proceeds := round2(req.ProceedsAmount)
+	gainLoss := round2(proceeds - bookValue)
+	gainLossType := "none"
+	if gainLoss > 0 {
+		gainLossType = "gain"
+	} else if gainLoss < 0 {
+		gainLossType = "loss"
+	}
+
+	return &dto.PreviewDisposalResponse{
+		AssetID:         asset.ID,
+		AssetCode:       asset.Code,
+		AssetName:       asset.Name,
+		DisposalDate:    disposalDate.Format("2006-01-02"),
+		BookValue:       bookValue,
+		ProceedsAmount:  proceeds,
+		GainLossAmount:  gainLoss,
+		GainLossType:    gainLossType,
+		GainLossAccount: uc.disposalGainLossAccount(cat, gainLoss),
+	}, nil
+}
+
 func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -720,6 +1161,19 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 		return &res, nil
 	}
 
+	cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	preview, err := uc.PreviewDisposal(ctx, id, &dto.PreviewDisposalRequest{
+		DisposalDate:   req.DisposalDate,
+		ProceedsAmount: req.ProceedsAmount,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, disposalDate); err != nil {
 			return err
@@ -730,13 +1184,19 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			desc = "Asset disposal request"
 		}
 		tr := &financeModels.AssetTransaction{
-			AssetID:         asset.ID,
-			Type:            financeModels.AssetTransactionTypeDispose,
-			TransactionDate: disposalDate,
-			Description:     desc,
-			Status:          financeModels.AssetTransactionStatusDraft,
-			CreatedBy:       &actorID,
-			CreatedAt:       apptime.Now(),
+			AssetID:                asset.ID,
+			Type:                   financeModels.AssetTransactionTypeDispose,
+			TransactionDate:        disposalDate,
+			Amount:                 req.ProceedsAmount,
+			Description:            desc,
+			Status:                 financeModels.AssetTransactionStatusDraft,
+			ProceedsAmount:         req.ProceedsAmount,
+			BankAccountID:          req.BankAccountID,
+			BookValueAtTransaction: preview.BookValue,
+			GainLossAmount:         preview.GainLossAmount,
+			GainLossAccountID:      uc.disposalGainLossAccount(cat, preview.GainLossAmount),
+			CreatedBy:              &actorID,
+			CreatedAt:              apptime.Now(),
 		}
 		return tx.Create(tr).Error
 	})
@@ -982,7 +1442,10 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 			return err
 		}
 
-		cat, _ := uc.catRepo.FindByID(ctx, asset.CategoryID)
+		cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
+		if err != nil {
+			return err
+		}
 
 		switch tr.Type {
 		case financeModels.AssetTransactionTypeTransfer:
@@ -990,13 +1453,18 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 				tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("location_id", *tr.ReferenceID)
 			}
 		case financeModels.AssetTransactionTypeDispose:
-			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
-				"status":      financeModels.AssetStatusDisposed,
-				"disposed_at": tr.TransactionDate,
-			})
-			// Journal: Debit Cash(100), Credit Asset(Ref: AcquisitionAccountID)
-			// For simplicity, we just use the Asset Account
-			uc.createAssetJournal(tx, asset, &tr, cat.AssetAccountID, "Asset Disposal", tr.Amount, false)
+			if err := tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
+				"status":                   financeModels.AssetStatusDisposed,
+				"disposed_at":              tr.TransactionDate,
+				"book_value":               0,
+				"is_fully_depreciated":     true,
+				"accumulated_depreciation": asset.AccumulatedDepreciation,
+			}).Error; err != nil {
+				return err
+			}
+			if err := uc.postAssetDisposalJournal(tx, asset, &tr, cat, actorID); err != nil {
+				return err
+			}
 
 		case financeModels.AssetTransactionTypeRevalue:
 			oldVal := asset.AcquisitionCost - asset.AccumulatedDepreciation
@@ -1005,16 +1473,22 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 			// Journal: Debit Asset, Credit Revaluation Reserve
 			var revalCoA financeModels.ChartOfAccount
 			if err := tx.Where("name ILIKE ?", "%Cadangan Revaluasi%").First(&revalCoA).Error; err == nil {
-				uc.createAssetJournal(tx, asset, &tr, revalCoA.ID, "Asset Revaluation", diff, true)
+				if err := uc.createAssetJournal(tx, asset, &tr, revalCoA.ID, "Asset Revaluation", diff, true); err != nil {
+					return err
+				}
 			} else {
 				// Fallback to expense if no revaluation reserve found
-				uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Revaluation", diff, true)
+				if err := uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Revaluation", diff, true); err != nil {
+					return err
+				}
 			}
 
 		case financeModels.AssetTransactionTypeAdjust:
 			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("acquisition_cost", asset.AcquisitionCost+tr.Amount)
 			// Journal: Debit Asset, Credit Expense
-			uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Adjustment", tr.Amount, true)
+			if err := uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Adjustment", tr.Amount, true); err != nil {
+				return err
+			}
 		}
 
 		return tx.Model(&financeModels.AssetTransaction{}).Where("id = ?", tr.ID).Updates(map[string]interface{}{
@@ -1032,39 +1506,165 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 	return &resp, nil
 }
 
-func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, contraAccountID string, desc string, amount float64, isDebitAsset bool) {
-	if amount == 0 {
-		return
+func (uc *assetUsecase) postAssetDisposalJournal(
+	tx *gorm.DB,
+	asset *financeModels.Asset,
+	tr *financeModels.AssetTransaction,
+	cat *financeModels.AssetCategory,
+	actorID string,
+) error {
+	if uc.journalUC == nil {
+		return errors.New("journal usecase is not configured")
 	}
-	refType := "asset_transaction"
-	now := apptime.Now()
-	actorID, _ := tx.Statement.Context.Value("user_id").(string)
+	if cat == nil {
+		return errors.New("asset category not found")
+	}
 
-	je := &financeModels.JournalEntry{
-		EntryDate:     tr.TransactionDate,
-		Description:   desc + ": " + asset.Code,
-		ReferenceType: &refType,
-		ReferenceID:   &tr.ID,
-		Status:        financeModels.JournalStatusPosted,
-		PostedAt:      &now,
-		PostedBy:      &actorID,
-		CreatedBy:     &actorID,
+	if strings.TrimSpace(cat.AssetAccountID) == "" {
+		return errors.New("asset account is not configured on category")
 	}
-	tx.Create(je)
+	if strings.TrimSpace(cat.AccumulatedDepreciationAccountID) == "" {
+		return errors.New("accumulated depreciation account is not configured on category")
+	}
+
+	proceeds := math.Abs(tr.ProceedsAmount)
+	gainLoss := tr.GainLossAmount
+	gainLossAbs := math.Abs(gainLoss)
+
+	lines := make([]finDTO.JournalLineRequest, 0, 5)
+
+	if asset.AccumulatedDepreciation > 0 {
+		lines = append(lines, finDTO.JournalLineRequest{
+			ChartOfAccountID: cat.AccumulatedDepreciationAccountID,
+			Debit:            round2(asset.AccumulatedDepreciation),
+			Credit:           0,
+			Memo:             "Clear accumulated depreciation",
+		})
+	}
+
+	if proceeds > 0 {
+		if tr.BankAccountID == nil || strings.TrimSpace(*tr.BankAccountID) == "" {
+			return errors.New("bank_account_id is required when proceeds_amount is greater than zero")
+		}
+		lines = append(lines, finDTO.JournalLineRequest{
+			ChartOfAccountID: *tr.BankAccountID,
+			Debit:            round2(proceeds),
+			Credit:           0,
+			Memo:             "Disposal proceeds",
+		})
+	}
+
+	if gainLoss > 0 {
+		gainAccount := tr.GainLossAccountID
+		if gainAccount == nil || strings.TrimSpace(*gainAccount) == "" {
+			gainAccount = uc.disposalGainLossAccount(cat, gainLoss)
+		}
+		if gainAccount == nil || strings.TrimSpace(*gainAccount) == "" {
+			return errors.New("gain account is not configured for disposal")
+		}
+		lines = append(lines, finDTO.JournalLineRequest{
+			ChartOfAccountID: *gainAccount,
+			Debit:            0,
+			Credit:           round2(gainLossAbs),
+			Memo:             "Gain on disposal",
+		})
+	}
+	if gainLoss < 0 {
+		lossAccount := tr.GainLossAccountID
+		if lossAccount == nil || strings.TrimSpace(*lossAccount) == "" {
+			lossAccount = uc.disposalGainLossAccount(cat, gainLoss)
+		}
+		if lossAccount == nil || strings.TrimSpace(*lossAccount) == "" {
+			return errors.New("loss account is not configured for disposal")
+		}
+		lines = append(lines, finDTO.JournalLineRequest{
+			ChartOfAccountID: *lossAccount,
+			Debit:            round2(gainLossAbs),
+			Credit:           0,
+			Memo:             "Loss on disposal",
+		})
+	}
+
+	lines = append(lines, finDTO.JournalLineRequest{
+		ChartOfAccountID: cat.AssetAccountID,
+		Debit:            0,
+		Credit:           round2(asset.AcquisitionCost),
+		Memo:             "Remove fixed asset cost",
+	})
+
+	refType := reference.RefTypeAssetTransaction
+	refID := tr.ID
+	journalReq := &finDTO.CreateJournalEntryRequest{
+		EntryDate:         tr.TransactionDate.Format("2006-01-02"),
+		Description:       fmt.Sprintf("Asset Disposal: %s", asset.Code),
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	}
+	journal, err := uc.journalUC.PostOrUpdateJournal(database.WithTx(tx.Statement.Context, tx), journalReq)
+	if err != nil {
+		return err
+	}
+
+	if journal != nil {
+		return tx.Model(&financeModels.AssetTransaction{}).
+			Where("id = ?", tr.ID).
+			Updates(map[string]interface{}{
+				"reference_id": journal.ID,
+				"posted_by":    &actorID,
+			}).Error
+	}
+	return nil
+}
+
+func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, contraAccountID string, desc string, amount float64, isDebitAsset bool) error {
+	if amount == 0 {
+		return nil
+	}
+	if uc.journalUC == nil {
+		return errors.New("journal usecase is not configured")
+	}
 
 	cat, _ := uc.catRepo.FindByID(tx.Statement.Context, asset.CategoryID)
 
 	assetAccount := cat.AssetAccountID
+	if strings.TrimSpace(assetAccount) == "" {
+		return errors.New("asset account is not configured on category")
+	}
+	if strings.TrimSpace(contraAccountID) == "" {
+		return errors.New("contra account is required")
+	}
+
+	lines := make([]finDTO.JournalLineRequest, 0, 2)
 
 	if isDebitAsset {
 		// Debit Asset, Credit Contra
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Debit: math.Abs(amount), Memo: desc})
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Credit: math.Abs(amount), Memo: desc})
+		lines = append(lines,
+			finDTO.JournalLineRequest{ChartOfAccountID: assetAccount, Debit: math.Abs(amount), Credit: 0, Memo: desc},
+			finDTO.JournalLineRequest{ChartOfAccountID: contraAccountID, Debit: 0, Credit: math.Abs(amount), Memo: desc},
+		)
 	} else {
 		// Debit Contra, Credit Asset
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Debit: math.Abs(amount), Memo: desc})
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Credit: math.Abs(amount), Memo: desc})
+		lines = append(lines,
+			finDTO.JournalLineRequest{ChartOfAccountID: contraAccountID, Debit: math.Abs(amount), Credit: 0, Memo: desc},
+			finDTO.JournalLineRequest{ChartOfAccountID: assetAccount, Debit: 0, Credit: math.Abs(amount), Memo: desc},
+		)
 	}
+
+	refType := reference.RefTypeAssetTransaction
+	refID := tr.ID
+	journalReq := &finDTO.CreateJournalEntryRequest{
+		EntryDate:         tr.TransactionDate.Format("2006-01-02"),
+		Description:       desc + ": " + asset.Code,
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	}
+
+	_, err := uc.journalUC.PostOrUpdateJournal(database.WithTx(tx.Statement.Context, tx), journalReq)
+	return err
 }
 
 // ========== Phase 2: Attachments ==========

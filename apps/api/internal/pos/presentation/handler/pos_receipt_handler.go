@@ -2,26 +2,37 @@ package handler
 
 import (
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	feedbackDTO "github.com/gilabs/gims/api/internal/feedback/domain/dto"
+	feedbackUsecase "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
+	loyaltyUC "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	"github.com/gin-gonic/gin"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // POSReceiptHandler renders an 80mm thermal-printer receipt as HTML.
 type POSReceiptHandler struct {
-	orderUC    usecase.POSOrderUsecase
+	orderUC     usecase.POSOrderUsecase
 	paymentRepo repositories.POSPaymentRepository
 	configRepo  repositories.POSConfigRepository
 	outletRepo  orgRepos.OutletRepository
+	// feedbackUC is optional; when nil the QR code section is omitted from the receipt.
+	feedbackUC feedbackUsecase.FeedbackUsecase
+	// loyaltyUC is optional; when nil the loyalty section is omitted from the receipt.
+	loyaltyUC loyaltyUC.LoyaltyUsecase
 }
 
 // NewPOSReceiptHandler constructs the receipt handler.
@@ -37,6 +48,17 @@ func NewPOSReceiptHandler(
 		configRepo:  configRepo,
 		outletRepo:  outletRepo,
 	}
+}
+
+// WithFeedbackUsecase attaches the feedback usecase to enable QR code generation.
+func (h *POSReceiptHandler) WithFeedbackUsecase(uc feedbackUsecase.FeedbackUsecase) *POSReceiptHandler {
+	h.feedbackUC = uc
+	return h
+}
+
+func (h *POSReceiptHandler) WithLoyaltyUsecase(uc loyaltyUC.LoyaltyUsecase) *POSReceiptHandler {
+	h.loyaltyUC = uc
+	return h
 }
 
 // ─── Template data ────────────────────────────────────────────────────────────
@@ -61,19 +83,37 @@ type receiptTemplateData struct {
 
 	Items []receiptItemRow
 
-	Subtotal      string
-	DiscountLine  string
-	TaxLine       string
-	ServiceLine   string
-	Total         string
+	Subtotal     string
+	DiscountLine string
+	TaxLine      string
+	ServiceLine  string
+	Total        string
 
 	PaymentMethod   string
 	TenderAmount    string
 	ChangeAmount    string
 	ShowCashDetails bool
 
-	Footer        string
+	Footer           string
 	PrintReceiptAuto bool
+
+	// FeedbackURL is non-empty when a valid feedback form exists for the outlet.
+	// It points to the public Next.js feedback page with a one-time token.
+	FeedbackURL string
+	// FeedbackQRBase64 is a data URI (image/png) of the QR code for FeedbackURL.
+	// When empty the QR section is hidden in the template.
+	FeedbackQRBase64 template.URL
+
+	// Loyalty fields — populated when the customer is a loyalty member.
+	LoyaltyMemberCode   string
+	LoyaltyTier         string
+	LoyaltyBadgeColor   string
+	LoyaltyPointsEarned int64
+	LoyaltyTotalBalance int64
+	ShowLoyaltySection  bool
+	// ShowLoyaltyInvite is true when the customer is not yet a member.
+	ShowLoyaltyInvite  bool
+	LoyaltyRegisterURL string
 }
 
 // ─── HTML template ────────────────────────────────────────────────────────────
@@ -126,10 +166,10 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	createdAt := orderResp.CreatedAt.In(loc)
 
 	data := receiptTemplateData{
-		OutletName:   "POS",
-		OrderNumber:  orderResp.OrderNumber,
-		OrderDate:    createdAt.Format("02/01/2006"),
-		OrderTime:    createdAt.Format("15:04"),
+		OutletName:  "POS",
+		OrderNumber: orderResp.OrderNumber,
+		OrderDate:   createdAt.Format("02/01/2006"),
+		OrderTime:   createdAt.Format("15:04"),
 	}
 
 	if outlet != nil {
@@ -186,6 +226,51 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 		data.PrintReceiptAuto = cfg.PrintReceiptAuto
 	}
 
+	// ── Feedback QR code ─────────────────────────────────────────────────────
+	// Generate a one-time token so the customer can scan the QR code on the
+	// receipt and submit feedback without logging in. We do this lazily per
+	// receipt render; if no active form is configured we silently skip.
+	// When the loyalty invite section will be shown (non-member), we omit the
+	// feedback QR to keep the receipt to a single QR code.
+	loyaltyWillInvite := h.loyaltyUC != nil && orderResp.LoyaltyMemberID == nil
+	frontendBaseURL := resolveFrontendBaseURL(c)
+	if h.feedbackUC != nil && !loyaltyWillInvite {
+		tokenReq := &feedbackDTO.GenerateTokenRequest{
+			OutletID:   orderResp.OutletID,
+			PosOrderID: &orderResp.ID,
+		}
+		if orderResp.CustomerName != nil {
+			tokenReq.CustomerName = orderResp.CustomerName
+		}
+		appBaseURL := frontendBaseURL + "/en"
+		if tokenResp, err := h.feedbackUC.GenerateToken(c.Request.Context(), tokenReq, appBaseURL); err == nil {
+			data.FeedbackURL = tokenResp.FeedbackURL
+			// Generate QR code as base64 PNG for inline embedding — no external dependency.
+			if pngBytes, qrErr := qrcode.Encode(tokenResp.FeedbackURL, qrcode.Medium, 128); qrErr == nil {
+				data.FeedbackQRBase64 = template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(pngBytes))
+			}
+		}
+		// Non-fatal: silently skip QR code when no active form exists or generation fails.
+	}
+
+	// ── Loyalty section ───────────────────────────────────────────────────────
+	// Show member tier + points earned when the order is linked to a loyalty member,
+	// or show a "join loyalty" invite when the customer is not yet a member.
+	if h.loyaltyUC != nil && orderResp.LoyaltyMemberID != nil {
+		if memberResp, errLoyalty := h.loyaltyUC.GetMember(c.Request.Context(), *orderResp.LoyaltyMemberID); errLoyalty == nil {
+			data.ShowLoyaltySection = true
+			data.LoyaltyMemberCode = memberResp.MemberCode
+			data.LoyaltyTier = memberResp.CurrentTier
+			data.LoyaltyBadgeColor = memberResp.TierBadgeColor
+			data.LoyaltyTotalBalance = memberResp.PointBalance
+		}
+	} else if h.loyaltyUC != nil {
+		// Invite non-members to self-register via QR code on the public page.
+		data.ShowLoyaltyInvite = true
+		data.LoyaltyRegisterURL = fmt.Sprintf("%s/en/public/loyalty/register?order=%s&outlet=%s",
+			frontendBaseURL, orderResp.ID, orderResp.OutletID)
+	}
+
 	// ── Render ───────────────────────────────────────────────────────────────
 
 	tmpl, err := template.New("receipt").Parse(receiptHTMLTemplate)
@@ -239,4 +324,54 @@ func formatQty(q float64) string {
 		return fmt.Sprintf("%.0f", q)
 	}
 	return fmt.Sprintf("%.2f", q)
+}
+
+// resolveFrontendBaseURL derives the best frontend origin for receipt QR links.
+// Priority: Origin header -> forwarded host/proto -> request host -> config fallback.
+func resolveFrontendBaseURL(c *gin.Context) string {
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin != "" {
+		if parsed, err := url.Parse(origin); err == nil {
+			scheme := strings.ToLower(strings.TrimSpace(parsed.Scheme))
+			if (scheme == "http" || scheme == "https") && parsed.Host != "" {
+				return fmt.Sprintf("%s://%s", scheme, parsed.Host)
+			}
+		}
+	}
+
+	referer := strings.TrimSpace(c.GetHeader("Referer"))
+	if referer != "" {
+		if parsed, err := url.Parse(referer); err == nil {
+			scheme := strings.ToLower(strings.TrimSpace(parsed.Scheme))
+			if (scheme == "http" || scheme == "https") && parsed.Host != "" {
+				return fmt.Sprintf("%s://%s", scheme, parsed.Host)
+			}
+		}
+	}
+
+	forwardedProto := strings.ToLower(strings.TrimSpace(firstHeaderValue(c.GetHeader("X-Forwarded-Proto"))))
+	scheme := "http"
+	if forwardedProto == "http" || forwardedProto == "https" {
+		scheme = forwardedProto
+	} else if c.Request.TLS != nil {
+		scheme = "https"
+	}
+
+	host := strings.TrimSpace(firstHeaderValue(c.GetHeader("X-Forwarded-Host")))
+	if host == "" {
+		host = strings.TrimSpace(c.Request.Host)
+	}
+	if host != "" {
+		return fmt.Sprintf("%s://%s", scheme, host)
+	}
+
+	return strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
+}
+
+func firstHeaderValue(v string) string {
+	parts := strings.Split(v, ",")
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
 }

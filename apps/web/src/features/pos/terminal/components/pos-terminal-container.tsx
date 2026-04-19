@@ -26,7 +26,31 @@ import { POSCartPanel } from "./pos-cart-panel";
 import { POSPaymentModal } from "./pos-payment-modal";
 import { POSReceiptDialog } from "./pos-receipt-dialog";
 import { VoidOrderDialog } from "./void-order-dialog";
+import { PosLoyaltyEnrollModal } from "@/features/loyalty/components/pos-loyalty-enroll-modal";
 import type { CartItem, POSCatalogItem, PosOrderStatus } from "../types";
+import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
+
+function mapLookupToMember(lookup: LoyaltyMemberLookup): LoyaltyMember | undefined {
+  if (!lookup.member_id || !lookup.customer_name) {
+    return undefined;
+  }
+
+  return {
+    id: lookup.member_id,
+    customer_id: lookup.customer_id ?? "",
+    customer_name: lookup.customer_name,
+    customer_phone: undefined,
+    program_id: "",
+    program_name: undefined,
+    member_code: lookup.member_code ?? "",
+    current_tier: lookup.current_tier ?? "",
+    tier_badge_color: lookup.tier_badge_color ?? "#CD7F32",
+    point_balance: lookup.point_balance ?? 0,
+    lifetime_points: 0,
+    total_transactions: 0,
+    joined_at: "",
+  };
+}
 
 interface POSTerminalContainerProps {
   outletId: string;
@@ -62,6 +86,13 @@ export function POSTerminalContainer({
   const [cart, setCart] = useState<CartItem[]>([]);
   const orderCreationInFlight = useRef(false);
   const retryAfterRef = useRef(0);
+
+  // Loyalty state — reset on each new transaction
+  const [loyaltyLookup, setLoyaltyLookup] = useState<LoyaltyMemberLookup | undefined>();
+  const [loyaltyMember, setLoyaltyMember] = useState<LoyaltyMember | undefined>();
+  const [loyaltyRewards, setLoyaltyRewards] = useState<RewardConfig[]>([]);
+  const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [enrollDefaultName, setEnrollDefaultName] = useState("");
   const [linkedTable, setLinkedTable] = useState<{
     id?: string;
     label?: string;
@@ -108,6 +139,10 @@ export function POSTerminalContainer({
       setActiveOrderId(null);
       setPaymentOpen(false);
       setVoidOpen(false);
+      // Reset loyalty state for next transaction
+      setLoyaltyLookup(undefined);
+      setLoyaltyMember(undefined);
+      setLoyaltyRewards([]);
       // Navigation happens only when the receipt is closed (see handleReceiptClose below),
       // so the receipt dialog remains visible over the live-table background.
     },
@@ -323,6 +358,23 @@ export function POSTerminalContainer({
           <POSCartPanel
             items={cart}
             config={config}
+            outletId={outletId}
+            loyaltyLookup={loyaltyLookup}
+            onLoyaltyMemberFound={(lookup) => {
+              setLoyaltyLookup(lookup);
+              const member = lookup.found ? mapLookupToMember(lookup) : undefined;
+              setLoyaltyMember(member);
+              setLoyaltyRewards(lookup.available_rewards ?? []);
+            }}
+            onLoyaltyEnrollRequest={(name) => {
+              setEnrollDefaultName(name);
+              setEnrollModalOpen(true);
+            }}
+            onLoyaltyClear={() => {
+              setLoyaltyLookup(undefined);
+              setLoyaltyMember(undefined);
+              setLoyaltyRewards([]);
+            }}
             onIncrement={handleIncrement}
             onDecrement={handleDecrement}
             onRemove={handleRemove}
@@ -362,6 +414,24 @@ export function POSTerminalContainer({
             <POSCartPanel
               items={cart}
               config={config}
+              outletId={outletId}
+              loyaltyLookup={loyaltyLookup}
+              onLoyaltyMemberFound={(lookup) => {
+                setLoyaltyLookup(lookup);
+                const member = lookup.found ? mapLookupToMember(lookup) : undefined;
+                setLoyaltyMember(member);
+                setLoyaltyRewards(lookup.available_rewards ?? []);
+              }}
+              onLoyaltyEnrollRequest={(name) => {
+                setEnrollDefaultName(name);
+                setMobileCartOpen(false);
+                setEnrollModalOpen(true);
+              }}
+              onLoyaltyClear={() => {
+                setLoyaltyLookup(undefined);
+                setLoyaltyMember(undefined);
+                setLoyaltyRewards([]);
+              }}
               onIncrement={handleIncrement}
               onDecrement={handleDecrement}
               onRemove={handleRemove}
@@ -384,6 +454,8 @@ export function POSTerminalContainer({
             config={config}
             onSuccess={(cName, tender) => handleOrderCompleted(cName, tender)}
             onPaymentError={handlePaymentError}
+            loyaltyMember={loyaltyMember}
+            loyaltyRewards={loyaltyRewards}
           />
 
           <VoidOrderDialog
@@ -395,6 +467,28 @@ export function POSTerminalContainer({
           />
         </>
       )}
+
+      {/* Loyalty enrollment modal — triggered from the cart lookup */}
+      <PosLoyaltyEnrollModal
+        open={enrollModalOpen}
+        onOpenChange={setEnrollModalOpen}
+        outletId={outletId}
+        posOrderId={activeOrderId ?? undefined}
+        defaultName={enrollDefaultName}
+        onEnrolled={(member) => {
+          setLoyaltyMember(member);
+          setLoyaltyLookup({
+            found: true,
+            member_id: member.id,
+            member_code: member.member_code,
+            customer_id: member.customer_id,
+            customer_name: member.customer_name,
+            current_tier: member.current_tier,
+            tier_badge_color: member.tier_badge_color,
+            point_balance: member.point_balance,
+          });
+        }}
+      />
 
       {/* Receipt dialog — shown after successful payment; navigates to returnUrl when closed */}
       {receiptOrder && (

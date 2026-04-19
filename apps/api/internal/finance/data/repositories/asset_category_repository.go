@@ -6,6 +6,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AssetCategoryListParams struct {
@@ -37,10 +38,16 @@ func (r *assetCategoryRepository) FindByID(ctx context.Context, id string) (*fin
 	return &item, nil
 }
 
-var assetCategoryAllowedSort = map[string]string{
-	"created_at": "asset_categories.created_at",
-	"updated_at": "asset_categories.updated_at",
-	"name":       "asset_categories.name",
+var assetCategoryAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "asset_categories", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "asset_categories", Name: "updated_at"},
+	},
+	"name": {
+		Column: clause.Column{Table: "asset_categories", Name: "name"},
+	},
 }
 
 func (r *assetCategoryRepository) List(ctx context.Context, params AssetCategoryListParams) ([]financeModels.AssetCategory, int64, error) {
@@ -58,14 +65,16 @@ func (r *assetCategoryRepository) List(ctx context.Context, params AssetCategory
 	}
 
 	sortCol := assetCategoryAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = assetCategoryAllowedSort["created_at"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

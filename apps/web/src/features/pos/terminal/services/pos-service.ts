@@ -20,6 +20,25 @@ import type {
 } from "../types";
 
 const BASE = "/pos";
+const API_BASE_URL_FALLBACK = "http://localhost:8087";
+
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function resolveReceiptApiBaseUrl(): string {
+  const configuredApiBase = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configuredApiBase) {
+    return normalizeBaseUrl(configuredApiBase);
+  }
+
+  // In browser runtime, prefer current origin to avoid localhost fallback on production.
+  if (typeof window !== "undefined" && window.location.origin) {
+    return normalizeBaseUrl(window.location.origin);
+  }
+
+  return API_BASE_URL_FALLBACK;
+}
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
@@ -98,7 +117,7 @@ export const posOrderService = {
 
   /** Returns the absolute URL for opening the HTML receipt in a new tab. */
   getReceiptUrl(orderId: string): string {
-    return `/api/v1/pos/orders/${orderId}/receipt`;
+    return `${resolveReceiptApiBaseUrl()}/api/v1/pos/orders/${orderId}/receipt`;
   },
 
   getCatalog(outletId: string) {

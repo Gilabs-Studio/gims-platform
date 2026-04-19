@@ -26,6 +26,8 @@ func (m *AssetCategoryMapper) ToResponse(item *financeModels.AssetCategory) dto.
 		AssetAccountID:                   item.AssetAccountID,
 		AccumulatedDepreciationAccountID: item.AccumulatedDepreciationAccountID,
 		DepreciationExpenseAccountID:     item.DepreciationExpenseAccountID,
+		DisposalGainAccountID:            item.DisposalGainAccountID,
+		DisposalLossAccountID:            item.DisposalLossAccountID,
 		IsActive:                         item.IsActive,
 		CreatedAt:                        item.CreatedAt,
 		UpdatedAt:                        item.UpdatedAt,

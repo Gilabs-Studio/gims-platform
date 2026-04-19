@@ -24,8 +24,14 @@ const lineSchema = z
 
 export const journalFormSchema = z
   .object({
+    company_id: z.string().trim().min(1),
+    fiscal_year_id: z.string().trim().uuid().optional().nullable(),
     entry_date: z.string().trim().min(1),
+    reference: z.string().trim().optional().nullable(),
     description: z.string().trim().optional().nullable(),
+    journal_type: z.string().trim().optional().nullable(),
+    currency_code: z.string().trim().min(1).default("IDR"),
+    exchange_rate: z.number().positive().optional().nullable(),
     lines: z.array(lineSchema).min(2),
   })
   .superRefine((v, ctx) => {

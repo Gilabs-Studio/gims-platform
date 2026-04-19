@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type chartOfAccountRepository struct {
@@ -37,6 +38,13 @@ type ChartOfAccountRepository interface {
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error)
 	FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
+	GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
+	FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error)
+	HasChildren(ctx context.Context, id string) (bool, error)
+	IsUsedInJournal(ctx context.Context, id string) (bool, error)
+	HasJournalLines(ctx context.Context, id string) (bool, error)
+	UpdateIsPostable(ctx context.Context, id string, isPostable bool) error
+	RecalculateAllIsPostable(ctx context.Context) error
 	GetDB(ctx context.Context) *gorm.DB
 }
 
@@ -68,12 +76,22 @@ func (r *chartOfAccountRepository) FindAll(ctx context.Context, onlyActive bool)
 	return items, nil
 }
 
-var coaAllowedSort = map[string]string{
-	"created_at": "chart_of_accounts.created_at",
-	"updated_at": "chart_of_accounts.updated_at",
-	"code":       "chart_of_accounts.code",
-	"name":       "chart_of_accounts.name",
-	"type":       "chart_of_accounts.type",
+var coaAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "updated_at"},
+	},
+	"code": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "code"},
+	},
+	"name": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "name"},
+	},
+	"type": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "type"},
+	},
 }
 
 func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccountListParams) ([]financeModels.ChartOfAccount, int64, error) {
@@ -101,14 +119,16 @@ func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccou
 	}
 
 	sortCol := coaAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = coaAllowedSort["code"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
@@ -154,6 +174,67 @@ func (r *chartOfAccountRepository) FindByCode(ctx context.Context, code string) 
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *chartOfAccountRepository) GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	return r.FindByCode(ctx, code)
+}
+
+func (r *chartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
+	return r.FindByCode(ctx, "39999")
+}
+
+func (r *chartOfAccountRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.getDB(ctx).
+		Model(&financeModels.ChartOfAccount{}).
+		Where("parent_id = ?", id).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *chartOfAccountRepository) HasJournalLines(ctx context.Context, id string) (bool, error) {
+	return r.IsUsedInJournal(ctx, id)
+}
+
+func (r *chartOfAccountRepository) IsUsedInJournal(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.getDB(ctx).
+		Table("journal_lines").
+		Where("chart_of_account_id = ?", id).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *chartOfAccountRepository) UpdateIsPostable(ctx context.Context, id string, isPostable bool) error {
+	return r.getDB(ctx).
+		Model(&financeModels.ChartOfAccount{}).
+		Where("id = ?", id).
+		Update("is_postable", isPostable).Error
+}
+
+func (r *chartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context) error {
+	return r.getDB(ctx).Exec(`
+		UPDATE chart_of_accounts AS coa
+		SET is_postable = CASE
+			WHEN coa.parent_id IS NULL THEN FALSE
+			WHEN EXISTS (
+				SELECT 1
+				FROM chart_of_accounts AS child
+				WHERE child.parent_id = coa.id
+				  AND child.deleted_at IS NULL
+			) THEN FALSE
+			ELSE TRUE
+		END
+		WHERE coa.deleted_at IS NULL
+	`).Error
 }
 
 func (r *chartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {

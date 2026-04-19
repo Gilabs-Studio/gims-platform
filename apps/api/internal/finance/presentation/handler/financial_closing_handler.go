@@ -15,6 +15,14 @@ type FinancialClosingHandler struct {
 	uc usecase.FinancialClosingUsecase
 }
 
+func closingRouteID(c *gin.Context) string {
+	id := strings.TrimSpace(c.Param("id"))
+	if id != "" {
+		return id
+	}
+	return strings.TrimSpace(c.Param("period_id"))
+}
+
 func NewFinancialClosingHandler(uc usecase.FinancialClosingUsecase) *FinancialClosingHandler {
 	return &FinancialClosingHandler{uc: uc}
 }
@@ -34,7 +42,7 @@ func (h *FinancialClosingHandler) Create(c *gin.Context) {
 }
 
 func (h *FinancialClosingHandler) Approve(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
+	id := closingRouteID(c)
 	res, err := h.uc.Approve(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_APPROVE_FAILED", err.Error(), nil, nil)
@@ -44,7 +52,7 @@ func (h *FinancialClosingHandler) Approve(c *gin.Context) {
 }
 
 func (h *FinancialClosingHandler) GetByID(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
+	id := closingRouteID(c)
 	res, err := h.uc.GetByID(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusNotFound, "FINANCIAL_CLOSING_NOT_FOUND", err.Error(), nil, nil)
@@ -84,7 +92,7 @@ func (h *FinancialClosingHandler) List(c *gin.Context) {
 }
 
 func (h *FinancialClosingHandler) GetAnalysis(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
+	id := closingRouteID(c)
 	res, err := h.uc.GetAnalysis(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_ANALYSIS_FAILED", err.Error(), nil, nil)
@@ -94,7 +102,7 @@ func (h *FinancialClosingHandler) GetAnalysis(c *gin.Context) {
 }
 
 func (h *FinancialClosingHandler) Reopen(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
+	id := closingRouteID(c)
 	res, err := h.uc.Reopen(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_REOPEN_FAILED", err.Error(), nil, nil)
@@ -117,7 +125,7 @@ func (h *FinancialClosingHandler) YearEndClose(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 func (h *FinancialClosingHandler) Delete(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
+	id := closingRouteID(c)
 	err := h.uc.Delete(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_DELETE_FAILED", err.Error(), nil, nil)

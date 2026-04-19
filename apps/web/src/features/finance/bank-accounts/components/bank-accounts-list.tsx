@@ -106,13 +106,19 @@ export function BankAccountsList() {
     try {
       const detailRes = await financeBankAccountsService.getById(item.id);
       const entity = detailRes.data;
-      const resolvedCurrencyId =
-        entity.currency_id ??
-        currencyOptions.find((c) => c.code === entity.currency)?.id ??
-        "";
+      if (!entity.currency_id) {
+        toast.error(t("toast.failed"));
+        return;
+      }
+      if (!entity.company_id || !entity.code) {
+        toast.error(t("toast.failed"));
+        return;
+      }
       await updateMutation.mutateAsync({
         id: item.id,
         data: {
+          company_id: entity.company_id,
+          code: entity.code,
           name: entity.name,
           account_number: entity.account_number,
           account_holder: entity.account_holder,

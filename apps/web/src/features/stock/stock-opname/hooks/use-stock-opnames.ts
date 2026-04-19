@@ -6,6 +6,7 @@ import type {
   UpdateStockOpnameRequest,
   UpdateStockOpnameStatusRequest,
   SaveStockOpnameItemsRequest,
+    ProductStockLedgerFilter,
 } from "../types";
 
 export const stockOpnameKeys = {
@@ -15,6 +16,8 @@ export const stockOpnameKeys = {
   details: () => [...stockOpnameKeys.all, "detail"] as const,
   detail: (id: string) => [...stockOpnameKeys.details(), id] as const,
   items: (id: string) => [...stockOpnameKeys.detail(id), "items"] as const,
+    ledgers: (productId: string, filters?: ProductStockLedgerFilter) =>
+        [...stockOpnameKeys.all, "ledgers", productId, filters] as const,
 };
 
 export function useStockOpnames(filters?: StockOpnameFilter) {
@@ -37,6 +40,15 @@ export function useStockOpnameItems(id: string | null) {
         queryKey: id ? stockOpnameKeys.items(id) : ["stock-opname-items-disabled"],
         queryFn: () => id ? stockOpnameService.getItems(id) : Promise.reject("No ID"),
         enabled: !!id,
+    });
+}
+
+export function useProductStockLedgers(productId: string | null, filters?: ProductStockLedgerFilter) {
+    return useQuery({
+        queryKey: productId ? stockOpnameKeys.ledgers(productId, filters) : ["stock-opname-ledgers-disabled"],
+        queryFn: () =>
+            productId ? stockOpnameService.getProductLedgers(productId, filters) : Promise.reject("No product ID"),
+        enabled: !!productId,
     });
 }
 
@@ -89,6 +101,29 @@ export function useSaveStockOpnameItems() {
         onSuccess: (data) => {
              queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(data.data.id) });
              queryClient.invalidateQueries({ queryKey: stockOpnameKeys.items(data.data.id) });
+        }
+    });
+}
+
+export function useGenerateStockOpnameJournal() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => stockOpnameService.generateJournal(id),
+        onSuccess: (data) => {
+            const opnameId = data.data.id;
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(opnameId) });
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.items(opnameId) });
+        }
+    });
+}
+
+export function useSubmitStockOpnameApproval() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => stockOpnameService.submitApproval(id),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(data.data.id) });
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() });
         }
     });
 }

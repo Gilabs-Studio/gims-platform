@@ -8,7 +8,23 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var salaryStructureAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "salary_structures", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "salary_structures", Name: "updated_at"},
+	},
+	"effective_date": {
+		Column: clause.Column{Table: "salary_structures", Name: "effective_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "salary_structures", Name: "status"},
+	},
+}
 
 type SalaryStructureListParams struct {
 	Search     string
@@ -21,13 +37,13 @@ type SalaryStructureListParams struct {
 }
 
 type SalaryStructureStatsResult struct {
-	Total              int64
-	Active             int64
-	Draft              int64
-	Inactive           int64
-	AverageSalary      float64
-	MinSalary          float64
-	MaxSalary          float64
+	Total               int64
+	Active              int64
+	Draft               int64
+	Inactive            int64
+	AverageSalary       float64
+	MinSalary           float64
+	MaxSalary           float64
 	TotalSalaryOverTime []SalaryStructureTotalSalaryOverTime
 }
 
@@ -113,15 +129,16 @@ func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStruc
 		return nil, 0, err
 	}
 
-	sortCol := "salary_structures.effective_date"
-	if params.SortBy != "" {
-		sortCol = params.SortBy
+	sortCol := salaryStructureAllowedSort[params.SortBy]
+	if sortCol.Column.Name == "" {
+		sortCol = salaryStructureAllowedSort["effective_date"]
 	}
-	sortDir := "DESC"
-	if strings.ToUpper(params.SortDir) == "ASC" {
-		sortDir = "ASC"
+	if strings.EqualFold(strings.TrimSpace(params.SortDir), "asc") {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
@@ -181,9 +198,9 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	result.MinSalary = agg.Min
 	result.MaxSalary = agg.Max
 
-// Total salary over time (by month) for charting aggregated salary trends.
-// This should reflect the sum of active employee salaries for each period,
-// carrying forward the latest salary for each employee until a new salary record applies.
+	// Total salary over time (by month) for charting aggregated salary trends.
+	// This should reflect the sum of active employee salaries for each period,
+	// carrying forward the latest salary for each employee until a new salary record applies.
 	var series []SalaryStructureTotalSalaryOverTime
 	query := `
 	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary

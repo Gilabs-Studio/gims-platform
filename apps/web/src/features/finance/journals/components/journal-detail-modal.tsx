@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/utils";
 
 import { useFinanceJournal } from "../hooks/use-finance-journals";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { BalanceIndicator } from "./balance-indicator";
 import type { UnifiedJournalRow } from "./journal-table";
 
 type Props = {
@@ -29,6 +30,14 @@ function safeDate(value?: string | null): string {
 function formatNumber(value?: number | null): string {
   const v = typeof value === "number" ? value : 0;
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatJournalType(value?: string | null): string {
+  if (!value) return "-";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
 export function JournalDetailModal({ open, onOpenChange, id }: Props) {
@@ -87,7 +96,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.status")}</div>
                 <div className="text-sm font-medium">
-                  <Badge variant={journal.status === "posted" ? "default" : "secondary"}>
+                  <Badge variant={journal.status === "posted" ? "default" : journal.status === "cancelled" ? "outline" : "secondary"}>
                     {t(`status.${journal.status}`)}
                   </Badge>
                 </div>
@@ -95,6 +104,33 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.description")}</div>
                 <div className="text-sm font-medium">{journal.description ?? "-"}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.journalType")}</div>
+                <div className="text-sm font-medium">{formatJournalType(journal.journal_type)}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.systemGenerated")}</div>
+                <div className="text-sm font-medium">{journal.is_system_generated ? tCommon("yes") : tCommon("no")}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.sourceDocument")}</div>
+                {journal.source_document_url ? (
+                  <a
+                    href={journal.source_document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  >
+                    {t("actions.openSourceDocument")}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <div className="text-sm font-medium">-</div>
+                )}
               </div>
             </div>
 
@@ -133,7 +169,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">Draft</Badge>
                 <span className="text-muted-foreground">created by {journal.created_by_name ?? journal.created_by ?? "system"}</span>
-                {journal.status === "posted" || journal.status === "reversed" ? (
+                {journal.status === "posted" || journal.status === "reversed" || journal.status === "cancelled" ? (
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="success">Posted</Badge>
@@ -146,6 +182,15 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="destructive">Reversed</Badge>
+                    <span className="text-muted-foreground">
+                      at {safeDate(journal.reversed_at ?? null)} by {journal.reversed_by_name ?? journal.reversed_by ?? "system"}
+                    </span>
+                  </>
+                ) : null}
+                {journal.status === "cancelled" ? (
+                  <>
+                    <span className="text-muted-foreground">-&gt;</span>
+                    <Badge variant="outline">Cancelled</Badge>
                     <span className="text-muted-foreground">
                       at {safeDate(journal.reversed_at ?? null)} by {journal.reversed_by_name ?? journal.reversed_by ?? "system"}
                     </span>
@@ -211,6 +256,11 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                 <div className="text-sm font-medium">{formatNumber(journal.credit_total)}</div>
               </div>
             </div>
+
+            <BalanceIndicator
+              totalDebit={journal.debit_total ?? 0}
+              totalCredit={journal.credit_total ?? 0}
+            />
           </div>
         )}
       </DialogContent>

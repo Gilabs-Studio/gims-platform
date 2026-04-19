@@ -21,7 +21,7 @@ func RegisterRoutes(
 	inventoryUsecase usecase.InventoryUsecase,
 ) {
 	// Auto Migrate
-	db.AutoMigrate(&models.InventoryBatch{}, &models.StockMovement{})
+	db.AutoMigrate(&models.InventoryBatch{}, &models.StockMovement{}, &models.StockLedger{})
 
 	// Repositories
 	// inventoryRepo := repositories.NewInventoryRepository(db) // Injected via usecase
@@ -52,5 +52,17 @@ func RegisterRoutes(
 		// Movement Routes
 		stock.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
 		stock.POST("/movements", middleware.PermissionMiddleware("stock_movement.create"), stockMovementHandler.CreateMovement)
+	}
+
+	inventory := v1.Group("/inventory")
+	inventory.Use(middleware.AuthMiddleware(jwtManager, permissionService))
+	inventory.Use(middleware.ScopeMiddleware(db))
+	{
+		// Alias endpoints for new inventory namespace (kept compatible with existing /stock routes)
+		inventory.GET("/stock", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+		inventory.GET("/stock/:product_id", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockByProduct)
+		inventory.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
+
+		inventory.GET("/products/:id/ledgers", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetProductLedgers)
 	}
 }

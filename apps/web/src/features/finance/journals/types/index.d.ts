@@ -20,7 +20,18 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type JournalStatus = "draft" | "posted" | "reversed";
+export type JournalStatus = "draft" | "posted" | "reversed" | "cancelled";
+
+export type JournalType =
+  | "GENERAL"
+  | "SALES"
+  | "PURCHASE"
+  | "INVENTORY"
+  | "ADJUSTMENT"
+  | "VALUATION"
+  | "CASH_BANK"
+  | "OPENING_BALANCE"
+  | string;
 
 export interface JournalLine {
   id: string;
@@ -33,11 +44,15 @@ export interface JournalLine {
 
 export interface JournalEntry {
   id: string;
+  company_id?: string;
+  fiscal_year_id?: string | null;
   entry_date: string;
+  reference?: string | null;
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
   reference_code?: string | null;
+  journal_type?: JournalType | null;
   status: JournalStatus;
   posted_at?: string | null;
   posted_by?: string | null;
@@ -50,6 +65,8 @@ export interface JournalEntry {
   lines: JournalLine[];
   debit_total: number;
   credit_total: number;
+  currency_code?: string;
+  exchange_rate?: number;
   created_by?: string | null;
   created_by_name?: string | null;
   created_by_email?: string | null;
@@ -58,6 +75,7 @@ export interface JournalEntry {
   reversed_by_name?: string | null;
   reversed_by_email?: string | null;
   reversal_reason?: string | null;
+  source_document_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +85,7 @@ export interface ListJournalEntriesParams {
   per_page?: number;
   search?: string;
   status?: JournalStatus;
+  journal_type?: string;
   start_date?: string;
   end_date?: string;
   sort_by?: string;
@@ -81,14 +100,26 @@ export interface JournalLineInput {
 }
 
 export interface CreateJournalEntryInput {
+  company_id: string;
+  fiscal_year_id?: string | null;
   entry_date: string;
+  reference?: string | null;
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
+  journal_type?: JournalType;
+  currency_code?: string;
+  exchange_rate?: number;
   lines: JournalLineInput[];
 }
 
 export type UpdateJournalEntryInput = CreateJournalEntryInput;
+
+export interface TrialBalanceParams {
+  start_date?: string;
+  end_date?: string;
+  company_id?: string;
+}
 
 export interface TrialBalanceRow {
   chart_of_account_id: string;
@@ -267,4 +298,72 @@ export interface CashBankSubLedgerApiResponse<T> {
     };
   };
   error?: string;
+}
+
+export interface AdjustmentApprovalActionInput {
+  notes?: string;
+}
+
+export interface AdjustmentApprovalHistoryItem {
+  id: string;
+  journal_id: string;
+  action: "submitted" | "approved" | "rejected" | string;
+  actor_id: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface JournalTemplate {
+  id: string;
+  company_id: string;
+  template_name: string;
+  journal_type: JournalType;
+  description?: string | null;
+  lines: string;
+  created_by?: string | null;
+  last_used_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListJournalTemplateParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  company_id?: string;
+}
+
+export interface CreateJournalTemplateInput {
+  company_id: string;
+  template_name: string;
+  journal_type: JournalType;
+  description?: string | null;
+  lines: JournalLineInput[];
+}
+
+export interface UseJournalTemplateResponse {
+  template: JournalTemplate;
+  prefill: CreateJournalEntryInput;
+
+// ===== Form Data Types =====
+
+export interface COAFormOption {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+}
+
+export interface EnumOption {
+  value: string;
+  label: string;
+}
+
+export interface JournalEntryFormDataResponse {
+  chart_of_accounts: COAFormOption[];
+  journal_types: EnumOption[];
+  reference_types: EnumOption[];
+  currencies: EnumOption[];
+  statuses: EnumOption[];
+}
 }

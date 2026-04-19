@@ -4,8 +4,12 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
 import {
+  BadgeCheck,
+  BadgeX,
   CheckCircle2,
+  ClipboardList,
   Eye,
+  FileCheck2,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -30,21 +34,30 @@ import { FinanceListErrorState } from "@/features/finance/shared/components/fina
 
 import type { JournalEntry } from "../types";
 import {
+  useApproveFinanceAdjustmentJournal,
   useFinanceAdjustmentJournals,
   useDeleteFinanceJournal,
   usePostFinanceAdjustmentJournal,
+  useRejectFinanceAdjustmentJournal,
   useReverseFinanceAdjustmentJournal,
+  useSubmitFinanceAdjustmentApproval,
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 import type { UnifiedJournalRow } from "./journal-table";
+import { getErrorMessage, parseApiError } from "../utils/error-parser";
+import { AdjustmentApprovalHistoryDialog } from "./adjustment-approval-history-dialog";
 
 
 export function AdjustmentJournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
+
+  const canSubmit = useUserPermission("adjustment_journal.submit");
+  const canApprove = useUserPermission("adjustment_journal.approve");
+  const canReject = useUserPermission("adjustment_journal.reject");
 
   const canCreate = useUserPermission("adjustment_journal.create");
   const canUpdate = useUserPermission("adjustment_journal.update");
@@ -68,11 +81,14 @@ export function AdjustmentJournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
   const [viewOpen, setViewOpen] = useState(false);
+  const [approvalHistoryOpen, setApprovalHistoryOpen] = useState(false);
+  const [approvalHistoryId, setApprovalHistoryId] = useState<string | null>(null);
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
 
@@ -92,6 +108,9 @@ export function AdjustmentJournalsList() {
   const deleteMutation = useDeleteFinanceJournal();
   const postMutation = usePostFinanceAdjustmentJournal();
   const reverseMutation = useReverseFinanceAdjustmentJournal();
+  const submitApprovalMutation = useSubmitFinanceAdjustmentApproval();
+  const approveMutation = useApproveFinanceAdjustmentJournal();
+  const rejectMutation = useRejectFinanceAdjustmentJournal();
 
   if (isError) {
     return <FinanceListErrorState message={tCommon("error")} />;
@@ -112,8 +131,9 @@ export function AdjustmentJournalsList() {
         {canCreate && (
           <Button
             onClick={() => {
+              setViewOpen(false);
               setFormMode("create");
-              setSelectedId(null);
+              setSelectedFormId(null);
               setFormOpen(true);
             }}
             className="cursor-pointer"
@@ -161,19 +181,22 @@ export function AdjustmentJournalsList() {
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setSelectedId(item.id);
+                    setFormOpen(false);
+                    setSelectedViewId(item.id);
                     setViewOpen(true);
                   }}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   {t("actions.view")}
                 </DropdownMenuItem>
-                {canUpdate && item.status === "draft" && (
+                {canUpdate && item.status === "draft" && !item.is_system_generated && (
                   <DropdownMenuItem
                     className="cursor-pointer"
                     onClick={() => {
+                      setViewOpen(false);
+                      setSelectedViewId(null);
                       setFormMode("edit");
-                      setSelectedId(item.id);
+                      setSelectedFormId(item.id);
                       setFormOpen(true);
                     }}
                   >
@@ -188,8 +211,9 @@ export function AdjustmentJournalsList() {
                       try {
                         await postMutation.mutateAsync(item.id);
                         toast.success(t("toast.posted"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
                       }
                     }}
                   >
@@ -197,7 +221,68 @@ export function AdjustmentJournalsList() {
                     {t("actions.post")}
                   </DropdownMenuItem>
                 )}
-                {canDelete && item.status === "draft" && (
+                {canSubmit && item.status === "draft" && (
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={async () => {
+                      try {
+                        await submitApprovalMutation.mutateAsync({ id: item.id });
+                        toast.success(t("toast.saved"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
+                      }
+                    }}
+                  >
+                    <FileCheck2 className="h-4 w-4 mr-2" />
+                    {t("actions.submitApproval")}
+                  </DropdownMenuItem>
+                )}
+                {canApprove && item.status === "draft" && (
+                  <DropdownMenuItem
+                    className="cursor-pointer text-success focus:text-success"
+                    onClick={async () => {
+                      try {
+                        await approveMutation.mutateAsync({ id: item.id });
+                        toast.success(t("toast.approved"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
+                      }
+                    }}
+                  >
+                    <BadgeCheck className="h-4 w-4 mr-2" />
+                    {t("actions.approve")}
+                  </DropdownMenuItem>
+                )}
+                {canReject && item.status === "draft" && (
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    onClick={async () => {
+                      try {
+                        await rejectMutation.mutateAsync({ id: item.id });
+                        toast.success(t("toast.rejected"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
+                      }
+                    }}
+                  >
+                    <BadgeX className="h-4 w-4 mr-2" />
+                    {t("actions.reject")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setApprovalHistoryId(item.id);
+                    setApprovalHistoryOpen(true);
+                  }}
+                >
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  {t("actions.approvalHistory")}
+                </DropdownMenuItem>
+                {canDelete && item.status === "draft" && !item.is_system_generated && (
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={() => setDeletingItem(item)}
@@ -213,8 +298,9 @@ export function AdjustmentJournalsList() {
                       try {
                         await reverseMutation.mutateAsync(item.id);
                         toast.success(t("toast.reversed"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
                       }
                     }}
                   >
@@ -243,7 +329,7 @@ export function AdjustmentJournalsList() {
         open={formOpen}
         onOpenChange={setFormOpen}
         mode={formMode}
-        id={selectedId}
+        id={selectedFormId}
         isAdjustment={true}
       />
 
@@ -251,9 +337,9 @@ export function AdjustmentJournalsList() {
         open={viewOpen}
         onOpenChange={(open) => {
           setViewOpen(open);
-          if (!open) setSelectedId(null);
+          if (!open) setSelectedViewId(null);
         }}
-        id={selectedId}
+        id={selectedViewId}
       />
 
       <JournalSourceDetailModal
@@ -286,6 +372,17 @@ export function AdjustmentJournalsList() {
           }
         }}
         isLoading={deleteMutation.isPending}
+      />
+
+      <AdjustmentApprovalHistoryDialog
+        open={approvalHistoryOpen}
+        onOpenChange={(open) => {
+          setApprovalHistoryOpen(open);
+          if (!open) {
+            setApprovalHistoryId(null);
+          }
+        }}
+        journalId={approvalHistoryId}
       />
     </div>
   );

@@ -15,7 +15,11 @@ const (
 )
 
 func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
-	g := r.Group("/assets")
+	registerAssetRoutesInGroup(r.Group("/assets"), h)
+	registerAssetRoutesInGroup(r.Group("/fixed-assets/assets"), h)
+}
+
+func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
 	// Available assets for employee borrowing
@@ -24,12 +28,15 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g.POST("/", middleware.RequirePermission(assetCreate), h.Create)
 	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
 	g.GET("/form-data", middleware.RequirePermission(assetRead), h.GetFormData)
+	g.POST("/depreciations/preview", middleware.RequirePermission(assetDepreciate), h.PreviewBatchDepreciation)
+	g.POST("/depreciations/run", middleware.RequirePermission(assetDepreciate), h.RunBatchDepreciation)
 	g.GET("/:id", middleware.RequirePermission(assetRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(assetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(assetDelete), h.Delete)
 	g.POST("/:id/depreciate", middleware.RequirePermission(assetDepreciate), h.Depreciate)
 	g.POST("/depreciations/:dep_id/approve", middleware.RequirePermission(assetDepreciate), h.ApproveDepreciation)
 	g.POST("/:id/transfer", middleware.RequirePermission(assetUpdate), h.Transfer)
+	g.POST("/:id/disposal-preview", middleware.RequirePermission(assetUpdate), h.PreviewDisposal)
 	g.POST("/:id/dispose", middleware.RequirePermission(assetUpdate), h.Dispose)
 	g.POST("/:id/sell", middleware.RequirePermission(assetUpdate), h.Sell)
 	g.POST("/:id/revalue", middleware.RequirePermission(assetUpdate), h.Revalue)
