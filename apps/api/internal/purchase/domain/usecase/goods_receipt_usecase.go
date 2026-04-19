@@ -564,10 +564,19 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 		notes = *gr.Notes
 	}
 
+	supplierName := ""
+	if gr.Supplier != nil {
+		supplierName = strings.TrimSpace(gr.Supplier.Name)
+	}
+	if supplierName == "" {
+		supplierName = strings.TrimSpace(gr.SupplierNameSnapshot)
+	}
+
 	req := &invDto.ReceiveStockRequest{
 		SourceID:     gr.ID,
 		SourceNumber: gr.Code,
 		SourceType:   "GR",
+		Source:       supplierName,
 		WarehouseID:  warehouseID,
 		Items:        items,
 		ReceivedAt:   apptime.Now(),

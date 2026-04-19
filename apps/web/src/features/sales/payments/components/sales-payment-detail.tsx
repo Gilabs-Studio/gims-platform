@@ -2,21 +2,26 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Calendar } from "lucide-react";
+import { Calendar, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
-import { useSalesPayment, useSalesPaymentAuditTrail } from "../hooks/use-sales-payments";
+import { useSalesPayment, useSalesPaymentAuditTrail, useReverseSalesPayment } from "../hooks/use-sales-payments";
 
 interface SalesPaymentDetailProps {
   readonly open: boolean;
@@ -29,6 +34,10 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState<"general" | "audit-trail">("general");
+  const [reverseConfirmOpen, setReverseConfirmOpen] = useState(false);
+
+  const canReverse = useUserPermission("sales_payment.reverse");
+  const reverseMutation = useReverseSalesPayment();
 
   const { data, isFetching, isError } = useSalesPayment(paymentId ?? "", {
     enabled: open && !!paymentId,
@@ -105,11 +114,25 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
         ) : isError || !detail ? (
           <div className="text-sm text-destructive py-4">{t("toast.failed")}</div>
         ) : (
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value === "audit-trail" ? "audit-trail" : "general")}
-            className="w-full"
-          >
+          <>
+            {canReverse && detail.status === "CONFIRMED" && (
+              <div className="flex justify-end gap-2 mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer text-warning border-warning hover:bg-warning/10"
+                  onClick={() => setReverseConfirmOpen(true)}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  {t("actions.reverse")}
+                </Button>
+              </div>
+            )}
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value === "audit-trail" ? "audit-trail" : "general")}
+              className="w-full"
+            >
             <TabsList>
               <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
               <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
@@ -234,9 +257,48 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
                 }}
               />
             </TabsContent>
-          </Tabs>
+            </Tabs>
+          </>
         )}
       </DialogContent>
+
+      {/* Reverse Confirmation Dialog */}
+      <Dialog open={reverseConfirmOpen} onOpenChange={setReverseConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("confirm.reverseTitle")}</DialogTitle>
+            <DialogDescription>{t("confirm.reverseDescription")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReverseConfirmOpen(false)}
+              disabled={reverseMutation.isPending}
+              className="cursor-pointer"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="default"
+              className="cursor-pointer bg-warning text-warning-foreground hover:bg-warning/90"
+              disabled={reverseMutation.isPending}
+              onClick={async () => {
+                if (!paymentId) return;
+                try {
+                  await reverseMutation.mutateAsync(paymentId);
+                  toast.success(t("toast.reversed"));
+                  setReverseConfirmOpen(false);
+                } catch {
+                  toast.error(t("toast.failed"));
+                }
+              }}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {reverseMutation.isPending ? t("confirm.reversing") : t("actions.reverse")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

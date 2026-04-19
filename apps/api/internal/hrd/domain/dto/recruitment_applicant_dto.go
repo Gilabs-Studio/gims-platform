@@ -44,9 +44,19 @@ type UpdateRecruitmentApplicantDTO struct {
 
 // MoveApplicantStageDTO represents the request to move an applicant to a different stage
 type MoveApplicantStageDTO struct {
-	ToStageID string  `json:"to_stage_id" binding:"required,uuid"`
+	ToStageID string  `json:"to_stage_id" binding:"omitempty,uuid"`
+	StageID   string  `json:"stage_id" binding:"omitempty,uuid"`
 	Reason    *string `json:"reason" binding:"omitempty,max=1000"`
 	Notes     *string `json:"notes" binding:"omitempty,max=2000"`
+}
+
+// TargetStageID returns the target stage ID from either supported request field.
+func (d MoveApplicantStageDTO) TargetStageID() string {
+	if d.ToStageID != "" {
+		return d.ToStageID
+	}
+
+	return d.StageID
 }
 
 // EmployeeSummaryResponse represents a brief employee response for applicant conversion
@@ -93,21 +103,21 @@ type ApplicantsByStageResponse struct {
 
 // CreateApplicantActivityDTO represents the request to create an activity
 type CreateApplicantActivityDTO struct {
-	Type        string                 `json:"type" binding:"required,oneof=stage_change note_added interview_scheduled interview_completed offer_sent offer_accepted offer_declined hired rejected created updated resume_uploaded rating_changed"`
-	Description string                 `json:"description" binding:"required,max=2000"`
-	Metadata    map[string]interface{} `json:"metadata" binding:"omitempty"`
+	Type        string         `json:"type" binding:"required,oneof=stage_change note_added interview_scheduled interview_completed offer_sent offer_accepted offer_declined hired rejected created updated resume_uploaded rating_changed"`
+	Description string         `json:"description" binding:"required,max=2000"`
+	Metadata    map[string]any `json:"metadata" binding:"omitempty"`
 }
 
 // ApplicantActivityResponse represents an activity in API responses
 type ApplicantActivityResponse struct {
-	ID            string                 `json:"id"`
-	ApplicantID   string                 `json:"applicant_id"`
-	Type          string                 `json:"type"`
-	Description   string                 `json:"description"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
-	CreatedBy     *string                `json:"created_by"`
-	CreatedByName *string                `json:"created_by_name,omitempty"`
-	CreatedAt     time.Time              `json:"created_at"`
+	ID            string         `json:"id"`
+	ApplicantID   string         `json:"applicant_id"`
+	Type          string         `json:"type"`
+	Description   string         `json:"description"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	CreatedBy     *string        `json:"created_by"`
+	CreatedByName *string        `json:"created_by_name,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
 }
 
 // ---- List/Filter Params ----

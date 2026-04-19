@@ -117,6 +117,7 @@ export function useDeleteRecruitmentRequest() {
   });
 }
 
+// @deprecated - use per-action hooks instead
 // Update recruitment status (legacy - general)
 export function useUpdateRecruitmentStatus() {
   const queryClient = useQueryClient();

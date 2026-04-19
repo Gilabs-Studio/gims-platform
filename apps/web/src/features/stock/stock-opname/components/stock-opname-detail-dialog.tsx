@@ -80,6 +80,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   
   const isLoading = opnameQuery.isLoading || itemsQuery.isLoading;
   const opname = opnameQuery.data?.data;
+  const opnameNumber = opname?.opname_number ?? "";
   const items = itemsQuery.data?.data ?? [];
   const totalNegativeVariance = opname?.total_negative_variance_qty ?? 0;
   const totalPositiveVariance = opname?.total_positive_variance_qty ?? 0;
@@ -260,7 +261,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="sr-only">
-             <DialogTitle>{t("dialog.createTitle")}</DialogTitle>
+             <DialogTitle>{opnameNumber || t("dialog.createTitle")}</DialogTitle>
         </DialogHeader>
         {isLoading || !opname ? (
             <div className="p-6 space-y-4">
@@ -275,7 +276,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <DialogTitle className="text-2xl font-bold">
-                                {opname.opname_number} 
+                                {opnameNumber}
                             </DialogTitle>
                             <StockOpnameStatusBadge status={opname.status} />
                         </div>
@@ -693,6 +694,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                     onOpenChange={setItemDialogOpen}
                     item={editingItem}
                     onSave={handleSaveItem}
+                    warehouseId={opname.warehouse_id}
                 />
 
                 <DeleteDialog

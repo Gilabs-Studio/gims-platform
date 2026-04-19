@@ -21,6 +21,7 @@ type StockMovementRequest struct {
 	ReferenceType     string  `json:"reference_type" binding:"required,oneof=PO DO OPNAME TRANSFER GOODS_RECEIPT DELIVERY_ORDER STOCK_OPNAME INVENTORY_ADJUSTMENT"`
 	ReferenceID      string  `json:"reference_id" binding:"required,uuid"`
 	ReferenceNumber  string  `json:"reference_number" binding:"required"`
+	Source           string  `json:"source"`
 	Description       string  `json:"description"`
 	Cost              float64 `json:"cost"`
 	CreatedBy         *string `json:"created_by"`

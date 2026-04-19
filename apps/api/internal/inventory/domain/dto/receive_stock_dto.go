@@ -14,6 +14,7 @@ type ReceiveStockRequest struct {
 	SourceID     string             `json:"source_id"`     // GR ID
 	SourceNumber string             `json:"source_number"` // GR Code
 	SourceType   string             `json:"source_type"`   // "GR"
+	Source       string             `json:"source"`
 	WarehouseID  string             `json:"warehouse_id"`  // Default warehouse? Or per item? purchase usually implies receiving to a warehouse.
 	Items        []ReceiveStockItem `json:"items"`
 	ReceivedAt   time.Time          `json:"received_at"`

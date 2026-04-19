@@ -37,6 +37,7 @@ func (r *stockOpnameRepository) Delete(ctx context.Context, id string) error {
 func (r *stockOpnameRepository) FindByID(ctx context.Context, id string) (*models.StockOpname, error) {
 	var opname models.StockOpname
 	err := r.db.WithContext(ctx).
+		Preload("Warehouse").
 		Preload("Items").
 		First(&opname, "id = ?", id).Error
 	if err != nil {

@@ -57,25 +57,24 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 		`).
 		Joins("LEFT JOIN product_categories pc ON pc.id = p.category_id").
 		Joins("LEFT JOIN product_brands pb ON pb.id = p.brand_id").
-		Joins("LEFT JOIN units_of_measure u ON u.id = p.uom_id").
+		Joins("LEFT JOIN units_of_measure u ON u.id = p.uom_id")
 		// Cross join (or similar) with Warehouses if we want to show 0 stock for all warehouses?
 		// For now, let's just show existing inventory or all products + default warehouse?
 		// The requirement implies warehouse filtering.
 		// If warehouse_id is provided, we filter inventory batches by that warehouse.
 		// If not, we might be aggregating ALL warehouses (which can be confusing if displayed as single row per product).
 		// The UI shows "Warehouse" column. This implies one row per Product-Warehouse combination.
-
-		// Strategy:
-		// 1. Join InventoryBatches
-		// 2. Join Warehouses via Batches
-		Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL").
-		Joins("LEFT JOIN warehouses w ON w.id = ib.warehouse_id")
-
-	// Apply Warehouse Filter
 	if req.WarehouseID != "" {
-		query = query.Where("ib.warehouse_id = ?", req.WarehouseID)
+		query = query.
+			Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL AND ib.warehouse_id = ?", req.WarehouseID).
+			// Join warehouses directly on the requested warehouse_id so w.id is never NULL
+			// even when the product has no batches yet in this warehouse (on_hand will be 0).
+			Joins("LEFT JOIN warehouses w ON w.id = ?", req.WarehouseID)
 	} else {
-		query = query.Where("ib.id IS NOT NULL")
+		query = query.
+			Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL").
+			Joins("LEFT JOIN warehouses w ON w.id = ib.warehouse_id").
+			Where("ib.id IS NOT NULL")
 	}
 
 	// Apply Product Filter
@@ -424,7 +423,7 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 			JOIN warehouses w ON w.id = ib.warehouse_id AND w.deleted_at IS NULL
 			WHERE p.deleted_at IS NULL
 	`
-	metricsArgs := make([]interface{}, 0, 1)
+	metricsArgs := make([]any, 0, 1)
 	if warehouseScoped {
 		metricsQuery += "\n\t\t\tAND w.id IN ?"
 		metricsArgs = append(metricsArgs, warehouseIDs)
@@ -556,9 +555,12 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 		RefType:          reference.Normalize(req.ReferenceType),
 		RefID:            req.ReferenceID,
 		RefNumber:        req.ReferenceNumber,
-		Source:           req.Description,
+		Source:           strings.TrimSpace(req.Source),
 		CreatedBy:        req.CreatedBy,
 		Date:             apptime.Now(),
+	}
+	if movement.Source == "" {
+		movement.Source = req.Description
 	}
 
 	// Costing: Ensure we use the latest Product HPP if not provided on the request

@@ -50,6 +50,8 @@ export const stockOpnameEn = {
     },
     product: "Product",
     systemQty: "System Qty",
+    systemQtyFetching: "Fetching stock level...",
+    systemQtyNoStock: "No stock recorded in this warehouse",
     physicalQty: "Physical Qty",
     notes: "Notes",
   },

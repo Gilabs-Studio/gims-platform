@@ -497,6 +497,7 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 				ReferenceType:    reference.RefTypeGoodsReceipt,
 				ReferenceID:      req.SourceID,
 				ReferenceNumber:  req.SourceNumber,
+				Source:           req.Source,
 				Cost:             item.CostPrice,
 				Description:      req.Notes,
 				CreatedBy:        &createdBy,
@@ -889,6 +890,11 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 		Description:     fmt.Sprintf("%s [%s]: %s", profile.DescriptionTemplate, movement.RefNumber, movement.Source),
 		TotalAmount:     math.Abs(volume * cost),
 		DescriptionArgs: []interface{}{movement.RefNumber},
+	}
+
+	// Skip journaling when cost is zero — no financial impact
+	if data.TotalAmount == 0 {
+		return nil
 	}
 
 	// 5. Generate Journal Request

@@ -312,6 +312,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave request status for this operation",
 	},
+	"INVALID_DATE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid date for this operation",
+	},
 	"INVALID_DURATION": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave duration type",
