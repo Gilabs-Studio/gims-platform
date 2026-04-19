@@ -101,7 +101,7 @@ pnpm dev                          # Docker + auto migrate/seed
 # Dev (Local Go + Air — hot reload, recommended for daily dev)
 docker compose up -d postgres redis   # Start DB + Redis only
 air                                   # Hot reload (or: make dev)
-# Or from root: pnpm dev:api:local
+# Or from root: pnpm dev:local
 
 # Run without hot reload
 go run ./cmd/api/main.go

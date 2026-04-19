@@ -72,7 +72,8 @@ use 'npx' to run 'pnpm'
 pnpm dev                  # All apps
 pnpm dev --filter=web     # Frontend only (localhost:3000)
 pnpm dev --filter=api     # Backend via Docker (localhost:8080)
-pnpm dev:api:local        # Backend via Air hot reload (recommended for daily dev)
+pnpm dev:db               # Start DB via Docker (Postgres + Redis)
+pnpm dev:local            # Backend via Air hot reload (recommended for daily dev)
 pnpm build && pnpm lint && pnpm type-check
 
 # Backend (cd apps/api)
