@@ -23,6 +23,9 @@ import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 const STORAGE_KEY = "invoice_form_cache";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const isUuidLike = (value: string | undefined | null): boolean => UUID_REGEX.test((value ?? "").trim());
 
 export interface UseInvoiceFormProps {
   invoice?: CustomerInvoice | null;
@@ -42,6 +45,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const [isValidating, setIsValidating] = useState(false);
   const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
   const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
+  const [isDefaultSalesOrderPrefillReady, setIsDefaultSalesOrderPrefillReady] = useState(!defaultSalesOrderId);
 
   type QuickCreateType = "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
@@ -141,12 +145,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   useEffect(() => {
     if (!open) {
+      setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
       return;
     }
 
+    setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
     setShouldLoadReferenceOptions(true);
     setShouldLoadProductOptions(true);
-  }, [open]);
+  }, [open, defaultSalesOrderId]);
 
   const products = useMemo(
     () => sortOptions(productsCombobox.items, (a) => `${a.code} - ${a.name}`),
@@ -165,7 +171,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
-  const formResolver = zodResolver(schema as any) as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
+  const formResolver = zodResolver(schema) as unknown as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
 
   const form = useForm<CreateInvoiceFormData | UpdateInvoiceFormData>({
     resolver: formResolver,
@@ -175,7 +181,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
           due_date: invoice.due_date ?? undefined,
           type: invoice.type ?? "regular",
           sales_order_id: invoice.sales_order_id ?? undefined,
-          payment_terms_id: invoice.payment_terms_id ?? undefined,
+          payment_terms_id: invoice.payment_terms_id ?? "",
           tax_rate: invoice.tax_rate ?? 11,
           delivery_cost: invoice.delivery_cost ?? 0,
           other_cost: invoice.other_cost ?? 0,
@@ -192,12 +198,16 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       : {
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
-          sales_order_id: defaultSalesOrderId ?? undefined,
+          sales_order_id: defaultSalesOrderId ?? "",
           delivery_order_id: defaultDeliveryOrderId ?? undefined,
+          due_date: "",
+          payment_terms_id: "",
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
-          items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+          items: defaultSalesOrderId
+            ? []
+            : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
         },
   });
 
@@ -217,6 +227,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   // Watch sales_order_id to auto-fill related fields (create mode only)
   const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
   const lastAutoFilledSORef = useRef<string | undefined>(undefined);
+  const hasAutoPopulatedRef = useRef(false);
 
   const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
     enabled: !isEdit && open && !!watchedSalesOrderId,
@@ -264,17 +275,30 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       setValue("delivery_cost", order.delivery_cost);
     }
     if (order.items && order.items.length > 0) {
-      replace(
-        order.items.map((item) => ({
-          product_id: item.product_id,
+      const normalizedItems = order.items.map((item) => {
+        const candidate = (item.product_id ?? "").trim();
+        const fallback = (item.product?.id ?? "").trim();
+        const resolvedProductId: string = isUuidLike(candidate) ? candidate : (isUuidLike(fallback) ? fallback : "");
+
+        return {
+          product_id: resolvedProductId,
+          sales_order_item_id: item.id,
           quantity: item.quantity,
           price: item.price,
           discount: item.discount ?? 0,
           hpp_amount: 0,
-        }))
-      );
+        };
+      });
+
+      replace(normalizedItems);
+
+      hasAutoPopulatedRef.current = true;
     }
-  }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace]);
+
+    if (defaultSalesOrderId && watchedSalesOrderId === defaultSalesOrderId) {
+      setIsDefaultSalesOrderPrefillReady(true);
+    }
+  }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace, defaultSalesOrderId]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -316,6 +340,12 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
       lastAutoFilledSORef.current = undefined;
+      hasAutoPopulatedRef.current = false;
+      return;
+    }
+
+    // Avoid overwriting auto-populated data with defaults in create mode
+    if (!isEdit && hasAutoPopulatedRef.current) {
       return;
     }
 
@@ -330,8 +360,8 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
             invoice_date: invoiceData.invoice_date,
             due_date: invoiceData.due_date ?? undefined,
             type: invoiceData.type ?? "regular",
-            sales_order_id: invoiceData.sales_order_id ?? undefined,
-            payment_terms_id: invoiceData.payment_terms_id ?? undefined,
+            sales_order_id: invoiceData.sales_order_id ?? "",
+            payment_terms_id: invoiceData.payment_terms_id ?? "",
             tax_rate: invoiceData.tax_rate ?? 11,
             delivery_cost: invoiceData.delivery_cost ?? 0,
             other_cost: invoiceData.other_cost ?? 0,
@@ -361,23 +391,31 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
         reset({
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
-          sales_order_id: defaultSalesOrderId ?? undefined,
+          sales_order_id: defaultSalesOrderId ?? "",
+          due_date: "",
+          payment_terms_id: "",
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
-          items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+          items: defaultSalesOrderId
+            ? []
+            : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
         });
       }
     } else {
       reset({
         invoice_date: new Date().toISOString().split("T")[0],
         type: "regular",
-        sales_order_id: defaultSalesOrderId ?? undefined,
+        sales_order_id: defaultSalesOrderId ?? "",
         delivery_order_id: defaultDeliveryOrderId ?? undefined,
+        due_date: "",
+        payment_terms_id: "",
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
-        items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+        items: defaultSalesOrderId
+          ? []
+          : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
       });
     }
   }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId, defaultDeliveryOrderId]);
@@ -422,6 +460,20 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const handleFormSubmit = async (
     data: CreateInvoiceFormData | UpdateInvoiceFormData
   ) => {
+    if (!isEdit && defaultSalesOrderId && !isDefaultSalesOrderPrefillReady) {
+      toast.error("Sales order is still loading. Please wait a moment.");
+      return;
+    }
+
+    const invalidItemProductIds = (data.items ?? [])
+      .map((item, index) => ({ index, product_id: item.product_id }))
+      .filter((item) => !isUuidLike(item.product_id));
+
+    if (invalidItemProductIds.length > 0) {
+      toast.error("Invalid product ID detected in invoice items. Check browser console for details.");
+      return;
+    }
+
     // Check if we're on items tab but have errors in basic fields
     if (activeTab === "items") {
       const basicFields = [
@@ -496,7 +548,9 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   };
 
   const isLoading = createInvoice.isPending || updateInvoice.isPending;
-  const isFormLoading = isEdit && (isLoadingInvoice || isFetchingInvoice) && !fullInvoiceData?.data;
+  const isFormLoading = (
+    isEdit && (isLoadingInvoice || isFetchingInvoice) && !fullInvoiceData?.data
+  ) || (!isEdit && !!defaultSalesOrderId && !isDefaultSalesOrderPrefillReady);
 
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {

@@ -26,9 +26,10 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { useRouter } from "@/i18n/routing";
 
 import { purchasePaymentSchema } from "../schemas/purchase-payment.schema";
-import { useCreatePurchasePayment } from "../hooks/use-purchase-payments";
+import { useCreatePurchasePayment, useUpdatePurchasePayment, usePurchasePaymentAddData } from "../hooks/use-purchase-payments";
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import type { PurchasePaymentDetail } from "../types";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
 import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
@@ -43,6 +44,7 @@ interface PurchasePaymentFormProps {
   readonly onClose: () => void;
   readonly defaultInvoiceId?: string;
   readonly defaultDPId?: string;
+  readonly payment?: PurchasePaymentDetail;
 }
 
 type PurchasePaymentFormValues = {
@@ -65,14 +67,19 @@ function isPayableInvoiceStatus(status?: string | null): boolean {
   return PAYABLE_INVOICE_STATUSES.has(normalized);
 }
 
-export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
+export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId, payment }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
   const router = useRouter();
 
-  const isLockedToInvoice = !!defaultInvoiceId;
-  const isLockedToDP = !!defaultDPId;
+  const isEdit = !!payment;
+  const isLockedToInvoice = !!defaultInvoiceId || isEdit;
+  const isLockedToDP = !!defaultDPId && !isEdit;
 
   const createMutation = useCreatePurchasePayment();
+  const updateMutation = useUpdatePurchasePayment();
+  const addDataQuery = usePurchasePaymentAddData({ enabled: open });
+  const invoices = useMemo(() => addDataQuery.data?.data?.invoices ?? [], [addDataQuery.data]);
+  const bankAccounts = useMemo(() => addDataQuery.data?.data?.bank_accounts ?? [], [addDataQuery.data]);
 
   // Fetch DP detail when locked to a specific down payment (supplier DP)
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useSupplierInvoiceDP(defaultDPId ?? "", {
@@ -106,59 +113,55 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   useEffect(() => {
     if (!open) return;
-    reset({
-      invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
-      dp_id: defaultDPId ?? null,
-      bank_account_id: null,
-      payment_date: todayISO(),
-      amount: undefined,
-      method: "BANK",
-      reference_number: null,
-      notes: null,
-    });
-  }, [open, reset, defaultInvoiceId, defaultDPId]);
+    if (isEdit && payment) {
+      reset({
+        invoice_id: payment.invoice?.id ?? null,
+        dp_id: null,
+        bank_account_id: payment.bank_account?.id ?? null,
+        payment_date: payment.payment_date,
+        amount: payment.amount,
+        method: payment.method,
+        reference_number: payment.reference_number ?? null,
+        notes: payment.notes ?? null,
+      });
+    } else {
+      reset({
+        invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
+        dp_id: defaultDPId ?? null,
+        bank_account_id: null,
+        payment_date: todayISO(),
+        amount: undefined,
+        method: "BANK",
+        reference_number: null,
+        notes: null,
+      });
+    }
+  }, [open, reset, defaultInvoiceId, defaultDPId, isEdit, payment]);
 
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
   const amount = useWatch({ control, name: "amount" });
   const bankAccountId = useWatch({ control, name: "bank_account_id" });
 
-  const invoicesCombobox = usePaginatedComboboxOptions({
-    queryKey: ["purchase-payment", "invoice-options"],
-    enabled: open && !isLockedToDP,
-    lazyLoad: true,
-    queryFn: (params) => supplierInvoicesService.list(params),
-    mapOption: (inv) => ({
-      value: inv.id,
-      label: `${inv.code}${inv.invoice_number ? ` (${inv.invoice_number})` : ""}`,
-    }),
-  });
-
-  const bankAccountsCombobox = usePaginatedComboboxOptions({
-    queryKey: ["purchase-payment", "bank-account-options"],
-    enabled: open && method === "BANK",
-    lazyLoad: true,
-    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true }),
-    mapOption: (acc) => ({
-      value: acc.id,
-      label: `${acc.name} - ${acc.account_number}`,
-    }),
-  });
-
   const selectedInvoiceDetailQuery = useSupplierInvoice(invoiceId ?? "", {
     enabled: open && !isLockedToDP && !!invoiceId,
   });
 
   const selectedInvoice = useMemo(() => {
+    if (isEdit) {
+      const detailed = selectedInvoiceDetailQuery.data?.success ? selectedInvoiceDetailQuery.data.data : null;
+      if (detailed) return detailed;
+      return payment?.invoice ?? null;
+    }
     if (!invoiceId || isLockedToDP) return null;
     const detailed = selectedInvoiceDetailQuery.data?.success ? selectedInvoiceDetailQuery.data.data : null;
     if (detailed) return detailed;
-    return invoicesCombobox.items.find((inv) => inv.id === invoiceId) ?? null;
-  }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoicesCombobox.items]);
+    return invoices.find((inv) => inv.id === invoiceId) ?? null;
+  }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoices, isEdit, payment]);
 
   const payableInvoices = useMemo(
-    () => invoicesCombobox.items.filter((inv) => isPayableInvoiceStatus(inv.status)),
-    [invoicesCombobox.items],
+    () => invoices.filter((inv) => isPayableInvoiceStatus(inv.status)),
+    [invoices],
   );
 
   useEffect(() => {
@@ -171,10 +174,14 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const selectedBankAccount = useMemo(() => {
     if (!bankAccountId) return null;
-    return bankAccountsCombobox.items.find((acc) => acc.id === bankAccountId) ?? null;
-  }, [bankAccountId, bankAccountsCombobox.items]);
+    return bankAccounts.find((acc) => acc.id === bankAccountId) ?? null;
+  }, [bankAccountId, bankAccounts]);
 
   const computedAmount = useMemo(() => {
+    if (isEdit && payment) {
+      const currentRemaining = selectedInvoice?.remaining_amount ?? payment.invoice?.remaining_amount ?? 0;
+      return currentRemaining + payment.amount;
+    }
     if (isLockedToDP && dpDetail) {
       return dpDetail.remaining_amount ?? dpDetail.amount;
     }
@@ -182,7 +189,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
       return selectedInvoice.remaining_amount ?? selectedInvoice.amount;
     }
     return undefined;
-  }, [isLockedToDP, dpDetail, selectedInvoice]);
+  }, [isEdit, payment, isLockedToDP, dpDetail, selectedInvoice]);
 
   const minimumTenderAmount = useMemo(() => {
     if (method !== "CASH") return 0;
@@ -231,8 +238,8 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     }
   }, [computedAmount, amount, method, setValue]);
 
-  const submitting = createMutation.isPending;
-  const isFetchingReference = invoicesCombobox.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
+  const submitting = createMutation.isPending || updateMutation.isPending;
+  const isFetchingReference = addDataQuery.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
   return (
@@ -244,15 +251,13 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     >
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>{t("form.title")}</DialogTitle>
+          <DialogTitle>{isEdit ? t("form.editTitle") : t("form.title")}</DialogTitle>
         </DialogHeader>
 
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
-            const submittedAmount = values.method === "CASH"
-              ? (values.amount ?? 0)
-              : (computedAmount ?? values.amount ?? 0);
+            const submittedAmount = values.amount ?? 0;
 
             if (
               values.method === "CASH" &&
@@ -263,24 +268,47 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               return;
             }
 
+            if (
+              computedAmount !== undefined &&
+              submittedAmount > computedAmount + 0.0001
+            ) {
+              toast.error(t("form.amountExceedsRemaining") ?? "Amount exceeds remaining balance");
+              return;
+            }
+
             if (submittedAmount <= 0) {
               toast.error(t("form.amountRequired") ?? "Amount is required");
               return;
             }
 
             try {
-              const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
-              await createMutation.mutateAsync({
-                invoice_id: invoiceIdForRequest,
-                dp_id: values.dp_id ?? null,
-                bank_account_id: values.bank_account_id ?? null,
-                payment_date: values.payment_date,
-                amount: submittedAmount,
-                method: values.method,
-                reference_number: values.reference_number ?? null,
-                notes: values.notes ?? null,
-              });
-              toast.success(t("toast.created"));
+              if (isEdit && payment) {
+                await updateMutation.mutateAsync({
+                  id: payment.id,
+                  data: {
+                    bank_account_id: values.bank_account_id ?? null,
+                    payment_date: values.payment_date,
+                    amount: submittedAmount,
+                    method: values.method,
+                    reference_number: values.reference_number ?? null,
+                    notes: values.notes ?? null,
+                  },
+                });
+                toast.success(t("toast.updated"));
+              } else {
+                const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
+                await createMutation.mutateAsync({
+                  invoice_id: invoiceIdForRequest,
+                  dp_id: values.dp_id ?? null,
+                  bank_account_id: values.bank_account_id ?? null,
+                  payment_date: values.payment_date,
+                  amount: submittedAmount,
+                  method: values.method,
+                  reference_number: values.reference_number ?? null,
+                  notes: values.notes ?? null,
+                });
+                toast.success(t("toast.created"));
+              }
               onClose();
             } catch (error) {
               if (isAccountingMappingError(error)) {
@@ -390,19 +418,12 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                         <Select
                           value={field.value ?? ""}
                           onValueChange={(v) => field.onChange(v)}
-                          onOpenChange={invoicesCombobox.onOpenChange}
-                          onSearchChange={invoicesCombobox.onSearchChange}
-                          searchDebounceMs={300}
-                          disabled={invoicesCombobox.isLoading || submitting}
+                          disabled={addDataQuery.isFetching || submitting}
                         >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
-                          <SelectContent
-                            onLoadMore={invoicesCombobox.onLoadMore}
-                            hasMore={invoicesCombobox.hasMore}
-                            isLoadingMore={invoicesCombobox.isLoadingMore}
-                          >
+                          <SelectContent>
                               {payableInvoices.map((inv) => (
                               <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
                                 <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
@@ -541,20 +562,13 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                           <Select
                             value={field.value ?? ""}
                             onValueChange={(v) => field.onChange(v)}
-                            onOpenChange={bankAccountsCombobox.onOpenChange}
-                            onSearchChange={bankAccountsCombobox.onSearchChange}
-                            searchDebounceMs={300}
-                            disabled={bankAccountsCombobox.isLoading || submitting}
+                            disabled={addDataQuery.isFetching || submitting}
                           >
                             <SelectTrigger className="cursor-pointer transition-all duration-200">
                               <SelectValue placeholder={t("placeholders.select")} />
                             </SelectTrigger>
-                            <SelectContent
-                              onLoadMore={bankAccountsCombobox.onLoadMore}
-                              hasMore={bankAccountsCombobox.hasMore}
-                              isLoadingMore={bankAccountsCombobox.isLoadingMore}
-                            >
-                              {bankAccountsCombobox.items.map((acc) => (
+                            <SelectContent>
+                              {bankAccounts.map((acc) => (
                                 <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
                                   <div className="flex flex-col">
                                     <span>{acc.name}</span>
@@ -690,8 +704,6 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               disabled={
                 submitting ||
                 isFetchingReference ||
-                bankAccountsCombobox.isLoading ||
-                bankAccountsCombobox.isFetching ||
                 isCashAmountBelowMinimum
               }
             >

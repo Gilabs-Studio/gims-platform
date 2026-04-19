@@ -50,6 +50,8 @@ const nextConfig: NextConfig = {
               isDevelopment
                 ? "connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*"
                 : "connect-src 'self' https: wss: ws:",
+              // Allow map iframe sources used by Travel Planner and other map integrations
+              "frame-src 'self' https://www.openstreetmap.org/ https://*.openstreetmap.org/ https://carto.com/",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

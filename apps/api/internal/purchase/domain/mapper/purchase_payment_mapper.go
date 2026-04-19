@@ -18,16 +18,17 @@ func (m *PurchasePaymentMapper) toInvoiceSummary(si *models.SupplierInvoice) *dt
 		return nil
 	}
 	return &dto.PurchasePaymentInvoiceSummary{
-		ID:            si.ID,
-		Code:          si.Code,
-		InvoiceNumber: si.InvoiceNumber,
-		InvoiceDate:   si.InvoiceDate,
-		DueDate:       si.DueDate,
-		TaxRate:       si.TaxRate,
-		TaxAmount:     si.TaxAmount,
-		Amount:        si.Amount,
-		Status:        string(si.Status),
-		Notes:         si.Notes,
+		ID:              si.ID,
+		Code:            si.Code,
+		InvoiceNumber:   si.InvoiceNumber,
+		InvoiceDate:     si.InvoiceDate,
+		DueDate:         si.DueDate,
+		TaxRate:         si.TaxRate,
+		TaxAmount:       si.TaxAmount,
+		Amount:          si.Amount,
+		RemainingAmount: si.RemainingAmount,
+		Status:          string(si.Status),
+		Notes:           si.Notes,
 	}
 }
 

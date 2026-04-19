@@ -10,21 +10,22 @@ import (
 )
 
 type SalesReturnListParams struct {
-	Search    string
-	Status    string
-	Action    string
-	InvoiceID string
+	Search     string
+	Status     string
+	Action     string
+	InvoiceID  string
 	DeliveryID string
-	SortBy    string
-	SortDir   string
-	Limit     int
-	Offset    int
+	SortBy     string
+	SortDir    string
+	Limit      int
+	Offset     int
 }
 
 type SalesReturnRepository interface {
 	List(ctx context.Context, params SalesReturnListParams) ([]*models.SalesReturn, int64, error)
 	GetByID(ctx context.Context, id string) (*models.SalesReturn, error)
 	Create(ctx context.Context, row *models.SalesReturn) error
+	Update(ctx context.Context, id string, row *models.SalesReturn) error
 	UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error
 	Delete(ctx context.Context, id string) error
 }
@@ -107,6 +108,37 @@ func (r *salesReturnRepository) GetByID(ctx context.Context, id string) (*models
 
 func (r *salesReturnRepository) Create(ctx context.Context, row *models.SalesReturn) error {
 	return r.db.WithContext(ctx).Create(row).Error
+}
+
+func (r *salesReturnRepository) Update(ctx context.Context, id string, row *models.SalesReturn) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Update header fields
+		if err := tx.Model(&models.SalesReturn{}).Where(salesReturnIDFilter, id).Updates(map[string]interface{}{
+			"invoice_id":   row.InvoiceID,
+			"warehouse_id": row.WarehouseID,
+			"customer_id":  row.CustomerID,
+			"reason":       row.Reason,
+			"action":       row.Action,
+			"notes":        row.Notes,
+			"total_amount": row.TotalAmount,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Replace items: delete existing, insert new
+		if err := tx.Where("sales_return_id = ?", id).Delete(&models.SalesReturnItem{}).Error; err != nil {
+			return err
+		}
+
+		for i := range row.Items {
+			row.Items[i].SalesReturnID = id
+			if err := tx.Create(&row.Items[i]).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *salesReturnRepository) UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error {

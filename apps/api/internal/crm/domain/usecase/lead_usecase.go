@@ -628,6 +628,11 @@ func (u *leadUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("cannot delete a converted lead")
 	}
 
+	// Cascade soft-delete related deals
+	if err := database.DB.WithContext(ctx).Where("lead_id = ?", id).Delete(&models.Deal{}).Error; err != nil {
+		return err
+	}
+
 	return u.leadRepo.Delete(ctx, id)
 }
 

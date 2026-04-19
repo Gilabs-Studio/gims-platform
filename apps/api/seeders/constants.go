@@ -56,18 +56,18 @@ const (
 	UnitWholesaleID = "4b5c6d7e-8f9a-0b1c-2d3e-4f5a6b7c8d9e"
 )
 
-// Area IDs (Fixed)
+// Area IDs (Fixed — valid UUID v4)
 const (
-	AreaJabodetabekID     = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
-	AreaJawaBaratID       = "a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2"
-	AreaJawaTengahID      = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
-	AreaJawaTimurID       = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
-	AreaBaliID            = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
-	AreaBantenID          = "a6a6a6a6-a6a6-a6a6-a6a6-a6a6a6a6a6a6"
-	AreaDIYID             = "a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a7"
-	AreaSumateraUtaraID   = "a8a8a8a8-a8a8-a8a8-a8a8-a8a8a8a8a8a8"
-	AreaSulawesiSelatanID = "a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9"
-	AreaKalimantanTimurID = "aabababa-baba-baba-baba-babababababa" // hex-only: a, b
+	AreaJabodetabekID     = "a99a4611-c507-444c-a2a1-223a74684c6e"
+	AreaJawaBaratID       = "e9db0ad5-b65c-4996-bf5f-79703b1c6a7f"
+	AreaJawaTengahID      = "d0b18c17-5758-4e28-90a7-057da1ddcbab"
+	AreaJawaTimurID       = "0c5300dc-67b1-44d2-bcca-cdab1e66aae7"
+	AreaBaliID            = "baeb3573-5d88-483f-bf4b-5ed5d186df42"
+	AreaBantenID          = "379536e2-6c2a-4f45-b8ef-4bf48be180c6"
+	AreaDIYID             = "3fc2a613-e181-4d76-8307-2c8185c14df9"
+	AreaSumateraUtaraID   = "08f4078b-de5e-465f-8302-981b296d96ac"
+	AreaSulawesiSelatanID = "15382c90-60e5-45e6-903a-93b0aef5e37a"
+	AreaKalimantanTimurID = "f96df85e-d4cc-4db0-b821-3b3b6b4768fb"
 )
 
 // Employee IDs (Fixed)

@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { orderService } from "../services/order-service";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type {
   ListSalesOrdersParams,
   ListSalesOrderItemsParams,
@@ -70,7 +72,7 @@ export function useOrderAuditTrail(
     placeholderData: (previousData) => previousData,
   });
 }
- 
+
 
 // Create order mutation
 export function useCreateOrder() {
@@ -80,6 +82,9 @@ export function useCreateOrder() {
     mutationFn: (data: CreateSalesOrderData) => orderService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create sales order"));
     },
   });
 }
@@ -113,8 +118,9 @@ export function useUpdateOrder() {
       });
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
-    onError: () => {
+    onError: (error) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      toast.error(getSalesErrorMessage(error, "Failed to update sales order"));
     },
   });
 }
@@ -127,6 +133,9 @@ export function useDeleteOrder() {
     mutationFn: (id: string) => orderService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete sales order"));
     },
   });
 }
@@ -217,6 +226,9 @@ export function useConvertQuotationToOrder() {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       // Also invalidate quotations since one was converted
       queryClient.invalidateQueries({ queryKey: ["sales-quotations"] });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to convert quotation to order"));
     },
   });
 }

@@ -40,6 +40,24 @@ type CreatePurchaseReturnRequest struct {
 	Items         []CreatePurchaseReturnItemRequest `json:"items" binding:"required,min=1"`
 }
 
+type UpdatePurchaseReturnItemRequest struct {
+	GoodsReceiptItemID *string `json:"goods_receipt_item_id"`
+	ProductID          string  `json:"product_id" binding:"required"`
+	UOMID              *string `json:"uom_id"`
+	Condition          string  `json:"condition" binding:"required"`
+	Notes              *string `json:"notes"`
+	Qty                float64 `json:"qty" binding:"required,gt=0"`
+	UnitCost           float64 `json:"unit_cost" binding:"required,gte=0"`
+}
+
+type UpdatePurchaseReturnRequest struct {
+	WarehouseID string                           `json:"warehouse_id" binding:"required"`
+	Reason        string                           `json:"reason" binding:"required"`
+	Action        string                           `json:"action" binding:"required"`
+	Notes         *string                          `json:"notes"`
+	Items         []UpdatePurchaseReturnItemRequest `json:"items" binding:"required,min=1"`
+}
+
 type UpdatePurchaseReturnStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }

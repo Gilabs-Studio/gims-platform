@@ -24,6 +24,7 @@ type PurchaseReturnRepository interface {
 	List(ctx context.Context, params PurchaseReturnListParams) ([]*models.PurchaseReturn, int64, error)
 	GetByID(ctx context.Context, id string) (*models.PurchaseReturn, error)
 	Create(ctx context.Context, row *models.PurchaseReturn) error
+	Update(ctx context.Context, row *models.PurchaseReturn) error
 	UpdateStatus(ctx context.Context, id string, status models.PurchaseReturnStatus) error
 	Delete(ctx context.Context, id string) error
 }
@@ -103,6 +104,30 @@ func (r *purchaseReturnRepository) GetByID(ctx context.Context, id string) (*mod
 
 func (r *purchaseReturnRepository) Create(ctx context.Context, row *models.PurchaseReturn) error {
 	return r.db.WithContext(ctx).Create(row).Error
+}
+
+func (r *purchaseReturnRepository) Update(ctx context.Context, row *models.PurchaseReturn) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.PurchaseReturn{}).Where(purchaseReturnIDFilter, row.ID).Updates(map[string]interface{}{
+			"warehouse_id": row.WarehouseID,
+			"reason":       row.Reason,
+			"action":       row.Action,
+			"notes":        row.Notes,
+			"total_amount": row.TotalAmount,
+			"updated_at":   row.UpdatedAt,
+		}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("purchase_return_id = ?", row.ID).Delete(&models.PurchaseReturnItem{}).Error; err != nil {
+			return err
+		}
+		if len(row.Items) > 0 {
+			if err := tx.Create(row.Items).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *purchaseReturnRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseReturnStatus) error {

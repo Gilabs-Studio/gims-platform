@@ -133,6 +133,12 @@ func (h *CustomerInvoiceHandler) Create(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrSalesOrderNotFound) {
+			errors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}

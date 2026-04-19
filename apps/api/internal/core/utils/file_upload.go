@@ -1,10 +1,8 @@
 package utils
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
@@ -16,8 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/h2non/filetype"
-	"github.com/kolesa-team/go-webp/encoder"
-	"github.com/kolesa-team/go-webp/webp"
 )
 
 var (
@@ -104,33 +100,6 @@ func ValidateImageFile(file multipart.File, header *multipart.FileHeader, maxSiz
 	return nil
 }
 
-// ConvertToWebP converts an image to WebP format
-func ConvertToWebP(file multipart.File) ([]byte, error) {
-	// Decode image
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, ErrInvalidImage
-	}
-
-	// Reset file pointer
-	if _, err := file.Seek(0, 0); err != nil {
-		return nil, ErrFileProcessing
-	}
-
-	// Encode to WebP with quality 85
-	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 85)
-	if err != nil {
-		return nil, ErrFileProcessing
-	}
-
-	var buf bytes.Buffer
-	if err := webp.Encode(&buf, img, options); err != nil {
-		return nil, ErrFileProcessing
-	}
-
-	return buf.Bytes(), nil
-}
-
 // SaveUploadedFile saves an uploaded file with security best practices
 func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config FileUploadConfig) (*UploadedFile, error) {
 	// 1. Validate file
@@ -138,14 +107,21 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config 
 		return nil, err
 	}
 
-	// 2. Convert to WebP
+	// 2. Convert to WebP (or passthrough if CGO unavailable)
 	webpData, err := ConvertToWebP(file)
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. Generate secure filename using UUID
-	filename := fmt.Sprintf("%s.webp", uuid.New().String())
+	ext := ".webp"
+	mimeType := "image/webp"
+	if !WebPEnabled {
+		// No WebP conversion — keep original extension
+		ext = strings.ToLower(filepath.Ext(header.Filename))
+		mimeType = header.Header.Get("Content-Type")
+	}
+	filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 
 	// 4. Ensure upload directory exists
 	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
@@ -182,7 +158,7 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config 
 		Path:         fullPath,
 		URL:          url,
 		Size:         int64(len(webpData)),
-		MimeType:     "image/webp",
+		MimeType:     mimeType,
 	}, nil
 }
 

@@ -109,6 +109,7 @@ export function InvoiceDetailModal({
 
   const displayInvoice = detailData?.data ?? invoice;
   const status = (displayInvoice?.status ?? "").toLowerCase();
+  const normalizedStatus = status === "approved" ? "unpaid" : status;
   const fallbackAuditEntries = useMemo(
     () => {
       if (!displayInvoice) return [];
@@ -228,7 +229,7 @@ export function InvoiceDetailModal({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && status === "draft" && (
+                {canEdit && normalizedStatus === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -239,7 +240,7 @@ export function InvoiceDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canEdit && status === "draft" && (
+                {canEdit && normalizedStatus === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -250,7 +251,7 @@ export function InvoiceDetailModal({
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && status === "unpaid" && (
+                {canDelete && normalizedStatus === "unpaid" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -261,7 +262,7 @@ export function InvoiceDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(normalizedStatus) && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -272,7 +273,7 @@ export function InvoiceDetailModal({
                     <CreditCard className="h-4 w-4" />
                   </Button>
                 )}
-                {canPay && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                {canPay && ["unpaid", "partial", "waiting_payment"].includes(normalizedStatus) && (
                   <Button
                     variant="ghost"
                     size="icon"

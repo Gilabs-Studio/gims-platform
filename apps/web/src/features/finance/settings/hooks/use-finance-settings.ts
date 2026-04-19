@@ -131,7 +131,7 @@ export const useBatchUpsertFinanceSettings = () => {
     mutationFn: batchUpsert,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings"] });
-      toast.success(t("success"));
+      toast.success(t("saved"));
     },
     onError: (error: unknown) => {
       toast.error(resolveErrorMessage(error));

@@ -3,10 +3,12 @@ package usecase
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,6 +41,7 @@ var (
 	ErrTravelExpenseNotFound = errors.New("travel expense not found")
 	ErrVisitNotFound         = errors.New("visit not found")
 	ErrInvalidSearchQuery    = errors.New("search query must contain at least 2 characters")
+	ErrInvalidCheckpoint     = errors.New("invalid checkpoint")
 )
 
 type TravelPlanUsecase interface {
@@ -1702,10 +1705,11 @@ func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVi
 }
 
 func (uc *travelPlanUsecase) generateVisitCode(ctx context.Context, now time.Time) (string, error) {
-	// Use format: VISIT-YYYYMM-NNNNNNNNN (9 digits from nanoseconds)
-	// This ensures uniqueness even with concurrent requests
 	prefix := fmt.Sprintf("VISIT-%s-", now.Format("200601"))
-	nanoFraction := now.Nanosecond() % 1_000_000_000 // Last 9 digits of nanoseconds
-
-	return fmt.Sprintf("%s%09d", prefix, nanoFraction), nil
+	// Cryptographically secure random 6-digit suffix to avoid collisions
+	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s%06d", prefix, n.Int64()), nil
 }

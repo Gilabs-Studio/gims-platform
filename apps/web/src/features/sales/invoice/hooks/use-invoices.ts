@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { invoiceService } from "../services/invoice-service";
 import { orderKeys } from "../../order/hooks/use-orders";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type { CustomerInvoiceSummary, SalesOrderListResponse } from "../../order/types";
 import type {
   ListCustomerInvoicesParams,
@@ -131,6 +133,9 @@ export function useCreateInvoice() {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create invoice"));
+    },
   });
 }
 
@@ -168,9 +173,10 @@ export function useUpdateInvoice() {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
-    onError: () => {
+    onError: (error) => {
       // Refetch on error to revert optimistic update
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      toast.error(getSalesErrorMessage(error, "Failed to update invoice"));
     },
   });
 }
@@ -183,6 +189,9 @@ export function useDeleteInvoice() {
     mutationFn: (id: string) => invoiceService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete invoice"));
     },
   });
 }
@@ -208,6 +217,9 @@ export function useUpdateInvoiceStatus() {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update invoice status"));
+    },
   });
 }
 
@@ -222,6 +234,8 @@ export function useApproveInvoice() {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to approve invoice"));
+    },
   });
 }
-

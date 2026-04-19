@@ -165,6 +165,51 @@ func (h *PurchasePaymentHandler) Create(c *gin.Context) {
 	response.SuccessResponseCreated(c, res, nil)
 }
 
+// Update handles PUT /purchase/payments/:id
+func (h *PurchasePaymentHandler) Update(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	var req dto.UpdatePurchasePaymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	res, err := h.uc.Update(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrPurchasePaymentNotFound {
+			errors.NotFoundResponse(c, "purchase_payment", id)
+			return
+		}
+		if err == usecase.ErrPurchasePaymentConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if err.Error() == "bank account not found" {
+			errors.NotFoundResponse(c, "bank_account", req.BankAccountID)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // Delete handles DELETE /purchase/payments/:id
 func (h *PurchasePaymentHandler) Delete(c *gin.Context) {
 	id := c.Param("id")

@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +73,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
+  const isSalesOrderLocked = !isEdit && !!defaultSalesOrderId;
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -81,6 +82,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
           <DialogTitle>
             {isEdit ? t("edit") : t("add")}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {isEdit
+              ? "Edit customer invoice form"
+              : "Create customer invoice form"}
+          </DialogDescription>
         </DialogHeader>
 
         {isFormLoading ? (
@@ -117,16 +123,18 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
+                      disabled={isSalesOrderLocked}
                       onOpenChange={(isOpen) => {
+                        if (isSalesOrderLocked) return;
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
                         ordersCombobox.onOpenChange(isOpen);
                       }}
-                      onSearchChange={ordersCombobox.onSearchChange}
+                      onSearchChange={isSalesOrderLocked ? undefined : ordersCombobox.onSearchChange}
                       searchDebounceMs={300}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger disabled={isSalesOrderLocked} className={isSalesOrderLocked ? "opacity-100 disabled:opacity-100" : undefined}>
                         <SelectValue placeholder={t("salesOrder")} />
                       </SelectTrigger>
                       <SelectContent
@@ -144,6 +152,9 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     </Select>
                   )}
                 />
+                {errors.sales_order_id && (
+                  <FieldError>{errors.sales_order_id.message}</FieldError>
+                )}
               </Field>
 
               <Field orientation="vertical">
@@ -184,7 +195,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               </Field>
 
               <Field orientation="vertical">
-                <FieldLabel>{t("dueDate")}</FieldLabel>
+                <FieldLabel>{t("dueDate")} *</FieldLabel>
                 <Controller
                   name="due_date"
                   control={control}
@@ -240,7 +251,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               </Field>
 
               <Field orientation="vertical">
-                <FieldLabel>{t("paymentTerms")}</FieldLabel>
+                <FieldLabel>{t("paymentTerms")} *</FieldLabel>
                 <Controller
                   name="payment_terms_id"
                   control={control}
@@ -400,7 +411,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               type="button"
               onClick={handleNext}
               className="cursor-pointer"
-              disabled={isValidating}
+              disabled={isValidating || isFormLoading}
             >
               <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
                 {t("common.next") || "Next"}
@@ -439,6 +450,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                             variant="ghost"
                             size="icon"
                             onClick={() => remove(index)}
+                            disabled={isSalesOrderLocked}
                             className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -456,19 +468,22 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                               <Select
                                 value={field.value?.toString() || ""}
                                 onValueChange={(value) => {
+                                  if (isSalesOrderLocked) return;
                                   field.onChange(value);
                                   handleProductChange(index, value);
                                 }}
                                 onOpenChange={(isOpen) => {
+                                  if (isSalesOrderLocked) return;
                                   if (isOpen) {
                                     enableProductOptionsFetch();
                                   }
                                   productsCombobox.onOpenChange(isOpen);
                                 }}
-                                onSearchChange={productsCombobox.onSearchChange}
+                                onSearchChange={isSalesOrderLocked ? undefined : productsCombobox.onSearchChange}
                                 searchDebounceMs={300}
+                                disabled={isSalesOrderLocked}
                               >
-                                <SelectTrigger>
+                                <SelectTrigger disabled={isSalesOrderLocked} className={isSalesOrderLocked ? "opacity-100 disabled:opacity-100" : undefined}>
                                   <SelectValue placeholder={t("item.selectProduct")} />
                                 </SelectTrigger>
                                 <SelectContent
@@ -502,6 +517,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0.001}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -522,6 +538,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0.01}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -562,6 +579,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -587,6 +605,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                   variant="outline"
                   size="sm"
                   onClick={handleAddItem}
+                  disabled={isSalesOrderLocked}
                   className="w-full cursor-pointer border-dashed"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -675,12 +694,12 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                disabled={isLoading}
+                disabled={isLoading || isFormLoading}
                 className="cursor-pointer"
               >
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" disabled={isLoading} className="cursor-pointer">
+              <Button type="submit" disabled={isLoading || isFormLoading} className="cursor-pointer">
                 <ButtonLoading 
                   loading={isLoading} 
                   loadingText={t("common.saving")}

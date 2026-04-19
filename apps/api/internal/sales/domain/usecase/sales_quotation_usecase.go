@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -21,12 +22,13 @@ import (
 )
 
 var (
-	ErrSalesQuotationNotFound      = errors.New("sales quotation not found")
-	ErrSalesQuotationAlreadyExists = errors.New("sales quotation with this code already exists")
-	ErrInvalidStatusTransition     = errors.New("invalid status transition")
-	ErrQuotationAlreadyConverted   = errors.New("quotation already converted to sales order")
-	ErrProductNotFound             = errors.New("product not found")
-	ErrInvalidQuotationStatus      = errors.New("cannot modify quotation in current status")
+	ErrSalesQuotationNotFound          = errors.New("sales quotation not found")
+	ErrSalesQuotationAlreadyExists     = errors.New("sales quotation with this code already exists")
+	ErrInvalidStatusTransition         = errors.New("invalid status transition")
+	ErrQuotationAlreadyConverted       = errors.New("quotation already converted to sales order")
+	ErrProductNotFound                 = errors.New("product not found")
+	ErrInvalidQuotationStatus          = errors.New("cannot modify quotation in current status")
+	ErrValidUntilBeforeQuotationDate   = errors.New("valid until date must not be earlier than quotation date")
 )
 
 // SalesQuotationUsecase defines the interface for sales quotation business logic
@@ -194,6 +196,11 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 		return nil, err
 	}
 
+	// Validate date relationship
+	if err := validateQuotationDates(quotation.QuotationDate, quotation.ValidUntil); err != nil {
+		return nil, err
+	}
+
 	if err := u.applyCustomerSnapshot(ctx, quotation); err != nil {
 		return nil, err
 	}
@@ -270,6 +277,11 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 
 	// Update model
 	if err := mapper.UpdateSalesQuotationModel(quotation, req); err != nil {
+		return nil, err
+	}
+
+	// Validate date relationship
+	if err := validateQuotationDates(quotation.QuotationDate, quotation.ValidUntil); err != nil {
 		return nil, err
 	}
 
@@ -497,6 +509,17 @@ func (u *salesQuotationUsecase) attachCustomerContactResponse(ctx context.Contex
 		Phone: contact.Phone,
 		Email: contact.Email,
 	}
+}
+
+// validateQuotationDates ensures valid_until is not earlier than quotation_date
+func validateQuotationDates(quotationDate time.Time, validUntil *time.Time) error {
+	if validUntil == nil {
+		return nil
+	}
+	if validUntil.Before(quotationDate) {
+		return ErrValidUntilBeforeQuotationDate
+	}
+	return nil
 }
 
 func salesQuotationFirstNonEmpty(current string, fallback string) string {

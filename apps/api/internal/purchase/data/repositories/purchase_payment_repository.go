@@ -27,6 +27,7 @@ type PurchasePaymentRepository interface {
 	List(ctx context.Context, params PurchasePaymentListParams) ([]*models.PurchasePayment, int64, error)
 	GetByID(ctx context.Context, id string) (*models.PurchasePayment, error)
 	Create(ctx context.Context, p *models.PurchasePayment) error
+	Update(ctx context.Context, id string, updates map[string]interface{}) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -126,6 +127,10 @@ func (r *purchasePaymentRepository) GetByID(ctx context.Context, id string) (*mo
 
 func (r *purchasePaymentRepository) Create(ctx context.Context, p *models.PurchasePayment) error {
 	return r.getDB(ctx).Create(p).Error
+}
+
+func (r *purchasePaymentRepository) Update(ctx context.Context, id string, updates map[string]interface{}) error {
+	return r.getDB(ctx).Model(&models.PurchasePayment{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *purchasePaymentRepository) Delete(ctx context.Context, id string) error {

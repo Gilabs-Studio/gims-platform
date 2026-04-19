@@ -146,6 +146,8 @@ export interface PurchaseRequisitionAddSupplier {
   name: string;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
+  payment_terms?: { id: string } | null;
+  business_unit?: { id: string } | null;
   contacts?: PurchaseRequisitionAddSupplierContact[];
   products: PurchaseRequisitionAddProduct[];
 }

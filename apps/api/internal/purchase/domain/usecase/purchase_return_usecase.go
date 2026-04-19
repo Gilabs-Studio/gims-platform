@@ -47,6 +47,7 @@ type PurchaseReturnUsecase interface {
 	List(ctx context.Context, params repositories.PurchaseReturnListParams) ([]*dto.PurchaseReturnResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.PurchaseReturnResponse, error)
 	Create(ctx context.Context, req *dto.CreatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error)
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.PurchaseReturnResponse, error)
 	Delete(ctx context.Context, id string) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseReturnAuditTrailEntry, int64, error)
@@ -220,6 +221,159 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	}
 
 	return mapPurchaseReturnRow(created), nil
+}
+
+func (u *purchaseReturnUsecase) Update(ctx context.Context, id string, req *dto.UpdatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error) {
+	if req == nil || len(req.Items) == 0 {
+		return nil, ErrPurchaseReturnInvalid
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	if u.db == nil {
+		return nil, errors.New(errPurchaseReturnDBNil)
+	}
+
+	row, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseReturnNotFound
+		}
+		return nil, err
+	}
+
+	if row.Status != models.PurchaseReturnStatusDraft {
+		return nil, ErrPurchaseReturnInvalid
+	}
+
+	action, err := normalizePurchaseReturnAction(req.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	// warehouse validation (same as create)
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		return nil, errors.New("warehouse_id is required")
+	}
+	goodsReceipt, err := u.getGoodsReceipt(ctx, row.GoodsReceiptID)
+	if err != nil {
+		return nil, err
+	}
+	sourceWarehouseID := ""
+	if goodsReceipt.WarehouseID != nil {
+		sourceWarehouseID = strings.TrimSpace(*goodsReceipt.WarehouseID)
+	}
+	if sourceWarehouseID != "" && sourceWarehouseID != warehouseID {
+		if !hasWarehouseOverridePermission(ctx, purchaseReturnWarehouseOverridePermission) {
+			u.logWarehouseMismatchAttempt(ctx, row.GoodsReceiptID, sourceWarehouseID, warehouseID, "denied")
+			return nil, errors.New("warehouse_id must match goods receipt warehouse")
+		}
+		u.logWarehouseMismatchAttempt(ctx, row.GoodsReceiptID, sourceWarehouseID, warehouseID, "allowed")
+	}
+
+	// Validate quantities: add back current return quantities so user can reallocate them
+	if err := u.validateRequestedQtyForUpdate(ctx, row, req.Items); err != nil {
+		return nil, err
+	}
+	if err := u.validateRequestedQtyAgainstWarehouseStockForUpdate(ctx, warehouseID, mapUpdateItemsToCreateItems(req.Items), row.Items); err != nil {
+		return nil, err
+	}
+
+	now := apptime.Now()
+	row.WarehouseID = warehouseID
+	row.Reason = strings.TrimSpace(req.Reason)
+	row.Action = action
+	row.Notes = req.Notes
+	row.UpdatedAt = now
+
+	items := make([]models.PurchaseReturnItem, 0, len(req.Items))
+	totalAmount := 0.0
+	for _, item := range req.Items {
+		subtotal := item.Qty * item.UnitCost
+		totalAmount += subtotal
+		items = append(items, models.PurchaseReturnItem{
+			PurchaseReturnID:   row.ID,
+			GoodsReceiptItemID: normalizeOptionalString(item.GoodsReceiptItemID),
+			ProductID:          strings.TrimSpace(item.ProductID),
+			UOMID:              normalizeOptionalString(item.UOMID),
+			Condition:          strings.ToUpper(strings.TrimSpace(item.Condition)),
+			Notes:              normalizeOptionalString(item.Notes),
+			Quantity:           item.Qty,
+			UnitCost:           item.UnitCost,
+			Subtotal:           subtotal,
+		})
+	}
+	row.TotalAmount = totalAmount
+	row.Items = items
+
+	if err := u.repo.Update(ctx, row); err != nil {
+		return nil, err
+	}
+
+	updated, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.auditService != nil {
+		u.auditService.Log(ctx, "purchase_return.update", updated.ID, map[string]interface{}{
+			"code": updated.Code,
+		})
+	}
+
+	return mapPurchaseReturnRow(updated), nil
+}
+
+func (u *purchaseReturnUsecase) validateRequestedQtyForUpdate(
+	ctx context.Context,
+	existing *models.PurchaseReturn,
+	items []dto.UpdatePurchaseReturnItemRequest,
+) error {
+	availableQtyByProduct, err := u.getAvailableGoodsReceiptQtyByProduct(ctx, existing.GoodsReceiptID)
+	if err != nil {
+		return err
+	}
+
+	// Add back this return's own quantities so they can be reallocated
+	for _, item := range existing.Items {
+		availableQtyByProduct[item.ProductID] += item.Quantity
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		requestedQtyByProduct[productID] += item.Qty
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
+			return errors.New("return quantity exceeds available quantity from goods receipt")
+		}
+	}
+
+	return nil
+}
+
+func mapUpdateItemsToCreateItems(items []dto.UpdatePurchaseReturnItemRequest) []dto.CreatePurchaseReturnItemRequest {
+	out := make([]dto.CreatePurchaseReturnItemRequest, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.CreatePurchaseReturnItemRequest{
+			GoodsReceiptItemID: item.GoodsReceiptItemID,
+			ProductID:          item.ProductID,
+			UOMID:              item.UOMID,
+			Condition:          item.Condition,
+			Notes:              item.Notes,
+			Qty:                item.Qty,
+			UnitCost:           item.UnitCost,
+		})
+	}
+	return out
 }
 
 func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, status string) (*dto.PurchaseReturnResponse, error) {
@@ -619,6 +773,52 @@ func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStock(
 	availableQtyByProduct, err := u.getWarehouseAvailableQtyByProduct(ctx, warehouseID, productIDs)
 	if err != nil {
 		return err
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty > availableQty+0.0001 {
+			return fmt.Errorf("return quantity exceeds available warehouse stock for product %s", productID)
+		}
+	}
+
+	return nil
+}
+
+func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStockForUpdate(
+	ctx context.Context,
+	warehouseID string,
+	items []dto.CreatePurchaseReturnItemRequest,
+	existingItems []models.PurchaseReturnItem,
+) error {
+	if u.invUC == nil {
+		return nil
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	productIDs := make(map[string]struct{})
+
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		requestedQtyByProduct[productID] += item.Qty
+		productIDs[productID] = struct{}{}
+	}
+
+	availableQtyByProduct, err := u.getWarehouseAvailableQtyByProduct(ctx, warehouseID, productIDs)
+	if err != nil {
+		return err
+	}
+
+	// Add back this return's own quantities so they can be reallocated
+	for _, item := range existingItems {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		availableQtyByProduct[productID] += item.Quantity
 	}
 
 	for productID, requestedQty := range requestedQtyByProduct {
