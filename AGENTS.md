@@ -65,6 +65,8 @@ Order: stdlib → external → internal. Run `go mod tidy` after new files.
 
 ## Commands
 
+use 'npx' to run 'pnpm'
+
 ```bash
 # Root
 pnpm dev                  # All apps
