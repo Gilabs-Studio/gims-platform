@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
@@ -28,12 +29,12 @@ func NewLeaveTypeRepository(db *gorm.DB) LeaveTypeRepository {
 }
 
 func (r *leaveTypeRepository) Create(ctx context.Context, leaveType *models.LeaveType) error {
-	return r.db.WithContext(ctx).Create(leaveType).Error
+	return database.GetDB(ctx, r.db).Create(leaveType).Error
 }
 
 func (r *leaveTypeRepository) FindByID(ctx context.Context, id string) (*models.LeaveType, error) {
 	var leaveType models.LeaveType
-	err := r.db.WithContext(ctx).First(&leaveType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&leaveType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *leaveTypeRepository) FindByID(ctx context.Context, id string) (*models.
 
 func (r *leaveTypeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.LeaveType, error) {
 	var leaveTypes []models.LeaveType
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id IN ?", ids).
 		Find(&leaveTypes).Error
 	if err != nil {
@@ -53,7 +54,7 @@ func (r *leaveTypeRepository) FindByIDs(ctx context.Context, ids []string) ([]mo
 
 func (r *leaveTypeRepository) FindAll(ctx context.Context) ([]models.LeaveType, error) {
 	var leaveTypes []models.LeaveType
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&leaveTypes).Error
@@ -67,7 +68,7 @@ func (r *leaveTypeRepository) List(ctx context.Context, params ListParams) ([]mo
 	var leaveTypes []models.LeaveType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeaveType{})
+	query := database.GetDB(ctx, r.db).Model(&models.LeaveType{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -105,9 +106,9 @@ func (r *leaveTypeRepository) List(ctx context.Context, params ListParams) ([]mo
 }
 
 func (r *leaveTypeRepository) Update(ctx context.Context, leaveType *models.LeaveType) error {
-	return r.db.WithContext(ctx).Save(leaveType).Error
+	return database.GetDB(ctx, r.db).Save(leaveType).Error
 }
 
 func (r *leaveTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.LeaveType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.LeaveType{}, "id = ?", id).Error
 }

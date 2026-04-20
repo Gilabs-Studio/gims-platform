@@ -23,6 +23,7 @@ const (
 // This table is APPEND-ONLY. No updates or deletes allowed for data integrity.
 type StockMovement struct {
 	ID           string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Date         time.Time         `gorm:"not null;index;default:CURRENT_TIMESTAMP" json:"date"`
 	MovementType StockMovementType `gorm:"column:movement_type;type:varchar(20);not null;index;default:'IN'" json:"type"`
 	

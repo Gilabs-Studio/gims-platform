@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
@@ -36,12 +37,12 @@ func NewSupplierRepository(db *gorm.DB) SupplierRepository {
 }
 
 func (r *supplierRepository) Create(ctx context.Context, supplier *models.Supplier) error {
-	return r.db.WithContext(ctx).Create(supplier).Error
+	return database.GetDB(ctx, r.db).Create(supplier).Error
 }
 
 func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.Supplier, error) {
 	var supplier models.Supplier
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("SupplierType").
 		Preload("PaymentTerms").
 		Preload("BusinessUnit").
@@ -61,7 +62,7 @@ func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.S
 
 func (r *supplierRepository) FindByCode(ctx context.Context, code string) (*models.Supplier, error) {
 	var supplier models.Supplier
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("SupplierType").
 		Preload("PaymentTerms").
 		Preload("BusinessUnit").
@@ -76,7 +77,7 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 	var suppliers []models.Supplier
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Supplier{})
+	query := database.GetDB(ctx, r.db).Model(&models.Supplier{})
 
 	// Apply search filter
 	if params.Search != "" {
@@ -144,17 +145,17 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 }
 
 func (r *supplierRepository) Update(ctx context.Context, supplier *models.Supplier) error {
-	return r.db.WithContext(ctx).Save(supplier).Error
+	return database.GetDB(ctx, r.db).Save(supplier).Error
 }
 
 func (r *supplierRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Supplier{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Supplier{}, "id = ?", id).Error
 }
 
 // GetNextCode generates the next supplier code in the format SUP-XXXXX
 func (r *supplierRepository) GetNextCode(ctx context.Context) (string, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.Supplier{}).Count(&count).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Model(&models.Supplier{}).Count(&count).Error; err != nil {
 		return "", err
 	}
 	return generateSupplierCode(int(count) + 1), nil
@@ -175,26 +176,26 @@ func padSupplierNumber(n, width int) string {
 
 // Nested Phone Number operations
 func (r *supplierRepository) CreateContact(ctx context.Context, phone *models.SupplierContact) error {
-	return r.db.WithContext(ctx).Create(phone).Error
+	return database.GetDB(ctx, r.db).Create(phone).Error
 }
 
 func (r *supplierRepository) UpdateContact(ctx context.Context, phone *models.SupplierContact) error {
-	return r.db.WithContext(ctx).Save(phone).Error
+	return database.GetDB(ctx, r.db).Save(phone).Error
 }
 
 func (r *supplierRepository) DeleteContact(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SupplierContact{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.SupplierContact{}, "id = ?", id).Error
 }
 
 // Nested Bank Account operations
 func (r *supplierRepository) CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error {
-	return r.db.WithContext(ctx).Create(bank).Error
+	return database.GetDB(ctx, r.db).Create(bank).Error
 }
 
 func (r *supplierRepository) UpdateBankAccount(ctx context.Context, bank *models.SupplierBank) error {
-	return r.db.WithContext(ctx).Save(bank).Error
+	return database.GetDB(ctx, r.db).Save(bank).Error
 }
 
 func (r *supplierRepository) DeleteBankAccount(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SupplierBank{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.SupplierBank{}, "id = ?", id).Error
 }

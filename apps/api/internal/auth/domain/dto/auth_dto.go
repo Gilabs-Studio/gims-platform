@@ -8,6 +8,19 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+// RegisterTenantRequest represents self-service tenant registration payload.
+// On success the endpoint provisions a new tenant and returns a JWT — the user
+// can immediately start using the platform without a separate login step.
+//
+// TODO(future): Add a `plan` field once batch/billing packages are implemented.
+// For now every registration receives enterprise access with no user limit.
+type RegisterTenantRequest struct {
+	Name        string `json:"name" binding:"required,min=2,max=100"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+	CompanyName string `json:"company_name" binding:"required,min=2,max=150"`
+}
+
 // LoginResponse represents login response DTO
 type LoginResponse struct {
 	User         *UserResponse `json:"user"`
@@ -30,4 +43,6 @@ type UserResponse struct {
 	Status        string            `json:"status"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
+	TenantID      string            `json:"tenant_id,omitempty"`
+	TenantName    string            `json:"tenant_name,omitempty"`
 }

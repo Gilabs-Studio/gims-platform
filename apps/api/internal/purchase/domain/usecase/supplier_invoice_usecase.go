@@ -14,8 +14,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -115,9 +115,11 @@ func (uc *supplierInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.
 }
 
 func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceAddResponse, error) {
+	scopedDB := database.GetDB(ctx, uc.db)
+
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -132,7 +134,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 
 	// Fetch APPROVED/PARTIAL/CLOSED Goods Receipts as the source for creating Supplier Invoices
 	var grs []*models.GoodsReceipt
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&models.GoodsReceipt{}).
 		Where("status IN ?", []string{string(models.GoodsReceiptStatusApproved), string(models.GoodsReceiptStatusPartial), string(models.GoodsReceiptStatusClosed)}).
 		Preload("PurchaseOrder").
@@ -158,7 +160,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		poIDList = append(poIDList, id)
 	}
 	if len(poIDList) > 0 {
-		uc.db.WithContext(ctx).Where("purchase_order_id IN ?", poIDList).Find(&allPOItems)
+		scopedDB.Where("purchase_order_id IN ?", poIDList).Find(&allPOItems)
 	}
 	priceMap := make(map[string]float64)
 	for _, p := range allPOItems {
@@ -176,7 +178,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 	}
 	var invoicedSums []grQtySum
 	if len(grIDs) > 0 {
-		uc.db.WithContext(ctx).Table("supplier_invoice_items").
+		scopedDB.Table("supplier_invoice_items").
 			Select("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
 			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 			Where("supplier_invoices.goods_receipt_id IN ? AND supplier_invoices.status NOT IN ?", grIDs, []string{

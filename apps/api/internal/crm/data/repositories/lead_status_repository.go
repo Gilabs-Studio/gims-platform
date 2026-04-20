@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -30,12 +31,12 @@ func NewLeadStatusRepository(db *gorm.DB) LeadStatusRepository {
 }
 
 func (r *leadStatusRepository) Create(ctx context.Context, status *models.LeadStatus) error {
-	return r.db.WithContext(ctx).Create(status).Error
+	return database.GetDB(ctx, r.db).Create(status).Error
 }
 
 func (r *leadStatusRepository) FindByID(ctx context.Context, id string) (*models.LeadStatus, error) {
 	var status models.LeadStatus
-	err := r.db.WithContext(ctx).First(&status, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&status, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func (r *leadStatusRepository) FindByID(ctx context.Context, id string) (*models
 
 func (r *leadStatusRepository) FindByCode(ctx context.Context, code string) (*models.LeadStatus, error) {
 	var status models.LeadStatus
-	err := r.db.WithContext(ctx).Where("code = ?", code).First(&status).Error
+	err := database.GetDB(ctx, r.db).Where("code = ?", code).First(&status).Error
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (r *leadStatusRepository) List(ctx context.Context, params ListParams) ([]m
 	var statuses []models.LeadStatus
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeadStatus{})
+	query := database.GetDB(ctx, r.db).Model(&models.LeadStatus{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -94,16 +95,16 @@ func (r *leadStatusRepository) List(ctx context.Context, params ListParams) ([]m
 }
 
 func (r *leadStatusRepository) Update(ctx context.Context, status *models.LeadStatus) error {
-	return r.db.WithContext(ctx).Save(status).Error
+	return database.GetDB(ctx, r.db).Save(status).Error
 }
 
 func (r *leadStatusRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.LeadStatus{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.LeadStatus{}, "id = ?", id).Error
 }
 
 func (r *leadStatusRepository) FindDefault(ctx context.Context) (*models.LeadStatus, error) {
 	var status models.LeadStatus
-	err := r.db.WithContext(ctx).Where("is_default = ?", true).First(&status).Error
+	err := database.GetDB(ctx, r.db).Where("is_default = ?", true).First(&status).Error
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func (r *leadStatusRepository) FindDefault(ctx context.Context) (*models.LeadSta
 
 func (r *leadStatusRepository) FindConverted(ctx context.Context) (*models.LeadStatus, error) {
 	var status models.LeadStatus
-	err := r.db.WithContext(ctx).Where("is_converted = ?", true).First(&status).Error
+	err := database.GetDB(ctx, r.db).Where("is_converted = ?", true).First(&status).Error
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (r *leadStatusRepository) FindConverted(ctx context.Context) (*models.LeadS
 
 func (r *leadStatusRepository) GetMaxOrder(ctx context.Context) (int, error) {
 	var maxOrder int
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.LeadStatus{}).
 		Select(`COALESCE(MAX("order"), 0)`).
 		Scan(&maxOrder).Error

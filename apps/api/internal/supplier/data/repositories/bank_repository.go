@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
@@ -27,12 +28,12 @@ func NewBankRepository(db *gorm.DB) BankRepository {
 }
 
 func (r *bankRepository) Create(ctx context.Context, bank *models.Bank) error {
-	return r.db.WithContext(ctx).Create(bank).Error
+	return database.GetDB(ctx, r.db).Create(bank).Error
 }
 
 func (r *bankRepository) FindByID(ctx context.Context, id string) (*models.Bank, error) {
 	var bank models.Bank
-	err := r.db.WithContext(ctx).First(&bank, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&bank, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func (r *bankRepository) FindByID(ctx context.Context, id string) (*models.Bank,
 
 func (r *bankRepository) FindByCode(ctx context.Context, code string) (*models.Bank, error) {
 	var bank models.Bank
-	err := r.db.WithContext(ctx).First(&bank, "code = ?", code).Error
+	err := database.GetDB(ctx, r.db).First(&bank, "code = ?", code).Error
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func (r *bankRepository) List(ctx context.Context, params ListParams) ([]models.
 	var banks []models.Bank
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Bank{})
+	query := database.GetDB(ctx, r.db).Model(&models.Bank{})
 
 	// Apply search filter
 	if params.Search != "" {
@@ -94,9 +95,9 @@ func (r *bankRepository) List(ctx context.Context, params ListParams) ([]models.
 }
 
 func (r *bankRepository) Update(ctx context.Context, bank *models.Bank) error {
-	return r.db.WithContext(ctx).Save(bank).Error
+	return database.GetDB(ctx, r.db).Save(bank).Error
 }
 
 func (r *bankRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Bank{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Bank{}, "id = ?", id).Error
 }

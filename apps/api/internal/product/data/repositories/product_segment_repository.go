@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewProductSegmentRepository(db *gorm.DB) ProductSegmentRepository {
 }
 
 func (r *productSegmentRepository) Create(ctx context.Context, segment *models.ProductSegment) error {
-	return r.db.WithContext(ctx).Create(segment).Error
+	return database.GetDB(ctx, r.db).Create(segment).Error
 }
 
 func (r *productSegmentRepository) FindByID(ctx context.Context, id string) (*models.ProductSegment, error) {
 	var segment models.ProductSegment
-	err := r.db.WithContext(ctx).First(&segment, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&segment, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *productSegmentRepository) List(ctx context.Context, params ListParams) 
 	var segments []models.ProductSegment
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ProductSegment{})
+	query := database.GetDB(ctx, r.db).Model(&models.ProductSegment{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *productSegmentRepository) List(ctx context.Context, params ListParams) 
 }
 
 func (r *productSegmentRepository) Update(ctx context.Context, segment *models.ProductSegment) error {
-	return r.db.WithContext(ctx).Save(segment).Error
+	return database.GetDB(ctx, r.db).Save(segment).Error
 }
 
 func (r *productSegmentRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ProductSegment{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ProductSegment{}, "id = ?", id).Error
 }

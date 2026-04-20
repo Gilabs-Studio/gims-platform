@@ -76,7 +76,8 @@ func generateSimulatorToken(userID, roleCode string) string {
 	}
 	manager := jwt.NewJWTManager(opts)
 
-	token, _ := manager.GenerateAccessToken(userID, "qa.simulator@example.com", roleCode)
+	// QA simulator tokens are platform-scoped (no tenant isolation in automated tests)
+	token, _ := manager.GenerateAccessToken(userID, "qa.simulator@example.com", roleCode, "")
 	return token
 }
 

@@ -34,6 +34,7 @@ const (
 
 type SupplierInvoice struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Type SupplierInvoiceType `gorm:"type:varchar(20);not null;index" json:"type"`
 

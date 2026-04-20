@@ -26,6 +26,7 @@ const (
 
 type AssetCategory struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Name string            `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
 	Type AssetCategoryType `gorm:"type:varchar(20);not null;default:'FIXED'" json:"type"`

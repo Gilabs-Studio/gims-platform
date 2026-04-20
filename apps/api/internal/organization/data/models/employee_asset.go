@@ -27,6 +27,7 @@ const (
 
 type EmployeeAsset struct {
 	ID              string          `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID      string          `gorm:"type:uuid;not null;index:idx_employee_asset_employee" json:"employee_id"`
 	AssetID         *string         `gorm:"type:uuid;index:idx_employee_assets_asset_id" json:"asset_id,omitempty"`
 	AssetName       string          `gorm:"type:varchar(200);not null" json:"asset_name"`

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -27,12 +28,12 @@ func NewLeadSourceRepository(db *gorm.DB) LeadSourceRepository {
 }
 
 func (r *leadSourceRepository) Create(ctx context.Context, source *models.LeadSource) error {
-	return r.db.WithContext(ctx).Create(source).Error
+	return database.GetDB(ctx, r.db).Create(source).Error
 }
 
 func (r *leadSourceRepository) FindByID(ctx context.Context, id string) (*models.LeadSource, error) {
 	var source models.LeadSource
-	err := r.db.WithContext(ctx).First(&source, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&source, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (r *leadSourceRepository) List(ctx context.Context, params ListParams) ([]m
 	var sources []models.LeadSource
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeadSource{})
+	query := database.GetDB(ctx, r.db).Model(&models.LeadSource{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -82,16 +83,16 @@ func (r *leadSourceRepository) List(ctx context.Context, params ListParams) ([]m
 }
 
 func (r *leadSourceRepository) Update(ctx context.Context, source *models.LeadSource) error {
-	return r.db.WithContext(ctx).Save(source).Error
+	return database.GetDB(ctx, r.db).Save(source).Error
 }
 
 func (r *leadSourceRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.LeadSource{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.LeadSource{}, "id = ?", id).Error
 }
 
 func (r *leadSourceRepository) GetMaxOrder(ctx context.Context) (int, error) {
 	var maxOrder int
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.LeadSource{}).
 		Select(`COALESCE(MAX("order"), 0)`).
 		Scan(&maxOrder).Error

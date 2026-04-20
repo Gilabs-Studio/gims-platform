@@ -16,6 +16,7 @@ const (
 // ProductCategory represents a category for products (supports hierarchy)
 type ProductCategory struct {
 	ID           string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name         string            `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
 	Description  string            `gorm:"type:text" json:"description"`
 	CategoryType string            `gorm:"type:varchar(20);not null;default:'GOODS'" json:"category_type"`

@@ -33,6 +33,7 @@ const (
 // POSPayment records the monetary transaction for a completed POS order
 type POSPayment struct {
 	ID              string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OrderID         string           `gorm:"type:uuid;not null;index" json:"order_id"`
 	Method          POSPaymentMethod `gorm:"type:varchar(20);not null;index" json:"method"`
 	Status          POSPaymentStatus `gorm:"type:varchar(20);not null;default:'PENDING';index" json:"status"`

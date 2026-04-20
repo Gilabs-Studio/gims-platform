@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -27,20 +28,20 @@ func NewEmployeeAssetRepository(db *gorm.DB) EmployeeAssetRepository {
 }
 
 func (r *employeeAssetRepository) Create(ctx context.Context, asset *models.EmployeeAsset) error {
-	return r.db.WithContext(ctx).Create(asset).Error
+	return database.GetDB(ctx, r.db).Create(asset).Error
 }
 
 func (r *employeeAssetRepository) Update(ctx context.Context, asset *models.EmployeeAsset) error {
-	return r.db.WithContext(ctx).Save(asset).Error
+	return database.GetDB(ctx, r.db).Save(asset).Error
 }
 
 func (r *employeeAssetRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.EmployeeAsset{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.EmployeeAsset{}, "id = ?", id).Error
 }
 
 func (r *employeeAssetRepository) FindByID(ctx context.Context, id string) (*models.EmployeeAsset, error) {
 	var asset models.EmployeeAsset
-	err := r.db.WithContext(ctx).First(&asset, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&asset, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func (r *employeeAssetRepository) FindByID(ctx context.Context, id string) (*mod
 
 func (r *employeeAssetRepository) FindByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeAsset, error) {
 	var assets []*models.EmployeeAsset
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Order("borrow_date DESC").
 		Find(&assets).Error
@@ -61,7 +62,7 @@ func (r *employeeAssetRepository) FindByEmployeeID(ctx context.Context, employee
 
 func (r *employeeAssetRepository) FindBorrowedByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeAsset, error) {
 	var assets []*models.EmployeeAsset
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND return_date IS NULL", employeeID).
 		Order("borrow_date DESC").
 		Find(&assets).Error
@@ -73,7 +74,7 @@ func (r *employeeAssetRepository) FindBorrowedByEmployeeID(ctx context.Context, 
 
 func (r *employeeAssetRepository) FindByAssetCode(ctx context.Context, assetCode string) (*models.EmployeeAsset, error) {
 	var asset models.EmployeeAsset
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_code = ? AND return_date IS NULL", assetCode).
 		First(&asset).Error
 	if err != nil {
@@ -84,7 +85,7 @@ func (r *employeeAssetRepository) FindByAssetCode(ctx context.Context, assetCode
 
 func (r *employeeAssetRepository) FindByAssetID(ctx context.Context, assetID string) (*models.EmployeeAsset, error) {
 	var asset models.EmployeeAsset
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("borrow_date DESC").
 		First(&asset).Error

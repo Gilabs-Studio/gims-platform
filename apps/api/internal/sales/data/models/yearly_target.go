@@ -11,6 +11,7 @@ import (
 // YearlyTarget represents annual sales targets for a specific area
 type YearlyTarget struct {
 	ID    string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code  string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	AreaID *string `gorm:"type:uuid;index" json:"area_id"`
 	Area   *orgModels.Area `gorm:"foreignKey:AreaID" json:"area,omitempty"`

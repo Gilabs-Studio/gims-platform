@@ -12,6 +12,7 @@ import (
 // RecruitmentApplicant represents a job applicant for a recruitment request
 type RecruitmentApplicant struct {
 	ID                   string `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	RecruitmentRequestID string `gorm:"type:uuid;not null;index:idx_applicant_request" json:"recruitment_request_id"`
 	StageID              string `gorm:"type:uuid;not null;index:idx_applicant_stage" json:"stage_id"`
 

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
@@ -26,12 +27,12 @@ func NewCourierAgencyRepository(db *gorm.DB) CourierAgencyRepository {
 }
 
 func (r *courierAgencyRepository) Create(ctx context.Context, courierAgency *models.CourierAgency) error {
-	return r.db.WithContext(ctx).Create(courierAgency).Error
+	return database.GetDB(ctx, r.db).Create(courierAgency).Error
 }
 
 func (r *courierAgencyRepository) FindByID(ctx context.Context, id string) (*models.CourierAgency, error) {
 	var courierAgency models.CourierAgency
-	err := r.db.WithContext(ctx).First(&courierAgency, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&courierAgency, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *courierAgencyRepository) List(ctx context.Context, params ListParams) (
 	var courierAgencies []models.CourierAgency
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.CourierAgency{})
+	query := database.GetDB(ctx, r.db).Model(&models.CourierAgency{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *courierAgencyRepository) List(ctx context.Context, params ListParams) (
 }
 
 func (r *courierAgencyRepository) Update(ctx context.Context, courierAgency *models.CourierAgency) error {
-	return r.db.WithContext(ctx).Save(courierAgency).Error
+	return database.GetDB(ctx, r.db).Save(courierAgency).Error
 }
 
 func (r *courierAgencyRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.CourierAgency{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.CourierAgency{}, "id = ?", id).Error
 }

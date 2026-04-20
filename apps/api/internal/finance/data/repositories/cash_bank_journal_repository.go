@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -39,7 +40,7 @@ func NewCashBankJournalRepository(db *gorm.DB) CashBankJournalRepository {
 
 func (r *cashBankJournalRepository) FindByID(ctx context.Context, id string, withLines bool) (*financeModels.CashBankJournal, error) {
 	var item financeModels.CashBankJournal
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	if withLines {
 		q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
 	}
@@ -74,7 +75,7 @@ func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJou
 	var items []financeModels.CashBankJournal
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.CashBankJournal{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.CashBankJournal{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())

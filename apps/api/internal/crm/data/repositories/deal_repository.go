@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -104,12 +105,12 @@ func NewDealRepository(db *gorm.DB) DealRepository {
 }
 
 func (r *dealRepository) Create(ctx context.Context, deal *models.Deal) error {
-	return r.db.WithContext(ctx).Create(deal).Error
+	return database.GetDB(ctx, r.db).Create(deal).Error
 }
 
 func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal, error) {
 	var deal models.Deal
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("PipelineStage").
 		Preload("Customer").
 		Preload("Contact").
@@ -129,7 +130,7 @@ func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal,
 }
 
 func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]models.Deal, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Deal{})
+	query := database.GetDB(ctx, r.db).Model(&models.Deal{})
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
@@ -197,7 +198,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 }
 
 func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStageParams) ([]models.Deal, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Deal{}).Where("pipeline_stage_id = ?", params.StageID)
+	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("pipeline_stage_id = ?", params.StageID)
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
@@ -231,7 +232,7 @@ func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStagePar
 func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 	// Use explicit Select to only update scalar/FK columns, bypassing GORM association
 	// handling entirely. This prevents BelongsTo callbacks from overriding FK values.
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Select(
 			"pipeline_stage_id", "title", "description", "status",
 			"value", "probability",
@@ -247,16 +248,16 @@ func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 }
 
 func (r *dealRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Deal{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Deal{}).Error
 }
 
 func (r *dealRepository) CreateHistory(ctx context.Context, history *models.DealHistory) error {
-	return r.db.WithContext(ctx).Create(history).Error
+	return database.GetDB(ctx, r.db).Create(history).Error
 }
 
 func (r *dealRepository) GetHistory(ctx context.Context, dealID string) ([]models.DealHistory, error) {
 	var history []models.DealHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("deal_id = ?", dealID).
 		Preload("FromStage").
 		Preload("ToStage").
@@ -268,7 +269,7 @@ func (r *dealRepository) GetHistory(ctx context.Context, dealID string) ([]model
 
 func (r *dealRepository) GetLastHistoryByDealID(ctx context.Context, dealID string) (*models.DealHistory, error) {
 	var history models.DealHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("deal_id = ?", dealID).
 		Order("changed_at DESC").
 		First(&history).Error
@@ -286,18 +287,18 @@ func (r *dealRepository) DeleteItemsByDealID(ctx context.Context, dealID string)
 		return err
 	}
 	// Soft-delete currently active items so they appear struck-through in the detail view
-	return r.db.WithContext(ctx).Where("deal_id = ?", dealID).Delete(&models.DealProductItem{}).Error
+	return database.GetDB(ctx, r.db).Where("deal_id = ?", dealID).Delete(&models.DealProductItem{}).Error
 }
 
 func (r *dealRepository) CreateItems(ctx context.Context, items []models.DealProductItem) error {
 	if len(items) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Create(&items).Error
+	return database.GetDB(ctx, r.db).Create(&items).Error
 }
 
 func (r *dealRepository) SoftDeleteItemByID(ctx context.Context, itemID, dealID string) error {
-	return r.db.WithContext(ctx).Where("id = ? AND deal_id = ?", itemID, dealID).Delete(&models.DealProductItem{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ? AND deal_id = ?", itemID, dealID).Delete(&models.DealProductItem{}).Error
 }
 
 func (r *dealRepository) RestoreItemByID(ctx context.Context, itemID, dealID string) error {
@@ -310,23 +311,23 @@ func (r *dealRepository) GetPipelineSummary(ctx context.Context) (*PipelineSumma
 	summary := &PipelineSummaryData{}
 
 	// Total deals
-	r.db.WithContext(ctx).Model(&models.Deal{}).Count(&summary.TotalDeals)
-	r.db.WithContext(ctx).Model(&models.Deal{}).Select("COALESCE(SUM(value), 0)").Scan(&summary.TotalValue)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Count(&summary.TotalDeals)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Select("COALESCE(SUM(value), 0)").Scan(&summary.TotalValue)
 
 	// Open deals
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "open").Count(&summary.OpenDeals)
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "open").Select("COALESCE(SUM(value), 0)").Scan(&summary.OpenValue)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "open").Count(&summary.OpenDeals)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "open").Select("COALESCE(SUM(value), 0)").Scan(&summary.OpenValue)
 
 	// Won deals
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "won").Count(&summary.WonDeals)
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "won").Select("COALESCE(SUM(value), 0)").Scan(&summary.WonValue)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "won").Count(&summary.WonDeals)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "won").Select("COALESCE(SUM(value), 0)").Scan(&summary.WonValue)
 
 	// Lost deals
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "lost").Count(&summary.LostDeals)
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "lost").Select("COALESCE(SUM(value), 0)").Scan(&summary.LostValue)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "lost").Count(&summary.LostDeals)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "lost").Select("COALESCE(SUM(value), 0)").Scan(&summary.LostValue)
 
 	// By stage
-	r.db.WithContext(ctx).
+	database.GetDB(ctx, r.db).
 		Table("crm_deals").
 		Select("crm_pipeline_stages.id as stage_id, crm_pipeline_stages.name as stage_name, crm_pipeline_stages.color as stage_color, crm_pipeline_stages.\"order\" as stage_order, COUNT(*) as deal_count, COALESCE(SUM(crm_deals.value), 0) as total_value").
 		Joins("LEFT JOIN crm_pipeline_stages ON crm_deals.pipeline_stage_id = crm_pipeline_stages.id").
@@ -342,16 +343,16 @@ func (r *dealRepository) GetForecast(ctx context.Context) (*ForecastData, error)
 	forecast := &ForecastData{}
 
 	// Only open deals contribute to forecast
-	r.db.WithContext(ctx).Model(&models.Deal{}).Where("status = ?", "open").Count(&forecast.TotalDeals)
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("status = ?", "open").Count(&forecast.TotalDeals)
 
 	// Weighted value = sum(value * probability / 100)
-	r.db.WithContext(ctx).Model(&models.Deal{}).
+	database.GetDB(ctx, r.db).Model(&models.Deal{}).
 		Where("status = ?", "open").
 		Select("COALESCE(SUM(value * probability / 100.0), 0)").
 		Scan(&forecast.TotalWeightedValue)
 
 	// By stage
-	r.db.WithContext(ctx).
+	database.GetDB(ctx, r.db).
 		Table("crm_deals").
 		Select("crm_pipeline_stages.id as stage_id, crm_pipeline_stages.name as stage_name, COUNT(*) as deal_count, COALESCE(SUM(crm_deals.value), 0) as total_value, crm_pipeline_stages.probability, COALESCE(SUM(crm_deals.value * crm_deals.probability / 100.0), 0) as weighted_value").
 		Joins("LEFT JOIN crm_pipeline_stages ON crm_deals.pipeline_stage_id = crm_pipeline_stages.id").

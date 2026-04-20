@@ -61,6 +61,7 @@ func SeedUsers() error {
 	users := []user.User{
 		{
 			ID:        AdminUserID,
+			TenantID:  DefaultTenantID,
 			Email:     defaultEmail,
 			Password:  string(hashedPassword),
 			Name:      "Admin User",
@@ -70,6 +71,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        ManagerUserID,
+			TenantID:  DefaultTenantID,
 			Email:     "manager@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Manager User",
@@ -79,6 +81,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        StaffUserID,
+			TenantID:  DefaultTenantID,
 			Email:     "staff@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Staff User",
@@ -88,6 +91,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        ViewerUserID,
+			TenantID:  DefaultTenantID,
 			Email:     "viewer@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Viewer User",
@@ -97,6 +101,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        OutletManager1UserID,
+			TenantID:  DefaultTenantID,
 			Email:     "outlet-manager1@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Outlet Manager Sudirman",
@@ -106,6 +111,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        OutletManager2UserID,
+			TenantID:  DefaultTenantID,
 			Email:     "outlet-manager2@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Outlet Manager Kelapa Gading",
@@ -115,6 +121,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        OutletManager3UserID,
+			TenantID:  DefaultTenantID,
 			Email:     "outlet-manager3@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Outlet Manager Kimia Farma Sudirman",
@@ -124,6 +131,7 @@ func SeedUsers() error {
 		},
 		{
 			ID:        OutletManager4UserID,
+			TenantID:  DefaultTenantID,
 			Email:     "outlet-manager4@example.com",
 			Password:  string(hashedPassword),
 			Name:      "Outlet Manager Kimia Farma Pondok Indah",

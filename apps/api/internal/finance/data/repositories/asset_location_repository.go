@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -32,7 +33,7 @@ func NewAssetLocationRepository(db *gorm.DB) AssetLocationRepository {
 
 func (r *assetLocationRepository) FindByID(ctx context.Context, id string) (*financeModels.AssetLocation, error) {
 	var item financeModels.AssetLocation
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -54,7 +55,7 @@ func (r *assetLocationRepository) List(ctx context.Context, params AssetLocation
 	var items []financeModels.AssetLocation
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.AssetLocation{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.AssetLocation{})
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("asset_locations.name ILIKE ? OR asset_locations.description ILIKE ?", like, like)

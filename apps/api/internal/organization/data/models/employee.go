@@ -40,6 +40,7 @@ const (
 // Employee represents an employee entity with approval workflow
 type Employee struct {
 	ID           string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeCode string `gorm:"type:varchar(50);uniqueIndex;not null" json:"employee_code"`
 	Name         string `gorm:"type:varchar(200);not null;index" json:"name"`
 	Email        string `gorm:"type:varchar(100);index" json:"email"`

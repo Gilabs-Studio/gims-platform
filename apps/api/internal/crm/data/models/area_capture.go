@@ -11,6 +11,7 @@ import (
 // Used for area mapping, coverage analysis, and visit heatmaps.
 type AreaCapture struct {
 	ID            string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	VisitReportID *string        `gorm:"type:uuid;index" json:"visit_report_id"`                          // FK to crm visit_reports
 	CaptureType   string         `gorm:"type:varchar(20);not null" json:"capture_type"`                   // check_in, check_out, manual
 	Latitude      float64        `gorm:"type:decimal(10,7);not null" json:"latitude"`                     // GPS latitude

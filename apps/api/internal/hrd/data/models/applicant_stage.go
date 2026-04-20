@@ -10,6 +10,7 @@ import (
 // ApplicantStage represents a stage in the applicant pipeline (Kanban column)
 type ApplicantStage struct {
 	ID       string `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name     string `gorm:"type:varchar(100);not null" json:"name"`
 	Color    string `gorm:"type:varchar(7);not null;default:'#3b82f6'" json:"color"`
 	Order    int    `gorm:"not null;default:0" json:"order"`

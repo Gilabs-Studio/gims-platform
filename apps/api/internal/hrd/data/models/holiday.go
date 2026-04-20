@@ -19,6 +19,7 @@ const (
 // Holiday represents a holiday entry
 type Holiday struct {
 	ID          string      `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Date        time.Time   `gorm:"type:date;not null;index" json:"date"`
 	Name        string      `gorm:"size:200;not null" json:"name"`
 	Description string      `gorm:"size:500" json:"description"`

@@ -10,6 +10,7 @@ import (
 
 type EmployeeCertification struct {
 	ID                string         `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID        string         `gorm:"type:uuid;not null;index:idx_employee_certification_employee" json:"employee_id"`
 	CertificateName   string         `gorm:"type:varchar(200);not null" json:"certificate_name"`
 	IssuedBy          string         `gorm:"type:varchar(200);not null" json:"issued_by"`

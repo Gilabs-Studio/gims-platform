@@ -12,6 +12,7 @@ import (
 //	{"q1": 4, "q2": ["Makanan", "Suasana"], "q3": "Enak sekali!"}
 type FeedbackResponse struct {
 	ID           string         `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	FormID       string         `gorm:"type:uuid;not null;index" json:"form_id"`
 	TokenID      string         `gorm:"type:uuid;not null;uniqueIndex" json:"token_id"`
 	OutletID     string         `gorm:"type:uuid;not null;index" json:"outlet_id"`

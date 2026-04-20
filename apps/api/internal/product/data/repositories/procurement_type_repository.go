@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewProcurementTypeRepository(db *gorm.DB) ProcurementTypeRepository {
 }
 
 func (r *procurementTypeRepository) Create(ctx context.Context, procurementType *models.ProcurementType) error {
-	return r.db.WithContext(ctx).Create(procurementType).Error
+	return database.GetDB(ctx, r.db).Create(procurementType).Error
 }
 
 func (r *procurementTypeRepository) FindByID(ctx context.Context, id string) (*models.ProcurementType, error) {
 	var procurementType models.ProcurementType
-	err := r.db.WithContext(ctx).First(&procurementType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&procurementType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *procurementTypeRepository) List(ctx context.Context, params ListParams)
 	var procurementTypes []models.ProcurementType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ProcurementType{})
+	query := database.GetDB(ctx, r.db).Model(&models.ProcurementType{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *procurementTypeRepository) List(ctx context.Context, params ListParams)
 }
 
 func (r *procurementTypeRepository) Update(ctx context.Context, procurementType *models.ProcurementType) error {
-	return r.db.WithContext(ctx).Save(procurementType).Error
+	return database.GetDB(ctx, r.db).Save(procurementType).Error
 }
 
 func (r *procurementTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ProcurementType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ProcurementType{}, "id = ?", id).Error
 }

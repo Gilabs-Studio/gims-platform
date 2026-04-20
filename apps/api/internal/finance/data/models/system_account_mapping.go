@@ -8,6 +8,7 @@ import (
 // This table allows the ERP to stay flexible and avoids hardcoding COA codes in Go logic.
 type SystemAccountMapping struct {
 	ID        string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Key       string    `gorm:"type:varchar(100);not null;uniqueIndex:idx_system_account_mappings_key_company,priority:1" json:"key"` // e.g., "sales.accounts_receivable", "purchase.accounts_payable"
 	CompanyID *string   `gorm:"type:uuid;uniqueIndex:idx_system_account_mappings_key_company,priority:2;index" json:"company_id"`     // If null, it's a global default
 	COACode   string    `gorm:"type:varchar(20);not null" json:"coa_code"`                                                            // The code in chart_of_accounts

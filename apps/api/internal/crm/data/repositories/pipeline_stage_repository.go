@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -29,12 +30,12 @@ func NewPipelineStageRepository(db *gorm.DB) PipelineStageRepository {
 }
 
 func (r *pipelineStageRepository) Create(ctx context.Context, stage *models.PipelineStage) error {
-	return r.db.WithContext(ctx).Create(stage).Error
+	return database.GetDB(ctx, r.db).Create(stage).Error
 }
 
 func (r *pipelineStageRepository) FindByID(ctx context.Context, id string) (*models.PipelineStage, error) {
 	var stage models.PipelineStage
-	err := r.db.WithContext(ctx).First(&stage, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&stage, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func (r *pipelineStageRepository) List(ctx context.Context, params ListParams) (
 	var stages []models.PipelineStage
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.PipelineStage{})
+	query := database.GetDB(ctx, r.db).Model(&models.PipelineStage{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -84,16 +85,16 @@ func (r *pipelineStageRepository) List(ctx context.Context, params ListParams) (
 }
 
 func (r *pipelineStageRepository) Update(ctx context.Context, stage *models.PipelineStage) error {
-	return r.db.WithContext(ctx).Save(stage).Error
+	return database.GetDB(ctx, r.db).Save(stage).Error
 }
 
 func (r *pipelineStageRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.PipelineStage{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.PipelineStage{}, "id = ?", id).Error
 }
 
 func (r *pipelineStageRepository) FindByOrder(ctx context.Context, order int) (*models.PipelineStage, error) {
 	var stage models.PipelineStage
-	err := r.db.WithContext(ctx).Where("\"order\" = ?", order).First(&stage).Error
+	err := database.GetDB(ctx, r.db).Where("\"order\" = ?", order).First(&stage).Error
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func (r *pipelineStageRepository) FindByOrder(ctx context.Context, order int) (*
 
 func (r *pipelineStageRepository) FindWonStage(ctx context.Context) (*models.PipelineStage, error) {
 	var stage models.PipelineStage
-	err := r.db.WithContext(ctx).Where("is_won = ?", true).First(&stage).Error
+	err := database.GetDB(ctx, r.db).Where("is_won = ?", true).First(&stage).Error
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func (r *pipelineStageRepository) FindWonStage(ctx context.Context) (*models.Pip
 
 func (r *pipelineStageRepository) FindLostStage(ctx context.Context) (*models.PipelineStage, error) {
 	var stage models.PipelineStage
-	err := r.db.WithContext(ctx).Where("is_lost = ?", true).First(&stage).Error
+	err := database.GetDB(ctx, r.db).Where("is_lost = ?", true).First(&stage).Error
 	if err != nil {
 		return nil, err
 	}

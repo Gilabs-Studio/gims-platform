@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/customer/data/models"
@@ -33,12 +34,12 @@ func NewCustomerRepository(db *gorm.DB) CustomerRepository {
 }
 
 func (r *customerRepository) Create(ctx context.Context, customer *models.Customer) error {
-	return r.db.WithContext(ctx).Create(customer).Error
+	return database.GetDB(ctx, r.db).Create(customer).Error
 }
 
 func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.Customer, error) {
 	var customer models.Customer
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("CustomerType").
 		Preload("Province").
 		Preload("City").
@@ -59,7 +60,7 @@ func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.C
 
 func (r *customerRepository) FindByCode(ctx context.Context, code string) (*models.Customer, error) {
 	var customer models.Customer
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("CustomerType").
 		First(&customer, "code = ?", code).Error
 	if err != nil {
@@ -72,7 +73,7 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 	var customers []models.Customer
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Customer{})
+	query := database.GetDB(ctx, r.db).Model(&models.Customer{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -131,29 +132,29 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 }
 
 func (r *customerRepository) Update(ctx context.Context, customer *models.Customer) error {
-	return r.db.WithContext(ctx).Save(customer).Error
+	return database.GetDB(ctx, r.db).Save(customer).Error
 }
 
 func (r *customerRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Customer{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Customer{}, "id = ?", id).Error
 }
 
 func (r *customerRepository) CreateBankAccount(ctx context.Context, bank *models.CustomerBank) error {
-	return r.db.WithContext(ctx).Create(bank).Error
+	return database.GetDB(ctx, r.db).Create(bank).Error
 }
 
 func (r *customerRepository) UpdateBankAccount(ctx context.Context, bank *models.CustomerBank) error {
-	return r.db.WithContext(ctx).Save(bank).Error
+	return database.GetDB(ctx, r.db).Save(bank).Error
 }
 
 func (r *customerRepository) DeleteBankAccount(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.CustomerBank{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.CustomerBank{}, "id = ?", id).Error
 }
 
 // GetNextCode generates the next customer code in the format CUST-XXXXX
 func (r *customerRepository) GetNextCode(ctx context.Context) (string, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.Customer{}).Count(&count).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Model(&models.Customer{}).Count(&count).Error; err != nil {
 		return "", err
 	}
 	return generateCustomerCode(int(count) + 1), nil

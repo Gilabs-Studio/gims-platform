@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -17,12 +18,12 @@ func NewLoyaltyProgramRepository(db *gorm.DB) LoyaltyProgramRepository {
 }
 
 func (r *loyaltyProgramRepo) Create(ctx context.Context, program *models.LoyaltyProgram) error {
-	return r.db.WithContext(ctx).Create(program).Error
+	return database.GetDB(ctx, r.db).Create(program).Error
 }
 
 func (r *loyaltyProgramRepo) GetByID(ctx context.Context, id string) (*models.LoyaltyProgram, error) {
 	var program models.LoyaltyProgram
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&program).Error
+	err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&program).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -34,7 +35,7 @@ func (r *loyaltyProgramRepo) List(ctx context.Context, page, perPage int) ([]mod
 	var total int64
 
 	offset := (page - 1) * perPage
-	q := r.db.WithContext(ctx).Model(&models.LoyaltyProgram{})
+	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyProgram{})
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -52,7 +53,7 @@ func (r *loyaltyProgramRepo) ListWithOutletFilter(ctx context.Context, outletIDs
 	var total int64
 
 	offset := (page - 1) * perPage
-	q := r.db.WithContext(ctx).Model(&models.LoyaltyProgram{}).
+	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyProgram{}).
 		Where("outlet_id IS NULL OR outlet_id IN ?", outletIDs)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -68,7 +69,7 @@ func (r *loyaltyProgramRepo) ListWithOutletFilter(ctx context.Context, outletIDs
 func (r *loyaltyProgramRepo) FindActiveForOutlet(ctx context.Context, outletID string) (*models.LoyaltyProgram, error) {
 	var program models.LoyaltyProgram
 	// Prefer outlet-specific program; fall back to global.
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("is_active = true AND (outlet_id = ? OR outlet_id IS NULL)", outletID).
 		Order("outlet_id DESC NULLS LAST").
 		First(&program).Error
@@ -79,9 +80,9 @@ func (r *loyaltyProgramRepo) FindActiveForOutlet(ctx context.Context, outletID s
 }
 
 func (r *loyaltyProgramRepo) Update(ctx context.Context, program *models.LoyaltyProgram) error {
-	return r.db.WithContext(ctx).Save(program).Error
+	return database.GetDB(ctx, r.db).Save(program).Error
 }
 
 func (r *loyaltyProgramRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.LoyaltyProgram{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.LoyaltyProgram{}).Error
 }

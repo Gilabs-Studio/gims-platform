@@ -17,6 +17,7 @@ const (
 
 type AdjustmentJournalApproval struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	JournalID string                          `gorm:"type:uuid;not null;index" json:"journal_id"`
 	Action    AdjustmentJournalApprovalAction `gorm:"type:varchar(20);not null;index" json:"action"`

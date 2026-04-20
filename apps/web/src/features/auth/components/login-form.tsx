@@ -266,6 +266,16 @@ export default function LoginForm() {
                 </Field>
               </FieldGroup>
             </form>
+
+            <div className="text-center text-sm text-muted-foreground">
+              {t("noAccount")}{" "}
+              <Link
+                href="/register"
+                className="font-medium text-primary hover:underline"
+              >
+                {t("createAccount")}
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

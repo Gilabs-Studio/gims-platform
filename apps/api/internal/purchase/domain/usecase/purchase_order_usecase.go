@@ -11,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
@@ -95,7 +96,7 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
 	var receivedRows []receivedRow
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Table("goods_receipt_items").
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
@@ -206,7 +207,7 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	// If create from Sales Order: validate SO exists and not already converted to PO
 	if po.SalesOrderID != nil && strings.TrimSpace(*po.SalesOrderID) != "" {
 		var soCount int64
-		if err := uc.db.WithContext(ctx).
+		if err := database.GetDB(ctx, uc.db).
 			Model(&salesModels.SalesOrder{}).
 			Where("id = ?", *po.SalesOrderID).
 			Count(&soCount).Error; err != nil {
@@ -266,9 +267,11 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 
 	var createdID string
 
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		var pr models.PurchaseRequisition
-		if err := tx.
+		if err := txScoped.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Preload("Items").
 			First(&pr, "id = ?", purchaseRequisitionID).Error; err != nil {
@@ -283,7 +286,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		}
 
 		var count int64
-		if err := tx.Model(&models.PurchaseOrder{}).
+		if err := txScoped.Model(&models.PurchaseOrder{}).
 			Where("purchase_requisition_id = ?", pr.ID).
 			Count(&count).Error; err != nil {
 			return err
@@ -605,10 +608,12 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 	}
 	before := poAuditSnapshot(existing)
 	var updated *models.PurchaseOrder
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		// 1. Lock and check
 		var po models.PurchaseOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
+		if err := txScoped.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if po.Status != models.PurchaseOrderStatusDraft {
@@ -630,7 +635,7 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		*/
 
 		// 3. Update Status
-		if err := tx.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
+		if err := txScoped.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
 			return err
 		}
 
@@ -656,9 +661,10 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	scopedDB := database.GetDB(ctx, uc.db)
 
 	var suppliers []supplierModels.Supplier
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&supplierModels.Supplier{}).
 		Preload("Contacts").
 		Where("is_active = ?", true).
@@ -674,7 +680,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	var products []productModels.Product
 	if len(supplierIDs) > 0 {
-		if err := uc.db.WithContext(ctx).
+		if err := scopedDB.
 			Model(&productModels.Product{}).
 			Where("supplier_id IN ?", supplierIDs).
 			Where("supplier_id IS NOT NULL").
@@ -696,7 +702,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -706,7 +712,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Business units
 	var businessUnits []orgModels.BusinessUnit
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&orgModels.BusinessUnit{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -790,7 +796,7 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 		perPage = 100
 	}
 
-	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
+	tx := database.GetDB(ctx, uc.db).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "purchase_order.%")
 

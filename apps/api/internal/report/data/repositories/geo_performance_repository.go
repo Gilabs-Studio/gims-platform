@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"gorm.io/gorm"
 )
 
@@ -55,6 +57,11 @@ func NewGeoPerformanceRepository(db *gorm.DB) GeoPerformanceRepository {
 }
 
 func (r *geoPerformanceRepository) GetGeoPerformanceBySalesOrder(ctx context.Context, params GeoPerformanceParams) ([]GeoPerformanceRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	var rows []GeoPerformanceRow
 
 	areaSelect, areaJoin, groupBy := r.buildAreaClause(params.Level)
@@ -72,6 +79,10 @@ func (r *geoPerformanceRepository) GetGeoPerformanceBySalesOrder(ctx context.Con
 	`, areaSelect, areaJoin)
 
 	args := []interface{}{params.StartDate, params.EndDate}
+	if tenantFilter {
+		query += " AND so.tenant_id = ? AND c.tenant_id = ?"
+		args = append(args, tenantID, tenantID)
+	}
 
 	if params.SalesRepID != "" {
 		query += " AND so.sales_rep_id = ?"
@@ -80,7 +91,7 @@ func (r *geoPerformanceRepository) GetGeoPerformanceBySalesOrder(ctx context.Con
 
 	query += fmt.Sprintf(" GROUP BY %s ORDER BY total_revenue DESC", groupBy)
 
-	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
+	err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get geo performance by sales order: %w", err)
 	}
@@ -89,6 +100,11 @@ func (r *geoPerformanceRepository) GetGeoPerformanceBySalesOrder(ctx context.Con
 }
 
 func (r *geoPerformanceRepository) GetGeoPerformanceByPaidInvoice(ctx context.Context, params GeoPerformanceParams) ([]GeoPerformanceRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	var rows []GeoPerformanceRow
 
 	areaSelect, areaJoin, groupBy := r.buildAreaClause(params.Level)
@@ -107,6 +123,10 @@ func (r *geoPerformanceRepository) GetGeoPerformanceByPaidInvoice(ctx context.Co
 	`, areaSelect, areaJoin)
 
 	args := []interface{}{params.StartDate, params.EndDate}
+	if tenantFilter {
+		query += " AND so.tenant_id = ? AND c.tenant_id = ? AND ci.tenant_id = ?"
+		args = append(args, tenantID, tenantID, tenantID)
+	}
 
 	if params.SalesRepID != "" {
 		query += " AND so.sales_rep_id = ?"
@@ -115,7 +135,7 @@ func (r *geoPerformanceRepository) GetGeoPerformanceByPaidInvoice(ctx context.Co
 
 	query += fmt.Sprintf(" GROUP BY %s ORDER BY total_revenue DESC", groupBy)
 
-	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
+	err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get geo performance by paid invoice: %w", err)
 	}
@@ -124,15 +144,35 @@ func (r *geoPerformanceRepository) GetGeoPerformanceByPaidInvoice(ctx context.Co
 }
 
 func (r *geoPerformanceRepository) GetSalesRepsForFilter(ctx context.Context) ([]SalesRepFilterRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	var rows []SalesRepFilterRow
 
-	err := r.db.WithContext(ctx).Raw(`
+	query := `
 		SELECT DISTINCT e.id, e.name, e.employee_code AS code
 		FROM employees e
 		INNER JOIN sales_orders so ON so.sales_rep_id = e.id AND so.deleted_at IS NULL
 		WHERE e.deleted_at IS NULL
 		ORDER BY e.name ASC
-	`).Scan(&rows).Error
+	`
+	args := []interface{}{}
+	if tenantFilter {
+		query = `
+			SELECT DISTINCT e.id, e.name, e.employee_code AS code
+			FROM employees e
+			INNER JOIN sales_orders so ON so.sales_rep_id = e.id AND so.deleted_at IS NULL
+			WHERE e.deleted_at IS NULL
+				AND e.tenant_id = ?
+				AND so.tenant_id = ?
+			ORDER BY e.name ASC
+		`
+		args = append(args, tenantID, tenantID)
+	}
+
+	err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sales reps for filter: %w", err)
 	}

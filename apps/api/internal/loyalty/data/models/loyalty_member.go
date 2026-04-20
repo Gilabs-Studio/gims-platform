@@ -11,6 +11,7 @@ import (
 // LifetimePoints is used for tier calculation; PointBalance is the redeemable balance.
 type LoyaltyMember struct {
 	ID               string     `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CustomerID       string     `gorm:"type:uuid;not null;index" json:"customer_id"`
 	ProgramID        string     `gorm:"type:uuid;not null;index" json:"program_id"`
 	MemberCode       string     `gorm:"type:varchar(20);uniqueIndex;not null" json:"member_code"`

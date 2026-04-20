@@ -15,14 +15,15 @@ import (
 
 // Lead represents a sales prospect with BANT qualification scoring
 type Lead struct {
-	ID            string       `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Code          string       `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	FirstName     string       `gorm:"type:varchar(100);not null;index" json:"first_name"`
-	LastName      string       `gorm:"type:varchar(100);index" json:"last_name"`
-	CompanyName   string       `gorm:"type:varchar(200);index" json:"company_name"`
-	Email         string       `gorm:"type:varchar(100)" json:"email"`
-	Phone         string       `gorm:"type:varchar(20)" json:"phone"`
-	ContactRoleID *string      `gorm:"type:uuid;index" json:"contact_role_id"`
+	ID          string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	Code        string  `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	FirstName   string  `gorm:"type:varchar(100);not null;index" json:"first_name"`
+	LastName    string  `gorm:"type:varchar(100);index" json:"last_name"`
+	CompanyName string  `gorm:"type:varchar(200);index" json:"company_name"`
+	Email       string  `gorm:"type:varchar(100)" json:"email"`
+	Phone       string  `gorm:"type:varchar(30)" json:"phone"`
+	ContactRoleID *string `gorm:"type:uuid;index" json:"contact_role_id"`
 	ContactRole   *ContactRole `gorm:"foreignKey:ContactRoleID" json:"contact_role,omitempty"`
 	JobTitle      string       `gorm:"type:varchar(100)" json:"job_title"`
 	Address       string       `gorm:"type:text" json:"address"`

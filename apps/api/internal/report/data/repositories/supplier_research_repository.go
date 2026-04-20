@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"gorm.io/gorm"
 )
@@ -48,19 +50,19 @@ type SupplierResearchKpisRow struct {
 }
 
 type SupplierAnalyticsRow struct {
-	SupplierID                string
-	SupplierCode              string
-	SupplierName              string
-	CategoryName              string
-	TotalPurchaseValue        float64
-	TotalPurchaseOrders       int
-	AverageLeadTimeDays       float64
-	SupplierOnTimeRate        float64
-	LateDeliveryCount         int
-	DependencyScore           float64
-	ActivePurchaseOrderCount  int
-	PurchaseOrders            []SupplierPurchaseOrderRow    `gorm:"-"`
-	Products                  []SupplierPurchasedProductRow `gorm:"-"`
+	SupplierID               string
+	SupplierCode             string
+	SupplierName             string
+	CategoryName             string
+	TotalPurchaseValue       float64
+	TotalPurchaseOrders      int
+	AverageLeadTimeDays      float64
+	SupplierOnTimeRate       float64
+	LateDeliveryCount        int
+	DependencyScore          float64
+	ActivePurchaseOrderCount int
+	PurchaseOrders           []SupplierPurchaseOrderRow    `gorm:"-"`
+	Products                 []SupplierPurchasedProductRow `gorm:"-"`
 }
 
 type SupplierPurchaseOrderRow struct {
@@ -94,7 +96,12 @@ func NewSupplierResearchRepository(db *gorm.DB) SupplierResearchRepository {
 }
 
 func (r *supplierResearchRepository) GetKpis(ctx context.Context, params SupplierResearchFilterParams) (*SupplierResearchKpisRow, error) {
-	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params)
+	tenantID, tenantFilter, err := resolveReportTenantScope(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params, tenantID, tenantFilter)
 
 	query := fmt.Sprintf(`
 		SELECT
@@ -106,7 +113,7 @@ func (r *supplierResearchRepository) GetKpis(ctx context.Context, params Supplie
 	`, baseQuery)
 
 	var row SupplierResearchKpisRow
-	if err := r.db.WithContext(ctx).Raw(query, queryParams).Scan(&row).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, queryParams).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get supplier research KPIs: %w", err)
 	}
 
@@ -140,7 +147,12 @@ func (r *supplierResearchRepository) ListSuppliers(ctx context.Context, params S
 }
 
 func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supplierID string, params SupplierResearchFilterParams) (*SupplierAnalyticsRow, error) {
-	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params)
+	tenantID, tenantFilter, err := resolveReportTenantScope(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params, tenantID, tenantFilter)
 	queryParams["supplierID"] = supplierID
 
 	query := fmt.Sprintf(`
@@ -161,7 +173,7 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 	`, baseQuery)
 
 	var row SupplierAnalyticsRow
-	if err := r.db.WithContext(ctx).Raw(query, queryParams).Scan(&row).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, queryParams).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get supplier detail analytics: %w", err)
 	}
 	if row.SupplierID == "" {
@@ -177,13 +189,18 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 			COALESCE(po.total_amount, 0) AS total_amount
 		FROM purchase_orders po
 		WHERE po.deleted_at IS NULL
+			AND (@tenantFilter = false OR po.tenant_id = @tenantID)
 			AND po.supplier_id = @supplierID
 		ORDER BY NULLIF(po.order_date, '')::date DESC NULLS LAST, po.created_at DESC
 		LIMIT 100
 	`
 
 	var purchaseOrders []SupplierPurchaseOrderRow
-	if err := r.db.WithContext(ctx).Raw(purchaseOrdersQuery, map[string]interface{}{"supplierID": supplierID}).Scan(&purchaseOrders).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(purchaseOrdersQuery, map[string]interface{}{
+		"supplierID":   supplierID,
+		"tenantFilter": tenantFilter,
+		"tenantID":     tenantID,
+	}).Scan(&purchaseOrders).Error; err != nil {
 		return nil, fmt.Errorf("failed to get supplier purchase orders: %w", err)
 	}
 
@@ -198,6 +215,7 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 		FROM purchase_order_items poi
 		INNER JOIN purchase_orders po ON po.id = poi.purchase_order_id
 			AND po.deleted_at IS NULL
+			AND (@tenantFilter = false OR po.tenant_id = @tenantID)
 			AND po.supplier_id = @supplierID
 			AND po.status NOT IN ('DRAFT', 'REJECTED')
 			AND (
@@ -212,10 +230,12 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 	`
 
 	var products []SupplierPurchasedProductRow
-	if err := r.db.WithContext(ctx).Raw(productsQuery, map[string]interface{}{
-		"supplierID": supplierID,
-		"startDate":  params.StartDate.Format("2006-01-02"),
-		"endDate":    params.EndDate.Format("2006-01-02"),
+	if err := database.GetDB(ctx, r.db).Raw(productsQuery, map[string]interface{}{
+		"supplierID":   supplierID,
+		"startDate":    params.StartDate.Format("2006-01-02"),
+		"endDate":      params.EndDate.Format("2006-01-02"),
+		"tenantFilter": tenantFilter,
+		"tenantID":     tenantID,
 	}).Scan(&products).Error; err != nil {
 		return nil, fmt.Errorf("failed to get supplier purchased products: %w", err)
 	}
@@ -227,6 +247,11 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 }
 
 func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params SupplierResearchFilterParams, interval string) ([]SupplierSpendTrendPointRow, error) {
+	tenantID, tenantFilter, err := resolveReportTenantScope(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	dateColumn := "NULLIF(si.invoice_date, '')::date"
 	switch strings.ToLower(interval) {
 	case "daily":
@@ -245,6 +270,8 @@ func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params S
 		INNER JOIN suppliers s ON s.id = si.supplier_id AND s.deleted_at IS NULL
 		LEFT JOIN supplier_types st ON st.id = s.supplier_type_id AND st.deleted_at IS NULL
 		WHERE si.deleted_at IS NULL
+			AND (@tenantFilter = false OR si.tenant_id = @tenantID)
+			AND (@tenantFilter = false OR s.tenant_id = @tenantID)
 			AND si.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
 			AND NULLIF(si.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
@@ -253,17 +280,17 @@ func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params S
 		ORDER BY 1 ASC
 	`, dateColumn)
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate":      params.StartDate.Format("2006-01-02"),
 		"endDate":        params.EndDate.Format("2006-01-02"),
 		"search":         strings.TrimSpace(params.Search),
 		"searchPrefix":   strings.TrimSpace(params.Search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
 		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
-	}
+	}, tenantID, tenantFilter)
 
 	var rows []SupplierSpendTrendPointRow
-	if err := r.db.WithContext(ctx).Raw(query, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, queryParams).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get supplier spend trend: %w", err)
 	}
 
@@ -278,11 +305,16 @@ func (r *supplierResearchRepository) listAnalytics(ctx context.Context, params S
 		params.Page = 1
 	}
 
-	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params.SupplierResearchFilterParams)
+	tenantID, tenantFilter, err := resolveReportTenantScope(ctx)
+	if err != nil {
+		return nil, utils.PaginationResult{}, err
+	}
+
+	baseQuery, queryParams := buildSupplierAnalyticsBaseQuery(params.SupplierResearchFilterParams, tenantID, tenantFilter)
 
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) base", baseQuery)
 	var total int64
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count supplier analytics rows: %w", err)
 	}
 
@@ -332,7 +364,7 @@ func (r *supplierResearchRepository) listAnalytics(ctx context.Context, params S
 	`, baseQuery, sortColumn, sortOrder)
 
 	var rows []SupplierAnalyticsRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list supplier analytics rows: %w", err)
 	}
 
@@ -351,8 +383,8 @@ func (r *supplierResearchRepository) listAnalytics(ctx context.Context, params S
 	return rows, pagination, nil
 }
 
-func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (string, map[string]interface{}) {
-	queryParams := map[string]interface{}{
+func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams, tenantID string, tenantFilter bool) (string, map[string]interface{}) {
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate":      params.StartDate.Format("2006-01-02"),
 		"endDate":        params.EndDate.Format("2006-01-02"),
 		"search":         strings.TrimSpace(params.Search),
@@ -363,7 +395,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 		"minValue":       params.MinPurchaseValue,
 		"maxFilter":      params.MaxPurchaseValue > 0,
 		"maxValue":       params.MaxPurchaseValue,
-	}
+	}, tenantID, tenantFilter)
 
 	query := `
 		SELECT
@@ -391,6 +423,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 				COUNT(si.id) AS total_purchase_orders
 			FROM supplier_invoices si
 			WHERE si.deleted_at IS NULL
+				AND (@tenantFilter = false OR si.tenant_id = @tenantID)
 				AND si.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
 				AND NULLIF(si.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			GROUP BY si.supplier_id
@@ -404,6 +437,8 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 			FROM goods_receipts gr
 			INNER JOIN purchase_orders po ON po.id = gr.purchase_order_id AND po.deleted_at IS NULL
 			WHERE gr.deleted_at IS NULL
+				AND (@tenantFilter = false OR gr.tenant_id = @tenantID)
+				AND (@tenantFilter = false OR po.tenant_id = @tenantID)
 				AND gr.status IN ('APPROVED', 'PARTIAL', 'CLOSED', 'CONFIRMED')
 				AND gr.receipt_date::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			GROUP BY gr.supplier_id
@@ -412,16 +447,20 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 			SELECT COALESCE(SUM(si2.amount), 0) AS total_purchase_value_all
 			FROM supplier_invoices si2
 			WHERE si2.deleted_at IS NULL
+				AND (@tenantFilter = false OR si2.tenant_id = @tenantID)
 				AND si2.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
 				AND NULLIF(si2.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 		) total_all
 		LEFT JOIN (
 			SELECT supplier_id, COUNT(id) AS active_purchase_order_count
 			FROM purchase_orders
-			WHERE deleted_at IS NULL AND UPPER(status) IN ('SUBMITTED', 'APPROVED')
+			WHERE deleted_at IS NULL
+				AND (@tenantFilter = false OR tenant_id = @tenantID)
+				AND UPPER(status) IN ('SUBMITTED', 'APPROVED')
 			GROUP BY supplier_id
 		) active_po ON active_po.supplier_id = s.id
 		WHERE s.deleted_at IS NULL
+			AND (@tenantFilter = false OR s.tenant_id = @tenantID)
 			AND s.is_active = true
 			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
 			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(string_to_array(@categoryIDsCSV, ',')))

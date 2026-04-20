@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
@@ -26,12 +27,12 @@ func NewSupplierTypeRepository(db *gorm.DB) SupplierTypeRepository {
 }
 
 func (r *supplierTypeRepository) Create(ctx context.Context, supplierType *models.SupplierType) error {
-	return r.db.WithContext(ctx).Create(supplierType).Error
+	return database.GetDB(ctx, r.db).Create(supplierType).Error
 }
 
 func (r *supplierTypeRepository) FindByID(ctx context.Context, id string) (*models.SupplierType, error) {
 	var supplierType models.SupplierType
-	err := r.db.WithContext(ctx).First(&supplierType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&supplierType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *supplierTypeRepository) List(ctx context.Context, params ListParams) ([
 	var supplierTypes []models.SupplierType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.SupplierType{})
+	query := database.GetDB(ctx, r.db).Model(&models.SupplierType{})
 
 	// Apply search filter
 	if params.Search != "" {
@@ -84,9 +85,9 @@ func (r *supplierTypeRepository) List(ctx context.Context, params ListParams) ([
 }
 
 func (r *supplierTypeRepository) Update(ctx context.Context, supplierType *models.SupplierType) error {
-	return r.db.WithContext(ctx).Save(supplierType).Error
+	return database.GetDB(ctx, r.db).Save(supplierType).Error
 }
 
 func (r *supplierTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SupplierType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.SupplierType{}, "id = ?", id).Error
 }

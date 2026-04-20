@@ -38,6 +38,7 @@ const (
 type Asset struct {
 	// Core Identity
 	ID          string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code        string `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
 	Name        string `gorm:"type:varchar(200);not null;index" json:"name"`
 	Description string `gorm:"type:text" json:"description"`

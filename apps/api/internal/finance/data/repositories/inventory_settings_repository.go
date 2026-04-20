@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -30,7 +31,7 @@ func (r *inventorySettingsRepository) getDB(ctx context.Context) *gorm.DB {
 	if tx, ok := ctx.Value("tx").(*gorm.DB); ok && tx != nil {
 		return tx
 	}
-	return r.db.WithContext(ctx)
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *inventorySettingsRepository) GetDB(ctx context.Context) *gorm.DB {

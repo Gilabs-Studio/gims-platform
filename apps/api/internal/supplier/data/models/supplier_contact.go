@@ -22,6 +22,7 @@ func (ContactRole) TableName() string {
 // SupplierContact represents a contact person for a supplier
 type SupplierContact struct {
 	ID            string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SupplierID    string         `gorm:"type:uuid;not null;index" json:"supplier_id"`
 	ContactRoleID *string        `gorm:"type:uuid;index" json:"contact_role_id"`
 	ContactRole   *ContactRole   `gorm:"foreignKey:ContactRoleID" json:"contact_role,omitempty"`

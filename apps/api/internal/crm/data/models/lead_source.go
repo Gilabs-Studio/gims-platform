@@ -10,6 +10,7 @@ import (
 // LeadSource represents the origin of leads (Website, Referral, Cold Call, etc.)
 type LeadSource struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
 	Code        string         `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
 	Description string         `gorm:"type:text" json:"description"`

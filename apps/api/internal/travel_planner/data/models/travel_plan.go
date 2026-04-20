@@ -65,6 +65,7 @@ const (
 
 type TravelPlan struct {
 	ID           string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code         string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Title        string           `gorm:"type:varchar(255);not null" json:"title"`
 	PlanType     TravelPlanType   `gorm:"type:varchar(30);default:'up_country_cost';index;not null" json:"plan_type"`

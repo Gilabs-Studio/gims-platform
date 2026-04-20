@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -46,7 +47,7 @@ func (r *travelPlanRepository) GenerateCode(ctx context.Context, now time.Time) 
 	prefix := fmt.Sprintf("TPL-%s", now.Format("200601"))
 
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.TravelPlan{}).
 		Where("code LIKE ?", prefix+"-%").
 		Count(&count).Error
@@ -58,19 +59,19 @@ func (r *travelPlanRepository) GenerateCode(ctx context.Context, now time.Time) 
 }
 
 func (r *travelPlanRepository) Create(ctx context.Context, plan *models.TravelPlan) error {
-	return r.db.WithContext(ctx).Create(plan).Error
+	return database.GetDB(ctx, r.db).Create(plan).Error
 }
 
 func (r *travelPlanRepository) Update(ctx context.Context, plan *models.TravelPlan) error {
-	return r.db.WithContext(ctx).Save(plan).Error
+	return database.GetDB(ctx, r.db).Save(plan).Error
 }
 
 func (r *travelPlanRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.TravelPlan{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.TravelPlan{}, "id = ?", id).Error
 }
 
 func (r *travelPlanRepository) FindByID(ctx context.Context, id string, withRelations bool) (*models.TravelPlan, error) {
-	q := r.db.WithContext(ctx).Model(&models.TravelPlan{})
+	q := database.GetDB(ctx, r.db).Model(&models.TravelPlan{})
 
 	if withRelations {
 		q = q.
@@ -97,7 +98,7 @@ func (r *travelPlanRepository) FindByID(ctx context.Context, id string, withRela
 }
 
 func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListParams) ([]models.TravelPlan, int64, error) {
-	q := r.db.WithContext(ctx).Model(&models.TravelPlan{})
+	q := database.GetDB(ctx, r.db).Model(&models.TravelPlan{})
 
 	if scope, _ := ctx.Value("permission_scope").(string); scope != "" {
 		actorID, _ := ctx.Value("user_id").(string)
@@ -148,7 +149,7 @@ func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListPa
 }
 
 func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, days []models.TravelPlanDay) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("travel_plan_id = ?", planID).Delete(&models.TravelPlanDay{}).Error; err != nil {
 			return err
 		}
@@ -166,7 +167,7 @@ func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, d
 
 func (r *travelPlanRepository) ListExpenses(ctx context.Context, planID string) ([]models.TravelPlanExpense, error) {
 	expenses := make([]models.TravelPlanExpense, 0)
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("travel_plan_id = ?", planID).
 		Order("expense_date ASC").
 		Order("created_at ASC").
@@ -178,11 +179,11 @@ func (r *travelPlanRepository) ListExpenses(ctx context.Context, planID string) 
 }
 
 func (r *travelPlanRepository) CreateExpense(ctx context.Context, expense *models.TravelPlanExpense) error {
-	return r.db.WithContext(ctx).Create(expense).Error
+	return database.GetDB(ctx, r.db).Create(expense).Error
 }
 
 func (r *travelPlanRepository) DeleteExpense(ctx context.Context, planID string, expenseID string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("id = ? AND travel_plan_id = ?", expenseID, planID).
 		Delete(&models.TravelPlanExpense{}).Error
 }
