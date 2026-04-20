@@ -271,6 +271,12 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Close reason is required for lost deals",
 	},
 
+	// Plan / Quota Errors
+	"USER_LIMIT_REACHED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "User limit for this tenant has been reached. Upgrade your plan to add more users.",
+	},
+
 	// Sales Errors
 	"CREDIT_LIMIT_EXCEEDED": {
 		HTTPStatus: http.StatusUnprocessableEntity,

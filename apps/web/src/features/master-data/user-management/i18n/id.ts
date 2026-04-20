@@ -16,6 +16,8 @@ export const userManagementId: UserManagementTranslations = {
     allStatus: "Semua Status",
     allRoles: "Semua Role",
     addUser: "Tambah Pengguna",
+    limitReached: "Batas pengguna tercapai. Upgrade paket Anda untuk menambah lebih banyak pengguna.",
+    userLimitLabel: "{current}/{max} pengguna",
     empty: "Tidak ada pengguna",
     createTitle: "Buat Pengguna",
     editTitle: "Edit Pengguna",

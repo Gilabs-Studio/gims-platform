@@ -39,6 +39,14 @@ export const userService = {
     );
     return response.data;
   },
+
+  async getLimit(): Promise<{ current: number; max: number }> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { current: number; max: number };
+    }>("/users/limit");
+    return response.data.data;
+  },
 };
 
 export const roleService = {
