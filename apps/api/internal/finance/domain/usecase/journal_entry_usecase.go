@@ -997,6 +997,12 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		if lookupErr == nil && resolvedCompanyID == "" {
 			resolvedCompanyID = strings.TrimSpace(existing.CompanyID)
 		}
+		if resolvedCompanyID == "" {
+			resolvedCompanyID, err = uc.resolveCompanyIDFromActor(ctx)
+			if err != nil {
+				return fmt.Errorf("company id is required for journal posting: %w", err)
+			}
+		}
 
 		resolvedFiscalYearID, err := uc.resolveFiscalYearID(ctx, tx, resolvedCompanyID, req.FiscalYearID, entryDate)
 		if err != nil {
@@ -1269,6 +1275,36 @@ func (uc *journalEntryUsecase) Cancel(ctx context.Context, id string) (*dto.Jour
 	}
 	resp := uc.mapper.ToResponse(full)
 	return &resp, nil
+}
+
+func (uc *journalEntryUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {
+	if uc == nil || uc.db == nil {
+		return "", errors.New("db is not configured")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	var companyID string
+	if err := database.GetDB(ctx, uc.db).
+		WithContext(ctx).
+		Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", actorID).
+		Limit(1).
+		Scan(&companyID).Error; err != nil {
+		return "", err
+	}
+
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
 }
 
 // ReverseWithReason creates a new reversing journal entry with a specific reason.

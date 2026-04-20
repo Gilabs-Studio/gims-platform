@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
@@ -57,30 +58,32 @@ type GoodsReceiptUsecase interface {
 }
 
 type goodsReceiptUsecase struct {
-	db           *gorm.DB
-	repo         repositories.GoodsReceiptRepository
-	poRepo       repositories.PurchaseOrderRepository
-	mapper       *mapper.GoodsReceiptMapper
-	auditService audit.AuditService
-	inventoryUC  invUsecase.InventoryUsecase
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	assetUC      finUsecase.AssetUsecase
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.GoodsReceiptRepository
+	poRepo             repositories.PurchaseOrderRepository
+	fiscalYearResolver *purchaseFiscalYearResolver
+	mapper             *mapper.GoodsReceiptMapper
+	auditService       audit.AuditService
+	inventoryUC        invUsecase.InventoryUsecase
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	assetUC            finUsecase.AssetUsecase
+	engine             accounting.AccountingEngine
 }
 
-func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, inventoryUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine) GoodsReceiptUsecase {
+func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, inventoryUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine, fiscalYearRepo financeRepositories.FiscalYearRepository) GoodsReceiptUsecase {
 	return &goodsReceiptUsecase{
-		db:           db,
-		repo:         repo,
-		poRepo:       poRepo,
-		mapper:       mapper.NewGoodsReceiptMapper(),
-		auditService: auditService,
-		inventoryUC:  inventoryUC,
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		assetUC:      assetUC,
-		engine:       engine,
+		db:                 db,
+		repo:               repo,
+		poRepo:             poRepo,
+		fiscalYearResolver: newPurchaseFiscalYearResolver(db, fiscalYearRepo),
+		mapper:             mapper.NewGoodsReceiptMapper(),
+		auditService:       auditService,
+		inventoryUC:        inventoryUC,
+		journalUC:          journalUC,
+		coaUC:              coaUC,
+		assetUC:            assetUC,
+		engine:             engine,
 	}
 }
 
@@ -183,6 +186,16 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			Status:          models.GoodsReceiptStatusDraft,
 			CreatedBy:       actorID,
 			Items:           make([]models.GoodsReceiptItem, 0, len(req.Items)),
+		}
+		gr.CompanyID = po.CompanyID
+		gr.FiscalYearID = po.FiscalYearID
+		if gr.CompanyID == nil || gr.FiscalYearID == nil {
+			companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, po.OrderDate)
+			if err != nil {
+				return err
+			}
+			gr.CompanyID = &companyID
+			gr.FiscalYearID = &fiscalYearID
 		}
 
 		poItemByID := make(map[string]*models.PurchaseOrderItem, len(po.Items))
@@ -418,8 +431,14 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			}
 
 			var alreadyReceived float64
-			if err := tx.
-				Table("goods_receipt_items").
+			alreadyReceivedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+				Table("goods_receipt_items")
+			alreadyReceivedQuery, err := applyTenantJoinScope(ctx, alreadyReceivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+			if err != nil {
+				return err
+			}
+
+			if err := alreadyReceivedQuery.
 				Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
@@ -447,8 +466,14 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 		fullyReceived := true
 		for _, poIt := range po.Items {
 			var totalReceived float64
-			if err := tx.
-				Table("goods_receipt_items").
+			totalReceivedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+				Table("goods_receipt_items")
+			totalReceivedQuery, err := applyTenantJoinScope(ctx, totalReceivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+			if err != nil {
+				return err
+			}
+
+			if err := totalReceivedQuery.
 				Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
@@ -587,7 +612,6 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 	return uc.inventoryUC.ReceiveStockFromGR(ctx, req)
 }
 
-
 func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error) {
 	// Eligible: purchase orders in APPROVED status
 	items, _, err := uc.poRepo.List(ctx, repositories.PurchaseOrderListParams{
@@ -611,21 +635,27 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// Compute total received qty per PO item for CLOSED GRs.
+	// Compute total received qty per PO item from all active GRs (exclude REJECTED only).
+	// This matches PO detail remaining-qty logic and prevents offering POs that are already
+	// effectively consumed by in-progress GRs.
 	type receivedRow struct {
 		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
 	receivedRows := make([]receivedRow, 0)
-	if err := database.GetDB(ctx, uc.db).
-		Table("goods_receipt_items").
+	receivedRowsQuery := uc.db.WithContext(ctx).
+		Table("goods_receipt_items")
+	receivedRowsQuery, err = applyTenantJoinScope(ctx, receivedRowsQuery, "goods_receipt_items.tenant_id", "gr.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := receivedRowsQuery.
 		Select("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received),0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id IN ?", poIDs).
-		Where("gr.status IN ?", []string{
-			string(models.GoodsReceiptStatusClosed),
-		}).
+		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
 		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
 		Scan(&receivedRows).Error; err != nil {
 		return nil, err
@@ -641,7 +671,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		// Skip POs that are 100% fulfilled (all items fully received via CLOSED GRs).
+		// Skip POs that are 100% fulfilled by active GRs.
 		if len(po.Items) > 0 {
 			fullyFulfilled := true
 			for _, poIt := range po.Items {
@@ -696,7 +726,7 @@ func (uc *goodsReceiptUsecase) Submit(ctx context.Context, id string) (*dto.Good
 	before := grAuditSnapshot(existing)
 
 	now := apptime.Now()
-	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
+	if err := database.GetDB(ctx, uc.db).Model(&models.GoodsReceipt{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"status":       models.GoodsReceiptStatusSubmitted,
@@ -816,7 +846,7 @@ func (uc *goodsReceiptUsecase) Reject(ctx context.Context, id string) (*dto.Good
 	before := grAuditSnapshot(existing)
 
 	now := apptime.Now()
-	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
+	if err := database.GetDB(ctx, uc.db).Model(&models.GoodsReceipt{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"status":      models.GoodsReceiptStatusRejected,
@@ -1165,6 +1195,10 @@ func (uc *goodsReceiptUsecase) ListAuditTrail(ctx context.Context, id string, pa
 		perPage = 100
 	}
 
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.GoodsReceipt{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrGoodsReceiptNotFound
+	}
+
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "goods_receipt.%")
@@ -1282,7 +1316,7 @@ func (uc *goodsReceiptUsecase) validateGoodsReceiptItemsAgainstPO(ctx context.Co
 	}
 
 	var po models.PurchaseOrder
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Preload("Items").
 		First(&po, "id = ?", gr.PurchaseOrderID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -1303,8 +1337,14 @@ func (uc *goodsReceiptUsecase) validateGoodsReceiptItemsAgainstPO(ctx context.Co
 		}
 
 		var alreadyReceived float64
-		if err := uc.db.WithContext(ctx).
-			Table("goods_receipt_items").
+		alreadyReceivedQuery := uc.db.WithContext(ctx).
+			Table("goods_receipt_items")
+		alreadyReceivedQuery, tenantErr := applyTenantJoinScope(ctx, alreadyReceivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+		if tenantErr != nil {
+			return tenantErr
+		}
+
+		if err := alreadyReceivedQuery.
 			Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 			Where("goods_receipts.purchase_order_id = ?", po.ID).

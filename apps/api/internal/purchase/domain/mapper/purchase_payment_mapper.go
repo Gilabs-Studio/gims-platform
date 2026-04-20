@@ -58,15 +58,17 @@ func (m *PurchasePaymentMapper) ToListResponse(p *models.PurchasePayment) *dto.P
 		}
 	}
 	return &dto.PurchasePaymentListResponse{
-		ID:          p.ID,
-		Invoice:     m.toInvoiceSummary(p.SupplierInvoice),
-		BankAccount: bankSummary,
-		PaymentDate: p.PaymentDate,
-		Amount:      p.Amount,
-		Method:      string(p.Method),
-		Status:      string(p.Status),
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		ID:           p.ID,
+		CompanyID:    p.CompanyID,
+		FiscalYearID: p.FiscalYearID,
+		Invoice:      m.toInvoiceSummary(p.SupplierInvoice),
+		BankAccount:  bankSummary,
+		PaymentDate:  p.PaymentDate,
+		Amount:       p.Amount,
+		Method:       string(p.Method),
+		Status:       string(p.Status),
+		CreatedAt:    p.CreatedAt,
+		UpdatedAt:    p.UpdatedAt,
 	}
 }
 
@@ -87,5 +89,6 @@ func (m *PurchasePaymentMapper) ToDetailResponse(p *models.PurchasePayment) *dto
 		PurchasePaymentListResponse: *base,
 		ReferenceNumber:             p.ReferenceNumber,
 		Notes:                       p.Notes,
+		CashBankTransactionID:       p.CashBankTransactionID,
 	}
 }

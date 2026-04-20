@@ -1,9 +1,11 @@
 package handler
 
 import (
+	stdErrors "errors"
 	"strconv"
 
-	"github.com/gilabs/gims/api/internal/core/errors"
+	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
+	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
@@ -26,16 +28,16 @@ func (h *DeliveryOrderHandler) List(c *gin.Context) {
 	var req dto.ListDeliveryOrdersRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidQueryParamResponse(c)
+		coreErrors.InvalidQueryParamResponse(c)
 		return
 	}
 
 	deliveryOrders, pagination, err := h.deliveryOrderUC.List(c.Request.Context(), &req)
 	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -71,12 +73,12 @@ func (h *DeliveryOrderHandler) GetByID(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -88,10 +90,10 @@ func (h *DeliveryOrderHandler) Create(c *gin.Context) {
 	var req dto.CreateDeliveryOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
@@ -105,18 +107,18 @@ func (h *DeliveryOrderHandler) Create(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.Create(c.Request.Context(), &req, createdBy)
 	if err != nil {
 		if err == usecase.ErrDeliverySalesOrderNotFound {
-			errors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
 				"sales_order_id": req.SalesOrderID,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrDeliveryProductNotFound {
-			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"message": "One or more products not found",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -134,34 +136,34 @@ func (h *DeliveryOrderHandler) Update(c *gin.Context) {
 	var req dto.UpdateDeliveryOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
 	deliveryOrder, err := h.deliveryOrderUC.Update(c.Request.Context(), id, &req)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryOrderStatus {
-			errors.ErrorResponse(c, "INVALID_DELIVERY_ORDER_STATUS", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_DELIVERY_ORDER_STATUS", map[string]interface{}{
 				"message": "Cannot modify delivery order in current status",
 			}, nil)
 			return
 		}
 		if err == usecase.ErrDeliveryProductNotFound {
-			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"message": "One or more products not found",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -182,18 +184,18 @@ func (h *DeliveryOrderHandler) Delete(c *gin.Context) {
 	err := h.deliveryOrderUC.Delete(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryOrderStatus {
-			errors.ErrorResponse(c, "INVALID_DELIVERY_ORDER_STATUS", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_DELIVERY_ORDER_STATUS", map[string]interface{}{
 				"message": "Cannot delete delivery order in current status",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -213,10 +215,10 @@ func (h *DeliveryOrderHandler) UpdateStatus(c *gin.Context) {
 	var req dto.UpdateDeliveryOrderStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
@@ -230,18 +232,18 @@ func (h *DeliveryOrderHandler) UpdateStatus(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.UpdateStatus(c.Request.Context(), id, &req, userID)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryStatusTransition {
-			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Invalid status transition",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -268,18 +270,18 @@ func (h *DeliveryOrderHandler) Approve(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.UpdateStatus(c.Request.Context(), id, &req, userID)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryStatusTransition {
-			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Delivery order must be in sent status to approve",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -297,10 +299,10 @@ func (h *DeliveryOrderHandler) Ship(c *gin.Context) {
 	var req dto.ShipDeliveryOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
@@ -314,18 +316,25 @@ func (h *DeliveryOrderHandler) Ship(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.Ship(c.Request.Context(), id, &req, userID)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryStatusTransition {
-			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Delivery order must be in prepared status to ship",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		if stdErrors.Is(err, usecase.ErrInsufficientBatchStock) || stdErrors.Is(err, inventoryUsecase.ErrInsufficientBatchStock) {
+			coreErrors.ErrorResponse(c, "INSUFFICIENT_STOCK", map[string]interface{}{
+				"delivery_order_id": id,
+				"reason":            err.Error(),
+			}, nil)
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -343,10 +352,10 @@ func (h *DeliveryOrderHandler) Deliver(c *gin.Context) {
 	var req dto.DeliverDeliveryOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
@@ -360,18 +369,18 @@ func (h *DeliveryOrderHandler) Deliver(c *gin.Context) {
 	deliveryOrder, err := h.deliveryOrderUC.Deliver(c.Request.Context(), id, &req, userID)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": id,
 			}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidDeliveryStatusTransition {
-			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Delivery order must be in shipped status to deliver",
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -388,22 +397,22 @@ func (h *DeliveryOrderHandler) SelectBatches(c *gin.Context) {
 	var req dto.BatchSelectionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
 	batches, err := h.deliveryOrderUC.SelectBatches(c.Request.Context(), &req)
 	if err != nil {
 		if err == usecase.ErrDeliveryProductNotFound {
-			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"product_id": req.ProductID,
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -417,22 +426,22 @@ func (h *DeliveryOrderHandler) ListItems(c *gin.Context) {
 	var req dto.ListDeliveryOrderItemsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidQueryParamResponse(c)
+		coreErrors.InvalidQueryParamResponse(c)
 		return
 	}
 
 	items, pagination, err := h.deliveryOrderUC.ListItems(c.Request.Context(), deliveryOrderID, &req)
 	if err != nil {
 		if err == usecase.ErrDeliveryOrderNotFound {
-			errors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
+			coreErrors.ErrorResponse(c, "DELIVERY_ORDER_NOT_FOUND", map[string]interface{}{
 				"delivery_order_id": deliveryOrderID,
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -468,7 +477,7 @@ func (h *DeliveryOrderHandler) AuditTrail(c *gin.Context) {
 
 	entries, total, err := h.deliveryOrderUC.ListAuditTrail(c.Request.Context(), id, page, perPage)
 	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 

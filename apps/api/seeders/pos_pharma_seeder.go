@@ -208,16 +208,37 @@ func SeedPosPharmaProducts() error {
 		PosVitaminCID:    150,
 		PosBpMonitorID:   20,
 	}
+	productCostByID := map[string]float64{}
+	for _, p := range products {
+		cost := p.CostPrice
+		if cost <= 0 {
+			cost = p.CurrentHpp
+		}
+		if cost <= 0 {
+			cost = 1
+		}
+		productCostByID[p.ID] = cost
+	}
 
 	for _, warehouseID := range warehouseIDs {
 		for productID, qty := range starterStock {
-			batchNo := fmt.Sprintf("BCH-PHM-%s-%s", productID[len(productID)-6:], time.Now().Format("20060102"))
+			batchNo := fmt.Sprintf("BCH-PHM-%s-%s", productID[len(productID)-6:], warehouseID[len(warehouseID)-6:])
 			var existing inventoryModels.InventoryBatch
 			err := db.Where(
 				"batch_number = ? AND product_id = ? AND warehouse_id = ?",
 				batchNo, productID, warehouseID,
 			).First(&existing).Error
 			if err == nil {
+				if updateErr := db.Model(&existing).Updates(map[string]interface{}{
+					"initial_quantity":  qty,
+					"current_quantity":  qty,
+					"reserved_quantity": 0,
+					"cost_price":        productCostByID[productID],
+					"is_active":         true,
+					"updated_at":        time.Now(),
+				}).Error; updateErr != nil {
+					log.Printf("Warning: failed updating pharma batch product=%s warehouse=%s: %v", productID, warehouseID, updateErr)
+				}
 				continue
 			}
 			if err != gorm.ErrRecordNotFound {
@@ -230,6 +251,7 @@ func SeedPosPharmaProducts() error {
 				InitialQuantity:  qty,
 				CurrentQuantity:  qty,
 				ReservedQuantity: 0,
+				CostPrice:        productCostByID[productID],
 				IsActive:         true,
 			}
 			if createErr := db.Create(&batch).Error; createErr != nil {

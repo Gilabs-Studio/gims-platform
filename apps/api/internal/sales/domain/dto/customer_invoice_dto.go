@@ -18,7 +18,7 @@ type CreateCustomerInvoiceRequest struct {
 
 // CreateCustomerInvoiceItemRequest represents an item in the invoice
 type CreateCustomerInvoiceItemRequest struct {
-	ProductID           string  `json:"product_id" binding:"required,uuid"`
+	ProductID           string  `json:"product_id" binding:"required"`
 	SalesOrderItemID    *string `json:"sales_order_item_id" binding:"omitempty,uuid"`
 	DeliveryOrderItemID *string `json:"delivery_order_item_id" binding:"omitempty,uuid"`
 	Quantity            float64 `json:"quantity" binding:"required,gt=0"`

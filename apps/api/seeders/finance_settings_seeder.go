@@ -89,6 +89,12 @@ func SeedFinanceSettings() error {
 			Category:    "coa",
 		},
 		{
+			SettingKey:  models.SettingCOAGoodReceiptInvoiceReceipt,
+			Value:       "11440",
+			Description: "GR/IR Clearing (alias used by accounting posting profile)",
+			Category:    "coa",
+		},
+		{
 			SettingKey:  models.SettingCOAPurchaseVATIn,
 			Value:       "11420",
 			Description: "VAT Input Tax (PPN Masukan - asset/receivable)",

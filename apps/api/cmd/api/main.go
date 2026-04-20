@@ -430,8 +430,6 @@ func main() {
 		// Loyalty module
 		customerRepo := customerRepos.NewCustomerRepository(database.DB)
 		loyaltyDeps := loyaltyPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, customerRepo)
-		// Wire loyalty usecase into sales invoice so Customer Invoice PAID triggers point earning.
-		salesDeps.CustomerInvoiceUC.SetLoyaltyUsecase(loyaltyDeps.Usecase)
 
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -446,7 +444,7 @@ func main() {
 		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC, financeDeps.CashBankTransactionUC)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)

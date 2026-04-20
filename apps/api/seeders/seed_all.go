@@ -136,6 +136,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Ensure product aggregate stock/HPP always matches seeded inventory batches.
+	if err := ReconcileProductInventoryAggregates(); err != nil {
+		return err
+	}
+
 	// User-warehouse assignments for POS outlet RBAC
 	if err := SeedUserWarehouses(); err != nil {
 		return err
@@ -484,6 +489,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedPosGoodsProducts(); err != nil {
+		return err
+	}
+
+	if err := ReconcileProductInventoryAggregates(); err != nil {
 		return err
 	}
 

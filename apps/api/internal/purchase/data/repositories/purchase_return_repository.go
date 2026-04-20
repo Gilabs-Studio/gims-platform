@@ -1,8 +1,8 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -50,12 +50,21 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 	rows := make([]*models.PurchaseReturn, 0)
 	var total int64
 
-	q := database.GetDB(ctx, r.db).Model(&models.PurchaseReturn{}).Preload("Items")
+	q := r.db.WithContext(ctx).Model(&models.PurchaseReturn{}).Preload("Items")
+	var err error
+	q, err = applyTenantFilter(ctx, q, "purchase_returns.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 	q = security.ApplyScopeFilter(q, ctx, security.PurchaseScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Joins("LEFT JOIN suppliers ON suppliers.id = purchase_returns.supplier_id")
+		q, err = applyTenantFilter(ctx, q, "suppliers.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		q = q.Where("suppliers.name ILIKE ? OR purchase_returns.code ILIKE ? OR purchase_returns.reason ILIKE ?", like, like, like)
 	}
 	if s := strings.TrimSpace(params.Status); s != "" {
@@ -104,7 +113,7 @@ func (r *purchaseReturnRepository) GetByID(ctx context.Context, id string) (*mod
 }
 
 func (r *purchaseReturnRepository) Create(ctx context.Context, row *models.PurchaseReturn) error {
-	return database.GetDB(ctx, r.db).Create(row).Error
+	return database.GetDB(ctx, r.db).Session(&gorm.Session{NewDB: true}).Create(row).Error
 }
 
 func (r *purchaseReturnRepository) Update(ctx context.Context, row *models.PurchaseReturn) error {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import type { FieldErrors, SubmitErrorHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { FileText, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,27 @@ function getNameFromUnknown(value: unknown): string | null {
 
 function toSafeNumber(value: number | undefined | null): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function collectErrorPaths(errs: FieldErrors, prefix = ""): string[] {
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(errs)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (!value) continue;
+    if (Array.isArray(value)) {
+      value.forEach((child, idx) => {
+        if (child) out.push(...collectErrorPaths(child as FieldErrors, `${path}[${idx}]`));
+      });
+      continue;
+    }
+    const maybeLeaf = value as { message?: unknown };
+    if (typeof maybeLeaf.message === "string" && maybeLeaf.message.length > 0) {
+      out.push(path);
+      continue;
+    }
+    out.push(...collectErrorPaths(value as FieldErrors, path));
+  }
+  return Array.from(new Set(out));
 }
 
 interface GoodsReceiptFormProps {
@@ -189,7 +211,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
             .filter((it) => (it.quantity_remaining ?? it.quantity) > 0.0001)
             .map((it) => ({
               purchase_order_item_id: it.id,
-              product_id: it.product_id,
+              product_id: it.product_id || it.product?.id || "",
               quantity_received: 0,
               notes: null,
             })),
@@ -209,6 +231,19 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const onSubmit = async (values: GoodsReceiptFormData) => {
     try {
+      const normalizedItems = values.items.map((it) => ({
+        purchase_order_item_id: it.purchase_order_item_id,
+        product_id: it.product_id || poItemsById[it.purchase_order_item_id]?.product_id || "",
+        quantity_received: it.quantity_received,
+        notes: it.notes ?? null,
+      }));
+
+      const hasUnresolvedProduct = normalizedItems.some((it) => !it.product_id);
+      if (hasUnresolvedProduct) {
+        toast.error(t("form.invalidProductMapping") || "Some items are missing product mapping. Please re-select PO and try again.");
+        return;
+      }
+
       if (isEdit && goodsReceiptId) {
         await updateMutation.mutateAsync({
           id: goodsReceiptId,
@@ -216,12 +251,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
             warehouse_id: values.warehouse_id,
             notes: values.notes ?? null,
             proof_image_url: values.proof_image_url ?? null,
-            items: values.items.map((it) => ({
-              purchase_order_item_id: it.purchase_order_item_id,
-              product_id: it.product_id,
-              quantity_received: it.quantity_received,
-              notes: it.notes ?? null,
-            })),
+            items: normalizedItems,
           },
         });
         toast.success(t("toast.updated"));
@@ -231,12 +261,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
           warehouse_id: values.warehouse_id,
           notes: values.notes ?? null,
           proof_image_url: values.proof_image_url ?? null,
-          items: values.items.map((it) => ({
-            purchase_order_item_id: it.purchase_order_item_id,
-            product_id: it.product_id,
-            quantity_received: it.quantity_received,
-            notes: it.notes ?? null,
-          })),
+          items: normalizedItems,
         });
         toast.success(t("toast.created"));
         onClose();
@@ -253,6 +278,21 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const watchedItems = form.watch("items");
+  const hasNoReceivableItems = !isEdit && !!selectedPOId && !poLoading && itemsArray.fields.length === 0;
+
+  const onInvalid: SubmitErrorHandler<GoodsReceiptFormData> = (errs) => {
+    const paths = collectErrorPaths(errs);
+    const values = form.getValues();
+    const hasAnyPositiveQty = (values.items ?? []).some(
+      (item) => typeof item?.quantity_received === "number" && item.quantity_received > 0,
+    );
+    // Show qty-specific feedback only when the real cause is "all quantities are zero".
+    if (!hasAnyPositiveQty && paths.some((path) => path.startsWith("items"))) {
+      toast.error(t("form.invalidQuantity") || "Set at least one received quantity greater than 0.");
+      return;
+    }
+    toast.error(paths.length ? `${t("form.invalid")}: ${paths.join(", ")}` : t("form.invalid"));
+  };
 
   const handleNext = async () => {
     const isValid = await form.trigger(["purchase_order_id", "warehouse_id"]);
@@ -276,7 +316,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
             <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
           </TabsList>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 mt-4">
             <TabsContent value="basic" className="space-y-4 mt-0">
               <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
                 <FileText className="h-4 w-4 text-primary" />
@@ -486,19 +526,60 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                       ) : (
                         itemsArray.fields.map((field, idx) => {
                           const poItem = poItemsById[field.purchase_order_item_id];
+                          const fallbackPOItemID =
+                            watchedItems?.[idx]?.purchase_order_item_id ??
+                            field.purchase_order_item_id ??
+                            grDetail?.items?.[idx]?.purchase_order_item_id ??
+                            "";
+                          const fallbackProductID =
+                            watchedItems?.[idx]?.product_id ??
+                            poItem?.product_id ??
+                            grDetail?.items?.[idx]?.product?.id ??
+                            "";
                           const productName =
                             (!isEdit ? getNameFromUnknown(poItem?.product) : null) ??
                             grDetail?.items?.[idx]?.product?.name ??
                             "-";
                           const orderedQty = !isEdit ? toSafeNumber(poItem?.quantity) : 0;
-                          // quantity_remaining is computed server-side from CONFIRMED/CLOSED GRs.
+                          // quantity_remaining is computed server-side from all non-rejected GRs.
                           // Subtract what the user is currently entering for live feedback.
                           const quantityRemaining = !isEdit ? toSafeNumber(poItem?.quantity_remaining ?? poItem?.quantity) : 0;
                           const currentQtyReceived = toSafeNumber(watchedItems?.[idx]?.quantity_received);
                           const remaining = quantityRemaining - currentQtyReceived;
                           return (
                             <TableRow key={field.id}>
-                              <TableCell className="max-w-60 truncate font-medium">{productName}</TableCell>
+                              <TableCell className="max-w-60 truncate font-medium">
+                                {/* Keep immutable IDs registered so resolver/submit always receives them. */}
+                                <Controller
+                                  name={`items.${idx}.purchase_order_item_id`}
+                                  control={form.control}
+                                  render={({ field: hiddenField }) => (
+                                    <input
+                                      type="hidden"
+                                      value={hiddenField.value ?? fallbackPOItemID}
+                                      onChange={hiddenField.onChange}
+                                      onBlur={hiddenField.onBlur}
+                                      name={hiddenField.name}
+                                      ref={hiddenField.ref}
+                                    />
+                                  )}
+                                />
+                                <Controller
+                                  name={`items.${idx}.product_id`}
+                                  control={form.control}
+                                  render={({ field: hiddenField }) => (
+                                    <input
+                                      type="hidden"
+                                      value={hiddenField.value ?? fallbackProductID}
+                                      onChange={hiddenField.onChange}
+                                      onBlur={hiddenField.onBlur}
+                                      name={hiddenField.name}
+                                      ref={hiddenField.ref}
+                                    />
+                                  )}
+                                />
+                                {productName}
+                              </TableCell>
                               <TableCell className="text-right text-muted-foreground">{orderedQty}</TableCell>
                               <TableCell className="text-right">
                                 <span
@@ -547,7 +628,17 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
               )}
 
               {form.formState.errors.items ? (
-                <div className="text-sm text-destructive">{t("form.invalid")}</div>
+                <div className="text-sm text-destructive">
+                  {form.formState.errors.items.message === "At least one item must have quantity > 0"
+                    ? (t("form.invalidQuantity") || "Set at least one received quantity greater than 0")
+                    : t("form.invalid")}
+                </div>
+              ) : null}
+
+              {hasNoReceivableItems ? (
+                <div className="text-sm text-warning">
+                  {t("form.noReceivableItems") || "All PO items are already fully received. Create Goods Receipt is not available for this PO."}
+                </div>
               ) : null}
 
               <div className="flex items-center justify-between pt-4 border-t">
@@ -558,7 +649,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                   <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
                     {t("actions.cancel")}
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
+                  <Button type="submit" disabled={isSubmitting || hasNoReceivableItems} className="cursor-pointer">
                     <ButtonLoading loading={isSubmitting}>
                       {t("actions.save")}
                     </ButtonLoading>

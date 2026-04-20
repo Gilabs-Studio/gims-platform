@@ -651,6 +651,7 @@ func (r *inventoryRepository) GetBatchByID(ctx context.Context, batchID string) 
 			ib.expiry_date,
 			ib.current_quantity,
 			ib.reserved_quantity,
+			ib.cost_price,
 			(ib.current_quantity - ib.reserved_quantity) as available,
 			ib.is_active
 		`).

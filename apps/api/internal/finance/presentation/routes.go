@@ -18,16 +18,17 @@ import (
 )
 
 type FinanceDeps struct {
-	JournalUC    usecase.JournalEntryUsecase
-	CoaUC        usecase.ChartOfAccountUsecase
-	AssetUC      usecase.AssetUsecase
-	PaymentUC    usecase.PaymentUsecase
-	BudgetUC     usecase.BudgetUsecase
-	CashBankUC   usecase.CashBankJournalUsecase
-	TaxInvoiceUC usecase.TaxInvoiceUsecase
-	SalaryUC     usecase.SalaryStructureUsecase
-	SettingsUC   financesettings.SettingsService
-	Engine       accounting.AccountingEngine
+	JournalUC             usecase.JournalEntryUsecase
+	CoaUC                 usecase.ChartOfAccountUsecase
+	AssetUC               usecase.AssetUsecase
+	PaymentUC             usecase.PaymentUsecase
+	BudgetUC              usecase.BudgetUsecase
+	CashBankUC            usecase.CashBankJournalUsecase
+	CashBankTransactionUC usecase.CashBankTransactionUsecase
+	TaxInvoiceUC          usecase.TaxInvoiceUsecase
+	SalaryUC              usecase.SalaryStructureUsecase
+	SettingsUC            financesettings.SettingsService
+	Engine                accounting.AccountingEngine
 }
 
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, auditService interface {
@@ -195,15 +196,16 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterLegacyFinanceRouteBridges(group)
 
 	return &FinanceDeps{
-		JournalUC:    journalUC,
-		CoaUC:        coaUC,
-		AssetUC:      assetUC,
-		PaymentUC:    paymentUC,
-		BudgetUC:     budgetUC,
-		CashBankUC:   cashBankUC,
-		TaxInvoiceUC: taxInvoiceUC,
-		SalaryUC:     salaryUC,
-		SettingsUC:   settingsService,
-		Engine:       accountingEngine,
+		JournalUC:             journalUC,
+		CoaUC:                 coaUC,
+		AssetUC:               assetUC,
+		PaymentUC:             paymentUC,
+		BudgetUC:              budgetUC,
+		CashBankUC:            cashBankUC,
+		CashBankTransactionUC: cashBankTransactionUC,
+		TaxInvoiceUC:          taxInvoiceUC,
+		SalaryUC:              salaryUC,
+		SettingsUC:            settingsService,
+		Engine:                accountingEngine,
 	}
 }

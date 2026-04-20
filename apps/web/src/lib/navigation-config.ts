@@ -435,21 +435,21 @@ export const navigationConfig: NavItem[] = [
           {
             name: "Customer Payments",
             i18nKey: "payments",
-            url: "/finance/ap/payments",
+            url: "/finance/ar/customer-payments",
             icon: "credit-card",
             permission: "payment.read",
           },
           {
             name: "Credit Notes",
             i18nKey: "returns",
-            url: "/finance/journals/sales",
+            url: "/finance/ar/credit-notes",
             icon: "rotate-ccw",
             permission: "sales_return.read",
           },
           {
             name: "AR Aging Reports",
             i18nKey: "agingReports",
-            url: "/finance/aging-reports",
+            url: "/finance/ar/aging-reports",
             icon: "clock",
             permission: "aging_report.read",
           },
@@ -464,7 +464,7 @@ export const navigationConfig: NavItem[] = [
           {
             name: "Supplier Invoices",
             i18nKey: "supplierInvoices",
-            url: "/finance/journals/purchase",
+            url: "/finance/ap/supplier-invoices",
             icon: "receipt",
             permission: "supplier_invoice.read",
           },
@@ -478,7 +478,7 @@ export const navigationConfig: NavItem[] = [
           {
             name: "Debit Notes",
             i18nKey: "returns",
-            url: "/finance/journals/purchase",
+            url: "/finance/ap/debit-notes",
             icon: "rotate-ccw",
             permission: "purchase_return.read",
           },
@@ -492,7 +492,7 @@ export const navigationConfig: NavItem[] = [
           {
             name: "AP Aging Reports",
             i18nKey: "agingReports",
-            url: "/finance/aging-reports",
+            url: "/finance/ap/aging-reports",
             icon: "clock",
             permission: "aging_report.read",
           },

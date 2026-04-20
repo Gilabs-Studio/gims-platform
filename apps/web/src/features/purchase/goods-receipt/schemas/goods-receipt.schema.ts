@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const goodsReceiptItemSchema = z.object({
   purchase_order_item_id: z.string().uuid(),
-  product_id: z.string().uuid(),
+  // product_id is derived from selected PO item and may be backfilled right before submit.
+  // Keep this permissive on client to avoid false negatives from transient form-state hydration.
+  product_id: z.string().optional(),
   quantity_received: z.number().gte(0),
   notes: z.string().nullable().optional(),
 });

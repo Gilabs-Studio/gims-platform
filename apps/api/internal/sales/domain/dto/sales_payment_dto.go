@@ -65,7 +65,7 @@ type SalesPaymentAddResponse struct {
 
 type CreateSalesPaymentRequest struct {
 	InvoiceID       string  `json:"invoice_id" binding:"required"`
-	BankAccountID   string  `json:"bank_account_id" binding:"required"`
+	BankAccountID   *string `json:"bank_account_id,omitempty" binding:"omitempty,uuid"`
 	PaymentDate     string  `json:"payment_date" binding:"required"`
 	Amount          float64 `json:"amount" binding:"required,gt=0"`
 	Method          string  `json:"method" binding:"required"`

@@ -12,6 +12,8 @@ type PurchaseRequisitionListResponse struct {
 	SupplierID     *string `json:"supplier_id"`
 	PaymentTermsID *string `json:"payment_terms_id"`
 	BusinessUnitID *string `json:"business_unit_id"`
+	CompanyID      *string `json:"company_id"`
+	FiscalYearID   *string `json:"fiscal_year_id"`
 	RequestedBy    *string `json:"requested_by"`
 	RequestDate    string  `json:"request_date"`
 	Status         string  `json:"status"`

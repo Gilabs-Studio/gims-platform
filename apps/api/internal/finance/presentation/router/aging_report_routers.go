@@ -9,6 +9,9 @@ import (
 const agingReportRead = "aging_report.read"
 
 func RegisterFinanceAgingReportRoutes(rg *gin.RouterGroup, h *handler.AgingReportHandler) {
+	rg.GET("/ar/aging", middleware.RequirePermission(agingReportRead), h.ARAgingFinance)
+	rg.GET("/ap/aging", middleware.RequirePermission(agingReportRead), h.APAgingFinance)
+
 	g := rg.Group("/reports")
 	g.GET("/ar-aging", middleware.RequirePermission(agingReportRead), h.ARAging)
 	g.GET("/ap-aging", middleware.RequirePermission(agingReportRead), h.APAging)

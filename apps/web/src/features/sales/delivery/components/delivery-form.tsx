@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Controller, FormProvider, useWatch, useFormContext } from "react-hook-form";
 import type { Control } from "react-hook-form";
 import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
@@ -27,9 +28,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { useProductBatches } from "@/features/stock/inventory/hooks/use-product-batches";
+import { inventoryService } from "@/features/stock/inventory/services/inventory-service";
 import type { DeliveryOrder } from "../types";
 import { useDeliveryForm } from "../hooks/use-delivery-form";
-import type { InventoryBatchItem } from "@/features/stock/inventory/types";
+import type { InventoryBatchItem, InventoryStockItem } from "@/features/stock/inventory/types";
 import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
 import { CourierAgencyDialog } from "@/features/master-data/payment-and-couriers/courier-agency/components/courier-agency-dialog";
 
@@ -417,46 +419,22 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                               </div>
                             </Field>
 
-                            <Field orientation="vertical">
-                                <FieldLabel>{t("warehouse")} *</FieldLabel>
-                                <Controller
-                                  name={`items.${index}.warehouse_id`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Select
-                                      value={field.value}
-                                      onValueChange={(val) => {
-                                        field.onChange(val);
-                                        // Reset batch when warehouse changes
-                                        setValue(`items.${index}.inventory_batch_id`, "");
-                                      }}
-                                      onOpenChange={(isOpen) => {
-                                        if (isOpen) {
-                                          enableReferenceOptionsFetch();
-                                        }
-                                        warehousesCombobox.onOpenChange(isOpen);
-                                      }}
-                                      onSearchChange={warehousesCombobox.onSearchChange}
-                                      searchDebounceMs={300}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder={t("warehouse")} />
-                                      </SelectTrigger>
-                                      <SelectContent
-                                        onLoadMore={warehousesCombobox.onLoadMore}
-                                        hasMore={warehousesCombobox.hasMore}
-                                        isLoadingMore={warehousesCombobox.isLoadingMore}
-                                      >
-                                        {warehouses.filter(w => w.is_active).map((w) => (
-                                          <SelectItem key={w.id} value={w.id}>
-                                            {w.code ? `${w.code} - ${w.name}` : w.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                />
-                            </Field>
+                            <WarehouseSelectionField
+                              control={control}
+                              index={index}
+                              error={errors.items?.[index]?.warehouse_id?.message}
+                              t={t}
+                              open={open}
+                              warehouses={warehouses}
+                              warehousesCombobox={{
+                                onOpenChange: warehousesCombobox.onOpenChange,
+                                onSearchChange: warehousesCombobox.onSearchChange,
+                                onLoadMore: warehousesCombobox.onLoadMore,
+                                hasMore: warehousesCombobox.hasMore,
+                                isLoadingMore: warehousesCombobox.isLoadingMore,
+                              }}
+                              enableReferenceOptionsFetch={enableReferenceOptionsFetch}
+                            />
 
                             <Field orientation="vertical">
                               <FieldLabel>{t("item.quantity")} *</FieldLabel>
@@ -560,6 +538,124 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
         />
       )}
     </Dialog>
+  );
+}
+
+function WarehouseSelectionField({
+  control,
+  index,
+  error,
+  t,
+  open,
+  warehouses,
+  warehousesCombobox,
+  enableReferenceOptionsFetch,
+}: {
+  control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+  index: number;
+  error?: string | null;
+  t: (key: string) => string;
+  open: boolean;
+  warehouses: Array<{ id: string; name: string; code?: string; is_active?: boolean }>;
+  warehousesCombobox: {
+    onOpenChange: (isOpen: boolean) => void;
+    onSearchChange: (value: string) => void;
+    onLoadMore: () => void;
+    hasMore: boolean;
+    isLoadingMore: boolean;
+  };
+  enableReferenceOptionsFetch: () => void;
+}) {
+  const { setValue } = useFormContext();
+  const productId = useWatch({ control, name: `items.${index}.product_id` });
+  const selectedWarehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
+
+  const { data: stockData, isSuccess: hasStockData } = useQuery({
+    queryKey: ["sales", "delivery", "product-warehouses", productId],
+    queryFn: () =>
+      inventoryService.getInventory({
+        page: 1,
+        per_page: 100,
+        product_id: (productId as string) ?? "",
+      }),
+    enabled: open && !!productId,
+    staleTime: 30_000,
+  });
+
+  const stocks = useMemo(() => {
+    return (stockData?.data?.data ?? []) as InventoryStockItem[];
+  }, [stockData]);
+
+  const availableWarehouseIDs = useMemo(() => {
+    const result = new Set<string>();
+    stocks.forEach((stock) => {
+      if ((stock.available ?? 0) > 0) {
+        result.add(stock.warehouse_id);
+      }
+    });
+    return result;
+  }, [stocks]);
+
+  const warehouseOptions = useMemo(() => {
+    const activeWarehouses = warehouses.filter((warehouse) => warehouse.is_active);
+    if (!productId || !hasStockData) {
+      return activeWarehouses;
+    }
+
+    return activeWarehouses.filter(
+      (warehouse) =>
+        availableWarehouseIDs.has(warehouse.id) ||
+        (selectedWarehouseId !== undefined && warehouse.id === selectedWarehouseId)
+    );
+  }, [warehouses, productId, hasStockData, availableWarehouseIDs, selectedWarehouseId]);
+
+  return (
+    <Field orientation="vertical">
+      <FieldLabel>{t("warehouse")} *</FieldLabel>
+      <Controller
+        name={`items.${index}.warehouse_id`}
+        control={control}
+        render={({ field }) => (
+          <Select
+            value={field.value}
+            onValueChange={(val) => {
+              field.onChange(val);
+              // Reset batch when warehouse changes.
+              setValue(`items.${index}.inventory_batch_id`, "");
+            }}
+            onOpenChange={(isOpen) => {
+              if (isOpen) {
+                enableReferenceOptionsFetch();
+              }
+              warehousesCombobox.onOpenChange(isOpen);
+            }}
+            onSearchChange={warehousesCombobox.onSearchChange}
+            searchDebounceMs={300}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("warehouse")} />
+            </SelectTrigger>
+            <SelectContent
+              onLoadMore={warehousesCombobox.onLoadMore}
+              hasMore={warehousesCombobox.hasMore}
+              isLoadingMore={warehousesCombobox.isLoadingMore}
+            >
+              {warehouseOptions.map((warehouse) => (
+                <SelectItem key={warehouse.id} value={warehouse.id}>
+                  {warehouse.code ? `${warehouse.code} - ${warehouse.name}` : warehouse.name}
+                </SelectItem>
+              ))}
+              {hasStockData && !!productId && warehouseOptions.length === 0 && (
+                <div className="p-2 text-sm text-muted-foreground text-center">
+                  No warehouse with available stock for this product
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        )}
+      />
+      {error && <FieldError>{error}</FieldError>}
+    </Field>
   );
 }
 

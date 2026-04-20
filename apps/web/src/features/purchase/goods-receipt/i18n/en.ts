@@ -40,6 +40,9 @@ export const goodsReceiptEn = {
     createTitle: "Create Goods Receipt",
     editTitle: "Edit Goods Receipt",
     invalid: "Please check required fields",
+    invalidQuantity: "Set at least one received quantity greater than 0",
+    invalidProductMapping: "Some items are missing product mapping. Please re-select PO and try again.",
+    noReceivableItems: "All PO items are fully received. You cannot create a new goods receipt for this PO.",
   },
   tabs: {
     basic: "Basic Info",

@@ -18,7 +18,7 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { productService } from "@/features/master-data/product/services/product-service";
 import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
 import { orderService } from "@/features/sales/order/services/order-service";
-import type { CustomerInvoice } from "../types";
+import type { CreateCustomerInvoiceData, CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
@@ -26,6 +26,12 @@ const STORAGE_KEY = "invoice_form_cache";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isUuidLike = (value: string | undefined | null): boolean => UUID_REGEX.test((value ?? "").trim());
+
+function getAppliedDownPaymentAmount(dp: { amount?: number; remaining_amount?: number | null }): number {
+  const amount = dp.amount ?? 0;
+  const remaining = dp.remaining_amount ?? amount;
+  return Math.max(0, amount - remaining);
+}
 
 export interface UseInvoiceFormProps {
   invoice?: CustomerInvoice | null;
@@ -235,26 +241,46 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   // Fetch DP invoices linked to the selected SO for DP detection
   const { data: dpInvoicesData } = useCustomerInvoiceDPs(
-    { sales_order_id: watchedSalesOrderId ?? "", per_page: 20 },
+    { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
     { enabled: open && !!watchedSalesOrderId },
   );
 
   // Compute detected down payments and financial summary
   const detectedDownPayments = useMemo(() => {
     const list = dpInvoicesData?.data ?? [];
-    // Only include paid/partial/approved DPs
+    // Only include paid/partial DPs with collected amount.
     return list.filter((dp) => {
       const status = (dp.status ?? "").toLowerCase();
-      return status === "paid" || status === "partial" || status === "approved";
+      const paidAmount = getAppliedDownPaymentAmount(dp);
+      return (status === "paid" || status === "partial") && paidAmount > 0;
     });
   }, [dpInvoicesData?.data]);
 
   const dpSummary = useMemo(() => {
-    const totalDP = detectedDownPayments.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
+    const totalDP = detectedDownPayments.reduce((sum, dp) => sum + getAppliedDownPaymentAmount(dp), 0);
     const orderTotal = selectedOrderData?.data?.total_amount ?? 0;
     const amountDue = Math.max(0, orderTotal - totalDP);
     return { totalDP, orderTotal, amountDue };
   }, [detectedDownPayments, selectedOrderData?.data?.total_amount]);
+
+  const selectedDownPaymentInvoiceID = useMemo(() => {
+    if (detectedDownPayments.length === 0) {
+      return undefined;
+    }
+
+    const sorted = [...detectedDownPayments].sort((a, b) => {
+      const dateA = new Date(a.invoice_date ?? "").getTime();
+      const dateB = new Date(b.invoice_date ?? "").getTime();
+
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      return getAppliedDownPaymentAmount(b) - getAppliedDownPaymentAmount(a);
+    });
+
+    return sorted[0]?.id;
+  }, [detectedDownPayments]);
 
   // Auto-fill payment terms + items from selected SO
   useEffect(() => {
@@ -515,15 +541,19 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
         });
         toast.success(t("updated"));
       } else {
-        await createInvoice.mutateAsync({
+        const createPayload: CreateCustomerInvoiceData = {
           ...data,
           due_date: toOptionalString(data.due_date),
           sales_order_id: toOptionalString(data.sales_order_id),
           delivery_order_id: toOptionalString(data.delivery_order_id),
           payment_terms_id: toOptionalString(data.payment_terms_id),
+          down_payment_invoice_id:
+            data.type === "regular" ? selectedDownPaymentInvoiceID : undefined,
           notes: toOptionalString(data.notes),
           items: filteredItems,
-        } as CreateInvoiceFormData);
+        };
+
+        await createInvoice.mutateAsync(createPayload);
         toast.success(t("created"));
       }
       localStorage.removeItem(STORAGE_KEY);

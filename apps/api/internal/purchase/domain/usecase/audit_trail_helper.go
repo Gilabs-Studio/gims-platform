@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"gorm.io/gorm"
 )
 
@@ -94,7 +95,12 @@ func lookupPurchaseReferenceLabel(ctx context.Context, db *gorm.DB, idKey, id st
 		return ""
 	}
 
-	row := db.WithContext(ctx).Table(table).Select(column).Where("id = ?", id).Limit(1).Row()
+	queryDB := db.WithContext(ctx)
+	if !isGlobalReferenceTable(table) {
+		queryDB = database.GetDB(ctx, db)
+	}
+
+	row := queryDB.Table(table).Select(column).Where("id = ?", id).Limit(1).Row()
 	var value string
 	if err := row.Scan(&value); err != nil {
 		refCache[cacheKey] = ""
@@ -141,4 +147,13 @@ func lookupPurchaseSourceByReferenceKey(idKey string) (string, string) {
 	}
 
 	return source.table, source.column
+}
+
+func isGlobalReferenceTable(table string) bool {
+	switch strings.TrimSpace(table) {
+	case "currencies":
+		return true
+	default:
+		return false
+	}
 }

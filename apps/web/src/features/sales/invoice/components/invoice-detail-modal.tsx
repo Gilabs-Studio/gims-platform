@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, DollarSign, CreditCard, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
@@ -71,8 +71,7 @@ export function InvoiceDetailModal({
 
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
-  const canPay = useUserPermission("customer_invoice.pay");
-  const canCreatePayment = useUserPermission("sales_payment.create") || canPay;
+  const canCreatePayment = useUserPermission("sales_payment.create");
   const canViewCustomer = useUserPermission("customer.read");
 
   const {
@@ -109,7 +108,6 @@ export function InvoiceDetailModal({
 
   const displayInvoice = detailData?.data ?? invoice;
   const status = (displayInvoice?.status ?? "").toLowerCase();
-  const normalizedStatus = status === "approved" ? "unpaid" : status;
   const fallbackAuditEntries = useMemo(
     () => {
       if (!displayInvoice) return [];
@@ -192,20 +190,6 @@ export function InvoiceDetailModal({
     }
   };
 
-  const handleMarkAsPaid = async () => {
-    if (!invoice?.id) return;
-    try {
-      await updateStatus.mutateAsync({
-        id: invoice.id,
-        data: { status: "paid" },
-      });
-      toast.success(t("statusUpdated"));
-    } catch (error) {
-      console.error("Failed to mark invoice as paid:", error);
-      toast.error(t("common.error"));
-    }
-  };
-
   return (
     <>
       <Dialog
@@ -229,7 +213,7 @@ export function InvoiceDetailModal({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && normalizedStatus === "draft" && (
+                {canEdit && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -240,7 +224,7 @@ export function InvoiceDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canEdit && normalizedStatus === "draft" && (
+                {canEdit && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -251,7 +235,7 @@ export function InvoiceDetailModal({
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && normalizedStatus === "unpaid" && (
+                {canDelete && status === "unpaid" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -262,7 +246,7 @@ export function InvoiceDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(normalizedStatus) && (
+                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -271,18 +255,6 @@ export function InvoiceDetailModal({
                     title={t("actions.createPayment")}
                   >
                     <CreditCard className="h-4 w-4" />
-                  </Button>
-                )}
-                {canPay && ["unpaid", "partial", "waiting_payment"].includes(normalizedStatus) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleMarkAsPaid}
-                    disabled={updateStatus.isPending}
-                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
-                    title={t("actions.markAsPaid")}
-                  >
-                    <DollarSign className="h-4 w-4" />
                   </Button>
                 )}
               </div>

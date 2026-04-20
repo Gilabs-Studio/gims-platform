@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import DatePicker from "@/features/finance/assets/components/date-picker";
 
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
@@ -22,8 +21,7 @@ import type { NonTradePayable } from "../types";
 const paySchema = z.object({
   payment_date: z.string().min(1),
   bank_account_id: z.string().min(1),
-  reference_no: z.string().optional(),
-  notes: z.string().optional(),
+  bank_reference: z.string().optional(),
 });
 
 type PayValues = z.infer<typeof paySchema>;
@@ -45,8 +43,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
     () => ({
       payment_date: new Date().toISOString().slice(0, 10),
       bank_account_id: "",
-      reference_no: "",
-      notes: "",
+      bank_reference: "",
     }),
     [],
   );
@@ -109,12 +106,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
 
           <div className="space-y-2">
             <Label>{t("fields.referenceNo")}</Label>
-            <Input {...form.register("reference_no")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t("fields.notes")}</Label>
-            <Textarea {...form.register("notes")} />
+            <Input {...form.register("bank_reference")} />
           </div>
 
           <DialogFooter>

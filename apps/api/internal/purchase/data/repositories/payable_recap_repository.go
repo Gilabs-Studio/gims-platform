@@ -56,8 +56,9 @@ func NewPayableRecapRepository(db *gorm.DB) *PayableRecapRepository {
 	return &PayableRecapRepository{db: db}
 }
 
-// baseCTE is the core CTE used by all methods.
-const baseCTE = `
+// baseCTETemplate is the core CTE used by all methods.
+// Optional tenant clauses are injected at build-time for non-system-admin requests.
+const baseCTETemplate = `
 WITH return_totals AS (
 	SELECT
 		pr.supplier_id AS supplier_id,
@@ -66,6 +67,7 @@ WITH return_totals AS (
 	FROM purchase_returns pr
 	WHERE pr.deleted_at IS NULL
 	  AND pr.status IN ('SUBMITTED', 'APPROVED', 'COMPLETED')
+	  %s
 	GROUP BY pr.supplier_id
 ),
 supplier_payables AS (
@@ -101,15 +103,16 @@ supplier_payables AS (
                 ELSE 0
             END,
         0) AS aging_days
-    FROM suppliers s
-    LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po.deleted_at IS NULL
+	FROM suppliers s
+	LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po.deleted_at IS NULL %s
     LEFT JOIN supplier_invoices si ON po.id = si.purchase_order_id
         AND si.status NOT IN ('DRAFT','CANCELLED','REJECTED')
-        AND si.deleted_at IS NULL
+		AND si.deleted_at IS NULL %s
     LEFT JOIN purchase_payments pp ON si.id = pp.supplier_invoice_id
-        AND pp.deleted_at IS NULL
+		AND pp.deleted_at IS NULL %s
 	LEFT JOIN return_totals rt ON s.id = rt.supplier_id
     WHERE s.deleted_at IS NULL
+	  %s
 	GROUP BY s.id, s.name, rt.total_return
 	HAVING COALESCE(SUM(DISTINCT si.amount), 0) > 0 OR COALESCE(rt.total_return, 0) > 0
 )
@@ -147,7 +150,8 @@ var allowedSortCols = map[string]bool{
 
 func buildPayableRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
 	if middleware.IsSystemAdmin(ctx) {
-		return baseCTE, map[string]interface{}{}, nil
+		query := fmt.Sprintf(baseCTETemplate, "", "", "", "", "")
+		return query, map[string]interface{}{}, nil
 	}
 
 	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
@@ -155,15 +159,14 @@ func buildPayableRecapBaseQuery(ctx context.Context) (string, map[string]interfa
 		return "", nil, fmt.Errorf("tenant context is required")
 	}
 
-	query := fmt.Sprintf(`
-SELECT *
-FROM (%s) scoped
-WHERE scoped.supplier_id IN (
-	SELECT s.id
-	FROM suppliers s
-	WHERE s.deleted_at IS NULL
-	  AND s.tenant_id = @tenantID
-)`, baseCTE)
+	query := fmt.Sprintf(
+		baseCTETemplate,
+		"AND pr.tenant_id = @tenantID",
+		"AND po.tenant_id = @tenantID",
+		"AND si.tenant_id = @tenantID",
+		"AND pp.tenant_id = @tenantID",
+		"AND s.tenant_id = @tenantID",
+	)
 
 	return query, map[string]interface{}{"tenantID": tenantID}, nil
 }

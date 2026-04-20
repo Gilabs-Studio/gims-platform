@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
@@ -31,6 +33,11 @@ type GoodsReceipt struct {
 
 	PurchaseOrderID string                     `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder             `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
+
+	CompanyID *string              `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company   *orgModels.Company   `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID *string                 `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	FiscalYear   *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 	WarehouseID     *string                    `gorm:"type:uuid;index" json:"warehouse_id,omitempty"`
 	Warehouse       *warehouseModels.Warehouse `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
 

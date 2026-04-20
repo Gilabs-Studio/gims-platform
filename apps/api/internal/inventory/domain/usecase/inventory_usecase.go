@@ -65,6 +65,31 @@ type inventoryUsecase struct {
 	engine    accounting.AccountingEngine
 }
 
+func (u *inventoryUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	var companyID string
+	if err := database.GetDB(ctx, u.db).
+		WithContext(ctx).
+		Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", actorID).
+		Limit(1).
+		Scan(&companyID).Error; err != nil {
+		return "", err
+	}
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
 func NewInventoryUsecase(db *gorm.DB, repo repository.InventoryRepository, journalUC finUC.JournalEntryUsecase, engine accounting.AccountingEngine) InventoryUsecase {
 	return &inventoryUsecase{
 		db:        db,
@@ -300,45 +325,51 @@ func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, q
 }
 
 func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
+	if tx := database.GetTx(ctx); tx != nil {
+		return u.deductStockWithTx(ctx, tx, batchID, quantity)
+	}
+
 	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
-		txCtx := database.WithTx(ctx, tx)
-
-		// First fetch batch to get product ID for aggregate update
-		batch, err := u.repo.GetBatchByID(txCtx, batchID)
-		if err != nil {
-			return err
-		}
-		if batch == nil {
-			return ErrBatchNotFound
-		}
-
-		currentHpp, currentStock, err := u.repo.GetProductCostInfo(txCtx, batch.ProductID)
-		if err != nil {
-			return err
-		}
-
-		runningQty := currentStock - quantity
-		if runningQty < 0 {
-			return ErrInsufficientBatchStock
-		}
-
-		stockValue := runningQty * currentHpp
-		if err := u.appendStockLedger(txCtx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
-			return err
-		}
-
-		// 1. Update Batch Quantity
-		if err := u.repo.UpdateBatchQuantity(txCtx, batchID, -quantity); err != nil {
-			return err
-		}
-
-		// 2. Update Aggregate Product Stock and keep current average cost
-		if err := u.repo.UpdateProductStock(txCtx, batch.ProductID, -quantity); err != nil {
-			return err
-		}
-
-		return u.repo.UpdateProductAverageCost(txCtx, batch.ProductID, currentHpp)
+		return u.deductStockWithTx(database.WithTx(ctx, tx), tx, batchID, quantity)
 	})
+}
+
+func (u *inventoryUsecase) deductStockWithTx(ctx context.Context, tx *gorm.DB, batchID string, quantity float64) error {
+	// First fetch batch to get product ID for aggregate update
+	batch, err := u.repo.GetBatchByID(ctx, batchID)
+	if err != nil {
+		return err
+	}
+	if batch == nil {
+		return ErrBatchNotFound
+	}
+
+	currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, batch.ProductID)
+	if err != nil {
+		return err
+	}
+
+	runningQty := currentStock - quantity
+	if runningQty < 0 {
+		return ErrInsufficientBatchStock
+	}
+
+	stockValue := runningQty * currentHpp
+	if err := u.appendStockLedger(ctx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+		return err
+	}
+
+	// 1. Update Batch Quantity
+	if err := u.repo.UpdateBatchQuantity(ctx, batchID, -quantity); err != nil {
+		return err
+	}
+
+	// 2. Update Aggregate Product Stock and keep current average cost
+	if err := u.repo.UpdateProductStock(ctx, batch.ProductID, -quantity); err != nil {
+		return err
+	}
+
+	return u.repo.UpdateProductAverageCost(ctx, batch.ProductID, currentHpp)
 }
 
 func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error) {
@@ -388,6 +419,24 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 
 func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
 	var movementID string
+	if tx := database.GetTx(ctx); tx != nil {
+		id, err := u.repo.CreateStockMovement(ctx, req)
+		if err != nil {
+			return "", err
+		}
+		movementID = id
+
+		if req.SkipJournaling {
+			log.Printf("[Inventory] Skipping individual journal for movement %s (Document level trigger expected)", id)
+			return movementID, nil
+		}
+
+		if err := u.triggerInventoryJournal(ctx, tx, movementID); err != nil {
+			return "", fmt.Errorf("triggered journal failed: %w", err)
+		}
+
+		return movementID, nil
+	}
 
 	// Use RetryTx for atomic operation. Failure in journal = Rollback stock movement.
 	err := database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
@@ -838,6 +887,11 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 		return fmt.Errorf("journaling engine not configured: physical movement (ID: %s) cancelled", movementID)
 	}
 
+	companyID, err := u.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return err
+	}
+
 	// 1. Fetch the movement with product info
 	var movement models.StockMovement
 	if err := tx.Preload("Product").First(&movement, "id = ?", movementID).Error; err != nil {
@@ -902,6 +956,7 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 	if err != nil {
 		return fmt.Errorf("accounting engine: %w", err)
 	}
+	genReq.CompanyID = companyID
 
 	// 6. Post Journal (Idempotent via reference_type + reference_id)
 	// Passing tx via context to ensure the usecase uses the same transaction.
@@ -924,6 +979,11 @@ func (u *inventoryUsecase) TriggerMovementJournal(ctx context.Context, movementI
 func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.DB, refType, refID string) error {
 	if tx == nil {
 		tx = database.GetDB(ctx, u.db)
+	}
+
+	companyID, err := u.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return err
 	}
 
 	// 1. Fetch all movements for this document
@@ -1013,6 +1073,7 @@ func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.
 	if err != nil {
 		return fmt.Errorf("accounting engine: %w", err)
 	}
+	genReq.CompanyID = companyID
 
 	// 6. Post Journal
 	journal, err := u.journalUC.PostOrUpdateJournal(database.WithTx(ctx, tx), genReq)

@@ -40,6 +40,9 @@ export const goodsReceiptId = {
     createTitle: "Buat Penerimaan Barang",
     editTitle: "Ubah Penerimaan Barang",
     invalid: "Mohon periksa field wajib",
+    invalidQuantity: "Isi minimal satu kuantitas diterima lebih dari 0",
+    invalidProductMapping: "Beberapa item tidak memiliki mapping produk. Silakan pilih ulang PO lalu coba lagi.",
+    noReceivableItems: "Semua item PO sudah diterima penuh. Anda tidak dapat membuat goods receipt baru untuk PO ini.",
   },
   tabs: {
     basic: "Info Dasar",

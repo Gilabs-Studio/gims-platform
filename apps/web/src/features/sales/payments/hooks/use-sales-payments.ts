@@ -53,6 +53,7 @@ export function useCreateSalesPayment() {
     mutationFn: (data: CreateSalesPaymentInput) => salesPaymentsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
@@ -70,6 +71,7 @@ export function useDeleteSalesPayment() {
     mutationFn: (id: string) => salesPaymentsService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
@@ -88,6 +90,7 @@ export function useConfirmSalesPayment() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });

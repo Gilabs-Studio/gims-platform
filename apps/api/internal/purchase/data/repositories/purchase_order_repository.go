@@ -241,16 +241,14 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 	}
 
 	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var existing models.PurchaseOrder
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", po.ID).Error; err != nil {
 			return err
 		}
 
-		if err := txScoped.Model(&existing).Updates(map[string]interface{}{
+		if err := database.GetDB(ctx, tx).Model(&existing).Updates(map[string]interface{}{
 			"supplier_id":                 po.SupplierID,
 			"supplier_code_snapshot":      po.SupplierCodeSnapshot,
 			"supplier_name_snapshot":      po.SupplierNameSnapshot,
@@ -275,7 +273,7 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 			return err
 		}
 
-		if err := txScoped.Where("purchase_order_id = ?", po.ID).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
+		if err := database.GetDB(ctx, tx).Where("purchase_order_id = ?", po.ID).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
 			return err
 		}
 		if len(po.Items) > 0 {
@@ -286,7 +284,7 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 				po.Items[i].Price = math.Max(0, po.Items[i].Price)
 				po.Items[i].Subtotal = calcItemSubtotal(po.Items[i].Quantity, po.Items[i].Price, po.Items[i].Discount)
 			}
-			if err := txScoped.Create(&po.Items).Error; err != nil {
+			if err := database.GetDB(ctx, tx).Create(&po.Items).Error; err != nil {
 				return err
 			}
 		}
@@ -302,26 +300,22 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 
 func (r *purchaseOrderRepository) Delete(ctx context.Context, id string) error {
 	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
-		if err := txScoped.Where("purchase_order_id = ?", id).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
+		if err := database.GetDB(ctx, tx).Where("purchase_order_id = ?", id).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
 			return err
 		}
-		return txScoped.Delete(&models.PurchaseOrder{}, "id = ?", id).Error
+		return database.GetDB(ctx, tx).Delete(&models.PurchaseOrder{}, "id = ?", id).Error
 	})
 }
 
 func (r *purchaseOrderRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseOrderStatus) (*models.PurchaseOrder, error) {
 	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var existing models.PurchaseOrder
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		return txScoped.Model(&existing).Update("status", status).Error
+		return database.GetDB(ctx, tx).Model(&existing).Update("status", status).Error
 	})
 	if err != nil {
 		return nil, err
@@ -332,15 +326,13 @@ func (r *purchaseOrderRepository) UpdateStatus(ctx context.Context, id string, s
 func (r *purchaseOrderRepository) UpdateStatusWithTimestamp(ctx context.Context, id string, status models.PurchaseOrderStatus, updates map[string]interface{}) (*models.PurchaseOrder, error) {
 	updates["status"] = status
 	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var existing models.PurchaseOrder
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		return txScoped.Model(&existing).Updates(updates).Error
+		return database.GetDB(ctx, tx).Model(&existing).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, err

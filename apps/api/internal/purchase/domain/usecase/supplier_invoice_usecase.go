@@ -15,6 +15,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -23,6 +24,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	"github.com/gilabs/gims/api/internal/purchase/domain/mapper"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -53,15 +55,16 @@ type SupplierInvoiceUsecase interface {
 }
 
 type supplierInvoiceUsecase struct {
-	db           *gorm.DB
-	repo         repositories.SupplierInvoiceRepository
-	poRepo       repositories.PurchaseOrderRepository
-	grRepo       repositories.GoodsReceiptRepository
-	auditService audit.AuditService
-	mapper       *mapper.SupplierInvoiceMapper
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.SupplierInvoiceRepository
+	poRepo             repositories.PurchaseOrderRepository
+	grRepo             repositories.GoodsReceiptRepository
+	auditService       audit.AuditService
+	mapper             *mapper.SupplierInvoiceMapper
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	engine             accounting.AccountingEngine
+	purchaseJournalSvc purchaseService.PurchaseJournalService
 }
 
 func NewSupplierInvoiceUsecase(
@@ -73,18 +76,25 @@ func NewSupplierInvoiceUsecase(
 	journalUC finUsecase.JournalEntryUsecase,
 	coaUC finUsecase.ChartOfAccountUsecase,
 	engine accounting.AccountingEngine,
+	purchaseJournalSvc ...purchaseService.PurchaseJournalService,
 ) SupplierInvoiceUsecase {
-	return &supplierInvoiceUsecase{
-		db:           db,
-		repo:         repo,
-		poRepo:       poRepo,
-		grRepo:       grRepo,
-		auditService: auditService,
-		mapper:       mapper.NewSupplierInvoiceMapper(),
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		engine:       engine,
+	uc := &supplierInvoiceUsecase{
+		db:                 db,
+		repo:               repo,
+		poRepo:             poRepo,
+		grRepo:             grRepo,
+		auditService:       auditService,
+		mapper:             mapper.NewSupplierInvoiceMapper(),
+		journalUC:          journalUC,
+		coaUC:              coaUC,
+		engine:             engine,
+		purchaseJournalSvc: purchaseService.NewPurchaseJournalService(db, journalUC, engine),
 	}
+	if len(purchaseJournalSvc) > 0 && purchaseJournalSvc[0] != nil {
+		uc.purchaseJournalSvc = purchaseJournalSvc[0]
+	}
+
+	return uc
 }
 
 func (uc *supplierInvoiceUsecase) List(ctx context.Context, params repositories.SupplierInvoiceListParams) ([]*dto.SupplierInvoiceListResponse, int64, error) {
@@ -115,11 +125,9 @@ func (uc *supplierInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.
 }
 
 func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceAddResponse, error) {
-	scopedDB := database.GetDB(ctx, uc.db)
-
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -134,7 +142,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 
 	// Fetch APPROVED/PARTIAL/CLOSED Goods Receipts as the source for creating Supplier Invoices
 	var grs []*models.GoodsReceipt
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&models.GoodsReceipt{}).
 		Where("status IN ?", []string{string(models.GoodsReceiptStatusApproved), string(models.GoodsReceiptStatusPartial), string(models.GoodsReceiptStatusClosed)}).
 		Preload("PurchaseOrder").
@@ -160,7 +168,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		poIDList = append(poIDList, id)
 	}
 	if len(poIDList) > 0 {
-		scopedDB.Where("purchase_order_id IN ?", poIDList).Find(&allPOItems)
+		database.GetDB(ctx, uc.db).Where("purchase_order_id IN ?", poIDList).Find(&allPOItems)
 	}
 	priceMap := make(map[string]float64)
 	for _, p := range allPOItems {
@@ -178,7 +186,14 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 	}
 	var invoicedSums []grQtySum
 	if len(grIDs) > 0 {
-		scopedDB.Table("supplier_invoice_items").
+		invoicedQuery := uc.db.WithContext(ctx).
+			Table("supplier_invoice_items")
+		invoicedQuery, tenantErr := applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+		if tenantErr != nil {
+			return nil, tenantErr
+		}
+
+		if err := invoicedQuery.
 			Select("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
 			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 			Where("supplier_invoices.goods_receipt_id IN ? AND supplier_invoices.status NOT IN ?", grIDs, []string{
@@ -187,7 +202,9 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 			}).
 			Where("supplier_invoices.deleted_at IS NULL").
 			Group("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id").
-			Scan(&invoicedSums)
+			Scan(&invoicedSums).Error; err != nil {
+			return nil, err
+		}
 	}
 	grInvoicedMap := make(map[string]map[string]float64)
 	for _, s := range invoicedSums {
@@ -340,7 +357,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		items := make([]models.SupplierInvoiceItem, 0, len(req.Items))
 		subTotal := 0.0
 
-		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, "")
+		poItemIDByProduct, err := uc.validateSIQuantity(ctx, tx, &gr, req.Items, "")
 		if err != nil {
 			return err
 		}
@@ -417,6 +434,16 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			CreatedBy:            creatorID,
 			Items:                items,
 		}
+		si.CompanyID = po.CompanyID
+		si.FiscalYearID = po.FiscalYearID
+		if si.CompanyID == nil || si.FiscalYearID == nil {
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, req.InvoiceDate)
+			if err != nil {
+				return err
+			}
+			si.CompanyID = &companyID
+			si.FiscalYearID = &fiscalYearID
+		}
 
 		if err := snapshotSupplierInvoice(ctx, tx, &si, nil); err != nil {
 			return err
@@ -427,7 +454,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		}
 
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -537,7 +564,7 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			return err
 		}
 
-		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, id)
+		poItemIDByProduct, err := uc.validateSIQuantity(ctx, tx, &gr, req.Items, id)
 		if err != nil {
 			return err
 		}
@@ -658,12 +685,12 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		}
 
 		if oldGRID != "" && oldGRID != gr.ID {
-			if err := uc.syncGoodsReceiptStatus(tx, oldGRID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, oldGRID); err != nil {
 				return err
 			}
 		}
 
-		if err := uc.syncGoodsReceiptStatus(tx, gr.ID); err != nil {
+		if err := uc.syncGoodsReceiptStatus(ctx, tx, gr.ID); err != nil {
 			return err
 		}
 
@@ -735,7 +762,7 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -776,9 +803,10 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		return nil, errors.New("db is nil")
 	}
 	var beforeStatus models.SupplierInvoiceStatus
+	var approvedID string
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&si, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if si.Type != models.SupplierInvoiceTypeNormal {
@@ -788,18 +816,18 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
-		now := apptime.Now()
-		if err := tx.Model(&si).Updates(map[string]interface{}{
-			"status":      models.SupplierInvoiceStatusApproved,
-			"approved_at": &now,
-		}).Error; err != nil {
+
+		if err := uc.transitionSupplierInvoiceToPayable(ctx, tx, &si, true); err != nil {
 			return err
 		}
+
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
+
+		approvedID = si.ID
 		return nil
 	})
 	if err != nil {
@@ -808,7 +836,7 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		}
 		return nil, err
 	}
-	out, err := uc.repo.GetByID(ctx, id)
+	out, err := uc.repo.GetByID(ctx, approvedID)
 	if err != nil {
 		return nil, err
 	}
@@ -819,6 +847,167 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		"after":         map[string]interface{}{"status": out.Status},
 	})
 	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context.Context, tx *gorm.DB, si *models.SupplierInvoice, setApprovedAt bool) error {
+	// --- Three-Way Matching Validation ---
+	// 1. Get total Qty Received for this PO
+	type qtySum struct {
+		ProductID string
+		Qty       float64
+	}
+
+	var receivedSums []qtySum
+	receivedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("goods_receipt_items")
+	receivedQuery, err := applyTenantJoinScope(ctx, receivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := receivedQuery.
+		Select("product_id, SUM(quantity_received) as qty").
+		Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+		Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
+			string(models.GoodsReceiptStatusApproved),
+			string(models.GoodsReceiptStatusPartial),
+			string(models.GoodsReceiptStatusClosed),
+		}).
+		Group("product_id").Scan(&receivedSums).Error; err != nil {
+		return err
+	}
+
+	receivedMap := make(map[string]float64)
+	for _, r := range receivedSums {
+		receivedMap[r.ProductID] = r.Qty
+	}
+
+	// 2. Get total Qty already Invoiced for this PO (excluding current one, draft, submitted, rejected, cancelled)
+	var invoicedSums []qtySum
+	invoicedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("supplier_invoice_items")
+	invoicedQuery, err = applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := invoicedQuery.
+		Select("product_id, SUM(quantity) as qty").
+		Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
+		Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ? AND supplier_invoices.id != ?",
+			si.PurchaseOrderID, []models.SupplierInvoiceStatus{
+				models.SupplierInvoiceStatusDraft,
+				models.SupplierInvoiceStatusSubmitted,
+				models.SupplierInvoiceStatusRejected,
+				models.SupplierInvoiceStatusCancelled,
+			}, si.ID).
+		Group("product_id").Scan(&invoicedSums).Error; err != nil {
+		return err
+	}
+
+	invoicedMap := make(map[string]float64)
+	for _, i := range invoicedSums {
+		invoicedMap[i.ProductID] = i.Qty
+	}
+
+	// 3. Compare: Current Invoicing Qty + Already Invoiced <= Total Received
+	for _, it := range si.Items {
+		received := receivedMap[it.ProductID]
+		alreadyInvoiced := invoicedMap[it.ProductID]
+		if it.Quantity+alreadyInvoiced > received+0.0001 {
+			return fmt.Errorf("invoiced quantity for product %s exceeds received quantity (Received: %.2f, Invoiced: %.2f)", it.ProductID, received, alreadyInvoiced)
+		}
+	}
+
+	// --- Budget Guard ---
+	extraCost := si.DeliveryCost + si.OtherCost
+	if extraCost > 0 {
+		parsedDate, err := time.Parse("2006-01-02", si.InvoiceDate)
+		if err != nil {
+			return fmt.Errorf("invalid invoice date %q: %w", si.InvoiceDate, err)
+		}
+
+		expenseCOAID := ""
+		if uc.engine != nil {
+			if mappedCOAID, resolveErr := uc.engine.ResolveCOAID(ctx, "coa.purchase_expense"); resolveErr == nil {
+				expenseCOAID = strings.TrimSpace(mappedCOAID)
+			}
+		}
+
+		// Backward compatibility: keep previous fallback when mapping is unavailable.
+		if expenseCOAID == "" && uc.coaUC != nil {
+			if expAcct, lookupErr := uc.coaUC.GetByCode(ctx, "61000"); lookupErr == nil && expAcct != nil {
+				expenseCOAID = strings.TrimSpace(expAcct.ID)
+			}
+		}
+
+		if expenseCOAID != "" {
+			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, parsedDate, extraCost); err != nil {
+				// Do not block supplier invoice approval when the mapped extra-cost account
+				// is not budgeted for the period. Budget overrun remains enforced.
+				if !finUsecase.IsBudgetAccountNotConfiguredForPeriod(err) {
+					return err
+				}
+				log.Printf("supplier_invoice budget guard skipped: unbudgeted account for period, invoice_id=%s coa_id=%s", si.ID, expenseCOAID)
+			}
+		}
+	}
+
+	// Recalculate DP deduction before approving and ensure link is made
+	var dpAmount float64
+	var dpInvoiceID *string
+	var dpInvoices []models.SupplierInvoice
+	if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+		si.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
+		Order("created_at DESC").
+		Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+		for _, dp := range dpInvoices {
+			if dp.Status == models.SupplierInvoiceStatusPaid {
+				dpAmount += dp.PaidAmount
+			}
+			if dpInvoiceID == nil {
+				id := dp.ID
+				dpInvoiceID = &id
+			}
+		}
+	}
+
+	// Keep approval flow consistent with Customer Invoice flow:
+	// SUBMITTED -> APPROVED -> UNPAID -> payment handling.
+	status := models.SupplierInvoiceStatusUnpaid
+	remainingAmount := math.Max(0, si.Amount-dpAmount)
+	if remainingAmount <= 0.0001 {
+		status = models.SupplierInvoiceStatusPaid
+	}
+
+	updates := map[string]interface{}{
+		"status":                  status,
+		"down_payment_amount":     dpAmount,
+		"remaining_amount":        remainingAmount,
+		"down_payment_invoice_id": dpInvoiceID,
+	}
+	if setApprovedAt {
+		now := apptime.Now()
+		updates["approved_at"] = &now
+	}
+	if status == models.SupplierInvoiceStatusPaid {
+		now := apptime.Now()
+		updates["payment_at"] = &now
+	}
+
+	if err := tx.Model(si).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	// Trigger Journal Entry (AP Recognition)
+	// We do this INSIDE the transaction for atomicity.
+	// Passing tx via context.
+	txCtx := database.WithTx(ctx, tx)
+	if err := uc.triggerJournalEntry(txCtx, si); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
@@ -846,7 +1035,7 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -899,7 +1088,7 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -941,119 +1130,7 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 			return ErrSupplierInvoiceConflict
 		}
 
-		// --- Three-Way Matching Validation ---
-		// 1. Get total Qty Received for this PO
-		type qtySum struct {
-			ProductID string
-			Qty       float64
-		}
-		var receivedSums []qtySum
-		if err := tx.Table("goods_receipt_items").
-			Select("product_id, SUM(quantity_received) as qty").
-			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
-			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
-				string(models.GoodsReceiptStatusApproved),
-				string(models.GoodsReceiptStatusPartial),
-				string(models.GoodsReceiptStatusClosed),
-			}).
-			Group("product_id").Scan(&receivedSums).Error; err != nil {
-			return err
-		}
-		receivedMap := make(map[string]float64)
-		for _, r := range receivedSums {
-			receivedMap[r.ProductID] = r.Qty
-		}
-
-		// 2. Get total Qty already Invoiced for this PO (excluding current one, draft, submitted, rejected, cancelled)
-		var invoicedSums []qtySum
-		if err := tx.Table("supplier_invoice_items").
-			Select("product_id, SUM(quantity) as qty").
-			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
-			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ? AND supplier_invoices.id != ?",
-				si.PurchaseOrderID, []models.SupplierInvoiceStatus{
-					models.SupplierInvoiceStatusDraft,
-					models.SupplierInvoiceStatusSubmitted,
-					models.SupplierInvoiceStatusRejected,
-					models.SupplierInvoiceStatusCancelled,
-				}, si.ID).
-			Group("product_id").Scan(&invoicedSums).Error; err != nil {
-			return err
-		}
-		invoicedMap := make(map[string]float64)
-		for _, i := range invoicedSums {
-			invoicedMap[i.ProductID] = i.Qty
-		}
-
-		// 3. Compare: Current Invoicing Qty + Already Invoiced <= Total Received
-		for _, it := range si.Items {
-			received := receivedMap[it.ProductID]
-			alreadyInvoiced := invoicedMap[it.ProductID]
-			if it.Quantity+alreadyInvoiced > received+0.0001 {
-				return fmt.Errorf("invoiced quantity for product %s exceeds received quantity (Received: %.2f, Invoiced: %.2f)", it.ProductID, received, alreadyInvoiced)
-			}
-		}
-
-		// --- Budget Guard ---
-		extraCost := si.DeliveryCost + si.OtherCost
-		if extraCost > 0 {
-			expAcct, err := uc.coaUC.GetByCode(ctx, "61000") // Expense Account
-			if err == nil {
-				parsedDate, _ := time.Parse("2006-01-02", si.InvoiceDate)
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcct.ID, parsedDate, extraCost); err != nil {
-					return err
-				}
-			}
-		}
-
-		// Recalculate DP deduction before approving and ensure link is made
-		var dpAmount float64
-		var dpInvoiceID *string
-		var dpInvoices []models.SupplierInvoice
-		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
-			si.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
-			Order("created_at DESC").
-			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
-			for _, dp := range dpInvoices {
-				if dp.Status == models.SupplierInvoiceStatusPaid {
-					dpAmount += dp.PaidAmount
-				}
-				if dpInvoiceID == nil {
-					id := dp.ID
-					dpInvoiceID = &id
-				}
-			}
-		}
-
-		status := models.SupplierInvoiceStatusUnpaid
-		remainingAmount := math.Max(0, si.Amount-dpAmount)
-		if dpAmount > 0 {
-			if remainingAmount <= 0.0001 {
-				status = models.SupplierInvoiceStatusPaid
-			} else {
-				status = models.SupplierInvoiceStatusPartial
-			}
-		}
-
-		updates := map[string]interface{}{
-			"status":                  status,
-			"down_payment_amount":     dpAmount,
-			"remaining_amount":        remainingAmount,
-			"down_payment_invoice_id": dpInvoiceID,
-		}
-		if status == models.SupplierInvoiceStatusPaid {
-			now := apptime.Now()
-			updates["payment_at"] = &now
-		}
-
-		if err := tx.Model(&si).Updates(updates).Error; err != nil {
-			return err
-		}
-
-		// Trigger Journal Entry (AP Recognition)
-		// We do this INSIDE the transaction for atomicity.
-		// Passing tx via context
-		txCtx := database.WithTx(ctx, tx)
-		if err := uc.triggerJournalEntry(txCtx, &si); err != nil {
+		if err := uc.transitionSupplierInvoiceToPayable(ctx, tx, &si, false); err != nil {
 			return err
 		}
 
@@ -1084,17 +1161,36 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		return nil
 	}
 
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve supplier invoice journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
-		ReferenceType: reference.RefTypeSupplierInvoice,
-		ReferenceID:   si.ID,
-		EntryDate:     si.InvoiceDate,
-		Description:   fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
-		TotalAmount:   si.Amount,
-		SubTotal:      si.SubTotal,
-		TaxTotal:      si.TaxAmount,
-		DepositTotal:  si.DownPaymentAmount,
-		OtherTotal:    si.DeliveryCost + si.OtherCost,
+		ReferenceType:   reference.RefTypeSupplierInvoice,
+		ReferenceID:     si.ID,
+		CompanyID:       companyID,
+		FiscalYearID:    fiscalYearID,
+		EntryDate:       si.InvoiceDate,
+		Description:     fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
+		TotalAmount:     si.Amount,
+		SubTotal:        si.SubTotal,
+		TaxTotal:        si.TaxAmount,
+		DepositTotal:    si.DownPaymentAmount,
+		OtherTotal:      si.DeliveryCost + si.OtherCost,
 		DescriptionArgs: []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
+	}
+
+	if uc.purchaseJournalSvc != nil {
+		if _, err := uc.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: accounting.ProfileSupplierInvoice,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post supplier invoice journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSupplierInvoice, si.ID)
+		return nil
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, data)
@@ -1165,29 +1261,35 @@ func (uc *supplierInvoiceUsecase) reverse(ctx context.Context, id string, reason
 			return err
 		}
 
-		// Find the journal for this invoice
-		var journal financeModels.JournalEntry
-		refType := reference.RefTypeSupplierInvoice
-		err := tx.Where("reference_type = ? AND reference_id = ?", refType, si.ID).
-			Where("status = ?", financeModels.JournalStatusPosted).
-			First(&journal).Error
-
-		if err == nil {
-			// Trigger journal reversal
-			txCtx := database.WithTx(ctx, tx)
-			// Exempt from closing guard if we are doing a reversal
-			revCtx := finUsecase.WithReversalFlag(txCtx)
-
-			if _, err := uc.journalUC.ReverseWithReason(revCtx, journal.ID, reason); err != nil {
+		txCtx := database.WithTx(ctx, tx)
+		if uc.purchaseJournalSvc != nil {
+			if err := uc.purchaseJournalSvc.ReversePurchaseJournal(txCtx, reference.RefTypeSupplierInvoice, si.ID, reason); err != nil {
 				return fmt.Errorf("failed to reverse journal: %w", err)
 			}
-		} else if err != gorm.ErrRecordNotFound {
-			return err
+		} else {
+			// Find the journal for this invoice
+			var journal financeModels.JournalEntry
+			refType := reference.RefTypeSupplierInvoice
+			err := tx.Where("reference_type = ? AND reference_id = ?", refType, si.ID).
+				Where("status = ?", financeModels.JournalStatusPosted).
+				First(&journal).Error
+
+			if err == nil {
+				// Trigger journal reversal
+				// Exempt from closing guard if we are doing a reversal
+				revCtx := finUsecase.WithReversalFlag(txCtx)
+
+				if _, err := uc.journalUC.ReverseWithReason(revCtx, journal.ID, reason); err != nil {
+					return fmt.Errorf("failed to reverse journal: %w", err)
+				}
+			} else if err != gorm.ErrRecordNotFound {
+				return err
+			}
 		}
 
 		// Sync Goods Receipt status (to release the quantity for new invoicing)
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -1221,6 +1323,10 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrSupplierInvoiceNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
@@ -1287,7 +1393,7 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	return entries, total, nil
 }
 
-func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(tx *gorm.DB, grID string) error {
+func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(ctx context.Context, tx *gorm.DB, grID string) error {
 	if grID == "" {
 		return nil
 	}
@@ -1308,7 +1414,14 @@ func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(tx *gorm.DB, grID strin
 		Qty       float64
 	}
 	var invoicedSums []qtySum
-	if err := tx.Table("supplier_invoice_items").
+	invoicedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("supplier_invoice_items")
+	invoicedQuery, err := applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := invoicedQuery.
 		Select("supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
 		Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 		Where("supplier_invoices.goods_receipt_id = ? AND supplier_invoices.status NOT IN ?",

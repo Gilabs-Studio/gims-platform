@@ -18,6 +18,7 @@ export const financeNonTradePayablesEn = {
   },
   status: {
     draft: "Draft",
+    posted: "Posted",
     submitted: "Submitted",
     approved: "Approved",
     paid: "Paid",
