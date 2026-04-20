@@ -217,7 +217,7 @@ export default function LandingPage() {
             >
               {t("hero.title1")}
               <br />
-              <span className="text-primary">{t("hero.title2")}</span>
+              <span className="text-primary font-accent font-medium italic text-[3.5rem] sm:text-[4.5rem] lg:text-[5.5rem] leading-[1.1] inline-block tracking-normal">{t("hero.title2")}</span>
             </motion.h1>
 
             <motion.p
@@ -395,7 +395,7 @@ export default function LandingPage() {
                 <br />
                 {t("turningPoint.title2")}
                 <br />
-                <span className="text-primary">{t("turningPoint.title3")}</span>
+                <span className="text-primary font-accent font-medium italic text-4xl sm:text-5xl lg:text-6xl inline-block mt-1 tracking-normal">{t("turningPoint.title3")}</span>
               </h2>
               <p className="mt-8 text-base leading-relaxed text-muted-foreground sm:text-lg">
                 {t("turningPoint.subtitle")}

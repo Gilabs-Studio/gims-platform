@@ -305,7 +305,10 @@
 
   /* Font family utilities */
   .font-heading {
-    font-family: var(--font-heading);
+    font-family: var(--font-heading), sans-serif;
+  }
+  .font-accent {
+    font-family: var(--font-accent), serif;
   }
   
   /* Sidebar dark color utilities */

@@ -4,10 +4,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Menu, X, Globe } from "lucide-react";
+import { Menu, X, Globe, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { marketingApps } from "@/lib/marketing-apps";
 
 export function LandingHeader() {
   const t = useTranslations("landing.nav");
@@ -15,6 +16,7 @@ export function LandingHeader() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [megaMenuOpen, setMegaMenuOpen] = useState(false);
 
   const { scrollY } = useScroll();
   const headerBg = useTransform(scrollY, [0, 80], ["rgba(0,0,0,0)", "rgba(0,0,0,0.01)"]);
@@ -29,35 +31,56 @@ export function LandingHeader() {
     { href: "#faq", label: t("faq") },
   ] as const;
 
+
+
   return (
     <motion.header
       style={{ backgroundColor: mounted ? headerBg : undefined }}
-      className="fixed top-0 left-0 right-0 z-50"
+      className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50"
+      onMouseLeave={() => setMegaMenuOpen(false)}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 lg:px-12">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-6 lg:px-12">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 select-none">
-          <span className="text-lg font-semibold tracking-tight text-foreground">GIMS</span>
-          <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
-            by GILABS
-          </span>
-        </Link>
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2.5 select-none">
+            <span className="text-2xl font-bold tracking-tight text-primary">GIMS</span>
+            <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
+              by GILABS
+            </span>
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-2 md:flex">
+            <div 
+              className="relative py-4"
+              onMouseEnter={() => setMegaMenuOpen(true)}
             >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+              <button 
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                  megaMenuOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Aplikasi
+                <ChevronDown className={cn("h-4 w-4 transition-transform", megaMenuOpen && "rotate-180")} />
+              </button>
+            </div>
+            
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                onMouseEnter={() => setMegaMenuOpen(false)}
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </div>
 
         {/* Desktop actions */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-4 md:flex" onMouseEnter={() => setMegaMenuOpen(false)}>
           <ThemeToggleButton />
 
           {/* Language toggle */}
@@ -75,10 +98,19 @@ export function LandingHeader() {
 
           <Link href="/login" prefetch={false}>
             <Button
+              variant="ghost"
               size="sm"
-              className="cursor-pointer rounded-full px-5 text-sm shadow-sm"
+              className="cursor-pointer rounded-full px-5 text-sm font-medium"
             >
-              {t("signIn")}
+              Login
+            </Button>
+          </Link>
+          <Link href="/register" prefetch={false}>
+            <Button
+              size="sm"
+              className="cursor-pointer rounded-full px-5 text-sm shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground font-accent font-medium tracking-wide"
+            >
+              Uji coba gratis
             </Button>
           </Link>
         </div>
@@ -108,28 +140,93 @@ export function LandingHeader() {
         </div>
       </div>
 
+      {/* Mega Menu Dropdown */}
+      <AnimatePresence>
+        {megaMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg"
+          >
+            <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
+                {marketingApps.map((topMenu) => (
+                  <div key={topMenu.category.en} className="flex flex-col gap-3">
+                    <h3 className="text-sm font-semibold tracking-wider text-primary uppercase border-b border-primary/20 pb-2 mb-2">
+                      {locale === 'id' ? topMenu.category.id : topMenu.category.en}
+                    </h3>
+                    <ul className="flex flex-col gap-2">
+                      {topMenu.items.map((child) => (
+                        <li key={child.name.en}>
+                          <Link 
+                            href={child.href} 
+                            className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                            onClick={() => setMegaMenuOpen(false)}
+                          >
+                            {locale === 'id' ? child.name.id : child.name.en}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile nav drawer */}
       {mobileOpen && (
-        <div
-          className={cn(
-            "border-b border-border bg-background/95 backdrop-blur-md md:hidden",
-          )}
-        >
-          <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4">
+        <div className="border-b border-border bg-background/95 backdrop-blur-md md:hidden max-h-[80vh] overflow-y-auto">
+          <nav className="mx-auto flex flex-col gap-1 px-6 py-4">
+            <div className="py-2">
+              <h3 className="text-sm font-semibold tracking-wider text-primary uppercase pb-2">Aplikasi</h3>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                {marketingApps.map((topMenu) => (
+                  <div key={topMenu.category.en} className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold uppercase text-muted-foreground/80 mb-1">
+                      {locale === 'id' ? topMenu.category.id : topMenu.category.en}
+                    </span>
+                    {topMenu.items.slice(0, 3).map((child) => (
+                      <Link 
+                        key={child.name.en}
+                        href={child.href} 
+                        className="text-xs text-muted-foreground hover:text-foreground cursor-pointer py-1"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        {locale === 'id' ? child.name.id : child.name.en}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="h-px bg-border my-2" />
+            
             {navLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
               >
                 {link.label}
               </a>
             ))}
-            <div className="mt-2 pt-2 border-t border-border">
+            
+            <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/login" prefetch={false}>
-                <Button size="sm" className="w-full cursor-pointer rounded-full">
-                  {t("signIn")}
+                <Button variant="outline" className="w-full cursor-pointer rounded-full">
+                  Login
+                </Button>
+              </Link>
+              <Link href="/register" prefetch={false}>
+                <Button className="w-full cursor-pointer rounded-full bg-primary text-primary-foreground font-medium">
+                  Uji coba gratis
                 </Button>
               </Link>
             </div>

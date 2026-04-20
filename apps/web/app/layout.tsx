@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Sora } from "next/font/google";
+import { Geist, Geist_Mono, Sora, Newsreader } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import type { Locale } from "@/types/locale";
@@ -18,6 +18,13 @@ const headingFont = Sora({
   variable: "--font-heading",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
+});
+
+const accentFont = Newsreader({
+  variable: "--font-accent",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["italic", "normal"],
 });
 
 export const metadata: Metadata = {
@@ -112,7 +119,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} ${accentFont.variable} antialiased`}
       >
         {children}
       </body>
