@@ -416,3 +416,52 @@ cd apps/web && pnpm check-types
   - Geofencing validation untuk check-in (compare GPS dengan customer address)
   - Advanced forecasting dengan weighted pipeline
   - Integration dengan email client untuk activity auto-logging
+
+## Bug Fixes & Known Issues
+
+### April 2026 — Fix Backend 500 pada Deal dengan Products
+
+**Bug:** HTTP 500 "invalid field" saat membuat atau mengedit Deal yang memiliki product items.
+
+**Root Cause:** `DealProductItem` dan `DealHistory` tidak memiliki field `TenantID`. Fungsi `database.GetDB()` menambahkan `WHERE tenant_id = ?` ke semua query — termasuk INSERT. Ketika GORM mencoba meng-assign `tenant_id` ke model tanpa field tersebut, ia mengembalikan `gorm.ErrInvalidField`.
+
+**Fix:** Tambah `TenantID string` field ke kedua model di `apps/api/internal/crm/data/models/deal.go`.
+
+**File yang dimodifikasi:**
+- `apps/api/internal/crm/data/models/deal.go` — `DealProductItem` (line ~116), `DealHistory` (line ~157)
+
+**Referensi:** `docs/features/core/gorm-tenant-scoping.md`
+
+---
+
+### April 2026 — Fix Frontend Validation Error di Form Edit Deal
+
+**Bug 1:** Field error tidak ter-highlight — Zod validation errors tidak tampil di bawah field yang bermasalah.
+
+**Fix:** Tambah komponen `<FieldError>` ke semua field form di `deal-form-dialog.tsx`, dan perluas logika routing error untuk semua tab.
+
+---
+
+**Bug 2:** `product_id` ditolak validation Zod v4 padahal format UUID valid.
+
+**Fix:** Ganti `z.string().uuid()` ke `z.string()` untuk FK field `product_id`. Backend yang memvalidasi eksistensi via DB query.
+
+---
+
+**Bug 3:** Field numerik (discount, budget) memunculkan validation error saat form di-load dari API response yang return `null`.
+
+**Fix:** Tambah `z.preprocess` ke semua numeric field untuk normalize `null`/`undefined`/`NaN` → `0`.
+
+**File yang dimodifikasi:**
+- `apps/web/src/features/crm/deal/schemas/deal.schema.ts`
+- `apps/web/src/features/crm/deal/components/deal-form-dialog.tsx`
+
+**Referensi:** `docs/features/core/zod-v4-breaking-changes.md`
+
+---
+
+### ⚠️ Known Issue — LeadProductItem Belum Diaudit
+
+Model `LeadProductItem` di `apps/api/internal/crm/data/models/lead.go` (sekitar line 171) kemungkinan **belum memiliki field `TenantID`**. Jika operasi create Lead dengan product items dilakukan dalam authenticated request (tenant context), akan muncul error yang sama dengan bug Deal di atas.
+
+**Action required:** Audit `LeadProductItem` dan tambah `TenantID string` field jika belum ada.

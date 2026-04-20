@@ -54,10 +54,14 @@ export const crmDealId = {
     targetStage: "Tahap Tujuan",
     selectStage: "Pilih tahap tujuan",
     moveStageConvertLabel: "Konversi ke Sales Quotation",
-    moveStageConvertDescription: "Otomatis membuat sales quotation dari deal ini saat dipindahkan ke tahap Won.",
-    moveStageConvertNoItems: "Tidak bisa konversi: deal tidak memiliki item produk.",
-    moveStageConvertNoCustomer: "Tidak bisa konversi: deal tidak memiliki customer atau lead yang ditautkan.",
-    moveStageConvertAutoCreateCustomer: "Customer baru akan dibuat otomatis dari data lead yang ditautkan.",
+    moveStageConvertDescription:
+      "Otomatis membuat sales quotation dari deal ini saat dipindahkan ke tahap Won.",
+    moveStageConvertNoItems:
+      "Tidak bisa konversi: deal tidak memiliki item produk.",
+    moveStageConvertNoCustomer:
+      "Tidak bisa konversi: deal tidak memiliki customer atau lead yang ditautkan.",
+    moveStageConvertAutoCreateCustomer:
+      "Customer baru akan dibuat otomatis dari data lead yang ditautkan.",
     convertedToSQBadge: "Dikonversi ke SQ",
 
     // Kanban
@@ -83,12 +87,14 @@ export const crmDealId = {
     customer: "Pelanggan",
     potential: "Calon Customer",
     prospectCustomerPlaceholder: "Calon customer dari lead",
-    prospectCustomerHint: "Deal ini berasal dari konversi lead, customer akan dibuat saat proses konversi lanjutan.",
+    prospectCustomerHint:
+      "Deal ini berasal dari konversi lead, customer akan dibuat saat proses konversi lanjutan.",
     customerPlaceholder: "Pilih pelanggan",
     selectCustomer: "Pilih pelanggan",
     contact: "Kontak",
     prospectContactPlaceholder: "Kontak dari lead",
-    prospectContactHint: "Data kontak mengikuti basic information dan contact information pada lead.",
+    prospectContactHint:
+      "Data kontak mengikuti basic information dan contact information pada lead.",
     contactPlaceholder: "Pilih kontak",
     selectContact: "Pilih kontak",
     fromLead: "Dari lead",
@@ -101,7 +107,8 @@ export const crmDealId = {
     selectEmployee: "Pilih karyawan",
     lead: "Lead",
     prospectLeadPlaceholder: "Lead terhubung",
-    prospectLeadHint: "Lead dikunci karena deal ini berasal dari konversi lead tersebut.",
+    prospectLeadHint:
+      "Lead dikunci karena deal ini berasal dari konversi lead tersebut.",
     leadPlaceholder: "Pilih lead (opsional)",
     selectLead: "Pilih lead (opsional)",
     bankAccount: "Rekening Tertaut",
@@ -187,6 +194,9 @@ export const crmDealId = {
     selectDate: "Pilih tanggal",
     dealAlreadyClosed: "Deal ini sudah ditutup (berhasil/gagal) dan tidak dapat diedit.",
     errorAlreadyClosed: "Deal sudah ditutup dan tidak dapat dimodifikasi.",
+    errorCreate: "Gagal membuat deal. Silakan coba lagi.",
+    errorUpdate: "Gagal memperbarui deal. Silakan coba lagi.",
+    errorValidation: "Harap perbaiki field yang ditandai sebelum menyimpan.",
 
     // Sections
     sections: {
@@ -211,7 +221,8 @@ export const crmDealId = {
     conversion: {
       convertToQuotation: "Konversi ke Quotation",
       title: "Konversi Deal ke Sales Quotation",
-      description: 'Konversi "{title}" menjadi sales quotation dengan semua item produk dan harga.',
+      description:
+        'Konversi "{title}" menjadi sales quotation dengan semua item produk dan harga.',
       confirm: "Konversi ke Quotation",
       converting: "Mengonversi...",
       convertSuccess: "Deal berhasil dikonversi ke quotation",

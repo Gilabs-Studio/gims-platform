@@ -1,10 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useForm, useFieldArray, useWatch, Controller, type Resolver } from "react-hook-form";
+import {
+  useForm,
+  useFieldArray,
+  useWatch,
+  Controller,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Briefcase, CalendarIcon, DollarSign, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Briefcase,
+  CalendarIcon,
+  DollarSign,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,15 +38,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
-import { useDealFormData, useCreateDeal, useUpdateDeal } from "../hooks/use-deals";
-import { createDealSchema, type CreateDealFormData } from "../schemas/deal.schema";
-import type { Deal, DealPipelineStageOption, DealProductOption } from "../types";
+import {
+  useDealFormData,
+  useCreateDeal,
+  useUpdateDeal,
+} from "../hooks/use-deals";
+import {
+  createDealSchema,
+  type CreateDealFormData,
+} from "../schemas/deal.schema";
+import type {
+  Deal,
+  DealPipelineStageOption,
+  DealProductOption,
+} from "../types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 interface DealFormDialogProps {
@@ -50,7 +80,9 @@ export function DealFormDialog({
   onSuccess,
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
-  const { data: formData, isLoading: isFormLoading } = useDealFormData({ enabled: open });
+  const { data: formData, isLoading: isFormLoading } = useDealFormData({
+    enabled: open,
+  });
   const createMutation = useCreateDeal();
   const updateMutation = useUpdateDeal();
   const isEdit = !!deal;
@@ -78,16 +110,16 @@ export function DealFormDialog({
       items:
         deal?.items?.map((item) => ({
           product_id: item.product_id ?? "",
-          product_name: item.product_name,
-          product_sku: item.product_sku,
-          unit_price: item.unit_price,
-          quantity: item.quantity,
-          discount_percent: item.discount_percent,
-          discount_amount: item.discount_amount,
-          notes: item.notes,
+          product_name: item.product_name ?? "",
+          product_sku: item.product_sku ?? "",
+          unit_price: item.unit_price ?? 0,
+          quantity: item.quantity ?? 1,
+          discount_percent: item.discount_percent ?? 0,
+          discount_amount: item.discount_amount ?? 0,
+          notes: item.notes ?? "",
         })) ?? [],
     }),
-    [deal, defaultStageId]
+    [deal, defaultStageId],
   );
 
   const {
@@ -113,8 +145,8 @@ export function DealFormDialog({
       setActiveTab("basic");
       reset(defaultValues);
     }
-  // defaultValues is intentionally excluded — reset should only fire on open toggle
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // defaultValues is intentionally excluded — reset should only fire on open toggle
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reset]);
 
   // Ensure pipeline_stage_id is applied once formData is available.
@@ -124,15 +156,29 @@ export function DealFormDialog({
     if (!open || !formData?.pipeline_stages?.length) return;
     const current = getValues("pipeline_stage_id");
     if (!current) {
-      const target = deal?.pipeline_stage_id ?? defaultStageId ?? formData.pipeline_stages[0]?.id;
-      if (target) setValue("pipeline_stage_id", target, { shouldValidate: false });
+      const target =
+        deal?.pipeline_stage_id ??
+        defaultStageId ??
+        formData.pipeline_stages[0]?.id;
+      if (target)
+        setValue("pipeline_stage_id", target, { shouldValidate: false });
     }
-  }, [open, formData?.pipeline_stages, deal?.pipeline_stage_id, defaultStageId, getValues, setValue]);
+  }, [
+    open,
+    formData?.pipeline_stages,
+    deal?.pipeline_stage_id,
+    defaultStageId,
+    getValues,
+    setValue,
+  ]);
 
   const selectedStageId = watch("pipeline_stage_id");
   const selectedStage = useMemo(
-    () => formData?.pipeline_stages?.find((s: DealPipelineStageOption) => s.id === selectedStageId),
-    [formData?.pipeline_stages, selectedStageId]
+    () =>
+      formData?.pipeline_stages?.find(
+        (s: DealPipelineStageOption) => s.id === selectedStageId,
+      ),
+    [formData?.pipeline_stages, selectedStageId],
   );
 
   // useWatch provides deep subscription on nested field changes (price, qty, discount)
@@ -141,27 +187,34 @@ export function DealFormDialog({
   const itemsSubtotal = useMemo(
     () =>
       (watchedItems ?? []).reduce((sum, item) => {
-        const lineTotal = (item.unit_price ?? 0) * (item.quantity ?? 1);
+        const price = Number(item.unit_price) || 0;
+        const qty = Number(item.quantity) || 1;
+        const lineTotal = price * qty;
         const discountAmt = item.discount_percent
           ? lineTotal * (item.discount_percent / 100)
-          : (item.discount_amount ?? 0);
-        return sum + (lineTotal - discountAmt);
+          : (Number(item.discount_amount) || 0);
+        const lineSubtotal = lineTotal - discountAmt;
+        return sum + (isFinite(lineSubtotal) ? lineSubtotal : 0);
       }, 0),
-    [watchedItems]
+    [watchedItems],
   );
 
   // Keep the "value" field in sync whenever items change
   useEffect(() => {
     if (!watchedItems?.length) return;
-    setValue("value", itemsSubtotal, { shouldDirty: true });
+    // Guard against NaN/Infinity from malformed item data
+    const safeSubtotal = isFinite(itemsSubtotal) ? itemsSubtotal : 0;
+    setValue("value", safeSubtotal, { shouldDirty: true });
   }, [itemsSubtotal, watchedItems?.length, setValue]);
 
   const handleProductSelect = (index: number, productId: string) => {
-    const product = formData?.products?.find((p: DealProductOption) => p.id === productId);
+    const product = formData?.products?.find(
+      (p: DealProductOption) => p.id === productId,
+    );
     if (product) {
-      setValue(`items.${index}.product_name`, product.name);
-      setValue(`items.${index}.product_sku`, product.sku);
-      setValue(`items.${index}.unit_price`, product.selling_price);
+      setValue(`items.${index}.product_name`, product.name ?? "");
+      setValue(`items.${index}.product_sku`, product.sku ?? "");
+      setValue(`items.${index}.unit_price`, product.selling_price ?? 0);
     }
   };
 
@@ -169,8 +222,9 @@ export function DealFormDialog({
   const selectedLeadId = watch("lead_id");
   const isProspectFromLead = isEdit && !!deal?.lead_id && !deal?.customer_id;
   const selectedLead = useMemo(
-    () => formData?.leads?.find((leadOption) => leadOption.id === selectedLeadId),
-    [formData?.leads, selectedLeadId]
+    () =>
+      formData?.leads?.find((leadOption) => leadOption.id === selectedLeadId),
+    [formData?.leads, selectedLeadId],
   );
   const prospectCustomerName = useMemo(() => {
     if (!isProspectFromLead) return "";
@@ -178,12 +232,25 @@ export function DealFormDialog({
     const fromDealCustomer = deal?.customer?.name;
     if (fromDealCustomer) return fromDealCustomer;
 
-    const fromDealLead = deal?.lead?.company_name || `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    const fromDealLead =
+      deal?.lead?.company_name ||
+      `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
     if (fromDealLead) return fromDealLead;
 
-    const fromSelectedLead = selectedLead?.company_name || `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
+    const fromSelectedLead =
+      selectedLead?.company_name ||
+      `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
     return fromSelectedLead;
-  }, [isProspectFromLead, deal?.customer?.name, deal?.lead?.company_name, deal?.lead?.first_name, deal?.lead?.last_name, selectedLead?.company_name, selectedLead?.first_name, selectedLead?.last_name]);
+  }, [
+    isProspectFromLead,
+    deal?.customer?.name,
+    deal?.lead?.company_name,
+    deal?.lead?.first_name,
+    deal?.lead?.last_name,
+    selectedLead?.company_name,
+    selectedLead?.first_name,
+    selectedLead?.last_name,
+  ]);
 
   const prospectAssigneeName = useMemo(() => {
     if (!isProspectFromLead) return "";
@@ -193,10 +260,12 @@ export function DealFormDialog({
   const prospectContactName = useMemo(() => {
     if (!isProspectFromLead) return "";
 
-    const fullName = `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    const fullName =
+      `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
     if (fullName) return fullName;
 
-    const selectedName = `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
+    const selectedName =
+      `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
     if (selectedName) return selectedName;
 
     return deal?.lead?.company_name ?? selectedLead?.company_name ?? "";
@@ -225,19 +294,27 @@ export function DealFormDialog({
   const prospectLeadLabel = useMemo(() => {
     if (!isProspectFromLead) return "";
 
-    const leadName = deal?.lead?.company_name || `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    const leadName =
+      deal?.lead?.company_name ||
+      `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
     if (!leadName) return deal?.lead?.code ?? "";
     if (!deal?.lead?.code) return leadName;
 
     return `${leadName} (${deal.lead.code})`;
-  }, [isProspectFromLead, deal?.lead?.company_name, deal?.lead?.first_name, deal?.lead?.last_name, deal?.lead?.code]);
+  }, [
+    isProspectFromLead,
+    deal?.lead?.company_name,
+    deal?.lead?.first_name,
+    deal?.lead?.last_name,
+    deal?.lead?.code,
+  ]);
 
   const filteredContacts = useMemo(
     () =>
       formData?.contacts?.filter(
-        (c) => !selectedCustomerId || c.customer_id === selectedCustomerId
+        (c) => !selectedCustomerId || c.customer_id === selectedCustomerId,
       ) ?? [],
-    [formData?.contacts, selectedCustomerId]
+    [formData?.contacts, selectedCustomerId],
   );
 
   const dealValue = watch("value");
@@ -267,7 +344,7 @@ export function DealFormDialog({
         if (code === "DEAL_ALREADY_CLOSED") {
           toast.error(t("errorAlreadyClosed"));
         } else {
-          toast.error(t(isEdit ? "updated" : "created").replace("successfully", "") + " failed");
+          toast.error(isEdit ? t("errorUpdate") : t("errorCreate"));
         }
       },
     };
@@ -288,11 +365,81 @@ export function DealFormDialog({
     }
   };
 
+  // Scroll to the first field that has a validation error within the dialog.
+  // Uses a short delay so the DOM can update after a tab switch.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const scrollToFirstError = useCallback(() => {
+    // Wait one frame for the new tab content to render
+    requestAnimationFrame(() => {
+      const container = dialogRef.current;
+      if (!container) return;
+      // FieldError renders with data-slot="field-error" or we can target the
+      // destructive border / aria-invalid. The most reliable selector is
+      // looking for the FieldError component which typically has text-destructive.
+      const firstError = container.querySelector<HTMLElement>(
+        "[data-slot='field-error'], .border-destructive, [aria-invalid='true']",
+      );
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, []);
+
+  // Explicit submit handler — avoids relying on DOM form submit event which can be
+  // swallowed by Radix UI Tabs when the submit button lives inside TabsContent.
+  const handleClickSubmit = () => {
+    handleSubmit(handleFormSubmit, (fieldErrors) => {
+      // Categorise ALL form fields by the tab they live on
+      const tab1Fields = [
+        "title",
+        "pipeline_stage_id",
+        "expected_close_date",
+        "lead_id",
+        "customer_id",
+        "contact_id",
+        "assigned_to",
+        "description",
+      ] as const;
+      const tab2Fields = [
+        "items",
+        "value",
+        "budget_confirmed",
+        "budget_amount",
+        "auth_confirmed",
+        "auth_person",
+        "need_confirmed",
+        "need_description",
+        "time_confirmed",
+        "notes",
+      ] as const;
+
+      const hasTab1Error = tab1Fields.some(
+        (f) => fieldErrors[f as keyof typeof fieldErrors],
+      );
+      const hasTab2Error = tab2Fields.some(
+        (f) => fieldErrors[f as keyof typeof fieldErrors],
+      );
+
+      if (hasTab1Error) {
+        setActiveTab("basic");
+      } else if (hasTab2Error) {
+        setActiveTab("items");
+      } else {
+        // Unknown field — default to basic
+        setActiveTab("basic");
+      }
+      toast.error(t("errorValidation"));
+      scrollToFirstError();
+    })();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent ref={dialogRef} size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? t("editTitle") : t("createTitle")}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? t("editTitle") : t("createTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Warn when editing a closed deal */}
@@ -318,17 +465,9 @@ export function DealFormDialog({
               <TabsTrigger value="items">{t("tabItems")}</TabsTrigger>
             </TabsList>
 
-            <form
-              onSubmit={handleSubmit(handleFormSubmit, (fieldErrors) => {
-                // If Tab 1 fields have errors but the user is on Tab 2, switch back
-                const tab1Fields = ["title", "pipeline_stage_id"] as const;
-                if (tab1Fields.some((f) => fieldErrors[f])) setActiveTab("basic");
-              })}
-              className="space-y-6 mt-4"
-            >
+            <div className="space-y-6 mt-4">
               {/* ─── TAB 1: BASIC INFO ─────────────────────────── */}
               <TabsContent value="basic" className="space-y-6 mt-0">
-
                 {/* Lead Selection */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
@@ -345,29 +484,47 @@ export function DealFormDialog({
                             readOnly
                             placeholder={t("prospectLeadPlaceholder")}
                           />
-                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectLeadHint")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("prospectLeadHint")}
+                          </p>
                         </>
                       ) : (
                         <Controller
                           name="lead_id"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                            >
                               <SelectTrigger className="cursor-pointer">
                                 <SelectValue placeholder={t("selectLead")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {formData?.leads
-                                  ?.filter((leadOption) => leadOption.is_qualified_for_conversion && !leadOption.is_converted)
+                                  ?.filter(
+                                    (leadOption) =>
+                                      leadOption.is_qualified_for_conversion &&
+                                      !leadOption.is_converted,
+                                  )
                                   .map((leadOption) => (
-                                    <SelectItem key={leadOption.id} value={leadOption.id} className="cursor-pointer">
-                                      {leadOption.company_name || `${leadOption.first_name} ${leadOption.last_name}`.trim()} ({leadOption.code})
+                                    <SelectItem
+                                      key={leadOption.id}
+                                      value={leadOption.id}
+                                      className="cursor-pointer"
+                                    >
+                                      {leadOption.company_name ||
+                                        `${leadOption.first_name} ${leadOption.last_name}`.trim()}{" "}
+                                      ({leadOption.code})
                                     </SelectItem>
                                   ))}
                               </SelectContent>
                             </Select>
                           )}
                         />
+                      )}
+                      {errors.lead_id && (
+                        <FieldError>{errors.lead_id.message}</FieldError>
                       )}
                     </Field>
                   </div>
@@ -377,13 +534,20 @@ export function DealFormDialog({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <Briefcase className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">{t("sectionDealInfo")}</h3>
+                    <h3 className="text-sm font-medium">
+                      {t("sectionDealInfo")}
+                    </h3>
                   </div>
                   <div className="grid gap-4 grid-cols-2">
                     <Field orientation="vertical" className="col-span-2">
                       <FieldLabel>{t("dealTitle")} *</FieldLabel>
-                      <Input {...register("title")} placeholder={t("dealTitlePlaceholder")} />
-                      {errors.title && <FieldError>{errors.title.message}</FieldError>}
+                      <Input
+                        {...register("title")}
+                        placeholder={t("dealTitlePlaceholder")}
+                      />
+                      {errors.title && (
+                        <FieldError>{errors.title.message}</FieldError>
+                      )}
                     </Field>
 
                     <Field orientation="vertical">
@@ -392,22 +556,35 @@ export function DealFormDialog({
                         name="pipeline_stage_id"
                         control={control}
                         render={({ field }) => (
-                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                          >
                             <SelectTrigger className="cursor-pointer">
                               <SelectValue placeholder={t("selectStage")} />
                             </SelectTrigger>
                             <SelectContent>
-                              {formData?.pipeline_stages?.map((stage: DealPipelineStageOption) => (
-                                <SelectItem key={stage.id} value={stage.id} className="cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className="inline-block h-2 w-2 rounded-full shrink-0"
-                                      style={{ backgroundColor: stage.color || "var(--color-muted-foreground)" }}
-                                    />
-                                    {stage.name} ({stage.probability}%)
-                                  </div>
-                                </SelectItem>
-                              ))}
+                              {formData?.pipeline_stages?.map(
+                                (stage: DealPipelineStageOption) => (
+                                  <SelectItem
+                                    key={stage.id}
+                                    value={stage.id}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className="inline-block h-2 w-2 rounded-full shrink-0"
+                                        style={{
+                                          backgroundColor:
+                                            stage.color ||
+                                            "var(--color-muted-foreground)",
+                                        }}
+                                      />
+                                      {stage.name} ({stage.probability}%)
+                                    </div>
+                                  </SelectItem>
+                                ),
+                              )}
                             </SelectContent>
                           </Select>
                         )}
@@ -418,7 +595,9 @@ export function DealFormDialog({
                         </p>
                       )}
                       {errors.pipeline_stage_id && (
-                        <FieldError>{errors.pipeline_stage_id.message}</FieldError>
+                        <FieldError>
+                          {errors.pipeline_stage_id.message}
+                        </FieldError>
                       )}
                     </Field>
 
@@ -435,7 +614,7 @@ export function DealFormDialog({
                                 variant="outline"
                                 className={cn(
                                   "w-full justify-start text-left font-normal cursor-pointer",
-                                  !field.value && "text-muted-foreground"
+                                  !field.value && "text-muted-foreground",
                                 )}
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -444,15 +623,27 @@ export function DealFormDialog({
                                   : t("selectDate")}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent
+                              className="w-auto p-0"
+                              align="start"
+                            >
                               <Calendar
                                 mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
+                                selected={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : undefined
+                                }
                                 onSelect={(date: Date | undefined) => {
                                   if (date) {
                                     const y = date.getFullYear();
-                                    const m = String(date.getMonth() + 1).padStart(2, "0");
-                                    const d = String(date.getDate()).padStart(2, "0");
+                                    const m = String(
+                                      date.getMonth() + 1,
+                                    ).padStart(2, "0");
+                                    const d = String(date.getDate()).padStart(
+                                      2,
+                                      "0",
+                                    );
                                     field.onChange(`${y}-${m}-${d}`);
                                   } else {
                                     field.onChange("");
@@ -463,6 +654,9 @@ export function DealFormDialog({
                           </Popover>
                         )}
                       />
+                      {errors.expected_close_date && (
+                        <FieldError>{errors.expected_close_date.message}</FieldError>
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -471,7 +665,9 @@ export function DealFormDialog({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <DollarSign className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">{t("sectionCustomerInfo")}</h3>
+                    <h3 className="text-sm font-medium">
+                      {t("sectionCustomerInfo")}
+                    </h3>
                   </div>
                   <div className="grid gap-4 grid-cols-2">
                     <Field orientation="vertical">
@@ -483,20 +679,31 @@ export function DealFormDialog({
                             readOnly
                             placeholder={t("prospectCustomerPlaceholder")}
                           />
-                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectCustomerHint")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("prospectCustomerHint")}
+                          </p>
                         </>
                       ) : (
                         <Controller
                           name="customer_id"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                            >
                               <SelectTrigger className="cursor-pointer">
-                                <SelectValue placeholder={t("selectCustomer")} />
+                                <SelectValue
+                                  placeholder={t("selectCustomer")}
+                                />
                               </SelectTrigger>
                               <SelectContent>
                                 {formData?.customers?.map((c) => (
-                                  <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                                  <SelectItem
+                                    key={c.id}
+                                    value={c.id}
+                                    className="cursor-pointer"
+                                  >
                                     {c.name} ({c.code})
                                   </SelectItem>
                                 ))}
@@ -504,6 +711,9 @@ export function DealFormDialog({
                             </Select>
                           )}
                         />
+                      )}
+                      {errors.customer_id && (
+                        <FieldError>{errors.customer_id.message}</FieldError>
                       )}
                     </Field>
 
@@ -517,9 +727,13 @@ export function DealFormDialog({
                             placeholder={t("prospectContactPlaceholder")}
                           />
                           {prospectContactInfo ? (
-                            <p className="mt-1 text-xs text-muted-foreground">{prospectContactInfo}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {prospectContactInfo}
+                            </p>
                           ) : (
-                            <p className="mt-1 text-xs text-muted-foreground">{t("prospectContactHint")}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {t("prospectContactHint")}
+                            </p>
                           )}
                         </>
                       ) : (
@@ -527,13 +741,20 @@ export function DealFormDialog({
                           name="contact_id"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                            >
                               <SelectTrigger className="cursor-pointer">
                                 <SelectValue placeholder={t("selectContact")} />
                               </SelectTrigger>
                               <SelectContent>
                                 {filteredContacts.map((c) => (
-                                  <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                                  <SelectItem
+                                    key={c.id}
+                                    value={c.id}
+                                    className="cursor-pointer"
+                                  >
                                     {c.name}
                                   </SelectItem>
                                 ))}
@@ -541,6 +762,9 @@ export function DealFormDialog({
                             </Select>
                           )}
                         />
+                      )}
+                      {errors.contact_id && (
+                        <FieldError>{errors.contact_id.message}</FieldError>
                       )}
                     </Field>
 
@@ -553,20 +777,31 @@ export function DealFormDialog({
                             readOnly
                             placeholder={t("prospectAssignmentPlaceholder")}
                           />
-                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectAssignmentHint")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("prospectAssignmentHint")}
+                          </p>
                         </>
                       ) : (
                         <Controller
                           name="assigned_to"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                            >
                               <SelectTrigger className="cursor-pointer">
-                                <SelectValue placeholder={t("selectEmployee")} />
+                                <SelectValue
+                                  placeholder={t("selectEmployee")}
+                                />
                               </SelectTrigger>
                               <SelectContent>
                                 {formData?.employees?.map((e) => (
-                                  <SelectItem key={e.id} value={e.id} className="cursor-pointer">
+                                  <SelectItem
+                                    key={e.id}
+                                    value={e.id}
+                                    className="cursor-pointer"
+                                  >
                                     {e.name} ({e.employee_code})
                                   </SelectItem>
                                 ))}
@@ -575,11 +810,17 @@ export function DealFormDialog({
                           )}
                         />
                       )}
+                      {errors.assigned_to && (
+                        <FieldError>{errors.assigned_to.message}</FieldError>
+                      )}
                     </Field>
 
                     <Field orientation="vertical" className="col-span-2">
                       <FieldLabel>{t("description")}</FieldLabel>
                       <Textarea {...register("description")} rows={3} />
+                      {errors.description && (
+                        <FieldError>{errors.description.message}</FieldError>
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -596,21 +837,35 @@ export function DealFormDialog({
                   </Button>
                   <Button
                     type="button"
+                    variant={isEdit ? "outline" : "default"}
                     className="cursor-pointer"
                     onClick={handleNext}
                   >
                     {t("btnNext")}
                   </Button>
+                  {isEdit && (
+                    <Button
+                      type="button"
+                      disabled={isLoading}
+                      className="cursor-pointer"
+                      onClick={handleClickSubmit}
+                    >
+                      <ButtonLoading
+                        loading={isLoading}
+                        loadingText={t("saving")}
+                      >
+                        {t("updateDeal")}
+                      </ButtonLoading>
+                    </Button>
+                  )}
                 </div>
               </TabsContent>
 
               {/* ─── TAB 2: PRODUCTS & BANT ────────────────────── */}
               <TabsContent value="items" className="space-y-6 mt-0">
                 <div className="grid grid-cols-3 gap-6">
-
                   {/* Left column: products + BANT */}
                   <div className="col-span-2 space-y-6">
-
                     {/* Product Items */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between pb-2 border-b border-border/50">
@@ -652,7 +907,8 @@ export function DealFormDialog({
 
                         {fields.map((field, index) => {
                           const item = watchedItems?.[index];
-                          const lineTotal = (item?.unit_price ?? 0) * (item?.quantity ?? 1);
+                          const lineTotal =
+                            (item?.unit_price ?? 0) * (item?.quantity ?? 1);
                           const discountAmt = item?.discount_percent
                             ? lineTotal * (item.discount_percent / 100)
                             : (item?.discount_amount ?? 0);
@@ -679,12 +935,15 @@ export function DealFormDialog({
                               </div>
 
                               <div className="grid grid-cols-2 gap-3 mt-6">
-                                <Field orientation="vertical" className="col-span-2">
+                                <Field
+                                  orientation="vertical"
+                                  className="col-span-2"
+                                >
                                   <FieldLabel>{t("product")}</FieldLabel>
                                   <Controller
                                     name={`items.${index}.product_id`}
                                     control={control}
-                                    render={({ field: f }) => (
+                                    render={({ field: f, fieldState }) => (
                                       <Select
                                         value={f.value ?? ""}
                                         onValueChange={(val) => {
@@ -692,19 +951,30 @@ export function DealFormDialog({
                                           handleProductSelect(index, val);
                                         }}
                                       >
-                                        <SelectTrigger className="cursor-pointer">
-                                          <SelectValue placeholder={t("selectProduct")} />
+                                        <SelectTrigger className={cn("cursor-pointer", fieldState.error && "border-destructive")}>
+                                          <SelectValue
+                                            placeholder={t("selectProduct")}
+                                          />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          {formData?.products?.map((p: DealProductOption) => (
-                                            <SelectItem key={p.id} value={p.id} className="cursor-pointer">
-                                              {p.name} ({p.sku})
-                                            </SelectItem>
-                                          ))}
+                                          {formData?.products?.map(
+                                            (p: DealProductOption) => (
+                                              <SelectItem
+                                                key={p.id}
+                                                value={p.id}
+                                                className="cursor-pointer"
+                                              >
+                                                {p.name} ({p.sku})
+                                              </SelectItem>
+                                            ),
+                                          )}
                                         </SelectContent>
                                       </Select>
                                     )}
                                   />
+                                  {errors.items?.[index]?.product_id && (
+                                    <FieldError>{errors.items[index].product_id?.message}</FieldError>
+                                  )}
                                 </Field>
 
                                 <Field orientation="vertical">
@@ -712,12 +982,18 @@ export function DealFormDialog({
                                   <Controller
                                     name={`items.${index}.unit_price`}
                                     control={control}
-                                    render={({ field }) => (
-                                      <NumericInput
-                                        currency
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                      />
+                                    render={({ field, fieldState }) => (
+                                      <>
+                                        <NumericInput
+                                          currency
+                                          value={field.value}
+                                          onChange={field.onChange}
+                                          className={fieldState.error ? "border-destructive" : ""}
+                                        />
+                                        {fieldState.error && (
+                                          <FieldError>{fieldState.error.message}</FieldError>
+                                        )}
+                                      </>
                                     )}
                                   />
                                 </Field>
@@ -727,37 +1003,60 @@ export function DealFormDialog({
                                   <Controller
                                     name={`items.${index}.quantity`}
                                     control={control}
-                                    render={({ field }) => (
-                                      <NumericInput
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                      />
+                                    render={({ field, fieldState }) => (
+                                      <>
+                                        <NumericInput
+                                          value={field.value}
+                                          onChange={field.onChange}
+                                          className={fieldState.error ? "border-destructive" : ""}
+                                        />
+                                        {fieldState.error && (
+                                          <FieldError>{fieldState.error.message}</FieldError>
+                                        )}
+                                      </>
                                     )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
-                                  <FieldLabel>{t("discountPct")} (%)</FieldLabel>
+                                  <FieldLabel>
+                                    {t("discountPct")} (%)
+                                  </FieldLabel>
                                   <Controller
                                     name={`items.${index}.discount_percent`}
                                     control={control}
-                                    render={({ field }) => (
-                                      <NumericInput
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                      />
+                                    render={({ field, fieldState }) => (
+                                      <>
+                                        <NumericInput
+                                          value={field.value}
+                                          onChange={field.onChange}
+                                          className={fieldState.error ? "border-destructive" : ""}
+                                        />
+                                        {fieldState.error && (
+                                          <FieldError>{fieldState.error.message}</FieldError>
+                                        )}
+                                      </>
                                     )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("itemNotes")}</FieldLabel>
-                                  <Input {...register(`items.${index}.notes`)} />
+                                  <Input
+                                    {...register(`items.${index}.notes`)}
+                                  />
+                                  {errors.items?.[index]?.notes && (
+                                    <FieldError>{errors.items[index].notes?.message}</FieldError>
+                                  )}
                                 </Field>
 
                                 <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border/50">
-                                  <span className="text-sm text-muted-foreground">{t("subtotal")}:</span>
-                                  <span className="text-base font-bold text-primary">{formatCurrency(subtotal)}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {t("subtotal")}:
+                                  </span>
+                                  <span className="text-base font-bold text-primary">
+                                    {formatCurrency(subtotal)}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -770,7 +1069,9 @@ export function DealFormDialog({
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                         <ShieldCheck className="h-4 w-4 text-primary" />
-                        <h3 className="text-sm font-medium">{t("bantTitle")}</h3>
+                        <h3 className="text-sm font-medium">
+                          {t("bantTitle")}
+                        </h3>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-2">
@@ -778,22 +1079,34 @@ export function DealFormDialog({
                             name="budget_confirmed"
                             control={control}
                             render={({ field }) => (
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                className="cursor-pointer"
+                              />
                             )}
                           />
-                          <FieldLabel className="cursor-pointer">{t("budgetConfirmed")}</FieldLabel>
+                          <FieldLabel className="cursor-pointer">
+                            {t("budgetConfirmed")}
+                          </FieldLabel>
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("budgetAmount")}</FieldLabel>
                           <Controller
                             name="budget_amount"
                             control={control}
-                            render={({ field }) => (
-                              <NumericInput
-                                currency
-                                value={field.value}
-                                onChange={field.onChange}
-                              />
+                            render={({ field, fieldState }) => (
+                              <>
+                                <NumericInput
+                                  currency
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  className={fieldState.error ? "border-destructive" : ""}
+                                />
+                                {fieldState.error && (
+                                  <FieldError>{fieldState.error.message}</FieldError>
+                                )}
+                              </>
                             )}
                           />
                         </Field>
@@ -803,14 +1116,23 @@ export function DealFormDialog({
                             name="auth_confirmed"
                             control={control}
                             render={({ field }) => (
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                className="cursor-pointer"
+                              />
                             )}
                           />
-                          <FieldLabel className="cursor-pointer">{t("authConfirmed")}</FieldLabel>
+                          <FieldLabel className="cursor-pointer">
+                            {t("authConfirmed")}
+                          </FieldLabel>
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("authPerson")}</FieldLabel>
                           <Input {...register("auth_person")} />
+                          {errors.auth_person && (
+                            <FieldError>{errors.auth_person.message}</FieldError>
+                          )}
                         </Field>
 
                         <div className="flex items-center gap-2">
@@ -818,14 +1140,23 @@ export function DealFormDialog({
                             name="need_confirmed"
                             control={control}
                             render={({ field }) => (
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                className="cursor-pointer"
+                              />
                             )}
                           />
-                          <FieldLabel className="cursor-pointer">{t("needConfirmed")}</FieldLabel>
+                          <FieldLabel className="cursor-pointer">
+                            {t("needConfirmed")}
+                          </FieldLabel>
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("needDescription")}</FieldLabel>
                           <Input {...register("need_description")} />
+                          {errors.need_description && (
+                            <FieldError>{errors.need_description.message}</FieldError>
+                          )}
                         </Field>
 
                         <div className="flex items-center gap-2">
@@ -833,10 +1164,16 @@ export function DealFormDialog({
                             name="time_confirmed"
                             control={control}
                             render={({ field }) => (
-                              <Checkbox checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                className="cursor-pointer"
+                              />
                             )}
                           />
-                          <FieldLabel className="cursor-pointer">{t("timeConfirmed")}</FieldLabel>
+                          <FieldLabel className="cursor-pointer">
+                            {t("timeConfirmed")}
+                          </FieldLabel>
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("expectedCloseDate")}</FieldLabel>
@@ -851,7 +1188,7 @@ export function DealFormDialog({
                                     variant="outline"
                                     className={cn(
                                       "w-full justify-start text-left font-normal cursor-pointer",
-                                      !field.value && "text-muted-foreground"
+                                      !field.value && "text-muted-foreground",
                                     )}
                                   >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -860,15 +1197,26 @@ export function DealFormDialog({
                                       : t("selectDate")}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
                                   <Calendar
                                     mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
+                                    selected={
+                                      field.value
+                                        ? new Date(field.value)
+                                        : undefined
+                                    }
                                     onSelect={(date: Date | undefined) => {
                                       if (date) {
                                         const y = date.getFullYear();
-                                        const m = String(date.getMonth() + 1).padStart(2, "0");
-                                        const d = String(date.getDate()).padStart(2, "0");
+                                        const m = String(
+                                          date.getMonth() + 1,
+                                        ).padStart(2, "0");
+                                        const d = String(
+                                          date.getDate(),
+                                        ).padStart(2, "0");
                                         field.onChange(`${y}-${m}-${d}`);
                                       } else {
                                         field.onChange("");
@@ -887,6 +1235,9 @@ export function DealFormDialog({
                     <Field orientation="vertical">
                       <FieldLabel>{t("notes")}</FieldLabel>
                       <Textarea {...register("notes")} rows={2} />
+                      {errors.notes && (
+                        <FieldError>{errors.notes.message}</FieldError>
+                      )}
                     </Field>
                   </div>
 
@@ -902,14 +1253,24 @@ export function DealFormDialog({
                         {fields.length > 0 ? (
                           <>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">{t("subtotal")}:</span>
-                              <span className="font-medium">{formatCurrency(itemsSubtotal)}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {t("subtotal")}:
+                              </span>
+                              <span className="font-medium">
+                                {formatCurrency(itemsSubtotal)}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="text-sm font-bold">{t("value")}:</span>
-                              <span className="text-lg font-bold text-primary">{formatCurrency(dealValue ?? 0)}</span>
+                              <span className="text-sm font-bold">
+                                {t("value")}:
+                              </span>
+                              <span className="text-lg font-bold text-primary">
+                                {formatCurrency(dealValue ?? 0)}
+                              </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">{t("valueAutoCalculated")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {t("valueAutoCalculated")}
+                            </p>
                           </>
                         ) : (
                           <Field orientation="vertical">
@@ -917,12 +1278,18 @@ export function DealFormDialog({
                             <Controller
                               name="value"
                               control={control}
-                              render={({ field }) => (
-                                <NumericInput
-                                  currency
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                />
+                              render={({ field, fieldState }) => (
+                                <>
+                                  <NumericInput
+                                    currency
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    className={fieldState.error ? "border-destructive" : ""}
+                                  />
+                                  {fieldState.error && (
+                                    <FieldError>{fieldState.error.message}</FieldError>
+                                  )}
+                                </>
                               )}
                             />
                           </Field>
@@ -933,9 +1300,15 @@ export function DealFormDialog({
                             <div className="flex items-center gap-2 mb-1">
                               <span
                                 className="inline-block h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: selectedStage.color || "var(--color-muted-foreground)" }}
+                                style={{
+                                  backgroundColor:
+                                    selectedStage.color ||
+                                    "var(--color-muted-foreground)",
+                                }}
                               />
-                              <span className="text-sm font-medium">{selectedStage.name}</span>
+                              <span className="text-sm font-medium">
+                                {selectedStage.name}
+                              </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
                               {t("probability")}: {selectedStage.probability}%
@@ -967,15 +1340,23 @@ export function DealFormDialog({
                     >
                       {t("cancel")}
                     </Button>
-                    <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                      <ButtonLoading loading={isLoading} loadingText={t("saving")}>
+                    <Button
+                      type="button"
+                      disabled={isLoading}
+                      className="cursor-pointer"
+                      onClick={handleClickSubmit}
+                    >
+                      <ButtonLoading
+                        loading={isLoading}
+                        loadingText={t("saving")}
+                      >
                         {isEdit ? t("updateDeal") : t("createDeal")}
                       </ButtonLoading>
                     </Button>
                   </div>
                 </div>
               </TabsContent>
-            </form>
+            </div>
           </Tabs>
         )}
       </DialogContent>

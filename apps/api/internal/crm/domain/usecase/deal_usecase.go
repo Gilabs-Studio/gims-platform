@@ -378,20 +378,21 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 				Notes:           itemDTO.Notes,
 			}
 
-			// Snapshot product data if product ID is provided
+			// Snapshot product data if product ID is provided.
+			// During update, if the product is no longer found (e.g. archived),
+			// use the data already supplied in the item DTO as-is.
 			if itemDTO.ProductID != nil && *itemDTO.ProductID != "" {
 				product, err := u.productRepo.FindByID(ctx, *itemDTO.ProductID)
-				if err != nil {
-					return dto.DealResponse{}, fmt.Errorf("product not found: %s", *itemDTO.ProductID)
-				}
-				if item.ProductName == "" {
-					item.ProductName = product.Name
-				}
-				if item.ProductSKU == "" {
-					item.ProductSKU = product.Sku
-				}
-				if item.UnitPrice == 0 {
-					item.UnitPrice = product.SellingPrice
+				if err == nil {
+					if item.ProductName == "" {
+						item.ProductName = product.Name
+					}
+					if item.ProductSKU == "" {
+						item.ProductSKU = product.Sku
+					}
+					if item.UnitPrice == 0 {
+						item.UnitPrice = product.SellingPrice
+					}
 				}
 			}
 
