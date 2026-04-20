@@ -13,6 +13,73 @@
     "compareLastMonth": "Compare from last month",
     "formula": "Formula",
     "purpose": "Purpose",
+    "templatePicker": {
+      "title": "Choose your dashboard layout",
+      "description": "Pick a template to get started. You can customize it anytime.",
+      "useTemplate": "Use this template",
+      "templates": {
+        "minimal": {
+          "name": "Minimal",
+          "description": "Clean start with 4 key metrics"
+        },
+        "sales": {
+          "name": "Sales & Operations",
+          "description": "Focus on orders, customers, and revenue tracking"
+        },
+        "finance": {
+          "name": "Finance & Profit",
+          "description": "Deep dive into profitability and cashflow indicators"
+        },
+        "complete": {
+          "name": "Complete Dashboard",
+          "description": "The full suite of KPIs and operational widgets"
+        }
+      }
+    },
+    "onboarding": {
+      "welcome": "Welcome to GIMS!",
+      "chooseTypePrompt": "Let's get you set up. What type of business are you running?",
+      "setupChecklist": "Setup Checklist",
+      "checklistPrompt": "Complete these steps to get your workspace ready ({done}/{total} done)",
+      "dismiss": "Skip for now",
+      "markDone": "Complete setup",
+      "types": {
+        "fnb": {
+          "label": "Food & Beverage",
+          "description": "Restaurant, café, catering, or any F&B operation"
+        },
+        "other": {
+          "label": "Other Business",
+          "description": "Retail, distribution, manufacturing, or services"
+        }
+      },
+      "steps": {
+        "company": {
+          "label": "Set up your company",
+          "description": "Add your company name, address, and basic info"
+        },
+        "outlet": {
+          "label": "Create your first outlet",
+          "description": "Add the branch or location where you operate"
+        },
+        "floorLayout": {
+          "label": "Design your floor layout",
+          "description": "Arrange tables and sections for your venue"
+        },
+        "products": {
+          "label": "Add your products / menu",
+          "description": "Set up the items you sell or serve"
+        },
+        "warehouse": {
+          "label": "Create a warehouse",
+          "description": "Set up your main stock storage location"
+        },
+        "users": {
+          "label": "Invite team members",
+          "description": "Add staff accounts and assign roles"
+        }
+      }
+    },
     "status": {
       "good": "Healthy",
       "warning": "Watch",

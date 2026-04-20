@@ -19,12 +19,15 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize repositories
 	dashboardRepo := repositories.NewDashboardRepository(db)
 	layoutRepo := repositories.NewDashboardLayoutRepository(db)
+	onboardingRepo := repositories.NewOnboardingRepository(db)
 
-	// Initialize usecase
+	// Initialize usecases
 	dashboardUC := usecase.NewDashboardUsecase(dashboardRepo, layoutRepo)
+	onboardingUC := usecase.NewOnboardingUsecase(onboardingRepo)
 
-	// Initialize handler
+	// Initialize handlers
 	dashboardHandler := handler.NewDashboardHandler(dashboardUC)
+	onboardingHandler := handler.NewOnboardingHandler(onboardingUC)
 
 	// Create group with auth middleware
 	group := api.Group("/general")
@@ -32,4 +35,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterDashboardRoutes(group, dashboardHandler)
+	router.RegisterOnboardingRoutes(group, onboardingHandler)
 }

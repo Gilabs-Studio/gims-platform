@@ -13,6 +13,73 @@
     "compareLastMonth": "Dibanding bulan lalu",
     "formula": "Formula",
     "purpose": "Tujuan",
+    "templatePicker": {
+      "title": "Pilih tata letak dasbor Anda",
+      "description": "Pilih template untuk memulai. Anda bisa mengubahnya kapan saja.",
+      "useTemplate": "Gunakan template ini",
+      "templates": {
+        "minimal": {
+          "name": "Minimal",
+          "description": "Mulai bersih dengan 4 metrik utama"
+        },
+        "sales": {
+          "name": "Penjualan & Operasional",
+          "description": "Fokus pada pesanan, pelanggan, dan pelacakan pendapatan"
+        },
+        "finance": {
+          "name": "Keuangan & Laba",
+          "description": "Analisis mendalam profitabilitas dan indikator arus kas"
+        },
+        "complete": {
+          "name": "Dasbor Lengkap",
+          "description": "Rangkaian KPI dan widget operasional yang komprehensif"
+        }
+      }
+    },
+    "onboarding": {
+      "welcome": "Selamat datang di GIMS!",
+      "chooseTypePrompt": "Mari siapkan akun Anda. Bisnis apa yang sedang Anda jalankan?",
+      "setupChecklist": "Daftar Periksa Setup",
+      "checklistPrompt": "Selesaikan langkah-langkah berikut untuk menyiapkan workspace Anda ({done}/{total} selesai)",
+      "dismiss": "Lewati untuk sekarang",
+      "markDone": "Selesaikan setup",
+      "types": {
+        "fnb": {
+          "label": "Makanan & Minuman",
+          "description": "Restoran, kafe, katering, atau operasi F&B lainnya"
+        },
+        "other": {
+          "label": "Bisnis Lainnya",
+          "description": "Retail, distribusi, manufaktur, atau jasa"
+        }
+      },
+      "steps": {
+        "company": {
+          "label": "Siapkan perusahaan Anda",
+          "description": "Tambahkan nama, alamat, dan informasi dasar perusahaan"
+        },
+        "outlet": {
+          "label": "Buat outlet pertama Anda",
+          "description": "Tambahkan cabang atau lokasi tempat Anda beroperasi"
+        },
+        "floorLayout": {
+          "label": "Desain tata letak lantai",
+          "description": "Atur meja dan bagian untuk tempat Anda"
+        },
+        "products": {
+          "label": "Tambahkan produk / menu",
+          "description": "Siapkan item yang Anda jual atau sajikan"
+        },
+        "warehouse": {
+          "label": "Buat gudang",
+          "description": "Siapkan lokasi penyimpanan stok utama Anda"
+        },
+        "users": {
+          "label": "Undang anggota tim",
+          "description": "Tambahkan akun staf dan tetapkan peran"
+        }
+      }
+    },
     "status": {
       "good": "Sehat",
       "warning": "Waspada",

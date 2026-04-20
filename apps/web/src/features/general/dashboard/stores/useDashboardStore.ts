@@ -21,7 +21,9 @@ interface DashboardState {
 }
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
-  widgets: DEFAULT_WIDGETS,
+  // Start with an empty grid; the dashboard-grid component hydrates from the saved layout
+  // (or DEFAULT_WIDGETS once onboarding is complete and no layout has been saved yet).
+  widgets: [],
   isEditMode: false,
   dateFilter: {
     from: null,
