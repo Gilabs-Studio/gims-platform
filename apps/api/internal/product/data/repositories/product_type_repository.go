@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewProductTypeRepository(db *gorm.DB) ProductTypeRepository {
 }
 
 func (r *productTypeRepository) Create(ctx context.Context, productType *models.ProductType) error {
-	return r.db.WithContext(ctx).Create(productType).Error
+	return database.GetDB(ctx, r.db).Create(productType).Error
 }
 
 func (r *productTypeRepository) FindByID(ctx context.Context, id string) (*models.ProductType, error) {
 	var productType models.ProductType
-	err := r.db.WithContext(ctx).First(&productType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&productType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *productTypeRepository) List(ctx context.Context, params ListParams) ([]
 	var productTypes []models.ProductType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ProductType{})
+	query := database.GetDB(ctx, r.db).Model(&models.ProductType{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *productTypeRepository) List(ctx context.Context, params ListParams) ([]
 }
 
 func (r *productTypeRepository) Update(ctx context.Context, productType *models.ProductType) error {
-	return r.db.WithContext(ctx).Save(productType).Error
+	return database.GetDB(ctx, r.db).Save(productType).Error
 }
 
 func (r *productTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ProductType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ProductType{}, "id = ?", id).Error
 }

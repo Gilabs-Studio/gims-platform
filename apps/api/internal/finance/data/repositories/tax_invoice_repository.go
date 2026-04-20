@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -36,7 +37,7 @@ func NewTaxInvoiceRepository(db *gorm.DB) TaxInvoiceRepository {
 
 func (r *taxInvoiceRepository) FindByID(ctx context.Context, id string) (*financeModels.TaxInvoice, error) {
 	var item financeModels.TaxInvoice
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -61,7 +62,7 @@ func (r *taxInvoiceRepository) List(ctx context.Context, params TaxInvoiceListPa
 	var items []financeModels.TaxInvoice
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.TaxInvoice{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.TaxInvoice{})
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

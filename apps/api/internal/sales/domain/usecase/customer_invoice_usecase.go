@@ -19,6 +19,7 @@ import (
 	loyaltyDto "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
 	loyaltyUsecase "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -304,7 +305,10 @@ func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(
 
 	salesOrder, err := uc.salesOrderRepo.FindByID(ctx, *req.SalesOrderID)
 	if err != nil {
-		return nil, fmt.Errorf("sales order not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSalesOrderNotFound
+		}
+		return nil, err
 	}
 
 	if req.DeliveryOrderID != nil {
@@ -336,9 +340,9 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 	subtotal := 0.0
 
 	for i, itemReq := range req.Items {
-		product, err := uc.productRepo.FindByID(ctx, itemReq.ProductID)
+		resolvedProductID, product, err := uc.resolveInvoiceItemProduct(ctx, itemReq, soItemMap, nil)
 		if err != nil {
-			return nil, 0, ErrProductNotFound
+			return nil, 0, err
 		}
 
 		if err := validateCreateInvoiceItemQuantity(itemReq.SalesOrderItemID, itemReq.Quantity, soItemMap, product.Name); err != nil {
@@ -349,7 +353,7 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 		subtotal += itemSubtotal
 
 		items[i] = models.CustomerInvoiceItem{
-			ProductID:           itemReq.ProductID,
+			ProductID:           resolvedProductID,
 			SalesOrderItemID:    itemReq.SalesOrderItemID,
 			DeliveryOrderItemID: itemReq.DeliveryOrderItemID,
 			Quantity:            itemReq.Quantity,
@@ -365,6 +369,43 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 	}
 
 	return items, subtotal, nil
+}
+
+func (uc *customerInvoiceUsecase) resolveInvoiceItemProduct(
+	ctx context.Context,
+	itemReq dto.CreateCustomerInvoiceItemRequest,
+	soItemMap map[string]*models.SalesOrderItem,
+	existingItems []models.CustomerInvoiceItem,
+) (string, *productModels.Product, error) {
+	resolvedProductID := strings.TrimSpace(itemReq.ProductID)
+
+	if itemReq.SalesOrderItemID != nil {
+		if soItemMap != nil {
+			if soItem, ok := soItemMap[*itemReq.SalesOrderItemID]; ok && soItem != nil && strings.TrimSpace(soItem.ProductID) != "" {
+				resolvedProductID = soItem.ProductID
+			}
+		}
+
+		if resolvedProductID == "" && len(existingItems) > 0 {
+			for i := range existingItems {
+				if existingItems[i].SalesOrderItemID != nil && *existingItems[i].SalesOrderItemID == *itemReq.SalesOrderItemID && strings.TrimSpace(existingItems[i].ProductID) != "" {
+					resolvedProductID = existingItems[i].ProductID
+					break
+				}
+			}
+		}
+	}
+
+	if resolvedProductID == "" {
+		return "", nil, ErrProductNotFound
+	}
+
+	product, err := uc.productRepo.FindByID(ctx, resolvedProductID)
+	if err != nil {
+		return "", nil, ErrProductNotFound
+	}
+
+	return resolvedProductID, product, nil
 }
 
 func validateCreateInvoiceItemQuantity(
@@ -634,25 +675,34 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 
 	// Update items if provided
 	if req.Items != nil {
+		// Rollback old invoiced quantities on SO items before replacing
+		for _, item := range invoice.Items {
+			if item.SalesOrderItemID != nil {
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(ctx, *item.SalesOrderItemID, -item.Quantity); err != nil {
+					return nil, fmt.Errorf("failed to rollback invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
+
 		var subtotal float64
 		items := make([]models.CustomerInvoiceItem, len(*req.Items))
 		for i, itemReq := range *req.Items {
-			// Verify product exists
-			product, err := uc.productRepo.FindByID(ctx, itemReq.ProductID)
+			resolvedProductID, product, err := uc.resolveInvoiceItemProduct(ctx, itemReq, nil, invoice.Items)
 			if err != nil {
-				return nil, ErrProductNotFound
+				return nil, err
 			}
 
 			itemSubtotal := (itemReq.Price * itemReq.Quantity) - itemReq.Discount
 			subtotal += itemSubtotal
 
 			items[i] = models.CustomerInvoiceItem{
-				ProductID: itemReq.ProductID,
-				Quantity:  itemReq.Quantity,
-				Price:     itemReq.Price,
-				Discount:  itemReq.Discount,
-				Subtotal:  itemSubtotal,
-				HPPAmount: itemReq.HPPAmount,
+				ProductID:        resolvedProductID,
+				SalesOrderItemID: itemReq.SalesOrderItemID,
+				Quantity:         itemReq.Quantity,
+				Price:            itemReq.Price,
+				Discount:         itemReq.Discount,
+				Subtotal:         itemSubtotal,
+				HPPAmount:        itemReq.HPPAmount,
 			}
 
 			if items[i].HPPAmount == 0 && product.CurrentHpp > 0 {
@@ -681,6 +731,17 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 	updatedInvoice, err := uc.invoiceRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply new invoiced quantities on SO items after successful update
+	if req.Items != nil {
+		for _, item := range updatedInvoice.Items {
+			if item.SalesOrderItemID != nil {
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(ctx, *item.SalesOrderItemID, item.Quantity); err != nil {
+					return nil, fmt.Errorf("failed to update invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
 	}
 
 	logSalesAudit(uc.auditService, ctx, "customer_invoice.update", id, map[string]interface{}{
@@ -1070,6 +1131,11 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 
 	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
 	totalInvoiceAmount := revenueBase + invoice.TaxAmount
+	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
+	journalAmount := invoice.Amount
+	if journalAmount <= 0 {
+		journalAmount = totalInvoiceAmount
+	}
 
 	data := accounting.TransactionData{
 		ReferenceType:   reference.RefTypeSalesInvoice,
@@ -1077,10 +1143,11 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 		CompanyID:       companyID,
 		EntryDate:       invoice.InvoiceDate.Format(dateFormat),
 		Description:     fmt.Sprintf("Sales Invoice %s", invoice.Code),
-		TotalAmount:     totalInvoiceAmount,
+		TotalAmount:     journalAmount,
 		SubTotal:        revenueBase,
 		TaxTotal:        invoice.TaxAmount,
-		DepositTotal:    0,
+		DepositTotal:    invoice.DownPaymentAmount,
+		COGSTotal:       cogsTotal,
 		DescriptionArgs: []interface{}{invoice.Code, safeInvoiceNumber(invoice.InvoiceNumber)},
 	}
 

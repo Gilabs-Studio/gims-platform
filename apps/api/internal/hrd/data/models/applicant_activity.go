@@ -11,6 +11,7 @@ import (
 // ApplicantActivity represents an activity or event in an applicant's history
 type ApplicantActivity struct {
 	ID          string          `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	ApplicantID string          `gorm:"type:uuid;not null;index:idx_activity_applicant" json:"applicant_id"`
 	Type        string          `gorm:"type:varchar(50);not null" json:"type"` // stage_change, note_added, interview_scheduled, etc.
 	Description string          `gorm:"type:text;not null" json:"description"`

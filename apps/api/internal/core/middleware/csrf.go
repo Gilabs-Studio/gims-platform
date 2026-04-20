@@ -53,63 +53,93 @@ func shouldUseCrossSiteCSRFCookie(c *gin.Context) bool {
 	return !strings.EqualFold(originHost, requestHostname)
 }
 
+func abortCSRFFailedToGenerate(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+		"success": false,
+		"error": gin.H{
+			"code":    "INTERNAL_SERVER_ERROR",
+			"message": "Failed to generate CSRF token",
+		},
+	})
+}
+
+func ensureCSRFCookie(c *gin.Context) (string, bool) {
+	token, err := c.Cookie("gims_csrf_token")
+	if err == nil && token != "" {
+		return token, true
+	}
+
+	token = generateToken()
+	if token == "" {
+		abortCSRFFailedToGenerate(c)
+		return "", false
+	}
+
+	setCSRFCookie(c, token)
+	return token, true
+}
+
+func isPublicFeedbackSubmit(method, path string) bool {
+	return method == http.MethodPost && strings.HasPrefix(path, "/api/v1/public/feedback/") && strings.HasSuffix(path, "/submit")
+}
+
+func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
+	if isCRMLeadUpsertWebhookRequest(c.Request.Method, path) {
+		return true
+	}
+
+	// System admin login/logout uses separate cookie auth flow.
+	if strings.HasPrefix(path, "/internal/sys-login") || strings.HasPrefix(path, "/internal/sys-logout") {
+		return true
+	}
+
+	// Public feedback submission uses one-time URL token, not browser session CSRF.
+	return isPublicFeedbackSubmit(c.Request.Method, path)
+}
+
+func isSafeMethod(method string) bool {
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+}
+
+func validateCSRFTokens(c *gin.Context, token string) bool {
+	requestToken := c.GetHeader("X-CSRF-Token")
+	if requestToken != "" && requestToken == token {
+		return true
+	}
+
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+		"success": false,
+		"error": gin.H{
+			"code":    "CSRF_INVALID",
+			"message": "Invalid or missing CSRF token",
+		},
+	})
+	return false
+}
+
 // CSRF middleware implements the Double-Submit Cookie pattern
 func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Check for existing CSRF cookie
-		token, err := c.Cookie("gims_csrf_token")
-		
-		// 2. If no cookie, generate a new one and set it
-		if err != nil || token == "" {
-			token = generateToken()
-			if token == "" {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"error": gin.H{
-						"code":    "INTERNAL_SERVER_ERROR",
-						"message": "Failed to generate CSRF token",
-					},
-				})
-				return
-			}
-			setCSRFCookie(c, token)
+		token, ok := ensureCSRFCookie(c)
+		if !ok {
+			return
 		}
 
 		// ALWAYS expose the current token in the header so frontend can read it (cross-origin support)
 		c.Header("X-CSRF-Token", token)
 
-		// Exclude webhooks and external API endpoints that do not use browser sessions
 		path := c.Request.URL.Path
-		if strings.HasPrefix(path, "/api/v1/crm/leads/upsert") {
-			c.Next()
-			return
-		}
-		// Public feedback submission uses one-time token in URL and is intentionally
-		// accessible without authenticated browser session/cookies.
-		if c.Request.Method == http.MethodPost &&
-			strings.HasPrefix(path, "/api/v1/public/feedback/") &&
-			strings.HasSuffix(path, "/submit") {
+		if shouldSkipCSRFMiddleware(c, path) {
 			c.Next()
 			return
 		}
 
-		// 3. For safe methods, just proceed
-		if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" {
+		if isSafeMethod(c.Request.Method) {
 			c.Next()
 			return
 		}
 
-		// 4. For unsafe methods, validate header against cookie
-		requestToken := c.GetHeader("X-CSRF-Token")
-		
-		if requestToken == "" || requestToken != token {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error": gin.H{
-					"code":    "CSRF_INVALID",
-					"message": "Invalid or missing CSRF token",
-				},
-			})
+		if !validateCSRFTokens(c, token) {
 			return
 		}
 

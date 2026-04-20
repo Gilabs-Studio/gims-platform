@@ -18,6 +18,7 @@ const (
 // PosSession represents an open POS cashier shift for an outlet
 type PosSession struct {
 	ID          string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code        string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	OutletID    string           `gorm:"type:uuid;not null;index" json:"outlet_id"`
 	WarehouseID string           `gorm:"type:uuid;not null;index" json:"warehouse_id"`

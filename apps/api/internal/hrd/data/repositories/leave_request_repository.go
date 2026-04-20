@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
@@ -55,7 +56,7 @@ func (r *leaveRequestRepository) Create(ctx context.Context, leaveRequest *model
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return r.db.WithContext(ctx).Create(leaveRequest).Error
+	return database.GetDB(ctx, r.db).Create(leaveRequest).Error
 }
 
 // FindByID retrieves a leave request by ID
@@ -67,7 +68,7 @@ func (r *leaveRequestRepository) FindByID(ctx context.Context, id string) (*mode
 
 	// Note: Relations removed from model to prevent GORM circular dependency issues
 	// Frontend/consumers should fetch related data via separate API calls if needed
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		First(&leaveRequest).Error
 
@@ -86,7 +87,7 @@ func (r *leaveRequestRepository) Update(ctx context.Context, leaveRequest *model
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Save(leaveRequest)
+	result := database.GetDB(ctx, r.db).Save(leaveRequest)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -104,7 +105,7 @@ func (r *leaveRequestRepository) Delete(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Delete(&models.LeaveRequest{}, "id = ?", id)
+	result := database.GetDB(ctx, r.db).Delete(&models.LeaveRequest{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -134,7 +135,7 @@ func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, s
 	var leaveRequests []*models.LeaveRequest
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{})
+	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
@@ -202,7 +203,7 @@ func (r *leaveRequestRepository) FindByEmployeeID(ctx context.Context, employeeI
 	var leaveRequests []*models.LeaveRequest
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{}).Where("employee_id = ?", employeeID)
+	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{}).Where("employee_id = ?", employeeID)
 
 	// Count total records
 	if err := query.Count(&total).Error; err != nil {
@@ -230,7 +231,7 @@ func (r *leaveRequestRepository) UpdateWithLock(ctx context.Context, id string, 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var leaveRequest models.LeaveRequest
 
 		// WHY: Clause Locking FOR UPDATE prevents concurrent approvals/rejections
@@ -263,7 +264,7 @@ func (r *leaveRequestRepository) CountPendingRequests(ctx context.Context, emplo
 
 	var count int64
 
-	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{}).
+	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{}).
 		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.LeaveStatusPending).
 		Where("(start_date BETWEEN ? AND ? OR end_date BETWEEN ? AND ? OR (start_date <= ? AND end_date >= ?))",
@@ -286,7 +287,7 @@ func (r *leaveRequestRepository) CalculateUsedLeaveDays(ctx context.Context, emp
 
 	var totalDays float64
 
-	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{}).
+	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{}).
 		Select("COALESCE(SUM(total_days), 0)").
 		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.LeaveStatusApproved)
@@ -316,7 +317,7 @@ func (r *leaveRequestRepository) FindOverlappingRequests(ctx context.Context, em
 
 	var leaveRequests []*models.LeaveRequest
 
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Where("status IN ?", []models.LeaveStatus{models.LeaveStatusPending, models.LeaveStatusApproved}).
 		Where("(start_date BETWEEN ? AND ? OR end_date BETWEEN ? AND ? OR (start_date <= ? AND end_date >= ?))",
@@ -344,7 +345,7 @@ func (r *leaveRequestRepository) FindApprovedByDateForEmployees(ctx context.Cont
 	var leaveRequests []*models.LeaveRequest
 	dateOnly := date.Format("2006-01-02")
 
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id IN ?", employeeIDs).
 		Where("status = ?", models.LeaveStatusApproved).
 		Where("start_date <= ? AND end_date >= ?", dateOnly, dateOnly).

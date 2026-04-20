@@ -10,6 +10,7 @@ import (
 // Bank represents a bank entity for supplier bank accounts
 type Bank struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string         `gorm:"type:varchar(100);not null;index" json:"name"`
 	Code        string         `gorm:"type:varchar(20);uniqueIndex" json:"code"`
 	SwiftCode   string         `gorm:"type:varchar(20)" json:"swift_code"`

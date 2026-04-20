@@ -14,6 +14,9 @@ func RegisterAuthRoutes(rg *gin.RouterGroup, h *handler.AuthHandler, jwtManager 
 		g.POST("/login", middleware.RateLimitMiddleware("login"), h.Login)
 		g.POST("/refresh-token", middleware.RateLimitMiddleware("refresh"), h.RefreshToken)
 		g.GET("/csrf", middleware.RateLimitMiddleware("public"), h.GetCSRFToken)
+		// Self-service tenant registration — provisions a new tenant + enterprise admin
+		// account and returns a JWT. No auth required.
+		g.POST("/register", middleware.RateLimitMiddleware("login"), h.RegisterTenant)
 
 		// Protected routes
 		protected := g.Group("")

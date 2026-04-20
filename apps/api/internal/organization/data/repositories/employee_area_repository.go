@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -62,7 +63,7 @@ func (r *employeeAreaRepository) AssignAreas(ctx context.Context, employeeID str
 		})
 	}
 
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Clauses(clause.OnConflict{DoNothing: true}).
 		Create(&employeeAreas).Error
 }
@@ -75,7 +76,7 @@ func (r *employeeAreaRepository) AssignAreaWithRole(ctx context.Context, employe
 	}
 
 	// Upsert: if record exists (same employee+area), update the is_supervisor flag.
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
@@ -84,20 +85,20 @@ func (r *employeeAreaRepository) AssignAreaWithRole(ctx context.Context, employe
 }
 
 func (r *employeeAreaRepository) RemoveAreas(ctx context.Context, employeeID string, areaIDs []string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND area_id IN ?", employeeID, areaIDs).
 		Delete(&models.EmployeeArea{}).Error
 }
 
 func (r *employeeAreaRepository) RemoveAllAreas(ctx context.Context, employeeID string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Delete(&models.EmployeeArea{}).Error
 }
 
 func (r *employeeAreaRepository) GetByEmployeeID(ctx context.Context, employeeID string) ([]models.EmployeeArea, error) {
 	var areas []models.EmployeeArea
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Area").
 		Where("employee_id = ?", employeeID).
 		Find(&areas).Error
@@ -106,7 +107,7 @@ func (r *employeeAreaRepository) GetByEmployeeID(ctx context.Context, employeeID
 
 func (r *employeeAreaRepository) GetByAreaID(ctx context.Context, areaID string) ([]models.EmployeeArea, error) {
 	var areas []models.EmployeeArea
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.Division").
 		Preload("Employee.JobPosition").
@@ -117,7 +118,7 @@ func (r *employeeAreaRepository) GetByAreaID(ctx context.Context, areaID string)
 
 func (r *employeeAreaRepository) GetSupervisedAreas(ctx context.Context, employeeID string) ([]models.EmployeeArea, error) {
 	var areas []models.EmployeeArea
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Area").
 		Where("employee_id = ? AND is_supervisor = true", employeeID).
 		Find(&areas).Error
@@ -126,7 +127,7 @@ func (r *employeeAreaRepository) GetSupervisedAreas(ctx context.Context, employe
 
 func (r *employeeAreaRepository) AssignSupervisorAreas(ctx context.Context, employeeID string, areaIDs []string) error {
 	// Remove all existing supervisor assignments for this employee, then re-assign.
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND is_supervisor = true", employeeID).
 		Delete(&models.EmployeeArea{}).Error; err != nil {
 		return err
@@ -145,7 +146,7 @@ func (r *employeeAreaRepository) AssignSupervisorAreas(ctx context.Context, empl
 		})
 	}
 
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
@@ -154,7 +155,7 @@ func (r *employeeAreaRepository) AssignSupervisorAreas(ctx context.Context, empl
 }
 
 func (r *employeeAreaRepository) RemoveFromArea(ctx context.Context, employeeID, areaID string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND area_id = ?", employeeID, areaID).
 		Delete(&models.EmployeeArea{}).Error
 }
@@ -173,7 +174,7 @@ func (r *employeeAreaRepository) AssignMembersToArea(ctx context.Context, areaID
 		})
 	}
 
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
@@ -195,7 +196,7 @@ func (r *employeeAreaRepository) AssignSupervisorsToArea(ctx context.Context, ar
 		})
 	}
 
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),
@@ -205,7 +206,7 @@ func (r *employeeAreaRepository) AssignSupervisorsToArea(ctx context.Context, ar
 
 func (r *employeeAreaRepository) GetSupervisorsForArea(ctx context.Context, areaID string) ([]models.EmployeeArea, error) {
 	var assignments []models.EmployeeArea
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.Division").
 		Preload("Employee.JobPosition").
@@ -216,7 +217,7 @@ func (r *employeeAreaRepository) GetSupervisorsForArea(ctx context.Context, area
 
 func (r *employeeAreaRepository) GetMembersForArea(ctx context.Context, areaID string) ([]models.EmployeeArea, error) {
 	var assignments []models.EmployeeArea
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.Division").
 		Preload("Employee.JobPosition").

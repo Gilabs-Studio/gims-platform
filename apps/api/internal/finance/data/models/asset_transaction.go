@@ -28,6 +28,7 @@ const (
 
 type AssetTransaction struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	AssetID string `gorm:"type:uuid;not null;index" json:"asset_id"`
 	Asset   *Asset `gorm:"foreignKey:AssetID" json:"asset,omitempty"`

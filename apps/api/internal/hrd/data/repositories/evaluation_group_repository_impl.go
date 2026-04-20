@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 
@@ -21,7 +22,7 @@ func (r *evaluationGroupRepositoryImpl) FindAll(ctx context.Context, page, perPa
 	var groups []models.EvaluationGroup
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.EvaluationGroup{})
+	query := database.GetDB(ctx, r.db).Model(&models.EvaluationGroup{})
 
 	// Apply search filter (prefix search for GIN index)
 	if search != "" {
@@ -60,7 +61,7 @@ func (r *evaluationGroupRepositoryImpl) FindAll(ctx context.Context, page, perPa
 
 func (r *evaluationGroupRepositoryImpl) FindByID(ctx context.Context, id string) (*models.EvaluationGroup, error) {
 	var group models.EvaluationGroup
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&group).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&group).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -71,7 +72,7 @@ func (r *evaluationGroupRepositoryImpl) FindByID(ctx context.Context, id string)
 
 func (r *evaluationGroupRepositoryImpl) FindByIDWithCriteria(ctx context.Context, id string) (*models.EvaluationGroup, error) {
 	var group models.EvaluationGroup
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Criteria", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
@@ -86,21 +87,21 @@ func (r *evaluationGroupRepositoryImpl) FindByIDWithCriteria(ctx context.Context
 }
 
 func (r *evaluationGroupRepositoryImpl) Create(ctx context.Context, group *models.EvaluationGroup) error {
-	if err := r.db.WithContext(ctx).Create(group).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(group).Error; err != nil {
 		return fmt.Errorf("failed to create evaluation group: %w", err)
 	}
 	return nil
 }
 
 func (r *evaluationGroupRepositoryImpl) Update(ctx context.Context, group *models.EvaluationGroup) error {
-	if err := r.db.WithContext(ctx).Save(group).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(group).Error; err != nil {
 		return fmt.Errorf("failed to update evaluation group: %w", err)
 	}
 	return nil
 }
 
 func (r *evaluationGroupRepositoryImpl) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.EvaluationGroup{}).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.EvaluationGroup{}).Error; err != nil {
 		return fmt.Errorf("failed to delete evaluation group: %w", err)
 	}
 	return nil

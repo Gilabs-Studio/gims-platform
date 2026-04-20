@@ -10,6 +10,7 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -247,10 +248,11 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	scopedDB := database.GetDB(ctx, uc.db)
 
 	// Suppliers
 	var suppliers []supplierModels.Supplier
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&supplierModels.Supplier{}).
 		Preload("Contacts").
 		Where("is_active = ?", true).
@@ -267,7 +269,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	// Products grouped by supplier
 	var products []productModels.Product
 	if len(supplierIDs) > 0 {
-		if err := uc.db.WithContext(ctx).
+		if err := scopedDB.
 			Model(&productModels.Product{}).
 			Where("supplier_id IN ?", supplierIDs).
 			Where("supplier_id IS NOT NULL").
@@ -320,7 +322,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -339,7 +341,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Business units
 	var businessUnits []orgModels.BusinessUnit
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&orgModels.BusinessUnit{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -356,7 +358,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Employees (with user)
 	var employees []orgModels.Employee
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&orgModels.Employee{}).
 		Preload("User").
 		Where("is_active = ?", true).

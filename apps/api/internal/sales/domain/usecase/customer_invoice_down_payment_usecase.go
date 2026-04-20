@@ -44,6 +44,7 @@ type CustomerInvoiceDownPaymentUsecase interface {
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 	TriggerJournalForInvoiceDP(ctx context.Context, invoice *models.CustomerInvoice) error
 }
@@ -374,6 +375,43 @@ func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.approve", id, nil)
+	return uc.mapToDetail(ctx, out), nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New(errCustomerInvoiceDPDBNil)
+	}
+	var out *models.CustomerInvoice
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ci models.CustomerInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
+			return err
+		}
+		if ci.Type != models.CustomerInvoiceTypeDownPayment {
+			return ErrCustomerInvoiceNotFound
+		}
+		if ci.Status != models.CustomerInvoiceStatusDraft && ci.Status != models.CustomerInvoiceStatusSubmitted {
+			return ErrCustomerInvoiceConflict
+		}
+		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusCancelled).Error; err != nil {
+			return err
+		}
+
+		loaded, err := uc.repo.FindByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		out = loaded
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrCustomerInvoiceNotFound
+		}
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.cancel", id, map[string]interface{}{"after": out})
 	return uc.mapToDetail(ctx, out), nil
 }
 

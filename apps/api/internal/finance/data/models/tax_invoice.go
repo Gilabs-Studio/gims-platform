@@ -9,6 +9,7 @@ import (
 
 type TaxInvoice struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	TaxInvoiceNumber string    `gorm:"type:varchar(100);not null;uniqueIndex" json:"tax_invoice_number"`
 	TaxInvoiceDate   time.Time `gorm:"type:date;not null;index" json:"tax_invoice_date"`

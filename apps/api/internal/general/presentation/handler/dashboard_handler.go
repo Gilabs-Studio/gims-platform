@@ -73,7 +73,7 @@ func (h *DashboardHandler) GetLayout(c *gin.Context) {
 	}
 	if result == nil {
 		// No saved layout yet — frontend should use the default
-		errors.NotFoundResponse(c, "DASHBOARD_LAYOUT", userID)
+		response.SuccessResponse(c, nil, nil)
 		return
 	}
 

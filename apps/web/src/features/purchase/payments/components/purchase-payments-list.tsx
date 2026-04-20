@@ -11,6 +11,7 @@ import {
   Trash2,
   CheckCircle2,
   Printer,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,9 +33,9 @@ import {
   useDeletePurchasePayment,
   usePurchasePayments,
 } from "../hooks/use-purchase-payments";
-import type { PurchasePaymentListItem } from "../types";
+import type { PurchasePaymentListItem, PurchasePaymentDetail } from "../types";
 import { PurchasePaymentForm } from "./purchase-payment-form";
-import { PurchasePaymentDetail } from "./purchase-payment-detail";
+import { PurchasePaymentDetail as PurchasePaymentDetailView } from "./purchase-payment-detail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 import { PurchasePaymentPrintDialog } from "./purchase-payment-print-dialog";
 import { isAccountingMappingError } from "@/features/purchase/utils/error-utils";
@@ -51,11 +52,13 @@ export function PurchasePaymentsList() {
 
   const [deletingItem, setDeletingItem] = useState<PurchasePaymentListItem | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<PurchasePaymentDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("purchase_payment.create");
+  const canUpdate = useUserPermission("purchase_payment.update");
   const canDelete = useUserPermission("purchase_payment.delete");
   const canConfirm = useUserPermission("purchase_payment.confirm");
   const canExport = useUserPermission("purchase_payment.export");
@@ -237,6 +240,16 @@ export function PurchasePaymentsList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canUpdate && isPending && (
+                              <DropdownMenuItem
+                                onClick={() => setEditingItem(item as PurchasePaymentDetail)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {t("actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canConfirm && isPending && (
                               <DropdownMenuItem
                                 onClick={async () => {
@@ -315,7 +328,15 @@ export function PurchasePaymentsList() {
         }}
       />
 
-      <PurchasePaymentDetail
+      <PurchasePaymentForm
+        open={!!editingItem}
+        payment={editingItem ?? undefined}
+        onClose={() => {
+          setEditingItem(null);
+        }}
+      />
+
+      <PurchasePaymentDetailView
         open={detailOpen}
         paymentId={detailId}
         onClose={() => {

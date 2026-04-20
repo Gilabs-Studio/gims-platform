@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -25,20 +26,20 @@ func NewEmployeeCertificationRepository(db *gorm.DB) EmployeeCertificationReposi
 }
 
 func (r *employeeCertificationRepository) Create(ctx context.Context, certification *models.EmployeeCertification) error {
-	return r.db.WithContext(ctx).Create(certification).Error
+	return database.GetDB(ctx, r.db).Create(certification).Error
 }
 
 func (r *employeeCertificationRepository) Update(ctx context.Context, certification *models.EmployeeCertification) error {
-	return r.db.WithContext(ctx).Save(certification).Error
+	return database.GetDB(ctx, r.db).Save(certification).Error
 }
 
 func (r *employeeCertificationRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.EmployeeCertification{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.EmployeeCertification{}, "id = ?", id).Error
 }
 
 func (r *employeeCertificationRepository) FindByID(ctx context.Context, id string) (*models.EmployeeCertification, error) {
 	var certification models.EmployeeCertification
-	err := r.db.WithContext(ctx).First(&certification, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&certification, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +48,7 @@ func (r *employeeCertificationRepository) FindByID(ctx context.Context, id strin
 
 func (r *employeeCertificationRepository) FindByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeCertification, error) {
 	var certifications []*models.EmployeeCertification
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Order("issue_date DESC").
 		Find(&certifications).Error
@@ -59,7 +60,7 @@ func (r *employeeCertificationRepository) FindByEmployeeID(ctx context.Context, 
 
 func (r *employeeCertificationRepository) FindLatestByEmployeeID(ctx context.Context, employeeID string) (*models.EmployeeCertification, error) {
 	var certification models.EmployeeCertification
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND (expiry_date IS NULL OR expiry_date >= NOW())", employeeID).
 		Order("issue_date DESC").
 		First(&certification).Error

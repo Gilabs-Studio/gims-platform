@@ -61,6 +61,7 @@ const (
 
 type JournalEntry struct {
 	ID            string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CompanyID     string    `gorm:"type:uuid;index" json:"company_id,omitempty"`
 	FiscalYearID  *string   `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
 	JournalNumber string    `gorm:"type:varchar(32);index" json:"journal_number,omitempty"`

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -230,6 +230,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   });
 
   const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+  const hasAutoPopulatedRef = useRef(false);
 
   // Fetch sales order details when selected to ensure we have items
   const { data: selectedSalesOrderData } = useOrder(
@@ -285,6 +286,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
          toast.info("All items in this Sales Order have been delivered.");
          setValue("items", []);
       }
+      hasAutoPopulatedRef.current = true;
     }
 
     // Auto-populate receiver info from sales order customer
@@ -298,7 +300,14 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
 
   // Reset form when delivery data changes
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasAutoPopulatedRef.current = false;
+      return;
+    }
+
+    if (!isEdit && hasAutoPopulatedRef.current) {
+      return;
+    }
 
     if (isEdit && fullDeliveryData?.data) {
       const deliveryData = fullDeliveryData.data;

@@ -21,6 +21,7 @@ const (
 
 type StockOpname struct {
 	ID               string            `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OpnameNumber     string            `gorm:"type:varchar(50);uniqueIndex;not null"`
 	WarehouseID      string            `gorm:"type:uuid;not null;index"`
 	JournalID        *string           `gorm:"type:uuid;index"`

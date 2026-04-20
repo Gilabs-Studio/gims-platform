@@ -9,6 +9,7 @@ import (
 
 type CashBankJournalLine struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CashBankJournalID string          `gorm:"type:uuid;not null;index" json:"cash_bank_journal_id"`
 	CashBankJournal   *CashBankJournal `gorm:"foreignKey:CashBankJournalID" json:"-"`

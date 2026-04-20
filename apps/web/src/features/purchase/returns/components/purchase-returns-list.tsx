@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Eye, Plus, Search, MoreHorizontal, Send, CheckCircle2, XCircle, FileText, Trash2 } from "lucide-react";
+import { Eye, Plus, Search, MoreHorizontal, Send, CheckCircle2, XCircle, FileText, Trash2, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export function PurchaseReturnsList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingReturn, setEditingReturn] = useState<PurchaseReturn | null>(null);
   const [selected, setSelected] = useState<PurchaseReturn | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canCreate = useUserPermission("purchase_return.create");
@@ -235,6 +236,13 @@ export function PurchaseReturnsList() {
                         </DropdownMenuItem>
 
                         {canUpdate && row.status === "DRAFT" && (
+                          <DropdownMenuItem onClick={() => setEditingReturn(row)} className="cursor-pointer">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("actions.edit")}
+                          </DropdownMenuItem>
+                        )}
+
+                        {canUpdate && row.status === "DRAFT" && (
                           <DropdownMenuItem onClick={() => handleStatusChange(row.id, "SUBMITTED")} className="cursor-pointer text-primary focus:text-primary">
                             <Send className="mr-2 h-4 w-4" />
                             {t("actions.submit")}
@@ -285,6 +293,11 @@ export function PurchaseReturnsList() {
 
       <PurchaseReturnDetail open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} />
       <CreatePurchaseReturnDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <CreatePurchaseReturnDialog
+        open={!!editingReturn}
+        onOpenChange={(open) => !open && setEditingReturn(null)}
+        purchaseReturn={editingReturn ?? undefined}
+      />
       <DeleteDialog
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}

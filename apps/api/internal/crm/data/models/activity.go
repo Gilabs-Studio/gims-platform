@@ -12,6 +12,7 @@ import (
 // Activity represents an immutable log of CRM interactions
 type Activity struct {
 	ID             string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Type           string  `gorm:"type:varchar(30);not null;index" json:"type"` // visit, call, email, task, deal, lead
 	ActivityTypeID *string `gorm:"type:uuid;index" json:"activity_type_id"`
 	ActivityType   *ActivityType `gorm:"foreignKey:ActivityTypeID" json:"activity_type,omitempty"`

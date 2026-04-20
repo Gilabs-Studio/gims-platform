@@ -790,8 +790,18 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
 	}
 
-	// Auto-create customer from lead when no customer is linked yet
+	// Auto-create customer from lead when no customer is linked yet or linked customer doesn't exist
+	customerExists := true
 	if deal.CustomerID == nil || *deal.CustomerID == "" {
+		customerExists = false
+	} else {
+		_, findErr := u.customerRepo.FindByID(ctx, *deal.CustomerID)
+		if findErr != nil {
+			customerExists = false
+		}
+	}
+
+	if !customerExists {
 		if deal.Lead == nil {
 			return dto.ConvertToQuotationResponse{}, errors.New("deal customer required")
 		}
@@ -807,6 +817,7 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 			}
 		}
 		newCustomer := &customerModels.Customer{
+			ID:                    uuid.New().String(),
 			Code:                  customerCode,
 			Name:                  customerName,
 			Address:               deal.Lead.Address,

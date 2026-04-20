@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -49,12 +50,12 @@ func NewEmployeeRepository(db *gorm.DB) EmployeeRepository {
 }
 
 func (r *employeeRepository) Create(ctx context.Context, employee *models.Employee) error {
-	return r.db.WithContext(ctx).Create(employee).Error
+	return database.GetDB(ctx, r.db).Create(employee).Error
 }
 
 func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.Employee, error) {
 	var employee models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Division").
 		Preload("JobPosition").
 		Preload("Company").
@@ -71,7 +72,7 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 
 func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.Employee, error) {
 	var employees []models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Division").
 		Preload("JobPosition").
 		Preload("Company").
@@ -85,7 +86,7 @@ func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]mod
 
 func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*models.Employee, error) {
 	var employee models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Division").
 		Preload("JobPosition").
 		Preload("Company").
@@ -98,7 +99,7 @@ func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*mode
 
 func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*models.Employee, error) {
 	var employee models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Division").
 		Preload("JobPosition").
 		Preload("Company").
@@ -111,7 +112,7 @@ func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*
 
 func (r *employeeRepository) FindAll(ctx context.Context) ([]models.Employee, error) {
 	var employees []models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&employees).Error
@@ -125,7 +126,7 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	var employees []models.Employee
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Employee{})
+	query := database.GetDB(ctx, r.db).Model(&models.Employee{})
 
 	// Apply search filter
 	if searchTerm := strings.TrimSpace(params.Search); searchTerm != "" {
@@ -208,7 +209,7 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 
 func (r *employeeRepository) GetLastEmployeeCode(ctx context.Context) (string, error) {
 	var lastCode string
-	err := r.db.WithContext(ctx).Unscoped().Model(&models.Employee{}).
+	err := database.GetDB(ctx, r.db).Unscoped().Model(&models.Employee{}).
 		Select("employee_code").
 		Where("employee_code ~ '^EMP-[0-9]+$'").
 		Order("CAST(SUBSTRING(employee_code FROM 5) AS INTEGER) DESC").
@@ -230,18 +231,18 @@ func (r *employeeRepository) GetLastEmployeeCode(ctx context.Context) (string, e
 }
 
 func (r *employeeRepository) Update(ctx context.Context, employee *models.Employee) error {
-	return r.db.WithContext(ctx).Omit(clause.Associations).Save(employee).Error
+	return database.GetDB(ctx, r.db).Omit(clause.Associations).Save(employee).Error
 }
 
 func (r *employeeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Employee{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Employee{}, "id = ?", id).Error
 }
 
 // FindByRoleDataScope returns active employees whose linked user has a role with the given data_scope.
 // Used to populate outlet manager dropdowns with only eligible users.
 func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope string) ([]models.Employee, error) {
 	var employees []models.Employee
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Joins("INNER JOIN users ON users.id = employees.user_id AND users.deleted_at IS NULL").
 		Joins("INNER JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL").
 		Where("employees.is_active = ?", true).

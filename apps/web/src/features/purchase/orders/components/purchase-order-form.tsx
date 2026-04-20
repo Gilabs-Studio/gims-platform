@@ -457,6 +457,7 @@ export function PurchaseOrderForm({
 
   const handleNext = async () => {
     const fieldsToValidate: (keyof PurchaseOrderFormData)[] = ["order_date"];
+    if (source === "manual") fieldsToValidate.push("supplier_id");
     if (source === "pr") fieldsToValidate.push("purchase_requisitions_id");
     if (source === "so") fieldsToValidate.push("sales_order_id");
 

@@ -25,9 +25,10 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 
 import { purchasePaymentSchema } from "../schemas/purchase-payment.schema";
-import { useCreatePurchasePayment, usePurchasePaymentAddData } from "../hooks/use-purchase-payments";
+import { useCreatePurchasePayment, usePurchasePaymentAddData, useUpdatePurchasePayment } from "../hooks/use-purchase-payments";
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import type { PurchasePaymentDetail } from "../types";
 import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
@@ -40,6 +41,7 @@ interface PurchasePaymentFormProps {
   readonly onClose: () => void;
   readonly defaultInvoiceId?: string;
   readonly defaultDPId?: string;
+  readonly payment?: PurchasePaymentDetail;
 }
 
 type PurchasePaymentFormValues = {
@@ -62,15 +64,17 @@ function isPayableInvoiceStatus(status?: string | null): boolean {
   return PAYABLE_INVOICE_STATUSES.has(normalized);
 }
 
-export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
+export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId, payment }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
   const router = useRouter();
 
-  const isLockedToInvoice = !!defaultInvoiceId;
-  const isLockedToDP = !!defaultDPId;
+  const isEdit = !!payment;
+  const isLockedToInvoice = !!defaultInvoiceId || isEdit;
+  const isLockedToDP = !!defaultDPId && !isEdit;
 
   const createMutation = useCreatePurchasePayment();
-  const addDataQuery = usePurchasePaymentAddData({ enabled: open && !isLockedToDP });
+  const updateMutation = useUpdatePurchasePayment();
+  const addDataQuery = usePurchasePaymentAddData({ enabled: open });
 
   // Fetch DP detail when locked to a specific down payment (supplier DP)
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useSupplierInvoiceDP(defaultDPId ?? "", {
@@ -104,6 +108,20 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   useEffect(() => {
     if (!open) return;
+    if (isEdit && payment) {
+      reset({
+        invoice_id: payment.invoice?.id ?? null,
+        dp_id: null,
+        bank_account_id: payment.bank_account?.id ?? null,
+        payment_date: payment.payment_date,
+        amount: payment.amount,
+        method: payment.method,
+        reference_number: payment.reference_number ?? null,
+        notes: payment.notes ?? null,
+      });
+      return;
+    }
+
     reset({
       invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
@@ -114,7 +132,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
       reference_number: null,
       notes: null,
     });
-  }, [open, reset, defaultInvoiceId, defaultDPId]);
+  }, [open, reset, defaultInvoiceId, defaultDPId, isEdit, payment]);
 
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
@@ -146,11 +164,16 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   });
 
   const selectedInvoice = useMemo(() => {
+    if (isEdit) {
+      const detailed = selectedInvoiceDetailQuery.data?.success ? selectedInvoiceDetailQuery.data.data : null;
+      if (detailed) return detailed;
+      return payment?.invoice ?? null;
+    }
     if (!invoiceId || isLockedToDP) return null;
     if (selectedInvoiceFromAddData) return selectedInvoiceFromAddData;
     const detailed = selectedInvoiceDetailQuery.data?.success ? selectedInvoiceDetailQuery.data.data : null;
     return detailed;
-  }, [invoiceId, isLockedToDP, selectedInvoiceFromAddData, selectedInvoiceDetailQuery.data]);
+  }, [invoiceId, isLockedToDP, selectedInvoiceFromAddData, selectedInvoiceDetailQuery.data, isEdit, payment]);
 
   const payableInvoices = useMemo(
     () => invoiceOptions.filter((inv) => isPayableInvoiceStatus(inv.status)),
@@ -171,6 +194,10 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   }, [bankAccountId, bankAccountOptions]);
 
   const computedAmount = useMemo(() => {
+    if (isEdit && payment) {
+      const currentRemaining = selectedInvoice?.remaining_amount ?? payment.invoice?.remaining_amount ?? 0;
+      return currentRemaining + payment.amount;
+    }
     if (isLockedToDP && dpDetail) {
       return dpDetail.remaining_amount ?? dpDetail.amount;
     }
@@ -178,7 +205,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
       return selectedInvoice.remaining_amount ?? selectedInvoice.amount;
     }
     return undefined;
-  }, [isLockedToDP, dpDetail, selectedInvoice]);
+  }, [isEdit, payment, isLockedToDP, dpDetail, selectedInvoice]);
 
   const minimumTenderAmount = useMemo(() => {
     if (method !== "CASH") return 0;
@@ -227,8 +254,8 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     }
   }, [computedAmount, amount, method, setValue]);
 
-  const submitting = createMutation.isPending;
-  const isFetchingReference = addDataQuery.isLoading || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
+  const submitting = createMutation.isPending || updateMutation.isPending;
+  const isFetchingReference = addDataQuery.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
   return (
@@ -265,18 +292,33 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
             }
 
             try {
-              const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
-              await createMutation.mutateAsync({
-                invoice_id: invoiceIdForRequest,
-                dp_id: values.dp_id ?? null,
-                bank_account_id: values.bank_account_id ?? null,
-                payment_date: values.payment_date,
-                amount: submittedAmount,
-                method: values.method,
-                reference_number: values.reference_number ?? null,
-                notes: values.notes ?? null,
-              });
-              toast.success(t("toast.created"));
+              if (isEdit && payment) {
+                await updateMutation.mutateAsync({
+                  id: payment.id,
+                  data: {
+                    bank_account_id: values.bank_account_id ?? payment.bank_account?.id ?? "",
+                    payment_date: values.payment_date,
+                    amount: submittedAmount,
+                    method: values.method,
+                    reference_number: values.reference_number ?? null,
+                    notes: values.notes ?? null,
+                  },
+                });
+                toast.success(t("toast.updated"));
+              } else {
+                const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
+                await createMutation.mutateAsync({
+                  invoice_id: invoiceIdForRequest,
+                  dp_id: values.dp_id ?? null,
+                  bank_account_id: values.bank_account_id ?? null,
+                  payment_date: values.payment_date,
+                  amount: submittedAmount,
+                  method: values.method,
+                  reference_number: values.reference_number ?? null,
+                  notes: values.notes ?? null,
+                });
+                toast.success(t("toast.created"));
+              }
               onClose();
             } catch (error) {
               if (isAccountingMappingError(error)) {
@@ -682,7 +724,6 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               disabled={
                 submitting ||
                 isFetchingReference ||
-                addDataQuery.isLoading ||
                 isCashAmountBelowMinimum
               }
             >

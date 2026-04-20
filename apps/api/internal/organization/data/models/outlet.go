@@ -11,6 +11,7 @@ import (
 // Outlet represents a physical outlet/store location that can be linked to a warehouse
 type Outlet struct {
 	ID          string               `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code        string               `gorm:"type:varchar(50);uniqueIndex" json:"code"`
 	Name        string               `gorm:"type:varchar(200);not null;index" json:"name"`
 	Description string               `gorm:"type:text" json:"description"`

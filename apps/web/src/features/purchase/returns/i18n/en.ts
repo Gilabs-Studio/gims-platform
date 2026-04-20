@@ -3,6 +3,8 @@ export const purchaseReturnsEn = {
     title: "Purchase Returns",
     subtitle: "Manage goods returns to suppliers",
     add: "Create Return",
+    edit: "Edit Return",
+    save: "Save",
     search: "Search return number or reason",
     empty: "No purchase returns found",
     columns: {
@@ -46,6 +48,7 @@ export const purchaseReturnsEn = {
     },
     actions: {
       view: "View",
+      edit: "Edit",
       submit: "Submit",
       approve: "Approve",
       reject: "Reject",

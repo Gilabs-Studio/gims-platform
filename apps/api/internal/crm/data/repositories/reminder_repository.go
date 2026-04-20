@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -26,12 +27,12 @@ func NewReminderRepository(db *gorm.DB) ReminderRepository {
 }
 
 func (r *reminderRepository) Create(ctx context.Context, reminder *models.Reminder) error {
-	return r.db.WithContext(ctx).Create(reminder).Error
+	return database.GetDB(ctx, r.db).Create(reminder).Error
 }
 
 func (r *reminderRepository) FindByID(ctx context.Context, id string) (*models.Reminder, error) {
 	var reminder models.Reminder
-	err := r.db.WithContext(ctx).First(&reminder, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&reminder, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +41,7 @@ func (r *reminderRepository) FindByID(ctx context.Context, id string) (*models.R
 
 func (r *reminderRepository) FindByTaskID(ctx context.Context, taskID string) ([]models.Reminder, error) {
 	var reminders []models.Reminder
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("task_id = ?", taskID).
 		Order("remind_at ASC").
 		Find(&reminders).Error
@@ -48,9 +49,9 @@ func (r *reminderRepository) FindByTaskID(ctx context.Context, taskID string) ([
 }
 
 func (r *reminderRepository) Update(ctx context.Context, reminder *models.Reminder) error {
-	return r.db.WithContext(ctx).Save(reminder).Error
+	return database.GetDB(ctx, r.db).Save(reminder).Error
 }
 
 func (r *reminderRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Reminder{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Reminder{}).Error
 }

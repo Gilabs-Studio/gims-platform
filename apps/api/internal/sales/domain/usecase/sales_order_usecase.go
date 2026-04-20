@@ -582,7 +582,19 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 	// Fetch created order with relations
 	created, err := u.orderRepo.FindByID(ctx, order.ID)
 	if err != nil {
-		return nil, err
+		log.Printf("Warning: failed to fetch created order %s after conversion: %v", order.ID, err)
+		response := mapper.ToSalesOrderResponse(order, nil)
+		u.attachCustomerContactResponse(ctx, &response)
+		logSalesAudit(u.auditService, ctx, "sales_order.create", order.ID, map[string]interface{}{
+			"after": map[string]interface{}{
+				"code":               order.Code,
+				"status":             order.Status,
+				"order_date":         order.OrderDate,
+				"total_amount":       order.TotalAmount,
+				"sales_quotation_id": req.QuotationID,
+			},
+		})
+		return &response, nil
 	}
 
 	response := mapper.ToSalesOrderResponse(created, nil)

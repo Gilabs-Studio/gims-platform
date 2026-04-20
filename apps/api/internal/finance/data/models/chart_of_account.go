@@ -26,6 +26,7 @@ const (
 
 type ChartOfAccount struct {
 	ID       string      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code     string      `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Name     string      `gorm:"type:varchar(200);not null;index" json:"name"`
 	Type     AccountType `gorm:"type:varchar(20);not null;index" json:"type"`

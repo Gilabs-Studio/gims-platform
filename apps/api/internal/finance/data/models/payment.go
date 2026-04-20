@@ -17,6 +17,7 @@ const (
 
 type Payment struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	PaymentDate time.Time `gorm:"type:date;not null;index" json:"payment_date"`
 	Description string    `gorm:"type:text" json:"description"`

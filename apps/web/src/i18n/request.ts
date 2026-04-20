@@ -195,6 +195,8 @@ import { loyaltyEn } from "@/features/loyalty/i18n/en";
 import { loyaltyId } from "@/features/loyalty/i18n/id";
 import { landingEn } from "@/features/landing/i18n/en";
 import { landingId } from "@/features/landing/i18n/id";
+import { systemAdminEn } from "@/features/system-admin/i18n/en";
+import { systemAdminId } from "@/features/system-admin/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -295,6 +297,7 @@ const messages = {
     ...feedbackEn,
     ...loyaltyEn,
     ...landingEn,
+    ...systemAdminEn,
   },
   id: {
     ...globalIdMessages,
@@ -392,6 +395,7 @@ const messages = {
     ...feedbackId,
     ...loyaltyId,
     ...landingId,
+    ...systemAdminId,
   },
 } as const;
 

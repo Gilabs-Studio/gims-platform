@@ -144,6 +144,44 @@ func (h *SalesReturnHandler) Create(c *gin.Context) {
 	response.SuccessResponseCreated(c, item, nil)
 }
 
+func (h *SalesReturnHandler) Update(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": salesReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": invalidIDFormatMessage}, nil)
+		return
+	}
+
+	var req dto.UpdateSalesReturnRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		return
+	}
+
+	item, err := h.uc.Update(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrSalesReturnNotFound {
+			errors.NotFoundResponse(c, "sales_return", id)
+			return
+		}
+		if err == usecase.ErrSalesReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, item, nil)
+}
+
 func (h *SalesReturnHandler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

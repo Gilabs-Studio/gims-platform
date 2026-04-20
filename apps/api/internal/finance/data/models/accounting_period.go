@@ -16,6 +16,7 @@ const (
 
 type AccountingPeriod struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	PeriodName string                `gorm:"type:varchar(50);not null;uniqueIndex" json:"period_name"`
 	StartDate  time.Time             `gorm:"type:date;not null;index" json:"start_date"`

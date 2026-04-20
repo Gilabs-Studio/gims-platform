@@ -42,6 +42,11 @@ export const salesPaymentsService = {
     return response.data;
   },
 
+  reverse: async (id: string): Promise<ApiResponse<SalesPaymentDetail>> => {
+    const response = await apiClient.post<ApiResponse<SalesPaymentDetail>>(`${BASE_URL}/${id}/reverse`);
+    return response.data;
+  },
+
   auditTrail: async (
     id: string,
     params?: { page?: number; per_page?: number },

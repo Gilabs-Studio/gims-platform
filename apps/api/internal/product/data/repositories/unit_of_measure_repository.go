@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewUnitOfMeasureRepository(db *gorm.DB) UnitOfMeasureRepository {
 }
 
 func (r *unitOfMeasureRepository) Create(ctx context.Context, uom *models.UnitOfMeasure) error {
-	return r.db.WithContext(ctx).Create(uom).Error
+	return database.GetDB(ctx, r.db).Create(uom).Error
 }
 
 func (r *unitOfMeasureRepository) FindByID(ctx context.Context, id string) (*models.UnitOfMeasure, error) {
 	var uom models.UnitOfMeasure
-	err := r.db.WithContext(ctx).First(&uom, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&uom, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *unitOfMeasureRepository) List(ctx context.Context, params ListParams) (
 	var uoms []models.UnitOfMeasure
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.UnitOfMeasure{})
+	query := database.GetDB(ctx, r.db).Model(&models.UnitOfMeasure{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *unitOfMeasureRepository) List(ctx context.Context, params ListParams) (
 }
 
 func (r *unitOfMeasureRepository) Update(ctx context.Context, uom *models.UnitOfMeasure) error {
-	return r.db.WithContext(ctx).Save(uom).Error
+	return database.GetDB(ctx, r.db).Save(uom).Error
 }
 
 func (r *unitOfMeasureRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.UnitOfMeasure{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.UnitOfMeasure{}, "id = ?", id).Error
 }

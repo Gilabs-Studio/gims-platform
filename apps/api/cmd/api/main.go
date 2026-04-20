@@ -88,6 +88,13 @@ import (
 
 	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
+
+	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
+	tenantHandler "github.com/gilabs/gims/api/internal/tenant/presentation/handler"
+	tenantRouter "github.com/gilabs/gims/api/internal/tenant/presentation/router"
+
+	tenantScope "github.com/gilabs/gims/api/internal/core/infrastructure/tenant"
 )
 
 func initInfrastructure() {
@@ -242,6 +249,10 @@ func main() {
 	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
 
+	// SaaS: System admin & tenant repositories
+	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
+	tenantRepository := tenantRepos.NewTenantRepository(database.DB)
+
 	// Setup Services
 	permissionService := security.NewPermissionService(database.DB)
 	auditService := audit.NewAuditService(database.DB)
@@ -263,6 +274,11 @@ func main() {
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
 	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
+
+	// SaaS: System admin usecases & handler
+	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
+	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -324,9 +340,19 @@ func main() {
 	// Serve static files from uploads directory
 	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
+	// SaaS: Register system admin routes (completely separate from tenant API)
+	tenantRouter.RegisterSystemAdminRoutes(r, sysAdminH, jwtManager, sysAdminRepository)
+
+	// SaaS: Register tenant auto-inject callback on Create
+	tenantScope.SetTenantCallback(database.DB)
+
 	// API v1 routes
 	var autoAbsentWorker *hrdWorker.AutoAbsentWorker
 	v1 := r.Group("/api/v1")
+	// TenantResolverMiddleware is intentionally NOT registered here.
+	// Tenant isolation is now handled by AuthMiddleware, which reads tenant_id
+	// directly from the JWT claim and sets it in context before any handler runs.
+	// This eliminates the middleware ordering bug where TenantResolver ran before Auth.
 	{
 		v1.GET("/", func(c *gin.Context) {
 			response.SuccessResponse(c, gin.H{

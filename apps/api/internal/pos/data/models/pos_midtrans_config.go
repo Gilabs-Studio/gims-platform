@@ -29,6 +29,7 @@ const (
 // All digital payments route through this sub-account via the for-user-id header.
 type XenditConfig struct {
 	ID               string                 `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CompanyID        string                 `gorm:"type:uuid;not null;uniqueIndex" json:"company_id"`
 	SecretKey        string                 `gorm:"type:varchar(255);not null" json:"-"` // never expose in response
 	XenditAccountID  string                 `gorm:"type:varchar(255)" json:"xendit_account_id"` // sub-account ID for XenPlatform routing

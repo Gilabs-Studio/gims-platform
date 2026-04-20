@@ -942,7 +942,7 @@ func (uc *travelPlanUsecase) CreateVisitPlannerPlan(ctx context.Context, req *dt
 		}
 	}
 	if len(resolved) == 0 {
-		return nil, errors.New("no valid checkpoints")
+		return nil, ErrInvalidCheckpoint
 	}
 
 	ordered := optimizeVisitCheckpoints(resolved)
@@ -1174,26 +1174,32 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		checkpointID = fmt.Sprintf("checkpoint-%d", index+1)
 	}
 
-	if input.Lat != nil && input.Lng != nil {
+	hasCoords := input.Lat != nil && input.Lng != nil
+	if hasCoords {
 		if *input.Lat < -90 || *input.Lat > 90 || *input.Lng < -180 || *input.Lng > 180 {
 			return nil, "", ErrInvalidCoordinate
 		}
+	}
+
+	refID := ""
+	if input.RefID != nil {
+		refID = strings.TrimSpace(*input.RefID)
+	}
+	typeName := strings.TrimSpace(input.Type)
+
+	if refID == "" {
+		if !hasCoords {
+			return nil, "", ErrInvalidCheckpoint
+		}
 		return &resolvedNavigationCheckpoint{
 			CheckpointID: checkpointID,
-			Type:         strings.TrimSpace(input.Type),
-			RefID:        input.RefID,
+			Type:         typeName,
+			RefID:        nil,
 			Lat:          *input.Lat,
 			Lng:          *input.Lng,
-			Label:        strings.TrimSpace(input.Type),
+			Label:        typeName,
 		}, "", nil
 	}
-
-	if input.RefID == nil || strings.TrimSpace(*input.RefID) == "" {
-		return nil, fmt.Sprintf("Checkpoint %s is missing location coordinates", checkpointID), nil
-	}
-
-	refID := strings.TrimSpace(*input.RefID)
-	typeName := strings.TrimSpace(input.Type)
 
 	switch typeName {
 	case "lead":
@@ -1214,33 +1220,36 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, fmt.Sprintf("Lead %s not found", refID), nil
+				return nil, "", ErrInvalidCheckpoint
 			}
 			return nil, "", err
 		}
 
 		if scope != "ALL" && effectiveEmployeeID != "" {
 			if row.AssignedTo == nil || strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
-				return nil, fmt.Sprintf("Lead %s is outside your scope", refID), nil
+				return nil, "", ErrInvalidCheckpoint
 			}
 		}
-		if row.Latitude == nil || row.Longitude == nil {
-			label := strings.TrimSpace(row.Company)
-			if label == "" {
-				label = strings.TrimSpace(strings.TrimSpace(row.FirstName) + " " + strings.TrimSpace(row.LastName))
+
+		lat := 0.0
+		lng := 0.0
+		if hasCoords {
+			lat = *input.Lat
+			lng = *input.Lng
+		} else {
+			if row.Latitude == nil || row.Longitude == nil {
+				return nil, "", ErrInvalidCheckpoint
 			}
-			if label == "" {
-				label = refID
-			}
-			return nil, fmt.Sprintf("Lead %s has no location", label), nil
+			lat = *row.Latitude
+			lng = *row.Longitude
 		}
 
 		return &resolvedNavigationCheckpoint{
 			CheckpointID: checkpointID,
 			Type:         typeName,
 			RefID:        &refID,
-			Lat:          *row.Latitude,
-			Lng:          *row.Longitude,
+			Lat:          lat,
+			Lng:          lng,
 			Label:        strings.TrimSpace(row.Company),
 		}, "", nil
 	case "deal":
@@ -1261,30 +1270,36 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, fmt.Sprintf("Deal %s not found", refID), nil
+				return nil, "", ErrInvalidCheckpoint
 			}
 			return nil, "", err
 		}
 
 		if scope != "ALL" && effectiveEmployeeID != "" {
 			if row.AssignedTo == nil || strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
-				return nil, fmt.Sprintf("Deal %s is outside your scope", refID), nil
+				return nil, "", ErrInvalidCheckpoint
 			}
 		}
-		if row.Latitude == nil || row.Longitude == nil {
-			label := strings.TrimSpace(row.Title)
-			if label == "" {
-				label = refID
+
+		lat := 0.0
+		lng := 0.0
+		if hasCoords {
+			lat = *input.Lat
+			lng = *input.Lng
+		} else {
+			if row.Latitude == nil || row.Longitude == nil {
+				return nil, "", ErrInvalidCheckpoint
 			}
-			return nil, fmt.Sprintf("Deal %s has no location", label), nil
+			lat = *row.Latitude
+			lng = *row.Longitude
 		}
 
 		return &resolvedNavigationCheckpoint{
 			CheckpointID: checkpointID,
 			Type:         typeName,
 			RefID:        &refID,
-			Lat:          *row.Latitude,
-			Lng:          *row.Longitude,
+			Lat:          lat,
+			Lng:          lng,
 			Label:        strings.TrimSpace(row.Title),
 		}, "", nil
 	case "customer":
@@ -1302,29 +1317,34 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, fmt.Sprintf("Customer %s not found", refID), nil
+				return nil, "", ErrInvalidCheckpoint
 			}
 			return nil, "", err
 		}
 
-		if row.Latitude == nil || row.Longitude == nil {
-			label := strings.TrimSpace(row.Name)
-			if label == "" {
-				label = refID
+		lat := 0.0
+		lng := 0.0
+		if hasCoords {
+			lat = *input.Lat
+			lng = *input.Lng
+		} else {
+			if row.Latitude == nil || row.Longitude == nil {
+				return nil, "", ErrInvalidCheckpoint
 			}
-			return nil, fmt.Sprintf("Customer %s has no location", label), nil
+			lat = *row.Latitude
+			lng = *row.Longitude
 		}
 
 		return &resolvedNavigationCheckpoint{
 			CheckpointID: checkpointID,
 			Type:         typeName,
 			RefID:        &refID,
-			Lat:          *row.Latitude,
-			Lng:          *row.Longitude,
+			Lat:          lat,
+			Lng:          lng,
 			Label:        strings.TrimSpace(row.Name),
 		}, "", nil
 	default:
-		return nil, "", errors.New("invalid checkpoint type")
+		return nil, "", ErrInvalidCheckpoint
 	}
 }
 

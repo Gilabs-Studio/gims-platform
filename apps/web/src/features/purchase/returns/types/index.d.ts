@@ -101,6 +101,24 @@ export interface CreatePurchaseReturnInput {
   items: CreatePurchaseReturnItemInput[];
 }
 
+export interface UpdatePurchaseReturnItemInput {
+  goods_receipt_item_id?: string;
+  product_id: string;
+  uom_id?: string;
+  condition: string;
+  notes?: string;
+  qty: number;
+  unit_cost: number;
+}
+
+export interface UpdatePurchaseReturnInput {
+  warehouse_id: string;
+  reason: string;
+  action: string;
+  notes?: string;
+  items: UpdatePurchaseReturnItemInput[];
+}
+
 export interface UpdatePurchaseReturnStatusInput {
   status: PurchaseReturnStatus;
 }

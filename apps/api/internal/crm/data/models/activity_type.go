@@ -10,6 +10,7 @@ import (
 // ActivityType represents dynamic activity classification (Visit, Call, Email, Meeting, etc.)
 type ActivityType struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
 	Code        string         `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
 	Description string         `gorm:"type:text" json:"description"`

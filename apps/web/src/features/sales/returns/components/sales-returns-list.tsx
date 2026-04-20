@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Eye, Plus, Search, MoreHorizontal, Send, CheckCircle2, XCircle, FileText, Trash2 } from "lucide-react";
+import { Eye, Plus, Search, MoreHorizontal, Send, CheckCircle2, XCircle, FileText, Trash2, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,8 @@ export function SalesReturnsList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<SalesReturn | null>(null);
   const [selected, setSelected] = useState<SalesReturn | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canCreate = useUserPermission("sales_return.create");
@@ -228,6 +230,19 @@ export function SalesReturnsList() {
                         </DropdownMenuItem>
 
                         {canUpdate && row.status === "DRAFT" && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingItem(row);
+                              setIsEditOpen(true);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("actions.edit")}
+                          </DropdownMenuItem>
+                        )}
+
+                        {canUpdate && row.status === "DRAFT" && (
                           <DropdownMenuItem onClick={() => handleStatusChange(row.id, "SUBMITTED")} className="cursor-pointer text-primary focus:text-primary">
                             <Send className="mr-2 h-4 w-4" />
                             {t("actions.submit")}
@@ -247,7 +262,7 @@ export function SalesReturnsList() {
                           </>
                         )}
 
-                        {canDelete && (row.status === "DRAFT" || row.status === "REJECTED") && (
+                        {canDelete && (row.status === "DRAFT" || row.status === "REJECTED" || row.status === "PROCESSED") && (
                           <DropdownMenuItem onClick={() => setDeletingId(row.id)} className="cursor-pointer text-destructive focus:text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" />
                             {t("actions.delete")}
@@ -278,6 +293,14 @@ export function SalesReturnsList() {
 
       <SalesReturnDetail open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} />
       <CreateSalesReturnDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <CreateSalesReturnDialog
+        open={isEditOpen}
+        onOpenChange={(open) => {
+          setIsEditOpen(open);
+          if (!open) setEditingItem(null);
+        }}
+        salesReturn={editingItem ?? undefined}
+      />
       <DeleteDialog
         open={!!deletingId}
         onOpenChange={(open) => !open && setDeletingId(null)}

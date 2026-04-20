@@ -292,6 +292,8 @@ func SeedEmployees() error {
 	}
 
 	for _, e := range employees {
+		e.TenantID = DefaultTenantID
+
 		// 1. Check if record with same EmployeeCode exists but different ID
 		var existing models.Employee
 		err := db.Unscoped().Where("employee_code = ?", e.EmployeeCode).First(&existing).Error
@@ -345,6 +347,8 @@ func SeedEmployees() error {
 	}
 
 	for _, ea := range employeeAreas {
+		ea.TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "employee_id"}, {Name: "area_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"is_supervisor"}),

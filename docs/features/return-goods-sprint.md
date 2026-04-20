@@ -120,6 +120,7 @@ apps/web/src/features/purchase/returns/
 | POST | `/api/v1/sales/returns` | `sales.return.create` | Create sales return + stock adjustment + accounting hook |
 | GET | `/api/v1/sales/returns` | `sales.return.read` | List sales returns dengan filter |
 | GET | `/api/v1/sales/returns/:id` | `sales.return.read` | Detail sales return |
+| PUT | `/api/v1/sales/returns/:id` | `sales.return.update` | Update sales return (DRAFT only) + replace items |
 
 ### Purchase Return
 
@@ -129,6 +130,7 @@ apps/web/src/features/purchase/returns/
 | POST | `/api/v1/purchase/returns` | `purchase.return.create` | Create purchase return + stock adjustment + accounting hook |
 | GET | `/api/v1/purchase/returns` | `purchase.return.read` | List purchase returns dengan filter |
 | GET | `/api/v1/purchase/returns/:id` | `purchase.return.read` | Detail purchase return |
+| PUT | `/api/v1/purchase/returns/:id` | `purchase.return.update` | Update purchase return (DRAFT only) + replace items |
 
 ## Request/Response Schemas
 
@@ -275,7 +277,9 @@ apps/web/src/features/purchase/returns/
   - `useSalesReturnsList`
   - `useSalesReturnDetail`
   - `useCreateSalesReturn`
+  - `useUpdateSalesReturn`
   - `useSalesReturnFormData`
+- Edit mode: reuse `SalesReturnForm` dengan prop `salesReturn`. Delivery ID di-lock, item eligible qty dihitung ulang dengan menambahkan kuantitas return yang sedang diedit agar validasi tidak menolak perubahan qty sendiri.
 
 ### Purchase UI dan Integrasi
 
@@ -288,7 +292,9 @@ apps/web/src/features/purchase/returns/
   - `usePurchaseReturnsList`
   - `usePurchaseReturnDetail`
   - `useCreatePurchaseReturn`
+  - `useUpdatePurchaseReturn`
   - `usePurchaseReturnFormData`
+- Edit mode: reuse `PurchaseReturnForm` dengan prop `purchaseReturn`. Goods Receipt ID di-lock, item eligible qty dihitung ulang dengan menambahkan kuantitas return yang sedang diedit agar validasi tidak menolak perubahan qty sendiri.
 
 ### Catatan Implementasi Frontend
 
@@ -337,8 +343,10 @@ apps/web/src/features/purchase/returns/
 3. Klik aksi `Create Return`.
 4. Pilih item, qty, reason, condition, dan action (`REFUND`/`CREDIT_NOTE`/`REPLACEMENT`).
 5. Submit dan verifikasi return number terbentuk.
-6. Verifikasi stok warehouse bertambah sesuai qty return.
-7. Verifikasi credit note/journal terbentuk untuk action finance.
+6. Dari list return, klik aksi `Edit` pada return dengan status **DRAFT**.
+7. Ubah qty, notes, atau action, lalu klik **Update**. Verifikasi data berhasil diperbarui dan list refresh.
+8. Verifikasi stok warehouse bertambah sesuai qty return.
+9. Verifikasi credit note/journal terbentuk untuk action finance.
 
 ### Purchase Return
 

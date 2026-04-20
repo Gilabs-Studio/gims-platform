@@ -20,6 +20,7 @@ func RegisterCustomerInvoiceDownPaymentRoutes(router *gin.RouterGroup, h *handle
 		group.POST("", h.Create)
 		group.POST("/:id/pending", h.Pending)
 		group.POST("/:id/approve", middleware.RequirePermission("customer_invoice_dp.approve"), h.Approve)
+		group.POST("/:id/cancel", middleware.RequirePermission("customer_invoice_dp.cancel"), h.Cancel)
 
 		group.PUT("/:id", h.Update)
 		group.DELETE("/:id", h.Delete)

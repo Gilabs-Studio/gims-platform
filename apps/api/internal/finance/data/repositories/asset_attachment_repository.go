@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -45,13 +46,13 @@ func (r *assetAttachmentRepository) Create(ctx context.Context, attachment *mode
 	attachment.UpdatedAt = time.Now()
 	attachment.UploadedAt = time.Now()
 
-	return r.db.WithContext(ctx).Create(attachment).Error
+	return database.GetDB(ctx, r.db).Create(attachment).Error
 }
 
 // GetByID retrieves an attachment by ID
 func (r *assetAttachmentRepository) GetByID(ctx context.Context, id string) (*models.AssetAttachment, error) {
 	var attachment models.AssetAttachment
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		First(&attachment).Error
 
@@ -68,7 +69,7 @@ func (r *assetAttachmentRepository) GetByID(ctx context.Context, id string) (*mo
 // GetByAssetID retrieves all attachments for an asset
 func (r *assetAttachmentRepository) GetByAssetID(ctx context.Context, assetID string) ([]models.AssetAttachment, error) {
 	var attachments []models.AssetAttachment
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("created_at DESC").
 		Find(&attachments).Error
@@ -79,19 +80,19 @@ func (r *assetAttachmentRepository) GetByAssetID(ctx context.Context, assetID st
 // Update updates an attachment record
 func (r *assetAttachmentRepository) Update(ctx context.Context, attachment *models.AssetAttachment) error {
 	attachment.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(attachment).Error
+	return database.GetDB(ctx, r.db).Save(attachment).Error
 }
 
 // Delete soft deletes an attachment
 func (r *assetAttachmentRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		Delete(&models.AssetAttachment{}).Error
 }
 
 // DeleteByAssetID deletes all attachments for an asset
 func (r *assetAttachmentRepository) DeleteByAssetID(ctx context.Context, assetID string) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Delete(&models.AssetAttachment{}).Error
 }
@@ -99,7 +100,7 @@ func (r *assetAttachmentRepository) DeleteByAssetID(ctx context.Context, assetID
 // CountByAssetID returns the number of attachments for an asset
 func (r *assetAttachmentRepository) CountByAssetID(ctx context.Context, assetID string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.AssetAttachment{}).
 		Where("asset_id = ?", assetID).
 		Count(&count).Error
@@ -110,7 +111,7 @@ func (r *assetAttachmentRepository) CountByAssetID(ctx context.Context, assetID 
 // GetTotalSizeByAssetID returns the total file size of attachments for an asset
 func (r *assetAttachmentRepository) GetTotalSizeByAssetID(ctx context.Context, assetID string) (int64, error) {
 	var totalSize int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.AssetAttachment{}).
 		Where("asset_id = ?", assetID).
 		Select("COALESCE(SUM(file_size), 0)").

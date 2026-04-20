@@ -65,6 +65,12 @@ export const getQuotationSchema = (t?: TranslationFn) => z.object({
   notes: z.string().optional(),
   items: z.array(getQuotationItemSchema(t))
     .min(1, getMsg(t, "validation.itemsMin", "At least one item is required")),
+}).refine((data) => {
+  if (!data.valid_until || !data.quotation_date) return true;
+  return data.valid_until >= data.quotation_date;
+}, {
+  message: getMsg(t, "validation.validUntilBeforeQuotationDate", "Valid until date must not be earlier than quotation date"),
+  path: ["valid_until"],
 });
 
 export const getUpdateQuotationSchema = (t?: TranslationFn) => getQuotationSchema(t).partial().extend({

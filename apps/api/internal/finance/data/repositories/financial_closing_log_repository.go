@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -20,5 +21,5 @@ func NewFinancialClosingLogRepository(db *gorm.DB) FinancialClosingLogRepository
 }
 
 func (r *financialClosingLogRepository) Create(ctx context.Context, log *financeModels.FinancialClosingLog) error {
-	return r.db.WithContext(ctx).Create(log).Error
+	return database.GetDB(ctx, r.db).Create(log).Error
 }

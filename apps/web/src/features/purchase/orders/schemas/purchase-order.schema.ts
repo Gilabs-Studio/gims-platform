@@ -31,6 +31,13 @@ export const purchaseOrderSchema = z.object({
   const so = val.sales_order_id;
 
   if (val.source === "manual") {
+    if (!val.supplier_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["supplier_id"],
+        message: "Required",
+      });
+    }
     if (pr) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

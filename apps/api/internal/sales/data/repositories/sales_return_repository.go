@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -10,21 +11,22 @@ import (
 )
 
 type SalesReturnListParams struct {
-	Search    string
-	Status    string
-	Action    string
-	InvoiceID string
+	Search     string
+	Status     string
+	Action     string
+	InvoiceID  string
 	DeliveryID string
-	SortBy    string
-	SortDir   string
-	Limit     int
-	Offset    int
+	SortBy     string
+	SortDir    string
+	Limit      int
+	Offset     int
 }
 
 type SalesReturnRepository interface {
 	List(ctx context.Context, params SalesReturnListParams) ([]*models.SalesReturn, int64, error)
 	GetByID(ctx context.Context, id string) (*models.SalesReturn, error)
 	Create(ctx context.Context, row *models.SalesReturn) error
+	Update(ctx context.Context, id string, row *models.SalesReturn) error
 	UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error
 	Delete(ctx context.Context, id string) error
 }
@@ -49,7 +51,7 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 	rows := make([]*models.SalesReturn, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.SalesReturn{}).Preload("Items")
+	q := database.GetDB(ctx, r.db).Model(&models.SalesReturn{}).Preload("Items")
 	q = security.ApplyScopeFilter(q, ctx, security.SalesScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
@@ -99,23 +101,54 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 
 func (r *salesReturnRepository) GetByID(ctx context.Context, id string) (*models.SalesReturn, error) {
 	var row models.SalesReturn
-	if err := r.db.WithContext(ctx).Preload("Items").First(&row, salesReturnIDFilter, id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("Items").First(&row, salesReturnIDFilter, id).Error; err != nil {
 		return nil, err
 	}
 	return &row, nil
 }
 
 func (r *salesReturnRepository) Create(ctx context.Context, row *models.SalesReturn) error {
-	return r.db.WithContext(ctx).Create(row).Error
+	return database.GetDB(ctx, r.db).Create(row).Error
+}
+
+func (r *salesReturnRepository) Update(ctx context.Context, id string, row *models.SalesReturn) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		// Update header fields
+		if err := tx.Model(&models.SalesReturn{}).Where(salesReturnIDFilter, id).Updates(map[string]interface{}{
+			"invoice_id":   row.InvoiceID,
+			"warehouse_id": row.WarehouseID,
+			"customer_id":  row.CustomerID,
+			"reason":       row.Reason,
+			"action":       row.Action,
+			"notes":        row.Notes,
+			"total_amount": row.TotalAmount,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Replace items: delete existing, insert new
+		if err := tx.Where("sales_return_id = ?", id).Delete(&models.SalesReturnItem{}).Error; err != nil {
+			return err
+		}
+
+		for i := range row.Items {
+			row.Items[i].SalesReturnID = id
+			if err := tx.Create(&row.Items[i]).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *salesReturnRepository) UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&models.SalesReturn{}).
 		Where(salesReturnIDFilter, id).
 		Update("status", status).Error
 }
 
 func (r *salesReturnRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SalesReturn{}, salesReturnIDFilter, id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.SalesReturn{}, salesReturnIDFilter, id).Error
 }

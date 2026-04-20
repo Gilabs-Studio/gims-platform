@@ -6,6 +6,8 @@ export const customerInvoiceDPId = {
     created: "DP faktur berhasil dibuat",
     updated: "DP faktur berhasil diperbarui",
     submitted: "DP faktur berhasil diajukan",
+    approved: "DP faktur berhasil disetujui",
+    cancelled: "DP faktur berhasil dibatalkan",
     deleted: "DP faktur berhasil dihapus",
     failed: "Terjadi kesalahan",
   },
@@ -105,5 +107,10 @@ export const customerInvoiceDPId = {
   common: {
     cancel: "Batal",
     error: "Terjadi kesalahan",
+  },
+  validation: {
+    required: "Field ini wajib diisi",
+    invalidId: "ID tidak valid",
+    amountPositive: "Jumlah harus lebih besar dari 0",
   },
 };

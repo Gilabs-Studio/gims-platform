@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"sync"
 	"time"
@@ -51,7 +52,7 @@ func (r *financeSettingRepository) GetByKey(ctx context.Context, key string) (st
 
 	// Cache miss — read from DB
 	var setting financeModels.FinanceSetting
-	if err := r.db.WithContext(ctx).Where("setting_key = ?", key).First(&setting).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("setting_key = ?", key).First(&setting).Error; err != nil {
 		return "", err
 	}
 
@@ -67,7 +68,7 @@ func (r *financeSettingRepository) GetByKey(ctx context.Context, key string) (st
 // Used for validation and audit purposes.
 func (r *financeSettingRepository) FindByKey(ctx context.Context, key string) (*financeModels.FinanceSetting, error) {
 	var setting financeModels.FinanceSetting
-	if err := r.db.WithContext(ctx).Where("setting_key = ?", key).First(&setting).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("setting_key = ?", key).First(&setting).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -79,7 +80,7 @@ func (r *financeSettingRepository) FindByKey(ctx context.Context, key string) (*
 // GetAll returns all finance settings.
 func (r *financeSettingRepository) GetAll(ctx context.Context) ([]financeModels.FinanceSetting, error) {
 	var settings []financeModels.FinanceSetting
-	if err := r.db.WithContext(ctx).Order("category, setting_key").Find(&settings).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Order("category, setting_key").Find(&settings).Error; err != nil {
 		return nil, err
 	}
 	return settings, nil
@@ -95,16 +96,16 @@ func (r *financeSettingRepository) Upsert(ctx context.Context, key, value, descr
 		Category:    category,
 	}
 
-	result := r.db.WithContext(ctx).
+	result := database.GetDB(ctx, r.db).
 		Where("setting_key = ?", key).
 		First(&financeModels.FinanceSetting{})
 
 	if result.Error == gorm.ErrRecordNotFound {
-		if err := r.db.WithContext(ctx).Create(&setting).Error; err != nil {
+		if err := database.GetDB(ctx, r.db).Create(&setting).Error; err != nil {
 			return err
 		}
 	} else if result.Error == nil {
-		if err := r.db.WithContext(ctx).
+		if err := database.GetDB(ctx, r.db).
 			Model(&financeModels.FinanceSetting{}).
 			Where("setting_key = ?", key).
 			Updates(map[string]interface{}{

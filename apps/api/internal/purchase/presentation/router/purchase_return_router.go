@@ -19,6 +19,7 @@ func RegisterPurchaseReturnRoutes(r *gin.RouterGroup, h *handler.PurchaseReturnH
 	g.GET("", middleware.RequirePermission(purchaseReturnReadPermission), h.List)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseReturnReadPermission), h.AuditTrail)
 	g.POST("", middleware.RequirePermission(purchaseReturnCreatePermission), h.Create)
+	g.PUT("/:id", middleware.RequirePermission(purchaseReturnUpdatePermission), h.Update)
 	g.PATCH("/:id/status", middleware.RequirePermission(purchaseReturnUpdatePermission), h.UpdateStatus)
 	g.PATCH("/:id/submit", middleware.RequirePermission(purchaseReturnUpdatePermission), h.Submit)
 	g.PATCH("/:id/confirm", middleware.RequirePermission(purchaseReturnUpdatePermission), h.Confirm)

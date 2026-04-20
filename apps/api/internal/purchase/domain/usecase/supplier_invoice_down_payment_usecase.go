@@ -68,7 +68,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	// Fetch APPROVED POs for DP creation.
 	// DP can be created before GR/regular supplier invoice exists.
 	var pos []*models.PurchaseOrder
-	err := uc.db.WithContext(ctx).
+	err := database.GetDB(ctx, uc.db).
 		Where("status = ?", models.PurchaseOrderStatusApproved).
 		Preload("Items").
 		Preload("Items.Product").

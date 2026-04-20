@@ -10,6 +10,7 @@ import (
 // SalesVisitInterestQuestion represents a survey question for scoring interest
 type SalesVisitInterestQuestion struct {
 	ID           string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	QuestionText string `gorm:"type:text;not null" json:"question_text"`
 	IsActive     bool   `gorm:"default:true" json:"is_active"`
 	Sequence     int    `gorm:"default:0" json:"sequence"`

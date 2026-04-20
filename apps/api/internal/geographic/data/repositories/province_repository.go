@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
@@ -30,7 +29,7 @@ func NewProvinceRepository(db *gorm.DB) ProvinceRepository {
 }
 
 func (r *provinceRepository) getDB(ctx context.Context) *gorm.DB {
-	return database.GetDB(ctx, r.db)
+	return r.db.WithContext(ctx)
 }
 
 func (r *provinceRepository) FindByID(ctx context.Context, id string) (*models.Province, error) {

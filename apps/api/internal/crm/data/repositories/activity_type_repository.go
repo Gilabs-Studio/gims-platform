@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -27,12 +28,12 @@ func NewActivityTypeRepository(db *gorm.DB) ActivityTypeRepository {
 }
 
 func (r *activityTypeRepository) Create(ctx context.Context, actType *models.ActivityType) error {
-	return r.db.WithContext(ctx).Create(actType).Error
+	return database.GetDB(ctx, r.db).Create(actType).Error
 }
 
 func (r *activityTypeRepository) FindByID(ctx context.Context, id string) (*models.ActivityType, error) {
 	var actType models.ActivityType
-	err := r.db.WithContext(ctx).First(&actType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&actType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (r *activityTypeRepository) List(ctx context.Context, params ListParams) ([
 	var actTypes []models.ActivityType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ActivityType{})
+	query := database.GetDB(ctx, r.db).Model(&models.ActivityType{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -84,16 +85,16 @@ func (r *activityTypeRepository) List(ctx context.Context, params ListParams) ([
 }
 
 func (r *activityTypeRepository) Update(ctx context.Context, actType *models.ActivityType) error {
-	return r.db.WithContext(ctx).Save(actType).Error
+	return database.GetDB(ctx, r.db).Save(actType).Error
 }
 
 func (r *activityTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ActivityType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ActivityType{}, "id = ?", id).Error
 }
 
 func (r *activityTypeRepository) GetMaxOrder(ctx context.Context) (int, error) {
 	var maxOrder int
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.ActivityType{}).
 		Select(`COALESCE(MAX("order"), 0)`).
 		Scan(&maxOrder).Error

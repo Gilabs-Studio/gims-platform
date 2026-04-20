@@ -14,12 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 import { useGoodsReceipt, useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
-import { useCreatePurchaseReturn, usePurchaseReturnFormDataLazy, usePurchaseReturns, useWarehouseInventoryAvailability } from "../hooks/use-purchase-returns";
+import { useCreatePurchaseReturn, usePurchaseReturnFormDataLazy, usePurchaseReturns, useUpdatePurchaseReturn, useWarehouseInventoryAvailability } from "../hooks/use-purchase-returns";
 import { purchaseReturnSchema, type PurchaseReturnFormData } from "../schemas/purchase-return.schema";
+import type { PurchaseReturn } from "../types";
 
 interface PurchaseReturnFormProps {
   readonly open: boolean;
   readonly defaultGoodsReceiptId?: string;
+  readonly purchaseReturn?: PurchaseReturn;
   readonly onSuccess?: () => void;
 }
 
@@ -41,13 +43,15 @@ const formatQty = (value: number) =>
     maximumFractionDigits: 3,
   }).format(value);
 
-export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: PurchaseReturnFormProps) {
+export function PurchaseReturnForm({ open, defaultGoodsReceiptId, purchaseReturn, onSuccess }: PurchaseReturnFormProps) {
   const t = useTranslations("purchaseReturns");
-  const isGoodsReceiptLocked = !!defaultGoodsReceiptId;
+  const isEdit = !!purchaseReturn;
+  const isGoodsReceiptLocked = !!defaultGoodsReceiptId || isEdit;
 
   const { data: formDataResponse } = usePurchaseReturnFormDataLazy({ enabled: open });
-  const { data: goodsReceiptsResponse } = useGoodsReceipts({ per_page: 20 }, { enabled: open });
+  const { data: goodsReceiptsResponse } = useGoodsReceipts({ per_page: 20 }, { enabled: open && !isEdit });
   const createMutation = useCreatePurchaseReturn();
+  const updateMutation = useUpdatePurchaseReturn();
 
   const form = useForm<PurchaseReturnFormData>({
     resolver: zodResolver(purchaseReturnSchema),
@@ -143,8 +147,20 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
       });
     });
 
+    // In edit mode, subtract current return's quantities so they can be reallocated
+    if (isEdit && purchaseReturn) {
+      purchaseReturn.items.forEach((item) => {
+        const productId = item.product_id ?? "";
+        if (!productId) {
+          return;
+        }
+        const current = map.get(productId) ?? 0;
+        map.set(productId, Math.max(0, current - (item.qty ?? 0)));
+      });
+    }
+
     return map;
-  }, [returnHistory]);
+  }, [returnHistory, isEdit, purchaseReturn]);
 
   const warehouseAvailableQtyByProduct = useMemo(() => {
     const map = new Map<string, number>();
@@ -159,6 +175,10 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
   }, [warehouseInventoryProducts]);
 
   const eligibleItems = useMemo<EligibleItem[]>(() => {
+    const currentReturnProductIds = new Set(
+      (isEdit && purchaseReturn ? purchaseReturn.items : []).map((item) => item.product_id).filter(Boolean)
+    );
+
     return goodsReceiptItems
       .map((item) => {
         const productId = item.product?.id ?? "";
@@ -166,7 +186,10 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
         const returnedQty = returnedQtyByProduct.get(productId) ?? 0;
         const sourceAvailableQty = Math.max(0, receivedQty - returnedQty);
         const warehouseAvailableQty = warehouseAvailableQtyByProduct.get(productId) ?? 0;
-        const availableQty = Math.max(0, Math.min(sourceAvailableQty, warehouseAvailableQty));
+        const isInCurrentReturn = currentReturnProductIds.has(productId);
+        const availableQty = isInCurrentReturn
+          ? sourceAvailableQty
+          : Math.max(0, Math.min(sourceAvailableQty, warehouseAvailableQty));
 
         return {
           goodsReceiptItemID: item.id,
@@ -180,8 +203,8 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
           dealCost: dealCostByProduct.get(productId) ?? 0,
         };
       })
-      .filter((item) => item.productId && item.availableQty > 0);
-  }, [goodsReceiptItems, returnedQtyByProduct, warehouseAvailableQtyByProduct, dealCostByProduct]);
+      .filter((item) => item.productId && (item.availableQty > 0 || (isEdit && currentReturnProductIds.has(item.productId))));
+  }, [goodsReceiptItems, returnedQtyByProduct, warehouseAvailableQtyByProduct, dealCostByProduct, isEdit, purchaseReturn]);
 
   const eligibleItemMap = useMemo(() => {
     const map = new Map<string, EligibleItem>();
@@ -196,13 +219,38 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
   const watchedItems = useWatch({ control, name: "items" });
 
   useEffect(() => {
+    if (isEdit) return;
     if (!selectedGoodsReceiptId && defaultGoodsReceiptId) {
       form.setValue("goods_receipt_id", defaultGoodsReceiptId);
     }
-  }, [selectedGoodsReceiptId, defaultGoodsReceiptId, form]);
+  }, [selectedGoodsReceiptId, defaultGoodsReceiptId, form, isEdit]);
 
   useEffect(() => {
-    if (!selectedGoodsReceiptId) {
+    if (!open) return;
+    if (isEdit && purchaseReturn) {
+      form.reset({
+        goods_receipt_id: purchaseReturn.goods_receipt_id,
+        purchase_order_id: purchaseReturn.purchase_order_id ?? "",
+        supplier_id: purchaseReturn.supplier_id ?? "",
+        warehouse_id: purchaseReturn.warehouse_id,
+        reason: purchaseReturn.reason,
+        action: purchaseReturn.action,
+        notes: purchaseReturn.notes ?? "",
+        items: purchaseReturn.items.map((item) => ({
+          goods_receipt_item_id: item.goods_receipt_item_id ?? "",
+          product_id: item.product_id,
+          uom_id: item.uom_id ?? "",
+          condition: item.condition,
+          notes: item.notes ?? "",
+          qty: item.qty,
+          unit_cost: item.unit_cost,
+        })),
+      });
+    }
+  }, [open, isEdit, purchaseReturn, form]);
+
+  useEffect(() => {
+    if (!selectedGoodsReceiptId || isEdit) {
       return;
     }
 
@@ -237,6 +285,7 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
     conditions,
     eligibleItems,
     form,
+    isEdit,
   ]);
 
   const handleAddItem = () => {
@@ -298,21 +347,45 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
     }
 
     try {
-      await createMutation.mutateAsync({
-        ...values,
-        warehouse_id: values.warehouse_id,
-        purchase_order_id: values.purchase_order_id || undefined,
-        supplier_id: values.supplier_id || undefined,
-        notes: values.notes || undefined,
-        items: values.items.map((item) => {
-          const matched = eligibleItemMap.get(item.product_id);
-          return {
-            ...item,
-            goods_receipt_item_id: matched?.goodsReceiptItemID ?? item.goods_receipt_item_id,
-            unit_cost: matched?.dealCost ?? item.unit_cost,
-          };
-        }),
-      });
+      if (isEdit && purchaseReturn) {
+        await updateMutation.mutateAsync({
+          id: purchaseReturn.id,
+          data: {
+            warehouse_id: values.warehouse_id,
+            reason: values.reason,
+            action: values.action,
+            notes: values.notes || undefined,
+            items: values.items.map((item) => {
+              const matched = eligibleItemMap.get(item.product_id);
+              return {
+                goods_receipt_item_id: matched?.goodsReceiptItemID || item.goods_receipt_item_id || undefined,
+                product_id: item.product_id,
+                uom_id: item.uom_id || undefined,
+                condition: item.condition,
+                notes: item.notes || undefined,
+                qty: item.qty,
+                unit_cost: matched?.dealCost ?? item.unit_cost,
+              };
+            }),
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          ...values,
+          warehouse_id: values.warehouse_id,
+          purchase_order_id: values.purchase_order_id || undefined,
+          supplier_id: values.supplier_id || undefined,
+          notes: values.notes || undefined,
+          items: values.items.map((item) => {
+            const matched = eligibleItemMap.get(item.product_id);
+            return {
+              ...item,
+              goods_receipt_item_id: matched?.goodsReceiptItemID ?? item.goods_receipt_item_id,
+              unit_cost: matched?.dealCost ?? item.unit_cost,
+            };
+          }),
+        });
+      }
     } catch {
       form.setError("items", {
         type: "manual",
@@ -628,8 +701,8 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: P
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Saving..." : t("add")}
+        <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending || updateMutation.isPending}>
+          {createMutation.isPending || updateMutation.isPending ? "Saving..." : isEdit ? t("save") : t("add")}
         </Button>
       </div>
     </form>

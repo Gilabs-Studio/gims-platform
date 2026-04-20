@@ -9,6 +9,7 @@ import {
   Eye,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
   Printer,
@@ -33,6 +34,7 @@ import { toast } from "sonner";
 import {
   useConfirmSalesPayment,
   useDeleteSalesPayment,
+  useReverseSalesPayment,
   useSalesPayments,
 } from "../hooks/use-sales-payments";
 import type { SalesPaymentListItem } from "../types";
@@ -64,6 +66,7 @@ export function SalesPaymentsList() {
   const canCreate = useUserPermission("sales_payment.create");
   const canDelete = useUserPermission("sales_payment.delete");
   const canConfirm = useUserPermission("sales_payment.confirm");
+  const canReverse = useUserPermission("sales_payment.reverse");
   const canExport = useUserPermission("sales_payment.export");
   const canView = useUserPermission("sales_payment.read");
   const canPrint = useUserPermission("sales_payment.print");
@@ -81,6 +84,7 @@ export function SalesPaymentsList() {
 
   const deleteMutation = useDeleteSalesPayment();
   const confirmMutation = useConfirmSalesPayment();
+  const reverseMutation = useReverseSalesPayment();
   const exportProgress = useExportProgress();
 
   const handleView = (id: string) => {
@@ -282,6 +286,23 @@ export function SalesPaymentsList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canReverse && isConfirmed && (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await reverseMutation.mutateAsync(item.id);
+                                    toast.success(t("toast.reversed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                                className="cursor-pointer text-warning focus:text-warning"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                {t("actions.reverse")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingPaymentId(item.id)}
@@ -291,7 +312,7 @@ export function SalesPaymentsList() {
                                 {t("actions.print")}
                               </DropdownMenuItem>
                             )}
-                            {canDelete && isPending && (
+                            {canDelete && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
                                 className="cursor-pointer text-destructive"

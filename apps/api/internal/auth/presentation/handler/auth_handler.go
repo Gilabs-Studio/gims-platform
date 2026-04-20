@@ -104,6 +104,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 			},
 			Permissions: loginResponse.User.Permissions,
+			TenantID:    loginResponse.User.TenantID,
+			TenantName:  loginResponse.User.TenantName,
 		},
 		AccessToken:  "", // Removed for security
 		RefreshToken: "", // Removed for security
@@ -180,6 +182,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 			},
 			Permissions: loginResponse.User.Permissions,
+			TenantID:    loginResponse.User.TenantID,
+			TenantName:  loginResponse.User.TenantName,
 		},
 		AccessToken:  "",
 		RefreshToken: "",
@@ -258,4 +262,79 @@ func (h *AuthHandler) GetCSRFToken(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, gin.H{"csrf_token": token}, nil)
+}
+
+// RegisterTenant handles self-service tenant registration.
+// Creates a new tenant + admin account in one transaction and returns a JWT
+// so the caller can immediately access the platform (no separate login required).
+func (h *AuthHandler) RegisterTenant(c *gin.Context) {
+	var req dto.RegisterTenantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	loginResponse, err := h.authUC.RegisterTenant(c.Request.Context(), &req)
+	if err != nil {
+		switch err {
+		case usecase.ErrEmailAlreadyTaken:
+			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", map[string]interface{}{
+				"field": "email",
+			}, nil)
+		case usecase.ErrSlugAlreadyTaken:
+			errors.ErrorResponse(c, "COMPANY_NAME_TAKEN", map[string]interface{}{
+				"field": "company_name",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
+	// Use Secure:true always — SameSite=None requires it and browsers reject the
+	// cookie when Secure is false, which would break the subsequent session check.
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_access_token",
+		Value:    loginResponse.Token,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_refresh_token",
+		Value:    loginResponse.RefreshToken,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	resp := authDTO.LoginResponseDTO{
+		User: authDTO.UserDTO{
+			ID:        loginResponse.User.ID,
+			Name:      loginResponse.User.Name,
+			Email:     loginResponse.User.Email,
+			AvatarURL: loginResponse.User.AvatarURL,
+			Role: authDTO.RoleDTO{
+				Code:      loginResponse.User.Role,
+				Name:      loginResponse.User.RoleName,
+				DataScope: loginResponse.User.RoleDataScope,
+			},
+			Permissions: loginResponse.User.Permissions,
+			TenantID:    loginResponse.User.TenantID,
+			TenantName:  loginResponse.User.TenantName,
+		},
+		AccessToken:  "",
+		RefreshToken: "",
+	}
+
+	response.SuccessResponse(c, resp, nil)
 }

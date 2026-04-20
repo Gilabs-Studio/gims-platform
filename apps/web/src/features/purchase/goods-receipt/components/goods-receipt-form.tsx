@@ -294,6 +294,13 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     toast.error(paths.length ? `${t("form.invalid")}: ${paths.join(", ")}` : t("form.invalid"));
   };
 
+  const handleNext = async () => {
+    const isValid = await form.trigger(["purchase_order_id", "warehouse_id"]);
+    if (isValid) {
+      setActiveTab("items");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
@@ -483,7 +490,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                 <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
                   {t("actions.cancel")}
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+                <Button type="button" onClick={handleNext} className="cursor-pointer">
                   {t("actions.next") || "Next"}
                 </Button>
               </div>

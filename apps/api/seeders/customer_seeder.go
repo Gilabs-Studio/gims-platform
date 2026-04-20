@@ -41,22 +41,46 @@ func SeedCustomerTypes() error {
 func SeedCustomers() error {
 	log.Println("Seeding customers...")
 
-	// Minimal mode: seed only one customer for traceable sales flows.
+	// Minimal mode: seed only essential customers for traceable sales and CRM flows.
 	if isMinimalSeedMode() {
 		db := database.DB
 		adminID := AdminEmployeeID
-		customer := models.Customer{
-			ID:        Customer1ID,
-			Code:      "CUST-MIN-001",
-			Name:      "PT. Minimal Customer",
-			CreatedBy: &adminID,
-			IsActive:  true,
+		customers := []models.Customer{
+			{
+				ID:        Customer1ID,
+				Code:      "CUST-MIN-001",
+				Name:      "PT. Minimal Customer",
+				Latitude:  floatPtr(-6.2615),
+				Longitude: floatPtr(106.8106),
+				CreatedBy: &adminID,
+				IsActive:  true,
+			},
+			{
+				ID:        Customer2ID,
+				Code:      "CUST-MIN-002",
+				Name:      "RS Harapan Kita Jakarta",
+				Latitude:  floatPtr(-6.1864),
+				Longitude: floatPtr(106.7941),
+				CreatedBy: &adminID,
+				IsActive:  true,
+			},
+			{
+				ID:        Customer3ID,
+				Code:      "CUST-MIN-003",
+				Name:      "Klinik Pratama Medika",
+				Latitude:  floatPtr(-6.9175),
+				Longitude: floatPtr(107.6191),
+				CreatedBy: &adminID,
+				IsActive:  true,
+			},
 		}
-		if err := db.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"code", "name", "created_by", "is_active", "updated_at"}),
-		}).Create(&customer).Error; err != nil {
-			return err
+		for _, customer := range customers {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"code", "name", "latitude", "longitude", "created_by", "is_active", "updated_at"}),
+			}).Create(&customer).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	}

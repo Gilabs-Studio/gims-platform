@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 
@@ -19,7 +20,7 @@ func NewEvaluationCriteriaRepository(db *gorm.DB) EvaluationCriteriaRepository {
 
 func (r *evaluationCriteriaRepositoryImpl) FindByGroupID(ctx context.Context, groupID string) ([]models.EvaluationCriteria, error) {
 	var criteria []models.EvaluationCriteria
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("evaluation_group_id = ?", groupID).
 		Order("sort_order ASC").
 		Find(&criteria).Error; err != nil {
@@ -30,7 +31,7 @@ func (r *evaluationCriteriaRepositoryImpl) FindByGroupID(ctx context.Context, gr
 
 func (r *evaluationCriteriaRepositoryImpl) FindByID(ctx context.Context, id string) (*models.EvaluationCriteria, error) {
 	var criteria models.EvaluationCriteria
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&criteria).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&criteria).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -40,21 +41,21 @@ func (r *evaluationCriteriaRepositoryImpl) FindByID(ctx context.Context, id stri
 }
 
 func (r *evaluationCriteriaRepositoryImpl) Create(ctx context.Context, criteria *models.EvaluationCriteria) error {
-	if err := r.db.WithContext(ctx).Create(criteria).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(criteria).Error; err != nil {
 		return fmt.Errorf("failed to create evaluation criteria: %w", err)
 	}
 	return nil
 }
 
 func (r *evaluationCriteriaRepositoryImpl) Update(ctx context.Context, criteria *models.EvaluationCriteria) error {
-	if err := r.db.WithContext(ctx).Save(criteria).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(criteria).Error; err != nil {
 		return fmt.Errorf("failed to update evaluation criteria: %w", err)
 	}
 	return nil
 }
 
 func (r *evaluationCriteriaRepositoryImpl) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.EvaluationCriteria{}).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.EvaluationCriteria{}).Error; err != nil {
 		return fmt.Errorf("failed to delete evaluation criteria: %w", err)
 	}
 	return nil
@@ -62,7 +63,7 @@ func (r *evaluationCriteriaRepositoryImpl) Delete(ctx context.Context, id string
 
 func (r *evaluationCriteriaRepositoryImpl) GetTotalWeightByGroupID(ctx context.Context, groupID string, excludeID string) (float64, error) {
 	var totalWeight float64
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Model(&models.EvaluationCriteria{}).
 		Where("evaluation_group_id = ?", groupID)
 

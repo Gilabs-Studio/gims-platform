@@ -49,7 +49,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	var results []*models.PurchaseOrder
 	var total int64
 
-	base := r.db.WithContext(ctx).Model(&models.PurchaseOrder{})
+	base := database.GetDB(ctx, r.db).Model(&models.PurchaseOrder{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
@@ -75,7 +75,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		return nil, 0, err
 	}
 
-	query := r.db.WithContext(ctx).Model(&models.PurchaseOrder{})
+	query := database.GetDB(ctx, r.db).Model(&models.PurchaseOrder{})
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Where(
@@ -130,7 +130,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 
 func (r *purchaseOrderRepository) GetByID(ctx context.Context, id string) (*models.PurchaseOrder, error) {
 	var po models.PurchaseOrder
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.PurchaseOrder{}).
 		Preload("Supplier").
 		Preload("PaymentTerms").
@@ -153,7 +153,7 @@ func (r *purchaseOrderRepository) ExistsByPurchaseRequisitionID(ctx context.Cont
 		return false, nil
 	}
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.PurchaseOrder{}).
 		Where("purchase_requisition_id = ?", prID).
 		Count(&count).Error
@@ -168,7 +168,7 @@ func (r *purchaseOrderRepository) ExistsBySalesOrderID(ctx context.Context, soID
 		return false, nil
 	}
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.PurchaseOrder{}).
 		Where("sales_order_id = ?", soID).
 		Count(&count).Error
@@ -183,7 +183,7 @@ func (r *purchaseOrderRepository) Create(ctx context.Context, po *models.Purchas
 		return nil, fmt.Errorf("purchase order is nil")
 	}
 
-	return po, r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return po, database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if po.Code == "" {
 			code, err := r.getNextCodeLocked(ctx, tx, "PO")
 			if err != nil {
@@ -240,15 +240,17 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 		return nil, fmt.Errorf("purchase order is nil")
 	}
 
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		var existing models.PurchaseOrder
-		if err := tx.
+		if err := txScoped.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", po.ID).Error; err != nil {
 			return err
 		}
 
-		if err := tx.Model(&existing).Updates(map[string]interface{}{
+		if err := txScoped.Model(&existing).Updates(map[string]interface{}{
 			"supplier_id":                 po.SupplierID,
 			"supplier_code_snapshot":      po.SupplierCodeSnapshot,
 			"supplier_name_snapshot":      po.SupplierNameSnapshot,
@@ -273,7 +275,7 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 			return err
 		}
 
-		if err := tx.Where("purchase_order_id = ?", po.ID).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
+		if err := txScoped.Where("purchase_order_id = ?", po.ID).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
 			return err
 		}
 		if len(po.Items) > 0 {
@@ -284,7 +286,7 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 				po.Items[i].Price = math.Max(0, po.Items[i].Price)
 				po.Items[i].Subtotal = calcItemSubtotal(po.Items[i].Quantity, po.Items[i].Price, po.Items[i].Discount)
 			}
-			if err := tx.Create(&po.Items).Error; err != nil {
+			if err := txScoped.Create(&po.Items).Error; err != nil {
 				return err
 			}
 		}
@@ -299,23 +301,27 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 }
 
 func (r *purchaseOrderRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("purchase_order_id = ?", id).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
+		if err := txScoped.Where("purchase_order_id = ?", id).Delete(&models.PurchaseOrderItem{}).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&models.PurchaseOrder{}, "id = ?", id).Error
+		return txScoped.Delete(&models.PurchaseOrder{}, "id = ?", id).Error
 	})
 }
 
 func (r *purchaseOrderRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseOrderStatus) (*models.PurchaseOrder, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		var existing models.PurchaseOrder
-		if err := tx.
+		if err := txScoped.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		return tx.Model(&existing).Update("status", status).Error
+		return txScoped.Model(&existing).Update("status", status).Error
 	})
 	if err != nil {
 		return nil, err
@@ -325,14 +331,16 @@ func (r *purchaseOrderRepository) UpdateStatus(ctx context.Context, id string, s
 
 func (r *purchaseOrderRepository) UpdateStatusWithTimestamp(ctx context.Context, id string, status models.PurchaseOrderStatus, updates map[string]interface{}) (*models.PurchaseOrder, error) {
 	updates["status"] = status
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		var existing models.PurchaseOrder
-		if err := tx.
+		if err := txScoped.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
-		return tx.Model(&existing).Updates(updates).Error
+		return txScoped.Model(&existing).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, err

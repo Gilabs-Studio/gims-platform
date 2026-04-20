@@ -7,12 +7,13 @@ import (
 )
 
 const (
-	purchasePaymentRead    = "purchase_payment.read"
-	purchasePaymentCreate  = "purchase_payment.create"
-	purchasePaymentDelete  = "purchase_payment.delete"
-	purchasePaymentConfirm = "purchase_payment.confirm"
-	purchasePaymentExport  = "purchase_payment.export"
-	purchasePaymentPrint   = "purchase_payment.print"
+	purchasePaymentRead       = "purchase_payment.read"
+	purchasePaymentCreate     = "purchase_payment.create"
+	purchasePaymentUpdate     = "purchase_payment.update"
+	purchasePaymentDelete     = "purchase_payment.delete"
+	purchasePaymentConfirm    = "purchase_payment.confirm"
+	purchasePaymentExport     = "purchase_payment.export"
+	purchasePaymentPrint      = "purchase_payment.print"
 )
 
 func RegisterPurchasePaymentRoutes(r *gin.RouterGroup, h *handler.PurchasePaymentHandler, printH *handler.PurchasePaymentPrintHandler) {
@@ -27,6 +28,7 @@ func RegisterPurchasePaymentRoutes(r *gin.RouterGroup, h *handler.PurchasePaymen
 	g.GET("/:id", middleware.RequirePermission(purchasePaymentRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(purchasePaymentRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission(purchasePaymentPrint), printH.PrintPurchasePayment)
+	g.PUT("/:id", middleware.RequirePermission(purchasePaymentUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(purchasePaymentDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(purchasePaymentConfirm), h.Confirm)
 	g.PATCH("/:id/confirm", middleware.RequirePermission(purchasePaymentConfirm), h.Confirm)
