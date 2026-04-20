@@ -10,6 +10,7 @@ import (
 // AIIntentRegistry defines available intents the AI assistant can execute
 type AIIntentRegistry struct {
 	ID                   string    `gorm:"type:uuid;primaryKey;column:id" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	IntentCode           string    `gorm:"type:varchar(100);uniqueIndex:idx_ai_intent_code;not null" json:"intent_code"`
 	DisplayName          string    `gorm:"type:varchar(255);not null" json:"display_name"`
 	Description          string    `gorm:"type:text" json:"description,omitempty"`

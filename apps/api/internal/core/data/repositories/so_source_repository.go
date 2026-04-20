@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
@@ -26,12 +27,12 @@ func NewSOSourceRepository(db *gorm.DB) SOSourceRepository {
 }
 
 func (r *soSourceRepository) Create(ctx context.Context, soSource *models.SOSource) error {
-	return r.db.WithContext(ctx).Create(soSource).Error
+	return database.GetDB(ctx, r.db).Create(soSource).Error
 }
 
 func (r *soSourceRepository) FindByID(ctx context.Context, id string) (*models.SOSource, error) {
 	var soSource models.SOSource
-	err := r.db.WithContext(ctx).First(&soSource, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&soSource, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *soSourceRepository) List(ctx context.Context, params ListParams) ([]mod
 	var soSources []models.SOSource
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.SOSource{})
+	query := database.GetDB(ctx, r.db).Model(&models.SOSource{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *soSourceRepository) List(ctx context.Context, params ListParams) ([]mod
 }
 
 func (r *soSourceRepository) Update(ctx context.Context, soSource *models.SOSource) error {
-	return r.db.WithContext(ctx).Save(soSource).Error
+	return database.GetDB(ctx, r.db).Save(soSource).Error
 }
 
 func (r *soSourceRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SOSource{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.SOSource{}, "id = ?", id).Error
 }

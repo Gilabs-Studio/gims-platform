@@ -11,6 +11,7 @@ import (
 // scoped to one outlet. One outlet can have one active form at a time.
 type FeedbackForm struct {
 	ID          string         `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OutletID    string         `gorm:"type:uuid;not null;index" json:"outlet_id"`
 	Title       string         `gorm:"type:varchar(255);not null" json:"title"`
 	Description *string        `gorm:"type:text" json:"description,omitempty"`

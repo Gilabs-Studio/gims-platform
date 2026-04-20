@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -46,12 +47,12 @@ func NewActivityRepository(db *gorm.DB) ActivityRepository {
 }
 
 func (r *activityRepository) Create(ctx context.Context, activity *models.Activity) error {
-	return r.db.WithContext(ctx).Create(activity).Error
+	return database.GetDB(ctx, r.db).Create(activity).Error
 }
 
 func (r *activityRepository) FindByID(ctx context.Context, id string) (*models.Activity, error) {
 	var activity models.Activity
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("ActivityType").
 		Preload("Employee").
 		First(&activity, "id = ?", id).Error
@@ -62,7 +63,7 @@ func (r *activityRepository) FindByID(ctx context.Context, id string) (*models.A
 }
 
 func (r *activityRepository) List(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Activity{})
+	query := database.GetDB(ctx, r.db).Model(&models.Activity{})
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	query = r.applyFilters(query, params)

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"database/sql"
 	"strings"
@@ -73,7 +74,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 				OR ci.invoice_number ILIKE ?
 			)
 	`
-	if err := r.db.WithContext(ctx).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -106,7 +107,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 		params.Offset = 0
 	}
 
-	if err := r.db.WithContext(ctx).Raw(listSQL, asOf, search, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(listSQL, asOf, search, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -157,7 +158,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 		) x
 	`
 	like := "%" + search + "%"
-	if err := r.db.WithContext(ctx).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -199,7 +200,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	if params.Offset < 0 {
 		params.Offset = 0
 	}
-	if err := r.db.WithContext(ctx).Raw(listSQL, asOf, search, like, like, like, params.Limit, params.Offset).Scan(&scanRows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(listSQL, asOf, search, like, like, like, params.Limit, params.Offset).Scan(&scanRows).Error; err != nil {
 		return nil, 0, err
 	}
 

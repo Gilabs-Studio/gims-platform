@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -40,12 +41,12 @@ func NewCashBankTransactionRepository(db *gorm.DB) CashBankTransactionRepository
 }
 
 func (r *cashBankTransactionRepository) Create(ctx context.Context, tx *financeModels.CashBankTransaction) error {
-	return r.db.WithContext(ctx).Create(tx).Error
+	return database.GetDB(ctx, r.db).Create(tx).Error
 }
 
 func (r *cashBankTransactionRepository) FindByID(ctx context.Context, id string) (*financeModels.CashBankTransaction, error) {
 	var item financeModels.CashBankTransaction
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -73,7 +74,7 @@ func (r *cashBankTransactionRepository) List(ctx context.Context, params CashBan
 	var items []financeModels.CashBankTransaction
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.CashBankTransaction{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.CashBankTransaction{})
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
 		q = q.Where("company_id = ?", companyID)
@@ -129,5 +130,5 @@ func (r *cashBankTransactionRepository) List(ctx context.Context, params CashBan
 }
 
 func (r *cashBankTransactionRepository) Update(ctx context.Context, tx *financeModels.CashBankTransaction) error {
-	return r.db.WithContext(ctx).Save(tx).Error
+	return database.GetDB(ctx, r.db).Save(tx).Error
 }

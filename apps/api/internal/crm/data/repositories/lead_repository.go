@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -71,12 +72,12 @@ func NewLeadRepository(db *gorm.DB) LeadRepository {
 }
 
 func (r *leadRepository) Create(ctx context.Context, lead *models.Lead) error {
-	return r.db.WithContext(ctx).Create(lead).Error
+	return database.GetDB(ctx, r.db).Create(lead).Error
 }
 
 func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead, error) {
 	var lead models.Lead
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("LeadSource").
 		Preload("LeadStatus").
 		Preload("ContactRole").
@@ -108,7 +109,7 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 // FindByEmail looks up an unconverted lead by email
 func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models.Lead, error) {
 	var lead models.Lead
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("LeadSource").
 		Preload("LeadStatus").
 		Preload("ContactRole").
@@ -124,7 +125,7 @@ func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models
 // FindDuplicate looks up an unconverted lead by either place_id, cid, email, phone, or company name for deduplication during upsert
 func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, companyName, placeID, cid string) (*models.Lead, error) {
 	var lead models.Lead
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Preload("LeadSource").
 		Preload("LeadStatus").
 		Preload("ContactRole").
@@ -157,7 +158,7 @@ func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, compan
 // ordered by creation date to process in FIFO order
 func (r *leadRepository) FindUnprocessed(ctx context.Context, limit int) ([]models.Lead, error) {
 	var leads []models.Lead
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("LeadSource").
 		Preload("LeadStatus").
 		Where("processed_from_n8n = ?", false).
@@ -168,7 +169,7 @@ func (r *leadRepository) FindUnprocessed(ctx context.Context, limit int) ([]mode
 }
 
 func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Lead{})
+	query := database.GetDB(ctx, r.db).Model(&models.Lead{})
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
@@ -266,16 +267,16 @@ func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]mod
 }
 
 func (r *leadRepository) Update(ctx context.Context, lead *models.Lead) error {
-	return r.db.WithContext(ctx).Save(lead).Error
+	return database.GetDB(ctx, r.db).Save(lead).Error
 }
 
 func (r *leadRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Lead{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Lead{}).Error
 }
 
 func (r *leadRepository) ExistsByCode(ctx context.Context, code string) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&models.Lead{}).Where("code = ?", code).Count(&count).Error
+	err := database.GetDB(ctx, r.db).Model(&models.Lead{}).Where("code = ?", code).Count(&count).Error
 	return count > 0, err
 }
 
@@ -283,10 +284,10 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 	analytics := &LeadAnalytics{}
 
 	// Total leads
-	r.db.WithContext(ctx).Model(&models.Lead{}).Count(&analytics.TotalLeads)
+	database.GetDB(ctx, r.db).Model(&models.Lead{}).Count(&analytics.TotalLeads)
 
 	// By status
-	r.db.WithContext(ctx).
+	database.GetDB(ctx, r.db).
 		Table("crm_leads").
 		Select("crm_lead_statuses.id, crm_lead_statuses.name, crm_lead_statuses.color, COUNT(*) as count").
 		Joins("LEFT JOIN crm_lead_statuses ON crm_leads.lead_status_id = crm_lead_statuses.id").
@@ -295,7 +296,7 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 		Scan(&analytics.ByStatus)
 
 	// By source
-	r.db.WithContext(ctx).
+	database.GetDB(ctx, r.db).
 		Table("crm_leads").
 		Select("crm_lead_sources.id, crm_lead_sources.name, COUNT(*) as count").
 		Joins("LEFT JOIN crm_lead_sources ON crm_leads.lead_source_id = crm_lead_sources.id").
@@ -305,13 +306,13 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 
 	// Conversion rate
 	var convertedCount int64
-	r.db.WithContext(ctx).Model(&models.Lead{}).Where("converted_at IS NOT NULL").Count(&convertedCount)
+	database.GetDB(ctx, r.db).Model(&models.Lead{}).Where("converted_at IS NOT NULL").Count(&convertedCount)
 	if analytics.TotalLeads > 0 {
 		analytics.ConversionRate = float64(convertedCount) / float64(analytics.TotalLeads) * 100
 	}
 
 	// Average score
-	r.db.WithContext(ctx).Model(&models.Lead{}).Select("COALESCE(AVG(lead_score), 0)").Scan(&analytics.AvgScore)
+	database.GetDB(ctx, r.db).Model(&models.Lead{}).Select("COALESCE(AVG(lead_score), 0)").Scan(&analytics.AvgScore)
 
 	return analytics, nil
 }
@@ -329,7 +330,7 @@ func (r *leadRepository) ListProductItems(ctx context.Context, leadID string) ([
 // UpsertProductItems syncs product items for a lead using soft-delete semantics:
 // items in the new list are created or restored+updated; items absent from the new list are soft-deleted.
 func (r *leadRepository) UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Collect product IDs that are active in the new list
 		activeProductIDs := make([]string, 0, len(items))
 		for _, item := range items {

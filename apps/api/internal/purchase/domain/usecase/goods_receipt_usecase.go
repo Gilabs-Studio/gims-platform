@@ -609,7 +609,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
 	receivedRows := make([]receivedRow, 0)
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Table("goods_receipt_items").
 		Select("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received),0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").

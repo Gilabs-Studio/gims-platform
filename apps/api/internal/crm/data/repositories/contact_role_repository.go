@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
@@ -26,12 +27,12 @@ func NewContactRoleRepository(db *gorm.DB) ContactRoleRepository {
 }
 
 func (r *contactRoleRepository) Create(ctx context.Context, role *models.ContactRole) error {
-	return r.db.WithContext(ctx).Create(role).Error
+	return database.GetDB(ctx, r.db).Create(role).Error
 }
 
 func (r *contactRoleRepository) FindByID(ctx context.Context, id string) (*models.ContactRole, error) {
 	var role models.ContactRole
-	err := r.db.WithContext(ctx).First(&role, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&role, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *contactRoleRepository) List(ctx context.Context, params ListParams) ([]
 	var roles []models.ContactRole
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ContactRole{})
+	query := database.GetDB(ctx, r.db).Model(&models.ContactRole{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -81,9 +82,9 @@ func (r *contactRoleRepository) List(ctx context.Context, params ListParams) ([]
 }
 
 func (r *contactRoleRepository) Update(ctx context.Context, role *models.ContactRole) error {
-	return r.db.WithContext(ctx).Save(role).Error
+	return database.GetDB(ctx, r.db).Save(role).Error
 }
 
 func (r *contactRoleRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ContactRole{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ContactRole{}, "id = ?", id).Error
 }

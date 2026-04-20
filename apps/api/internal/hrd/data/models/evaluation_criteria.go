@@ -9,6 +9,7 @@ import (
 // EvaluationCriteria represents a single evaluation criterion within a group
 type EvaluationCriteria struct {
 	ID                string         `gorm:"type:char(36);primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EvaluationGroupID string         `gorm:"type:char(36);not null;index" json:"evaluation_group_id"`
 	Name              string         `gorm:"type:varchar(200);not null" json:"name"`
 	Description       *string        `gorm:"type:text" json:"description"`

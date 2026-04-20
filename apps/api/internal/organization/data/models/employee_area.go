@@ -12,6 +12,7 @@ import (
 // IsSupervisor=false means the employee is a regular member.
 type EmployeeArea struct {
 	ID           string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID   string    `gorm:"type:uuid;not null;index;uniqueIndex:idx_employee_area" json:"employee_id"`
 	Employee     *Employee `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 	AreaID       string    `gorm:"type:uuid;not null;index;uniqueIndex:idx_employee_area" json:"area_id"`

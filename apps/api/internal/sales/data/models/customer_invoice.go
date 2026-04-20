@@ -37,6 +37,7 @@ const (
 // CustomerInvoice represents a customer invoice document
 type CustomerInvoice struct {
 	ID            string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code          string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	InvoiceNumber *string             `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
 	Type          CustomerInvoiceType `gorm:"type:varchar(20);default:'regular'" json:"type"`

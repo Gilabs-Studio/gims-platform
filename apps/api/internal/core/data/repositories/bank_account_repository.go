@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"sort"
 	"strings"
@@ -112,12 +113,12 @@ func NewBankAccountRepository(db *gorm.DB) BankAccountRepository {
 }
 
 func (r *bankAccountRepository) Create(ctx context.Context, bankAccount *models.BankAccount) error {
-	return r.db.WithContext(ctx).Create(bankAccount).Error
+	return database.GetDB(ctx, r.db).Create(bankAccount).Error
 }
 
 func (r *bankAccountRepository) FindByID(ctx context.Context, id string) (*models.BankAccount, error) {
 	var bankAccount models.BankAccount
-	if err := r.db.WithContext(ctx).Preload("CurrencyDetail").First(&bankAccount, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("CurrencyDetail").First(&bankAccount, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &bankAccount, nil
@@ -137,7 +138,7 @@ func (r *bankAccountRepository) List(ctx context.Context, params BankAccountList
 	var items []models.BankAccount
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.BankAccount{})
+	q := database.GetDB(ctx, r.db).Model(&models.BankAccount{})
 
 	// Phase 2: Company scoping
 	if params.CompanyID != "" {
@@ -187,14 +188,14 @@ func (r *bankAccountRepository) List(ctx context.Context, params BankAccountList
 }
 
 func (r *bankAccountRepository) Update(ctx context.Context, bankAccount *models.BankAccount) error {
-	return r.db.WithContext(ctx).Save(bankAccount).Error
+	return database.GetDB(ctx, r.db).Save(bankAccount).Error
 }
 
 func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAccountListParams) ([]UnifiedBankAccount, int64, error) {
 	items := make([]UnifiedBankAccount, 0)
 
 	var companyAccounts []models.BankAccount
-	companyQuery := r.db.WithContext(ctx).Preload("CurrencyDetail").Model(&models.BankAccount{})
+	companyQuery := database.GetDB(ctx, r.db).Preload("CurrencyDetail").Model(&models.BankAccount{})
 	if params.IsActive != nil {
 		companyQuery = companyQuery.Where("is_active = ?", *params.IsActive)
 	}
@@ -230,7 +231,7 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 	}
 
 	var customerBanks []customerModels.CustomerBank
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Bank").
 		Preload("Currency").
 		Joins("JOIN customers ON customers.id = customer_banks.customer_id AND customers.deleted_at IS NULL").
@@ -243,7 +244,7 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 			Code string
 			Name string
 		}
-		if err := r.db.WithContext(ctx).Table("customers").Select("id, code, name").Where("id = ?", bank.CustomerID).Scan(&owner).Error; err != nil {
+		if err := database.GetDB(ctx, r.db).Table("customers").Select("id, code, name").Where("id = ?", bank.CustomerID).Scan(&owner).Error; err != nil {
 			return nil, 0, err
 		}
 		bankName := ""
@@ -288,7 +289,7 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 	}
 
 	var supplierBanks []supplierModels.SupplierBank
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Bank").
 		Preload("Currency").
 		Joins("JOIN suppliers ON suppliers.id = supplier_banks.supplier_id AND suppliers.deleted_at IS NULL").
@@ -301,7 +302,7 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 			Code string
 			Name string
 		}
-		if err := r.db.WithContext(ctx).Table("suppliers").Select("id, code, name").Where("id = ?", bank.SupplierID).Scan(&owner).Error; err != nil {
+		if err := database.GetDB(ctx, r.db).Table("suppliers").Select("id, code, name").Where("id = ?", bank.SupplierID).Scan(&owner).Error; err != nil {
 			return nil, 0, err
 		}
 		bankName := ""
@@ -511,7 +512,7 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 
 	countQuery := `SELECT COUNT(*) ` + baseQuery
 	var total int64
-	if err := r.db.WithContext(ctx).Raw(countQuery, bankAccountID, bankAccountID, bankAccountID, bankAccountID).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countQuery, bankAccountID, bankAccountID, bankAccountID, bankAccountID).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -536,7 +537,7 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 	`
 
 	items := make([]BankAccountTransaction, 0)
-	if err := r.db.WithContext(ctx).Raw(query, bankAccountID, bankAccountID, bankAccountID, bankAccountID, limit, offset).Scan(&items).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, bankAccountID, bankAccountID, bankAccountID, bankAccountID, limit, offset).Scan(&items).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -544,7 +545,7 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 }
 
 func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.BankAccount{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.BankAccount{}, "id = ?", id).Error
 }
 
 // ========== PHASE 2 METHODS ==========
@@ -552,7 +553,7 @@ func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {
 // FindByIDWithBalance retrieves bank account with computed current balance from GL
 func (r *bankAccountRepository) FindByIDWithBalance(ctx context.Context, id string) (*BankAccountDetail, error) {
 	var bankAccount models.BankAccount
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("CurrencyDetail").
 		First(&bankAccount, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -598,7 +599,7 @@ func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, co
 	var bankAccounts []models.BankAccount
 	var total int64
 
-	q := r.db.WithContext(ctx).
+	q := database.GetDB(ctx, r.db).
 		Where("company_id = ?", companyID).
 		Preload("CurrencyDetail")
 
@@ -676,7 +677,7 @@ func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, co
 // Returns: SUM(debit - credit) for the bank account's COA account
 func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankAccountID string) (float64, error) {
 	var bankAccount models.BankAccount
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Select("chart_of_account_id").
 		First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
 		return 0, err
@@ -703,7 +704,7 @@ func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankA
 		  AND je.deleted_at IS NULL
 	`
 
-	if err := r.db.WithContext(ctx).Raw(query, *bankAccount.ChartOfAccountID).Scan(&balance).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, *bankAccount.ChartOfAccountID).Scan(&balance).Error; err != nil {
 		return 0, err
 	}
 
@@ -713,12 +714,12 @@ func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankA
 // ToggleStatus toggles the is_active flag of a bank account
 func (r *bankAccountRepository) ToggleStatus(ctx context.Context, bankAccountID string) error {
 	var bankAccount models.BankAccount
-	if err := r.db.WithContext(ctx).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
 		return err
 	}
 
 	bankAccount.IsActive = !bankAccount.IsActive
-	return r.db.WithContext(ctx).Save(&bankAccount).Error
+	return database.GetDB(ctx, r.db).Save(&bankAccount).Error
 }
 
 func stringPtrIfNotEmpty(value string) *string {

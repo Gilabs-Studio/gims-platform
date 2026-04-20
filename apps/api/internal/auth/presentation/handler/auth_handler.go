@@ -295,13 +295,15 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		return
 	}
 
-	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in
+	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
+	// Use Secure:true always — SameSite=None requires it and browsers reject the
+	// cookie when Secure is false, which would break the subsequent session check.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})
@@ -309,8 +311,8 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		Name:     "gims_refresh_token",
 		Value:    loginResponse.RefreshToken,
 		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
 	})

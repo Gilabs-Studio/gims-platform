@@ -468,6 +468,18 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			return err
 		}
 
+		// 1b. Create a default company for the new tenant so the owner can start
+		//     configuring their organisation immediately after registration.
+		companyID := newUUID()
+		if err := tx.Exec(`
+			INSERT INTO companies (id, tenant_id, name, timezone, status, is_approved, is_active, created_at, updated_at)
+			VALUES (?, ?, ?, 'Asia/Jakarta', 'approved', true, true, NOW(), NOW())`,
+			companyID, tenantID, req.CompanyName,
+		).Error; err != nil {
+			// Non-fatal: the company can be created later from the UI
+			_ = err
+		}
+
 		// 2. Hash password
 		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {

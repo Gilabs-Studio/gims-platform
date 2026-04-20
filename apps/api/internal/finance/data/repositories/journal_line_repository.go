@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -68,7 +69,7 @@ var journalLineAllowedSort = map[string]string{
 func (r *journalLineRepository) List(ctx context.Context, params JournalLineListParams) ([]JournalLineWithEntry, int64, error) {
 	// If filtering by cash bank journal, use cash_bank_journal_lines directly (does not always have a journal_entry_id).
 	if id := strings.TrimSpace(params.CashBankJournalID); id != "" {
-		baseQuery := r.db.WithContext(ctx).
+		baseQuery := database.GetDB(ctx, r.db).
 			Table("cash_bank_journal_lines AS cbl").
 			Joins("JOIN cash_bank_journals cbj ON cbj.id = cbl.cash_bank_journal_id AND cbj.deleted_at IS NULL").
 			Joins("LEFT JOIN chart_of_accounts coa ON coa.id = cbl.chart_of_account_id").
@@ -117,7 +118,7 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 		return items, total, nil
 	}
 
-	baseQuery := r.db.WithContext(ctx).
+	baseQuery := database.GetDB(ctx, r.db).
 		Table("journal_lines AS jl").
 		Joins("JOIN journal_entries AS je ON je.id = jl.journal_entry_id AND je.deleted_at IS NULL").
 		Where("jl.deleted_at IS NULL")
@@ -206,7 +207,7 @@ func (r *journalLineRepository) SumBeforeDate(ctx context.Context, coaID string,
 	}
 	var res result
 
-	q := r.db.WithContext(ctx).
+	q := database.GetDB(ctx, r.db).
 		Table("journal_lines AS jl").
 		Select("COALESCE(SUM(jl.debit), 0) AS debit_sum, COALESCE(SUM(jl.credit), 0) AS credit_sum").
 		Joins("JOIN journal_entries AS je ON je.id = jl.journal_entry_id AND je.deleted_at IS NULL").

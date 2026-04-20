@@ -9,6 +9,7 @@ import (
 
 type FinancialClosingSnapshot struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	PeriodEndDate time.Time `gorm:"type:date;not null;index" json:"period_end_date"`
 	NetProfit     float64   `gorm:"not null" json:"net_profit"`

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -71,7 +72,7 @@ func NewSalaryStructureRepository(db *gorm.DB) SalaryStructureRepository {
 
 func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*financeModels.SalaryStructure, error) {
 	var item financeModels.SalaryStructure
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.User").
 		First(&item, "id = ?", id).Error; err != nil {
@@ -82,7 +83,7 @@ func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*f
 
 func (r *salaryStructureRepository) GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error) {
 	var item financeModels.SalaryStructure
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.User").
 		Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).
@@ -99,7 +100,7 @@ func (r *salaryStructureRepository) DeactivateAllByEmployeeID(ctx context.Contex
 }
 
 func (r *salaryStructureRepository) UpdateStatus(ctx context.Context, id string, status financeModels.SalaryStructureStatus) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&financeModels.SalaryStructure{}).
 		Where("id = ?", id).
 		Update("status", status).Error
@@ -109,7 +110,7 @@ func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStruc
 	var items []financeModels.SalaryStructure
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.SalaryStructure{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.SalaryStructure{})
 	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.EmployeeID != nil {
@@ -160,7 +161,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	}
 
 	var counts []countResult
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Model(&financeModels.SalaryStructure{}).
 		Select("status, COUNT(*) as count").
 		Group("status").
@@ -187,7 +188,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 		Max float64
 	}
 	var agg aggResult
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Model(&financeModels.SalaryStructure{}).
 		Where("status = ?", financeModels.SalaryStructureStatusActive).
 		Select("COALESCE(AVG(basic_salary), 0) as avg, COALESCE(MIN(basic_salary), 0) as min, COALESCE(MAX(basic_salary), 0) as max").
@@ -232,7 +233,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	GROUP BY period
 	ORDER BY period;
 	`
-	t := r.db.WithContext(ctx).Raw(query).Scan(&series)
+	t := database.GetDB(ctx, r.db).Raw(query).Scan(&series)
 	if t.Error != nil {
 		return nil, t.Error
 	}

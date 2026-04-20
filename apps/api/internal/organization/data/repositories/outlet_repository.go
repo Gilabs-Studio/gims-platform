@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -49,13 +50,13 @@ func NewOutletRepository(db *gorm.DB) OutletRepository {
 
 // Create creates a new outlet
 func (r *outletRepository) Create(ctx context.Context, outlet *models.Outlet) error {
-	return r.db.WithContext(ctx).Create(outlet).Error
+	return database.GetDB(ctx, r.db).Create(outlet).Error
 }
 
 // GetByID retrieves an outlet by ID with preloaded relations
 func (r *outletRepository) GetByID(ctx context.Context, id string) (*models.Outlet, error) {
 	var outlet models.Outlet
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Province").
 		Preload("City").
 		Preload("District").
@@ -72,7 +73,7 @@ func (r *outletRepository) GetByID(ctx context.Context, id string) (*models.Outl
 // GetByCode retrieves an outlet by code
 func (r *outletRepository) GetByCode(ctx context.Context, code string) (*models.Outlet, error) {
 	var outlet models.Outlet
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		First(&outlet, "code = ?", code).Error
 	if err != nil {
 		return nil, err
@@ -83,7 +84,7 @@ func (r *outletRepository) GetByCode(ctx context.Context, code string) (*models.
 // GetNextCode generates the next sequential outlet code in OT-XXXXX format.
 func (r *outletRepository) GetNextCode(ctx context.Context) (string, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Unscoped().Model(&models.Outlet{}).Count(&count).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Unscoped().Model(&models.Outlet{}).Count(&count).Error; err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("OT-%05d", count+1), nil
@@ -94,7 +95,7 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	var outlets []*models.Outlet
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Outlet{})
+	query := database.GetDB(ctx, r.db).Model(&models.Outlet{})
 
 	// RBAC: Filter by user-warehouse assignments if UserID is provided
 	if params.UserID != "" {
@@ -167,18 +168,18 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 
 // Update updates an existing outlet
 func (r *outletRepository) Update(ctx context.Context, outlet *models.Outlet) error {
-	return r.db.WithContext(ctx).Save(outlet).Error
+	return database.GetDB(ctx, r.db).Save(outlet).Error
 }
 
 // Delete soft deletes an outlet
 func (r *outletRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Outlet{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Outlet{}, "id = ?", id).Error
 }
 
 // FindByCompanyID retrieves all outlets for a specific company
 func (r *outletRepository) FindByCompanyID(ctx context.Context, companyID string) ([]*models.Outlet, error) {
 	var outlets []*models.Outlet
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("company_id = ?", companyID).
 		Preload("Company").
 		Find(&outlets).Error
@@ -190,7 +191,7 @@ func (r *outletRepository) FindByCompanyID(ctx context.Context, companyID string
 
 // UpdateIsActiveByCompanyID updates is_active status for all outlets of a company
 func (r *outletRepository) UpdateIsActiveByCompanyID(ctx context.Context, companyID string, isActive bool) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&models.Outlet{}).
 		Where("company_id = ?", companyID).
 		Update("is_active", isActive).Error
@@ -202,7 +203,7 @@ func (r *outletRepository) FindByWarehouseIDs(ctx context.Context, warehouseIDs 
 		return []*models.Outlet{}, nil
 	}
 	var outlets []*models.Outlet
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Select("id, name, warehouse_id").
 		Where("warehouse_id IN ? AND deleted_at IS NULL", warehouseIDs).
 		Find(&outlets).Error

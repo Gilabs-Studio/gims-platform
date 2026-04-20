@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -41,7 +42,7 @@ func NewProductRepository(db *gorm.DB) ProductRepository {
 }
 
 func (r *productRepository) Create(ctx context.Context, product *models.Product) error {
-	return r.db.WithContext(ctx).Create(product).Error
+	return database.GetDB(ctx, r.db).Create(product).Error
 }
 
 // stockSubquery is the SQL fragment that replaces the stale products.current_stock
@@ -52,7 +53,7 @@ const stockSubquery = `products.*,
 
 func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Product, error) {
 	var product models.Product
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Select(stockSubquery).
 		Preload("Category").
 		Preload("Brand").
@@ -82,7 +83,7 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	var products []models.Product
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Product{}).Select(stockSubquery)
+	query := database.GetDB(ctx, r.db).Model(&models.Product{}).Select(stockSubquery)
 
 	// Apply search filter
 	if params.Search != "" {
@@ -185,9 +186,9 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 }
 
 func (r *productRepository) Update(ctx context.Context, product *models.Product) error {
-	return r.db.WithContext(ctx).Save(product).Error
+	return database.GetDB(ctx, r.db).Save(product).Error
 }
 
 func (r *productRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Product{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Product{}, "id = ?", id).Error
 }

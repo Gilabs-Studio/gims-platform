@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func NewBudgetRepository(db *gorm.DB) BudgetRepository {
 
 func (r *budgetRepository) FindByID(ctx context.Context, id string, withItems bool) (*financeModels.Budget, error) {
 	var item financeModels.Budget
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	if withItems {
 		q = q.Preload("Items").Preload("Items.ChartOfAccount")
 	}
@@ -73,7 +74,7 @@ func (r *budgetRepository) List(ctx context.Context, params BudgetListParams) ([
 	var items []financeModels.Budget
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.Budget{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.Budget{})
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
@@ -142,5 +143,5 @@ func (r *budgetRepository) SyncActuals(ctx context.Context, budgetID string) err
 		WHERE bi.budget_id = b.id
 		  AND b.id = ?
 	`
-	return r.db.WithContext(ctx).Exec(query, budgetID).Error
+	return database.GetDB(ctx, r.db).Exec(query, budgetID).Error
 }

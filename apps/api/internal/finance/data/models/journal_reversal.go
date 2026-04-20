@@ -10,6 +10,7 @@ import (
 // JournalReversal stores linkage between an original posted journal and its reversal entry.
 type JournalReversal struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	OriginalJournalEntryID string        `gorm:"type:uuid;not null;index" json:"original_journal_entry_id"`
 	OriginalJournalEntry   *JournalEntry `gorm:"foreignKey:OriginalJournalEntryID" json:"original_journal_entry,omitempty"`

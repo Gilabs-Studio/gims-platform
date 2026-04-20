@@ -18,6 +18,7 @@ const (
 // feedback form without authentication.
 type FeedbackToken struct {
 	ID           string              `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Token        string              `gorm:"type:varchar(128);uniqueIndex;not null" json:"token"`
 	FormID       string              `gorm:"type:uuid;not null;index" json:"form_id"`
 	OutletID     string              `gorm:"type:uuid;not null;index" json:"outlet_id"`

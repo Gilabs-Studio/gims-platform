@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/feedback/data/models"
@@ -27,7 +28,7 @@ func NewFeedbackFormRepository(db *gorm.DB) FeedbackFormRepository {
 }
 
 func (r *feedbackFormRepository) db_(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx)
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *feedbackFormRepository) FindByID(ctx context.Context, id string) (*models.FeedbackForm, error) {

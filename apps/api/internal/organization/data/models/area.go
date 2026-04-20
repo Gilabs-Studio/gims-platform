@@ -11,6 +11,7 @@ import (
 // Enhanced in Sprint 24 to merge CRM Brick concept — adds territory code, polygon, color, manager.
 type Area struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
 	Description string         `gorm:"type:text" json:"description"`
 	IsActive    bool           `gorm:"default:true;index" json:"is_active"`

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -49,7 +50,7 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 	rows := make([]*models.PurchaseReturn, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.PurchaseReturn{}).Preload("Items")
+	q := database.GetDB(ctx, r.db).Model(&models.PurchaseReturn{}).Preload("Items")
 	q = security.ApplyScopeFilter(q, ctx, security.PurchaseScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
@@ -96,18 +97,18 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 
 func (r *purchaseReturnRepository) GetByID(ctx context.Context, id string) (*models.PurchaseReturn, error) {
 	var row models.PurchaseReturn
-	if err := r.db.WithContext(ctx).Preload("Items").First(&row, purchaseReturnIDFilter, id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("Items").First(&row, purchaseReturnIDFilter, id).Error; err != nil {
 		return nil, err
 	}
 	return &row, nil
 }
 
 func (r *purchaseReturnRepository) Create(ctx context.Context, row *models.PurchaseReturn) error {
-	return r.db.WithContext(ctx).Create(row).Error
+	return database.GetDB(ctx, r.db).Create(row).Error
 }
 
 func (r *purchaseReturnRepository) Update(ctx context.Context, row *models.PurchaseReturn) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.PurchaseReturn{}).Where(purchaseReturnIDFilter, row.ID).Updates(map[string]interface{}{
 			"warehouse_id": row.WarehouseID,
 			"reason":       row.Reason,
@@ -131,12 +132,12 @@ func (r *purchaseReturnRepository) Update(ctx context.Context, row *models.Purch
 }
 
 func (r *purchaseReturnRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseReturnStatus) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&models.PurchaseReturn{}).
 		Where(purchaseReturnIDFilter, id).
 		Update("status", status).Error
 }
 
 func (r *purchaseReturnRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.PurchaseReturn{}, purchaseReturnIDFilter, id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.PurchaseReturn{}, purchaseReturnIDFilter, id).Error
 }

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
@@ -18,12 +19,12 @@ func NewLoyaltyMemberRepository(db *gorm.DB) LoyaltyMemberRepository {
 }
 
 func (r *loyaltyMemberRepo) Create(ctx context.Context, member *models.LoyaltyMember) error {
-	return r.db.WithContext(ctx).Create(member).Error
+	return database.GetDB(ctx, r.db).Create(member).Error
 }
 
 func (r *loyaltyMemberRepo) GetByID(ctx context.Context, id string) (*models.LoyaltyMember, error) {
 	var member models.LoyaltyMember
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&member).Error
+	err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&member).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -32,7 +33,7 @@ func (r *loyaltyMemberRepo) GetByID(ctx context.Context, id string) (*models.Loy
 
 func (r *loyaltyMemberRepo) GetByCustomerID(ctx context.Context, customerID string) (*models.LoyaltyMember, error) {
 	var member models.LoyaltyMember
-	err := r.db.WithContext(ctx).Where("customer_id = ?", customerID).First(&member).Error
+	err := database.GetDB(ctx, r.db).Where("customer_id = ?", customerID).First(&member).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -43,7 +44,7 @@ func (r *loyaltyMemberRepo) GetByCustomerID(ctx context.Context, customerID stri
 // the customers table. It matches members whose program is active for the outlet.
 func (r *loyaltyMemberRepo) LookupByNameAndOutlet(ctx context.Context, name, outletID string) (*models.LoyaltyMember, error) {
 	var member models.LoyaltyMember
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Joins("JOIN customers ON customers.id = loyalty_members.customer_id").
 		Joins("JOIN loyalty_programs ON loyalty_programs.id = loyalty_members.program_id").
 		Where("loyalty_members.deleted_at IS NULL").
@@ -63,7 +64,7 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 	var members []models.LoyaltyMember
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.LoyaltyMember{})
+	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyMember{})
 
 	// Outlet-scope filter: only members whose program belongs to the given outlets (or is global).
 	if len(params.ProgramOutletIDs) > 0 {
@@ -88,12 +89,12 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 }
 
 func (r *loyaltyMemberRepo) Update(ctx context.Context, member *models.LoyaltyMember) error {
-	return r.db.WithContext(ctx).Save(member).Error
+	return database.GetDB(ctx, r.db).Save(member).Error
 }
 
 func (r *loyaltyMemberRepo) GetNextMemberCode(ctx context.Context) (string, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.LoyaltyMember{}).Unscoped().Count(&count).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Model(&models.LoyaltyMember{}).Unscoped().Count(&count).Error; err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("MBR-%05d", count+1), nil

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -32,7 +33,7 @@ func NewAssetCategoryRepository(db *gorm.DB) AssetCategoryRepository {
 
 func (r *assetCategoryRepository) FindByID(ctx context.Context, id string) (*financeModels.AssetCategory, error) {
 	var item financeModels.AssetCategory
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -54,7 +55,7 @@ func (r *assetCategoryRepository) List(ctx context.Context, params AssetCategory
 	var items []financeModels.AssetCategory
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.AssetCategory{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.AssetCategory{})
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("asset_categories.name ILIKE ?", like)

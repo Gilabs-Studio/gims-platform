@@ -10,6 +10,7 @@ import (
 // MonthlyTarget represents monthly sales target breakdown
 type MonthlyTarget struct {
 	ID             string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	YearlyTargetID string  `gorm:"type:uuid;not null;index" json:"yearly_target_id"`
 	Month          int     `gorm:"not null" json:"month"` // 1-12
 	TargetAmount   float64 `gorm:"type:decimal(20,2);not null" json:"target_amount"`

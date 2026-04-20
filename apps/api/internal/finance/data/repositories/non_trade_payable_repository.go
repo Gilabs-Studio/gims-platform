@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -39,7 +40,7 @@ func NewNonTradePayableRepository(db *gorm.DB) NonTradePayableRepository {
 
 func (r *nonTradePayableRepository) FindByID(ctx context.Context, id string) (*financeModels.NonTradePayable, error) {
 	var item financeModels.NonTradePayable
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("ChartOfAccount").
 		First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -66,7 +67,7 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 	var items []financeModels.NonTradePayable
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Preload("ChartOfAccount")
+	q := database.GetDB(ctx, r.db).Model(&financeModels.NonTradePayable{}).Preload("ChartOfAccount")
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
@@ -114,7 +115,7 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 func (r *nonTradePayableRepository) GenerateCode(ctx context.Context, now time.Time) (string, error) {
 	prefix := "NTP-" + now.Format("200601") + "-"
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).
+	if err := database.GetDB(ctx, r.db).Model(&financeModels.NonTradePayable{}).
 		Where("code LIKE ?", prefix+"%").
 		Count(&count).Error; err != nil {
 		return "", err

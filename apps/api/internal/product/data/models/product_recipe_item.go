@@ -12,6 +12,7 @@ import (
 // (a Product with IsIngredient = true) and the quantity consumed per unit sold.
 type ProductRecipeItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	// ProductID is the F&B product that owns this recipe (e.g. "Nasi Goreng")
 	ProductID string   `gorm:"type:uuid;not null;index" json:"product_id"`

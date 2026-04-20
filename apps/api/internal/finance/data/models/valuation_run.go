@@ -31,6 +31,7 @@ const (
 // ValuationRun tracks each valuation run with lifecycle status, totals, and link to generated journal.
 type ValuationRun struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	ReferenceID   string             `gorm:"type:varchar(255);uniqueIndex;not null" json:"reference_id"`
 	ValuationType ValuationType      `gorm:"type:varchar(50);not null;index" json:"valuation_type"`

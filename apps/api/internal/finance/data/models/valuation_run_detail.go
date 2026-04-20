@@ -18,6 +18,7 @@ const (
 // ValuationRunDetail stores granular valuation item rows for auditability.
 type ValuationRunDetail struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	ValuationRunID string        `gorm:"type:uuid;not null;index" json:"valuation_run_id"`
 	ValuationRun   *ValuationRun `gorm:"foreignKey:ValuationRunID;constraint:OnDelete:CASCADE" json:"valuation_run,omitempty"`

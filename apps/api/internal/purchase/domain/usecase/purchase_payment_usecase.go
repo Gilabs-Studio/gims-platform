@@ -73,9 +73,10 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	scopedDB := database.GetDB(ctx, uc.db)
 
 	var bankAccounts []coreModels.BankAccount
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&coreModels.BankAccount{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -90,7 +91,7 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	}
 
 	var invoices []*models.SupplierInvoice
-	if err := uc.db.WithContext(ctx).
+	if err := scopedDB.
 		Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
 		Where("status IN ?", []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusUnpaid, models.SupplierInvoiceStatusPartial}).

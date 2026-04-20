@@ -23,6 +23,7 @@ const (
 // Supplier represents a supplier/vendor entity with approval workflow
 type Supplier struct {
 	ID             string                   `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code           string                   `gorm:"type:varchar(50);uniqueIndex" json:"code"`
 	Name           string                   `gorm:"type:varchar(200);not null;index" json:"name"`
 	SupplierTypeID *string                  `gorm:"type:uuid;index" json:"supplier_type_id"`

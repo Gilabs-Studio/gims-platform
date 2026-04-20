@@ -20,6 +20,7 @@ const (
 // It captures a balance snapshot (BalanceAfter) after each entry for full auditability.
 type LoyaltyPointLedger struct {
 	ID    string          `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	MemberID  string          `gorm:"type:uuid;not null;index" json:"member_id"`
 	EntryType LedgerEntryType `gorm:"type:varchar(20);not null;index" json:"entry_type"`
 	// TransactionType identifies the originating entity (pos_order / sales_order / manual).

@@ -15,6 +15,7 @@ const (
 // ProductRecipeVersion stores immutable snapshots of a product recipe.
 type ProductRecipeVersion struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	ProductID string   `gorm:"type:uuid;not null;index" json:"product_id"`
 	Product   *Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`

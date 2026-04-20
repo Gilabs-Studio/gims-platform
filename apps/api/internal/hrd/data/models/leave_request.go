@@ -37,6 +37,7 @@ const CarryOverExpiryMonth = 3 // March 31
 // LeaveRequest represents a leave request submitted by an employee
 type LeaveRequest struct {
 	ID          string        `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID  string        `gorm:"type:uuid;not null;index:idx_leave_employee" json:"employee_id"`
 	LeaveTypeID string        `gorm:"type:uuid;not null;index:idx_leave_type" json:"leave_type_id"`
 	StartDate   time.Time     `gorm:"type:date;not null;index:idx_leave_dates" json:"start_date"`

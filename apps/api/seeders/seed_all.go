@@ -4,6 +4,10 @@ import "os"
 
 // SeedAll runs all seeders
 func SeedAll() error {
+	if err := ensureSeederTenantIDGuard(); err != nil {
+		return err
+	}
+
 	// Check for cleanup flag
 	if os.Getenv("SEED_CLEANUP_DATABASE") == "true" {
 		if err := CleanupDatabase(); err != nil {

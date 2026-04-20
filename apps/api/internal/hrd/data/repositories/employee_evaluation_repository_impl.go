@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 
@@ -21,7 +22,7 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 	var evaluations []models.EmployeeEvaluation
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.EmployeeEvaluation{})
+	query := database.GetDB(ctx, r.db).Model(&models.EmployeeEvaluation{})
 
 	// Apply search filter on employee name, evaluation group name, and notes
 	if search != "" {
@@ -71,7 +72,7 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 func (r *employeeEvaluationRepositoryImpl) FindByID(ctx context.Context, id string) (*models.EmployeeEvaluation, error) {
 	var evaluation models.EmployeeEvaluation
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&evaluation).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&evaluation).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -82,7 +83,7 @@ func (r *employeeEvaluationRepositoryImpl) FindByID(ctx context.Context, id stri
 
 func (r *employeeEvaluationRepositoryImpl) FindByIDWithDetails(ctx context.Context, id string) (*models.EmployeeEvaluation, error) {
 	var evaluation models.EmployeeEvaluation
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("EvaluationGroup").
 		Preload("CriteriaScores").
 		Where("id = ?", id).
@@ -96,28 +97,28 @@ func (r *employeeEvaluationRepositoryImpl) FindByIDWithDetails(ctx context.Conte
 }
 
 func (r *employeeEvaluationRepositoryImpl) Create(ctx context.Context, evaluation *models.EmployeeEvaluation) error {
-	if err := r.db.WithContext(ctx).Create(evaluation).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(evaluation).Error; err != nil {
 		return fmt.Errorf("failed to create employee evaluation: %w", err)
 	}
 	return nil
 }
 
 func (r *employeeEvaluationRepositoryImpl) Update(ctx context.Context, evaluation *models.EmployeeEvaluation) error {
-	if err := r.db.WithContext(ctx).Save(evaluation).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(evaluation).Error; err != nil {
 		return fmt.Errorf("failed to update employee evaluation: %w", err)
 	}
 	return nil
 }
 
 func (r *employeeEvaluationRepositoryImpl) Delete(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.EmployeeEvaluation{}).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.EmployeeEvaluation{}).Error; err != nil {
 		return fmt.Errorf("failed to delete employee evaluation: %w", err)
 	}
 	return nil
 }
 
 func (r *employeeEvaluationRepositoryImpl) SaveCriteriaScores(ctx context.Context, evaluationID string, scores []models.EmployeeEvaluationCriteria) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Delete existing scores for this evaluation
 		if err := tx.Where("employee_evaluation_id = ?", evaluationID).
 			Delete(&models.EmployeeEvaluationCriteria{}).Error; err != nil {
@@ -136,7 +137,7 @@ func (r *employeeEvaluationRepositoryImpl) SaveCriteriaScores(ctx context.Contex
 }
 
 func (r *employeeEvaluationRepositoryImpl) DeleteCriteriaScores(ctx context.Context, evaluationID string) error {
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("employee_evaluation_id = ?", evaluationID).
 		Delete(&models.EmployeeEvaluationCriteria{}).Error; err != nil {
 		return fmt.Errorf("failed to delete criteria scores: %w", err)

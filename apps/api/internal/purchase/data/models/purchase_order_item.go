@@ -8,6 +8,7 @@ import (
 
 type PurchaseOrderItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	PurchaseOrderID string        `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`

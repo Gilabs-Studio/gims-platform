@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/customer/data/models"
@@ -26,12 +27,12 @@ func NewCustomerTypeRepository(db *gorm.DB) CustomerTypeRepository {
 }
 
 func (r *customerTypeRepository) Create(ctx context.Context, customerType *models.CustomerType) error {
-	return r.db.WithContext(ctx).Create(customerType).Error
+	return database.GetDB(ctx, r.db).Create(customerType).Error
 }
 
 func (r *customerTypeRepository) FindByID(ctx context.Context, id string) (*models.CustomerType, error) {
 	var customerType models.CustomerType
-	err := r.db.WithContext(ctx).First(&customerType, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&customerType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *customerTypeRepository) List(ctx context.Context, params ListParams) ([
 	var customerTypes []models.CustomerType
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.CustomerType{})
+	query := database.GetDB(ctx, r.db).Model(&models.CustomerType{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *customerTypeRepository) List(ctx context.Context, params ListParams) ([
 }
 
 func (r *customerTypeRepository) Update(ctx context.Context, customerType *models.CustomerType) error {
-	return r.db.WithContext(ctx).Save(customerType).Error
+	return database.GetDB(ctx, r.db).Save(customerType).Error
 }
 
 func (r *customerTypeRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.CustomerType{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.CustomerType{}, "id = ?", id).Error
 }

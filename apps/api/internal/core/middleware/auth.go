@@ -16,7 +16,7 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 }) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 0. Exclude webhooks that do not use browser JWT sessions
-		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/crm/leads/upsert") {
+		if isCRMLeadUpsertWebhookRequest(c.Request.Method, c.Request.URL.Path) {
 			// Inject a system mock user so RequirePermission middleware passes
 			// created_by in DB is a UUID, so we must use a real UUID format instead of 'system-webhook'
 			mockUserID := "00000000-0000-0000-0000-000000000000"

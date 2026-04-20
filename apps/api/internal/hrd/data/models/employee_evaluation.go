@@ -17,6 +17,7 @@ const (
 // EmployeeEvaluation represents a performance evaluation for an employee
 type EmployeeEvaluation struct {
 	ID                string         `gorm:"type:char(36);primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID        string         `gorm:"type:char(36);not null;index" json:"employee_id"`
 	EvaluationGroupID string         `gorm:"type:char(36);not null;index" json:"evaluation_group_id"`
 	EvaluatorID       string         `gorm:"type:char(36);not null;index" json:"evaluator_id"` // the employee doing the evaluation

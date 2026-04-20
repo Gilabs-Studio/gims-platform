@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -57,13 +58,13 @@ func (r *assetAssignmentRepository) Create(ctx context.Context, assignment *mode
 	}
 	assignment.AssignedAt = time.Now()
 
-	return r.db.WithContext(ctx).Create(assignment).Error
+	return database.GetDB(ctx, r.db).Create(assignment).Error
 }
 
 // GetByID retrieves an assignment by ID
 func (r *assetAssignmentRepository) GetByID(ctx context.Context, id string) (*models.AssetAssignmentHistory, error) {
 	var assignment models.AssetAssignmentHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		First(&assignment).Error
 
@@ -80,7 +81,7 @@ func (r *assetAssignmentRepository) GetByID(ctx context.Context, id string) (*mo
 // GetByAssetID retrieves assignment history for an asset
 func (r *assetAssignmentRepository) GetByAssetID(ctx context.Context, assetID string) ([]models.AssetAssignmentHistory, error) {
 	var assignments []models.AssetAssignmentHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("assigned_at DESC").
 		Find(&assignments).Error
@@ -91,7 +92,7 @@ func (r *assetAssignmentRepository) GetByAssetID(ctx context.Context, assetID st
 // GetCurrentAssignment retrieves the current (not returned) assignment for an asset
 func (r *assetAssignmentRepository) GetCurrentAssignment(ctx context.Context, assetID string) (*models.AssetAssignmentHistory, error) {
 	var assignment models.AssetAssignmentHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_id = ? AND returned_at IS NULL", assetID).
 		Order("assigned_at DESC").
 		First(&assignment).Error
@@ -113,7 +114,7 @@ func (r *assetAssignmentRepository) MarkAsReturned(ctx context.Context, id strin
 		"return_reason": reason,
 	}
 
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&models.AssetAssignmentHistory{}).
 		Where("id = ?", id).
 		Updates(updates).Error
@@ -123,7 +124,7 @@ func (r *assetAssignmentRepository) MarkAsReturned(ctx context.Context, id strin
 func (r *assetAssignmentRepository) GetByEmployeeID(ctx context.Context, employeeID string, activeOnly bool) ([]models.AssetAssignmentHistory, error) {
 	var assignments []models.AssetAssignmentHistory
 
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID)
 
 	if activeOnly {
@@ -137,7 +138,7 @@ func (r *assetAssignmentRepository) GetByEmployeeID(ctx context.Context, employe
 // GetByDepartmentID retrieves assignments for a department
 func (r *assetAssignmentRepository) GetByDepartmentID(ctx context.Context, departmentID string) ([]models.AssetAssignmentHistory, error) {
 	var assignments []models.AssetAssignmentHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("department_id = ? AND returned_at IS NULL", departmentID).
 		Order("assigned_at DESC").
 		Find(&assignments).Error
@@ -149,7 +150,7 @@ func (r *assetAssignmentRepository) GetByDepartmentID(ctx context.Context, depar
 func (r *assetAssignmentRepository) GetAssignmentCounts(ctx context.Context, params AssignmentCountParams) (map[string]int64, error) {
 	counts := make(map[string]int64)
 
-	query := r.db.WithContext(ctx).Model(&models.AssetAssignmentHistory{})
+	query := database.GetDB(ctx, r.db).Model(&models.AssetAssignmentHistory{})
 
 	if params.AssetID != "" {
 		query = query.Where("asset_id = ?", params.AssetID)
@@ -194,7 +195,7 @@ func (r *assetAssignmentRepository) GetAssignmentCounts(ctx context.Context, par
 // GetEmployeeAssetCount returns the number of assets currently assigned to an employee
 func (r *assetAssignmentRepository) GetEmployeeAssetCount(ctx context.Context, employeeID string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.AssetAssignmentHistory{}).
 		Where("employee_id = ? AND returned_at IS NULL", employeeID).
 		Count(&count).Error
