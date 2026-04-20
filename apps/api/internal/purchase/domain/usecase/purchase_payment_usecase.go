@@ -1058,6 +1058,10 @@ func (uc *purchasePaymentUsecase) createCashBankTransactionForPayment(ctx contex
 		return nil
 	}
 
+	if pay.CashBankTransactionID != nil && strings.TrimSpace(*pay.CashBankTransactionID) != "" {
+		return nil
+	}
+
 	var bankAccount coreModels.BankAccount
 	if pay.BankAccount != nil {
 		bankAccount = *pay.BankAccount
@@ -1286,6 +1290,16 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 }
 
 func (uc *purchasePaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error {
+	if pay == nil {
+		return nil
+	}
+
+	// When payment is already linked to a cash-bank transaction, accounting is handled
+	// through CASH_BANK reference. Re-triggering PURCHASE_PAYMENT journal would duplicate entries.
+	if pay.CashBankTransactionID != nil && strings.TrimSpace(*pay.CashBankTransactionID) != "" {
+		return nil
+	}
+
 	return uc.triggerJournalEntry(ctx, pay)
 }
 

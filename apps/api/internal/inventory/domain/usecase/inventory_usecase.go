@@ -325,45 +325,51 @@ func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, q
 }
 
 func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
+	if tx := database.GetTx(ctx); tx != nil {
+		return u.deductStockWithTx(ctx, tx, batchID, quantity)
+	}
+
 	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
-		txCtx := database.WithTx(ctx, tx)
-
-		// First fetch batch to get product ID for aggregate update
-		batch, err := u.repo.GetBatchByID(txCtx, batchID)
-		if err != nil {
-			return err
-		}
-		if batch == nil {
-			return ErrBatchNotFound
-		}
-
-		currentHpp, currentStock, err := u.repo.GetProductCostInfo(txCtx, batch.ProductID)
-		if err != nil {
-			return err
-		}
-
-		runningQty := currentStock - quantity
-		if runningQty < 0 {
-			return ErrInsufficientBatchStock
-		}
-
-		stockValue := runningQty * currentHpp
-		if err := u.appendStockLedger(txCtx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
-			return err
-		}
-
-		// 1. Update Batch Quantity
-		if err := u.repo.UpdateBatchQuantity(txCtx, batchID, -quantity); err != nil {
-			return err
-		}
-
-		// 2. Update Aggregate Product Stock and keep current average cost
-		if err := u.repo.UpdateProductStock(txCtx, batch.ProductID, -quantity); err != nil {
-			return err
-		}
-
-		return u.repo.UpdateProductAverageCost(txCtx, batch.ProductID, currentHpp)
+		return u.deductStockWithTx(database.WithTx(ctx, tx), tx, batchID, quantity)
 	})
+}
+
+func (u *inventoryUsecase) deductStockWithTx(ctx context.Context, tx *gorm.DB, batchID string, quantity float64) error {
+	// First fetch batch to get product ID for aggregate update
+	batch, err := u.repo.GetBatchByID(ctx, batchID)
+	if err != nil {
+		return err
+	}
+	if batch == nil {
+		return ErrBatchNotFound
+	}
+
+	currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, batch.ProductID)
+	if err != nil {
+		return err
+	}
+
+	runningQty := currentStock - quantity
+	if runningQty < 0 {
+		return ErrInsufficientBatchStock
+	}
+
+	stockValue := runningQty * currentHpp
+	if err := u.appendStockLedger(ctx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+		return err
+	}
+
+	// 1. Update Batch Quantity
+	if err := u.repo.UpdateBatchQuantity(ctx, batchID, -quantity); err != nil {
+		return err
+	}
+
+	// 2. Update Aggregate Product Stock and keep current average cost
+	if err := u.repo.UpdateProductStock(ctx, batch.ProductID, -quantity); err != nil {
+		return err
+	}
+
+	return u.repo.UpdateProductAverageCost(ctx, batch.ProductID, currentHpp)
 }
 
 func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error) {
@@ -413,6 +419,24 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 
 func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
 	var movementID string
+	if tx := database.GetTx(ctx); tx != nil {
+		id, err := u.repo.CreateStockMovement(ctx, req)
+		if err != nil {
+			return "", err
+		}
+		movementID = id
+
+		if req.SkipJournaling {
+			log.Printf("[Inventory] Skipping individual journal for movement %s (Document level trigger expected)", id)
+			return movementID, nil
+		}
+
+		if err := u.triggerInventoryJournal(ctx, tx, movementID); err != nil {
+			return "", fmt.Errorf("triggered journal failed: %w", err)
+		}
+
+		return movementID, nil
+	}
 
 	// Use RetryTx for atomic operation. Failure in journal = Rollback stock movement.
 	err := database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {

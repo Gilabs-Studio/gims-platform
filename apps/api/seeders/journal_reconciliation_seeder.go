@@ -3,6 +3,7 @@ package seeders
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -202,6 +203,11 @@ func SeedJournalReconciliation() error {
 		return err
 	}
 	for _, pp := range purchasePayments {
+		if pp.CashBankTransactionID != nil && strings.TrimSpace(*pp.CashBankTransactionID) != "" {
+			// Payment accounting is already represented by CASH_BANK journal path.
+			continue
+		}
+
 		var existing financeModels.JournalEntry
 		db.Table("journal_entries").
 			Where("reference_type = ? AND reference_id = ?", reference.RefTypePurchasePayment, pp.ID).

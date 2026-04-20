@@ -920,7 +920,12 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 
 		if expenseCOAID != "" {
 			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, parsedDate, extraCost); err != nil {
-				return err
+				// Do not block supplier invoice approval when the mapped extra-cost account
+				// is not budgeted for the period. Budget overrun remains enforced.
+				if !finUsecase.IsBudgetAccountNotConfiguredForPeriod(err) {
+					return err
+				}
+				log.Printf("supplier_invoice budget guard skipped: unbudgeted account for period, invoice_id=%s coa_id=%s", si.ID, expenseCOAID)
 			}
 		}
 	}
@@ -944,14 +949,12 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 		}
 	}
 
+	// Keep approval flow consistent with Customer Invoice flow:
+	// SUBMITTED -> APPROVED -> UNPAID -> payment handling.
 	status := models.SupplierInvoiceStatusUnpaid
 	remainingAmount := math.Max(0, si.Amount-dpAmount)
-	if dpAmount > 0 {
-		if remainingAmount <= 0.0001 {
-			status = models.SupplierInvoiceStatusPaid
-		} else {
-			status = models.SupplierInvoiceStatusPartial
-		}
+	if remainingAmount <= 0.0001 {
+		status = models.SupplierInvoiceStatusPaid
 	}
 
 	updates := map[string]interface{}{

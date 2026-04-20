@@ -2,12 +2,19 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
+
+var ErrBudgetAccountNotConfiguredForPeriod = errors.New("account is not budgeted for period")
+
+func IsBudgetAccountNotConfiguredForPeriod(err error) bool {
+	return errors.Is(err, ErrBudgetAccountNotConfiguredForPeriod)
+}
 
 // EnsureWithinBudget checks if the proposed amount for a specific COA and date is within the approved budget.
 func EnsureWithinBudget(ctx context.Context, tx *gorm.DB, coaID string, entryDate time.Time, amount float64) error {
@@ -56,7 +63,8 @@ func EnsureWithinBudget(ctx context.Context, tx *gorm.DB, coaID string, entryDat
 		}
 
 		// Budget exists for the period, but this account is not budgeted.
-		return fmt.Errorf("account is not budgeted for period %s - %s",
+		return fmt.Errorf("%w %s - %s",
+			ErrBudgetAccountNotConfiguredForPeriod,
 			periodBudget.StartDate.Format("2006-01-02"), periodBudget.EndDate.Format("2006-01-02"))
 	}
 
