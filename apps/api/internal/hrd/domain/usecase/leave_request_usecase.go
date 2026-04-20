@@ -845,12 +845,15 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
 		}
 
-		// 1b. Check if cancel is performed before leave start date
-		// WHY: Business rule - can only cancel leave requests before the leave period starts
-		today := apptime.Now().Truncate(24 * time.Hour)
-		startDate := leaveRequest.StartDate.Truncate(24 * time.Hour)
-		if !today.Before(startDate) {
-			return fmt.Errorf("INVALID_DATE: leave request can only be cancelled before the start date (start date: %s, today: %s)", startDate.Format("2006-01-02"), today.Format("2006-01-02"))
+		// 1b. Check if cancel is performed before leave start date (APPROVED only)
+		// WHY: PENDING requests can always be cancelled regardless of date.
+		//      APPROVED requests can only be cancelled before the leave period starts.
+		if leaveRequest.Status == models.LeaveStatusApproved {
+			today := apptime.Now().Truncate(24 * time.Hour)
+			startDate := leaveRequest.StartDate.Truncate(24 * time.Hour)
+			if !today.Before(startDate) {
+				return fmt.Errorf("INVALID_DATE: leave request can only be cancelled before the start date (start date: %s, today: %s)", startDate.Format("2006-01-02"), today.Format("2006-01-02"))
+			}
 		}
 
 		// Track original status for conditional attendance record deletion
