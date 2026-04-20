@@ -179,28 +179,28 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 	}
 
 	deal := &models.Deal{
-		ID:                   uuid.New().String(),
-		Title:                req.Title,
-		Description:          req.Description,
-		Status:               models.DealStatusOpen,
-		PipelineStageID:      req.PipelineStageID,
-		Value:                dealValue,
-		Probability:          stage.Probability,
-		ExpectedCloseDate:    expectedCloseDate,
-		CustomerID:           req.CustomerID,
-		ContactID:            req.ContactID,
-		AssignedTo:           req.AssignedTo,
-		LeadID:               req.LeadID,
-		BudgetConfirmed:      req.BudgetConfirmed,
-		BudgetAmount:         req.BudgetAmount,
-		AuthConfirmed:        req.AuthConfirmed,
-		AuthPerson:           req.AuthPerson,
-		NeedConfirmed:        req.NeedConfirmed,
-		NeedDescription:      req.NeedDescription,
-		TimeConfirmed:        req.TimeConfirmed,
-		Notes:                req.Notes,
-		CreatedBy:            &createdBy,
-		Items:                items,
+		ID:                uuid.New().String(),
+		Title:             req.Title,
+		Description:       req.Description,
+		Status:            models.DealStatusOpen,
+		PipelineStageID:   req.PipelineStageID,
+		Value:             dealValue,
+		Probability:       stage.Probability,
+		ExpectedCloseDate: expectedCloseDate,
+		CustomerID:        req.CustomerID,
+		ContactID:         req.ContactID,
+		AssignedTo:        req.AssignedTo,
+		LeadID:            req.LeadID,
+		BudgetConfirmed:   req.BudgetConfirmed,
+		BudgetAmount:      req.BudgetAmount,
+		AuthConfirmed:     req.AuthConfirmed,
+		AuthPerson:        req.AuthPerson,
+		NeedConfirmed:     req.NeedConfirmed,
+		NeedDescription:   req.NeedDescription,
+		TimeConfirmed:     req.TimeConfirmed,
+		Notes:             req.Notes,
+		CreatedBy:         &createdBy,
+		Items:             items,
 	}
 
 	if err := u.dealRepo.Create(ctx, deal); err != nil {
@@ -733,12 +733,12 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 			continue
 		}
 		leadOptions = append(leadOptions, dto.DealLeadOption{
-			ID:          l.ID,
-			Code:        l.Code,
-			FirstName:   l.FirstName,
-			LastName:    l.LastName,
-			CompanyName: l.CompanyName,
-			IsConverted: l.IsConverted(),
+			ID:                       l.ID,
+			Code:                     l.Code,
+			FirstName:                l.FirstName,
+			LastName:                 l.LastName,
+			CompanyName:              l.CompanyName,
+			IsConverted:              l.IsConverted(),
 			IsQualifiedForConversion: true,
 		})
 	}
@@ -1134,7 +1134,7 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 			Phone:      leadData.Phone,
 			Email:      leadData.Email,
 			Position:   leadData.JobTitle,
-			IsActive: true,
+			IsActive:   true,
 		}
 		if changedBy != "" {
 			newContact.CreatedBy = &changedBy
