@@ -109,7 +109,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) List(ctx context.Context, params re
 	for i := range items {
 		if len(items[i].RegularInvoices) == 0 && items[i].PurchaseOrderID != "" {
 			var regulars []models.SupplierInvoice
-			if err := uc.db.WithContext(ctx).
+			if err := database.GetDB(ctx, uc.db).
 				Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL", items[i].PurchaseOrderID, models.SupplierInvoiceTypeNormal).
 				Find(&regulars).Error; err == nil {
 				items[i].RegularInvoices = regulars
@@ -139,7 +139,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id str
 	// Fallback to PO-based lookup if slice is empty
 	if len(si.RegularInvoices) == 0 && si.PurchaseOrderID != "" {
 		var regulars []models.SupplierInvoice
-		if err := uc.db.WithContext(ctx).
+		if err := database.GetDB(ctx, uc.db).
 			Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL", si.PurchaseOrderID, models.SupplierInvoiceTypeNormal).
 			Find(&regulars).Error; err == nil {
 			si.RegularInvoices = regulars
@@ -655,6 +655,10 @@ func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context,
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrSupplierInvoiceNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).

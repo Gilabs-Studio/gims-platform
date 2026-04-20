@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"gorm.io/gorm"
 )
@@ -43,7 +44,7 @@ func (r *purchaseFiscalYearResolver) resolveCompanyID(ctx context.Context) (stri
 	}
 
 	var companyID string
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Table("employees").
 		Select("company_id").
 		Where("user_id = ? AND deleted_at IS NULL", userID).

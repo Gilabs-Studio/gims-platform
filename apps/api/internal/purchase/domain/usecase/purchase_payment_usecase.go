@@ -239,10 +239,9 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
-	scopedDB := database.GetDB(ctx, uc.db)
 
 	var bankAccounts []coreModels.BankAccount
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.BankAccount{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -257,7 +256,7 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	}
 
 	var invoices []*models.SupplierInvoice
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
 		Where("status IN ?", payableSupplierInvoiceStatuses).
@@ -369,7 +368,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 
 		// Idempotency for retried submit: if the same pending payment already exists, return it.
 		var existingPending models.PurchasePayment
-		err = tx.Model(&models.PurchasePayment{}).
+		err = tx.Session(&gorm.Session{NewDB: true}).Model(&models.PurchasePayment{}).
 			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
 			Order("created_at DESC").
 			Take(&existingPending).Error
@@ -519,7 +518,7 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 			}
 
 			var pendingCount int64
-			if err := tx.Model(&models.PurchasePayment{}).
+			if err := tx.Session(&gorm.Session{NewDB: true}).Model(&models.PurchasePayment{}).
 				Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
 				Count(&pendingCount).Error; err != nil {
 				return err
@@ -666,16 +665,16 @@ func (uc *purchasePaymentUsecase) Update(ctx context.Context, id string, req *dt
 		}
 
 		updates := map[string]interface{}{
-			"bank_account_id":              ba.ID,
-			"payment_date":                 strings.TrimSpace(req.PaymentDate),
-			"amount":                       amount,
-			"method":                       models.PurchasePaymentMethod(method),
-			"reference_number":             req.ReferenceNumber,
-			"notes":                        req.Notes,
-			"updated_at":                   apptime.Now(),
-			"bank_account_name_snapshot":   ba.Name,
-			"bank_account_number_snapshot": ba.AccountNumber,
-			"bank_account_holder_snapshot": ba.AccountHolder,
+			"bank_account_id":                ba.ID,
+			"payment_date":                   strings.TrimSpace(req.PaymentDate),
+			"amount":                         amount,
+			"method":                         models.PurchasePaymentMethod(method),
+			"reference_number":               req.ReferenceNumber,
+			"notes":                          req.Notes,
+			"updated_at":                     apptime.Now(),
+			"bank_account_name_snapshot":     ba.Name,
+			"bank_account_number_snapshot":   ba.AccountNumber,
+			"bank_account_holder_snapshot":   ba.AccountHolder,
 			"bank_account_currency_snapshot": ba.Currency,
 		}
 		if err := tx.Model(&pay).Updates(updates).Error; err != nil {
@@ -1410,6 +1409,10 @@ func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchasePayment{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchasePaymentNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).

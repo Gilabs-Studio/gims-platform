@@ -515,6 +515,10 @@ func (u *purchaseReturnUsecase) ListAuditTrail(ctx context.Context, id string, p
 		perPage = 100
 	}
 
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.PurchaseReturn{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchaseReturnNotFound
+	}
+
 	tx := u.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "purchase_return.%")
@@ -961,7 +965,7 @@ func (u *purchaseReturnUsecase) getGoodsReceipt(ctx context.Context, goodsReceip
 	}
 
 	var goodsReceipt models.GoodsReceipt
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Preload("Items").
 		First(&goodsReceipt, "id = ?", goodsReceiptID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -984,7 +988,7 @@ func (u *purchaseReturnUsecase) getAvailableGoodsReceiptQtyByProduct(ctx context
 	}
 
 	sourceRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&models.GoodsReceiptItem{}).
 		Select("product_id, COALESCE(SUM(quantity_received), 0) AS qty").
 		Where("goods_receipt_id = ?", goodsReceiptID).
@@ -994,8 +998,14 @@ func (u *purchaseReturnUsecase) getAvailableGoodsReceiptQtyByProduct(ctx context
 	}
 
 	returnedRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
-		Model(&models.PurchaseReturnItem{}).
+	returnedQuery := u.db.WithContext(ctx).
+		Model(&models.PurchaseReturnItem{})
+	returnedQuery, err := applyTenantJoinScope(ctx, returnedQuery, "purchase_return_items.tenant_id", "purchase_returns.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := returnedQuery.
 		Select("purchase_return_items.product_id, COALESCE(SUM(purchase_return_items.quantity), 0) AS qty").
 		Joins("JOIN purchase_returns ON purchase_returns.id = purchase_return_items.purchase_return_id").
 		Where("purchase_returns.goods_receipt_id = ?", goodsReceiptID).

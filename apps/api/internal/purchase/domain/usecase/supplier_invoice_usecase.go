@@ -186,7 +186,14 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 	}
 	var invoicedSums []grQtySum
 	if len(grIDs) > 0 {
-		database.GetDB(ctx, uc.db).Table("supplier_invoice_items").
+		invoicedQuery := uc.db.WithContext(ctx).
+			Table("supplier_invoice_items")
+		invoicedQuery, tenantErr := applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+		if tenantErr != nil {
+			return nil, tenantErr
+		}
+
+		if err := invoicedQuery.
 			Select("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
 			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 			Where("supplier_invoices.goods_receipt_id IN ? AND supplier_invoices.status NOT IN ?", grIDs, []string{
@@ -195,7 +202,9 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 			}).
 			Where("supplier_invoices.deleted_at IS NULL").
 			Group("supplier_invoices.goods_receipt_id, supplier_invoice_items.product_id").
-			Scan(&invoicedSums)
+			Scan(&invoicedSums).Error; err != nil {
+			return nil, err
+		}
 	}
 	grInvoicedMap := make(map[string]map[string]float64)
 	for _, s := range invoicedSums {
@@ -348,7 +357,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		items := make([]models.SupplierInvoiceItem, 0, len(req.Items))
 		subTotal := 0.0
 
-		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, "")
+		poItemIDByProduct, err := uc.validateSIQuantity(ctx, tx, &gr, req.Items, "")
 		if err != nil {
 			return err
 		}
@@ -445,7 +454,7 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		}
 
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -555,7 +564,7 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			return err
 		}
 
-		poItemIDByProduct, err := uc.validateSIQuantity(tx, &gr, req.Items, id)
+		poItemIDByProduct, err := uc.validateSIQuantity(ctx, tx, &gr, req.Items, id)
 		if err != nil {
 			return err
 		}
@@ -676,12 +685,12 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		}
 
 		if oldGRID != "" && oldGRID != gr.ID {
-			if err := uc.syncGoodsReceiptStatus(tx, oldGRID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, oldGRID); err != nil {
 				return err
 			}
 		}
 
-		if err := uc.syncGoodsReceiptStatus(tx, gr.ID); err != nil {
+		if err := uc.syncGoodsReceiptStatus(ctx, tx, gr.ID); err != nil {
 			return err
 		}
 
@@ -753,7 +762,7 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -813,7 +822,7 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		}
 
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -849,7 +858,14 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 	}
 
 	var receivedSums []qtySum
-	if err := tx.Table("goods_receipt_items").
+	receivedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("goods_receipt_items")
+	receivedQuery, err := applyTenantJoinScope(ctx, receivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := receivedQuery.
 		Select("product_id, SUM(quantity_received) as qty").
 		Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 		Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", si.PurchaseOrderID, []string{
@@ -868,7 +884,14 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 
 	// 2. Get total Qty already Invoiced for this PO (excluding current one, draft, submitted, rejected, cancelled)
 	var invoicedSums []qtySum
-	if err := tx.Table("supplier_invoice_items").
+	invoicedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("supplier_invoice_items")
+	invoicedQuery, err = applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := invoicedQuery.
 		Select("product_id, SUM(quantity) as qty").
 		Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 		Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ? AND supplier_invoices.id != ?",
@@ -1012,7 +1035,7 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -1065,7 +1088,7 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 			return err
 		}
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -1266,7 +1289,7 @@ func (uc *supplierInvoiceUsecase) reverse(ctx context.Context, id string, reason
 
 		// Sync Goods Receipt status (to release the quantity for new invoicing)
 		if si.GoodsReceiptID != nil {
-			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+			if err := uc.syncGoodsReceiptStatus(ctx, tx, *si.GoodsReceiptID); err != nil {
 				return err
 			}
 		}
@@ -1300,6 +1323,10 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrSupplierInvoiceNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
@@ -1366,7 +1393,7 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	return entries, total, nil
 }
 
-func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(tx *gorm.DB, grID string) error {
+func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(ctx context.Context, tx *gorm.DB, grID string) error {
 	if grID == "" {
 		return nil
 	}
@@ -1387,7 +1414,14 @@ func (uc *supplierInvoiceUsecase) syncGoodsReceiptStatus(tx *gorm.DB, grID strin
 		Qty       float64
 	}
 	var invoicedSums []qtySum
-	if err := tx.Table("supplier_invoice_items").
+	invoicedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+		Table("supplier_invoice_items")
+	invoicedQuery, err := applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+	if err != nil {
+		return err
+	}
+
+	if err := invoicedQuery.
 		Select("supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
 		Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
 		Where("supplier_invoices.goods_receipt_id = ? AND supplier_invoices.status NOT IN ?",

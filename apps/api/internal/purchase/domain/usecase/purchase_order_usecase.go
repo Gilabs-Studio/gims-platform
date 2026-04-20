@@ -60,12 +60,12 @@ type purchaseOrderUsecase struct {
 
 func NewPurchaseOrderUsecase(db *gorm.DB, repo repositories.PurchaseOrderRepository, prRepo repositories.PurchaseRequisitionRepository, auditService audit.AuditService, fiscalYearRepo financeRepositories.FiscalYearRepository) PurchaseOrderUsecase {
 	return &purchaseOrderUsecase{
-		db:                db,
-		repo:              repo,
-		prRepo:            prRepo,
+		db:                 db,
+		repo:               repo,
+		prRepo:             prRepo,
 		fiscalYearResolver: newPurchaseFiscalYearResolver(db, fiscalYearRepo),
-		mapper:            mapper.NewPurchaseOrderMapper(),
-		auditService:      auditService,
+		mapper:             mapper.NewPurchaseOrderMapper(),
+		auditService:       auditService,
 	}
 }
 
@@ -98,8 +98,14 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
 	var confirmedRows []receivedRow
-	if err := database.GetDB(ctx, uc.db).
-		Table("goods_receipt_items").
+	confirmedQuery := uc.db.WithContext(ctx).
+		Table("goods_receipt_items")
+	confirmedQuery, err = applyTenantJoinScope(ctx, confirmedQuery, "goods_receipt_items.tenant_id", "gr.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := confirmedQuery.
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
@@ -121,8 +127,14 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 	// Compute reservation from all active GRs (exclude REJECTED only) so draft/submitted
 	// GRs still reserve quantity and prevent duplicate receiving.
 	var reservedRows []receivedRow
-	if err := uc.db.WithContext(ctx).
-		Table("goods_receipt_items").
+	reservedQuery := uc.db.WithContext(ctx).
+		Table("goods_receipt_items")
+	reservedQuery, err = applyTenantJoinScope(ctx, reservedQuery, "goods_receipt_items.tenant_id", "gr.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := reservedQuery.
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
@@ -309,10 +321,8 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 	var createdID string
 
 	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var pr models.PurchaseRequisition
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Preload("Items").
 			First(&pr, "id = ?", purchaseRequisitionID).Error; err != nil {
@@ -327,7 +337,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		}
 
 		var count int64
-		if err := txScoped.Model(&models.PurchaseOrder{}).
+		if err := database.GetDB(ctx, tx).Model(&models.PurchaseOrder{}).
 			Where("purchase_requisition_id = ?", pr.ID).
 			Count(&count).Error; err != nil {
 			return err
@@ -708,10 +718,9 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
-	scopedDB := database.GetDB(ctx, uc.db)
 
 	var suppliers []supplierModels.Supplier
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&supplierModels.Supplier{}).
 		Preload("Contacts").
 		Where("is_active = ?", true).
@@ -727,7 +736,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	var products []productModels.Product
 	if len(supplierIDs) > 0 {
-		if err := scopedDB.
+		if err := database.GetDB(ctx, uc.db).
 			Model(&productModels.Product{}).
 			Where("supplier_id IN ?", supplierIDs).
 			Where("supplier_id IS NOT NULL").
@@ -749,7 +758,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -759,7 +768,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Business units
 	var businessUnits []orgModels.BusinessUnit
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&orgModels.BusinessUnit{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -841,6 +850,10 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseOrder{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchaseOrderNotFound
 	}
 
 	tx := database.GetDB(ctx, uc.db).Model(&coreModels.AuditLog{}).

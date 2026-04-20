@@ -248,11 +248,10 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
-	scopedDB := database.GetDB(ctx, uc.db)
 
 	// Suppliers
 	var suppliers []supplierModels.Supplier
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&supplierModels.Supplier{}).
 		Preload("Contacts").
 		Where("is_active = ?", true).
@@ -269,7 +268,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	// Products grouped by supplier
 	var products []productModels.Product
 	if len(supplierIDs) > 0 {
-		if err := scopedDB.
+		if err := database.GetDB(ctx, uc.db).
 			Model(&productModels.Product{}).
 			Where("supplier_id IN ?", supplierIDs).
 			Where("supplier_id IS NOT NULL").
@@ -322,7 +321,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -341,7 +340,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Business units
 	var businessUnits []orgModels.BusinessUnit
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&orgModels.BusinessUnit{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -358,7 +357,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	// Employees (with user)
 	var employees []orgModels.Employee
-	if err := scopedDB.
+	if err := database.GetDB(ctx, uc.db).
 		Model(&orgModels.Employee{}).
 		Preload("User").
 		Where("is_active = ?", true).
@@ -512,6 +511,10 @@ func (uc *purchaseRequisitionUsecase) ListAuditTrail(ctx context.Context, id str
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseRequisition{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchaseRequisitionNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
