@@ -4,27 +4,27 @@ import "github.com/google/uuid"
 
 // CreateLeadRequest defines the request body for creating a lead
 type CreateLeadRequest struct {
-	FirstName            string  `json:"first_name" binding:"required,min=1,max=100"`
-	LastName             string  `json:"last_name" binding:"max=100"`
-	CompanyName          string  `json:"company_name" binding:"max=200"`
-	Email                string  `json:"email" binding:"omitempty,email,max=100"`
-	Phone                string  `json:"phone" binding:"max=30"`
-	ContactRoleID        *string `json:"contact_role_id" binding:"omitempty,uuid"`
-	JobTitle             string  `json:"job_title" binding:"max=100"`
-	Address              string  `json:"address"`
-	City                 string  `json:"city" binding:"max=100"`
-	Province             string  `json:"province" binding:"max=100"`
-	ProvinceID           *string `json:"province_id" binding:"omitempty,uuid"`
-	CityID               *string `json:"city_id" binding:"omitempty,uuid"`
-	DistrictID           *string `json:"district_id" binding:"omitempty,uuid"`
-	VillageName          string  `json:"village_name" binding:"max=200"`
-	LeadSourceID         *string `json:"lead_source_id" binding:"omitempty,uuid"`
-	LeadStatusID         *string `json:"lead_status_id" binding:"omitempty,uuid"`
-	EstimatedValue       float64 `json:"estimated_value"`
-	Probability          int     `json:"probability" binding:"min=0,max=100"`
-	Website              string  `json:"website" binding:"omitempty,max=255"`
-	BankAccountID        *string `json:"bank_account_id" binding:"omitempty,uuid"`
-	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
+	FirstName            string   `json:"first_name" binding:"required,min=1,max=100"`
+	LastName             string   `json:"last_name" binding:"max=100"`
+	CompanyName          string   `json:"company_name" binding:"max=200"`
+	Email                string   `json:"email" binding:"omitempty,email,max=100"`
+	Phone                string   `json:"phone" binding:"omitempty,max=20"`
+	ContactRoleID        *string  `json:"contact_role_id" binding:"omitempty,uuid"`
+	JobTitle             string   `json:"job_title" binding:"max=100"`
+	Address              string   `json:"address"`
+	City                 string   `json:"city" binding:"max=100"`
+	Province             string   `json:"province" binding:"max=100"`
+	ProvinceID           *string  `json:"province_id" binding:"omitempty,uuid"`
+	CityID               *string  `json:"city_id" binding:"omitempty,uuid"`
+	DistrictID           *string  `json:"district_id" binding:"omitempty,uuid"`
+	VillageName          string   `json:"village_name" binding:"max=200"`
+	LeadSourceID         *string  `json:"lead_source_id" binding:"omitempty,uuid"`
+	LeadStatusID         *string  `json:"lead_status_id" binding:"omitempty,uuid"`
+	EstimatedValue       float64  `json:"estimated_value"`
+	Probability          int      `json:"probability" binding:"min=0,max=100"`
+	Website              string   `json:"website" binding:"omitempty,max=255"`
+	BankAccountID        *string  `json:"bank_account_id" binding:"omitempty,uuid"`
+	BankAccountReference string   `json:"bank_account_reference" binding:"omitempty,max=255"`
 	Latitude             *float64 `json:"latitude"`
 	Longitude            *float64 `json:"longitude"`
 	// BANT
@@ -51,7 +51,7 @@ type UpdateLeadRequest struct {
 	LastName             *string  `json:"last_name" binding:"omitempty,max=100"`
 	CompanyName          *string  `json:"company_name" binding:"omitempty,max=200"`
 	Email                *string  `json:"email" binding:"omitempty,email,max=100"`
-	Phone                *string  `json:"phone" binding:"omitempty,max=30"`
+	Phone                *string  `json:"phone" binding:"omitempty,max=20"`
 	ContactRoleID        *string  `json:"contact_role_id" binding:"omitempty,uuid"`
 	JobTitle             *string  `json:"job_title" binding:"omitempty,max=100"`
 	Address              *string  `json:"address"`
@@ -110,7 +110,7 @@ type UpsertLeadItem struct {
 	LastName       string  `json:"last_name" binding:"max=100"`
 	CompanyName    string  `json:"company_name" binding:"max=200"`
 	Email          string  `json:"email" binding:"omitempty,email,max=100"`
-	Phone          string  `json:"phone" binding:"max=30"`
+	Phone          string  `json:"phone" binding:"omitempty,max=20"`
 	JobTitle       string  `json:"job_title" binding:"max=100"`
 	Address        string  `json:"address"`
 	City           string  `json:"city" binding:"max=100"`
@@ -145,30 +145,30 @@ type BulkUpsertLeadResponse struct {
 
 // LeadResponse defines the response body for a lead
 type LeadResponse struct {
-	ID             string          `json:"id"`
-	Code           string          `json:"code"`
-	FirstName      string          `json:"first_name"`
-	LastName       string          `json:"last_name"`
-	CompanyName    string          `json:"company_name"`
-	Email          string          `json:"email"`
-	Phone          string          `json:"phone"`
-	ContactRoleID  *string         `json:"contact_role_id"`
+	ID             string               `json:"id"`
+	Code           string               `json:"code"`
+	FirstName      string               `json:"first_name"`
+	LastName       string               `json:"last_name"`
+	CompanyName    string               `json:"company_name"`
+	Email          string               `json:"email"`
+	Phone          string               `json:"phone"`
+	ContactRoleID  *string              `json:"contact_role_id"`
 	ContactRole    *LeadContactRoleInfo `json:"contact_role,omitempty"`
-	JobTitle       string          `json:"job_title"`
-	Address        string          `json:"address"`
-	City           string          `json:"city"`
-	Province       string          `json:"province"`
-	ProvinceID     *string         `json:"province_id"`
-	CityID         *string         `json:"city_id"`
-	DistrictID     *string         `json:"district_id"`
-	VillageName    string          `json:"village_name"`
-	LeadSourceID   *string         `json:"lead_source_id"`
-	LeadSource     *LeadSourceInfo `json:"lead_source,omitempty"`
-	LeadStatusID   *string         `json:"lead_status_id"`
-	LeadStatus     *LeadStatusInfo `json:"lead_status,omitempty"`
-	LeadScore      int             `json:"lead_score"`
-	Probability    int             `json:"probability"`
-	EstimatedValue float64         `json:"estimated_value"`
+	JobTitle       string               `json:"job_title"`
+	Address        string               `json:"address"`
+	City           string               `json:"city"`
+	Province       string               `json:"province"`
+	ProvinceID     *string              `json:"province_id"`
+	CityID         *string              `json:"city_id"`
+	DistrictID     *string              `json:"district_id"`
+	VillageName    string               `json:"village_name"`
+	LeadSourceID   *string              `json:"lead_source_id"`
+	LeadSource     *LeadSourceInfo      `json:"lead_source,omitempty"`
+	LeadStatusID   *string              `json:"lead_status_id"`
+	LeadStatus     *LeadStatusInfo      `json:"lead_status,omitempty"`
+	LeadScore      int                  `json:"lead_score"`
+	Probability    int                  `json:"probability"`
+	EstimatedValue float64              `json:"estimated_value"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
