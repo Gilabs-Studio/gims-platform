@@ -9,6 +9,7 @@ import (
 // EvaluationGroup represents a template/group for evaluation criteria
 type EvaluationGroup struct {
 	ID          string         `gorm:"type:char(36);primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string         `gorm:"type:varchar(200);not null" json:"name"`
 	Description *string        `gorm:"type:text" json:"description"`
 	IsActive    bool           `gorm:"type:boolean;not null" json:"is_active"`

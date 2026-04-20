@@ -24,6 +24,7 @@ const (
 
 type CashBankJournal struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	TransactionDate time.Time    `gorm:"type:date;not null;index" json:"transaction_date"`
 	Type            CashBankType `gorm:"type:varchar(20);not null;index" json:"type"`

@@ -30,6 +30,7 @@ const (
 // DeliveryOrder represents a delivery order document
 type DeliveryOrder struct {
 	ID        string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code      string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	DeliveryDate time.Time `gorm:"type:date;not null;index" json:"delivery_date"`
 	

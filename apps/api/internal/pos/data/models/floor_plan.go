@@ -15,6 +15,7 @@ const (
 // FloorPlan represents a single floor layout for an outlet
 type FloorPlan struct {
 	ID          string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OutletID    string         `gorm:"type:uuid;not null;index:idx_floor_plans_outlet;uniqueIndex:uidx_floor_plans_outlet_floor_active,priority:1,where:deleted_at IS NULL" json:"outlet_id"`
 	CompanyID   *string        `gorm:"type:uuid;index:idx_floor_plans_company" json:"company_id,omitempty"`
 	Name        string         `gorm:"type:varchar(200);not null" json:"name"`

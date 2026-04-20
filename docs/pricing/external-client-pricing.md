@@ -90,6 +90,35 @@ Dokumen ini ditujukan untuk tim sales dan calon klien. Tujuannya adalah memberi 
 - Belum termasuk return flow dan DP invoice
 - Belum termasuk custom workflow dan integrasi pihak ketiga
 
+## POS Tiers & Dependency Rules
+
+Untuk melengkapi dokumen paket di atas, kami menyediakan tier khusus untuk modul POS yang sering dipakai oleh retailer/franchisor. Agar alur transaksi tidak "putus", beberapa menu harus disertakan (dependency) saat mengaktifkan fitur transaksi.
+
+### POS Tiers (per outlet / bulan)
+| Tier | Harga | Cocok untuk | Fitur |
+|---|---:|---|---|
+| POS Essential | Rp149.000 | Outlet tunggal / UMKM awal | POS Terminal, Floor Layout, Sales inti, Purchase inti, Inventory inti, master data minimum |
+| POS Growth | Rp249.000 | Multi-outlet berkembang | Semua Essential + Feedback (responses/forms), Loyalty (programs/members), stock movement, basic dashboard outlet |
+| POS Enterprise | Rp399.000 | Franchise skala besar | Semua Growth + role granularity, approval sederhana antar outlet, API access terbatas, audit trail prioritas |
+
+### Dependency Rules (wajib auto-include)
+- Sales Orders → Customers, Products, Payment Terms, Warehouses, Outlets
+- Customer Invoices → Sales Orders, Currencies, Payment Terms
+- Purchase Orders → Suppliers, Products, Warehouses, Payment Terms
+- Supplier Invoices → Purchase Orders, Currencies, Payment Terms
+- POS Terminal → Floor Layout, Outlets, Products, Inventory, Users/Employees
+- Loyalty → POS Terminal, Customers
+- Feedback → POS Terminal, Outlets
+
+### Add-on modular (opsional)
+| Add-on | Harga | Satuan |
+|---|---:|---|
+| Feedback module | Rp59.000 | per outlet / bulan |
+| Loyalty module | Rp79.000 | per outlet / bulan |
+| AI Assistant (chatbot + settings) | Rp3.500.000 | per company / bulan |
+| Additional API pack | Rp2.000.000 | per company / bulan |
+| Advanced reports pack | Rp2.500.000 | per company / bulan |
+
 ## Paket Full Standard
 
 Paket ini berisi seluruh menu standar yang ada di navigation config dan GIMS Documentation, tanpa custom tambahan.
@@ -198,7 +227,7 @@ Jika klien meminta deployment di server mereka sendiri, gunakan aturan berikut:
 | Growth On-Premise License | Rp159.000.000 | Rp6.500.000 / bulan support opsional |
 | Full On-Premise License | Rp449.000.000 | Rp6.500.000 / bulan support opsional |
 
-> Untuk on-premise license, annual maintenance direkomendasikan di kisaran 15% dari nilai license per tahun.
+> Untuk on-premise license, annual maintenance direkomendasikan di kisaran 10% dari nilai license per tahun (recurring). Contoh: jika total Year-1 nilai komersial on-premise adalah Rp1.200.000.000, recurring maintenance ≈ Rp120.000.000/tahun.
 
 ## Harga Menu Per Fitur
 

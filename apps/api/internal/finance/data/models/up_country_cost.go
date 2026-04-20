@@ -20,6 +20,7 @@ const (
 
 type UpCountryCost struct {
 	ID        string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code      string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Purpose   string              `gorm:"type:varchar(255)" json:"purpose"`
 	Location  string              `gorm:"type:varchar(255)" json:"location"`

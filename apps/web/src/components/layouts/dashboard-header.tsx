@@ -20,6 +20,7 @@ import type { AttendanceDrawerTab } from "@/features/hrd/attendance-records/comp
 
 interface DashboardHeaderProps {
   userName: string;
+  tenantName?: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
@@ -29,6 +30,7 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader = memo(function DashboardHeader({
   userName,
+  tenantName,
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
@@ -146,6 +148,9 @@ export const DashboardHeader = memo(function DashboardHeader({
           <PopoverContent className="w-56 p-2" align="end">
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
               <div className="text-sm font-medium text-foreground">{userName}</div>
+              {tenantName && (
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">{tenantName}</div>
+              )}
             </div>
             <Separator className="my-1" />
             <div className="flex flex-col gap-1">

@@ -17,6 +17,7 @@ const (
 
 type FiscalYear struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CompanyID string `gorm:"type:uuid;not null;index:idx_fiscal_year_company" json:"company_id"`
 	Name      string `gorm:"type:varchar(100);not null" json:"name"`

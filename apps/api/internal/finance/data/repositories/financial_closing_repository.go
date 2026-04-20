@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 
@@ -34,7 +35,7 @@ func NewFinancialClosingRepository(db *gorm.DB) FinancialClosingRepository {
 
 func (r *financialClosingRepository) FindByID(ctx context.Context, id string) (*financeModels.FinancialClosing, error) {
 	var item financeModels.FinancialClosing
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -59,7 +60,7 @@ func (r *financialClosingRepository) List(ctx context.Context, params FinancialC
 	var items []financeModels.FinancialClosing
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.FinancialClosing{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.FinancialClosing{})
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -92,7 +93,7 @@ func (r *financialClosingRepository) List(ctx context.Context, params FinancialC
 
 func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*financeModels.FinancialClosing, error) {
 	var item financeModels.FinancialClosing
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("status = ?", financeModels.FinancialClosingStatusApproved).
 		Order("period_end_date desc").
 		First(&item).Error; err != nil {
@@ -101,5 +102,5 @@ func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*finan
 	return &item, nil
 }
 func (r *financialClosingRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&financeModels.FinancialClosing{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&financeModels.FinancialClosing{}, "id = ?", id).Error
 }

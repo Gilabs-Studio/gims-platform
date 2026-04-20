@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -26,7 +27,7 @@ func NewDashboardLayoutRepository(db *gorm.DB) DashboardLayoutRepository {
 // GetLayout retrieves the saved layout JSON for a user's dashboard. Returns gorm.ErrRecordNotFound if none exists.
 func (r *dashboardLayoutRepository) GetLayout(ctx context.Context, userID, dashboardType string) (string, error) {
 	var layout generalModels.DashboardLayout
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("user_id = ? AND dashboard_type = ? AND deleted_at IS NULL", userID, dashboardType).
 		First(&layout).Error
 	if err != nil {
@@ -38,7 +39,7 @@ func (r *dashboardLayoutRepository) GetLayout(ctx context.Context, userID, dashb
 // SaveLayout upserts the layout JSON for a user's dashboard using ON CONFLICT DO UPDATE.
 func (r *dashboardLayoutRepository) SaveLayout(ctx context.Context, userID, dashboardType, layoutJSON string) error {
 	var layout generalModels.DashboardLayout
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("user_id = ? AND dashboard_type = ? AND deleted_at IS NULL", userID, dashboardType).
 		First(&layout).Error
 
@@ -49,12 +50,12 @@ func (r *dashboardLayoutRepository) SaveLayout(ctx context.Context, userID, dash
 			DashboardType: dashboardType,
 			LayoutJSON:    layoutJSON,
 		}
-		return r.db.WithContext(ctx).Create(&layout).Error
+		return database.GetDB(ctx, r.db).Create(&layout).Error
 	} else if err != nil {
 		return err
 	}
 
 	// Update existing record
-	return r.db.WithContext(ctx).Model(&layout).
+	return database.GetDB(ctx, r.db).Model(&layout).
 		Update("layout_json", layoutJSON).Error
 }

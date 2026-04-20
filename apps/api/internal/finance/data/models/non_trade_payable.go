@@ -20,6 +20,7 @@ const (
 
 type NonTradePayable struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	TransactionDate time.Time `gorm:"type:date;not null;index" json:"transaction_date"`
 	Code            string    `gorm:"type:varchar(50);unique;not null;index" json:"code"`

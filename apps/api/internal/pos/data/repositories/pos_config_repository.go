@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -33,7 +34,7 @@ func NewPOSConfigRepository(db *gorm.DB) POSConfigRepository {
 
 func (r *posConfigRepository) FindByOutletID(ctx context.Context, outletID string) (*models.POSConfig, error) {
 	var cfg models.POSConfig
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("outlet_id = ? AND deleted_at IS NULL", outletID).
 		First(&cfg).Error
 	if err != nil {
@@ -43,7 +44,7 @@ func (r *posConfigRepository) FindByOutletID(ctx context.Context, outletID strin
 }
 
 func (r *posConfigRepository) Upsert(ctx context.Context, cfg *models.POSConfig) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+	return database.GetDB(ctx, r.db).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "outlet_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"tax_rate", "service_charge_rate", "allow_discount",
@@ -65,7 +66,7 @@ func NewXenditConfigRepository(db *gorm.DB) XenditConfigRepository {
 
 func (r *xenditConfigRepository) FindByCompanyID(ctx context.Context, companyID string) (*models.XenditConfig, error) {
 	var cfg models.XenditConfig
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("company_id = ? AND deleted_at IS NULL", companyID).
 		First(&cfg).Error
 	if err != nil {
@@ -78,7 +79,7 @@ func (r *xenditConfigRepository) FindByCompanyID(ctx context.Context, companyID 
 }
 
 func (r *xenditConfigRepository) Upsert(ctx context.Context, cfg *models.XenditConfig) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+	return database.GetDB(ctx, r.db).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "company_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"secret_key", "xendit_account_id", "business_name",

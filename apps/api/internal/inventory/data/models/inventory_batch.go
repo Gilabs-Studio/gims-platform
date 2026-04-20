@@ -12,6 +12,7 @@ import (
 // InventoryBatch represents a batch of inventory for a specific product and warehouse
 type InventoryBatch struct {
 	ID                 string                     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	ProductID          string                     `gorm:"type:uuid;not null;index" json:"product_id"`
 	Product            *models.Product            `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 	WarehouseID        string                     `gorm:"type:uuid;not null;index" json:"warehouse_id"`

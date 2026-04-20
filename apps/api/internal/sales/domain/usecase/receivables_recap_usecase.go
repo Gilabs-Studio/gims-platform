@@ -32,15 +32,15 @@ func (u *receivablesRecapUsecase) List(ctx context.Context, params repositories.
 	if params.Limit > 100 {
 		params.Limit = 100
 	}
-	return u.repo.FindAll(params)
+	return u.repo.FindAll(ctx, params)
 }
 
 func (u *receivablesRecapUsecase) GetSummary(ctx context.Context) (*repositories.ReceivablesSummary, error) {
-	return u.repo.GetSummary()
+	return u.repo.GetSummary(ctx)
 }
 
 func (u *receivablesRecapUsecase) ExportCSV(ctx context.Context, params repositories.ReceivablesRecapListParams) ([]byte, error) {
-	rows, err := u.repo.FindAllForExport(params)
+	rows, err := u.repo.FindAllForExport(ctx, params)
 	if err != nil {
 		return nil, err
 	}

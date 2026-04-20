@@ -29,6 +29,8 @@ type UserDTO struct {
 	EmployeeID  string            `json:"employee_id,omitempty"`
 	Role        RoleDTO           `json:"role"`
 	Permissions map[string]string `json:"permissions"` // code -> scope
+	TenantID    string            `json:"tenant_id,omitempty"`
+	TenantName  string            `json:"tenant_name,omitempty"`
 }
 
 type RoleDTO struct {

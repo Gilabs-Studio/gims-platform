@@ -11,6 +11,7 @@ import (
 // SupplierBank represents a bank account for a supplier
 type SupplierBank struct {
 	ID            string               `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SupplierID    string               `gorm:"type:uuid;not null;index" json:"supplier_id"`
 	BankID        string               `gorm:"type:uuid;not null;index" json:"bank_id"`
 	Bank          *Bank                `gorm:"foreignKey:BankID" json:"bank,omitempty"`

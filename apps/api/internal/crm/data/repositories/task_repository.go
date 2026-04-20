@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -50,12 +51,12 @@ func NewTaskRepository(db *gorm.DB) TaskRepository {
 }
 
 func (r *taskRepository) Create(ctx context.Context, task *models.Task) error {
-	return r.db.WithContext(ctx).Create(task).Error
+	return database.GetDB(ctx, r.db).Create(task).Error
 }
 
 func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task, error) {
 	var task models.Task
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("AssignedEmployee").
 		Preload("AssignerEmployee").
 		Preload("Customer").
@@ -71,7 +72,7 @@ func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task,
 }
 
 func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]models.Task, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Task{})
+	query := database.GetDB(ctx, r.db).Model(&models.Task{})
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
@@ -139,15 +140,15 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 }
 
 func (r *taskRepository) Update(ctx context.Context, task *models.Task) error {
-	return r.db.WithContext(ctx).Save(task).Error
+	return database.GetDB(ctx, r.db).Save(task).Error
 }
 
 func (r *taskRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Task{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Task{}).Error
 }
 
 func (r *taskRepository) UpdateDealIDByLeadID(ctx context.Context, leadID, dealID string) error {
-	return r.db.WithContext(ctx).Model(&models.Task{}).
+	return database.GetDB(ctx, r.db).Model(&models.Task{}).
 		Where("lead_id = ? AND deal_id IS NULL", leadID).
 		Update("deal_id", dealID).Error
 }

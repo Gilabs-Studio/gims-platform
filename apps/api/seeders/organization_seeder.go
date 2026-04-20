@@ -23,6 +23,8 @@ func SeedOrganization() error {
 		{ID: ITDivisionID, Name: "IT & Technology", Description: "Manages technical infrastructure and development", IsActive: true},
 	}
 	for i := range divisions {
+		divisions[i].TenantID = DefaultTenantID
+
 		// 1. Check if record with same Name exists but different ID
 		var existing models.Division
 		err := db.Unscoped().Where("name = ?", divisions[i].Name).First(&existing).Error
@@ -51,6 +53,8 @@ func SeedOrganization() error {
 		{ID: SalesRepPositionID, Name: "Sales Representative", Description: "Sales Field Officer", IsActive: true},
 	}
 	for i := range positions {
+		positions[i].TenantID = DefaultTenantID
+
 		// 1. Check if record with same Name exists but different ID
 		var existing models.JobPosition
 		err := db.Unscoped().Where("name = ?", positions[i].Name).First(&existing).Error
@@ -76,6 +80,8 @@ func SeedOrganization() error {
 		{Name: "Unit C - Online", Description: "E-commerce business unit", IsActive: true},
 	}
 	for i := range units {
+		units[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&units[i]).Error; err != nil {
 			return err
 		}
@@ -93,6 +99,8 @@ func SeedOrganization() error {
 			{Name: "Drug Store", Description: "Over-the-counter Drug Store", IsActive: true},
 		}
 		for i := range types {
+			types[i].TenantID = DefaultTenantID
+
 			if err := db.Create(&types[i]).Error; err != nil {
 				return err
 			}
@@ -120,6 +128,8 @@ func SeedOrganization() error {
 			{ID: AreaKalimantanTimurID, Name: "Kalimantan Timur", Description: "Balikpapan, Samarinda", IsActive: true, Code: "KALTIM", Color: "#84cc16", Province: "Kalimantan Timur"},
 		}
 		for i := range areas {
+			areas[i].TenantID = DefaultTenantID
+
 			if err := db.Create(&areas[i]).Error; err != nil {
 				return err
 			}
@@ -202,6 +212,8 @@ func SeedOrganization() error {
 		},
 	}
 	for i := range companies {
+		companies[i].TenantID = DefaultTenantID
+
 		// 1. Check if record with same Name exists but different ID
 		var existing models.Company
 		err := db.Unscoped().Where("name = ?", companies[i].Name).First(&existing).Error

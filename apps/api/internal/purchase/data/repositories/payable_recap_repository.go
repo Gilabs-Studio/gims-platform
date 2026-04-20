@@ -1,10 +1,13 @@
 package repositories
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"gorm.io/gorm"
 )
 
@@ -37,11 +40,12 @@ type PayableSummary struct {
 }
 
 type PayableRecapListParams struct {
-	Search  string
-	SortBy  string
-	SortDir string
-	Limit   int
-	Offset  int
+	TenantID string
+	Search   string
+	SortBy   string
+	SortDir  string
+	Limit    int
+	Offset   int
 }
 
 type PayableRecapRepository struct {
@@ -141,19 +145,45 @@ var allowedSortCols = map[string]bool{
 	"last_transaction":   true,
 }
 
-func (r *PayableRecapRepository) FindAll(params PayableRecapListParams) ([]PayableRecapRow, int64, error) {
-	where := ""
-	var args []interface{}
+func buildPayableRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
+	if middleware.IsSystemAdmin(ctx) {
+		return baseCTE, map[string]interface{}{}, nil
+	}
 
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID == "" {
+		return "", nil, fmt.Errorf("tenant context is required")
+	}
+
+	query := fmt.Sprintf(`
+SELECT *
+FROM (%s) scoped
+WHERE scoped.supplier_id IN (
+	SELECT s.id
+	FROM suppliers s
+	WHERE s.deleted_at IS NULL
+	  AND s.tenant_id = @tenantID
+)`, baseCTE)
+
+	return query, map[string]interface{}{"tenantID": tenantID}, nil
+}
+
+func (r *PayableRecapRepository) FindAll(ctx context.Context, params PayableRecapListParams) ([]PayableRecapRow, int64, error) {
+	baseQuery, queryParams, err := buildPayableRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	where := ""
 	if search := strings.TrimSpace(params.Search); search != "" {
-		where = " WHERE supplier_name ILIKE $1"
-		args = append(args, "%"+search+"%")
+		where = " WHERE supplier_name ILIKE @search"
+		queryParams["search"] = "%" + search + "%"
 	}
 
 	// Count
-	countQ := fmt.Sprintf("SELECT COUNT(*) FROM (%s%s) AS cnt", baseCTE, where)
+	countQ := fmt.Sprintf("SELECT COUNT(*) FROM (%s%s) AS cnt", baseQuery, where)
 	var total int64
-	if err := r.db.Raw(countQ, args...).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countQ, queryParams).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -167,16 +197,23 @@ func (r *PayableRecapRepository) FindAll(params PayableRecapListParams) ([]Payab
 		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
 	}
 
-	finalQ := fmt.Sprintf("%s%s%s LIMIT %d OFFSET %d", baseCTE, where, orderBy, params.Limit, params.Offset)
+	queryParams["limit"] = params.Limit
+	queryParams["offset"] = params.Offset
+	finalQ := fmt.Sprintf("%s%s%s LIMIT @limit OFFSET @offset", baseQuery, where, orderBy)
 
 	var rows []PayableRecapRow
-	if err := r.db.Raw(finalQ, args...).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(finalQ, queryParams).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 	return rows, total, nil
 }
 
-func (r *PayableRecapRepository) GetSummary() (*PayableSummary, error) {
+func (r *PayableRecapRepository) GetSummary(ctx context.Context) (*PayableSummary, error) {
+	baseQuery, queryParams, err := buildPayableRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	summaryQ := fmt.Sprintf(`
 		SELECT
 			COUNT(*)                                                           AS total_suppliers,
@@ -190,22 +227,25 @@ func (r *PayableRecapRepository) GetSummary() (*PayableSummary, error) {
 			COUNT(*) FILTER (WHERE aging_days BETWEEN 91 AND 120 AND outstanding_amount > 0) AS overdue_61_90_count,
 			COUNT(*) FILTER (WHERE aging_days > 120 AND outstanding_amount > 0) AS bad_debt_count
 		FROM (%s) AS recap
-	`, baseCTE)
+	`, baseQuery)
 
 	var s PayableSummary
-	if err := r.db.Raw(summaryQ).Scan(&s).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(summaryQ, queryParams).Scan(&s).Error; err != nil {
 		return nil, err
 	}
 	return &s, nil
 }
 
-func (r *PayableRecapRepository) FindAllForExport(params PayableRecapListParams) ([]PayableRecapRow, error) {
-	where := ""
-	var args []interface{}
+func (r *PayableRecapRepository) FindAllForExport(ctx context.Context, params PayableRecapListParams) ([]PayableRecapRow, error) {
+	baseQuery, queryParams, err := buildPayableRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	where := ""
 	if search := strings.TrimSpace(params.Search); search != "" {
-		where = " WHERE supplier_name ILIKE $1"
-		args = append(args, "%"+search+"%")
+		where = " WHERE supplier_name ILIKE @search"
+		queryParams["search"] = "%" + search + "%"
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
@@ -221,10 +261,11 @@ func (r *PayableRecapRepository) FindAllForExport(params PayableRecapListParams)
 	if limit <= 0 || limit > 10000 {
 		limit = 10000
 	}
-	finalQ := fmt.Sprintf("%s%s%s LIMIT %d", baseCTE, where, orderBy, limit)
+	queryParams["limit"] = limit
+	finalQ := fmt.Sprintf("%s%s%s LIMIT @limit", baseQuery, where, orderBy)
 
 	var rows []PayableRecapRow
-	if err := r.db.Raw(finalQ, args...).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(finalQ, queryParams).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

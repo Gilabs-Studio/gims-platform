@@ -97,6 +97,8 @@ func SeedOutlets() error {
 	}
 
 	for i := range outlets {
+		outlets[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"name", "description", "phone", "email", "address", "company_id", "manager_id", "is_active", "updated_at"}),
@@ -108,6 +110,7 @@ func SeedOutlets() error {
 		// Warehouse code is derived from the outlet code to avoid collisions
 		whCode := fmt.Sprintf("WH-%s", outlets[i].Code)
 		wh := warehouseModels.Warehouse{
+			TenantID:    DefaultTenantID,
 			Code:        whCode,
 			Name:        fmt.Sprintf("%s Warehouse", outlets[i].Name),
 			Description: outlets[i].Description,

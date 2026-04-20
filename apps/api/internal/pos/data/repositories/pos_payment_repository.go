@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
@@ -25,16 +26,16 @@ func NewPOSPaymentRepository(db *gorm.DB) POSPaymentRepository {
 }
 
 func (r *posPaymentRepository) Create(ctx context.Context, payment *models.POSPayment) error {
-	return r.db.WithContext(ctx).Create(payment).Error
+	return database.GetDB(ctx, r.db).Create(payment).Error
 }
 
 func (r *posPaymentRepository) Update(ctx context.Context, payment *models.POSPayment) error {
-	return r.db.WithContext(ctx).Save(payment).Error
+	return database.GetDB(ctx, r.db).Save(payment).Error
 }
 
 func (r *posPaymentRepository) FindByOrderID(ctx context.Context, orderID string) ([]models.POSPayment, error) {
 	var payments []models.POSPayment
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("order_id = ?", orderID).
 		Order("created_at DESC").
 		Find(&payments).Error
@@ -43,7 +44,7 @@ func (r *posPaymentRepository) FindByOrderID(ctx context.Context, orderID string
 
 func (r *posPaymentRepository) FindByExternalOrderID(ctx context.Context, externalOrderID string) (*models.POSPayment, error) {
 	var payment models.POSPayment
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("external_order_id = ?", externalOrderID).
 		First(&payment).Error
 	if err != nil {

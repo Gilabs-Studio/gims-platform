@@ -12,6 +12,7 @@ import (
 // without recompiling the application.
 type FinanceSetting struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SettingKey  string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"setting_key"`
 	Value       string         `gorm:"type:text;not null" json:"value"`
 	Description string         `gorm:"type:text" json:"description"`

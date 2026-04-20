@@ -17,6 +17,7 @@ require (
 	github.com/kolesa-team/go-webp v1.0.5
 	github.com/paulmach/orb v0.12.0
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.11.1
 	github.com/xuri/excelize/v2 v2.10.0
 	golang.org/x/crypto v0.45.0
@@ -63,7 +64,6 @@ require (
 	github.com/quic-go/quic-go v0.57.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
-	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

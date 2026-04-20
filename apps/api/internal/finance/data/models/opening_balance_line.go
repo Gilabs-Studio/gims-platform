@@ -9,6 +9,7 @@ import (
 
 type OpeningBalanceLine struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CompanyID    string `gorm:"type:uuid;not null;index:idx_ob_line_company_fy,priority:1" json:"company_id"`
 	FiscalYearID string `gorm:"type:uuid;not null;index:idx_ob_line_company_fy,priority:2" json:"fiscal_year_id"`

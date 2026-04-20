@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"time"
@@ -23,7 +24,7 @@ func (r *recruitmentApplicantRepositoryImpl) Create(ctx context.Context, applica
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Create(applicant).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(applicant).Error; err != nil {
 		return fmt.Errorf("failed to create applicant: %w", err)
 	}
 	return nil
@@ -34,7 +35,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindByID(ctx context.Context, id st
 	defer cancel()
 
 	var applicant models.RecruitmentApplicant
-	if err := r.db.WithContext(ctx).Preload("Stage").Preload("Employee").Where("id = ?", id).First(&applicant).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("Stage").Preload("Employee").Where("id = ?", id).First(&applicant).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -47,7 +48,7 @@ func (r *recruitmentApplicantRepositoryImpl) Update(ctx context.Context, applica
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Save(applicant).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(applicant).Error; err != nil {
 		return fmt.Errorf("failed to update applicant: %w", err)
 	}
 	return nil
@@ -57,7 +58,7 @@ func (r *recruitmentApplicantRepositoryImpl) Delete(ctx context.Context, id stri
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.RecruitmentApplicant{})
+	result := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.RecruitmentApplicant{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete applicant: %w", result.Error)
 	}
@@ -74,7 +75,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindAll(ctx context.Context, page, 
 	var applicants []models.RecruitmentApplicant
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.RecruitmentApplicant{})
+	query := database.GetDB(ctx, r.db).Model(&models.RecruitmentApplicant{})
 
 	// Apply filters
 	if search != "" {
@@ -131,7 +132,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindByStage(ctx context.Context, st
 	var applicants []models.RecruitmentApplicant
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.RecruitmentApplicant{}).
+	query := database.GetDB(ctx, r.db).Model(&models.RecruitmentApplicant{}).
 		Where("stage_id = ?", stageID)
 
 	if recruitmentRequestID != "" {
@@ -169,7 +170,7 @@ func (r *recruitmentApplicantRepositoryImpl) CountByStage(ctx context.Context, s
 	defer cancel()
 
 	var count int64
-	query := r.db.WithContext(ctx).Model(&models.RecruitmentApplicant{}).
+	query := database.GetDB(ctx, r.db).Model(&models.RecruitmentApplicant{}).
 		Where("stage_id = ?", stageID)
 
 	if recruitmentRequestID != "" {
@@ -187,7 +188,7 @@ func (r *recruitmentApplicantRepositoryImpl) MoveStage(ctx context.Context, appl
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Model(&models.RecruitmentApplicant{}).
+	result := database.GetDB(ctx, r.db).Model(&models.RecruitmentApplicant{}).
 		Where("id = ?", applicantID).
 		Update("stage_id", newStageID)
 
@@ -216,7 +217,7 @@ func (r *applicantStageRepositoryImpl) Create(ctx context.Context, stage *models
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Create(stage).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(stage).Error; err != nil {
 		return fmt.Errorf("failed to create stage: %w", err)
 	}
 	return nil
@@ -227,7 +228,7 @@ func (r *applicantStageRepositoryImpl) FindByID(ctx context.Context, id string) 
 	defer cancel()
 
 	var stage models.ApplicantStage
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&stage).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&stage).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -241,7 +242,7 @@ func (r *applicantStageRepositoryImpl) FindAll(ctx context.Context) ([]models.Ap
 	defer cancel()
 
 	var stages []models.ApplicantStage
-	if err := r.db.WithContext(ctx).Order("\"order\"").Find(&stages).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Order("\"order\"").Find(&stages).Error; err != nil {
 		return nil, fmt.Errorf("failed to find stages: %w", err)
 	}
 	return stages, nil
@@ -252,7 +253,7 @@ func (r *applicantStageRepositoryImpl) FindAllActive(ctx context.Context) ([]mod
 	defer cancel()
 
 	var stages []models.ApplicantStage
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("is_active = ?", true).
 		Order("\"order\"").
 		Find(&stages).Error; err != nil {
@@ -265,7 +266,7 @@ func (r *applicantStageRepositoryImpl) Update(ctx context.Context, stage *models
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Save(stage).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(stage).Error; err != nil {
 		return fmt.Errorf("failed to update stage: %w", err)
 	}
 	return nil
@@ -277,7 +278,7 @@ func (r *applicantStageRepositoryImpl) Delete(ctx context.Context, id string) er
 
 	// Check if stage has applicants
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.RecruitmentApplicant{}).
+	if err := database.GetDB(ctx, r.db).Model(&models.RecruitmentApplicant{}).
 		Where("stage_id = ?", id).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check stage usage: %w", err)
 	}
@@ -286,7 +287,7 @@ func (r *applicantStageRepositoryImpl) Delete(ctx context.Context, id string) er
 		return fmt.Errorf("cannot delete stage with existing applicants")
 	}
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.ApplicantStage{})
+	result := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.ApplicantStage{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete stage: %w", result.Error)
 	}
@@ -302,7 +303,7 @@ func (r *applicantStageRepositoryImpl) SeedDefaultStages(ctx context.Context) er
 
 	// Check if stages already exist
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.ApplicantStage{}).Count(&count).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Model(&models.ApplicantStage{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check existing stages: %w", err)
 	}
 
@@ -313,7 +314,7 @@ func (r *applicantStageRepositoryImpl) SeedDefaultStages(ctx context.Context) er
 	// Create default stages
 	stages := models.DefaultApplicantStages()
 	for i := range stages {
-		if err := r.db.WithContext(ctx).Create(&stages[i]).Error; err != nil {
+		if err := database.GetDB(ctx, r.db).Create(&stages[i]).Error; err != nil {
 			return fmt.Errorf("failed to create default stage: %w", err)
 		}
 	}
@@ -335,7 +336,7 @@ func (r *applicantActivityRepositoryImpl) Create(ctx context.Context, activity *
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Create(activity).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(activity).Error; err != nil {
 		return fmt.Errorf("failed to create activity: %w", err)
 	}
 	return nil
@@ -346,7 +347,7 @@ func (r *applicantActivityRepositoryImpl) FindByID(ctx context.Context, id strin
 	defer cancel()
 
 	var activity models.ApplicantActivity
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&activity).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&activity).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -362,7 +363,7 @@ func (r *applicantActivityRepositoryImpl) FindByApplicant(ctx context.Context, a
 	var activities []models.ApplicantActivity
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ApplicantActivity{}).
+	query := database.GetDB(ctx, r.db).Model(&models.ApplicantActivity{}).
 		Where("applicant_id = ?", applicantID)
 
 	// Count
@@ -393,7 +394,7 @@ func (r *applicantActivityRepositoryImpl) Delete(ctx context.Context, id string)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.ApplicantActivity{})
+	result := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.ApplicantActivity{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete activity: %w", result.Error)
 	}

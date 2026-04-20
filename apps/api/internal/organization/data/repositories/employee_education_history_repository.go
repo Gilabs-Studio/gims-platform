@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -28,20 +29,20 @@ func NewEmployeeEducationHistoryRepository(db *gorm.DB) EmployeeEducationHistory
 }
 
 func (r *employeeEducationHistoryRepository) Create(ctx context.Context, education *models.EmployeeEducationHistory) error {
-	return r.db.WithContext(ctx).Create(education).Error
+	return database.GetDB(ctx, r.db).Create(education).Error
 }
 
 func (r *employeeEducationHistoryRepository) Update(ctx context.Context, education *models.EmployeeEducationHistory) error {
-	return r.db.WithContext(ctx).Save(education).Error
+	return database.GetDB(ctx, r.db).Save(education).Error
 }
 
 func (r *employeeEducationHistoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&models.EmployeeEducationHistory{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.EmployeeEducationHistory{}, "id = ?", id).Error
 }
 
 func (r *employeeEducationHistoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeEducationHistory, error) {
 	var education models.EmployeeEducationHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		First(&education).Error
 	if err != nil {
@@ -52,7 +53,7 @@ func (r *employeeEducationHistoryRepository) FindByID(ctx context.Context, id uu
 
 func (r *employeeEducationHistoryRepository) FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeEducationHistory, error) {
 	var educations []*models.EmployeeEducationHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Order("start_date DESC").
 		Find(&educations).Error
@@ -64,7 +65,7 @@ func (r *employeeEducationHistoryRepository) FindByEmployeeID(ctx context.Contex
 
 func (r *employeeEducationHistoryRepository) FindOngoingByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeEducationHistory, error) {
 	var education models.EmployeeEducationHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ? AND end_date IS NULL", employeeID).
 		Order("start_date DESC").
 		First(&education).Error
@@ -76,7 +77,7 @@ func (r *employeeEducationHistoryRepository) FindOngoingByEmployeeID(ctx context
 
 func (r *employeeEducationHistoryRepository) FindLatestByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeEducationHistory, error) {
 	var education models.EmployeeEducationHistory
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("employee_id = ?", employeeID).
 		Order("start_date DESC").
 		First(&education).Error
@@ -88,7 +89,7 @@ func (r *employeeEducationHistoryRepository) FindLatestByEmployeeID(ctx context.
 
 func (r *employeeEducationHistoryRepository) CountByEmployee(ctx context.Context, employeeID uuid.UUID) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.EmployeeEducationHistory{}).
 		Where("employee_id = ?", employeeID).
 		Count(&count).Error

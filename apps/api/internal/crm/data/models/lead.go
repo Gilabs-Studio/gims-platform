@@ -16,6 +16,7 @@ import (
 // Lead represents a sales prospect with BANT qualification scoring
 type Lead struct {
 	ID          string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code        string  `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	FirstName   string  `gorm:"type:varchar(100);not null;index" json:"first_name"`
 	LastName    string  `gorm:"type:varchar(100);index" json:"last_name"`

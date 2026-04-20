@@ -31,6 +31,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	tenant "github.com/gilabs/gims/api/internal/tenant/data/models"
 	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
@@ -71,6 +72,9 @@ func AutoMigrate() error {
 
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
+		// SaaS: Tenant & System Admin tables (must come before domain tables)
+		&tenant.Tenant{},
+		&tenant.SystemAdmin{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
@@ -322,6 +326,11 @@ func AutoMigrate() error {
 
 	log.Println("Database migrations completed")
 
+	// SaaS: Add tenant_id to all domain tables and backfill existing data
+	if err := migrations.MigrateTenantID(DB); err != nil {
+		return fmt.Errorf("failed to run SaaS tenant migration: %w", err)
+	}
+
 	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
 	// This fixes issues where seeders or manual imports missed the remaining amount.
 	DB.Exec(`UPDATE customer_invoices 
@@ -431,6 +440,13 @@ func AutoMigrate() error {
 	// NEW: Normalize journal data (casing/consistent naming)
 	if err := normalizeJournalData(); err != nil {
 		log.Printf("Warning: Failed to normalize journal data: %v", err)
+	}
+
+	// SaaS: Backfill tenant_id for all existing rows that have a NULL tenant_id.
+	// New rows will have tenant_id set by the application layer (via model struct or handler).
+	// Existing seeded data in development is assigned to DefaultTenantID so it remains visible.
+	if err := backfillTenantIDs(); err != nil {
+		log.Printf("Warning: tenant_id backfill failed (non-fatal): %v", err)
 	}
 
 	return nil
@@ -1193,5 +1209,207 @@ func migrateTimezoneData() error {
 	}
 
 	log.Println("Timezone data migration completed")
+	return nil
+}
+// backfillTenantIDs assigns the default tenant ID to all existing rows whose
+// tenant_id is NULL. This is a one-time idempotent migration that runs on
+// every server start (the UPDATE is a no-op when there are no NULL rows).
+// Tables that are platform-wide (geographic data, roles, permissions, currencies)
+// are intentionally excluded.
+func backfillTenantIDs() error {
+	const defaultTenantID = "a0000001-0000-0000-0000-000000000001"
+
+	// All business tables that now carry tenant_id.
+	// Sorted by dependency order (parent before child) so FK constraints are satisfied.
+	tables := []string{
+		"companies",
+		"divisions",
+		"job_positions",
+		"business_units",
+		"business_types",
+		"areas",
+		"outlets",
+		"warehouses",
+		"employees",
+		"employee_areas",
+		"employee_assets",
+		"employee_certifications",
+		"employee_contracts",
+		"employee_education_histories",
+		"employee_signatures",
+		"customer_types",
+		"customers",
+		"customer_banks",
+		"supplier_types",
+		"banks",
+		"suppliers",
+		"supplier_banks",
+		"supplier_contacts",
+		"product_categories",
+		"product_brands",
+		"product_segments",
+		"product_types",
+		"units_of_measures",
+		"packagings",
+		"procurement_types",
+		"products",
+		"product_recipe_items",
+		"product_recipe_versions",
+		"product_recipe_version_items",
+		"payment_terms",
+		"courier_agencies",
+		"so_sources",
+		"leave_types",
+		"bank_accounts",
+		"chart_of_accounts",
+		"finance_settings",
+		"journal_entries",
+		"journal_lines",
+		"journal_reversals",
+		"journal_attachments",
+		"adjustment_journal_approvals",
+		"journal_templates",
+		"payments",
+		"payment_allocations",
+		"budgets",
+		"budget_items",
+		"cash_bank_journals",
+		"cash_bank_journal_lines",
+		"cash_bank_transactions",
+		"bank_transfers",
+		"bank_reconciliations",
+		"bank_statement_lines",
+		"asset_categories",
+		"asset_locations",
+		"assets",
+		"asset_depreciations",
+		"asset_transactions",
+		"asset_attachments",
+		"asset_audit_logs",
+		"asset_assignment_histories",
+		"financial_closings",
+		"fiscal_years",
+		"accounting_periods",
+		"financial_closing_snapshots",
+		"financial_closing_logs",
+		"tax_configurations",
+		"inventory_settings",
+		"opening_balance_lines",
+		"tax_invoices",
+		"non_trade_payables",
+		"salary_structures",
+		"valuation_runs",
+		"valuation_run_details",
+		"up_country_costs",
+		"system_account_mappings",
+		"travel_plans",
+		"travel_plan_days",
+		"travel_plan_stops",
+		"travel_plan_day_notes",
+		"travel_plan_expenses",
+		"sales_quotations",
+		"sales_quotation_items",
+		"sales_orders",
+		"sales_order_items",
+		"delivery_orders",
+		"delivery_order_items",
+		"customer_invoices",
+		"customer_invoice_items",
+		"sales_returns",
+		"sales_return_items",
+		"sales_payments",
+		"sales_visits",
+		"yearly_targets",
+		"monthly_targets",
+		"purchase_requisitions",
+		"purchase_requisition_items",
+		"purchase_orders",
+		"purchase_order_items",
+		"goods_receipts",
+		"goods_receipt_items",
+		"supplier_invoices",
+		"supplier_invoice_items",
+		"purchase_payments",
+		"purchase_returns",
+		"purchase_return_items",
+		"inventory_batches",
+		"stock_movements",
+		"stock_ledgers",
+		"stock_opnames",
+		"stock_opname_items",
+		"pipeline_stages",
+		"lead_sources",
+		"lead_statuses",
+		"contact_roles",
+		"activity_types",
+		"crm_contacts",
+		"crm_leads",
+		"crm_deals",
+		"crm_activities",
+		"crm_tasks",
+		"crm_reminders",
+		"crm_schedules",
+		"crm_area_captures",
+		"crm_visit_reports",
+		"work_schedules",
+		"holidays",
+		"attendance_records",
+		"overtime_requests",
+		"leave_requests",
+		"evaluation_groups",
+		"evaluation_criteria",
+		"employee_evaluations",
+		"recruitment_requests",
+		"recruitment_applicants",
+		"pos_sessions",
+		"pos_orders",
+		"pos_order_items",
+		"pos_payments",
+		"pos_configs",
+		"pos_floor_plans",
+		"layout_versions",
+		"pos_table_status_records",
+		"feedback_forms",
+		"feedback_tokens",
+		"feedback_responses",
+		"loyalty_programs",
+		"loyalty_members",
+		"loyalty_point_ledgers",
+		"notifications",
+		"dashboard_layouts",
+		"ai_chat_sessions",
+		"ai_chat_messages",
+		"ai_action_logs",
+	}
+
+	for _, table := range tables {
+		// Check if the table exists AND has a tenant_id column before attempting the update.
+		var hasColumn bool
+		checkSQL := `
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_schema = 'public'
+				  AND table_name = $1
+				  AND column_name = 'tenant_id'
+			)`
+		if err := DB.Raw(checkSQL, table).Scan(&hasColumn).Error; err != nil {
+			log.Printf("backfillTenantIDs: could not check column on %s: %v", table, err)
+			continue
+		}
+		if !hasColumn {
+			continue
+		}
+
+		result := DB.Exec(
+			"UPDATE "+table+" SET tenant_id = ? WHERE tenant_id IS NULL OR tenant_id = ''",
+			defaultTenantID,
+		)
+		if result.Error != nil {
+			log.Printf("backfillTenantIDs: failed to backfill %s: %v", table, result.Error)
+		} else if result.RowsAffected > 0 {
+			log.Printf("backfillTenantIDs: backfilled %d rows in %s", result.RowsAffected, table)
+		}
+	}
+
 	return nil
 }

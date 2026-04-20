@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
@@ -35,12 +36,12 @@ func NewPaymentTermsRepository(db *gorm.DB) PaymentTermsRepository {
 }
 
 func (r *paymentTermsRepository) Create(ctx context.Context, paymentTerms *models.PaymentTerms) error {
-	return r.db.WithContext(ctx).Create(paymentTerms).Error
+	return database.GetDB(ctx, r.db).Create(paymentTerms).Error
 }
 
 func (r *paymentTermsRepository) FindByID(ctx context.Context, id string) (*models.PaymentTerms, error) {
 	var paymentTerms models.PaymentTerms
-	err := r.db.WithContext(ctx).First(&paymentTerms, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&paymentTerms, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func (r *paymentTermsRepository) List(ctx context.Context, params ListParams) ([
 	var paymentTermsList []models.PaymentTerms
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.PaymentTerms{})
+	query := database.GetDB(ctx, r.db).Model(&models.PaymentTerms{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -89,9 +90,9 @@ func (r *paymentTermsRepository) List(ctx context.Context, params ListParams) ([
 }
 
 func (r *paymentTermsRepository) Update(ctx context.Context, paymentTerms *models.PaymentTerms) error {
-	return r.db.WithContext(ctx).Save(paymentTerms).Error
+	return database.GetDB(ctx, r.db).Save(paymentTerms).Error
 }
 
 func (r *paymentTermsRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.PaymentTerms{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.PaymentTerms{}, "id = ?", id).Error
 }

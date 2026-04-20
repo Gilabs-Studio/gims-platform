@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -21,12 +22,12 @@ func NewFinancialClosingSnapshotRepository(db *gorm.DB) FinancialClosingSnapshot
 }
 
 func (r *financialClosingSnapshotRepository) Create(ctx context.Context, snapshot *financeModels.FinancialClosingSnapshot) error {
-	return r.db.WithContext(ctx).Create(snapshot).Error
+	return database.GetDB(ctx, r.db).Create(snapshot).Error
 }
 
 func (r *financialClosingSnapshotRepository) FindByPeriodEndDate(ctx context.Context, periodEndDate string) (*financeModels.FinancialClosingSnapshot, error) {
 	var item financeModels.FinancialClosingSnapshot
-	if err := r.db.WithContext(ctx).Where("period_end_date = ?", periodEndDate).First(&item).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("period_end_date = ?", periodEndDate).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil

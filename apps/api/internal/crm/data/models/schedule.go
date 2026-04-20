@@ -11,6 +11,7 @@ import (
 // Schedule represents a calendar entry for planned activities
 type Schedule struct {
 	ID                    string     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	TaskID                *string    `gorm:"type:uuid;index" json:"task_id"`
 	Task                  *Task      `gorm:"foreignKey:TaskID" json:"task,omitempty"`
 	EmployeeID            string     `gorm:"type:uuid;not null;index" json:"employee_id"`

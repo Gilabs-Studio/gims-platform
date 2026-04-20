@@ -11,6 +11,7 @@ import (
 // User represents a user entity
 type User struct {
 	ID                    string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID              string           `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Email                 string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Password              string           `gorm:"type:varchar(255);not null" json:"-"` // Hidden from JSON
 	Name                  string           `gorm:"type:varchar(255);not null;index" json:"name"`

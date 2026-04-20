@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewProductBrandRepository(db *gorm.DB) ProductBrandRepository {
 }
 
 func (r *productBrandRepository) Create(ctx context.Context, brand *models.ProductBrand) error {
-	return r.db.WithContext(ctx).Create(brand).Error
+	return database.GetDB(ctx, r.db).Create(brand).Error
 }
 
 func (r *productBrandRepository) FindByID(ctx context.Context, id string) (*models.ProductBrand, error) {
 	var brand models.ProductBrand
-	err := r.db.WithContext(ctx).First(&brand, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&brand, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *productBrandRepository) List(ctx context.Context, params ListParams) ([
 	var brands []models.ProductBrand
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ProductBrand{})
+	query := database.GetDB(ctx, r.db).Model(&models.ProductBrand{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *productBrandRepository) List(ctx context.Context, params ListParams) ([
 }
 
 func (r *productBrandRepository) Update(ctx context.Context, brand *models.ProductBrand) error {
-	return r.db.WithContext(ctx).Save(brand).Error
+	return database.GetDB(ctx, r.db).Save(brand).Error
 }
 
 func (r *productBrandRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ProductBrand{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ProductBrand{}, "id = ?", id).Error
 }

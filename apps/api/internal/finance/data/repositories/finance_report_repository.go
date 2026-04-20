@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -59,7 +60,7 @@ func (r *financeReportRepository) validateCompanyFilterSupport(ctx context.Conte
 	if companyID == nil {
 		return nil
 	}
-	hasColumn := r.db.WithContext(ctx).Migrator().HasColumn(&financeModels.JournalEntry{}, "company_id")
+	hasColumn := database.GetDB(ctx, r.db).Migrator().HasColumn(&financeModels.JournalEntry{}, "company_id")
 	if !hasColumn {
 		return fmt.Errorf("company_id filter is not supported: journal_entries.company_id column not found")
 	}
@@ -70,7 +71,7 @@ func (r *financeReportRepository) validateFiscalYearFilterSupport(ctx context.Co
 	if fiscalYearID == nil {
 		return nil
 	}
-	hasColumn := r.db.WithContext(ctx).Migrator().HasColumn(&financeModels.JournalEntry{}, "fiscal_year_id")
+	hasColumn := database.GetDB(ctx, r.db).Migrator().HasColumn(&financeModels.JournalEntry{}, "fiscal_year_id")
 	if !hasColumn {
 		return fmt.Errorf("fiscal_year_id filter is not supported: journal_entries.fiscal_year_id column not found")
 	}
@@ -95,7 +96,7 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 		result[id] = GLAccountBalance{ChartOfAccountID: id}
 	}
 
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Table("journal_lines jl").
 		Select(`
 			jl.chart_of_account_id as coa_id,
@@ -167,7 +168,7 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error) {
 	// Keep legacy behavior: return all chart of accounts in code order.
 	var allCoas []financeModels.ChartOfAccount
-	if err := r.db.WithContext(ctx).Order("code asc").Find(&allCoas).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Order("code asc").Find(&allCoas).Error; err != nil {
 		return nil, err
 	}
 	accountIDs := make([]string, 0, len(allCoas))
@@ -209,7 +210,7 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 	}
 
 	var lines []financeModels.JournalLine
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
@@ -273,7 +274,7 @@ func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, e
 	}
 
 	var row result
-	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&row).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&row).Error; err != nil {
 		return 0, err
 	}
 

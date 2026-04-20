@@ -8,6 +8,7 @@ import (
 
 type GoodsReceiptItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	GoodsReceiptID string       `gorm:"type:uuid;index;not null" json:"goods_receipt_id"`
 	GoodsReceipt   *GoodsReceipt `gorm:"foreignKey:GoodsReceiptID" json:"goods_receipt,omitempty"`

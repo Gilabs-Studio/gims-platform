@@ -16,6 +16,7 @@ const (
 // Notification is a user-targeted in-app notification.
 type Notification struct {
 	ID         string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	UserID     string         `gorm:"type:uuid;not null;index:idx_notifications_user_created" json:"user_id"`
 	Type       string         `gorm:"type:varchar(50);not null;index" json:"type"`
 	Title      string         `gorm:"type:varchar(255);not null" json:"title"`

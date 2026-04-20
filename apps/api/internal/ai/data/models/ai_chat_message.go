@@ -19,6 +19,7 @@ const (
 // AIChatMessage represents a single message in an AI chat session
 type AIChatMessage struct {
 	ID         string      `gorm:"type:uuid;primaryKey;column:id" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SessionID  string      `gorm:"type:uuid;not null;index:idx_ai_chat_messages_session" json:"session_id"`
 	Role       MessageRole `gorm:"type:varchar(20);not null" json:"role"`
 	Content    string      `gorm:"type:text;not null" json:"content"`

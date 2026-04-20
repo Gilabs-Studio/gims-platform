@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"gorm.io/gorm"
 )
@@ -177,6 +179,11 @@ func NewSalesOverviewRepository(db *gorm.DB) SalesOverviewRepository {
 }
 
 func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, params ListPerformanceParams) ([]SalesRepPerformanceRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	// Enforce pagination limits
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
@@ -197,6 +204,7 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 				COUNT(so.id) AS total_orders
 			FROM sales_orders so
 			WHERE so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			GROUP BY so.sales_rep_id
@@ -205,7 +213,7 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 			SELECT so2.sales_rep_id,
 				COUNT(dord.id) AS total_deliveries
 			FROM delivery_orders dord
-			INNER JOIN sales_orders so2 ON so2.id = dord.sales_order_id AND so2.deleted_at IS NULL
+			INNER JOIN sales_orders so2 ON so2.id = dord.sales_order_id AND so2.deleted_at IS NULL AND (@tenantFilter = false OR so2.tenant_id = @tenantID)
 			WHERE dord.deleted_at IS NULL
 				AND dord.status IN ('delivered', 'shipped')
 				AND dord.delivery_date BETWEEN @startDate AND @endDate
@@ -215,7 +223,7 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 			SELECT so3.sales_rep_id,
 				COUNT(ci.id) AS total_invoices
 			FROM customer_invoices ci
-			INNER JOIN sales_orders so3 ON so3.id = ci.sales_order_id AND so3.deleted_at IS NULL
+			INNER JOIN sales_orders so3 ON so3.id = ci.sales_order_id AND so3.deleted_at IS NULL AND (@tenantFilter = false OR so3.tenant_id = @tenantID)
 			WHERE ci.deleted_at IS NULL
 				AND ci.status NOT IN ('draft', 'cancelled')
 				AND ci.invoice_date BETWEEN @startDate AND @endDate
@@ -227,17 +235,19 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 				COUNT(sv.id) AS tasks_completed
 			FROM sales_visits sv
 			WHERE sv.deleted_at IS NULL
+				AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
 				AND sv.visit_date BETWEEN @startDate AND @endDate
 			GROUP BY sv.employee_id
 		) sv_agg ON sv_agg.employee_id = e.id
 		WHERE e.deleted_at IS NULL
+			AND (@tenantFilter = false OR e.tenant_id = @tenantID)
 			AND e.is_active = true
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Add search filter (prefix search for index efficiency)
 	if params.Search != "" {
@@ -248,7 +258,7 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 	// Count total
 	var total int64
 	countSQL := "SELECT COUNT(*) " + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count sales rep performance: %w", err)
 	}
 
@@ -295,7 +305,7 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 	queryParams["offset"] = offset
 
 	var rows []SalesRepPerformanceRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list sales rep performance: %w", err)
 	}
 
@@ -311,6 +321,11 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 }
 
 func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, startDate, endDate time.Time) ([]MonthlySalesRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	query := `
 		SELECT
 			EXTRACT(MONTH FROM so.order_date)::int AS month,
@@ -328,6 +343,7 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 				COUNT(CASE WHEN sv.status = 'completed' THEN 1 END) AS total_visits
 			FROM sales_visits sv
 			WHERE sv.deleted_at IS NULL
+				AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
 				AND sv.visit_date BETWEEN @startDate AND @endDate
 			GROUP BY EXTRACT(MONTH FROM sv.visit_date), EXTRACT(YEAR FROM sv.visit_date)
 		) visit_counts ON visit_counts.month = EXTRACT(MONTH FROM so.order_date) AND visit_counts.year = EXTRACT(YEAR FROM so.order_date)
@@ -338,6 +354,7 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 				COALESCE(SUM(sp.amount), 0) AS total_cash_in
 			FROM sales_payments sp
 			WHERE sp.deleted_at IS NULL
+				AND (@tenantFilter = false OR sp.tenant_id = @tenantID)
 				AND sp.status = 'CONFIRMED'
 				AND sp.payment_date::date BETWEEN @startDate AND @endDate
 			GROUP BY EXTRACT(MONTH FROM sp.payment_date::date), EXTRACT(YEAR FROM sp.payment_date::date)
@@ -349,11 +366,13 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 				COUNT(dord.id) AS total_deliveries
 			FROM delivery_orders dord
 			WHERE dord.deleted_at IS NULL
+				AND (@tenantFilter = false OR dord.tenant_id = @tenantID)
 				AND dord.status IN ('delivered', 'shipped')
 				AND dord.delivery_date BETWEEN @startDate AND @endDate
 			GROUP BY EXTRACT(MONTH FROM dord.delivery_date), EXTRACT(YEAR FROM dord.delivery_date)
 		) delivery_counts ON delivery_counts.month = EXTRACT(MONTH FROM so.order_date) AND delivery_counts.year = EXTRACT(YEAR FROM so.order_date)
 		WHERE so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		GROUP BY EXTRACT(MONTH FROM so.order_date), EXTRACT(YEAR FROM so.order_date),
@@ -362,10 +381,10 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 	`
 
 	var rows []MonthlySalesRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly sales overview: %w", err)
 	}
 
@@ -373,6 +392,11 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 }
 
 func (r *salesOverviewRepository) GetMonthlyTargets(ctx context.Context, startDate, endDate time.Time) ([]MonthlyTargetRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	query := `
 		SELECT
 			mt.month,
@@ -381,22 +405,28 @@ func (r *salesOverviewRepository) GetMonthlyTargets(ctx context.Context, startDa
 		FROM monthly_targets mt
 		INNER JOIN yearly_targets yt ON yt.id = mt.yearly_target_id
 		WHERE yt.deleted_at IS NULL
+			AND (@tenantFilter = false OR yt.tenant_id = @tenantID)
 			AND mt.deleted_at IS NULL
 			AND yt.year BETWEEN EXTRACT(YEAR FROM @startDate::date) AND EXTRACT(YEAR FROM @endDate::date)
 		GROUP BY mt.month, yt.year
 		ORDER BY yt.year, mt.month
 	`
 	var rows []MonthlyTargetRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly targets: %w", err)
 	}
 	return rows, nil
 }
 
 func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employeeID string, startDate, endDate time.Time) (*SalesRepDetailRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	// Calculate previous period (same duration, shifted back)
 	duration := endDate.Sub(startDate)
 	prevEnd := startDate.Add(-1 * 24 * time.Hour) // day before start
@@ -427,7 +457,9 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 				SUM(so.total_amount) AS total_revenue,
 				COUNT(so.id) AS total_orders
 			FROM sales_orders so
-			WHERE so.deleted_at IS NULL AND so.status NOT IN ('draft', 'cancelled')
+			WHERE so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
+				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			GROUP BY so.sales_rep_id
 		) curr_orders ON curr_orders.sales_rep_id = e.id
@@ -436,7 +468,9 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 				COUNT(CASE WHEN sv.status = 'completed' THEN 1 END) AS visits_completed,
 				COUNT(sv.id) AS tasks_completed
 			FROM sales_visits sv
-			WHERE sv.deleted_at IS NULL AND sv.visit_date BETWEEN @startDate AND @endDate
+			WHERE sv.deleted_at IS NULL
+				AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
+				AND sv.visit_date BETWEEN @startDate AND @endDate
 			GROUP BY sv.employee_id
 		) curr_visits ON curr_visits.employee_id = e.id
 		LEFT JOIN (
@@ -444,7 +478,9 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 				SUM(so.total_amount) AS total_revenue,
 				COUNT(so.id) AS total_orders
 			FROM sales_orders so
-			WHERE so.deleted_at IS NULL AND so.status NOT IN ('draft', 'cancelled')
+			WHERE so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
+				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @prevStart AND @prevEnd
 			GROUP BY so.sales_rep_id
 		) prev_orders ON prev_orders.sales_rep_id = e.id
@@ -452,20 +488,24 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 			SELECT sv.employee_id,
 				COUNT(CASE WHEN sv.status = 'completed' THEN 1 END) AS visits_completed
 			FROM sales_visits sv
-			WHERE sv.deleted_at IS NULL AND sv.visit_date BETWEEN @prevStart AND @prevEnd
+			WHERE sv.deleted_at IS NULL
+				AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
+				AND sv.visit_date BETWEEN @prevStart AND @prevEnd
 			GROUP BY sv.employee_id
 		) prev_visits ON prev_visits.employee_id = e.id
-		WHERE e.id = @employeeID AND e.deleted_at IS NULL
+		WHERE e.id = @employeeID
+			AND e.deleted_at IS NULL
+			AND (@tenantFilter = false OR e.tenant_id = @tenantID)
 	`
 
 	var row SalesRepDetailRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"employeeID": employeeID,
 		"startDate":  startDate,
 		"endDate":    endDate,
 		"prevStart":  prevStart,
 		"prevEnd":    prevEnd,
-	}).Scan(&row).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get sales rep detail: %w", err)
 	}
 
@@ -477,6 +517,11 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 }
 
 func (r *salesOverviewRepository) GetSalesRepCheckInLocations(ctx context.Context, employeeID string, params CheckInParams) ([]CheckInLocationRow, int, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, 0, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -487,20 +532,21 @@ func (r *salesOverviewRepository) GetSalesRepCheckInLocations(ctx context.Contex
 	baseWhere := `
 		WHERE sv.employee_id = @employeeID
 			AND sv.deleted_at IS NULL
+			AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
 			AND sv.check_in_at IS NOT NULL
 			AND sv.visit_date BETWEEN @startDate AND @endDate
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"employeeID": employeeID,
 		"startDate":  params.StartDate,
 		"endDate":    params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Count total
 	var total int64
 	countSQL := `SELECT COUNT(*) FROM sales_visits sv ` + baseWhere
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count check-in locations: %w", err)
 	}
 
@@ -528,7 +574,7 @@ func (r *salesOverviewRepository) GetSalesRepCheckInLocations(ctx context.Contex
 	queryParams["offset"] = offset
 
 	var rows []CheckInLocationRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to get check-in locations: %w", err)
 	}
 
@@ -536,6 +582,11 @@ func (r *salesOverviewRepository) GetSalesRepCheckInLocations(ctx context.Contex
 }
 
 func (r *salesOverviewRepository) GetSalesRepProducts(ctx context.Context, employeeID string, params ProductParams) ([]ProductSalesRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -547,24 +598,25 @@ func (r *salesOverviewRepository) GetSalesRepProducts(ctx context.Context, emplo
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.sales_rep_id = @employeeID
 			AND so.order_date BETWEEN @startDate AND @endDate
-		INNER JOIN products p ON p.id = soi.product_id AND p.deleted_at IS NULL
+		INNER JOIN products p ON p.id = soi.product_id AND p.deleted_at IS NULL AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 		LEFT JOIN product_categories pc ON pc.id = p.category_id
 		WHERE soi.deleted_at IS NULL
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"employeeID": employeeID,
 		"startDate":  params.StartDate,
 		"endDate":    params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Count distinct products
 	var total int64
 	countSQL := `SELECT COUNT(DISTINCT soi.product_id) ` + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count products: %w", err)
 	}
 
@@ -605,7 +657,7 @@ func (r *salesOverviewRepository) GetSalesRepProducts(ctx context.Context, emplo
 	queryParams["offset"] = offset
 
 	var rows []ProductSalesRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to get sales rep products: %w", err)
 	}
 
@@ -621,6 +673,11 @@ func (r *salesOverviewRepository) GetSalesRepProducts(ctx context.Context, emplo
 }
 
 func (r *salesOverviewRepository) GetSalesRepCustomers(ctx context.Context, employeeID string, params CustomerParams) ([]CustomerSalesRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -630,25 +687,26 @@ func (r *salesOverviewRepository) GetSalesRepCustomers(ctx context.Context, empl
 
 	baseQuery := `
 		FROM sales_orders so
-		INNER JOIN customers cust ON cust.id = so.customer_id AND cust.deleted_at IS NULL
+		INNER JOIN customers cust ON cust.id = so.customer_id AND cust.deleted_at IS NULL AND (@tenantFilter = false OR cust.tenant_id = @tenantID)
 		LEFT JOIN customer_types ct ON ct.id = cust.customer_type_id
 		LEFT JOIN cities city ON city.id = cust.city_id
 		WHERE so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.sales_rep_id = @employeeID
 			AND so.order_date BETWEEN @startDate AND @endDate
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"employeeID": employeeID,
 		"startDate":  params.StartDate,
 		"endDate":    params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Count distinct customers
 	var total int64
 	countSQL := `SELECT COUNT(DISTINCT so.customer_id) ` + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count customers: %w", err)
 	}
 
@@ -688,7 +746,7 @@ func (r *salesOverviewRepository) GetSalesRepCustomers(ctx context.Context, empl
 	queryParams["offset"] = offset
 
 	var rows []CustomerSalesRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to get sales rep customers: %w", err)
 	}
 
@@ -704,6 +762,11 @@ func (r *salesOverviewRepository) GetSalesRepCustomers(ctx context.Context, empl
 }
 
 func (r *salesOverviewRepository) GetSalesRepYearlyTarget(ctx context.Context, employeeID string, year int) (float64, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return 0, tenantErr
+	}
+
 	// Find target through employee's area assignments
 	query := `
 		SELECT COALESCE(SUM(yt.total_target), 0)
@@ -716,12 +779,13 @@ func (r *salesOverviewRepository) GetSalesRepYearlyTarget(ctx context.Context, e
 		WHERE yt.area_id IS NOT NULL
 			AND yt.year = @year
 			AND yt.deleted_at IS NULL
+			AND (@tenantFilter = false OR yt.tenant_id = @tenantID)
 	`
 	var target float64
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"employeeID": employeeID,
 		"year":       year,
-	}).Scan(&target).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&target).Error; err != nil {
 		return 0, fmt.Errorf("failed to get yearly target: %w", err)
 	}
 	return target, nil

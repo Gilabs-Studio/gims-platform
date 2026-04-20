@@ -20,6 +20,7 @@ const (
 // AIChatSession represents an AI chat conversation session
 type AIChatSession struct {
 	ID           string         `gorm:"type:uuid;primaryKey;column:id" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	UserID       string         `gorm:"type:uuid;not null;index:idx_ai_chat_sessions_user_id" json:"user_id"`
 	Title        string         `gorm:"type:varchar(255)" json:"title"`
 	Status       SessionStatus  `gorm:"type:varchar(20);default:ACTIVE;index:idx_ai_chat_sessions_status" json:"status"`

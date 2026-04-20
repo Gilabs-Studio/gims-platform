@@ -21,6 +21,7 @@ const (
 // Company represents a company entity with approval workflow
 type Company struct {
 	ID         string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name       string         `gorm:"type:varchar(200);not null;index" json:"name"`
 	Address    string         `gorm:"type:text" json:"address"`
 	Email      string         `gorm:"type:varchar(100)" json:"email"`

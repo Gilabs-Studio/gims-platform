@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -31,12 +32,12 @@ func NewProductCategoryRepository(db *gorm.DB) ProductCategoryRepository {
 }
 
 func (r *productCategoryRepository) Create(ctx context.Context, category *models.ProductCategory) error {
-	return r.db.WithContext(ctx).Create(category).Error
+	return database.GetDB(ctx, r.db).Create(category).Error
 }
 
 func (r *productCategoryRepository) FindByID(ctx context.Context, id string) (*models.ProductCategory, error) {
 	var category models.ProductCategory
-	err := r.db.WithContext(ctx).Preload("Parent").First(&category, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).Preload("Parent").First(&category, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +48,7 @@ func (r *productCategoryRepository) List(ctx context.Context, params ListParams)
 	var categories []models.ProductCategory
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.ProductCategory{})
+	query := database.GetDB(ctx, r.db).Model(&models.ProductCategory{})
 
 	// Apply search filter
 	if params.Search != "" {
@@ -92,17 +93,17 @@ func (r *productCategoryRepository) List(ctx context.Context, params ListParams)
 }
 
 func (r *productCategoryRepository) Update(ctx context.Context, category *models.ProductCategory) error {
-	return r.db.WithContext(ctx).Save(category).Error
+	return database.GetDB(ctx, r.db).Save(category).Error
 }
 
 func (r *productCategoryRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.ProductCategory{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.ProductCategory{}, "id = ?", id).Error
 }
 
 // GetRootCategories returns all categories without a parent (root level)
 func (r *productCategoryRepository) GetRootCategories(ctx context.Context, onlyActive bool) ([]models.ProductCategory, error) {
 	var categories []models.ProductCategory
-	query := r.db.WithContext(ctx).Where("parent_id IS NULL")
+	query := database.GetDB(ctx, r.db).Where("parent_id IS NULL")
 	if onlyActive {
 		query = query.Where("is_active = ?", true)
 	}
@@ -117,7 +118,7 @@ func (r *productCategoryRepository) GetRootCategories(ctx context.Context, onlyA
 // GetChildrenByParentID returns all direct children of a category
 func (r *productCategoryRepository) GetChildrenByParentID(ctx context.Context, parentID string, onlyActive bool) ([]models.ProductCategory, error) {
 	var categories []models.ProductCategory
-	query := r.db.WithContext(ctx).Where("parent_id = ?", parentID)
+	query := database.GetDB(ctx, r.db).Where("parent_id = ?", parentID)
 	if onlyActive {
 		query = query.Where("is_active = ?", true)
 	}
@@ -132,14 +133,14 @@ func (r *productCategoryRepository) GetChildrenByParentID(ctx context.Context, p
 // HasChildren checks if a category has any children
 func (r *productCategoryRepository) HasChildren(ctx context.Context, categoryID string) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&models.ProductCategory{}).Where("parent_id = ?", categoryID).Count(&count).Error
+	err := database.GetDB(ctx, r.db).Model(&models.ProductCategory{}).Where("parent_id = ?", categoryID).Count(&count).Error
 	return count > 0, err
 }
 
 // CountProductsByCategory counts products in a specific category
 func (r *productCategoryRepository) CountProductsByCategory(ctx context.Context, categoryID string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&models.Product{}).Where("category_id = ?", categoryID).Count(&count).Error
+	err := database.GetDB(ctx, r.db).Model(&models.Product{}).Where("category_id = ?", categoryID).Count(&count).Error
 	return count, err
 }
 

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -40,12 +41,12 @@ func NewBankTransferRepository(db *gorm.DB) BankTransferRepository {
 }
 
 func (r *bankTransferRepository) Create(ctx context.Context, item *financeModels.BankTransfer) error {
-	return r.db.WithContext(ctx).Create(item).Error
+	return database.GetDB(ctx, r.db).Create(item).Error
 }
 
 func (r *bankTransferRepository) FindByID(ctx context.Context, id string) (*financeModels.BankTransfer, error) {
 	var item financeModels.BankTransfer
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -73,7 +74,7 @@ func (r *bankTransferRepository) List(ctx context.Context, params BankTransferLi
 	var items []financeModels.BankTransfer
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.BankTransfer{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.BankTransfer{})
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
 		q = q.Where("company_id = ?", companyID)
@@ -129,5 +130,5 @@ func (r *bankTransferRepository) List(ctx context.Context, params BankTransferLi
 }
 
 func (r *bankTransferRepository) Update(ctx context.Context, item *financeModels.BankTransfer) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	return database.GetDB(ctx, r.db).Save(item).Error
 }

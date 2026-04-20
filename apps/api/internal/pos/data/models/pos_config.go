@@ -10,6 +10,7 @@ import (
 // POSConfig holds per-outlet POS configuration and business rules
 type POSConfig struct {
 	ID                 string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OutletID           string         `gorm:"type:uuid;not null;uniqueIndex" json:"outlet_id"`
 	TaxRate            float64        `gorm:"type:decimal(5,2);default:11.00" json:"tax_rate"`
 	ServiceChargeRate  float64        `gorm:"type:decimal(5,2);default:0" json:"service_charge_rate"`

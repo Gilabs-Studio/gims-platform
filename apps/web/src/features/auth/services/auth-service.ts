@@ -154,4 +154,22 @@ export const authService = {
   async logout(): Promise<void> {
     await apiClient.post("/auth/logout");
   },
+
+  /**
+   * Self-service tenant registration.
+   * Creates a new tenant + admin account in one atomic transaction.
+   * The backend sets HttpOnly auth cookies, so the response body carries
+   * the user payload only (tokens are intentionally empty).
+   */
+  async register(
+    payload: { name: string; email: string; password: string; company_name: string },
+    csrfToken?: string | null,
+  ): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>(
+      "/auth/register",
+      payload,
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+    );
+    return response.data;
+  },
 };

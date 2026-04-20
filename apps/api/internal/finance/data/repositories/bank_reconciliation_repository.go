@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -41,12 +42,12 @@ func NewBankReconciliationRepository(db *gorm.DB) BankReconciliationRepository {
 }
 
 func (r *bankReconciliationRepository) Create(ctx context.Context, item *financeModels.BankReconciliation) error {
-	return r.db.WithContext(ctx).Create(item).Error
+	return database.GetDB(ctx, r.db).Create(item).Error
 }
 
 func (r *bankReconciliationRepository) FindByID(ctx context.Context, id string, preloadLines bool) (*financeModels.BankReconciliation, error) {
 	var item financeModels.BankReconciliation
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	if preloadLines {
 		q = q.Preload("Lines")
 	}
@@ -75,7 +76,7 @@ func (r *bankReconciliationRepository) List(ctx context.Context, params BankReco
 	var items []financeModels.BankReconciliation
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.BankReconciliation{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.BankReconciliation{})
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
 		q = q.Where("company_id = ?", companyID)
@@ -124,23 +125,23 @@ func (r *bankReconciliationRepository) List(ctx context.Context, params BankReco
 }
 
 func (r *bankReconciliationRepository) Update(ctx context.Context, item *financeModels.BankReconciliation) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	return database.GetDB(ctx, r.db).Save(item).Error
 }
 
 func (r *bankReconciliationRepository) CreateStatementLines(ctx context.Context, lines []financeModels.BankStatementLine) error {
 	if len(lines) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Create(&lines).Error
+	return database.GetDB(ctx, r.db).Create(&lines).Error
 }
 
 func (r *bankReconciliationRepository) UpdateStatementLine(ctx context.Context, item *financeModels.BankStatementLine) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	return database.GetDB(ctx, r.db).Save(item).Error
 }
 
 func (r *bankReconciliationRepository) FindStatementLineByID(ctx context.Context, reconciliationID, lineID string) (*financeModels.BankStatementLine, error) {
 	var item financeModels.BankStatementLine
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		First(&item, "id = ? AND bank_reconciliation_id = ?", strings.TrimSpace(lineID), strings.TrimSpace(reconciliationID)).Error; err != nil {
 		return nil, err
 	}

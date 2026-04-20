@@ -32,6 +32,7 @@ const (
 // AIActionLog records every action performed by the AI assistant
 type AIActionLog struct {
 	ID              string       `gorm:"type:uuid;primaryKey;column:id" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SessionID       string       `gorm:"type:uuid;not null;index:idx_ai_action_logs_session" json:"session_id"`
 	MessageID       *string      `gorm:"type:uuid;index" json:"message_id,omitempty"`
 	UserID          string       `gorm:"type:uuid;not null;index:idx_ai_action_logs_user" json:"user_id"`

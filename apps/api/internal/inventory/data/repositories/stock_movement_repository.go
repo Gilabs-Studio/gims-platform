@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -20,7 +21,7 @@ func NewStockMovementRepository(db *gorm.DB) repository.StockMovementRepository 
 }
 
 func (r *stockMovementRepository) Create(ctx context.Context, movement *models.StockMovement) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 1. Get current balance for this product + warehouse
 		var lastBalance float64
 
@@ -100,7 +101,7 @@ func (r *stockMovementRepository) FindAll(ctx context.Context, req *dto.GetStock
 
 func (r *stockMovementRepository) GetLastBalance(ctx context.Context, warehouseID, productID string) (float64, error) {
 	var lastMovement models.StockMovement
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("warehouse_id = ? AND product_id = ?", warehouseID, productID).
 		Order("created_at desc").
 		First(&lastMovement).Error

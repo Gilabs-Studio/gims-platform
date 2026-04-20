@@ -82,6 +82,8 @@ func SeedPOSFloorLayouts() error {
 	}
 
 	for i := range plans {
+		plans[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
@@ -113,6 +115,8 @@ func SeedPOSFloorLayouts() error {
 	}
 
 	for i := range versions {
+		versions[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"floor_plan_id", "version", "layout_data", "published_at", "published_by"}),
