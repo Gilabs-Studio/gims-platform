@@ -65,8 +65,10 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
 
   const mappings: Record<string, string> = {
     "/finance/accounting/journal-entries": "/finance/journals",
-    "/finance/accounting/journal-entries/purchase": "/finance/journals/purchase",
-    "/finance/accounting/journal-entries/adjustment": "/finance/journals/adjustment",
+    "/finance/accounting/journal-entries/purchase":
+      "/finance/journals/purchase",
+    "/finance/accounting/journal-entries/adjustment":
+      "/finance/journals/adjustment",
     "/finance/accounting/closing": "/finance/closing",
     "/finance/ar/customer-invoices": "/finance/journals/sales",
     "/finance/ar/customer-payments": "/finance/ap/payments",
@@ -78,7 +80,8 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
     "/finance/fixed-assets/assets": "/finance/assets",
     "/finance/fixed-assets/categories": "/finance/asset-categories",
     "/finance/fixed-assets/locations": "/finance/asset-locations",
-    "/finance/fixed-assets/depreciation-schedule": "/finance/asset-batch-depreciation",
+    "/finance/fixed-assets/depreciation-schedule":
+      "/finance/asset-batch-depreciation",
     "/finance/fixed-assets/disposal": "/finance/asset-disposal",
     "/finance/fixed-assets/revaluation": "/finance/asset-revaluation",
     "/finance/reports/trial-balance": "/finance/reports/general-ledger",
@@ -181,6 +184,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const [isDetailSidebarOpen, setIsDetailSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
   const [attendanceDrawerTab, setAttendanceDrawerTab] =
     useState<AttendanceDrawerTab>("calendar");
@@ -257,7 +261,9 @@ export const DashboardLayout = memo(function DashboardLayout({
             name: item.name,
             href,
             icon: getMenuIcon(item.icon),
-            children: item.children ? buildDetailItems(item.children, detailId) : undefined,
+            children: item.children
+              ? buildDetailItems(item.children, detailId)
+              : undefined,
           };
         });
     };
@@ -362,7 +368,11 @@ export const DashboardLayout = memo(function DashboardLayout({
     const handler = () => setIsMobileSidebarOpen(true);
     if (typeof window !== "undefined") {
       window.addEventListener("openMobileSidebar", handler as EventListener);
-      return () => window.removeEventListener("openMobileSidebar", handler as EventListener);
+      return () =>
+        window.removeEventListener(
+          "openMobileSidebar",
+          handler as EventListener,
+        );
     }
     return undefined;
   }, []);
@@ -493,6 +503,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 avatarUrl={primaryAvatarUrl}
                 fallbackAvatarUrl={fallbackAvatarUrl}
                 onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                onSearchClick={() => setCommandPaletteOpen(true)}
                 showAttendanceIndicator={showAttendanceIndicator}
                 onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
               />
@@ -530,7 +541,11 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={setIsOvertimeDrawerOpen}
         />
 
-        <CommandPalette menus={menus} />
+        <CommandPalette
+          menus={menus}
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+        />
         {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
