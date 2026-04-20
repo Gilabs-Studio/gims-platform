@@ -22,15 +22,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useRouter } from "@/i18n/routing";
 
 import { purchasePaymentSchema } from "../schemas/purchase-payment.schema";
-import { useCreatePurchasePayment } from "../hooks/use-purchase-payments";
+import { useCreatePurchasePayment, usePurchasePaymentAddData } from "../hooks/use-purchase-payments";
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
-import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
-import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
 import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
@@ -56,7 +53,7 @@ type PurchasePaymentFormValues = {
   notes?: string | null;
 };
 
-const PAYABLE_INVOICE_STATUSES = new Set(["APPROVED", "UNPAID", "PARTIAL", "WAITING_PAYMENT"]);
+const PAYABLE_INVOICE_STATUSES = new Set(["UNPAID", "PARTIAL", "WAITING_PAYMENT"]);
 
 function isPayableInvoiceStatus(status?: string | null): boolean {
   if (!status) return false;
@@ -73,6 +70,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   const isLockedToDP = !!defaultDPId;
 
   const createMutation = useCreatePurchasePayment();
+  const addDataQuery = usePurchasePaymentAddData({ enabled: open && !isLockedToDP });
 
   // Fetch DP detail when locked to a specific down payment (supplier DP)
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useSupplierInvoiceDP(defaultDPId ?? "", {
@@ -123,42 +121,40 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   const amount = useWatch({ control, name: "amount" });
   const bankAccountId = useWatch({ control, name: "bank_account_id" });
 
-  const invoicesCombobox = usePaginatedComboboxOptions({
-    queryKey: ["purchase-payment", "invoice-options"],
-    enabled: open && !isLockedToDP,
-    lazyLoad: true,
-    queryFn: (params) => supplierInvoicesService.list(params),
-    mapOption: (inv) => ({
-      value: inv.id,
-      label: `${inv.code}${inv.invoice_number ? ` (${inv.invoice_number})` : ""}`,
-    }),
-  });
+  const invoiceOptions = useMemo(
+    () => addDataQuery.data?.data?.invoices ?? [],
+    [addDataQuery.data?.data?.invoices],
+  );
+  const bankAccountOptions = useMemo(
+    () => addDataQuery.data?.data?.bank_accounts ?? [],
+    [addDataQuery.data?.data?.bank_accounts],
+  );
 
-  const bankAccountsCombobox = usePaginatedComboboxOptions({
-    queryKey: ["purchase-payment", "bank-account-options"],
-    enabled: open && method === "BANK",
-    lazyLoad: true,
-    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true }),
-    mapOption: (acc) => ({
-      value: acc.id,
-      label: `${acc.name} - ${acc.account_number}`,
-    }),
-  });
+  const selectedInvoiceFromAddData = useMemo(
+    () => (invoiceId ? invoiceOptions.find((inv) => inv.id === invoiceId) ?? null : null),
+    [invoiceId, invoiceOptions],
+  );
+
+  const shouldFetchInvoiceDetail =
+    open &&
+    !isLockedToDP &&
+    !!invoiceId &&
+    (isLockedToInvoice || selectedInvoiceFromAddData == null);
 
   const selectedInvoiceDetailQuery = useSupplierInvoice(invoiceId ?? "", {
-    enabled: open && !isLockedToDP && !!invoiceId,
+    enabled: shouldFetchInvoiceDetail,
   });
 
   const selectedInvoice = useMemo(() => {
     if (!invoiceId || isLockedToDP) return null;
+    if (selectedInvoiceFromAddData) return selectedInvoiceFromAddData;
     const detailed = selectedInvoiceDetailQuery.data?.success ? selectedInvoiceDetailQuery.data.data : null;
-    if (detailed) return detailed;
-    return invoicesCombobox.items.find((inv) => inv.id === invoiceId) ?? null;
-  }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoicesCombobox.items]);
+    return detailed;
+  }, [invoiceId, isLockedToDP, selectedInvoiceFromAddData, selectedInvoiceDetailQuery.data]);
 
   const payableInvoices = useMemo(
-    () => invoicesCombobox.items.filter((inv) => isPayableInvoiceStatus(inv.status)),
-    [invoicesCombobox.items],
+    () => invoiceOptions.filter((inv) => isPayableInvoiceStatus(inv.status)),
+    [invoiceOptions],
   );
 
   useEffect(() => {
@@ -171,8 +167,8 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const selectedBankAccount = useMemo(() => {
     if (!bankAccountId) return null;
-    return bankAccountsCombobox.items.find((acc) => acc.id === bankAccountId) ?? null;
-  }, [bankAccountId, bankAccountsCombobox.items]);
+    return bankAccountOptions.find((acc) => acc.id === bankAccountId) ?? null;
+  }, [bankAccountId, bankAccountOptions]);
 
   const computedAmount = useMemo(() => {
     if (isLockedToDP && dpDetail) {
@@ -232,7 +228,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   }, [computedAmount, amount, method, setValue]);
 
   const submitting = createMutation.isPending;
-  const isFetchingReference = invoicesCombobox.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
+  const isFetchingReference = addDataQuery.isLoading || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
   return (
@@ -390,25 +386,26 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                         <Select
                           value={field.value ?? ""}
                           onValueChange={(v) => field.onChange(v)}
-                          onOpenChange={invoicesCombobox.onOpenChange}
-                          onSearchChange={invoicesCombobox.onSearchChange}
-                          searchDebounceMs={300}
-                          disabled={invoicesCombobox.isLoading || submitting}
+                          disabled={addDataQuery.isLoading || submitting}
                         >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
-                          <SelectContent
-                            onLoadMore={invoicesCombobox.onLoadMore}
-                            hasMore={invoicesCombobox.hasMore}
-                            isLoadingMore={invoicesCombobox.isLoadingMore}
-                          >
-                              {payableInvoices.map((inv) => (
+                          <SelectContent>
+                            {addDataQuery.isLoading ? (
+                              <div className="p-2 text-sm text-muted-foreground">Loading...</div>
+                            ) : payableInvoices.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground">No payable invoices available</div>
+                            ) : (
+                              payableInvoices.map((inv) => {
+                                const isDownPayment = (inv.type ?? "").trim().toUpperCase() === "DOWN_PAYMENT";
+                                return (
                               <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
                                 <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
                                   <span>
                                     {inv.code}
                                     {inv.invoice_number ? ` (${inv.invoice_number})` : ""}
+                                    {isDownPayment ? ` [${t("fields.downPayment")}]` : ""}
                                   </span>
                                   <span className="text-muted-foreground ml-4">
                                     {formatCurrency(inv.remaining_amount)}
@@ -416,7 +413,9 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                                   </span>
                                 </div>
                               </SelectItem>
-                            ))}
+                                );
+                              })
+                            )}
                           </SelectContent>
                         </Select>
                       )}
@@ -541,20 +540,13 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                           <Select
                             value={field.value ?? ""}
                             onValueChange={(v) => field.onChange(v)}
-                            onOpenChange={bankAccountsCombobox.onOpenChange}
-                            onSearchChange={bankAccountsCombobox.onSearchChange}
-                            searchDebounceMs={300}
-                            disabled={bankAccountsCombobox.isLoading || submitting}
+                            disabled={addDataQuery.isLoading || submitting}
                           >
                             <SelectTrigger className="cursor-pointer transition-all duration-200">
                               <SelectValue placeholder={t("placeholders.select")} />
                             </SelectTrigger>
-                            <SelectContent
-                              onLoadMore={bankAccountsCombobox.onLoadMore}
-                              hasMore={bankAccountsCombobox.hasMore}
-                              isLoadingMore={bankAccountsCombobox.isLoadingMore}
-                            >
-                              {bankAccountsCombobox.items.map((acc) => (
+                            <SelectContent>
+                              {bankAccountOptions.map((acc) => (
                                 <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
                                   <div className="flex flex-col">
                                     <span>{acc.name}</span>
@@ -690,8 +682,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               disabled={
                 submitting ||
                 isFetchingReference ||
-                bankAccountsCombobox.isLoading ||
-                bankAccountsCombobox.isFetching ||
+                addDataQuery.isLoading ||
                 isCashAmountBelowMinimum
               }
             >

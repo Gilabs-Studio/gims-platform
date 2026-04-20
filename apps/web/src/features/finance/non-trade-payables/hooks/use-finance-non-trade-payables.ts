@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { financeNonTradePayablesService } from "../services/finance-non-trade-payables-service";
-import type { ListNonTradePayablesParams, NonTradePayableInput } from "../types";
+import type { ListNonTradePayablesParams, NonTradePayableInput, PayNonTradePayableInput } from "../types";
 
 export const financeNonTradePayableKeys = {
   all: ["finance-non-trade-payables"] as const,
@@ -84,7 +84,7 @@ export function useRejectFinanceNonTradePayable() {
 export function usePayFinanceNonTradePayable() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => financeNonTradePayablesService.pay(id, data),
+    mutationFn: ({ id, data }: { id: string; data: PayNonTradePayableInput }) => financeNonTradePayablesService.pay(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });

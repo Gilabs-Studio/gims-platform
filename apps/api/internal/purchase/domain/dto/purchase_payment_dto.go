@@ -68,7 +68,7 @@ type PurchasePaymentAddResponse struct {
 
 type CreatePurchasePaymentRequest struct {
 	InvoiceID       string  `json:"invoice_id" binding:"required"`
-	BankAccountID   string  `json:"bank_account_id" binding:"required"`
+	BankAccountID   *string `json:"bank_account_id" binding:"omitempty,uuid"`
 	PaymentDate     string  `json:"payment_date" binding:"required"`
 	Amount          float64 `json:"amount" binding:"required,gt=0"`
 	Method          string  `json:"method" binding:"required"`
@@ -82,7 +82,7 @@ type CreatePurchasePaymentBatchItemRequest struct {
 }
 
 type CreatePurchasePaymentBatchRequest struct {
-	BankAccountID   string                                  `json:"bank_account_id" binding:"required"`
+	BankAccountID   *string                                 `json:"bank_account_id" binding:"omitempty,uuid"`
 	PaymentDate     string                                  `json:"payment_date" binding:"required"`
 	Method          string                                  `json:"method" binding:"required"`
 	ReferenceNumber *string                                 `json:"reference_number,omitempty"`

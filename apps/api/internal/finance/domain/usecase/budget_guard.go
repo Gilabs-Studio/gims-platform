@@ -15,36 +15,49 @@ func EnsureWithinBudget(ctx context.Context, tx *gorm.DB, coaID string, entryDat
 		return nil
 	}
 
-	// 1. Find an approved budget that covers the entry date
-	var budget financeModels.Budget
-	err := tx.WithContext(ctx).
-		Where("status = ?", financeModels.BudgetStatusApproved).
-		Where("start_date <= ? AND end_date >= ?", entryDate, entryDate).
-		First(&budget).Error
-
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If no budget is defined/approved for this period, we allow it (or we could force budgets).
-			// For this ERP, let's assume no budget means no restriction.
-			return nil
-		}
-		return err
+	// 1. Find an approved budget item for this COA that covers the entry date.
+	// This avoids false negatives when multiple approved budgets overlap the same period.
+	type budgetWindowItem struct {
+		BudgetID  string    `gorm:"column:budget_id"`
+		StartDate time.Time `gorm:"column:start_date"`
+		EndDate   time.Time `gorm:"column:end_date"`
+		Amount    float64   `gorm:"column:amount"`
 	}
 
-	// 2. Find the budget item for this specific COA
-	var budgetItem financeModels.BudgetItem
-	err = tx.WithContext(ctx).
-		Where("budget_id = ? AND chart_of_account_id = ?", budget.ID, coaID).
-		First(&budgetItem).Error
+	var selected budgetWindowItem
+	err := tx.WithContext(ctx).
+		Table("budget_items AS bi").
+		Select("bi.budget_id, b.start_date, b.end_date, bi.amount").
+		Joins("JOIN budgets AS b ON b.id = bi.budget_id").
+		Where("b.status = ?", financeModels.BudgetStatusApproved).
+		Where("b.start_date <= ? AND b.end_date >= ?", entryDate, entryDate).
+		Where("bi.chart_of_account_id = ?", coaID).
+		Order("b.start_date DESC").
+		Take(&selected).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If COA is not in the budget, it's considered "Unbudgeted Expense".
-			// Standard ERP usually blocks this if a budget exists for the period.
-			return fmt.Errorf("account is not budgeted for period %s - %s",
-				budget.StartDate.Format("2006-01-02"), budget.EndDate.Format("2006-01-02"))
+		if err != gorm.ErrRecordNotFound {
+			return err
 		}
-		return err
+
+		// If there is no budget at all for the period, allow transaction.
+		var periodBudget financeModels.Budget
+		periodErr := tx.WithContext(ctx).
+			Where("status = ?", financeModels.BudgetStatusApproved).
+			Where("start_date <= ? AND end_date >= ?", entryDate, entryDate).
+			Order("start_date DESC").
+			Take(&periodBudget).Error
+
+		if periodErr == gorm.ErrRecordNotFound {
+			return nil
+		}
+		if periodErr != nil {
+			return periodErr
+		}
+
+		// Budget exists for the period, but this account is not budgeted.
+		return fmt.Errorf("account is not budgeted for period %s - %s",
+			periodBudget.StartDate.Format("2006-01-02"), periodBudget.EndDate.Format("2006-01-02"))
 	}
 
 	// 3. Calculate actual spent from Journal Entries (Posted)
@@ -55,7 +68,7 @@ func EnsureWithinBudget(ctx context.Context, tx *gorm.DB, coaID string, entryDat
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
 		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
-		Where("journal_entries.entry_date BETWEEN ? AND ?", budget.StartDate, budget.EndDate).
+		Where("journal_entries.entry_date BETWEEN ? AND ?", selected.StartDate, selected.EndDate).
 		Scan(&actual).Error
 
 	if err != nil {
@@ -63,9 +76,9 @@ func EnsureWithinBudget(ctx context.Context, tx *gorm.DB, coaID string, entryDat
 	}
 
 	// 4. Validate: Actual + Proposed <= Budgeted
-	if actual.Total+amount > budgetItem.Amount+0.0001 {
+	if actual.Total+amount > selected.Amount+0.0001 {
 		return fmt.Errorf("budget exceeded for account. Budget: %.2f, Already Spent: %.2f, Requested: %.2f",
-			budgetItem.Amount, actual.Total, amount)
+			selected.Amount, actual.Total, amount)
 	}
 
 	return nil

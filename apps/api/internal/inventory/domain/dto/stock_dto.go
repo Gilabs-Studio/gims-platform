@@ -90,6 +90,7 @@ type InventoryBatchDetail struct {
 	ExpiryDate       *time.Time `json:"expiry_date"`
 	CurrentQuantity  float64    `json:"current_quantity"`
 	ReservedQuantity float64    `json:"reserved_quantity"`
+	CostPrice        float64    `json:"cost_price"`
 	Available        float64    `json:"available"`
 	IsActive         bool       `json:"is_active"`
 }

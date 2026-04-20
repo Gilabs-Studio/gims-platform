@@ -534,7 +534,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                             grDetail?.items?.[idx]?.product?.name ??
                             "-";
                           const orderedQty = !isEdit ? toSafeNumber(poItem?.quantity) : 0;
-                          // quantity_remaining is computed server-side from CONFIRMED/CLOSED GRs.
+                          // quantity_remaining is computed server-side from all non-rejected GRs.
                           // Subtract what the user is currently entering for live feedback.
                           const quantityRemaining = !isEdit ? toSafeNumber(poItem?.quantity_remaining ?? poItem?.quantity) : 0;
                           const currentQtyReceived = toSafeNumber(watchedItems?.[idx]?.quantity_received);

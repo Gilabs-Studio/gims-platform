@@ -90,32 +90,53 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 	}
 	res := uc.mapper.ToDetailResponse(po)
 
-	// Compute per-item received quantity from all active GRs (excludes REJECTED only).
-	// Using NOT IN so that DRAFT/SUBMITTED/APPROVED GRs also reduce the remaining
-	// quantity, preventing duplicate entries across concurrent GRs for the same PO.
+	// Compute per-item confirmed received quantity for UI and accounting visibility.
+	// Only APPROVED/PARTIAL/CLOSED/CONFIRMED GRs are considered as physically received.
 	type receivedRow struct {
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
-	var receivedRows []receivedRow
+	var confirmedRows []receivedRow
 	if err := uc.db.WithContext(ctx).
 		Table("goods_receipt_items").
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status NOT IN ?", []string{"REJECTED"}).
+		Where("gr.status IN ?", []string{
+			string(models.GoodsReceiptStatusApproved),
+			string(models.GoodsReceiptStatusPartial),
+			string(models.GoodsReceiptStatusClosed),
+			string(models.GoodsReceiptStatusConfirmed),
+		}).
 		Group("goods_receipt_items.purchase_order_item_id").
-		Scan(&receivedRows).Error; err != nil {
+		Scan(&confirmedRows).Error; err != nil {
 		return nil, err
 	}
-	receivedByItemID := make(map[string]float64, len(receivedRows))
-	for _, r := range receivedRows {
-		receivedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
+	confirmedByItemID := make(map[string]float64, len(confirmedRows))
+	for _, r := range confirmedRows {
+		confirmedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
+	}
+
+	// Compute reservation from all active GRs (exclude REJECTED only) so draft/submitted
+	// GRs still reserve quantity and prevent duplicate receiving.
+	var reservedRows []receivedRow
+	if err := uc.db.WithContext(ctx).
+		Table("goods_receipt_items").
+		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
+		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
+		Where("gr.purchase_order_id = ?", id).
+		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+		Group("goods_receipt_items.purchase_order_item_id").
+		Scan(&reservedRows).Error; err != nil {
+		return nil, err
+	}
+	reservedByItemID := make(map[string]float64, len(reservedRows))
+	for _, r := range reservedRows {
+		reservedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
 	}
 	for i := range res.Items {
-		received := receivedByItemID[res.Items[i].ID]
-		res.Items[i].QuantityReceived = received
-		remaining := res.Items[i].Quantity - received
+		res.Items[i].QuantityReceived = confirmedByItemID[res.Items[i].ID]
+		remaining := res.Items[i].Quantity - reservedByItemID[res.Items[i].ID]
 		if remaining < 0 {
 			remaining = 0
 		}
@@ -184,13 +205,6 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	po.TaxAmount = tax
 	po.TotalAmount = total
 
-	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, nil); err != nil {
-		return nil, err
-	}
-	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, nil); err != nil {
-		return nil, err
-	}
-
 	// If create from PR: validate PR approved and not already converted to PO
 	if po.PurchaseRequisitionID != nil && strings.TrimSpace(*po.PurchaseRequisitionID) != "" {
 		existingPR, err := uc.prRepo.GetByID(ctx, *po.PurchaseRequisitionID)
@@ -209,6 +223,17 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		}
 		if exists {
 			return nil, ErrPurchaseOrderConflict
+		}
+
+		// Ensure PR -> PO integration keeps core procurement references even when frontend omits them.
+		if po.SupplierID == nil || strings.TrimSpace(*po.SupplierID) == "" {
+			po.SupplierID = existingPR.SupplierID
+		}
+		if po.PaymentTermsID == nil || strings.TrimSpace(*po.PaymentTermsID) == "" {
+			po.PaymentTermsID = existingPR.PaymentTermsID
+		}
+		if po.BusinessUnitID == nil || strings.TrimSpace(*po.BusinessUnitID) == "" {
+			po.BusinessUnitID = existingPR.BusinessUnitID
 		}
 	}
 
@@ -231,6 +256,13 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		if exists {
 			return nil, ErrPurchaseOrderConflict
 		}
+	}
+
+	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, nil); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, nil); err != nil {
+		return nil, err
 	}
 
 	created, err := uc.repo.Create(ctx, po)

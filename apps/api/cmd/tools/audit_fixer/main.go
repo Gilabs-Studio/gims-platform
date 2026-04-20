@@ -122,7 +122,7 @@ func main() {
 		ciRepo := salesRepos.NewCustomerInvoiceRepository(db)
 		productRepo := productRepos.NewProductRepository(db)
 		soRepo := salesRepos.NewSalesOrderRepository(db)
-		ciUC := salesUC.NewCustomerInvoiceUsecase(db, ciRepo, productRepo, soRepo, journalUC, coaUC, auditService, engine)
+		ciUC := salesUC.NewCustomerInvoiceUsecase(db, ciRepo, productRepo, soRepo, journalUC, coaUC, auditService, engine, nil)
 
 		var ci salesModels.CustomerInvoice
 		if err := db.Where("code = ?", *targetCode).First(&ci).Error; err != nil {

@@ -2,6 +2,14 @@ package dto
 
 import "time"
 
+type AgingFinanceQuery struct {
+	AsOfDate       time.Time
+	Search         string
+	PartnerID      string
+	MinAmount      float64
+	IncludeCurrent bool
+}
+
 type AgingBuckets struct {
 	Current    float64 `json:"current"`
 	Days1To30  float64 `json:"days_1_30"`
@@ -12,8 +20,11 @@ type AgingBuckets struct {
 
 type ARAgingInvoiceRow struct {
 	InvoiceID       string     `json:"invoice_id"`
+	SourceType      string     `json:"source_type,omitempty"`
 	Code            string     `json:"code"`
 	InvoiceNumber   *string    `json:"invoice_number"`
+	CustomerID      string     `json:"customer_id,omitempty"`
+	CustomerName    string     `json:"customer_name,omitempty"`
 	InvoiceDate     time.Time  `json:"invoice_date"`
 	DueDate         time.Time  `json:"due_date"`
 	DaysPastDue     int        `json:"days_past_due"`
@@ -24,6 +35,7 @@ type ARAgingInvoiceRow struct {
 
 type APAgingInvoiceRow struct {
 	InvoiceID       string     `json:"invoice_id"`
+	SourceType      string     `json:"source_type,omitempty"`
 	Code            string     `json:"code"`
 	InvoiceNumber   string     `json:"invoice_number"`
 	InvoiceDate     time.Time  `json:"invoice_date"`
@@ -37,6 +49,33 @@ type APAgingInvoiceRow struct {
 	Buckets         AgingBuckets `json:"buckets"`
 }
 
+type AgingSummary struct {
+	PartnerCount      int          `json:"partner_count"`
+	InvoiceCount      int          `json:"invoice_count"`
+	TotalOutstanding  float64      `json:"total_outstanding"`
+	TotalOverdue      float64      `json:"total_overdue"`
+	TotalCurrent      float64      `json:"total_current"`
+	Buckets           AgingBuckets `json:"buckets"`
+}
+
+type ARAgingPartnerGroup struct {
+	CustomerID       string            `json:"customer_id,omitempty"`
+	CustomerName     string            `json:"customer_name"`
+	InvoiceCount     int               `json:"invoice_count"`
+	TotalOutstanding float64           `json:"total_outstanding"`
+	Buckets          AgingBuckets      `json:"buckets"`
+	Invoices         []ARAgingInvoiceRow `json:"invoices"`
+}
+
+type APAgingPartnerGroup struct {
+	SupplierID       string             `json:"supplier_id,omitempty"`
+	SupplierName     string             `json:"supplier_name"`
+	InvoiceCount     int                `json:"invoice_count"`
+	TotalOutstanding float64            `json:"total_outstanding"`
+	Buckets          AgingBuckets       `json:"buckets"`
+	Invoices         []APAgingInvoiceRow `json:"invoices"`
+}
+
 type AgingTotals struct {
 	Count     int         `json:"count"`
 	Remaining float64     `json:"remaining"`
@@ -44,13 +83,17 @@ type AgingTotals struct {
 }
 
 type ARAgingReportResponse struct {
-	AsOfDate time.Time            `json:"as_of_date"`
-	Rows     []ARAgingInvoiceRow  `json:"rows"`
-	Totals   AgingTotals          `json:"totals"`
+	AsOfDate  time.Time             `json:"as_of_date"`
+	Rows      []ARAgingInvoiceRow   `json:"rows"`
+	Totals    AgingTotals           `json:"totals"`
+	Summary   *AgingSummary         `json:"summary,omitempty"`
+	Customers []ARAgingPartnerGroup `json:"customers,omitempty"`
 }
 
 type APAgingReportResponse struct {
-	AsOfDate time.Time            `json:"as_of_date"`
-	Rows     []APAgingInvoiceRow  `json:"rows"`
-	Totals   AgingTotals          `json:"totals"`
+	AsOfDate   time.Time             `json:"as_of_date"`
+	Rows       []APAgingInvoiceRow   `json:"rows"`
+	Totals     AgingTotals           `json:"totals"`
+	Summary    *AgingSummary         `json:"summary,omitempty"`
+	Suppliers  []APAgingPartnerGroup `json:"suppliers,omitempty"`
 }

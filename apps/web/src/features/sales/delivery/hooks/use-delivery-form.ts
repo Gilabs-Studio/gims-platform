@@ -199,6 +199,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
           items:
             delivery.items?.map((item) => ({
               product_id: item.product_id,
+              warehouse_id: delivery.warehouse_id ?? "",
               sales_order_item_id: item.sales_order_item_id ?? "",
               inventory_batch_id: item.inventory_batch_id ?? "",
               quantity: item.quantity,
@@ -241,19 +242,27 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     if (!watchedSalesOrderId || isEdit) return;
     
     const salesOrder = selectedSalesOrderData?.data;
+    const defaultWarehouseID = (getValues("warehouse_id") as string | undefined) ?? "";
     
     if (salesOrder?.items && salesOrder.items.length > 0) {
       type LocalDeliveryItem = DeliveryOrderItemFormData & { product_name?: string };
+      type SalesOrderItemWithBatchHints = SalesOrderItem & {
+        warehouse_id?: string | null;
+        inventory_batch_id?: string | null;
+        batch_id?: string | null;
+      };
 
       const newItems = salesOrder.items.map((item: SalesOrderItem) => {
+        const itemWithHints = item as SalesOrderItemWithBatchHints;
         const remainingQty = item.quantity - (item.delivered_quantity ?? 0) - (item.pending_delivery_quantity ?? 0);
         
         if (remainingQty <= 0) return null;
 
         return {
           product_id: item.product_id,
+          warehouse_id: itemWithHints.warehouse_id ?? defaultWarehouseID,
           sales_order_item_id: item.id,
-          inventory_batch_id: "",
+          inventory_batch_id: itemWithHints.inventory_batch_id ?? itemWithHints.batch_id ?? "",
           quantity: remainingQty,
           price: item.price || 0,
           installation_status: "",
@@ -263,7 +272,15 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
       }).filter(Boolean) as LocalDeliveryItem[];
 
       if (newItems.length > 0) {
-         setValue("items", newItems);
+        setValue("items", newItems);
+
+        const inferredWarehouseIDs = Array.from(
+          new Set(newItems.map((item) => item.warehouse_id).filter((id): id is string => !!id))
+        );
+
+        if (!defaultWarehouseID && inferredWarehouseIDs.length === 1) {
+          setValue("warehouse_id", inferredWarehouseIDs[0], { shouldDirty: true });
+        }
       } else {
          toast.info("All items in this Sales Order have been delivered.");
          setValue("items", []);
@@ -300,6 +317,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
           items:
             deliveryData.items?.map((item) => ({
               product_id: item.product_id,
+              warehouse_id: deliveryData.warehouse_id ?? "",
               sales_order_item_id: item.sales_order_item_id ?? "",
               inventory_batch_id: item.inventory_batch_id ?? "",
               quantity: item.quantity,
@@ -472,6 +490,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   const handleAddItem = () => {
     append({
       product_id: "",
+      warehouse_id: (getValues("warehouse_id") as string | undefined) ?? "",
       sales_order_item_id: "",
       inventory_batch_id: "",
       quantity: 1,

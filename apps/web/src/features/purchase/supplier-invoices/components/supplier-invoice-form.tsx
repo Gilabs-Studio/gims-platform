@@ -57,6 +57,11 @@ const NONE_VALUE = "__none__";
 const LOADING_VALUE = "__loading__";
 const EMPTY_VALUE = "__empty__";
 
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function SupplierInvoiceFormDialog({
   open,
   onOpenChange,
@@ -154,30 +159,33 @@ export function SupplierInvoiceFormDialog({
         items: [] as InvoiceItem[],
       };
 
-      // If opened from a PO without a preselected GR, try to auto-fill from PO
+      // If opened from a PO, prefill PO-derived defaults even before/without GR selection.
       if (defaultPurchaseOrderId && !defaultGoodsReceiptId) {
-        // If there's exactly one GR for that PO, select it so the GR-based autofill runs
+        const po = poQuery.data?.success ? poQuery.data.data : null;
+        if (po) {
+          const paymentTermID = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
+          initial.payment_terms_id = paymentTermID;
+          initial.tax_rate = po.tax_rate ?? 0;
+          initial.delivery_cost = po.delivery_cost ?? 0;
+          initial.other_cost = po.other_cost ?? 0;
+          initial.invoice_date = todayISO();
+          initial.due_date = po.due_date ?? initial.invoice_date;
+          initial.items = (po.items ?? []).map((it) => {
+            const prod = it.product as ProductRef | undefined;
+            return {
+              product_id: it.product_id,
+              product_name: prod?.name ?? "",
+              product_code: prod?.code ?? "",
+              quantity: it.quantity,
+              price: it.price,
+              discount: it.discount ?? 0,
+            };
+          });
+        }
+
+        // If there's exactly one GR for that PO, select it so the GR-based autofill runs.
         if (filteredGRs.length === 1) {
           initial.goods_receipt_id = filteredGRs[0].id;
-        } else {
-          const po = poQuery.data?.success ? poQuery.data.data : null;
-          if (po) {
-            initial.payment_terms_id = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
-            initial.tax_rate = po.tax_rate ?? 0;
-            initial.delivery_cost = po.delivery_cost ?? 0;
-            initial.other_cost = po.other_cost ?? 0;
-            initial.items = (po.items ?? []).map((it) => {
-              const prod = it.product as ProductRef | undefined;
-              return {
-                product_id: it.product_id,
-                product_name: prod?.name ?? "",
-                product_code: prod?.code ?? "",
-                quantity: it.quantity,
-                price: it.price,
-                discount: it.discount ?? 0,
-              };
-            });
-          }
         }
       }
 
@@ -211,6 +219,8 @@ export function SupplierInvoiceFormDialog({
 
   useEffect(() => {
     if (!open || isEdit || !selectedGR) return;
+    const linkedPO = poQuery.data?.success ? poQuery.data.data : null;
+
     setFormValue(
       "items",
       selectedGR.items.map((it) => ({
@@ -228,7 +238,36 @@ export function SupplierInvoiceFormDialog({
     if (!currentPT && selectedGR.default_payment_terms_id) {
       setFormValue("payment_terms_id", selectedGR.default_payment_terms_id, { shouldValidate: true });
     }
-  }, [open, isEdit, selectedGR, setFormValue, form]);
+
+    // Keep PO-derived financial defaults in sync when creating SI from PO shortcuts.
+    if (linkedPO) {
+      const currentInvoiceDate = form.getValues("invoice_date");
+      if (!currentInvoiceDate) {
+        const nextInvoiceDate = todayISO();
+        setFormValue("invoice_date", nextInvoiceDate, { shouldValidate: true });
+      }
+
+      const currentDueDate = form.getValues("due_date");
+      if (!currentDueDate) {
+        setFormValue("due_date", linkedPO.due_date ?? todayISO(), { shouldValidate: true });
+      }
+
+      const currentTaxRate = form.getValues("tax_rate") ?? 0;
+      if (currentTaxRate === 0 && (linkedPO.tax_rate ?? 0) !== 0) {
+        setFormValue("tax_rate", linkedPO.tax_rate ?? 0, { shouldValidate: true });
+      }
+
+      const currentDeliveryCost = form.getValues("delivery_cost") ?? 0;
+      if (currentDeliveryCost === 0 && (linkedPO.delivery_cost ?? 0) !== 0) {
+        setFormValue("delivery_cost", linkedPO.delivery_cost ?? 0, { shouldValidate: true });
+      }
+
+      const currentOtherCost = form.getValues("other_cost") ?? 0;
+      if (currentOtherCost === 0 && (linkedPO.other_cost ?? 0) !== 0) {
+        setFormValue("other_cost", linkedPO.other_cost ?? 0, { shouldValidate: true });
+      }
+    }
+  }, [open, isEdit, selectedGR, setFormValue, form, poQuery.data]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
     form.setValue("payment_terms_id", item.id, { shouldValidate: true });

@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,8 +12,11 @@ import (
 
 type ARAgingRow struct {
 	InvoiceID       string
+	SourceType      string
 	Code            string
 	InvoiceNumber   *string
+	CustomerID      string
+	CustomerName    string
 	InvoiceDate     time.Time
 	DueDate         time.Time
 	Amount          float64
@@ -21,6 +25,7 @@ type ARAgingRow struct {
 
 type APAgingRow struct {
 	InvoiceID       string
+	SourceType      string
 	Code            string
 	InvoiceNumber   string
 	InvoiceDate     time.Time
@@ -39,9 +44,18 @@ type AgingListParams struct {
 	Offset   int
 }
 
+type AgingFinanceListParams struct {
+	Search    string
+	AsOfDate  time.Time
+	PartnerID string
+	MinAmount float64
+}
+
 type AgingReportRepository interface {
 	ListARAging(ctx context.Context, params AgingListParams) ([]ARAgingRow, int64, error)
 	ListAPAging(ctx context.Context, params AgingListParams) ([]APAgingRow, int64, error)
+	ListARAgingFinance(ctx context.Context, params AgingFinanceListParams) ([]ARAgingRow, error)
+	ListAPAgingFinance(ctx context.Context, params AgingFinanceListParams) ([]APAgingRow, error)
 }
 
 type agingReportRepository struct {
@@ -63,38 +77,47 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 	countSQL := `
 		SELECT COUNT(*)
 		FROM customer_invoices ci
+		LEFT JOIN sales_orders so ON so.id = ci.sales_order_id AND so.deleted_at IS NULL
+		LEFT JOIN customers c ON c.id = so.customer_id AND c.deleted_at IS NULL
 		WHERE ci.deleted_at IS NULL
-			AND ci.status IN ('unpaid', 'partial')
+			AND UPPER(ci.status) IN ('UNPAID', 'PARTIAL', 'WAITING_PAYMENT')
 			AND ci.remaining_amount > 0
 			AND ci.invoice_date <= ?::date
 			AND (
 				? = ''
 				OR ci.code ILIKE ?
 				OR ci.invoice_number ILIKE ?
+				OR COALESCE(c.name, so.customer_name, '') ILIKE ?
 			)
 	`
-	if err := r.db.WithContext(ctx).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(countSQL, asOf, search, like, like, like).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	listSQL := `
 		SELECT 
 			ci.id as invoice_id, 
+			'CUSTOMER_INVOICE' as source_type,
 			ci.code, 
 			ci.invoice_number, 
+			COALESCE(so.customer_id, '') as customer_id,
+			COALESCE(c.name, so.customer_name, 'Customer') as customer_name,
 			ci.invoice_date, 
 			COALESCE(ci.due_date, ci.invoice_date) as due_date, 
 			ci.amount, 
 			ci.remaining_amount
 		FROM customer_invoices ci
+		LEFT JOIN sales_orders so ON so.id = ci.sales_order_id AND so.deleted_at IS NULL
+		LEFT JOIN customers c ON c.id = so.customer_id AND c.deleted_at IS NULL
 		WHERE ci.deleted_at IS NULL
-			AND ci.status IN ('unpaid', 'partial')
+			AND UPPER(ci.status) IN ('UNPAID', 'PARTIAL', 'WAITING_PAYMENT')
 			AND ci.remaining_amount > 0
 			AND ci.invoice_date <= ?::date
 			AND (
 				? = ''
 				OR ci.code ILIKE ?
 				OR ci.invoice_number ILIKE ?
+				OR COALESCE(c.name, so.customer_name, '') ILIKE ?
 			)
 		ORDER BY ci.invoice_date DESC
 		LIMIT ? OFFSET ?
@@ -106,7 +129,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 		params.Offset = 0
 	}
 
-	if err := r.db.WithContext(ctx).Raw(listSQL, asOf, search, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(listSQL, asOf, search, like, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -115,6 +138,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 
 type apAgingScanRow struct {
 	InvoiceID     string         `gorm:"column:invoice_id"`
+	SourceType    string         `gorm:"column:source_type"`
 	Code          string         `gorm:"column:code"`
 	InvoiceNumber string         `gorm:"column:invoice_number"`
 	InvoiceDate   sql.NullString `gorm:"column:invoice_date"`
@@ -164,6 +188,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	listSQL := `
 		SELECT
 			si.id as invoice_id,
+			'SUPPLIER_INVOICE' as source_type,
 			si.code,
 			si.invoice_number,
 			si.invoice_date,
@@ -219,6 +244,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 		}
 		rows = append(rows, APAgingRow{
 			InvoiceID:       sr.InvoiceID,
+			SourceType:      sr.SourceType,
 			Code:            sr.Code,
 			InvoiceNumber:   sr.InvoiceNumber,
 			InvoiceDate:     invDate,
@@ -232,4 +258,145 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	}
 
 	return rows, total, nil
+}
+
+func (r *agingReportRepository) ListARAgingFinance(ctx context.Context, params AgingFinanceListParams) ([]ARAgingRow, error) {
+	rows, _, err := r.ListARAging(ctx, AgingListParams{
+		Search:   params.Search,
+		AsOfDate: params.AsOfDate,
+		Limit:    10000,
+		Offset:   0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	partnerID := strings.TrimSpace(params.PartnerID)
+	filtered := make([]ARAgingRow, 0, len(rows))
+	for _, row := range rows {
+		if partnerID != "" && strings.TrimSpace(row.CustomerID) != partnerID {
+			continue
+		}
+		if params.MinAmount > 0 && row.RemainingAmount < params.MinAmount {
+			continue
+		}
+		if strings.TrimSpace(row.SourceType) == "" {
+			row.SourceType = "CUSTOMER_INVOICE"
+		}
+		filtered = append(filtered, row)
+	}
+
+	sort.SliceStable(filtered, func(i, j int) bool {
+		if filtered[i].DueDate.Equal(filtered[j].DueDate) {
+			return filtered[i].Code < filtered[j].Code
+		}
+		return filtered[i].DueDate.Before(filtered[j].DueDate)
+	})
+
+	return filtered, nil
+}
+
+func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, params AgingFinanceListParams) ([]APAgingRow, error) {
+	asOf := params.AsOfDate.Format("2006-01-02")
+	search := strings.TrimSpace(params.Search)
+	like := "%" + search + "%"
+
+	const query = `
+		SELECT
+			ntp.id as invoice_id,
+			'NON_TRADE_PAYABLE' as source_type,
+			ntp.code,
+			'' as invoice_number,
+			ntp.transaction_date as invoice_date,
+			COALESCE(ntp.due_date, ntp.transaction_date) as due_date,
+			ntp.id as supplier_id,
+			COALESCE(NULLIF(ntp.vendor_name, ''), ntp.code) as supplier_name,
+			ntp.amount as amount,
+			COALESCE((
+				SELECT SUM(je.debit_total)
+				FROM journal_entries je
+				WHERE je.deleted_at IS NULL
+					AND je.status = 'posted'
+					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
+					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+			), 0) as paid_amount,
+			GREATEST(ntp.amount - COALESCE((
+				SELECT SUM(je.debit_total)
+				FROM journal_entries je
+				WHERE je.deleted_at IS NULL
+					AND je.status = 'posted'
+					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
+					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+			), 0), 0) as remaining_amount
+		FROM non_trade_payables ntp
+		WHERE ntp.deleted_at IS NULL
+			AND ntp.status IN ('posted', 'partial', 'approved')
+			AND ntp.transaction_date <= ?::date
+			AND (
+				? = ''
+				OR ntp.code ILIKE ?
+				OR COALESCE(ntp.vendor_name, '') ILIKE ?
+				OR COALESCE(ntp.reference_no, '') ILIKE ?
+			)
+			AND GREATEST(ntp.amount - COALESCE((
+				SELECT SUM(je.debit_total)
+				FROM journal_entries je
+				WHERE je.deleted_at IS NULL
+					AND je.status = 'posted'
+					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
+					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+			), 0), 0) > 0
+		ORDER BY COALESCE(ntp.due_date, ntp.transaction_date) ASC, ntp.code ASC
+	`
+
+	rows := make([]APAgingRow, 0)
+	if err := r.db.WithContext(ctx).Raw(query, asOf, search, like, like, like).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *agingReportRepository) ListAPAgingFinance(ctx context.Context, params AgingFinanceListParams) ([]APAgingRow, error) {
+	tradeRows, _, err := r.ListAPAging(ctx, AgingListParams{
+		Search:   params.Search,
+		AsOfDate: params.AsOfDate,
+		Limit:    10000,
+		Offset:   0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ntpRows, err := r.listNonTradePayableAging(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]APAgingRow, 0, len(tradeRows)+len(ntpRows))
+	rows = append(rows, tradeRows...)
+	rows = append(rows, ntpRows...)
+
+	partnerID := strings.TrimSpace(params.PartnerID)
+	filtered := make([]APAgingRow, 0, len(rows))
+	for _, row := range rows {
+		if partnerID != "" && strings.TrimSpace(row.SupplierID) != partnerID {
+			continue
+		}
+		if params.MinAmount > 0 && row.RemainingAmount < params.MinAmount {
+			continue
+		}
+		if strings.TrimSpace(row.SourceType) == "" {
+			row.SourceType = "SUPPLIER_INVOICE"
+		}
+		filtered = append(filtered, row)
+	}
+
+	sort.SliceStable(filtered, func(i, j int) bool {
+		if filtered[i].DueDate.Equal(filtered[j].DueDate) {
+			return filtered[i].Code < filtered[j].Code
+		}
+		return filtered[i].DueDate.Before(filtered[j].DueDate)
+	})
+
+	return filtered, nil
 }

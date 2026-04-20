@@ -11,6 +11,8 @@ type NonTradePayableStatus string
 
 const (
 	NTPStatusDraft     NonTradePayableStatus = "draft"
+	NTPStatusPosted    NonTradePayableStatus = "posted"
+	NTPStatusPartial   NonTradePayableStatus = "partial"
 	NTPStatusSubmitted NonTradePayableStatus = "submitted"
 	NTPStatusApproved  NonTradePayableStatus = "approved"
 	NTPStatusRejected  NonTradePayableStatus = "rejected"

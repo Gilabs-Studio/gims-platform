@@ -22,6 +22,13 @@ func registerNonTradePayableRoutesInGroup(g *gin.RouterGroup, h *handler.NonTrad
 	g.GET("/:id", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionView)), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionUpdate)), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionDelete)), h.Delete)
+
+	// Canonical lifecycle endpoints (Phase 8)
+	g.POST("/:id/post", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionSubmit)), h.Post)
+	g.POST("/:id/cancel", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionReject)), h.Cancel)
+	g.POST("/:id/payments", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionPay)), h.PostPayment)
+
+	// Backward-compatible aliases
 	g.POST("/:id/submit", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionSubmit)), h.Submit)
 	g.POST("/:id/approve", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionApprove)), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(reference.PermissionKey(reference.RefTypeNonTradePayable, reference.ActionReject)), h.Reject)

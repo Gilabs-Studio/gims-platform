@@ -614,7 +614,9 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// Compute total received qty per PO item for CLOSED GRs.
+	// Compute total received qty per PO item from all active GRs (exclude REJECTED only).
+	// This matches PO detail remaining-qty logic and prevents offering POs that are already
+	// effectively consumed by in-progress GRs.
 	type receivedRow struct {
 		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
@@ -626,9 +628,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		Select("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received),0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id IN ?", poIDs).
-		Where("gr.status IN ?", []string{
-			string(models.GoodsReceiptStatusClosed),
-		}).
+		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
 		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
 		Scan(&receivedRows).Error; err != nil {
 		return nil, err
@@ -644,7 +644,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		// Skip POs that are 100% fulfilled (all items fully received via CLOSED GRs).
+		// Skip POs that are 100% fulfilled by active GRs.
 		if len(po.Items) > 0 {
 			fullyFulfilled := true
 			for _, poIt := range po.Items {

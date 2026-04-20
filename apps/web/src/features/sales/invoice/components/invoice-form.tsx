@@ -359,7 +359,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                       <span className="text-sm font-mono font-medium">{dp.code}</span>
                     </div>
                     <span className="text-sm font-semibold text-primary">
-                      {formatCurrency(dp.amount ?? 0)}
+                      {formatCurrency(Math.max(0, (dp.amount ?? 0) - (dp.remaining_amount ?? dp.amount ?? 0)))}
                     </span>
                   </div>
                 ))}

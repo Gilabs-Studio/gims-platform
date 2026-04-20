@@ -105,6 +105,101 @@ func dedupePaymentIDs(ids []string) []string {
 	return result
 }
 
+func trimOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(*value)
+}
+
+func resolvePurchasePaymentBankAccountForCreate(
+	tx *gorm.DB,
+	bankAccountID string,
+	method models.PurchasePaymentMethod,
+	actorID string,
+	companyID string,
+) (*coreModels.BankAccount, error) {
+	if bankAccountID != "" {
+		return lockActivePurchasePaymentBankAccount(tx, bankAccountID)
+	}
+
+	if method != models.PurchasePaymentMethodCash {
+		return nil, errors.New("bank account is required for bank transfers")
+	}
+
+	resolvedCompanyID := strings.TrimSpace(companyID)
+	if resolvedCompanyID == "" {
+		derivedCompanyID, err := resolvePurchasePaymentActorCompanyID(tx, actorID)
+		if err != nil {
+			return nil, err
+		}
+		resolvedCompanyID = derivedCompanyID
+	}
+
+	return lockAnyActivePurchasePaymentBankAccountForCompany(tx, resolvedCompanyID)
+}
+
+func resolvePurchasePaymentActorCompanyID(tx *gorm.DB, actorID string) (string, error) {
+	trimmedActorID := strings.TrimSpace(actorID)
+	if trimmedActorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	type employeeCompanyRow struct {
+		CompanyID string
+	}
+
+	var row employeeCompanyRow
+	if err := tx.Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", trimmedActorID).
+		Limit(1).
+		Scan(&row).Error; err != nil {
+		return "", err
+	}
+
+	companyID := strings.TrimSpace(row.CompanyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
+func lockAnyActivePurchasePaymentBankAccountForCompany(tx *gorm.DB, companyID string) (*coreModels.BankAccount, error) {
+	var ba coreModels.BankAccount
+	if err := tx.Model(&coreModels.BankAccount{}).
+		Where("company_id = ?", companyID).
+		Where("is_active = ?", true).
+		Order("updated_at DESC").
+		Order("created_at DESC").
+		First(&ba).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("no active cash/bank account configured for this company")
+		}
+		return nil, err
+	}
+
+	return &ba, nil
+}
+
+func lockActivePurchasePaymentBankAccount(tx *gorm.DB, bankAccountID string) (*coreModels.BankAccount, error) {
+	var ba coreModels.BankAccount
+	if err := tx.First(&ba, "id = ?", bankAccountID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("bank account not found")
+		}
+		return nil, err
+	}
+
+	if !ba.IsActive {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	return &ba, nil
+}
+
 func isPayableSupplierInvoiceStatus(status models.SupplierInvoiceStatus) bool {
 	for _, allowed := range payableSupplierInvoiceStatuses {
 		if status == allowed {
@@ -254,9 +349,25 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			return ErrPurchasePaymentConflict
 		}
 
+		companyID := ""
+		if inv.CompanyID != nil {
+			companyID = strings.TrimSpace(*inv.CompanyID)
+		}
+
+		ba, err := resolvePurchasePaymentBankAccountForCreate(
+			tx,
+			trimOptionalString(req.BankAccountID),
+			method,
+			actorID,
+			companyID,
+		)
+		if err != nil {
+			return err
+		}
+
 		// Idempotency for retried submit: if the same pending payment already exists, return it.
 		var existingPending models.PurchasePayment
-		err := tx.Model(&models.PurchasePayment{}).
+		err = tx.Model(&models.PurchasePayment{}).
 			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
 			Order("created_at DESC").
 			Take(&existingPending).Error
@@ -264,7 +375,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			return err
 		}
 		if err == nil {
-			if isSamePendingPaymentRequest(&existingPending, req.BankAccountID, req.PaymentDate, method, req.Amount) {
+			if isSamePendingPaymentRequest(&existingPending, ba.ID, req.PaymentDate, method, req.Amount) {
 				createdID = existingPending.ID
 				return nil
 			}
@@ -275,17 +386,6 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			return ErrPurchasePaymentConflict
 		}
 
-		var ba coreModels.BankAccount
-		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return errors.New("bank account not found")
-			}
-			return err
-		}
-		if !ba.IsActive {
-			return ErrPurchasePaymentConflict
-		}
-
 		amount := math.Max(0, req.Amount)
 		if amount <= 0 {
 			return ErrPurchasePaymentConflict
@@ -293,7 +393,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 
 		p := &models.PurchasePayment{
 			SupplierInvoiceID: inv.ID,
-			BankAccountID:     ba.ID,
+			BankAccountID:     strings.TrimSpace(ba.ID),
 			PaymentDate:       strings.TrimSpace(req.PaymentDate),
 			Amount:            amount,
 			Method:            method,
@@ -312,7 +412,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			p.CompanyID = &companyID
 			p.FiscalYearID = &fiscalYearID
 		}
-		snapshotPurchasePayment(p, &ba)
+		snapshotPurchasePayment(p, ba)
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}
@@ -394,15 +494,15 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 
 	createdIDs := make([]string, 0, len(normalizedItems))
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var ba coreModels.BankAccount
-		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return errors.New("bank account not found")
-			}
+		ba, err := resolvePurchasePaymentBankAccountForCreate(
+			tx,
+			trimOptionalString(req.BankAccountID),
+			method,
+			actorID,
+			"",
+		)
+		if err != nil {
 			return err
-		}
-		if !ba.IsActive {
-			return ErrPurchasePaymentConflict
 		}
 
 		for _, item := range normalizedItems {
@@ -434,7 +534,7 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 
 			pay := &models.PurchasePayment{
 				SupplierInvoiceID: inv.ID,
-				BankAccountID:     ba.ID,
+				BankAccountID:     strings.TrimSpace(ba.ID),
 				PaymentDate:       paymentDate,
 				Amount:            item.Amount,
 				Method:            method,
@@ -453,7 +553,7 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 				pay.CompanyID = &companyID
 				pay.FiscalYearID = &fiscalYearID
 			}
-			snapshotPurchasePayment(pay, &ba)
+			snapshotPurchasePayment(pay, ba)
 			if err := tx.Create(pay).Error; err != nil {
 				return err
 			}

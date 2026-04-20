@@ -404,8 +404,6 @@ func main() {
 		// Loyalty module
 		customerRepo := customerRepos.NewCustomerRepository(database.DB)
 		loyaltyDeps := loyaltyPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, customerRepo)
-		// Wire loyalty usecase into sales invoice so Customer Invoice PAID triggers point earning.
-		salesDeps.CustomerInvoiceUC.SetLoyaltyUsecase(loyaltyDeps.Usecase)
 
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)

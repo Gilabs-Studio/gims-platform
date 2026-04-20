@@ -379,7 +379,7 @@ export function PurchaseOrdersList() {
             ) : (
               items.map((it) => {
                 const status = normalStatus(it);
-                const hasGoodsReceipt = (it.goods_receipts?.length ?? 0) > 0;
+                const hasGoodsReceipt = (it.fulfillment?.total_received ?? 0) > 0;
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
                   canReject || canClose || canDelete || canPrint;

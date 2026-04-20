@@ -78,6 +78,7 @@ export interface PurchasePaymentAddInvoiceItem {
   purchase_order?: { id: string; code: string } | null;
   code: string;
   invoice_number?: string | null;
+  type?: string;
   invoice_date: string;
   due_date: string;
   amount: number;

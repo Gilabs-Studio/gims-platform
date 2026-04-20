@@ -579,20 +579,24 @@ func (uc *customerInvoiceDownPaymentUsecase) approveDownPaymentInTx(ctx context.
 	}
 
 	previousStatus := ci.Status
+	newStatus := models.CustomerInvoiceStatusUnpaid
+
 	now := apptime.Now()
 	if err := tx.Model(&ci).Updates(map[string]interface{}{
-		"status":           models.CustomerInvoiceStatusUnpaid,
+		"status":           newStatus,
 		"approved_at":      &now,
 		"remaining_amount": ci.Amount,
 	}).Error; err != nil {
 		return err
 	}
 
-	if shouldTriggerSalesInvoiceDPJournal(previousStatus, models.CustomerInvoiceStatusUnpaid, ci.Type) {
-		txCtx := database.WithTx(ctx, tx)
-		triggerCtx := withActorContext(txCtx, nil, ci.CreatedBy)
+	ci.Status = newStatus
+	ci.RemainingAmount = ci.Amount
+
+	if shouldTriggerSalesInvoiceDPJournal(previousStatus, newStatus, ci.Type) {
+		triggerCtx := withActorContext(database.WithTx(ctx, tx), ci.CreatedBy, ci.CreatedBy)
 		if err := uc.triggerSalesInvoiceDPJournal(triggerCtx, &ci); err != nil {
-			return fmt.Errorf("failed to trigger customer invoice DP journal: %w", err)
+			return fmt.Errorf("failed to trigger customer invoice down payment journal: %w", err)
 		}
 	}
 
