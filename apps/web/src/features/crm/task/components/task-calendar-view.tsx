@@ -28,7 +28,10 @@ import { formatDate } from "@/lib/utils";
 import type { Schedule } from "@/features/crm/schedule/types";
 import type { Task } from "@/features/crm/task/types";
 
-const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+const STATUS_VARIANT_MAP: Record<
+  string,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
   pending: "outline",
   confirmed: "default",
   completed: "default",
@@ -43,7 +46,8 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 };
 
 export function TaskCalendarView() {
-  const { state, data, permissions, actions, translations } = useTaskCalendarView();
+  const { state, data, permissions, actions, translations } =
+    useTaskCalendarView();
   const { t, tTask } = translations;
   const { canViewLead, canViewDeal, canViewCustomer } = permissions;
   const overdueItems = data.overdueItems as Task[];
@@ -56,19 +60,25 @@ export function TaskCalendarView() {
       <div className="flex items-center gap-3">
         <Select
           value={state.statusFilter || "all"}
-          onValueChange={(value) => actions.setStatusFilter(value === "all" ? "" : value)}
+          onValueChange={(value) =>
+            actions.setStatusFilter(value === "all" ? "" : value)
+          }
         >
           <SelectTrigger className="w-40 cursor-pointer">
             <Filter className="mr-2 h-4 w-4" />
             <SelectValue placeholder={t("allStatuses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
-            {(["pending", "confirmed", "completed", "cancelled"] as const).map((s) => (
-              <SelectItem key={s} value={s} className="cursor-pointer">
-                {t(`statuses.${s}`)}
-              </SelectItem>
-            ))}
+            <SelectItem value="all" className="cursor-pointer">
+              {t("allStatuses")}
+            </SelectItem>
+            {(["pending", "confirmed", "completed", "cancelled"] as const).map(
+              (s) => (
+                <SelectItem key={s} value={s} className="cursor-pointer">
+                  {t(`statuses.${s}`)}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -96,25 +106,33 @@ export function TaskCalendarView() {
           />
           {/* Legend */}
           <div className="mt-4 space-y-1.5 border-t pt-3">
-            {(["pending", "confirmed", "completed", "cancelled"] as const).map((s) => (
-              <div key={s} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className={`h-2 w-2 rounded-full shrink-0 ${STATUS_DOT_COLOR[s]}`} />
-                {t(`statuses.${s}`)}
-              </div>
-            ))}
+            {(["pending", "confirmed", "completed", "cancelled"] as const).map(
+              (s) => (
+                <div
+                  key={s}
+                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full shrink-0 ${STATUS_DOT_COLOR[s]}`}
+                  />
+                  {t(`statuses.${s}`)}
+                </div>
+              ),
+            )}
           </div>
         </div>
 
         {/* Right panel: overdue + date-based schedules */}
         <div className="space-y-6">
-
           {/* Overdue Tasks Section */}
           {overdueItems.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 {tTask("overdue")}
-                <span className="text-xs font-normal text-muted-foreground">({overdueItems.length})</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({overdueItems.length})
+                </span>
               </div>
               <div className="space-y-2">
                 {overdueItems.map((task) => (
@@ -132,19 +150,27 @@ export function TaskCalendarView() {
                     }}
                   >
                     <div className="flex items-start gap-2 flex-wrap">
-                      <span className="font-medium text-sm line-clamp-1 flex-1">{task.title}</span>
+                      <span className="font-medium text-sm line-clamp-1 flex-1">
+                        {task.title}
+                      </span>
                       <Badge variant="destructive" className="text-xs shrink-0">
-                        {tTask(`priorities.${task.priority}` as Parameters<typeof tTask>[0])}
+                        {tTask(
+                          `priorities.${task.priority}` as Parameters<
+                            typeof tTask
+                          >[0],
+                        )}
                       </Badge>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {task.assigned_to_employee && (
+                      {task.assigned_employee && (
                         <span className="flex items-center gap-1.5">
                           <Avatar className="h-5 w-5 shrink-0">
-                            <AvatarFallback dataSeed={task.assigned_to_employee.name} />
+                            <AvatarFallback
+                              dataSeed={task.assigned_employee.name}
+                            />
                           </Avatar>
-                          {task.assigned_to_employee.name}
+                          {task.assigned_employee.name}
                         </span>
                       )}
                       {task.due_date && (
@@ -157,8 +183,8 @@ export function TaskCalendarView() {
 
                     {(task.lead ?? task.deal ?? task.customer) && (
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                        {task.lead && (
-                          canViewLead ? (
+                        {task.lead &&
+                          (canViewLead ? (
                             <Link
                               href={`/crm/leads/${task.lead.id}`}
                               className="text-xs text-primary hover:underline font-medium"
@@ -167,11 +193,12 @@ export function TaskCalendarView() {
                               {task.lead.name}
                             </Link>
                           ) : (
-                            <span className="text-xs text-muted-foreground">{task.lead.name}</span>
-                          )
-                        )}
-                        {task.deal && (
-                          canViewDeal ? (
+                            <span className="text-xs text-muted-foreground">
+                              {task.lead.name}
+                            </span>
+                          ))}
+                        {task.deal &&
+                          (canViewDeal ? (
                             <Link
                               href={`/crm/pipeline/${task.deal.id}`}
                               className="text-xs text-primary hover:underline font-medium"
@@ -180,11 +207,12 @@ export function TaskCalendarView() {
                               {task.deal.title}
                             </Link>
                           ) : (
-                            <span className="text-xs text-muted-foreground">{task.deal.title}</span>
-                          )
-                        )}
-                        {task.customer && (
-                          canViewCustomer ? (
+                            <span className="text-xs text-muted-foreground">
+                              {task.deal.title}
+                            </span>
+                          ))}
+                        {task.customer &&
+                          (canViewCustomer ? (
                             <Link
                               href={`/master-data/customers/${task.customer.id}`}
                               className="text-xs text-primary hover:underline font-medium"
@@ -193,9 +221,10 @@ export function TaskCalendarView() {
                               {task.customer.name}
                             </Link>
                           ) : (
-                            <span className="text-xs text-muted-foreground">{task.customer.name}</span>
-                          )
-                        )}
+                            <span className="text-xs text-muted-foreground">
+                              {task.customer.name}
+                            </span>
+                          ))}
                       </div>
                     )}
                     {/* Reminder mini-cards */}
@@ -209,10 +238,21 @@ export function TaskCalendarView() {
                           >
                             <Bell className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                             <div className="min-w-0">
-                              <p className="text-xs font-medium truncate">{reminder.message}</p>
+                              <p className="text-xs font-medium truncate">
+                                {reminder.message}
+                              </p>
                               <p className="text-[10px] text-muted-foreground">
-                                {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
-                                {reminder.is_sent && <span className="ml-1 text-success">✔ {tTask("reminder.sent")}</span>}
+                                {formatDate(reminder.remind_at)} &middot;{" "}
+                                {tTask(
+                                  `reminder.types.${reminder.reminder_type}` as Parameters<
+                                    typeof tTask
+                                  >[0],
+                                )}
+                                {reminder.is_sent && (
+                                  <span className="ml-1 text-success">
+                                    ✔ {tTask("reminder.sent")}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -242,10 +282,13 @@ export function TaskCalendarView() {
                   </div>
                 ))}
               </div>
-            ) : selectedDateSchedules.length === 0 && selectedDateTasks.length === 0 ? (
+            ) : selectedDateSchedules.length === 0 &&
+              selectedDateTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
                 <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("emptyState")}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -265,17 +308,25 @@ export function TaskCalendarView() {
                     }}
                   >
                     <div className="flex items-start gap-2 flex-wrap">
-                      <span className="font-medium text-sm flex-1 line-clamp-1">{task.title}</span>
+                      <span className="font-medium text-sm flex-1 line-clamp-1">
+                        {task.title}
+                      </span>
                       <Badge variant="destructive" className="text-xs shrink-0">
-                        {tTask(`priorities.${task.priority}` as Parameters<typeof tTask>[0])}
+                        {tTask(
+                          `priorities.${task.priority}` as Parameters<
+                            typeof tTask
+                          >[0],
+                        )}
                       </Badge>
                     </div>
-                    {task.assigned_to_employee && (
+                    {task.assigned_employee && (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
                         <Avatar className="h-5 w-5 shrink-0">
-                          <AvatarFallback dataSeed={task.assigned_to_employee.name} />
+                          <AvatarFallback
+                            dataSeed={task.assigned_employee.name}
+                          />
                         </Avatar>
-                        {task.assigned_to_employee.name}
+                        {task.assigned_employee.name}
                       </span>
                     )}
                     {/* Reminder mini-cards */}
@@ -289,10 +340,21 @@ export function TaskCalendarView() {
                           >
                             <Bell className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                             <div className="min-w-0">
-                              <p className="text-xs font-medium truncate">{reminder.message}</p>
+                              <p className="text-xs font-medium truncate">
+                                {reminder.message}
+                              </p>
                               <p className="text-[10px] text-muted-foreground">
-                                {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
-                                {reminder.is_sent && <span className="ml-1 text-success">✔ {tTask("reminder.sent")}</span>}
+                                {formatDate(reminder.remind_at)} &middot;{" "}
+                                {tTask(
+                                  `reminder.types.${reminder.reminder_type}` as Parameters<
+                                    typeof tTask
+                                  >[0],
+                                )}
+                                {reminder.is_sent && (
+                                  <span className="ml-1 text-success">
+                                    ✔ {tTask("reminder.sent")}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -318,9 +380,18 @@ export function TaskCalendarView() {
                   >
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-medium text-sm flex-1 line-clamp-1">{item.title}</h4>
-                        <Badge variant={STATUS_VARIANT_MAP[item.status] ?? "outline"} className="text-xs shrink-0">
-                          {t(`statuses.${item.status}` as Parameters<typeof t>[0])}
+                        <h4 className="font-medium text-sm flex-1 line-clamp-1">
+                          {item.title}
+                        </h4>
+                        <Badge
+                          variant={STATUS_VARIANT_MAP[item.status] ?? "outline"}
+                          className="text-xs shrink-0"
+                        >
+                          {t(
+                            `statuses.${item.status}` as Parameters<
+                              typeof t
+                            >[0],
+                          )}
                         </Badge>
                       </div>
 
@@ -341,7 +412,9 @@ export function TaskCalendarView() {
                         {item.location && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            <span className="truncate max-w-[180px]">{item.location}</span>
+                            <span className="truncate max-w-[180px]">
+                              {item.location}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -367,7 +440,11 @@ export function TaskCalendarView() {
       </div>
 
       {/* Detail Dialogs */}
-      <ScheduleDetailDialog open={!!state.detailItem} onClose={() => actions.setDetailItem(null)} schedule={state.detailItem} />
+      <ScheduleDetailDialog
+        open={!!state.detailItem}
+        onClose={() => actions.setDetailItem(null)}
+        schedule={state.detailItem}
+      />
       <TaskDetailDialog
         open={!!state.selectedTask}
         onClose={() => actions.setSelectedTask(null)}

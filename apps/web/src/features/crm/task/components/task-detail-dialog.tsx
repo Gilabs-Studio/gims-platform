@@ -28,7 +28,11 @@ import { Link } from "@/i18n/routing";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { useCompleteTask, useMarkTaskInProgress, useCancelTask } from "../hooks/use-tasks";
+import {
+  useCompleteTask,
+  useMarkTaskInProgress,
+  useCancelTask,
+} from "../hooks/use-tasks";
 import type { Task } from "../types";
 
 const STATUS_VARIANT_MAP: Record<
@@ -76,7 +80,10 @@ function InfoRow({
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
         {href ? (
-          <Link href={href as Parameters<typeof Link>[0]["href"]} className="text-sm font-medium text-primary hover:underline">
+          <Link
+            href={href as Parameters<typeof Link>[0]["href"]}
+            className="text-sm font-medium text-primary hover:underline"
+          >
             {value}
           </Link>
         ) : (
@@ -138,7 +145,8 @@ export function TaskDetailDialog({
 
   if (!task) return null;
 
-  const isActionable = canUpdate && task.status !== "completed" && task.status !== "cancelled";
+  const isActionable =
+    canUpdate && task.status !== "completed" && task.status !== "cancelled";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -181,7 +189,7 @@ export function TaskDetailDialog({
             <InfoRow
               icon={User}
               label={t("form.assignedTo")}
-              value={task.assigned_to_employee?.name}
+              value={task.assigned_employee?.name}
             />
             <InfoRow
               icon={User}
@@ -214,13 +222,21 @@ export function TaskDetailDialog({
               icon={Handshake}
               label={t("form.deal")}
               value={task.deal?.title}
-              href={canViewDeal && task.deal ? `/crm/pipeline/${task.deal.id}` : undefined}
+              href={
+                canViewDeal && task.deal
+                  ? `/crm/pipeline/${task.deal.id}`
+                  : undefined
+              }
             />
             <InfoRow
               icon={UserCircle2}
               label={t("form.lead")}
               value={task.lead?.name}
-              href={canViewLead && task.lead ? `/crm/leads/${task.lead.id}` : undefined}
+              href={
+                canViewLead && task.lead
+                  ? `/crm/leads/${task.lead.id}`
+                  : undefined
+              }
             />
             <InfoRow
               icon={Clock}
@@ -249,7 +265,9 @@ export function TaskDetailDialog({
                       <p className="text-xs text-muted-foreground">
                         {formatDate(reminder.remind_at)} &middot;{" "}
                         {t(
-                          `reminder.types.${reminder.reminder_type}` as Parameters<typeof t>[0],
+                          `reminder.types.${reminder.reminder_type}` as Parameters<
+                            typeof t
+                          >[0],
                         )}
                       </p>
                     </div>

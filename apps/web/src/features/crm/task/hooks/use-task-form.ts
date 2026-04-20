@@ -22,7 +22,14 @@ export interface UseTaskFormProps {
   };
 }
 
-export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, onAfterSubmit, defaultValues: defaults }: UseTaskFormProps) {
+export function useTaskForm({
+  open,
+  onOpenChange,
+  editingItem,
+  onSuccess,
+  onAfterSubmit,
+  defaultValues: defaults,
+}: UseTaskFormProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
   const isEditing = !!editingItem;
@@ -43,14 +50,16 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, onAfte
         priority: z.enum(["low", "medium", "high", "urgent"], {
           message: t("validation.priorityRequired"),
         }),
-        status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+        status: z
+          .enum(["pending", "in_progress", "completed", "cancelled"])
+          .optional(),
         due_date: z.string().optional().or(z.literal("")),
         assigned_to: z.string().optional().or(z.literal("")),
         assigned_from: z.string().optional().or(z.literal("")),
         deal_id: z.string().optional().or(z.literal("")),
         lead_id: z.string().optional().or(z.literal("")),
       }),
-    [t]
+    [t],
   );
 
   type TaskFormValues = z.infer<typeof schema>;
@@ -83,8 +92,8 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, onAfte
         priority: editingItem.priority,
         status: editingItem.status,
         due_date: editingItem.due_date?.slice(0, 10) ?? "",
-        assigned_to: editingItem.assigned_to_employee?.id ?? "",
-        assigned_from: editingItem.assigned_from_employee?.id ?? "",
+        assigned_to: editingItem.assigned_to ?? "",
+        assigned_from: editingItem.assigned_from ?? "",
         deal_id: editingItem.deal?.id ?? "",
         lead_id: editingItem.lead?.id ?? "",
       });
@@ -102,7 +111,14 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, onAfte
         lead_id: defaultLeadId ?? "",
       });
     }
-  }, [open, editingItem, form, defaultLeadId, defaultDealId, defaultAssignedToId]);
+  }, [
+    open,
+    editingItem,
+    form,
+    defaultLeadId,
+    defaultDealId,
+    defaultAssignedToId,
+  ]);
 
   const onSubmit: SubmitHandler<TaskFormValues> = async (data) => {
     try {
