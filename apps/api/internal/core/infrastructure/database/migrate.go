@@ -31,6 +31,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	tenant "github.com/gilabs/gims/api/internal/tenant/data/models"
 	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
@@ -71,6 +72,9 @@ func AutoMigrate() error {
 
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
+		// SaaS: Tenant & System Admin tables (must come before domain tables)
+		&tenant.Tenant{},
+		&tenant.SystemAdmin{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
@@ -321,6 +325,11 @@ func AutoMigrate() error {
 	}
 
 	log.Println("Database migrations completed")
+
+	// SaaS: Add tenant_id to all domain tables and backfill existing data
+	if err := migrations.MigrateTenantID(DB); err != nil {
+		return fmt.Errorf("failed to run SaaS tenant migration: %w", err)
+	}
 
 	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
 	// This fixes issues where seeders or manual imports missed the remaining amount.

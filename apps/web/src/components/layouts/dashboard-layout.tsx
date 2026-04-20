@@ -139,6 +139,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const isMobile = useIsMobile();
 
   const userName = user?.name ?? "User";
+  const tenantName = user?.tenant_name ?? "";
   const primaryAvatarUrl =
     user?.avatar_url && user.avatar_url.trim() !== ""
       ? user.avatar_url
@@ -490,6 +491,7 @@ export const DashboardLayout = memo(function DashboardLayout({
             {!isAIChatbotPage && !isFullScreenMapPage && (
               <DashboardHeader
                 userName={userName}
+                tenantName={tenantName}
                 avatarUrl={primaryAvatarUrl}
                 fallbackAvatarUrl={fallbackAvatarUrl}
                 onMobileMenuClick={() => setIsMobileSidebarOpen(true)}

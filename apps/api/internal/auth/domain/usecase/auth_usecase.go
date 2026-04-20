@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/auth/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -24,12 +26,18 @@ var (
 	ErrRefreshTokenInvalid = errors.New("refresh token is invalid")
 	ErrRefreshTokenRevoked = errors.New("refresh token has been revoked")
 	ErrRefreshTokenExpired = errors.New("refresh token has expired")
+	ErrEmailAlreadyTaken   = errors.New("email already registered")
+	ErrSlugAlreadyTaken    = errors.New("organization slug already taken")
 )
 
 type AuthUsecase interface {
 	Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*dto.LoginResponse, error)
 	Logout(ctx context.Context, refreshToken string) error
+	// RegisterTenant creates a new tenant and provisions an admin account for self-service sign-up.
+	// The returned LoginResponse can be used to immediately log the user in.
+	// TODO(future): Accept a package/tier parameter once batch billing is implemented.
+	RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*dto.LoginResponse, error)
 }
 
 type authUsecase struct {
@@ -114,8 +122,8 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			}
 		}
 
-		// Generate tokens
-		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode)
+		// Generate tokens — embed tenant_id so AuthMiddleware can scope queries without a DB lookup
+		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
 		if err != nil {
 			return err
 		}
@@ -150,6 +158,13 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		var employeeID string
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
+		// Resolve Tenant name for SaaS context display
+		var tenantID, tenantName string
+		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		if tenantID != "" {
+			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
+		}
+
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:            user.ID,
@@ -164,6 +179,8 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			Status:        user.Status,
 			CreatedAt:     user.CreatedAt,
 			UpdatedAt:     user.UpdatedAt,
+			TenantID:      tenantID,
+			TenantName:    tenantName,
 		}
 
 		resp = &dto.LoginResponse{
@@ -292,8 +309,8 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			return err
 		}
 
-		// Generate new tokens
-		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode)
+		// Generate new tokens — embed tenant_id so AuthMiddleware can scope queries without a DB lookup
+		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
 		if err != nil {
 			return err
 		}
@@ -327,6 +344,13 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 		var employeeID string
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
+		// Resolve Tenant name for SaaS context display
+		var tenantID, tenantName string
+		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		if tenantID != "" {
+			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
+		}
+
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:            user.ID,
@@ -341,6 +365,8 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			Status:        user.Status,
 			CreatedAt:     user.CreatedAt,
 			UpdatedAt:     user.UpdatedAt,
+			TenantID:      tenantID,
+			TenantName:    tenantName,
 		}
 		
 		resp = &dto.LoginResponse{
@@ -393,4 +419,184 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 		
 		return nil
 	})
+}
+
+// RegisterTenant provisions a brand-new tenant and an enterprise-level admin account
+// in a single atomic transaction, then immediately returns a valid JWT so the caller
+// can start using the platform without a separate login step.
+//
+// TODO(future): Accept a plan/package parameter and enforce billing limits once the
+//
+//	batch billing system is implemented. Currently every registration receives the
+//	"enterprise" plan with no user cap.
+func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*dto.LoginResponse, error) {
+	var resp *dto.LoginResponse
+
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		// Guard: reject if email is already registered
+		var existingCount int64
+		if err := tx.Table("users").Where("email = ? AND deleted_at IS NULL", req.Email).Count(&existingCount).Error; err != nil {
+			return err
+		}
+		if existingCount > 0 {
+			return ErrEmailAlreadyTaken
+		}
+
+		// Derive a URL-safe slug from the company name (lowercase, replace spaces with hyphens)
+		slug := slugify(req.CompanyName)
+
+		// Guard: reject if slug collides with an existing tenant
+		var slugCount int64
+		if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
+			return err
+		}
+		if slugCount > 0 {
+			slug = slug + "-" + shortID()
+		}
+
+		tenantID := newUUID()
+		userID := newUUID()
+
+		// 1. Create the tenant record
+		// TODO(future): replace hard-coded enterprise plan with a plan parameter
+		//               and enforce MaxUsers / feature flags per package tier.
+		if err := tx.Exec(`
+			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
+			VALUES (?, ?, ?, ?, 'active', 'enterprise', 999, NOW(), NOW())`,
+			tenantID, req.CompanyName, slug, userID,
+		).Error; err != nil {
+			return err
+		}
+
+		// 2. Hash password
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
+
+		// 3. Create the admin user scoped to the new tenant
+		// The admin role (code="admin") is platform-wide — no per-tenant role provisioning needed.
+		// roles/menus/permissions repositories bypass tenant scoping intentionally.
+		if err := tx.Exec(`
+			INSERT INTO users (id, tenant_id, email, password, name, avatar_url, role_id, status, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM roles WHERE code = 'admin' LIMIT 1), 'active', NOW(), NOW())`,
+			userID, tenantID, req.Email, string(hashed), req.Name, avatarURL,
+		).Error; err != nil {
+			return err
+		}
+
+		// 4. Resolve the admin role code and permissions for the JWT / response
+		roleCode := "admin"
+		roleName := "Admin"
+		roleDataScope := "ALL"
+		permissions := make(map[string]string)
+
+		type rolePermRow struct {
+			Code  string
+			Scope string
+		}
+		var rolePerms []rolePermRow
+		tx.Raw(`
+			SELECT p.code, COALESCE(rp.scope, 'ALL') AS scope
+			FROM role_permissions rp
+			JOIN permissions p ON p.id = rp.permission_id
+			JOIN roles r ON r.id = rp.role_id
+			WHERE r.code = 'admin'
+		`).Scan(&rolePerms)
+		for _, rp := range rolePerms {
+			permissions[rp.Code] = rp.Scope
+		}
+
+		// 5. Generate JWT with the new tenant_id embedded
+		accessToken, err := u.jwtManager.GenerateAccessToken(userID, req.Email, roleCode, tenantID)
+		if err != nil {
+			return err
+		}
+
+		refreshToken, err := u.jwtManager.GenerateRefreshToken(userID)
+		if err != nil {
+			return err
+		}
+
+		tokenID, err := u.jwtManager.ExtractRefreshTokenID(refreshToken)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`
+			INSERT INTO refresh_tokens (id, user_id, token_id, expires_at, revoked, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, ?, ?, false, NOW(), NOW())`,
+			userID, tokenID, apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
+		).Error; err != nil {
+			return err
+		}
+
+		resp = &dto.LoginResponse{
+			User: &dto.UserResponse{
+				ID:            userID,
+				Email:         req.Email,
+				Name:          req.Name,
+				AvatarURL:     avatarURL,
+				Role:          roleCode,
+				RoleName:      roleName,
+				RoleDataScope: roleDataScope,
+				Permissions:   permissions,
+				Status:        "active",
+				TenantID:      tenantID,
+				TenantName:    req.CompanyName,
+			},
+			Token:        accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int(u.jwtManager.AccessTokenTTL().Seconds()),
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// slugify converts a human-readable string into a URL-safe slug.
+func slugify(s string) string {
+	result := make([]rune, 0, len(s))
+	prev := '-'
+	for _, r := range []rune(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			result = append(result, r)
+			prev = r
+		} else if r >= 'A' && r <= 'Z' {
+			result = append(result, r+32)
+			prev = r + 32
+		} else if prev != '-' {
+			result = append(result, '-')
+			prev = '-'
+		}
+	}
+	// Trim trailing hyphen
+	for len(result) > 0 && result[len(result)-1] == '-' {
+		result = result[:len(result)-1]
+	}
+	return string(result)
+}
+
+// newUUID generates a random UUID v4.
+func newUUID() string {
+	b := make([]byte, 16)
+	_, _ = cryptorand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// shortID returns a 6-character hex string for slug disambiguation.
+func shortID() string {
+	b := make([]byte, 3)
+	_, _ = cryptorand.Read(b)
+	return fmt.Sprintf("%x", b)
 }

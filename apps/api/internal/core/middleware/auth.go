@@ -101,6 +101,17 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 
+		// Propagate tenant_id from JWT claim into both gin and request contexts so
+		// GetDB can apply row-level tenant scoping without an extra DB round-trip.
+		if claims.TenantID != "" {
+			c.Set("tenant_id", claims.TenantID)
+		}
+
+		// System-admin tokens carry no tenant_id; mark them so GetDB skips scoping.
+		if claims.Role == "system_admin" {
+			c.Set("is_system_admin", true)
+		}
+
 		// Also set values on request context for infrastructure services (e.g. audit)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "user_id", claims.UserID)
@@ -108,6 +119,12 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		reqCtx = context.WithValue(reqCtx, "user_role", claims.Role)
 		reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
 		reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
+		if claims.TenantID != "" {
+			reqCtx = context.WithValue(reqCtx, "tenant_id", claims.TenantID)
+		}
+		if claims.Role == "system_admin" {
+			reqCtx = context.WithValue(reqCtx, "is_system_admin", true)
+		}
 
 		// Load Permissions with scope (with fallback to non-scoped permissions)
 		permScopeMap, err := permService.GetPermissionsWithScope(claims.Role)

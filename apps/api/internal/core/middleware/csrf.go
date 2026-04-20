@@ -84,6 +84,12 @@ func CSRF() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// System admin login/logout: uses separate cookie auth and does not
+		// participate in the regular CSRF cookie flow.
+		if strings.HasPrefix(path, "/internal/sys-login") || strings.HasPrefix(path, "/internal/sys-logout") {
+			c.Next()
+			return
+		}
 		// Public feedback submission uses one-time token in URL and is intentionally
 		// accessible without authenticated browser session/cookies.
 		if c.Request.Method == http.MethodPost &&

@@ -88,7 +88,23 @@
     }
   },
   "auth": {
-    "login": {
+    "register": {
+    "title": "Buat Akun Anda",
+    "description": "Daftarkan bisnis Anda di platform GIMS — tanpa kartu kredit",
+    "nameLabel": "Nama Lengkap",
+    "namePlaceholder": "Masukkan nama lengkap Anda",
+    "emailLabel": "Email Kerja",
+    "emailPlaceholder": "Masukkan email kerja Anda",
+    "passwordLabel": "Kata Sandi",
+    "passwordPlaceholder": "Buat kata sandi (min. 8 karakter)",
+    "companyLabel": "Nama Perusahaan",
+    "companyPlaceholder": "Masukkan nama perusahaan Anda",
+    "submit": "Buat Akun",
+    "submitting": "Membuat akun...",
+    "alreadyHaveAccount": "Sudah punya akun?",
+    "signIn": "Masuk"
+  },
+  "login": {
       "title": "Selamat Datang Kembali",
       "description": "Masuk ke akun Anda untuk melanjutkan",
       "emailLabel": "Email",
@@ -102,7 +118,9 @@
       "submit": "Masuk",
       "submitting": "Masuk...",
       "verifyingSession": "Memverifikasi sesi...",
-      "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}."
+      "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}.",
+      "noAccount": "Belum punya akun?",
+      "createAccount": "Buat Akun"
     },
     "block": {
       "title": "Akses Diblokir",

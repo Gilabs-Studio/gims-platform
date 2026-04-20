@@ -66,6 +66,7 @@ func (r *userRepository) List(ctx context.Context, req *dto.ListUsersRequest) ([
 	var users []models.User
 	var total int64
 
+	// Scope to current tenant so users only see members of their own organisation
 	query := r.getDB(ctx).Model(&models.User{}).Preload("Role").Preload("Role.Permissions")
 
 	// Apply filters

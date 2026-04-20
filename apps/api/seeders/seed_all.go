@@ -20,7 +20,22 @@ func SeedAll() error {
 		return seedMasterData()
 	}
 
-	// Seed in order: roles -> menus -> permissions -> users -> geographic
+	// Seed in order: SaaS tenant -> roles -> menus -> permissions -> users -> geographic
+	// SaaS: Create default tenant (must be first so tenant_id FK is available)
+	if err := SeedTenant(); err != nil {
+		return err
+	}
+
+	// SaaS: Create system admin (separate from tenant users)
+	if err := SeedSystemAdmin(); err != nil {
+		return err
+	}
+
+	// SaaS: Create Tenant 2 (empty tenant for multi-tenancy testing)
+	if err := SeedTenant2(); err != nil {
+		return err
+	}
+
 	if err := SeedRoles(); err != nil {
 		return err
 	}
@@ -392,6 +407,13 @@ func SeedAll() error {
 	// Final Journal Reconciliation: ensures all transactional data (Sales, Purchase, Inventory, Returns)
 	// has corresponding journal entries.
 	if err := SeedJournalReconciliation(); err != nil {
+		return err
+	}
+
+	// SaaS: Backfill tenant_id for all seeder data.
+	// Must run LAST — ensures all rows created above get tenant_id = Tenant1,
+	// and Tenant 2 admin gets tenant_id = Tenant2.
+	if err := BackfillSeedTenantIDs(); err != nil {
 		return err
 	}
 

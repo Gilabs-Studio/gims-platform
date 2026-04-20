@@ -89,7 +89,23 @@
     }
   },
   "auth": {
-    "login": {
+    "register": {
+    "title": "Create Your Account",
+    "description": "Set up your business on the GIMS platform — no credit card required",
+    "nameLabel": "Full Name",
+    "namePlaceholder": "Enter your full name",
+    "emailLabel": "Work Email",
+    "emailPlaceholder": "Enter your work email",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Create a password (min. 8 characters)",
+    "companyLabel": "Company Name",
+    "companyPlaceholder": "Enter your company name",
+    "submit": "Create Account",
+    "submitting": "Creating account...",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign In"
+  },
+  "login": {
       "title": "Welcome Back",
       "description": "Sign in to your account to continue",
       "emailLabel": "Email",
@@ -103,7 +119,9 @@
       "submit": "Sign In",
       "submitting": "Signing in...",
       "verifyingSession": "Verifying session...",
-      "rateLimitMessage": "Too many login attempts. Please try again in {countdown}."
+      "rateLimitMessage": "Too many login attempts. Please try again in {countdown}.",
+      "noAccount": "Don't have an account?",
+      "createAccount": "Create Account"
     },
     "block": {
       "title": "Access Blocked",
