@@ -101,6 +101,7 @@ func RegisterRoutes(
 	// Create sales group under API with auth middleware
 	salesGroup := api.Group("/sales")
 	salesGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	salesGroup.Use(middleware.TenantGuard())
 	salesGroup.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes

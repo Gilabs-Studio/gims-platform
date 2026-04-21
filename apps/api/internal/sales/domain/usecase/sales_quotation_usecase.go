@@ -22,13 +22,13 @@ import (
 )
 
 var (
-	ErrSalesQuotationNotFound          = errors.New("sales quotation not found")
-	ErrSalesQuotationAlreadyExists     = errors.New("sales quotation with this code already exists")
-	ErrInvalidStatusTransition         = errors.New("invalid status transition")
-	ErrQuotationAlreadyConverted       = errors.New("quotation already converted to sales order")
-	ErrProductNotFound                 = errors.New("product not found")
-	ErrInvalidQuotationStatus          = errors.New("cannot modify quotation in current status")
-	ErrValidUntilBeforeQuotationDate   = errors.New("valid until date must not be earlier than quotation date")
+	ErrSalesQuotationNotFound        = errors.New("sales quotation not found")
+	ErrSalesQuotationAlreadyExists   = errors.New("sales quotation with this code already exists")
+	ErrInvalidStatusTransition       = errors.New("invalid status transition")
+	ErrQuotationAlreadyConverted     = errors.New("quotation already converted to sales order")
+	ErrProductNotFound               = errors.New("product not found")
+	ErrInvalidQuotationStatus        = errors.New("cannot modify quotation in current status")
+	ErrValidUntilBeforeQuotationDate = errors.New("valid until date must not be earlier than quotation date")
 )
 
 // SalesQuotationUsecase defines the interface for sales quotation business logic
@@ -392,6 +392,9 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 func (u *salesQuotationUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if u.db == nil {
 		return nil, 0, errors.New("db is nil")
+	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesQuotation{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesQuotationNotFound
 	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "sales_quotation.", page, perPage)

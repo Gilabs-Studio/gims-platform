@@ -1413,5 +1413,14 @@ func backfillTenantIDs() error {
 		}
 	}
 
+	if DB.Migrator().HasTable("stock_opnames") {
+		if err := DB.Exec("DROP INDEX IF EXISTS idx_stock_opnames_opname_number").Error; err != nil {
+			log.Printf("backfillTenantIDs: could not drop legacy stock opname index: %v", err)
+		}
+		if err := DB.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_opnames_tenant_number ON stock_opnames (tenant_id, opname_number)").Error; err != nil {
+			log.Printf("backfillTenantIDs: could not create tenant stock opname index: %v", err)
+		}
+	}
+
 	return nil
 }

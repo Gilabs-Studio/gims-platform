@@ -10,6 +10,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -87,7 +88,7 @@ func (u *salesReturnUsecase) GetFormData(ctx context.Context) (*dto.SalesReturnF
 	}
 
 	var warehouses []warehouseModels.Warehouse
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&warehouseModels.Warehouse{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -424,6 +425,9 @@ func (u *salesReturnUsecase) ListAuditTrail(ctx context.Context, id string, page
 	if u.db == nil {
 		return nil, 0, errors.New(errDBNil)
 	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesReturn{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesReturnNotFound
+	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "sales_return.", page, perPage)
 }
@@ -751,7 +755,7 @@ func (u *salesReturnUsecase) getDeliveryOrder(ctx context.Context, deliveryID st
 	}
 
 	var delivery models.DeliveryOrder
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Preload("SalesOrder").
 		Preload("Items").
 		First(&delivery, "id = ?", deliveryID).Error; err != nil {
@@ -778,7 +782,7 @@ func (u *salesReturnUsecase) resolveInvoiceIDForDelivery(ctx context.Context, de
 	}
 
 	var invoice models.CustomerInvoice
-	err := u.db.WithContext(ctx).
+	err := database.GetDB(ctx, u.db).
 		Model(&models.CustomerInvoice{}).
 		Where("delivery_order_id = ?", deliveryID).
 		Order("created_at DESC").
@@ -809,7 +813,7 @@ func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Contex
 	}
 
 	sourceRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&models.DeliveryOrderItem{}).
 		Select("product_id, COALESCE(SUM(quantity), 0) AS qty").
 		Where("delivery_order_id = ?", deliveryID).
@@ -819,8 +823,14 @@ func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Contex
 	}
 
 	returnedRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
-		Model(&models.SalesReturnItem{}).
+	returnedQuery := u.db.WithContext(ctx).
+		Model(&models.SalesReturnItem{})
+	returnedQuery, err := applyTenantJoinScope(ctx, returnedQuery, "sales_return_items.tenant_id", "sales_returns.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := returnedQuery.
 		Select("sales_return_items.product_id, COALESCE(SUM(sales_return_items.quantity), 0) AS qty").
 		Joins("JOIN sales_returns ON sales_returns.id = sales_return_items.sales_return_id").
 		Where("sales_returns.delivery_id = ?", deliveryID).

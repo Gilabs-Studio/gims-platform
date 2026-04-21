@@ -116,6 +116,7 @@ func (ci *CustomerInvoice) BeforeCreate(tx *gorm.DB) error {
 // CustomerInvoiceItem represents an item in a customer invoice
 type CustomerInvoiceItem struct {
 	ID                string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID          string           `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CustomerInvoiceID string           `gorm:"type:uuid;not null;index" json:"customer_invoice_id"`
 	CustomerInvoice   *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"customer_invoice,omitempty"`
 

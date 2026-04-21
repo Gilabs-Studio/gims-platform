@@ -121,7 +121,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 	}
 	var relatedCode *string
 	var regularInvoice models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+	if err := database.GetDB(ctx, uc.db).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
 		relatedCode = &regularInvoice.Code
 	}
 
@@ -168,7 +168,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 	}
 	var relatedCode *string
 	var regularInvoice models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+	if err := database.GetDB(ctx, uc.db).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
 		relatedCode = &regularInvoice.Code
 	}
 
@@ -229,7 +229,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 	}
 
 	var out *models.CustomerInvoice
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		created, createErr := uc.createDraftDownPaymentInTx(ctx, tx, req, invDate, dueDate)
 		if createErr != nil {
 			return createErr
@@ -270,7 +270,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 	}
 
 	var out *models.CustomerInvoice
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		updated, updateErr := uc.updateDraftDownPaymentInTx(ctx, tx, id, req, invDate, dueDate)
 		if updateErr != nil {
 			return updateErr
@@ -314,7 +314,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
 	var out *models.CustomerInvoice
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		var ci models.CustomerInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
 			return err
@@ -361,7 +361,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if uc.db == nil {
 		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		return uc.approveDownPaymentInTx(ctx, tx, id)
 	})
 	if err != nil {
@@ -383,7 +383,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
 	var out *models.CustomerInvoice
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		var ci models.CustomerInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
 			return err
@@ -484,6 +484,9 @@ func safeInvoiceNumber(invoiceNumber *string) string {
 func (uc *customerInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New(errCustomerInvoiceDPDBNil)
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrCustomerInvoiceNotFound
 	}
 
 	return listAuditTrailEntries(ctx, uc.db, id, "customer_invoice_dp.", page, perPage)

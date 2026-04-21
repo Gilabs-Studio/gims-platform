@@ -99,7 +99,7 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 
 	// Fetch active bank accounts
 	var bankAccounts []coreModels.BankAccount
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.BankAccount{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -121,7 +121,7 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 
 	// Fetch eligible invoices (unpaid or partial, both regular and down_payment)
 	var invoices []*models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&models.CustomerInvoice{}).
 		Preload("SalesOrder").
 		Where("status IN ?", []models.CustomerInvoiceStatus{
@@ -232,7 +232,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 	method models.SalesPaymentMethod,
 ) (string, error) {
 	createdID := ""
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		inv, err := lockInvoiceForSalesPaymentCreate(tx, strings.TrimSpace(req.InvoiceID))
 		if err != nil {
 			return err
@@ -531,7 +531,7 @@ func (uc *salesPaymentUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (uc *salesPaymentUsecase) deleteSalesPaymentTx(ctx context.Context, id string) error {
-	return uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, err := lockPendingSalesPayment(tx, id)
 		if err != nil {
 			return err
@@ -662,7 +662,7 @@ func (uc *salesPaymentUsecase) Reverse(ctx context.Context, id string) (*dto.Sal
 
 func (uc *salesPaymentUsecase) reverse(ctx context.Context, id string, reason string) (*dto.SalesPaymentDetailResponse, error) {
 	var reversed *models.SalesPayment
-	err := uc.db.Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, err := uc.repo.GetByID(database.WithTx(ctx, tx), id)
 		if err != nil {
 			return err
@@ -716,7 +716,7 @@ func (uc *salesPaymentUsecase) reverse(ctx context.Context, id string, reason st
 
 func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymentID string) (string, error) {
 	confirmedID := ""
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, invoice, confirmedTotal, err := uc.prepareConfirmSalesPayment(tx, paymentID)
 		if err != nil {
 			return err
@@ -1057,6 +1057,9 @@ func (uc *salesPaymentUsecase) resolveCompanyIDFromActor(ctx context.Context) (s
 func (uc *salesPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesPaymentAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New(errSalesPaymentDBNil)
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SalesPayment{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesPaymentNotFound
 	}
 
 	entries, total, err := listAuditTrailEntries(ctx, uc.db, id, "sales_payment.", page, perPage)

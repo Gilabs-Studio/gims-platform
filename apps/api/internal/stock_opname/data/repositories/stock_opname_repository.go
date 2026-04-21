@@ -24,7 +24,7 @@ func NewStockOpnameRepository(db *gorm.DB) repository.StockOpnameRepository {
 }
 
 func (r *stockOpnameRepository) Create(ctx context.Context, opname *models.StockOpname) error {
-	return database.GetDB(ctx, r.db).Create(opname).Error
+	return database.GetDB(ctx, r.db).Session(&gorm.Session{NewDB: true}).Create(opname).Error
 }
 
 func (r *stockOpnameRepository) Update(ctx context.Context, opname *models.StockOpname) error {

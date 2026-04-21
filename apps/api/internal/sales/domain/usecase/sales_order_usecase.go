@@ -440,7 +440,7 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 
 	// Handle stock reservation on approval (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusApproved && !order.ReservedStock {
-		err := u.db.Transaction(func(tx *gorm.DB) error {
+		err := database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 			txCtx := database.WithTx(ctx, tx)
 
 			// Reserve stock at product level for each item
@@ -464,7 +464,7 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 
 	// Handle stock release on cancellation (wrapped in transaction for atomicity)
 	if newStatus == models.SalesOrderStatusCancelled && order.ReservedStock {
-		err := u.db.Transaction(func(tx *gorm.DB) error {
+		err := database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 			txCtx := database.WithTx(ctx, tx)
 
 			// Release stock at product level for each item
@@ -614,6 +614,9 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 func (u *salesOrderUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if u.db == nil {
 		return nil, 0, errors.New("db is nil")
+	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesOrderNotFound
 	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "sales_order.", page, perPage)
