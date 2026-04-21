@@ -29,6 +29,7 @@ import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 import { JournalDetailModal } from "./journal-detail-modal";
 import { JournalActionMenu } from "./journal-action-menu";
+import type { CashBankSubLedgerEntry, CashBankSubLedgerKPI } from "../types";
 
 
 export function CashBankJournalsList() {
@@ -67,9 +68,9 @@ export function CashBankJournalsList() {
     sort_dir: "desc",
   });
 
-  const items = (data?.data ?? []) as any[];
+  const items = (data?.data ?? []) as CashBankSubLedgerEntry[];
   const pagination = data?.meta?.pagination;
-  const kpi = data?.meta?.additional?.kpi as any;
+  const kpi = data?.meta?.additional?.kpi as CashBankSubLedgerKPI | undefined;
 
   // HARDENING: Use mapJournalToUnifiedRow since backend now returns unified JournalEntry
   const mappedItems = items.map((item) => mapJournalToUnifiedRow(item));

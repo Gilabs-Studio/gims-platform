@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { navigationConfig } from '@/lib/navigation-config';
+import { navigationConfig, type NavItem } from '@/lib/navigation-config';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://gims.gilabs.co.id';
@@ -8,8 +8,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     (nav) => nav.children && nav.name !== 'Reports' && nav.name !== 'Master Data' && nav.name !== 'Dashboard'
   );
 
-  const getSlug = (menu: any) => {
-    const firstChild = menu.children?.find((c: any) => c.url);
+  const getSlug = (menu: NavItem) => {
+    const firstChild = menu.children?.find((c) => c.url);
     return firstChild ? firstChild.url.split('/').filter(Boolean)[0] || 'app' : 'app';
   };
 

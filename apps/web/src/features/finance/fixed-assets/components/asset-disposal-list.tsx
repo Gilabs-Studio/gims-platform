@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { DisposalPreviewResponse } from "../types";
 
 interface AssetDisposalListProps {
-  disposals: any[];
+  disposals: DisposalPreviewResponse[];
   isLoading: boolean;
 }
 
@@ -40,19 +41,31 @@ export function AssetDisposalList({ disposals, isLoading }: AssetDisposalListPro
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Asset</TableHead>
-                  <TableHead>Disposal Date</TableHead>
+                  <TableHead>Asset ID</TableHead>
+                  <TableHead className="text-right">Book Value</TableHead>
                   <TableHead className="text-right">Proceeds</TableHead>
+                  <TableHead className="text-right">Gain / Loss</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {disposals.map((disposal, idx) => (
                   <TableRow key={idx}>
-                    <TableCell>{disposal.asset_name || "N/A"}</TableCell>
-                    <TableCell>{disposal.disposal_date || "N/A"}</TableCell>
+                    <TableCell>{disposal.asset_id}</TableCell>
+                    <TableCell className="text-right">
+                      {(disposal.book_value || 0).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </TableCell>
                     <TableCell className="text-right">
                       {(disposal.proceeds_amount || 0).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(disposal.gain_loss_amount || 0).toLocaleString("en-US", {
                         style: "currency",
                         currency: "USD",
                       })}

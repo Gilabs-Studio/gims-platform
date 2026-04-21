@@ -89,6 +89,8 @@ function formatCurrencyShort(value: number): string {
   return `Rp ${value.toFixed(0)}`;
 }
 
+type TranslationFn = ReturnType<typeof useTranslations>;
+
 function safeDiv(numerator: number, denominator: number, fallback = 0): number {
   if (!denominator || !isFinite(denominator)) return fallback;
   const result = numerator / denominator;
@@ -117,7 +119,7 @@ function buildMetric(
 
 // ─── Intelligence layer ────────────────────────────────────────────────────
 
-function buildIntelligence(data: OwnerKpiData, t: any): OwnerIntelligence {
+function buildIntelligence(data: OwnerKpiData, t: TranslationFn): OwnerIntelligence {
   const insights: OwnerInsightItem[] = [];
   let worstArea: BottleneckArea = "profitability";
   let worstScore = 0;
@@ -294,7 +296,7 @@ function buildIntelligence(data: OwnerKpiData, t: any): OwnerIntelligence {
 
 function deriveOwnerKpiFromDashboard(
   data: Partial<DashboardOverviewData>,
-  t: any,
+  t: TranslationFn,
 ): OwnerKpiData {
   const revenue = data.kpi?.total_revenue?.value ?? 0;
   const totalOrders = data.kpi?.total_orders?.value ?? 0;
@@ -440,10 +442,13 @@ export function useOwnerKpi(options?: { enabled?: boolean }) {
     if (ownerKpiQuery.data?.owner_kpi) {
       const kpi = ownerKpiQuery.data.owner_kpi;
       // Ensure intelligence is populated
-      if (!kpi.intelligence?.overall_health) {
-        kpi.intelligence = buildIntelligence(kpi, t);
+      if (kpi.intelligence?.overall_health) {
+        return kpi;
       }
-      return kpi;
+      return {
+        ...kpi,
+        intelligence: buildIntelligence(kpi, t),
+      };
     }
 
     // Fallback: derive from general dashboard data

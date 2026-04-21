@@ -23,6 +23,12 @@ import { taxInvoiceFormSchema, type TaxInvoiceFormValues } from "../schemas/tax-
 import type { TaxInvoice } from "../types";
 import { useCreateFinanceTaxInvoice, useUpdateFinanceTaxInvoice } from "../hooks/use-finance-tax-invoices";
 
+type SupplierInvoiceOption = {
+  id: string;
+  invoice_number: string;
+  code: string;
+};
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -174,7 +180,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {supplierInvoices.map((inv: any) => (
+                    {supplierInvoices.map((inv: SupplierInvoiceOption) => (
                       <SelectItem key={inv.id} value={inv.id}>
                         {inv.invoice_number} ({inv.code})
                       </SelectItem>

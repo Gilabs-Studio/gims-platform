@@ -156,8 +156,10 @@ export function InvoiceList() {
       return;
     }
 
-    setViewingInvoice(target);
-    setOpenInvoiceId(null);
+    queueMicrotask(() => {
+      setViewingInvoice(target);
+      setOpenInvoiceId(null);
+    });
   }, [invoices, openInvoiceId]);
 
   useEffect(() => {

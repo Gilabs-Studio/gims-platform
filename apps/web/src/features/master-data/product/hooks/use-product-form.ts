@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateProduct, useUpdateProduct } from "./use-products";
 import { useProductCategories } from "./use-product-categories";
-import { useProductBrands } from "./use-product-brands";
+import { useCreateProductBrand, useProductBrands } from "./use-product-brands";
 import { useProductSegments } from "./use-product-segments";
 import { useProductTypes } from "./use-product-types";
 import { useUnitsOfMeasure } from "./use-units-of-measure";
@@ -14,8 +14,12 @@ import { useProcurementTypes } from "./use-procurement-types";
 import { productSchema, type ProductFormData } from "../components/product/product.schema";
 import type { Product } from "../types";
 import { sortOptions } from "@/lib/utils";
+import { useCreateProductSegment } from "./use-product-segments";
+import { useCreateProductType } from "./use-product-types";
+import { useCreatePackaging } from "./use-packagings";
+import { useCreateProcurementType } from "./use-procurement-types";
 
-type QuickCreateType = "category" | "brand" | "segment" | "type" | "uom" | "purchaseUom" | "packaging" | "procurementType" | null;
+type QuickCreateType = "category" | "uom" | "purchaseUom" | null;
 
 export interface UseProductFormProps {
   open: boolean;
@@ -31,6 +35,11 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
+  const createBrandMutation = useCreateProductBrand();
+  const createSegmentMutation = useCreateProductSegment();
+  const createTypeMutation = useCreateProductType();
+  const createPackagingMutation = useCreatePackaging();
+  const createProcurementTypeMutation = useCreateProcurementType();
 
   // Fetch Lookup Data conditionally when form is open
   const fetchOptions = { enabled: open };
@@ -52,7 +61,14 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
   const procurementTypes = sortOptions(procurementTypesData?.data ?? [], (i) => i.name);
 
   const isEditing = !!editingItem;
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    createBrandMutation.isPending ||
+    createSegmentMutation.isPending ||
+    createTypeMutation.isPending ||
+    createPackagingMutation.isPending ||
+    createProcurementTypeMutation.isPending;
 
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; query: string }>({ type: null, query: "" });
 
@@ -174,21 +190,6 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
     closeQuickCreate();
   };
 
-  const handleBrandCreated = (id: string) => {
-    form.setValue("brand_id", id, { shouldValidate: true });
-    closeQuickCreate();
-  };
-
-  const handleSegmentCreated = (id: string) => {
-    form.setValue("segment_id", id, { shouldValidate: true });
-    closeQuickCreate();
-  };
-
-  const handleTypeCreated = (id: string) => {
-    form.setValue("type_id", id, { shouldValidate: true });
-    closeQuickCreate();
-  };
-
   const handleUomCreated = (id: string) => {
     form.setValue("uom_id", id, { shouldValidate: true });
     closeQuickCreate();
@@ -199,14 +200,82 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
     closeQuickCreate();
   };
 
-  const handlePackagingCreated = (id: string) => {
-    form.setValue("packaging_id", id, { shouldValidate: true });
-    closeQuickCreate();
+  const handleAutoCreateBrand = async (query: string) => {
+    const name = query.trim();
+    if (!name) return;
+
+    try {
+      const result = await createBrandMutation.mutateAsync({ name, description: "" });
+      return result.data.id;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tCommon("error");
+      toast.error(message);
+      return;
+    }
   };
 
-  const handleProcurementTypeCreated = (id: string) => {
-    form.setValue("procurement_type_id", id, { shouldValidate: true });
-    closeQuickCreate();
+  const handleAutoCreateSegment = async (query: string) => {
+    const name = query.trim();
+    if (!name) return;
+
+    try {
+      const result = await createSegmentMutation.mutateAsync({ name, description: "" });
+      return result.data.id;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tCommon("error");
+      toast.error(message);
+      return;
+    }
+  };
+
+  const handleAutoCreateType = async (query: string) => {
+    const name = query.trim();
+    if (!name) return;
+
+    try {
+      const result = await createTypeMutation.mutateAsync({ name, description: "" });
+      return result.data.id;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tCommon("error");
+      toast.error(message);
+      return;
+    }
+  };
+
+  const handleAutoCreatePackaging = async (query: string) => {
+    const name = query.trim();
+    if (!name) return;
+
+    try {
+      const result = await createPackagingMutation.mutateAsync({ name, description: "" });
+      return result.data.id;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tCommon("error");
+      toast.error(message);
+      return;
+    }
+  };
+
+  const handleAutoCreateProcurementType = async (query: string) => {
+    const name = query.trim();
+    if (!name) return;
+
+    try {
+      const result = await createProcurementTypeMutation.mutateAsync({
+        name,
+        description: "",
+      });
+      return result.data.id;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tCommon("error");
+      toast.error(message);
+      return;
+    }
   };
 
   const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
@@ -287,13 +356,13 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
     openQuickCreate,
     closeQuickCreate,
     handleCategoryCreated,
-    handleBrandCreated,
-    handleSegmentCreated,
-    handleTypeCreated,
     handleUomCreated,
     handlePurchaseUomCreated,
-    handlePackagingCreated,
-    handleProcurementTypeCreated,
+    handleAutoCreateBrand,
+    handleAutoCreateSegment,
+    handleAutoCreateType,
+    handleAutoCreatePackaging,
+    handleAutoCreateProcurementType,
     onSubmit: form.handleSubmit(onSubmit),
   };
 }

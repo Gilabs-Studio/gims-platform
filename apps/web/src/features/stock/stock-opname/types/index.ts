@@ -110,7 +110,7 @@ export interface ApiResponse<T> {
   data: T;
   meta?: {
     pagination?: PaginationMeta;
-    [key: string]: any;
+    [key: string]: unknown;
   }
 }
 

@@ -41,6 +41,8 @@ const VALUATION_OPTIONS: Array<{ value: InventoryValuationMethod; label: string;
   },
 ];
 
+const EMPTY_COMPANIES: never[] = [];
+
 export function InventorySettingsPanel() {
   const [companyId, setCompanyId] = useState("");
   const [valuationMethod, setValuationMethod] = useState<InventoryValuationMethod>("average_cost");
@@ -51,7 +53,7 @@ export function InventorySettingsPanel() {
   const { data: inventorySettingsData, isLoading } = useInventorySettings(companyId);
   const updateMutation = useUpdateInventorySettings();
 
-  const companies = companiesData?.data ?? [];
+  const companies = companiesData?.data ?? EMPTY_COMPANIES;
 
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id === companyId) ?? null,
@@ -62,13 +64,13 @@ export function InventorySettingsPanel() {
 
   useEffect(() => {
     if (!companyId) {
-      setValuationMethod("average_cost");
+      queueMicrotask(() => setValuationMethod("average_cost"));
       return;
     }
 
     if (!inventorySettingsData?.data) return;
 
-    setValuationMethod(inventorySettingsData.data.valuation_method);
+    queueMicrotask(() => setValuationMethod(inventorySettingsData.data.valuation_method));
   }, [companyId, inventorySettingsData?.data]);
 
   const syncFormWithSettings = () => {

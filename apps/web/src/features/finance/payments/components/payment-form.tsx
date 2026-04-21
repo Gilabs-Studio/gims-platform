@@ -16,16 +16,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useFinanceCoaTree, useFinanceChartOfAccounts } from "@/features/finance/coa/hooks/use-finance-coa";
-import type { ChartOfAccount, ChartOfAccountTreeNode } from "@/features/finance/coa/types";
+import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { paymentFormSchema, type PaymentFormValues } from "../schemas/payment.schema";
 import { useCreateFinancePayment, useFinancePayment, useUpdateFinancePayment } from "../hooks/use-finance-payments";
 import { useFinanceSettings } from "@/features/finance/settings/hooks/use-finance-settings";
-import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
-import { useFinanceNonTradePayables } from "@/features/finance/non-trade-payables/hooks/use-finance-non-trade-payables";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeNonTradePayablesService } from "@/features/finance/non-trade-payables/services/finance-non-trade-payables-service";
+
+const EMPTY_COA_LIST: never[] = [];
+const EMPTY_VALUE_LIST: never[] = [];
 
 type Props = {
   open: boolean;
@@ -65,12 +66,11 @@ function todayISO(): string {
 type DocumentFetcherProps = {
   refType?: string | null;
   value?: string | null;
-  onChange: (value: string, item?: any) => void;
+  onChange: (value: string, item?: DocumentOption) => void;
   placeholder?: string;
 };
 
-// Define local document item type
-type DocItem = { id: string; label: string; balance?: number };
+type DocumentOption = { id: string; label: string; balance?: number };
 
 function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetcherProps) {
   const t = useTranslations("financePayments");
@@ -130,9 +130,9 @@ function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetc
       value={value || ""}
       fetcher={fetcher}
       preload={true}
-      getLabel={(it: any) => it.label}
-      getValue={(it: any) => it.id}
-      renderOption={(it: any) => (
+      getLabel={(it: DocumentOption) => it.label}
+      getValue={(it: DocumentOption) => it.id}
+      renderOption={(it: DocumentOption) => (
         <div className="flex flex-col py-1">
           <span className="font-medium text-sm">{it.label}</span>
           {it.balance !== undefined && (
@@ -155,20 +155,17 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   const createMutation = useCreateFinancePayment();
   const updateMutation = useUpdateFinancePayment();
 
-  const { data: coaTreeData, isLoading: isCoaLoading } = useFinanceCoaTree({ only_active: true });
-  const coaOptions = useMemo(() => flattenCoa(coaTreeData?.data ?? []), [coaTreeData?.data]);
+  const { data: coaTreeData } = useFinanceCoaTree({ only_active: true });
+  const coaOptions = useMemo(() => flattenCoa(coaTreeData?.data ?? EMPTY_COA_LIST), [coaTreeData?.data]);
 
-  const { data: allCoaData, isLoading: isAllCoaLoading } = useFinanceChartOfAccounts({ per_page: 1000, is_active: true });
-  const allCoas = allCoaData?.data ?? [];
+  const { data: allCoaData } = useFinanceChartOfAccounts({ per_page: 1000, is_active: true });
+  const allCoas = allCoaData?.data ?? EMPTY_COA_LIST;
 
-  const { data: bankAccountsData, isLoading: isBankAccountsLoading } = useFinanceBankAccounts({ per_page: 100, is_active: true, sort_by: "name", sort_dir: "asc" });
-  const bankAccounts = bankAccountsData?.data ?? [];
+  const { data: bankAccountsData } = useFinanceBankAccounts({ per_page: 100, is_active: true, sort_by: "name", sort_dir: "asc" });
+  const bankAccounts = bankAccountsData?.data ?? EMPTY_VALUE_LIST;
 
-  const { data: settingsData, isLoading: isSettingsLoading } = useFinanceSettings();
-  const settings = settingsData?.data ?? [];
-
-  const isLoading = 
-    isCoaLoading || isAllCoaLoading || isBankAccountsLoading || isSettingsLoading || (mode === "edit" && paymentQuery.isLoading);
+  const { data: settingsData } = useFinanceSettings();
+  const settings = settingsData?.data ?? EMPTY_VALUE_LIST;
 
   const settingsByKey = useMemo(
     () => new Map(settings.map((setting) => [setting.key, setting.coa_code])),
@@ -224,7 +221,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   }, [mode, paymentQuery.data?.data]);
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentFormSchema as any),
+    resolver: zodResolver(paymentFormSchema),
     defaultValues,
   });
 

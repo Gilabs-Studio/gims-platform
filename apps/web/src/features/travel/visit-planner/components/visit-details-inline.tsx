@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, Loader2, MapPin, Navigation, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";

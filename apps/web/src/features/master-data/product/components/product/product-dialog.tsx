@@ -26,12 +26,7 @@ import {
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { ProductCategoryDialog } from "../product-category/product-category-dialog";
-import { ProductBrandDialog } from "../product-brand/product-brand-dialog";
-import { ProductSegmentDialog } from "../product-segment/product-segment-dialog";
-import { ProductTypeDialog } from "../product-type/product-type-dialog";
 import { UnitOfMeasureDialog } from "../unit-of-measure/unit-of-measure-dialog";
-import { PackagingDialog } from "../packaging/packaging-dialog";
-import { ProcurementTypeDialog } from "../procurement-type/procurement-type-dialog";
 
 import type { Product } from "../../types";
 import { useProductForm } from "../../hooks/use-product-form";
@@ -86,13 +81,13 @@ export function ProductDialog({
     openQuickCreate,
     closeQuickCreate,
     handleCategoryCreated,
-    handleBrandCreated,
-    handleSegmentCreated,
-    handleTypeCreated,
     handleUomCreated,
     handlePurchaseUomCreated,
-    handlePackagingCreated,
-    handleProcurementTypeCreated,
+    handleAutoCreateBrand,
+    handleAutoCreateSegment,
+    handleAutoCreateType,
+    handleAutoCreatePackaging,
+    handleAutoCreateProcurementType,
     onSubmit,
   } = useProductForm({ open, onOpenChange, editingItem, onCreated, defaultProductKind });
 
@@ -216,7 +211,7 @@ export function ProductDialog({
                     placeholder={t("selectBrand")}
                     createPermission="product_brand.create"
                     createLabel={`${t("create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("brand", q)}
+                    onCreateClick={handleAutoCreateBrand}
                   />
                 </Field>
                 <Field>
@@ -228,7 +223,7 @@ export function ProductDialog({
                     placeholder={t("selectSegment")}
                     createPermission="product_segment.create"
                     createLabel={`${t("create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("segment", q)}
+                    onCreateClick={handleAutoCreateSegment}
                   />
                 </Field>
                 <Field>
@@ -240,7 +235,7 @@ export function ProductDialog({
                     placeholder="Select Type"
                     createPermission="product_type.create"
                     createLabel={`${t("create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("type", q)}
+                    onCreateClick={handleAutoCreateType}
                   />
                 </Field>
               </div>
@@ -324,7 +319,7 @@ export function ProductDialog({
                     placeholder={t("selectPackaging")}
                     createPermission="packaging.create"
                     createLabel={`${t("create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("packaging", q)}
+                    onCreateClick={handleAutoCreatePackaging}
                   />
                 </Field>
               </div>
@@ -344,7 +339,7 @@ export function ProductDialog({
                     placeholder="Select Type"
                     createPermission="procurement_type.create"
                     createLabel={`${t("create")} "{query}"`}
-                    onCreateClick={(q) => openQuickCreate("procurementType", q)}
+                    onCreateClick={handleAutoCreateProcurementType}
                   />
                 </Field>
                 <Field>
@@ -474,49 +469,15 @@ export function ProductDialog({
         open={quickCreate.type === "category"}
         onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
         editingItem={null}
+        initialName={quickCreate.query}
         onCreated={(id) => handleCategoryCreated(id)}
       />
 
-      <ProductBrandDialog
-        open={quickCreate.type === "brand"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={(id) => handleBrandCreated(id)}
-      />
-      
-      <ProductSegmentDialog
-        open={quickCreate.type === "segment"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={(id) => handleSegmentCreated(id)}
-      />
-      
-      <ProductTypeDialog
-        open={quickCreate.type === "type"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={(id) => handleTypeCreated(id)}
-      />
-      
       <UnitOfMeasureDialog
         open={quickCreate.type === "uom" || quickCreate.type === "purchaseUom"}
         onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
         editingItem={null}
         onCreated={(id) => quickCreate.type === "purchaseUom" ? handlePurchaseUomCreated(id) : handleUomCreated(id)}
-      />
-      
-      <PackagingDialog
-        open={quickCreate.type === "packaging"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={(id) => handlePackagingCreated(id)}
-      />
-      
-      <ProcurementTypeDialog
-        open={quickCreate.type === "procurementType"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={(id) => handleProcurementTypeCreated(id)}
       />
 
     </Dialog>

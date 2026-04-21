@@ -23,7 +23,7 @@ export function PurchasePaymentAuditTrail({ open, onClose, paymentId }: Purchase
 
   useEffect(() => {
     if (!open) return;
-    setPage(1);
+    queueMicrotask(() => setPage(1));
   }, [open, paymentId]);
 
   const { data, isLoading, isError } = usePurchasePaymentAuditTrail(

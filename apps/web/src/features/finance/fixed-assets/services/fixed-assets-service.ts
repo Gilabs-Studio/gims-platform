@@ -39,8 +39,8 @@ export const fixedAssetsService = {
     return response.data;
   },
 
-  confirmDisposal: async (assetId: string, data: DisposalRequest): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post<ApiResponse<any>>(
+  confirmDisposal: async (assetId: string, data: DisposalRequest): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.post<ApiResponse<unknown>>(
       `${BASE_URL}/${assetId}/dispose`,
       data
     );
@@ -48,8 +48,8 @@ export const fixedAssetsService = {
   },
 
   // Revaluation
-  submitRevaluation: async (assetId: string, data: RevaluationRequest): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post<ApiResponse<any>>(
+  submitRevaluation: async (assetId: string, data: RevaluationRequest): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.post<ApiResponse<unknown>>(
       `${BASE_URL}/${assetId}/revalue`,
       {
         new_value: data.new_value,

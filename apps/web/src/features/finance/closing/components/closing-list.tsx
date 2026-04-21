@@ -80,8 +80,9 @@ export function ClosingList() {
   const [pageSize, setPageSize] = useState(20);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenFinancialClosingFromURL);
+  const initialDetailId = getInitialOpenFinancialClosingFromURL();
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialDetailId));
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
   const [reopening, setReopening] = useState<FinancialClosing | null>(null);
   const [deleting, setDeleting] = useState<FinancialClosing | null>(null);
@@ -103,12 +104,6 @@ export function ClosingList() {
   const reopenMutation = useReopenFinanceClosing();
   const deleteMutation = useDeleteFinanceClosing();
   const yearEndMutation = useYearEndClose();
-
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

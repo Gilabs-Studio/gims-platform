@@ -42,7 +42,7 @@ export interface CreateScheduleData {
   reminder_minutes_before?: number;
 }
 
-export interface UpdateScheduleData extends Partial<CreateScheduleData> {}
+export type UpdateScheduleData = Partial<CreateScheduleData>;
 
 export interface ScheduleFormData {
   employees: ScheduleEmployeeInfo[];

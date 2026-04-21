@@ -337,8 +337,8 @@ export const financeJournalsService = {
 
   getValuationReconciliation: async (
     id: string,
-  ): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get<ApiResponse<any>>(
+  ): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.get<ApiResponse<unknown>>(
       `${BASE_URL}/valuation/runs/${id}/reconciliation`,
     );
     return response.data;
@@ -368,8 +368,8 @@ export const financeJournalsService = {
 
   bulkApproveValuations: async (
     runIds: string[],
-  ): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post<ApiResponse<any>>(
+  ): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.post<ApiResponse<unknown>>(
       `${BASE_URL}/valuation/runs/bulk-approve`,
       { run_ids: runIds },
     );

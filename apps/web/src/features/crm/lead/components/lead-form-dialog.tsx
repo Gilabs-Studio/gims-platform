@@ -71,7 +71,6 @@ export function LeadFormDialog({
 }: LeadFormDialogProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
-  const queryClient = useQueryClient();
   const isEditing = !!lead;
 
   const [shouldLoadLeadSources, setShouldLoadLeadSources] = useState(false);
@@ -205,6 +204,8 @@ export function LeadFormDialog({
       { enabled: open && (shouldLoadPaymentTerms || !!lead?.payment_terms_id) },
     );
 
+  const queryClient = useQueryClient();
+
   const leadSources = leadSourcesRes?.data ?? [];
   const leadStatuses = leadStatusesRes?.data ?? [];
   const contactRoles: ContactRole[] = contactRolesRes?.data ?? [];
@@ -220,13 +221,6 @@ export function LeadFormDialog({
     watch,
     formState: { errors },
   } = form;
-
-  const selectedLeadStatusId = watch("lead_status_id");
-  const selectedLeadStatus = useMemo(
-    () =>
-      leadStatuses.find((status) => status.id === selectedLeadStatusId) ?? null,
-    [leadStatuses, selectedLeadStatusId],
-  );
 
   const pendingAreaId = useMemo(() => {
     if (!pendingAreaProvinceName || areas.length === 0) return null;

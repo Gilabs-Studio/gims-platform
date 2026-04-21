@@ -3,12 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { financeCoaService } from "../services/finance-coa-service";
-import type { CreateChartOfAccountInput, UpdateChartOfAccountInput } from "../types";
+import type {
+  CreateChartOfAccountInput,
+  ListChartOfAccountsParams,
+  UpdateChartOfAccountInput,
+} from "../types";
 
 export const financeCoaKeys = {
   all: ["finance-coa"] as const,
   tree: (params?: { only_active?: boolean }) => [...financeCoaKeys.all, "tree", params] as const,
-  lists: (params?: any) => [...financeCoaKeys.all, "list", params] as const,
+  lists: (params?: ListChartOfAccountsParams) => [...financeCoaKeys.all, "list", params] as const,
 };
 
 export function useFinanceCoaTree(params?: { only_active?: boolean }) {
@@ -19,7 +23,7 @@ export function useFinanceCoaTree(params?: { only_active?: boolean }) {
   });
 }
 
-export function useFinanceChartOfAccounts(params?: any) {
+export function useFinanceChartOfAccounts(params?: ListChartOfAccountsParams) {
   return useQuery({
     queryKey: financeCoaKeys.lists(params),
     queryFn: () => financeCoaService.list(params),

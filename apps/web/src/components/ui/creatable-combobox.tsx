@@ -28,7 +28,9 @@ export interface CreatableComboboxProps {
   emptyText?: string;
   createPermission?: string;
   createLabel?: string;
-  onCreateClick?: (searchQuery: string) => void;
+  onCreateClick?: (
+    searchQuery: string,
+  ) => void | string | Promise<void | string>;
   disabled?: boolean;
   isLoading?: boolean;
   className?: string;
@@ -71,6 +73,7 @@ export function CreatableCombobox({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(-1);
+  const [isCreating, setIsCreating] = React.useState(false);
   const [localVisibleCount, setLocalVisibleCount] = React.useState(
     LOCAL_COMBOBOX_PAGE_SIZE,
   );
@@ -141,10 +144,23 @@ export function CreatableCombobox({
     setSearch("");
   };
 
-  const handleCreate = () => {
-    onCreateClick?.(search.trim());
-    setOpen(false);
-    setSearch("");
+  const handleCreate = async () => {
+    if (!onCreateClick || isCreating) return;
+
+    const query = search.trim();
+    if (!query) return;
+
+    setIsCreating(true);
+    try {
+      const createdValue = await onCreateClick(query);
+      if (typeof createdValue === "string" && createdValue.length > 0) {
+        onValueChange(createdValue);
+      }
+      setOpen(false);
+      setSearch("");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -160,7 +176,7 @@ export function CreatableCombobox({
       if (activeIndex >= 0 && activeIndex < displayedOptions.length) {
         handleSelect(displayedOptions[activeIndex].value);
       } else if (activeIndex === displayedOptions.length && showCreateButton) {
-        handleCreate();
+        void handleCreate();
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -217,7 +233,7 @@ export function CreatableCombobox({
           aria-controls={listboxId}
           aria-expanded={open}
           aria-haspopup="listbox"
-          disabled={disabled || isLoading}
+          disabled={disabled || isLoading || isCreating}
           aria-invalid={ariaInvalid}
           data-placeholder={!selectedLabel ? "" : undefined}
           className={cn(
@@ -237,6 +253,11 @@ export function CreatableCombobox({
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Loading…
+              </span>
+            ) : isCreating ? (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Creating…
               </span>
             ) : (
               selectedLabel || (
@@ -275,6 +296,7 @@ export function CreatableCombobox({
               type="text"
               placeholder={searchPlaceholder}
               value={search}
+              disabled={isCreating}
               onChange={(e) => { setSearch(e.target.value); setActiveIndex(-1); }}
               onKeyDown={handleKeyDown}
               className="pl-8 h-8 text-sm"
@@ -327,18 +349,27 @@ export function CreatableCombobox({
             <div
               role="option"
               aria-selected={activeIndex === displayedOptions.length}
-              onClick={handleCreate}
+              onClick={() => {
+                void handleCreate();
+              }}
               onMouseEnter={() => setActiveIndex(displayedOptions.length)}
               className={cn(
                 "relative flex w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-sm",
                 "text-primary outline-hidden select-none transition-colors border-t mt-1 pt-2",
                 "hover:bg-accent hover:text-accent-foreground",
+                isCreating && "pointer-events-none opacity-60",
                 activeIndex === displayedOptions.length &&
                   "bg-accent text-accent-foreground",
               )}
             >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span className="truncate">{createButtonLabel}</span>
+              {isCreating ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 shrink-0" />
+              )}
+              <span className="truncate">
+                {isCreating ? "Creating..." : createButtonLabel}
+              </span>
             </div>
           )}
 

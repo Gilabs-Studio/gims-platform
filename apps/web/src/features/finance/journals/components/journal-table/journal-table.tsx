@@ -17,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { resolveSourceRoute } from "@/features/finance/shared/reference-source-matrix";
 
-import { ReferenceBadge } from "./reference-badge";
 import { ReferenceCodeLink } from "./reference-code-link";
 import type {
   JournalReferenceTypeBadgeMeta,
@@ -518,6 +517,18 @@ export function JournalTable<T = unknown>({
             </TableRow>
           ) : (
             data.map((row, index) => {
+              const rowOriginal = row.original as
+                | {
+                    lines?: Array<{
+                      id: string;
+                      chart_of_account?: { code?: string | null; name?: string | null };
+                      debit: number;
+                      credit: number;
+                      memo?: string | null;
+                    }>;
+                  }
+                | undefined;
+                const hasLines = (rowOriginal?.lines?.length ?? 0) > 0;
               const isExpanded = expandedIds.has(row.id);
               return (
                 <React.Fragment key={row.id}>
@@ -527,7 +538,7 @@ export function JournalTable<T = unknown>({
                         return (
                           <TableCell key="number" className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                             <div className="flex items-center justify-end gap-2">
-                              {((row.original as any)?.lines?.length > 0) && (
+                              {hasLines && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -563,7 +574,7 @@ export function JournalTable<T = unknown>({
                       );
                     })}
                   </TableRow>
-                  {isExpanded && row.original && (row.original as any).lines && (
+                  {isExpanded && rowOriginal?.lines && (
                     <TableRow className="bg-muted/30 border-b-0">
                       <TableCell colSpan={activeColumns.length} className="p-0">
                         <div className="px-12 py-3">
@@ -577,7 +588,15 @@ export function JournalTable<T = unknown>({
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {(row.original as any).lines.map((ln: any) => (
+                              {((rowOriginal as unknown as {
+                                lines: Array<{
+                                  id: string;
+                                  chart_of_account?: { code?: string | null; name?: string | null };
+                                  debit: number;
+                                  credit: number;
+                                  memo?: string | null;
+                                }>;
+                              }).lines).map((ln) => (
                                 <TableRow key={ln.id} className="hover:bg-muted/50 h-8">
                                   <TableCell className="py-1 text-xs">
                                     <span className="font-medium">{ln.chart_of_account?.code ?? "-"}</span>

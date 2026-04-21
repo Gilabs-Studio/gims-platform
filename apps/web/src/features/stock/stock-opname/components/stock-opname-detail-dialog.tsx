@@ -98,21 +98,11 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const totalItems = items.length;
   const totalImpact = items.reduce((sum, item) => sum + (item.variance_qty * (item.unit_cost || 0)), 0);
 
-    const [ledgerProductId, setLedgerProductId] = useState<string | null>(null);
     const [ledgerPage, setLedgerPage] = useState(1);
+    const [ledgerProductId, setLedgerProductId] = useState<string | null>(null);
+    const activeLedgerProductId = ledgerProductId ?? items[0]?.product_id ?? null;
 
-    useEffect(() => {
-        if (items.length === 0) {
-            setLedgerProductId(null);
-            return;
-        }
-
-        if (!ledgerProductId || !items.some((item) => item.product_id === ledgerProductId)) {
-            setLedgerProductId(items[0]?.product_id ?? null);
-        }
-    }, [items, ledgerProductId]);
-
-    const ledgersQuery = useProductStockLedgers(ledgerProductId, {
+    const ledgersQuery = useProductStockLedgers(activeLedgerProductId, {
         page: ledgerPage,
         limit: 10,
     });
@@ -591,7 +581,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                         <div className="md:col-span-2 space-y-1.5">
                                             <p className="text-sm font-medium">{t("dialog.ledger.product")}</p>
                                             <Select
-                                                value={ledgerProductId ?? ""}
+                                                value={activeLedgerProductId ?? ""}
                                                 onValueChange={(value) => {
                                                     setLedgerProductId(value);
                                                     setLedgerPage(1);

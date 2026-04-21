@@ -17,7 +17,7 @@ import { useContacts } from "@/features/crm/contact/hooks/use-contact";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useCustomer } from "@/features/master-data/customer/hooks/use-customers";
 import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
-import { areaService, businessTypeService, businessUnitService } from "@/features/master-data/organization/services/organization-service";
+import { businessTypeService, businessUnitService } from "@/features/master-data/organization/services/organization-service";
 import { quotationService } from "../../quotation/services/quotation-service";
 import { customerService } from "@/features/master-data/customer/services/customer-service";
 import { employeeService } from "@/features/master-data/employee/services/employee-service";
@@ -289,7 +289,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   );
 
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
-  const formResolver = zodResolver(schema as any) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
+  const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
 
   const form = useForm<CreateOrderFormData | UpdateOrderFormData>({
     resolver: formResolver,

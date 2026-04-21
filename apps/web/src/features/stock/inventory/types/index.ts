@@ -91,7 +91,7 @@ export interface PaginatedResponse<T> {
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
-  meta?: any;
+  meta?: Record<string, unknown>;
   message?: string;
 }
 

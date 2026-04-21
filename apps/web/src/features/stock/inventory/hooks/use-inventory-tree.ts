@@ -68,8 +68,10 @@ export function useInventoryTreeBatches(warehouseId: string, productId: string, 
 
   // Reset pagination when context changes.
   useEffect(() => {
-    setPage(1);
-    setAllBatches([]);
+    queueMicrotask(() => {
+      setPage(1);
+      setAllBatches([]);
+    });
   }, [warehouseId, productId, perPage]);
 
   // Append page results for load-more behavior.
@@ -80,11 +82,11 @@ export function useInventoryTreeBatches(warehouseId: string, productId: string, 
     }
 
     if (page === 1) {
-      setAllBatches(pageData);
+      queueMicrotask(() => setAllBatches(pageData));
       return;
     }
 
-    setAllBatches((prev) => [...prev, ...pageData]);
+    queueMicrotask(() => setAllBatches((prev) => [...prev, ...pageData]));
   }, [page, query.data]);
 
   const meta = query.data?.data?.meta;

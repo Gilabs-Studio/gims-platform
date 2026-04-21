@@ -5,7 +5,7 @@ import { Link, usePathname } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Menu, X, Globe, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { marketingApps } from "@/lib/marketing-apps";
@@ -15,15 +15,10 @@ export function LandingHeader() {
   const locale = useLocale();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
 
   const { scrollY } = useScroll();
   const headerBg = useTransform(scrollY, [0, 80], ["rgba(0,0,0,0)", "rgba(0,0,0,0.01)"]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const navLinks = [
     { href: "#features", label: t("features") },
@@ -35,7 +30,7 @@ export function LandingHeader() {
 
   return (
     <motion.header
-      style={{ backgroundColor: mounted ? headerBg : undefined }}
+      style={{ backgroundColor: headerBg }}
       className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50"
       onMouseLeave={() => setMegaMenuOpen(false)}
     >
