@@ -32,7 +32,7 @@ export function SalesPaymentAuditTrail({ open, onClose, paymentId }: SalesPaymen
 
   useEffect(() => {
     if (!open) return;
-    setPage(1);
+    queueMicrotask(() => setPage(1));
   }, [open, paymentId]);
 
   const { data, isLoading, isError } = useSalesPaymentAuditTrail(

@@ -7,8 +7,8 @@ import type { DisposalPreviewResponse, DisposalRequest } from "../types";
 
 export function useAssetDisposal() {
   const queryClient = useQueryClient();
-  const [disposals, setDisposals] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [disposals] = useState<DisposalPreviewResponse[]>([]);
+  const [isLoading] = useState(false);
 
   const preview = useMutation({
     mutationFn: ({ assetId, proceedsAmount, disposalAccountId }: { assetId: string; proceedsAmount: number; disposalAccountId?: string }) =>

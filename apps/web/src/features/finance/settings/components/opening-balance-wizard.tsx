@@ -100,27 +100,29 @@ export function OpeningBalanceWizard() {
   useEffect(() => {
     const backendLines = (openingBalanceData?.data ?? []) as OpeningBalanceLineInput[];
     if (!companyId || !fiscalYearId) {
-      setLines([]);
+      queueMicrotask(() => setLines([]));
       return;
     }
 
     if (backendLines.length > 0) {
-      setLines(backendLines);
+      queueMicrotask(() => setLines(backendLines));
       return;
     }
 
-    setLines([]);
+    queueMicrotask(() => setLines([]));
   }, [companyId, fiscalYearId, openingBalanceData?.data]);
 
   useEffect(() => {
     if (!isModalOpen || step !== 2 || !companyId || !fiscalYearId) return;
     simulateMutation.mutate({ companyId, fiscalYearId });
-  }, [isModalOpen, step, companyId, fiscalYearId]);
+  }, [isModalOpen, step, companyId, fiscalYearId, simulateMutation]);
 
   useEffect(() => {
     if (!postMutation.isSuccess) return;
-    setIsModalOpen(false);
-    setStep(1);
+    queueMicrotask(() => {
+      setIsModalOpen(false);
+      setStep(1);
+    });
   }, [postMutation.isSuccess]);
 
   const addLine = () => {

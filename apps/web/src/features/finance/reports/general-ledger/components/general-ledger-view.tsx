@@ -131,25 +131,15 @@ export function GeneralLedgerView() {
     });
   }, [accounts, accountTypeFilter, accountSearch]);
 
-  useEffect(() => {
-    if (filteredAccounts.length === 0) {
-      setSelectedAccountID(null);
-      return;
-    }
-
-    const stillExists = filteredAccounts.some(
-      (account) => account.account_id === selectedAccountID,
-    );
-    if (!stillExists) {
-      setSelectedAccountID(filteredAccounts[0].account_id);
-    }
-  }, [filteredAccounts, selectedAccountID]);
-
   const selectedAccount = useMemo(() => {
-    if (!selectedAccountID) return null;
+    const effectiveSelectedAccountID = selectedAccountID && filteredAccounts.some((account) => account.account_id === selectedAccountID)
+      ? selectedAccountID
+      : filteredAccounts[0]?.account_id ?? null;
+
+    if (!effectiveSelectedAccountID) return null;
     return (
       filteredAccounts.find(
-        (account) => account.account_id === selectedAccountID,
+        (account) => account.account_id === effectiveSelectedAccountID,
       ) ?? null
     );
   }, [filteredAccounts, selectedAccountID]);

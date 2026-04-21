@@ -50,7 +50,7 @@ export function StockOpnameStatusBadge({ status }: Props) {
       );
     default:
         // Fallback for unexpected statuses
-        if (status === 'canceled' as any) {
+      if (status === "canceled") {
              return (
                 <Badge variant="secondary">
                     <Ban className="h-3 w-3 mr-1" />

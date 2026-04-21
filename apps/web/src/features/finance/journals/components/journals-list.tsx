@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Search } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -65,14 +65,14 @@ export function JournalsList() {
     to: now,
   });
 
-  const startDate = useMemo(() => (dateRange?.from ? toApiDate(dateRange.from) : undefined), [dateRange?.from]);
-  const endDate = useMemo(() => (dateRange?.to ? toApiDate(dateRange.to) : undefined), [dateRange?.to]);
+  const startDate = dateRange?.from ? toApiDate(dateRange.from) : undefined;
+  const endDate = dateRange?.to ? toApiDate(dateRange.to) : undefined;
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedViewId, setSelectedViewId] = useState<string | null>(initialOpenJournalId);
-  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
+  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
   const [viewOpen, setViewOpen] = useState<boolean>(!!initialOpenJournalId);
@@ -254,8 +254,8 @@ export function JournalsList() {
               const item = row.original as JournalEntry;
               setDeletingItem(item);
             }}
-            onSourceDetail={(r: UnifiedJournalRow<any>) => {
-              setSelectedReferenceRow(r as any);
+            onSourceDetail={(r) => {
+              setSelectedReferenceRow(r);
               setIsReferenceModalOpen(true);
             }}
           />

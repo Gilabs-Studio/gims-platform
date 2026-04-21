@@ -12,16 +12,18 @@ import { useRateLimitStore } from "../stores/useRateLimitStore";
 export function useRateLimitCountdownText(): string {
   const resetTime = useRateLimitStore((state) => state.resetTime);
   const getCountdownText = useRateLimitStore((state) => state.getCountdownText);
-  const [countdownText, setCountdownText] = useState<string>("a moment");
+  const [countdownText, setCountdownText] = useState<string>(() =>
+    resetTime ? getCountdownText() : "a moment",
+  );
 
   useEffect(() => {
     if (!resetTime) {
-      setCountdownText("a moment");
+      queueMicrotask(() => setCountdownText("a moment"));
       return;
     }
 
     // Update immediately
-    setCountdownText(getCountdownText());
+    queueMicrotask(() => setCountdownText(getCountdownText()));
 
     // Update every second
     const interval = setInterval(() => {

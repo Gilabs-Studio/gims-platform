@@ -55,8 +55,9 @@ export function StockOpnameList() {
     const canPost = useUserPermission("stock_opname.post");
   
   // Dialog State
-    const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(getInitialOpenStockOpnameFromURL);
-  const [detailOpen, setDetailOpen] = useState(false);
+        const initialSelectedOpnameId = getInitialOpenStockOpnameFromURL();
+        const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(initialSelectedOpnameId);
+    const [detailOpen, setDetailOpen] = useState(Boolean(initialSelectedOpnameId));
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpnameOpen, setEditOpnameOpen] = useState(false);
     const [editingOpname, setEditingOpname] = useState<StockOpname | null>(null);
@@ -66,12 +67,6 @@ export function StockOpnameList() {
     setSelectedOpnameId(id);
     setDetailOpen(true);
   };
-
-    useEffect(() => {
-        if (selectedOpnameId) {
-            setDetailOpen(true);
-        }
-    }, [selectedOpnameId]);
 
     useEffect(() => {
         if (typeof window === "undefined") return;

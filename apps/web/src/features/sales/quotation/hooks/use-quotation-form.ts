@@ -253,7 +253,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   );
 
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
-  const formResolver = zodResolver(schema as any) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
+  const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
 
   const form = useForm<CreateQuotationFormData | UpdateQuotationFormData>({
     resolver: formResolver,

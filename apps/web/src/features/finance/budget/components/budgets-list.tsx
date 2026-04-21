@@ -123,8 +123,9 @@ export function BudgetsList() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [deletingItem, setDeletingItem] = useState<Budget | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenBudgetFromURL);
+  const initialDetailId = getInitialOpenBudgetFromURL();
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialDetailId));
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId);
 
   const { data, isLoading, isError } = useFinanceBudgets({
     page,
@@ -151,12 +152,6 @@ export function BudgetsList() {
 
   const deleteMutation = useDeleteFinanceBudget();
   const approveMutation = useApproveFinanceBudget();
-
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

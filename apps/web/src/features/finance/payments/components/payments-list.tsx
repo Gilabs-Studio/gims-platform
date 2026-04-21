@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, RotateCcw, ExternalLink } from "lucide-react";
+import { CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, RotateCcw, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import type { AxiosError } from "axios";
 
 import type { Payment } from "../types";
 import { useApproveFinancePayment, useDeleteFinancePayment, useFinancePayments, useReverseFinancePayment } from "../hooks/use-finance-payments";
@@ -221,8 +222,9 @@ export function PaymentsList() {
                               try {
                                 await approveMutation.mutateAsync(item.id);
                                 toast.success(t("toast.approved"));
-                              } catch (err: any) {
-                                const msg = err.response?.data?.message || t("toast.failed");
+                              } catch (err: unknown) {
+                                const message = (err as AxiosError<{ message?: string }>).response?.data?.message;
+                                const msg = message || t("toast.failed");
                                 toast.error(msg);
                               }
                             }}
@@ -286,8 +288,9 @@ export function PaymentsList() {
             await reverseMutation.mutateAsync({ id: reversingItem.id, reason });
             toast.success(t("toast.reversed"));
             setReversingItem(null);
-          } catch (err: any) {
-            const msg = err.response?.data?.message || t("toast.failed");
+          } catch (err: unknown) {
+            const message = (err as AxiosError<{ message?: string }>).response?.data?.message;
+            const msg = message || t("toast.failed");
             toast.error(msg);
           }
         }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertCircle, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -57,32 +57,28 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
   const yearEndMutation = useYearEndClose();
 
   // Calculate summary metrics
-  const summary = useMemo(() => {
-    if (!analysis?.rows) {
-      return {
+  const summary = analysis?.rows
+    ? {
+        totalAccounts: analysis.rows.length,
+        totalClosingBalance: analysis.rows.reduce(
+          (sum, row) => sum + (row.closing_balance ?? 0),
+          0,
+        ),
+        totalOpeningBalance: analysis.rows.reduce(
+          (sum, row) => sum + (row.opening_balance ?? 0),
+          0,
+        ),
+        totalDifference: analysis.rows.reduce(
+          (sum, row) => sum + (row.difference ?? 0),
+          0,
+        ),
+      }
+    : {
         totalAccounts: 0,
         totalClosingBalance: 0,
         totalOpeningBalance: 0,
         totalDifference: 0,
       };
-    }
-
-    return {
-      totalAccounts: analysis.rows.length,
-      totalClosingBalance: analysis.rows.reduce(
-        (sum, row) => sum + (row.closing_balance ?? 0),
-        0
-      ),
-      totalOpeningBalance: analysis.rows.reduce(
-        (sum, row) => sum + (row.opening_balance ?? 0),
-        0
-      ),
-      totalDifference: analysis.rows.reduce(
-        (sum, row) => sum + (row.difference ?? 0),
-        0
-      ),
-    };
-  }, [analysis?.rows]);
 
   const handleNext = async () => {
     if (step === "precheck") {
