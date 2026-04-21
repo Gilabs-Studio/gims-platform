@@ -15,6 +15,7 @@ import type {
 import type { AuditTrailApiResponse } from "@/components/ui/audit-trail-table";
 
 const BASE_PATH = "/sales/delivery-orders";
+const SHIP_REQUEST_TIMEOUT_MS = 60000;
 
 // Delivery Order Service
 export const deliveryService = {
@@ -87,7 +88,8 @@ export const deliveryService = {
   ): Promise<DeliveryOrderSingleResponse> {
     const response = await apiClient.post<DeliveryOrderSingleResponse>(
       `${BASE_PATH}/${id}/ship`,
-      data
+      data,
+      { timeout: SHIP_REQUEST_TIMEOUT_MS }
     );
     return response.data;
   },

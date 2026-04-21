@@ -83,7 +83,14 @@ func SeedPosIngredientInventory() error {
 				continue
 			}
 
-			batchNumber := fmt.Sprintf("BCH-ING-%s-%s", ing.code, time.Now().Format("20060102"))
+			batchNumber := fmt.Sprintf("BCH-ING-%s-%s", ing.code, warehouse.ID[len(warehouse.ID)-6:])
+			costPrice := product.CostPrice
+			if costPrice <= 0 {
+				costPrice = product.CurrentHpp
+			}
+			if costPrice <= 0 {
+				costPrice = 1
+			}
 
 			// Check if batch already exists for this product in this warehouse
 			var existing inventoryModels.InventoryBatch
@@ -91,7 +98,16 @@ func SeedPosIngredientInventory() error {
 				batchNumber, product.ID, warehouse.ID).First(&existing).Error
 
 			if err == nil {
-				// Already exists — skip
+				if updateErr := db.Model(&existing).Updates(map[string]interface{}{
+					"initial_quantity":  ing.qty,
+					"current_quantity":  ing.qty,
+					"reserved_quantity": 0,
+					"cost_price":        costPrice,
+					"is_active":         true,
+					"updated_at":        time.Now(),
+				}).Error; updateErr != nil {
+					log.Printf("Warning: Failed to update inventory batch for '%s' in warehouse '%s': %v", ing.code, warehouse.Code, updateErr)
+				}
 				continue
 			}
 			if err != gorm.ErrRecordNotFound {
@@ -106,6 +122,7 @@ func SeedPosIngredientInventory() error {
 				InitialQuantity:  ing.qty,
 				CurrentQuantity:  ing.qty,
 				ReservedQuantity: 0,
+				CostPrice:        costPrice,
 				IsActive:         true,
 			}
 

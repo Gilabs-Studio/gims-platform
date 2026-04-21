@@ -129,6 +129,10 @@ func (h *RecruitmentApplicantHandler) MoveStage(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
 		return
 	}
+	if reqDTO.TargetStageID() == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", "to_stage_id or stage_id is required", nil)
+		return
+	}
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -285,30 +289,30 @@ func handleApplicantError(c *gin.Context, err error) {
 
 	switch {
 	case msg == "applicant not found":
-		errors.ErrorResponse(c, "APPLICANT_NOT_FOUND", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "APPLICANT_NOT_FOUND", map[string]any{"message": msg}, nil)
 	case msg == "recruitment request not found":
-		errors.ErrorResponse(c, "RECRUITMENT_REQUEST_NOT_FOUND", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "RECRUITMENT_REQUEST_NOT_FOUND", map[string]any{"message": msg}, nil)
 	case msg == "stage not found":
-		errors.ErrorResponse(c, "STAGE_NOT_FOUND", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "STAGE_NOT_FOUND", map[string]any{"message": msg}, nil)
 	case msg == "target stage not found":
-		errors.ErrorResponse(c, "TARGET_STAGE_NOT_FOUND", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "TARGET_STAGE_NOT_FOUND", map[string]any{"message": msg}, nil)
 	case msg == "invalid applicant source":
-		errors.ErrorResponse(c, "INVALID_SOURCE", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "INVALID_SOURCE", map[string]any{"message": msg}, nil)
 	case msg == "applicant already converted to employee":
-		errors.ErrorResponse(c, "ALREADY_CONVERTED", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "ALREADY_CONVERTED", map[string]any{"message": msg}, nil)
 	case msg == "applicant must be in hired stage to convert":
-		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]any{"message": msg}, nil)
 	case msg == "applicant must be in hired stage":
-		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]any{"message": msg}, nil)
 	case strings.Contains(msg, "cannot move applicant from terminal stage"):
-		errors.ErrorResponse(c, "CANNOT_MOVE_FROM_TERMINAL", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "CANNOT_MOVE_FROM_TERMINAL", map[string]any{"message": msg}, nil)
 	case strings.Contains(msg, "cannot delete stage with existing applicants"):
-		errors.ErrorResponse(c, "STAGE_IN_USE", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "STAGE_IN_USE", map[string]any{"message": msg}, nil)
 	case strings.Contains(msg, "failed to create employee"):
-		errors.ErrorResponse(c, "EMPLOYEE_CREATION_FAILED", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "EMPLOYEE_CREATION_FAILED", map[string]any{"message": msg}, nil)
 	case strings.Contains(msg, "failed to link applicant to employee"):
-		errors.ErrorResponse(c, "LINK_FAILED", map[string]interface{}{"message": msg}, nil)
+		errors.ErrorResponse(c, "LINK_FAILED", map[string]any{"message": msg}, nil)
 	default:
-		errors.ErrorResponse(c, "INTERNAL_ERROR", map[string]interface{}{"message": "An unexpected error occurred"}, nil)
+		errors.ErrorResponse(c, "INTERNAL_ERROR", map[string]any{"message": "An unexpected error occurred"}, nil)
 	}
 }

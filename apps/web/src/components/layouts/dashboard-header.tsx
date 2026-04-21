@@ -8,7 +8,11 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
@@ -24,8 +28,12 @@ interface DashboardHeaderProps {
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
+  onSearchClick: () => void;
   showAttendanceIndicator?: boolean;
-  onOpenAttendanceDrawer: (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => void;
+  onOpenAttendanceDrawer: (
+    tab: AttendanceDrawerTab,
+    openCreateLeave?: boolean,
+  ) => void;
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
@@ -34,6 +42,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
+  onSearchClick,
   showAttendanceIndicator = false,
   onOpenAttendanceDrawer,
 }: DashboardHeaderProps) {
@@ -43,11 +52,14 @@ export const DashboardHeader = memo(function DashboardHeader({
   const pathname = usePathname();
   const isMobile = useIsMobile();
 
-  const normalizedAvatarUrl = avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : undefined;
+  const normalizedAvatarUrl =
+    avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : undefined;
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
-  const currentSrc = avatarLoadFailed ? fallbackAvatarUrl : normalizedAvatarUrl ?? fallbackAvatarUrl;
+  const currentSrc = avatarLoadFailed
+    ? fallbackAvatarUrl
+    : (normalizedAvatarUrl ?? fallbackAvatarUrl);
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background px-4 md:rounded-tl-3xl">
@@ -76,6 +88,7 @@ export const DashboardHeader = memo(function DashboardHeader({
             onClick={(event) => {
               event.preventDefault();
               event.currentTarget.blur();
+              onSearchClick();
             }}
             readOnly
           />
@@ -85,7 +98,13 @@ export const DashboardHeader = memo(function DashboardHeader({
         </div>
 
         <div className="block lg:hidden">
-          <Button variant="ghost" size="icon" className="size-9" type="button">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9"
+            type="button"
+            onClick={onSearchClick}
+          >
             <Search className="h-4 w-4" aria-hidden="true" />
             <span className="sr-only">Open search</span>
           </Button>
@@ -97,7 +116,11 @@ export const DashboardHeader = memo(function DashboardHeader({
         <NotificationBadge />
         <ThemeToggle />
 
-        <Link href={pathname || "/dashboard"} locale={locale === "en" ? "id" : "en"} scroll={false}>
+        <Link
+          href={pathname || "/dashboard"}
+          locale={locale === "en" ? "id" : "en"}
+          scroll={false}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -136,9 +159,16 @@ export const DashboardHeader = memo(function DashboardHeader({
                     <motion.div
                       className="absolute -inset-1 rounded-full border-2 border-amber-500/60"
                       initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.15, 1] }}
+                      animate={{
+                        opacity: [0.4, 0.8, 0.4],
+                        scale: [1, 1.15, 1],
+                      }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     />
                   )}
                 </AnimatePresence>
@@ -188,7 +218,10 @@ export const DashboardHeader = memo(function DashboardHeader({
         </Popover>
       </div>
 
-      <ActivityFeedDialog open={activityFeedOpen} onOpenChange={setActivityFeedOpen} />
+      <ActivityFeedDialog
+        open={activityFeedOpen}
+        onOpenChange={setActivityFeedOpen}
+      />
     </header>
   );
 });

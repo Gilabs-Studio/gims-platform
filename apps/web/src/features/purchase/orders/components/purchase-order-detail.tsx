@@ -109,6 +109,9 @@ export function PurchaseOrderDetail({
   if (!purchaseOrderId) return null;
 
   const status = (po?.status ?? "").toUpperCase();
+  const hasGoodsReceipt = (po?.items ?? []).some(
+    (item) => (item.quantity_received ?? 0) > 0,
+  );
 
   const handleDelete = async () => {
     if (!id) return;
@@ -275,7 +278,7 @@ export function PurchaseOrderDetail({
                     <Lock className="h-4 w-4" />
                   </Button>
                 )}
-                {status === "APPROVED" && canCreateSI && (
+                {status === "APPROVED" && canCreateSI && hasGoodsReceipt && (
                   <Button
                     variant="ghost"
                     size="icon"

@@ -11,6 +11,7 @@ import (
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	salesService "github.com/gilabs/gims/api/internal/sales/domain/service"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gilabs/gims/api/internal/sales/presentation/handler"
 	"github.com/gilabs/gims/api/internal/sales/presentation/router"
@@ -60,12 +61,13 @@ func RegisterRoutes(
 	productRepo := productRepos.NewProductRepository(db)
 	employeeRepo := organizationRepos.NewEmployeeRepository(db)
 	auditService := audit.NewAuditService(db)
+	salesJournalSvc := salesService.NewSalesJournalService(db, deps.JournalUC, deps.Engine)
 
 	// Initialize usecases
 	quotationUC := usecase.NewSalesQuotationUsecase(db, quotationRepo, productRepo, auditService)
 	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, deliveryRepo, quotationRepo, productRepo, deps.InventoryUC, employeeRepo)
-	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, deps.InventoryUC, auditService)
-	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, deps.JournalUC, deps.CoaUC, auditService, deps.Engine)
+	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, deps.InventoryUC, auditService, salesJournalSvc)
+	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, deps.JournalUC, deps.CoaUC, auditService, deps.Engine, salesJournalSvc)
 	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(db, yearlyTargetRepo, auditService)

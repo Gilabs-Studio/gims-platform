@@ -201,14 +201,8 @@ var (
 			{
 				COASettingKey: "coa.sales_receivable",
 				Side:          "debit",
-				AmountSource:  "net_total",
-				MemoTemplate:  "Trade Receivables from customer (net of DP)",
-			},
-			{
-				COASettingKey: "coa.sales_advance",
-				Side:          "debit",
-				AmountSource:  "deposit_total",
-				MemoTemplate:  "Applied Down Payment Settlement",
+				AmountSource:  "total",
+				MemoTemplate:  "Trade Receivables from customer invoice",
 			},
 			{
 				COASettingKey: "coa.sales_revenue",
@@ -221,18 +215,6 @@ var (
 				Side:          "credit",
 				AmountSource:  "tax_total",
 				MemoTemplate:  "VAT Output",
-			},
-			{
-				COASettingKey: "coa.sales_cogs",
-				Side:          "debit",
-				AmountSource:  "cogs_total",
-				MemoTemplate:  "COGS Recognition",
-			},
-			{
-				COASettingKey: "coa.sales_inventory",
-				Side:          "credit",
-				AmountSource:  "cogs_total",
-				MemoTemplate:  "Inventory Release",
 			},
 		},
 	}

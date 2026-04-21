@@ -67,6 +67,16 @@ func (h *NonTradePayableHandler) Submit(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *NonTradePayableHandler) Post(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Post(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_POST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *NonTradePayableHandler) GetByID(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.GetByID(c.Request.Context(), id)
@@ -127,6 +137,16 @@ func (h *NonTradePayableHandler) Reject(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *NonTradePayableHandler) Cancel(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Cancel(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_CANCEL_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *NonTradePayableHandler) Pay(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	var req dto.PayNonTradePayableRequest
@@ -141,4 +161,8 @@ func (h *NonTradePayableHandler) Pay(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, res, nil)
+}
+
+func (h *NonTradePayableHandler) PostPayment(c *gin.Context) {
+	h.Pay(c)
 }

@@ -34,10 +34,10 @@ func validateLinkedInURL(url string) (string, error) {
 
 	// Remove protocol if present for easier parsing
 	urlWithoutProtocol := url
-	if strings.HasPrefix(url, "http://") {
-		urlWithoutProtocol = strings.TrimPrefix(url, "http://")
-	} else if strings.HasPrefix(url, "https://") {
-		urlWithoutProtocol = strings.TrimPrefix(url, "https://")
+	if trimmedURL, ok := strings.CutPrefix(url, "http://"); ok {
+		urlWithoutProtocol = trimmedURL
+	} else if trimmedURL, ok := strings.CutPrefix(url, "https://"); ok {
+		urlWithoutProtocol = trimmedURL
 	}
 
 	// Remove www. if present
@@ -50,13 +50,13 @@ func validateLinkedInURL(url string) (string, error) {
 
 	// Pattern for /in/username
 	inPattern := regexp.MustCompile(`^linkedin\.com/in/([a-zA-Z0-9\-]+)/?$`)
-	if matches := inPattern.FindStringSubmatch(urlWithoutProtocol); matches != nil && len(matches) > 1 {
+	if matches := inPattern.FindStringSubmatch(urlWithoutProtocol); len(matches) > 1 {
 		return matches[1], nil
 	}
 
 	// Pattern for /pub/username
 	pubPattern := regexp.MustCompile(`^linkedin\.com/pub/([a-zA-Z0-9\-]+)/?$`)
-	if matches := pubPattern.FindStringSubmatch(urlWithoutProtocol); matches != nil && len(matches) > 1 {
+	if matches := pubPattern.FindStringSubmatch(urlWithoutProtocol); len(matches) > 1 {
 		return matches[1], nil
 	}
 
@@ -269,7 +269,7 @@ func (u *recruitmentApplicantUsecase) Update(ctx context.Context, id string, req
 				ApplicantID: applicant.ID,
 				Type:        models.ActivityTypeRatingChanged,
 				Description: fmt.Sprintf("Rating changed to %d stars", *req.Rating),
-				Metadata:    toJSONMetadata(map[string]interface{}{"old_rating": oldRating, "new_rating": *req.Rating}),
+				Metadata:    toJSONMetadata(map[string]any{"old_rating": oldRating, "new_rating": *req.Rating}),
 				CreatedBy:   &userID,
 			}
 			_ = u.activityRepo.Create(ctx, activity)
@@ -322,7 +322,8 @@ func (u *recruitmentApplicantUsecase) MoveStage(ctx context.Context, id string, 
 
 	// Get current and target stages
 	fromStage := applicant.Stage
-	toStage, err := u.stageRepo.FindByID(ctx, req.ToStageID)
+	targetStageID := req.TargetStageID()
+	toStage, err := u.stageRepo.FindByID(ctx, targetStageID)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +332,7 @@ func (u *recruitmentApplicantUsecase) MoveStage(ctx context.Context, id string, 
 	}
 
 	// Move the applicant
-	if err := u.applicantRepo.MoveStage(ctx, id, req.ToStageID); err != nil {
+	if err := u.applicantRepo.MoveStage(ctx, id, targetStageID); err != nil {
 		return nil, err
 	}
 
@@ -353,7 +354,7 @@ func (u *recruitmentApplicantUsecase) MoveStage(ctx context.Context, id string, 
 		ApplicantID: id,
 		Type:        activityType,
 		Description: description,
-		Metadata:    toJSONMetadata(map[string]interface{}{"from_stage_id": fromStage.ID, "to_stage_id": toStage.ID, "notes": req.Notes}),
+		Metadata:    toJSONMetadata(map[string]any{"from_stage_id": fromStage.ID, "to_stage_id": toStage.ID, "notes": req.Notes}),
 		CreatedBy:   &userID,
 	}
 	_ = u.activityRepo.Create(ctx, activity)
@@ -474,7 +475,7 @@ func (u *recruitmentApplicantUsecase) GetActivities(ctx context.Context, applica
 
 	responses := make([]*dto.ApplicantActivityResponse, 0, len(activities))
 	for _, a := range activities {
-		var metadata map[string]interface{}
+		var metadata map[string]any
 		if a.Metadata != nil {
 			_ = json.Unmarshal(*a.Metadata, &metadata)
 		}
@@ -634,7 +635,7 @@ func toApplicantResponse(a *models.RecruitmentApplicant) *dto.RecruitmentApplica
 	return resp
 }
 
-func toJSONMetadata(data map[string]interface{}) *datatypes.JSON {
+func toJSONMetadata(data map[string]any) *datatypes.JSON {
 	b, _ := json.Marshal(data)
 	return (*datatypes.JSON)(&b)
 }

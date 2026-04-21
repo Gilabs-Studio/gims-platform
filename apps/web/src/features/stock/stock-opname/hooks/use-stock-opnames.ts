@@ -18,6 +18,8 @@ export const stockOpnameKeys = {
   items: (id: string) => [...stockOpnameKeys.detail(id), "items"] as const,
     ledgers: (productId: string, filters?: ProductStockLedgerFilter) =>
         [...stockOpnameKeys.all, "ledgers", productId, filters] as const,
+    stockLevel: (productId: string, warehouseId: string) =>
+        [...stockOpnameKeys.all, "stock-level", productId, warehouseId] as const,
 };
 
 export function useStockOpnames(filters?: StockOpnameFilter) {
@@ -49,6 +51,20 @@ export function useProductStockLedgers(productId: string | null, filters?: Produ
         queryFn: () =>
             productId ? stockOpnameService.getProductLedgers(productId, filters) : Promise.reject("No product ID"),
         enabled: !!productId,
+    });
+}
+
+export function useProductStockLevel(productId: string | null, warehouseId: string | null) {
+    return useQuery({
+        queryKey:
+            productId && warehouseId
+                ? stockOpnameKeys.stockLevel(productId, warehouseId)
+                : ["stock-level-disabled"],
+        queryFn: () =>
+            productId && warehouseId
+                ? stockOpnameService.getProductStockLevel(productId, warehouseId)
+                : Promise.reject("Missing product or warehouse ID"),
+        enabled: !!productId && !!warehouseId,
     });
 }
 

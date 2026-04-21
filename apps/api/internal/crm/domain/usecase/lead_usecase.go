@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,22 @@ import (
 	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/google/uuid"
 )
+
+// phoneRegex validates phone number format:
+// optional leading +, then digits, spaces, hyphens, and parentheses only.
+var phoneRegex = regexp.MustCompile(`^\+?[0-9\s\-()+]*$`)
+
+// validatePhone returns an error if the phone string contains invalid characters.
+// An empty phone is always considered valid (field is optional).
+func validatePhone(phone string) error {
+	if phone == "" {
+		return nil
+	}
+	if !phoneRegex.MatchString(phone) {
+		return errors.New("phone number may only contain digits, +, -, spaces, and parentheses")
+	}
+	return nil
+}
 
 // LeadUsecase defines the interface for lead business logic
 type LeadUsecase interface {
@@ -128,6 +145,11 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		if err != nil {
 			return dto.LeadResponse{}, errors.New("contact role not found")
 		}
+	}
+
+	// Validate phone format
+	if err := validatePhone(req.Phone); err != nil {
+		return dto.LeadResponse{}, err
 	}
 
 	// Parse time expected
@@ -351,6 +373,9 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		lead.Email = *req.Email
 	}
 	if req.Phone != nil {
+		if err := validatePhone(*req.Phone); err != nil {
+			return dto.LeadResponse{}, err
+		}
 		addStringChange("phone", lead.Phone, *req.Phone)
 		lead.Phone = *req.Phone
 	}
@@ -713,21 +738,21 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 
 	// Create deal from lead data
 	newDeal := &models.Deal{
-		ID:                   uuid.New().String(),
-		Title:                dealTitle,
-		Status:               models.DealStatusOpen,
-		PipelineStageID:      pipelineStageID,
-		Value:                dealValue,
-		Probability:          lead.Probability,
-		LeadID:               &lead.ID,
-		AssignedTo:           lead.AssignedTo,
-		BudgetConfirmed:      lead.BudgetConfirmed,
-		BudgetAmount:         lead.BudgetAmount,
-		AuthConfirmed:        lead.AuthConfirmed,
-		AuthPerson:           lead.AuthPerson,
-		NeedConfirmed:        lead.NeedConfirmed,
-		NeedDescription:      lead.NeedDescription,
-		TimeConfirmed:        lead.TimeConfirmed,
+		ID:              uuid.New().String(),
+		Title:           dealTitle,
+		Status:          models.DealStatusOpen,
+		PipelineStageID: pipelineStageID,
+		Value:           dealValue,
+		Probability:     lead.Probability,
+		LeadID:          &lead.ID,
+		AssignedTo:      lead.AssignedTo,
+		BudgetConfirmed: lead.BudgetConfirmed,
+		BudgetAmount:    lead.BudgetAmount,
+		AuthConfirmed:   lead.AuthConfirmed,
+		AuthPerson:      lead.AuthPerson,
+		NeedConfirmed:   lead.NeedConfirmed,
+		NeedDescription: lead.NeedDescription,
+		TimeConfirmed:   lead.TimeConfirmed,
 		// Use the lead's original notes so deal mirrors lead data exactly
 		Notes:     lead.Notes,
 		CreatedBy: &convertedBy,

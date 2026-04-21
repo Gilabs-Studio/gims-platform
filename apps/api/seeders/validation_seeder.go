@@ -1,4 +1,4 @@
-﻿package seeders
+package seeders
 
 import (
 	"context"
@@ -60,6 +60,7 @@ func ValidateFinanceSeeder() error {
 		models.SettingCOAAccountsPayable,
 		models.SettingCOAPurchasePayable,
 		models.SettingCOAPurchaseGRIR,
+		models.SettingCOAGoodReceiptInvoiceReceipt,
 		models.SettingCOAPurchaseVATIn,
 		models.SettingCOAPurchaseAdvance,
 		models.SettingCOAPurchaseAdvances,
@@ -130,17 +131,56 @@ func ValidateFinanceSeeder() error {
 
 	log.Println("  [6/8] Checking system account mappings integrity...")
 	requiredSystemMappings := []string{
+		// Sales
+		"sales.accounts_receivable",
+		"sales.advance",
+		"sales.revenue",
+		"sales.tax_output",
+		"sales.cogs",
+		"sales.inventory_asset",
+		"sales.sales_return",
+
+		// Purchase
 		"purchase.inventory_asset",
 		"purchase.gr_ir_clearing",
 		"purchase.tax_input",
 		"purchase.accounts_payable",
-		"sales.accounts_receivable",
-		"sales.revenue",
-		"sales.tax_output",
-		"sales.cogs",
-		"sales.sales_return",
+		"purchase.advance",
+		"purchase.purchase_return",
+		"purchase.expense",
+
+		// Inventory / stock
+		"inventory.inventory_asset",
 		"inventory.adjustment_gain",
 		"inventory.adjustment_loss",
+		"inventory.revaluation_reserve",
+
+		// coa.* aliases required by posting profile / compatibility layer
+		"coa.sales_receivable",
+		"coa.sales_advance",
+		"coa.sales_revenue",
+		"coa.sales_vat_out",
+		"coa.sales_cogs",
+		"coa.sales_inventory",
+		"coa.sales_return",
+		"coa.purchase_payable",
+		"coa.accounts_payable",
+		"coa.purchase_advance",
+		"coa.purchase_advances",
+		"coa.gr_ir",
+		"coa.purchase_gr_ir",
+		"coa.purchase_vat_in",
+		"coa.vat_in",
+		"coa.purchase_expense",
+		"coa.purchase_return",
+		"coa.inventory",
+		"coa.inventory_asset",
+		"coa.inventory_gain",
+		"coa.inventory_loss",
+		"coa.inventory_revaluation_reserve",
+		"coa.cogs",
+
+		// Shared defaults
 		"asset.accumulated_depreciation",
 		"asset.depreciation_expense",
 		"finance.opening_balance_equity",
@@ -322,6 +362,3 @@ func QuickValidateSettingValue(settingKey, expectedCOACode string) error {
 
 	return nil
 }
-
-
-

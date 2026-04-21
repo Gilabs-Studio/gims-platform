@@ -18,6 +18,7 @@ export const financeNonTradePayablesId = {
   },
   status: {
     draft: "Draf",
+    posted: "Diposting",
     submitted: "Diajukan",
     approved: "Disetujui",
     paid: "Dibayar",

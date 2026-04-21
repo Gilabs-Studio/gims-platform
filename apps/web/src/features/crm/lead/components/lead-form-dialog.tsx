@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller } from "react-hook-form";
-import { Loader2, CalendarIcon, User, MapPin, Briefcase, BarChart3 } from "lucide-react";
+import {
+  Loader2,
+  CalendarIcon,
+  User,
+  MapPin,
+  Briefcase,
+  BarChart3,
+} from "lucide-react";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,12 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -80,14 +82,23 @@ export function LeadFormDialog({
   const [shouldLoadAreas, setShouldLoadAreas] = useState(false);
   const [shouldLoadPaymentTerms, setShouldLoadPaymentTerms] = useState(false);
   const [quickCreate, setQuickCreate] = useState<{
-    type: "source" | "status" | "contactRole" | "businessType" | "paymentTerm" | null;
+    type:
+      | "source"
+      | "status"
+      | "contactRole"
+      | "businessType"
+      | "paymentTerm"
+      | null;
     query: string;
   }>({ type: null, query: "" });
   const [pendingAreaProvinceName, setPendingAreaProvinceName] = useState("");
   const [activeTab, setActiveTab] = useState<"basic" | "bant">("basic");
   const appliedAreaProvinceNameRef = useRef("");
 
-  const openQuickCreate = (type: "source" | "status" | "contactRole" | "businessType" | "paymentTerm", query: string) => {
+  const openQuickCreate = (
+    type: "source" | "status" | "contactRole" | "businessType" | "paymentTerm",
+    query: string,
+  ) => {
     setQuickCreate({ type, query });
   };
 
@@ -98,21 +109,33 @@ export function LeadFormDialog({
   const handleSourceCreated = (item: { id: string; name: string }) => {
     queryClient.invalidateQueries({ queryKey: ["lead-sources"] });
     setShouldLoadLeadSources(true);
-    form.setValue("lead_source_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue("lead_source_id", item.id, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
     closeQuickCreate();
   };
 
   const handleStatusCreated = (item: { id: string; name: string }) => {
     queryClient.invalidateQueries({ queryKey: ["lead-statuses"] });
     setShouldLoadLeadStatuses(true);
-    form.setValue("lead_status_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue("lead_status_id", item.id, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
     closeQuickCreate();
   };
 
   const handleContactRoleCreated = (item: { id: string; name: string }) => {
     queryClient.invalidateQueries({ queryKey: ["contact-roles"] });
     setShouldLoadContactRoles(true);
-    form.setValue("contact_role_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue("contact_role_id", item.id, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
     closeQuickCreate();
   };
 
@@ -125,7 +148,11 @@ export function LeadFormDialog({
   const handlePaymentTermCreated = (item: { id: string; name: string }) => {
     queryClient.invalidateQueries({ queryKey: ["payment-terms"] });
     setShouldLoadPaymentTerms(true);
-    form.setValue("payment_terms_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue("payment_terms_id", item.id, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
     closeQuickCreate();
   };
 
@@ -142,34 +169,41 @@ export function LeadFormDialog({
   };
 
   const { form, onSubmit, isSubmitting } = useLeadForm(formProps);
-  const { data: leadSourcesRes, isLoading: isLeadSourcesLoading } = useLeadSources(
-    { per_page: 20, sort_by: "order", sort_dir: "asc" },
-    { enabled: open && (shouldLoadLeadSources || !!lead?.lead_source_id) }
-  );
-  const { data: leadStatusesRes, isLoading: isLeadStatusesLoading } = useLeadStatuses(
-    { per_page: 20, sort_by: "order", sort_dir: "asc" },
-    { enabled: open && (shouldLoadLeadStatuses || !!lead?.lead_status_id) }
-  );
-  const { data: contactRolesRes, isLoading: isContactRolesLoading } = useContactRoles(
-    { per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && (shouldLoadContactRoles || !!lead?.contact_role_id) }
-  );
+  const { data: leadSourcesRes, isLoading: isLeadSourcesLoading } =
+    useLeadSources(
+      { per_page: 20, sort_by: "order", sort_dir: "asc" },
+      { enabled: open && (shouldLoadLeadSources || !!lead?.lead_source_id) },
+    );
+  const { data: leadStatusesRes, isLoading: isLeadStatusesLoading } =
+    useLeadStatuses(
+      { per_page: 20, sort_by: "order", sort_dir: "asc" },
+      { enabled: open && (shouldLoadLeadStatuses || !!lead?.lead_status_id) },
+    );
+  const { data: contactRolesRes, isLoading: isContactRolesLoading } =
+    useContactRoles(
+      { per_page: 100, sort_by: "name", sort_dir: "asc" },
+      { enabled: open && (shouldLoadContactRoles || !!lead?.contact_role_id) },
+    );
   const { data: employeesRes, isLoading: isEmployeesLoading } = useEmployees(
     { per_page: 20, is_active: true, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && (shouldLoadEmployees || !!lead?.assigned_to) }
+    { enabled: open && (shouldLoadEmployees || !!lead?.assigned_to) },
   );
-  const { data: businessTypesRes, isLoading: isBusinessTypesLoading } = useBusinessTypes(
-    { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && (shouldLoadBusinessTypes || !!lead?.business_type_id) }
-  );
+  const { data: businessTypesRes, isLoading: isBusinessTypesLoading } =
+    useBusinessTypes(
+      { per_page: 20, sort_by: "name", sort_dir: "asc" },
+      {
+        enabled: open && (shouldLoadBusinessTypes || !!lead?.business_type_id),
+      },
+    );
   const { data: areasRes, isLoading: isAreasLoading } = useAreas(
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && (shouldLoadAreas || !!lead?.area_id) }
+    { enabled: open && (shouldLoadAreas || !!lead?.area_id) },
   );
-  const { data: paymentTermsRes, isLoading: isPaymentTermsLoading } = usePaymentTerms(
-    { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && (shouldLoadPaymentTerms || !!lead?.payment_terms_id) }
-  );
+  const { data: paymentTermsRes, isLoading: isPaymentTermsLoading } =
+    usePaymentTerms(
+      { per_page: 20, sort_by: "name", sort_dir: "asc" },
+      { enabled: open && (shouldLoadPaymentTerms || !!lead?.payment_terms_id) },
+    );
 
   const leadSources = leadSourcesRes?.data ?? [];
   const leadStatuses = leadStatusesRes?.data ?? [];
@@ -189,8 +223,9 @@ export function LeadFormDialog({
 
   const selectedLeadStatusId = watch("lead_status_id");
   const selectedLeadStatus = useMemo(
-    () => leadStatuses.find((status) => status.id === selectedLeadStatusId) ?? null,
-    [leadStatuses, selectedLeadStatusId]
+    () =>
+      leadStatuses.find((status) => status.id === selectedLeadStatusId) ?? null,
+    [leadStatuses, selectedLeadStatusId],
   );
 
   const pendingAreaId = useMemo(() => {
@@ -198,7 +233,9 @@ export function LeadFormDialog({
 
     return (
       areas.find(
-        (area) => area.province && area.province.toLowerCase() === pendingAreaProvinceName.toLowerCase()
+        (area) =>
+          area.province &&
+          area.province.toLowerCase() === pendingAreaProvinceName.toLowerCase(),
       )?.id ?? null
     );
   }, [areas, pendingAreaProvinceName]);
@@ -227,26 +264,31 @@ export function LeadFormDialog({
             className="w-full"
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">{t("tabs.basic") || "Basic Info"}</TabsTrigger>
-              <TabsTrigger value="bant">{t("tabs.bant") || "BANT & Scoring"}</TabsTrigger>
+              <TabsTrigger value="basic">
+                {t("tabs.basic") || "Basic Info"}
+              </TabsTrigger>
+              <TabsTrigger value="bant">
+                {t("tabs.bant") || "BANT & Scoring"}
+              </TabsTrigger>
             </TabsList>
 
-            <form
-              onSubmit={onSubmit}
-              className="space-y-6 mt-4"
-            >
+            <form onSubmit={onSubmit} className="space-y-6 mt-4">
               {/* ─── TAB 1: BASIC INFO ─────────────────────────── */}
               <TabsContent value="basic" className="space-y-6 mt-0">
-                
                 {/* Personal & Company Information */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <User className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">{t("sections.basicInfo") || "Personal & Company Info"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.basicInfo") || "Personal & Company Info"}
+                    </h4>
                   </div>
 
                   <div className="grid gap-4 grid-cols-2">
-                    <Field orientation="vertical" data-invalid={!!errors.first_name}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.first_name}
+                    >
                       <FieldLabel>{t("form.firstName")} *</FieldLabel>
                       <Input
                         placeholder={t("form.firstNamePlaceholder")}
@@ -273,8 +315,13 @@ export function LeadFormDialog({
                       />
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.contact_role_id}>
-                      <FieldLabel>{t("form.contactRole") || "Contact Role"}</FieldLabel>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.contact_role_id}
+                    >
+                      <FieldLabel>
+                        {t("form.contactRole") || "Contact Role"}
+                      </FieldLabel>
                       <Controller
                         control={control}
                         name="contact_role_id"
@@ -293,14 +340,23 @@ export function LeadFormDialog({
                               value: role.id,
                               label: role.name,
                             }))}
-                            placeholder={t("form.contactRolePlaceholder") || "Select Contact Role"}
+                            placeholder={
+                              t("form.contactRolePlaceholder") ||
+                              "Select Contact Role"
+                            }
                             createPermission="crm_contact_role.create"
                             createLabel={`${tCommon("create")} "{query}"`}
-                            onCreateClick={(query) => openQuickCreate("contactRole", query)}
+                            onCreateClick={(query) =>
+                              openQuickCreate("contactRole", query)
+                            }
                           />
                         )}
                       />
-                      {errors.contact_role_id && <FieldError>{errors.contact_role_id.message}</FieldError>}
+                      {errors.contact_role_id && (
+                        <FieldError>
+                          {errors.contact_role_id.message}
+                        </FieldError>
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -309,7 +365,9 @@ export function LeadFormDialog({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <Briefcase className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">{t("sections.contactInfo") || "Contact Information"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.contactInfo") || "Contact Information"}
+                    </h4>
                   </div>
 
                   <div className="grid gap-4 grid-cols-2">
@@ -325,12 +383,30 @@ export function LeadFormDialog({
                       )}
                     </Field>
 
-                    <Field orientation="vertical">
+                    <Field orientation="vertical" data-invalid={!!errors.phone}>
                       <FieldLabel>{t("form.phone")}</FieldLabel>
-                      <Input
-                        placeholder={t("form.phonePlaceholder")}
-                        {...register("phone")}
+                      <Controller
+                        control={control}
+                        name="phone"
+                        render={({ field }) => (
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            placeholder={t("form.phonePlaceholder")}
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              const sanitized = e.target.value.replace(
+                                /[^0-9+\-\s()]/g,
+                                "",
+                              );
+                              field.onChange(sanitized);
+                            }}
+                          />
+                        )}
                       />
+                      {errors.phone && (
+                        <FieldError>{errors.phone.message}</FieldError>
+                      )}
                     </Field>
                   </div>
 
@@ -341,7 +417,9 @@ export function LeadFormDialog({
                       rows={2}
                       {...register("address")}
                     />
-                    {errors.address && <FieldError>{errors.address.message}</FieldError>}
+                    {errors.address && (
+                      <FieldError>{errors.address.message}</FieldError>
+                    )}
                   </Field>
 
                   <Field orientation="vertical">
@@ -357,7 +435,9 @@ export function LeadFormDialog({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <MapPin className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">{t("sections.location") || "Location"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.location") || "Location"}
+                    </h4>
                   </div>
 
                   <LocationPicker
@@ -382,8 +462,10 @@ export function LeadFormDialog({
                       village: t("form.village") || "Village / Kelurahan",
                       selectProvince: t("form.provincePlaceholder"),
                       selectCity: t("form.cityPlaceholder"),
-                      selectDistrict: t("form.districtPlaceholder") || "Select District",
-                      villagePlaceholder: t("form.villagePlaceholder") || "Village / Kelurahan",
+                      selectDistrict:
+                        t("form.districtPlaceholder") || "Select District",
+                      villagePlaceholder:
+                        t("form.villagePlaceholder") || "Village / Kelurahan",
                       mapPickerTitle: t("pickLocation"),
                       mapPickerDescription: t("pickLocationDesc"),
                     }}
@@ -410,7 +492,9 @@ export function LeadFormDialog({
                           onValueChange={field.onChange}
                         >
                           <SelectTrigger className="cursor-pointer">
-                            <SelectValue placeholder={t("form.areaPlaceholder")} />
+                            <SelectValue
+                              placeholder={t("form.areaPlaceholder")}
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {isAreasLoading && (
@@ -419,7 +503,11 @@ export function LeadFormDialog({
                               </SelectItem>
                             )}
                             {areas.map((area) => (
-                              <SelectItem key={area.id} value={area.id} className="cursor-pointer">
+                              <SelectItem
+                                key={area.id}
+                                value={area.id}
+                                className="cursor-pointer"
+                              >
                                 {area.name}
                               </SelectItem>
                             ))}
@@ -427,7 +515,9 @@ export function LeadFormDialog({
                         </Select>
                       )}
                     />
-                    {errors.area_id && <FieldError>{errors.area_id.message}</FieldError>}
+                    {errors.area_id && (
+                      <FieldError>{errors.area_id.message}</FieldError>
+                    )}
                   </Field>
                 </div>
 
@@ -435,11 +525,16 @@ export function LeadFormDialog({
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <BarChart3 className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">{t("sections.classification") || "Classification"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.classification") || "Classification"}
+                    </h4>
                   </div>
 
                   <div className="grid gap-4 grid-cols-2">
-                    <Field orientation="vertical" data-invalid={!!errors.lead_source_id}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.lead_source_id}
+                    >
                       <FieldLabel>{t("form.leadSource")}</FieldLabel>
                       <Controller
                         control={control}
@@ -466,10 +561,15 @@ export function LeadFormDialog({
                           />
                         )}
                       />
-                      {errors.lead_source_id && <FieldError>{errors.lead_source_id.message}</FieldError>}
+                      {errors.lead_source_id && (
+                        <FieldError>{errors.lead_source_id.message}</FieldError>
+                      )}
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.lead_status_id}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.lead_status_id}
+                    >
                       <FieldLabel>{t("form.leadStatus")}</FieldLabel>
                       <Controller
                         control={control}
@@ -486,7 +586,9 @@ export function LeadFormDialog({
                             ariaInvalid={!!errors.lead_status_id}
                             isLoading={isLeadStatusesLoading}
                             options={leadStatuses
-                              .filter((s) => s.code?.toUpperCase() !== "CONVERTED")
+                              .filter(
+                                (s) => s.code?.toUpperCase() !== "CONVERTED",
+                              )
                               .map((s) => ({
                                 value: s.id,
                                 label: s.name,
@@ -498,10 +600,15 @@ export function LeadFormDialog({
                           />
                         )}
                       />
-                      {errors.lead_status_id && <FieldError>{errors.lead_status_id.message}</FieldError>}
+                      {errors.lead_status_id && (
+                        <FieldError>{errors.lead_status_id.message}</FieldError>
+                      )}
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.assigned_to}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.assigned_to}
+                    >
                       <FieldLabel>{t("form.assignedTo")}</FieldLabel>
                       <Controller
                         control={control}
@@ -516,8 +623,13 @@ export function LeadFormDialog({
                             }}
                             onValueChange={field.onChange}
                           >
-                            <SelectTrigger aria-invalid={!!errors.assigned_to} className="cursor-pointer">
-                              <SelectValue placeholder={t("form.assignedToPlaceholder")} />
+                            <SelectTrigger
+                              aria-invalid={!!errors.assigned_to}
+                              className="cursor-pointer"
+                            >
+                              <SelectValue
+                                placeholder={t("form.assignedToPlaceholder")}
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {isEmployeesLoading && (
@@ -526,7 +638,11 @@ export function LeadFormDialog({
                                 </SelectItem>
                               )}
                               {employees.map((emp) => (
-                                <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
+                                <SelectItem
+                                  key={emp.id}
+                                  value={emp.id}
+                                  className="cursor-pointer"
+                                >
                                   {emp.name} ({emp.employee_code})
                                 </SelectItem>
                               ))}
@@ -534,10 +650,15 @@ export function LeadFormDialog({
                           </Select>
                         )}
                       />
-                      {errors.assigned_to && <FieldError>{errors.assigned_to.message}</FieldError>}
+                      {errors.assigned_to && (
+                        <FieldError>{errors.assigned_to.message}</FieldError>
+                      )}
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.business_type_id}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.business_type_id}
+                    >
                       <FieldLabel>{t("form.businessType")}</FieldLabel>
                       <Controller
                         control={control}
@@ -560,14 +681,23 @@ export function LeadFormDialog({
                             placeholder={t("form.businessTypePlaceholder")}
                             createPermission="business_type.create"
                             createLabel={`${tCommon("create")} "{query}"`}
-                            onCreateClick={(q) => openQuickCreate("businessType", q)}
+                            onCreateClick={(q) =>
+                              openQuickCreate("businessType", q)
+                            }
                           />
                         )}
                       />
-                      {errors.business_type_id && <FieldError>{errors.business_type_id.message}</FieldError>}
+                      {errors.business_type_id && (
+                        <FieldError>
+                          {errors.business_type_id.message}
+                        </FieldError>
+                      )}
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.payment_terms_id}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.payment_terms_id}
+                    >
                       <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
                       <Controller
                         control={control}
@@ -590,11 +720,17 @@ export function LeadFormDialog({
                             placeholder={t("form.paymentTermsPlaceholder")}
                             createPermission="payment_term.create"
                             createLabel={`${tCommon("create")} "{query}"`}
-                            onCreateClick={(q) => openQuickCreate("paymentTerm", q)}
+                            onCreateClick={(q) =>
+                              openQuickCreate("paymentTerm", q)
+                            }
                           />
                         )}
                       />
-                      {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
+                      {errors.payment_terms_id && (
+                        <FieldError>
+                          {errors.payment_terms_id.message}
+                        </FieldError>
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -602,7 +738,9 @@ export function LeadFormDialog({
                 {/* Notes Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
-                    <h4 className="text-sm font-medium">{t("sections.notes") || "Notes"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.notes") || "Notes"}
+                    </h4>
                   </div>
                   <Field orientation="vertical">
                     <Textarea
@@ -616,16 +754,20 @@ export function LeadFormDialog({
 
               {/* ─── TAB 2: BANT & SCORING ────────────────────── */}
               <TabsContent value="bant" className="space-y-6 mt-0">
-                
                 {/* Value & Scoring */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
                     <BarChart3 className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">{t("sections.scoring") || "Value & Scoring"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.scoring") || "Value & Scoring"}
+                    </h4>
                   </div>
 
                   <div className="grid gap-4 grid-cols-2">
-                    <Field orientation="vertical" data-invalid={!!errors.estimated_value}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.estimated_value}
+                    >
                       <FieldLabel>{t("form.estimatedValue")}</FieldLabel>
                       <Controller
                         control={control}
@@ -638,10 +780,17 @@ export function LeadFormDialog({
                           />
                         )}
                       />
-                      {errors.estimated_value && <FieldError>{errors.estimated_value.message}</FieldError>}
+                      {errors.estimated_value && (
+                        <FieldError>
+                          {errors.estimated_value.message}
+                        </FieldError>
+                      )}
                     </Field>
 
-                    <Field orientation="vertical" data-invalid={!!errors.probability}>
+                    <Field
+                      orientation="vertical"
+                      data-invalid={!!errors.probability}
+                    >
                       <FieldLabel>{t("form.probability")}</FieldLabel>
                       <Controller
                         control={control}
@@ -649,12 +798,16 @@ export function LeadFormDialog({
                         render={({ field }) => (
                           <NumericInput
                             value={field.value}
-                            onChange={(val) => field.onChange(val ?? 0)}
+                            onChange={(val) =>
+                              field.onChange(Math.min(val ?? 0, 100))
+                            }
                             placeholder={t("form.probabilityPlaceholder")}
                           />
                         )}
                       />
-                      {errors.probability && <FieldError>{errors.probability.message}</FieldError>}
+                      {errors.probability && (
+                        <FieldError>{errors.probability.message}</FieldError>
+                      )}
                     </Field>
                   </div>
                 </div>
@@ -662,7 +815,9 @@ export function LeadFormDialog({
                 {/* BANT Qualification */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-border/50">
-                    <h4 className="text-sm font-medium">{t("sections.bant") || "BANT Qualification"}</h4>
+                    <h4 className="text-sm font-medium">
+                      {t("sections.bant") || "BANT Qualification"}
+                    </h4>
                   </div>
 
                   {/* Budget */}
@@ -674,12 +829,17 @@ export function LeadFormDialog({
                       <FieldLabel>{t("form.budgetConfirmed")}</FieldLabel>
                       <Switch
                         checked={watch("budget_confirmed")}
-                        onCheckedChange={(val) => setValue("budget_confirmed", val)}
+                        onCheckedChange={(val) =>
+                          setValue("budget_confirmed", val)
+                        }
                         className="cursor-pointer"
                       />
                     </Field>
                     {watch("budget_confirmed") && (
-                      <Field orientation="vertical" data-invalid={!!errors.budget_amount}>
+                      <Field
+                        orientation="vertical"
+                        data-invalid={!!errors.budget_amount}
+                      >
                         <FieldLabel>{t("form.budgetAmount")}</FieldLabel>
                         <Controller
                           control={control}
@@ -692,7 +852,11 @@ export function LeadFormDialog({
                             />
                           )}
                         />
-                        {errors.budget_amount && <FieldError>{errors.budget_amount.message}</FieldError>}
+                        {errors.budget_amount && (
+                          <FieldError>
+                            {errors.budget_amount.message}
+                          </FieldError>
+                        )}
                       </Field>
                     )}
                   </div>
@@ -706,7 +870,9 @@ export function LeadFormDialog({
                       <FieldLabel>{t("form.authConfirmed")}</FieldLabel>
                       <Switch
                         checked={watch("auth_confirmed")}
-                        onCheckedChange={(val) => setValue("auth_confirmed", val)}
+                        onCheckedChange={(val) =>
+                          setValue("auth_confirmed", val)
+                        }
                         className="cursor-pointer"
                       />
                     </Field>
@@ -730,7 +896,9 @@ export function LeadFormDialog({
                       <FieldLabel>{t("form.needConfirmed")}</FieldLabel>
                       <Switch
                         checked={watch("need_confirmed")}
-                        onCheckedChange={(val) => setValue("need_confirmed", val)}
+                        onCheckedChange={(val) =>
+                          setValue("need_confirmed", val)
+                        }
                         className="cursor-pointer"
                       />
                     </Field>
@@ -755,12 +923,17 @@ export function LeadFormDialog({
                       <FieldLabel>{t("form.timeConfirmed")}</FieldLabel>
                       <Switch
                         checked={watch("time_confirmed")}
-                        onCheckedChange={(val) => setValue("time_confirmed", val)}
+                        onCheckedChange={(val) =>
+                          setValue("time_confirmed", val)
+                        }
                         className="cursor-pointer"
                       />
                     </Field>
                     {watch("time_confirmed") && (
-                      <Field orientation="vertical" data-invalid={!!errors.time_expected}>
+                      <Field
+                        orientation="vertical"
+                        data-invalid={!!errors.time_expected}
+                      >
                         <FieldLabel>{t("form.timeExpected")}</FieldLabel>
                         <Controller
                           control={control}
@@ -772,23 +945,34 @@ export function LeadFormDialog({
                                   variant="outline"
                                   className={cn(
                                     "w-full pl-3 text-left font-normal cursor-pointer",
-                                    !field.value && "text-muted-foreground"
+                                    !field.value && "text-muted-foreground",
                                   )}
                                 >
                                   {field.value ? (
                                     format(new Date(field.value), "PPP")
                                   ) : (
-                                    <span>{t("form.pickDate") || "Pick a date"}</span>
+                                    <span>
+                                      {t("form.pickDate") || "Pick a date"}
+                                    </span>
                                   )}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
+                              <PopoverContent
+                                className="w-auto p-0"
+                                align="start"
+                              >
                                 <Calendar
                                   mode="single"
-                                  selected={field.value ? new Date(field.value) : undefined}
+                                  selected={
+                                    field.value
+                                      ? new Date(field.value)
+                                      : undefined
+                                  }
                                   onSelect={(date: Date | undefined) =>
-                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                                    field.onChange(
+                                      date ? format(date, "yyyy-MM-dd") : "",
+                                    )
                                   }
                                   initialFocus
                                 />
@@ -796,7 +980,11 @@ export function LeadFormDialog({
                             </Popover>
                           )}
                         />
-                        {errors.time_expected && <FieldError>{errors.time_expected.message}</FieldError>}
+                        {errors.time_expected && (
+                          <FieldError>
+                            {errors.time_expected.message}
+                          </FieldError>
+                        )}
                       </Field>
                     )}
                   </div>
@@ -814,8 +1002,14 @@ export function LeadFormDialog({
                 >
                   {tCommon("cancel")}
                 </Button>
-                <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="cursor-pointer"
+                >
+                  {isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   {isEditing ? tCommon("save") : tCommon("create")}
                 </Button>
               </div>

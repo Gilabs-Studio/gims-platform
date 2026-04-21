@@ -109,6 +109,11 @@ export const salesPaymentEn = {
     cancel: "Cancel",
     error: "Something went wrong",
   },
+  confirm: {
+    reverseTitle: "Reverse Payment",
+    reverseDescription: "Are you sure you want to reverse this payment? This action cannot be undone.",
+    reversing: "Reversing...",
+  },
   errors: {
     mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before continuing.",
   },

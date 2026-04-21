@@ -1,6 +1,8 @@
 package handler
 
 import (
+	stderrors "errors"
+	"io"
 	"strconv"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // LeaveRequestHandler handles HTTP requests for leave requests
@@ -396,14 +399,15 @@ func (h *LeaveRequestHandler) Reject(c *gin.Context) {
 
 // Cancel handles POST /api/v1/hrd/leave-requests/:id/cancel
 func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
+	id, ok := validateLeaveRequestIDParam(c)
+	if !ok {
 		return
 	}
 
 	var req dto.CancelLeaveRequestDTO
-	_ = c.ShouldBindJSON(&req) // Allow empty body (cancellation note is optional)
+	if !bindOptionalCancelLeaveRequest(c, &req) {
+		return
+	}
 
 	currentUserID, exists := c.Get("user_id")
 	if !exists {
@@ -422,14 +426,15 @@ func (h *LeaveRequestHandler) Cancel(c *gin.Context) {
 
 // CancelSelf handles POST /api/v1/hrd/leave-requests/self/:id/cancel
 func (h *LeaveRequestHandler) CancelSelf(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
+	id, ok := validateLeaveRequestIDParam(c)
+	if !ok {
 		return
 	}
 
 	var req dto.CancelLeaveRequestDTO
-	_ = c.ShouldBindJSON(&req)
+	if !bindOptionalCancelLeaveRequest(c, &req) {
+		return
+	}
 
 	currentUserID, exists := c.Get("user_id")
 	if !exists {
@@ -444,6 +449,34 @@ func (h *LeaveRequestHandler) CancelSelf(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, result, nil)
+}
+
+func validateLeaveRequestIDParam(c *gin.Context) (string, bool) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": leaveRequestIDRequiredMessage}, nil)
+		return "", false
+	}
+
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": "Invalid leave request ID"}, nil)
+		return "", false
+	}
+
+	return id, true
+}
+
+func bindOptionalCancelLeaveRequest(c *gin.Context, req *dto.CancelLeaveRequestDTO) bool {
+	if err := c.ShouldBindJSON(req); err != nil {
+		if stderrors.Is(err, io.EOF) {
+			return true
+		}
+
+		errors.HandleValidationError(c, err)
+		return false
+	}
+
+	return true
 }
 
 // Reapprove handles POST /api/v1/hrd/leave-requests/:id/reapprove

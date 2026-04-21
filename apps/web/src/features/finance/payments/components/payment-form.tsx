@@ -103,7 +103,7 @@ function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetc
         if (!res?.data || !Array.isArray(res.data)) return [];
 
         const items = res.data
-          .filter(ntp => ntp.amount > 0 && ntp.status !== "PAID")
+          .filter((ntp) => ntp.amount > 0 && ntp.status.toLowerCase() !== "paid")
           .map(ntp => ({ 
             id: ntp.id, 
             label: `${ntp.code} - ${ntp.description}`,

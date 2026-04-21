@@ -20,7 +20,15 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type NonTradePayableStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "PAID" | "CANCELLED";
+export type NonTradePayableStatus =
+  | "draft"
+  | "posted"
+  | "partial"
+  | "paid"
+  | "cancelled"
+  | "submitted"
+  | "approved"
+  | "rejected";
 
 export interface NonTradePayable {
   id: string;
@@ -29,6 +37,8 @@ export interface NonTradePayable {
   description: string;
   chart_of_account_id: string;
   amount: number;
+  paid_amount?: number;
+  remaining_amount?: number;
   vendor_name: string;
   due_date?: string | null;
   reference_no: string;
@@ -60,7 +70,7 @@ export interface NonTradePayableInput {
 
 export interface PayNonTradePayableInput {
   payment_date: string;
+  chart_of_account_id?: string;
   bank_account_id: string;
-  reference_no?: string;
-  notes?: string;
+  bank_reference?: string;
 }

@@ -10,6 +10,7 @@ import type {
   SaveStockOpnameItemsRequest,
   ProductStockLedgerFilter,
   ProductStockLedgerListResponse,
+  InventoryStockLevelListResponse,
 } from "../types";
 
 const BASE_PATH = "/inventory/opname";
@@ -110,6 +111,17 @@ export const stockOpnameService = {
     const response = await apiClient.get<ProductStockLedgerListResponse>(
       `/inventory/products/${productId}/ledgers`,
       { params },
+    );
+    return response.data;
+  },
+
+  async getProductStockLevel(
+    productId: string,
+    warehouseId: string,
+  ): Promise<InventoryStockLevelListResponse> {
+    const response = await apiClient.get<InventoryStockLevelListResponse>(
+      `/inventory/stock`,
+      { params: { product_id: productId, warehouse_id: warehouseId, per_page: 1 } },
     );
     return response.data;
   },

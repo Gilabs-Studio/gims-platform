@@ -25,6 +25,8 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 		SupplierID:                 pr.SupplierID,
 		PaymentTermsID:             pr.PaymentTermsID,
 		BusinessUnitID:             pr.BusinessUnitID,
+		CompanyID:                  pr.CompanyID,
+		FiscalYearID:               pr.FiscalYearID,
 		RequestedBy:                pr.EmployeeID,
 		RequestDate:                pr.RequestDate,
 		Status:                     string(pr.Status),
@@ -106,9 +108,9 @@ func (m *PurchaseRequisitionMapper) ToListResponse(pr *models.PurchaseRequisitio
 
 	if pr.Employee != nil && pr.Employee.User != nil {
 		resp.User = &struct {
-			ID       string `json:"id"`
-			Email    string `json:"email"`
-			Name     string `json:"name"`
+			ID    string `json:"id"`
+			Email string `json:"email"`
+			Name  string `json:"name"`
 		}{
 			ID:    pr.Employee.User.ID,
 			Email: pr.Employee.User.Email,
@@ -148,6 +150,8 @@ func (m *PurchaseRequisitionMapper) ToDetailResponse(pr *models.PurchaseRequisit
 		SupplierID:                 pr.SupplierID,
 		PaymentTermsID:             pr.PaymentTermsID,
 		BusinessUnitID:             pr.BusinessUnitID,
+		CompanyID:                  pr.CompanyID,
+		FiscalYearID:               pr.FiscalYearID,
 		EmployeeID:                 pr.EmployeeID,
 		RequestDate:                pr.RequestDate,
 		Address:                    pr.Address,

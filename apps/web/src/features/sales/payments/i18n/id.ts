@@ -109,6 +109,11 @@ export const salesPaymentId = {
     cancel: "Batal",
     error: "Terjadi kesalahan",
   },
+  confirm: {
+    reverseTitle: "Batalkan Pembayaran",
+    reverseDescription: "Apakah Anda yakin ingin membatalkan pembayaran ini? Tindakan ini tidak dapat dibatalkan.",
+    reversing: "Membatalkan...",
+  },
   errors: {
     mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum melanjutkan.",
   },

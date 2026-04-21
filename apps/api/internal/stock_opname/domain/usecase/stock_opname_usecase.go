@@ -26,9 +26,9 @@ import (
 )
 
 var (
-	ErrStockOpnameNotFound = errors.New("stock opname not found")
-	ErrInvalidStatus       = errors.New("invalid status for this operation")
-	ErrJournalNotGenerated = errors.New("stock opname adjustment journal has not been generated")
+	ErrStockOpnameNotFound        = errors.New("stock opname not found")
+	ErrInvalidStatus              = errors.New("invalid status for this operation")
+	ErrJournalNotGenerated        = errors.New("stock opname adjustment journal has not been generated")
 	ErrJournalWorkflowUnavailable = errors.New("journal workflow is not configured")
 )
 
@@ -228,15 +228,27 @@ func (u *stockOpnameUsecase) SaveItems(ctx context.Context, opnameID string, req
 
 	var items []models.StockOpnameItem
 	for _, itemReq := range req.Items {
+		// Resolve authoritative system qty from current inventory — do not trust the frontend-supplied value.
+		systemQty := 0.0
+		stockResult, stockErr := u.inventoryUC.GetStockList(ctx, &inventoryDTO.GetInventoryListRequest{
+			Page:        1,
+			PerPage:     1,
+			ProductID:   itemReq.ProductID,
+			WarehouseID: opname.WarehouseID,
+		})
+		if stockErr == nil && stockResult != nil && len(stockResult.Data) > 0 {
+			systemQty = stockResult.Data[0].OnHand
+		}
+
 		variance := 0.0
 		if itemReq.PhysicalQty != nil {
-			variance = *itemReq.PhysicalQty - itemReq.SystemQty
+			variance = *itemReq.PhysicalQty - systemQty
 		}
 
 		items = append(items, models.StockOpnameItem{
 			StockOpnameID: opnameID,
 			ProductID:     itemReq.ProductID,
-			SystemQty:     itemReq.SystemQty,
+			SystemQty:     systemQty,
 			PhysicalQty:   itemReq.PhysicalQty,
 			VarianceQty:   variance,
 			Notes:         itemReq.Notes,
@@ -309,14 +321,14 @@ func (u *stockOpnameUsecase) GenerateJournal(ctx context.Context, id string) (*d
 	refType := "STOCK_OPNAME"
 	refID := opname.ID
 	journalReq := &finDTO.CreateJournalEntryRequest{
-		CompanyID:         companyID,
-		EntryDate:         opname.Date.Format("2006-01-02"),
-		Description:       fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
-		Reference:         reference,
-		ReferenceType:     &refType,
-		ReferenceID:       &refID,
-		Lines:             lines,
-		IsSystemGenerated: true,
+		CompanyID:                    companyID,
+		EntryDate:                    opname.Date.Format("2006-01-02"),
+		Description:                  fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
+		Reference:                    reference,
+		ReferenceType:                &refType,
+		ReferenceID:                  &refID,
+		Lines:                        lines,
+		IsSystemGenerated:            true,
 		SkipControlAccountValidation: true,
 	}
 

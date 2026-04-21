@@ -125,7 +125,7 @@ export const supplierInvoiceEn = {
     view: "View",
     edit: "Edit",
     delete: "Delete",
-    pending: "Close",
+    pending: "Activate Payment",
     submit: "Submit",
     approve: "Approve",
     reject: "Reject",

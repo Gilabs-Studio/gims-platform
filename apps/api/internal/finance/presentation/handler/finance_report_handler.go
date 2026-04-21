@@ -34,6 +34,22 @@ func parseDateOrDefault(c *gin.Context, key string, def time.Time) time.Time {
 	return t
 }
 
+func parseDateWithAliases(c *gin.Context, keys []string, def time.Time) time.Time {
+	for _, key := range keys {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		val := strings.TrimSpace(c.Query(key))
+		if val == "" {
+			continue
+		}
+		if parsed, err := time.Parse("2006-01-02", val); err == nil {
+			return parsed
+		}
+	}
+	return def
+}
+
 func parseOptionalCompanyID(c *gin.Context) *string {
 	value := strings.TrimSpace(c.Query("company_id"))
 	if value == "" {
@@ -120,8 +136,8 @@ func (h *FinanceReportHandler) TrialBalance(c *gin.Context) {
 }
 
 func (h *FinanceReportHandler) CashFlow(c *gin.Context) {
-	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
-	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
 	companyID := parseOptionalCompanyID(c)
 	fiscalYearID := parseOptionalFiscalYearID(c)
 

@@ -36,6 +36,11 @@ import {
 const LOADING_VALUE = "__loading__";
 const EMPTY_VALUE = "__empty__";
 
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function SupplierInvoiceDPFormDialog({
   open,
   onOpenChange,
@@ -72,10 +77,11 @@ export function SupplierInvoiceDPFormDialog({
   useEffect(() => {
     if (!open) return;
     if (!isEdit) {
+      const defaultDate = todayISO();
       const initial: SupplierInvoiceDPFormData = {
         purchase_order_id: defaultPurchaseOrderId ?? "",
-        invoice_date: "",
-        due_date: "",
+        invoice_date: defaultDate,
+        due_date: defaultDate,
         amount: 0,
         notes: null,
       };
@@ -84,6 +90,7 @@ export function SupplierInvoiceDPFormDialog({
         const po = poQuery.data?.success ? poQuery.data.data : null;
         if (po) {
           initial.amount = po.total_amount ?? 0;
+          initial.due_date = po.due_date ?? defaultDate;
         }
       }
       form.reset(initial);
@@ -111,6 +118,25 @@ export function SupplierInvoiceDPFormDialog({
 
   const selectedPO = selectedPOQuery.data?.success ? selectedPOQuery.data.data : null;
   const dpAmount = form.watch("amount");
+
+  useEffect(() => {
+    if (!open || isEdit || !selectedPO) return;
+
+    const currentInvoiceDate = form.getValues("invoice_date");
+    if (!currentInvoiceDate) {
+      form.setValue("invoice_date", todayISO(), { shouldValidate: true });
+    }
+
+    const currentDueDate = form.getValues("due_date");
+    if (!currentDueDate) {
+      form.setValue("due_date", selectedPO.due_date ?? todayISO(), { shouldValidate: true });
+    }
+
+    const currentAmount = form.getValues("amount") ?? 0;
+    if (currentAmount <= 0 && (selectedPO.total_amount ?? 0) > 0) {
+      form.setValue("amount", selectedPO.total_amount ?? 0, { shouldValidate: true });
+    }
+  }, [open, isEdit, selectedPO, form]);
 
   const invoiceSummary = useMemo(() => {
     if (!selectedPO) return null;

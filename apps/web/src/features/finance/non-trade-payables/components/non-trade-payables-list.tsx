@@ -22,7 +22,6 @@ import {
   useDeleteFinanceNonTradePayable,
   useFinanceNonTradePayables,
   useSubmitFinanceNonTradePayable,
-  useApproveFinanceNonTradePayable,
   useRejectFinanceNonTradePayable,
 } from "../hooks/use-finance-non-trade-payables";
 import { NonTradePayableForm } from "./non-trade-payable-form";
@@ -31,6 +30,7 @@ import { PayNonTradePayableDialog } from "./pay-dialog";
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
   switch (normalized) {
+    case "posted":
     case "approved":
     case "confirmed":
       return (
@@ -128,7 +128,6 @@ export function NonTradePayablesList() {
   const pagination = data?.meta?.pagination;
   const deleteMutation = useDeleteFinanceNonTradePayable();
   const submitMutation = useSubmitFinanceNonTradePayable();
-  const approveMutation = useApproveFinanceNonTradePayable();
   const rejectMutation = useRejectFinanceNonTradePayable();
 
   if (isError) {
@@ -144,16 +143,7 @@ export function NonTradePayablesList() {
     }
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      await approveMutation.mutateAsync(id);
-      toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  };
-
-  const handleReject = async (id: string) => {
+  const handleCancel = async (id: string) => {
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
@@ -234,7 +224,11 @@ export function NonTradePayablesList() {
                 const normalizedStatus = item.status?.toLowerCase() ?? "";
                 const isDraft = normalizedStatus === "draft";
                 const isSubmitted = normalizedStatus === "submitted";
-                const isApproved = normalizedStatus === "approved";
+                const isPosted = normalizedStatus === "posted" || normalizedStatus === "approved";
+                const isPartial = normalizedStatus === "partial";
+                const isPayable = isPosted || isPartial;
+                const isCancelable = isDraft || isSubmitted || isPosted || isPartial;
+                const canPost = canSubmit || canApprove;
 
                 return (
                 <TableRow key={item.id}>
@@ -267,7 +261,7 @@ export function NonTradePayablesList() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
-                        {isDraft && canSubmit && (
+                        {(isDraft || isSubmitted) && canPost && (
                           <DropdownMenuItem
                             className="cursor-pointer text-primary focus:text-primary"
                             onClick={() => handleSubmit(item.id)}
@@ -276,25 +270,16 @@ export function NonTradePayablesList() {
                             {t("actions.submit")}
                           </DropdownMenuItem>
                         )}
-                        {isSubmitted && canApprove && (
-                          <DropdownMenuItem
-                            className="cursor-pointer text-success focus:text-success"
-                            onClick={() => handleApprove(item.id)}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {t("actions.approve")}
-                          </DropdownMenuItem>
-                        )}
-                        {isSubmitted && canReject && (
+                        {isCancelable && canReject && (
                           <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
-                            onClick={() => handleReject(item.id)}
+                            onClick={() => handleCancel(item.id)}
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             {t("actions.reject")}
                           </DropdownMenuItem>
                         )}
-                        {isApproved && canPay && (
+                        {isPayable && canPay && (
                           <DropdownMenuItem
                             className="cursor-pointer text-success focus:text-success"
                             onClick={() => setPaying(item)}

@@ -82,6 +82,20 @@ Go cannot take address of constants — use local variables for pointer fields.
 
 For features with foreign key dropdowns, create `GET /<entity>/form-data` returning all options in one call. Place route **before** parameterized routes.
 
+### TenantID pada Child Models (CRITICAL)
+
+Setiap GORM model yang di-INSERT via repository yang menggunakan `database.GetDB()` **HARUS** memiliki field:
+
+```go
+TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+```
+
+**Mengapa:** `GetDB()` menambahkan `WHERE tenant_id = ?` ke semua query. Saat GORM melakukan `CREATE`, ia mencoba meng-assign `tenant_id` ke model. Jika field tidak ada → `gorm.ErrInvalidField` → HTTP 500 "invalid field".
+
+**Ini hanya perlu** untuk model yang di-create di tenant context (authenticated request). Model platform-wide (user, role, global config) yang pakai `r.db.WithContext(ctx)` langsung tidak perlu field ini.
+
+**Detail:** `docs/features/core/gorm-tenant-scoping.md`
+
 ## Adding a New Domain
 
 1. Create `internal/<domain>/` with full vertical slice
@@ -137,3 +151,4 @@ See: `docs/features/core/webp-build-tags.md`
 - Bare `time.Now()` in business logic (use `apptime`)
 - Missing `go mod tidy` after new files
 - Forgetting model registration in `migrate.go`
+- Missing `TenantID` field on child models created via `database.GetDB()` (see: [gorm-tenant-scoping.md](../../docs/features/core/gorm-tenant-scoping.md))

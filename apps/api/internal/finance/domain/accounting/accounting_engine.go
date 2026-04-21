@@ -22,6 +22,12 @@ type TransactionData struct {
 	// ReferenceID the source document ID
 	ReferenceID string
 
+	// CompanyID optional company scope for journal posting
+	CompanyID string
+
+	// FiscalYearID optional fiscal year scope for journal posting
+	FiscalYearID *string
+
 	// EntryDate in "2006-01-02" format
 	EntryDate string
 
@@ -178,8 +184,18 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 		desc = fmt.Sprintf(profile.DescriptionTemplate, data.DescriptionArgs...)
 	}
 
+	var fiscalYearID *string
+	if data.FiscalYearID != nil {
+		trimmedFiscalYearID := strings.TrimSpace(*data.FiscalYearID)
+		if trimmedFiscalYearID != "" {
+			fiscalYearID = &trimmedFiscalYearID
+		}
+	}
+
 	refType := data.ReferenceType
 	req := &dto.CreateJournalEntryRequest{
+		CompanyID:         strings.TrimSpace(data.CompanyID),
+		FiscalYearID:      fiscalYearID,
 		EntryDate:         data.EntryDate,
 		Description:       desc,
 		ReferenceType:     &refType,

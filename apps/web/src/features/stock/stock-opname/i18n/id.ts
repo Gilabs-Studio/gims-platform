@@ -50,6 +50,8 @@ export const stockOpnameId = {
     },
     product: "Produk",
     systemQty: "Qty Sistem",
+    systemQtyFetching: "Mengambil data stok...",
+    systemQtyNoStock: "Tidak ada stok tercatat di gudang ini",
     physicalQty: "Qty Fisik",
     notes: "Catatan",
   },

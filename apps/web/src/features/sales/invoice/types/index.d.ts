@@ -149,6 +149,7 @@ export interface CreateCustomerInvoiceData {
   sales_order_id?: string;
   delivery_order_id?: string;
   payment_terms_id?: string;
+  down_payment_invoice_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;

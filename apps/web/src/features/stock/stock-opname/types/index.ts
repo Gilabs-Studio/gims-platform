@@ -127,3 +127,26 @@ export type ProductStockLedgerListResponse = ApiResponse<{
   data: ProductStockLedgerItem[];
   meta: PaginationMeta;
 }>;
+
+export interface InventoryStockLevelRequest {
+  product_id: string;
+  warehouse_id: string;
+}
+
+export interface InventoryStockLevel {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  uom_name: string;
+  status: string;
+}
+
+export type InventoryStockLevelListResponse = ApiResponse<{
+  data: InventoryStockLevel[];
+  meta: PaginationMeta;
+}>;

@@ -94,6 +94,8 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 
 	return &dto.SupplierInvoiceListResponse{
 		ID:                 si.ID,
+		CompanyID:          si.CompanyID,
+		FiscalYearID:       si.FiscalYearID,
 		PurchaseOrder:      poMini,
 		GoodsReceipt:       grMini,
 		PaymentTerms:       ptMini,
@@ -206,6 +208,8 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 
 	return &dto.SupplierInvoiceDetailResponse{
 		ID:                 si.ID,
+		CompanyID:          si.CompanyID,
+		FiscalYearID:       si.FiscalYearID,
 		PurchaseOrder:      poMini,
 		GoodsReceipt:       grMini,
 		PaymentTerms:       ptMini,
@@ -254,6 +258,8 @@ func (m *SupplierInvoiceMapper) ToDownPaymentListResponse(si *models.SupplierInv
 	}
 	return &dto.SupplierInvoiceDownPaymentListResponse{
 		ID:              si.ID,
+		CompanyID:       si.CompanyID,
+		FiscalYearID:    si.FiscalYearID,
 		PurchaseOrder:   poMini,
 		SupplierID:      resolveSupplierID(si),
 		SupplierName:    resolveSupplierName(si),
@@ -301,6 +307,8 @@ func (m *SupplierInvoiceMapper) ToDownPaymentDetailResponse(si *models.SupplierI
 	}
 	return &dto.SupplierInvoiceDownPaymentDetailResponse{
 		ID:              si.ID,
+		CompanyID:       si.CompanyID,
+		FiscalYearID:    si.FiscalYearID,
 		PurchaseOrder:   poMini,
 		SupplierID:      resolveSupplierID(si),
 		SupplierName:    resolveSupplierName(si),

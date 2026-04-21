@@ -1,5 +1,11 @@
 import { apiClient } from "@/lib/api-client";
-import type { ApiResponse, ListNonTradePayablesParams, NonTradePayable, NonTradePayableInput } from "../types";
+import type {
+  ApiResponse,
+  ListNonTradePayablesParams,
+  NonTradePayable,
+  NonTradePayableInput,
+  PayNonTradePayableInput,
+} from "../types";
 
 const BASE_URL = "/finance/ap/non-trade-payables";
 
@@ -21,19 +27,27 @@ export const financeNonTradePayablesService = {
     return response.data;
   },
   submit: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
-    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/submit`);
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/post`);
+    return response.data;
+  },
+  post: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/post`);
     return response.data;
   },
   approve: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
-    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/approve`);
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/post`);
     return response.data;
   },
   reject: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
-    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/reject`);
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/cancel`);
     return response.data;
   },
-  pay: async (id: string, data: any): Promise<ApiResponse<NonTradePayable>> => {
-    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/pay`, data);
+  cancel: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/cancel`);
+    return response.data;
+  },
+  pay: async (id: string, data: PayNonTradePayableInput): Promise<ApiResponse<NonTradePayable>> => {
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/payments`, data);
     return response.data;
   },
   delete: async (id: string): Promise<ApiResponse<{ id: string }>> => {

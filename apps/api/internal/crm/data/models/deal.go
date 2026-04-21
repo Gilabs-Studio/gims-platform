@@ -115,6 +115,7 @@ func (d *Deal) CalculateValue() float64 {
 type DealProductItem struct {
 	ID              string                 `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	DealID          string                 `gorm:"type:uuid;not null;index" json:"deal_id"`
+	TenantID        string                 `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	ProductID       *string                `gorm:"type:uuid;index" json:"product_id"`
 	Product         *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 	ProductName     string                 `gorm:"type:varchar(200);not null" json:"product_name"`
@@ -155,6 +156,7 @@ func (i *DealProductItem) CalculateSubtotal() float64 {
 type DealHistory struct {
 	ID                string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	DealID            string              `gorm:"type:uuid;not null;index" json:"deal_id"`
+	TenantID          string              `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	FromStageID       *string             `gorm:"type:uuid" json:"from_stage_id"`
 	FromStage         *PipelineStage      `gorm:"foreignKey:FromStageID" json:"from_stage,omitempty"`
 	FromStageName     string              `gorm:"type:varchar(100)" json:"from_stage_name"`

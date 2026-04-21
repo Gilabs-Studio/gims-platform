@@ -56,7 +56,12 @@ export interface Task {
   due_date: string | null;
   completed_at: string | null;
   is_overdue: boolean;
-  assigned_to_employee: TaskEmployeeInfo | null;
+  /** Direct UUID from API response — use this to pre-fill form fields */
+  assigned_to: string | null;
+  /** Direct UUID from API response */
+  assigned_from: string | null;
+  /** Nested employee object returned as "assigned_employee" by the API */
+  assigned_employee: TaskEmployeeInfo | null;
   assigned_from_employee: TaskEmployeeInfo | null;
   customer: TaskCustomerInfo | null;
   contact: TaskContactInfo | null;

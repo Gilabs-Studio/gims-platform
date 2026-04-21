@@ -278,6 +278,10 @@ func (h *SupplierInvoiceHandler) Approve(c *gin.Context) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if isSupplierInvoiceBudgetError(err) {
+			errors.ErrorResponse(c, "BUDGET_CONTROL_FAILED", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -359,10 +363,23 @@ func (h *SupplierInvoiceHandler) Pending(c *gin.Context) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if isSupplierInvoiceBudgetError(err) {
+			errors.ErrorResponse(c, "BUDGET_CONTROL_FAILED", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 	response.SuccessResponse(c, res, nil)
+}
+
+func isSupplierInvoiceBudgetError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(message, "account is not budgeted") || strings.Contains(message, "budget exceeded")
 }
 
 // Reverse handles POST /purchase/supplier-invoices/:id/reverse

@@ -7,18 +7,18 @@ import (
 )
 
 const (
-	goodsReceiptRead                  = "goods_receipt.read"
-	goodsReceiptCreate                = "goods_receipt.create"
-	goodsReceiptUpdate                = "goods_receipt.update"
-	goodsReceiptDelete                = "goods_receipt.delete"
-	goodsReceiptConfirm               = "goods_receipt.confirm"
-	goodsReceiptSubmit                = "goods_receipt.submit"
-	goodsReceiptApprove               = "goods_receipt.approve"
-	goodsReceiptReject                = "goods_receipt.reject"
-	goodsReceiptClose                 = "goods_receipt.close"
-	goodsReceiptConvert               = "goods_receipt.convert"
-	goodsReceiptExport                = "goods_receipt.export"
-	goodsReceiptPrint                 = "goods_receipt.print"
+	goodsReceiptRead    = "goods_receipt.read"
+	goodsReceiptCreate  = "goods_receipt.create"
+	goodsReceiptUpdate  = "goods_receipt.update"
+	goodsReceiptDelete  = "goods_receipt.delete"
+	goodsReceiptConfirm = "goods_receipt.confirm"
+	goodsReceiptSubmit  = "goods_receipt.submit"
+	goodsReceiptApprove = "goods_receipt.approve"
+	goodsReceiptReject  = "goods_receipt.reject"
+	goodsReceiptClose   = "goods_receipt.close"
+	goodsReceiptConvert = "goods_receipt.convert"
+	goodsReceiptExport  = "goods_receipt.export"
+	goodsReceiptPrint   = "goods_receipt.print"
 )
 
 func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandler, printH *handler.GoodsReceiptPrintHandler) {
@@ -37,5 +37,10 @@ func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandl
 	g.POST("/:id/approve", middleware.RequirePermission(goodsReceiptApprove), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(goodsReceiptReject), h.Reject)
 	g.POST("/:id/close", middleware.RequirePermission(goodsReceiptClose), h.CloseGR)
+	g.PATCH("/:id/confirm", middleware.RequirePermission(goodsReceiptConfirm), h.Confirm)
+	g.PATCH("/:id/submit", middleware.RequirePermission(goodsReceiptSubmit), h.Submit)
+	g.PATCH("/:id/approve", middleware.RequirePermission(goodsReceiptApprove), h.Approve)
+	g.PATCH("/:id/reject", middleware.RequirePermission(goodsReceiptReject), h.Reject)
+	g.PATCH("/:id/close", middleware.RequirePermission(goodsReceiptClose), h.CloseGR)
 	g.POST("/:id/convert", middleware.RequirePermission(goodsReceiptConvert), h.ConvertToSupplierInvoice)
 }

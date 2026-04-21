@@ -45,6 +45,8 @@ type NonTradePayableResponse struct {
 	DueDate          *time.Time              `json:"due_date"`
 	ReferenceNo      string                  `json:"reference_no"`
 	Status           string                  `json:"status"`
+	PaidAmount       float64                 `json:"paid_amount,omitempty"`
+	RemainingAmount  float64                 `json:"remaining_amount,omitempty"`
 	JournalID        *string                 `json:"journal_id,omitempty"`
 	CreatedAt        time.Time               `json:"created_at"`
 	UpdatedAt        time.Time               `json:"updated_at"`
@@ -53,6 +55,7 @@ type NonTradePayableResponse struct {
 type PayNonTradePayableRequest struct {
 	PaymentDate      string  `json:"payment_date" binding:"required"`
 	BankReference    string  `json:"bank_reference"`
-	ChartOfAccountID string  `json:"chart_of_account_id" binding:"required,uuid"` // Bank/Cash Account
+	ChartOfAccountID string  `json:"chart_of_account_id" binding:"omitempty,uuid"` // Bank/Cash Account
+	BankAccountID    string  `json:"bank_account_id" binding:"omitempty,uuid"`
 	Amount           float64 `json:"amount" binding:"required,gt=0"`
 }

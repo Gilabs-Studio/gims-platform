@@ -46,7 +46,12 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	var results []*models.PurchaseRequisition
 	var total int64
 
-	baseQuery := database.GetDB(ctx, r.db).Model(&models.PurchaseRequisition{})
+	baseQuery := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
+	var err error
+	baseQuery, err = applyTenantFilter(ctx, baseQuery, "purchase_requisitions.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	baseQuery = security.ApplyScopeFilter(baseQuery, ctx, security.PurchaseScopeQueryOptions())
@@ -58,6 +63,10 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		baseQuery = baseQuery.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
+		baseQuery, err = applyTenantFilter(ctx, baseQuery, "employees.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		baseQuery = baseQuery.Where(
 			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
 			pattern,
@@ -72,7 +81,11 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 		return nil, 0, err
 	}
 
-	query := database.GetDB(ctx, r.db).Model(&models.PurchaseRequisition{})
+	query := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
+	query, err = applyTenantFilter(ctx, query, "purchase_requisitions.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
 	if params.Status != "" {
 		query = query.Where("status = ?", params.Status)
@@ -80,6 +93,10 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
+		query, err = applyTenantFilter(ctx, query, "employees.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		query = query.Where(
 			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
 			pattern,
@@ -229,17 +246,15 @@ func (r *purchaseRequisitionRepository) Update(ctx context.Context, pr *models.P
 	}
 
 	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var existing models.PurchaseRequisition
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", pr.ID).Error; err != nil {
 			return err
 		}
 
 		// Replace scalar fields (keep Code/Status as provided by caller)
-		if err := txScoped.Model(&existing).Updates(map[string]interface{}{
+		if err := database.GetDB(ctx, tx).Model(&existing).Updates(map[string]interface{}{
 			"supplier_id":                 pr.SupplierID,
 			"supplier_code_snapshot":      pr.SupplierCodeSnapshot,
 			"supplier_name_snapshot":      pr.SupplierNameSnapshot,
@@ -263,14 +278,14 @@ func (r *purchaseRequisitionRepository) Update(ctx context.Context, pr *models.P
 		}
 
 		// Replace items
-		if err := txScoped.Where("purchase_requisition_id = ?", pr.ID).Delete(&models.PurchaseRequisitionItem{}).Error; err != nil {
+		if err := database.GetDB(ctx, tx).Where("purchase_requisition_id = ?", pr.ID).Delete(&models.PurchaseRequisitionItem{}).Error; err != nil {
 			return err
 		}
 		if len(pr.Items) > 0 {
 			for i := range pr.Items {
 				pr.Items[i].PurchaseRequisitionID = pr.ID
 			}
-			if err := txScoped.Create(&pr.Items).Error; err != nil {
+			if err := database.GetDB(ctx, tx).Create(&pr.Items).Error; err != nil {
 				return err
 			}
 		}
@@ -286,21 +301,17 @@ func (r *purchaseRequisitionRepository) Update(ctx context.Context, pr *models.P
 
 func (r *purchaseRequisitionRepository) Delete(ctx context.Context, id string) error {
 	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
-		if err := txScoped.Where("purchase_requisition_id = ?", id).Delete(&models.PurchaseRequisitionItem{}).Error; err != nil {
+		if err := database.GetDB(ctx, tx).Where("purchase_requisition_id = ?", id).Delete(&models.PurchaseRequisitionItem{}).Error; err != nil {
 			return err
 		}
-		return txScoped.Delete(&models.PurchaseRequisition{}, "id = ?", id).Error
+		return database.GetDB(ctx, tx).Delete(&models.PurchaseRequisition{}, "id = ?", id).Error
 	})
 }
 
 func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseRequisitionStatus, extra ...map[string]interface{}) (*models.PurchaseRequisition, error) {
 	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
 		var existing models.PurchaseRequisition
-		if err := txScoped.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&existing, "id = ?", id).Error; err != nil {
 			return err
@@ -328,7 +339,7 @@ func (r *purchaseRequisitionRepository) UpdateStatus(ctx context.Context, id str
 			}
 		}
 
-		return txScoped.Model(&existing).Updates(updates).Error
+		return database.GetDB(ctx, tx).Model(&existing).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, err

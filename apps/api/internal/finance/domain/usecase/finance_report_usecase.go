@@ -837,19 +837,26 @@ func (uc *financeReportUsecase) GetCashFlow(ctx context.Context, startDate, endD
 	}
 
 	netChange := roundMoney(sectionTotals["operating"] + sectionTotals["investing"] + sectionTotals["financing"])
-	if math.Abs((openingCash+netChange)-endingCash) > balanceTolerance {
+	reconciliationGap := roundMoney((openingCash + netChange) - endingCash)
+	isReconciled := math.Abs(reconciliationGap) <= balanceTolerance
+	if !isReconciled {
 		netChange = roundMoney(endingCash - openingCash)
+		reconciliationGap = roundMoney((openingCash + netChange) - endingCash)
+		isReconciled = math.Abs(reconciliationGap) <= balanceTolerance
 	}
 
 	return &dto.CashFlowReport{
 		FromDate:      startDate,
 		ToDate:        endDate,
+		Method:        "indirect",
 		Operating:     buildSection("Operating Activities", "operating"),
 		Investing:     buildSection("Investing Activities", "investing"),
 		Financing:     buildSection("Financing Activities", "financing"),
 		NetChange:     netChange,
 		BeginningCash: roundMoney(openingCash),
 		EndingCash:    roundMoney(endingCash),
+		IsReconciled:  isReconciled,
+		ReconciliationGap: reconciliationGap,
 	}, nil
 }
 

@@ -379,9 +379,9 @@ export const financeJournalsService = {
   getFormData: async (): Promise<
     ApiResponse<JournalEntryFormDataResponse>
   > => {
-    const response = await apiClient.get<
-      ApiResponse<JournalEntryFormDataResponse>
-    >(`${BASE_URL}/form-data`);
+    const response = await apiClient.get<ApiResponse<JournalEntryFormDataResponse>>(
+      `${BASE_URL}/form-data`,
+    );
     return response.data;
   },
 };

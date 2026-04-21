@@ -318,9 +318,17 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave request status for this operation",
 	},
+	"INVALID_DATE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid date for this operation",
+	},
 	"INVALID_DURATION": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave duration type",
+	},
+	"INSUFFICIENT_STOCK": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Insufficient stock for this operation",
 	},
 
 	// System Errors
@@ -405,6 +413,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"XENDIT_INVOICE_FAILED": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Failed to create digital payment invoice",
+	},
+	"BUDGET_CONTROL_FAILED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Budget control validation failed",
 	},
 }
 

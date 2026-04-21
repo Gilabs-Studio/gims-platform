@@ -63,10 +63,13 @@ type CashFlowSection struct {
 type CashFlowReport struct {
 	FromDate      time.Time       `json:"from_date"`
 	ToDate        time.Time       `json:"to_date"`
+	Method        string          `json:"method,omitempty"`
 	Operating     CashFlowSection `json:"operating"`
 	Investing     CashFlowSection `json:"investing"`
 	Financing     CashFlowSection `json:"financing"`
 	NetChange     float64         `json:"net_change"`
 	BeginningCash float64         `json:"beginning_cash"`
 	EndingCash    float64         `json:"ending_cash"`
+	IsReconciled  bool            `json:"is_reconciled"`
+	ReconciliationGap float64     `json:"reconciliation_gap"`
 }

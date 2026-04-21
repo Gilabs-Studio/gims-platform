@@ -4,6 +4,8 @@ export const financeAgingReportsId = {
   fields: {
     asOfDate: "Per Tanggal",
     search: "Cari",
+    customer: "Pelanggan",
+    source: "Sumber",
     code: "Kode",
     invoiceNumber: "No. Invoice",
     invoiceDate: "Tanggal Invoice",

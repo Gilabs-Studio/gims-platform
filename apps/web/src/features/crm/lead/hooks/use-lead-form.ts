@@ -8,7 +8,10 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateLead, useUpdateLead } from "./use-leads";
 import type { Lead } from "../types";
-import { provinceService, cityService } from "@/features/master-data/geographic/services/geographic-service";
+import {
+  provinceService,
+  cityService,
+} from "@/features/master-data/geographic/services/geographic-service";
 import type { ListCitiesParams } from "@/features/master-data/geographic/types";
 
 export interface UseLeadFormProps {
@@ -18,7 +21,12 @@ export interface UseLeadFormProps {
   onSuccess?: () => void;
 }
 
-export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseLeadFormProps) {
+export function useLeadForm({
+  open,
+  onOpenChange,
+  editingItem,
+  onSuccess,
+}: UseLeadFormProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
   const isConvertedLead = !!editingItem?.converted_at;
@@ -39,7 +47,12 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           .max(100)
           .optional()
           .or(z.literal("")),
-        phone: z.string().max(30).optional().or(z.literal("")),
+        phone: z
+          .string()
+          .regex(/^\+?[0-9\s\-()+]*$/, t("validation.phoneInvalid"))
+          .max(20, t("validation.phoneMax"))
+          .optional()
+          .or(z.literal("")),
         contact_role_id: z.string().optional().or(z.literal("")),
         address: z.string().optional().or(z.literal("")),
         city: z.string().max(100).optional().or(z.literal("")),
@@ -53,7 +66,11 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         lead_source_id: z.string().optional().or(z.literal("")),
         lead_status_id: z.string().optional().or(z.literal("")),
         estimated_value: z.number().min(0).optional(),
-        probability: z.number().min(0).max(100).optional(),
+        probability: z
+          .number()
+          .min(0)
+          .max(100, t("validation.probabilityMax"))
+          .optional(),
         budget_confirmed: z.boolean(),
         budget_amount: z.number().min(0).optional(),
         auth_confirmed: z.boolean(),
@@ -70,7 +87,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         payment_terms_id: z.string().optional().or(z.literal("")),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   type LeadFormValues = z.infer<typeof schema>;
@@ -96,7 +113,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         latitude: editingItem.latitude ?? null,
         longitude: editingItem.longitude ?? null,
         lead_source_id: editingItem.lead_source_id ?? "",
-        lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
+        lead_status_id: isConvertedLead
+          ? ""
+          : (editingItem.lead_status_id ?? ""),
         estimated_value: editingItem.estimated_value ?? 0,
         probability: editingItem.probability ?? 0,
         budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -177,7 +196,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           latitude: editingItem.latitude ?? null,
           longitude: editingItem.longitude ?? null,
           lead_source_id: editingItem.lead_source_id ?? "",
-          lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
+          lead_status_id: isConvertedLead
+            ? ""
+            : (editingItem.lead_status_id ?? ""),
           estimated_value: editingItem.estimated_value ?? 0,
           probability: editingItem.probability ?? 0,
           budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -195,7 +216,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           area_id: editingItem.area_id ?? "",
           payment_terms_id: editingItem.payment_terms_id ?? "",
         });
-        
 
         // If the editing item contains location names but missing IDs, try to resolve them
         (async () => {
@@ -203,8 +223,15 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
             const values = form.getValues();
             // Resolve province_id from province name
             if (!values.province_id && values.province) {
-              const provRes = await provinceService.list({ per_page: 10, search: values.province });
-              const match = provRes.data.find((p) => p.name?.toLowerCase() === values.province?.toLowerCase()) || provRes.data[0];
+              const provRes = await provinceService.list({
+                per_page: 10,
+                search: values.province,
+              });
+              const match =
+                provRes.data.find(
+                  (p) =>
+                    p.name?.toLowerCase() === values.province?.toLowerCase(),
+                ) || provRes.data[0];
               if (match) {
                 form.setValue("province_id", match.id, { shouldDirty: true });
               }
@@ -213,10 +240,18 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
             // Resolve city_id from city name (prefer searching within resolved province)
             const afterProv = form.getValues();
             if (!afterProv.city_id && afterProv.city) {
-              const cityParams: Partial<ListCitiesParams> = { per_page: 10, search: afterProv.city };
-              if (afterProv.province_id) cityParams.province_id = afterProv.province_id;
+              const cityParams: Partial<ListCitiesParams> = {
+                per_page: 10,
+                search: afterProv.city,
+              };
+              if (afterProv.province_id)
+                cityParams.province_id = afterProv.province_id;
               const cityRes = await cityService.list(cityParams);
-              const matchCity = cityRes.data.find((c) => c.name?.toLowerCase() === afterProv.city?.toLowerCase()) || cityRes.data[0];
+              const matchCity =
+                cityRes.data.find(
+                  (c) =>
+                    c.name?.toLowerCase() === afterProv.city?.toLowerCase(),
+                ) || cityRes.data[0];
               if (matchCity) {
                 form.setValue("city_id", matchCity.id, { shouldDirty: true });
               }
@@ -224,7 +259,11 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
 
             // Resolve district_id from district name if provided
             const afterCity = form.getValues();
-            if (!afterCity.district_id && afterCity.city_id && editingItem.district_id === "") {
+            if (
+              !afterCity.district_id &&
+              afterCity.city_id &&
+              editingItem.district_id === ""
+            ) {
               // If original editingItem had empty district_id but district name exists, attempt resolve
               // (editingItem may not include district name; skip unless necessary)
             }
@@ -268,7 +307,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           area_id: "",
           payment_terms_id: "",
         });
-        
       }
     }
   }, [editingItem, form, open, isConvertedLead]);
@@ -308,7 +346,9 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(payload as Parameters<typeof createMutation.mutateAsync>[0]);
+        await createMutation.mutateAsync(
+          payload as Parameters<typeof createMutation.mutateAsync>[0],
+        );
         toast.success(t("created"));
       }
       onOpenChange(false);

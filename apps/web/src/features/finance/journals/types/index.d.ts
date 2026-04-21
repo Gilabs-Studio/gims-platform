@@ -344,6 +344,7 @@ export interface CreateJournalTemplateInput {
 export interface UseJournalTemplateResponse {
   template: JournalTemplate;
   prefill: CreateJournalEntryInput;
+}
 
 // ===== Form Data Types =====
 
@@ -365,5 +366,4 @@ export interface JournalEntryFormDataResponse {
   reference_types: EnumOption[];
   currencies: EnumOption[];
   statuses: EnumOption[];
-}
 }

@@ -28,6 +28,9 @@ type SupplierInvoicePaymentTermsMini struct {
 type SupplierInvoiceListResponse struct {
 	ID string `json:"id"`
 
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
+
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`
 	PaymentTerms  *SupplierInvoicePaymentTermsMini  `json:"payment_terms,omitempty"`
@@ -79,6 +82,9 @@ type SupplierInvoiceItemResponse struct {
 
 type SupplierInvoiceDetailResponse struct {
 	ID string `json:"id"`
+
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
 
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`

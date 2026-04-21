@@ -179,28 +179,28 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 	}
 
 	deal := &models.Deal{
-		ID:                   uuid.New().String(),
-		Title:                req.Title,
-		Description:          req.Description,
-		Status:               models.DealStatusOpen,
-		PipelineStageID:      req.PipelineStageID,
-		Value:                dealValue,
-		Probability:          stage.Probability,
-		ExpectedCloseDate:    expectedCloseDate,
-		CustomerID:           req.CustomerID,
-		ContactID:            req.ContactID,
-		AssignedTo:           req.AssignedTo,
-		LeadID:               req.LeadID,
-		BudgetConfirmed:      req.BudgetConfirmed,
-		BudgetAmount:         req.BudgetAmount,
-		AuthConfirmed:        req.AuthConfirmed,
-		AuthPerson:           req.AuthPerson,
-		NeedConfirmed:        req.NeedConfirmed,
-		NeedDescription:      req.NeedDescription,
-		TimeConfirmed:        req.TimeConfirmed,
-		Notes:                req.Notes,
-		CreatedBy:            &createdBy,
-		Items:                items,
+		ID:                uuid.New().String(),
+		Title:             req.Title,
+		Description:       req.Description,
+		Status:            models.DealStatusOpen,
+		PipelineStageID:   req.PipelineStageID,
+		Value:             dealValue,
+		Probability:       stage.Probability,
+		ExpectedCloseDate: expectedCloseDate,
+		CustomerID:        req.CustomerID,
+		ContactID:         req.ContactID,
+		AssignedTo:        req.AssignedTo,
+		LeadID:            req.LeadID,
+		BudgetConfirmed:   req.BudgetConfirmed,
+		BudgetAmount:      req.BudgetAmount,
+		AuthConfirmed:     req.AuthConfirmed,
+		AuthPerson:        req.AuthPerson,
+		NeedConfirmed:     req.NeedConfirmed,
+		NeedDescription:   req.NeedDescription,
+		TimeConfirmed:     req.TimeConfirmed,
+		Notes:             req.Notes,
+		CreatedBy:         &createdBy,
+		Items:             items,
 	}
 
 	if err := u.dealRepo.Create(ctx, deal); err != nil {
@@ -378,20 +378,21 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 				Notes:           itemDTO.Notes,
 			}
 
-			// Snapshot product data if product ID is provided
+			// Snapshot product data if product ID is provided.
+			// During update, if the product is no longer found (e.g. archived),
+			// use the data already supplied in the item DTO as-is.
 			if itemDTO.ProductID != nil && *itemDTO.ProductID != "" {
 				product, err := u.productRepo.FindByID(ctx, *itemDTO.ProductID)
-				if err != nil {
-					return dto.DealResponse{}, fmt.Errorf("product not found: %s", *itemDTO.ProductID)
-				}
-				if item.ProductName == "" {
-					item.ProductName = product.Name
-				}
-				if item.ProductSKU == "" {
-					item.ProductSKU = product.Sku
-				}
-				if item.UnitPrice == 0 {
-					item.UnitPrice = product.SellingPrice
+				if err == nil {
+					if item.ProductName == "" {
+						item.ProductName = product.Name
+					}
+					if item.ProductSKU == "" {
+						item.ProductSKU = product.Sku
+					}
+					if item.UnitPrice == 0 {
+						item.UnitPrice = product.SellingPrice
+					}
 				}
 			}
 
@@ -732,12 +733,12 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 			continue
 		}
 		leadOptions = append(leadOptions, dto.DealLeadOption{
-			ID:          l.ID,
-			Code:        l.Code,
-			FirstName:   l.FirstName,
-			LastName:    l.LastName,
-			CompanyName: l.CompanyName,
-			IsConverted: l.IsConverted(),
+			ID:                       l.ID,
+			Code:                     l.Code,
+			FirstName:                l.FirstName,
+			LastName:                 l.LastName,
+			CompanyName:              l.CompanyName,
+			IsConverted:              l.IsConverted(),
 			IsQualifiedForConversion: true,
 		})
 	}
@@ -1133,7 +1134,7 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 			Phone:      leadData.Phone,
 			Email:      leadData.Email,
 			Position:   leadData.JobTitle,
-			IsActive: true,
+			IsActive:   true,
 		}
 		if changedBy != "" {
 			newContact.CreatedBy = &changedBy

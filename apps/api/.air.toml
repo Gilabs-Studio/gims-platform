@@ -7,19 +7,19 @@
 #   3. Run: air
 
 root = "."
-tmp_dir = "tmp"
+tmp_dir = "bin"
 
 [build]
   # Windows binary output
-  bin = "tmp\\main.exe"
+  bin = "bin\\main.exe"
   # Build command - CGO disabled on Windows (no libwebp); WebP conversion falls back to passthrough
-  cmd = "$env:CGO_ENABLED='0'; go build -o tmp/main.exe ./cmd/api/main.go"
+  cmd = "$env:CGO_ENABLED='0'; go build -o bin/main.exe ./cmd/api/main.go"
   # Watch these directories
   include_dir = ["cmd", "internal", "pkg", "seeders"]
   # Watch these extensions
   include_ext = ["go", "toml", "yaml", "yml"]
   # Exclude patterns
-  exclude_dir = ["tmp", "vendor", "node_modules", "uploads"]
+  exclude_dir = ["bin", "tmp", "vendor", "node_modules", "uploads"]
   exclude_regex = ["_test\\.go$"]
   # Delay after file change before rebuild (ms)
   delay = 1000
@@ -30,7 +30,7 @@ tmp_dir = "tmp"
   # Kill delay after interrupt (ms)
   kill_delay = 500
   # Log build output
-  log = "tmp/build-errors.log"
+  log = "bin/build-errors.log"
 
 [log]
   # Show timestamp in log

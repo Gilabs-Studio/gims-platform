@@ -165,6 +165,39 @@ func (h *PurchasePaymentHandler) Create(c *gin.Context) {
 	response.SuccessResponseCreated(c, res, nil)
 }
 
+// CreateBatch handles POST /purchase/payments/batch
+func (h *PurchasePaymentHandler) CreateBatch(c *gin.Context) {
+	var req dto.CreatePurchasePaymentBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	res, err := h.uc.CreateBatch(c.Request.Context(), &req)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", "batch_item")
+			return
+		}
+		if err == usecase.ErrPurchasePaymentConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseCreated(c, res, nil)
+}
+
 // Update handles PUT /purchase/payments/:id
 func (h *PurchasePaymentHandler) Update(c *gin.Context) {
 	id := c.Param("id")
@@ -176,6 +209,7 @@ func (h *PurchasePaymentHandler) Update(c *gin.Context) {
 		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
+
 	var req dto.UpdatePurchasePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -196,17 +230,18 @@ func (h *PurchasePaymentHandler) Update(c *gin.Context) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
-		if err.Error() == "user not authenticated" {
-			errors.UnauthorizedResponse(c, "user not authenticated")
-			return
-		}
 		if err.Error() == "bank account not found" {
 			errors.NotFoundResponse(c, "bank_account", req.BankAccountID)
+			return
+		}
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
+
 	response.SuccessResponse(c, res, nil)
 }
 
@@ -264,6 +299,39 @@ func (h *PurchasePaymentHandler) Confirm(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// ConfirmBatch handles PATCH /purchase/payments/batch/confirm and /batch/post
+func (h *PurchasePaymentHandler) ConfirmBatch(c *gin.Context) {
+	var req dto.ConfirmPurchasePaymentBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	res, err := h.uc.ConfirmBatch(c.Request.Context(), &req)
+	if err != nil {
+		if err == usecase.ErrPurchasePaymentNotFound {
+			errors.NotFoundResponse(c, "purchase_payment", "batch_item")
+			return
+		}
+		if err == usecase.ErrPurchasePaymentConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
 	response.SuccessResponse(c, res, nil)
 }
 
