@@ -29,30 +29,36 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { useFloorLayouts, useFloorLayoutFormData, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
+import { useFloorLayouts, useFloorLayoutFormDataWithCompany, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
 import { CreateFloorPlanDialog } from "./create-floor-plan-dialog";
 import type { FloorPlan, LayoutObject } from "../types";
 
 interface FloorLayoutListProps {
   readonly onOpenEditor: (id: string) => void;
+  readonly companyId?: string;
 }
 
-export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
+export function FloorLayoutList({ onOpenEditor, companyId }: FloorLayoutListProps) {
   const t = useTranslations("floorLayout");
   const [search, setSearch] = useState("");
   const [outletFilter, setOutletFilter] = useState<string>("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FloorPlan | null>(null);
 
-  const { data: formData } = useFloorLayoutFormData();
+  const { data: formData } = useFloorLayoutFormDataWithCompany(companyId, {
+    enabled: !!companyId,
+  });
   const outlets = formData?.data?.outlets ?? [];
 
   const params = {
     search: search || undefined,
     outlet_id: outletFilter !== "all" ? outletFilter : undefined,
+    company_id: companyId,
     per_page: 50,
   };
-  const { data, isPending, isError } = useFloorLayouts(params);
+  const { data, isPending, isError } = useFloorLayouts(params, {
+    enabled: !!companyId,
+  });
   const floorPlans = data?.data ?? [];
 
   const deleteMutation = useDeleteFloorLayout();
@@ -167,6 +173,7 @@ export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSuccess={handleCreateSuccess}
+        companyId={companyId}
       />
 
       {/* Delete confirmation */}

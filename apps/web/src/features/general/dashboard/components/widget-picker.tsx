@@ -44,10 +44,20 @@ import {
   Activity,
   Clock,
   Brain,
+  ContactRound,
+  UserPlus,
+  Handshake,
+  CalendarCheck,
+  Store,
+  LayoutGrid,
+  CalendarCheck2,
+  ClipboardList,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { hasPermissionCode } from "@/lib/permission-utils";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   DollarSign,
@@ -81,22 +91,23 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Activity,
   Clock,
   Brain,
+  ContactRound,
+  UserPlus,
+  Handshake,
+  CalendarCheck,
+  Store,
+  LayoutGrid,
+  CalendarCheck2,
+  ClipboardList,
 };
 
 const CATEGORY_LABEL_KEYS: Record<WidgetCategory, string> = {
-  overview: "categories.overview",
-  finance: "categories.finance",
-  sales: "categories.sales",
-  purchase: "categories.purchase",
-  inventory: "categories.inventory",
-  geographic: "categories.geographic",
+  erp: "categories.erp",
+  crm: "categories.crm",
+  pos: "categories.pos",
   hr: "categories.hr",
-  profitability: "categories.profitability",
-  cashflow: "categories.cashflow",
-  logistics: "categories.logistics",
-  asset: "categories.asset",
-  cost: "categories.cost",
-  intelligence: "categories.intelligence",
+  finance: "categories.finance",
+  other: "categories.other",
 };
 
 interface WidgetPickerProps {
@@ -105,8 +116,15 @@ interface WidgetPickerProps {
   readonly onAddWidget: (type: WidgetType) => void | Promise<void>;
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  if (typeof value !== "object" || value === null) return false;
+  const withThen = value as { then?: unknown };
+  return typeof withThen.then === "function";
+}
+
 export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps) {
   const t = useTranslations("dashboard");
+  const { user } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [addingSet, setAddingSet] = useState<Set<string>>(new Set());
@@ -118,10 +136,21 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
   );
 
   const categories = Object.keys(grouped);
-  const filteredWidgets =
-    selectedCategory === "all"
-      ? Object.values(WIDGET_REGISTRY)
-      : grouped[selectedCategory] ?? [];
+  const filteredWidgets = useMemo(
+    () =>
+      selectedCategory === "all"
+        ? Object.values(WIDGET_REGISTRY)
+        : grouped[selectedCategory] ?? [],
+    [selectedCategory, grouped],
+  );
+
+  const visibleWidgets = useMemo(() => {
+    const permissionMap = user?.permissions ?? {};
+    return filteredWidgets.filter((entry) => {
+      if (!entry.permission) return true;
+      return hasPermissionCode(permissionMap, entry.permission);
+    });
+  }, [filteredWidgets, user?.permissions]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -159,7 +188,7 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
 
         {/* Widget list */}
         <div className="max-h-80 space-y-1.5 overflow-y-auto">
-          {filteredWidgets.map((entry) => {
+          {visibleWidgets.map((entry) => {
             const Icon = ICON_MAP[entry.icon] ?? DollarSign;
             const exists = existingTypes.has(entry.type);
             const isAdding = addingSet.has(entry.type);
@@ -183,7 +212,7 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
 
                   try {
                     const result = onAddWidget(entry.type);
-                    if (result && typeof (result as any).then === "function") {
+                    if (isPromiseLike(result)) {
                       await result;
                     } else {
                       // Ensure UX shows a small progress even for sync adds
@@ -209,7 +238,7 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
                   });
                   try {
                     const result = onAddWidget(entry.type);
-                    if (result && typeof (result as any).then === "function") {
+                    if (isPromiseLike(result)) {
                       await result;
                     } else {
                       await new Promise((r) => setTimeout(r, 600));

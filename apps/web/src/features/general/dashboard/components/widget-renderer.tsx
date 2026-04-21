@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   Timer,
@@ -16,10 +16,12 @@ import {
   Truck,
   Activity as ActivityIcon,
   Clock,
+  Lock,
 } from "lucide-react";
 import type { WidgetConfig, KpiCardData, WidgetType, OwnerKpiMetric } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDashboardWidgetOverview, isOverviewWidget, isOwnerKpiWidget } from "../hooks/use-dashboard";
 import { useOwnerKpi } from "../hooks/use-owner-kpi";
 import { ChartWidget } from "./chart-widget";
@@ -44,6 +46,10 @@ import { OwnerIntelligenceWidget } from "./owner-intelligence-widget";
 import { OpexCapexWidget } from "./opex-capex-widget";
 import { WidgetAsyncState } from "./widget-async-state";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
+import { CrmKpiWidget } from "./crm-kpi-widget";
+import { PosOutletSalesWidget } from "./pos-outlet-sales-widget";
+import { PosLiveTableWidget } from "./pos-live-table-widget";
+import { HrWidget } from "./hr-widget";
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -64,9 +70,6 @@ function isNonOverviewWidget(type: WidgetType): boolean {
   );
 }
 
-// Tier mapping for visual priority
-const TIER_1_WIDGETS = new Set(["kpi_ccc", "kpi_dio", "kpi_ar_days", "kpi_ap_days"]);
-
 const KPI_ICONS: Record<string, ReactNode> = {
   kpi_ccc: <Timer className="h-4 w-4" />,
   kpi_dio: <CalendarClock className="h-4 w-4" />,
@@ -85,6 +88,7 @@ const KPI_ICONS: Record<string, ReactNode> = {
 
 export function WidgetRenderer({ widget }: WidgetRendererProps) {
   const t = useTranslations("dashboard");
+  const tAuthBlock = useTranslations("auth.block");
   const registry = WIDGET_REGISTRY[widget.type];
   // Always call hooks unconditionally before any early returns
   const canView = useUserPermission(registry?.permission ?? "");
@@ -101,41 +105,46 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     enabled: canView && isOwnerKpiWidget(widget.type),
   });
 
-  // Keep hooks order stable across renders to satisfy React hook rules.
-  const totalExpense = useMemo<KpiCardData>(() => {
-    const items = data?.costs_by_category ?? [];
-    const total = items.reduce((sum, item) => sum + item.amount, 0);
-    const formatted = formatCurrency(total);
-    return { value: total, formatted };
-  }, [data?.costs_by_category]);
+  const costItems = data?.costs_by_category ?? [];
+  const totalExpenseValue = costItems.reduce((sum, item) => sum + item.amount, 0);
+  const totalExpense: KpiCardData = {
+    value: totalExpenseValue,
+    formatted: formatCurrency(totalExpenseValue),
+  };
 
   // Keep dashboard figures readable and consistent by avoiding compact abbreviations.
-  const revenueSummary = useMemo<KpiCardData | undefined>(() => {
-    if (!data?.kpi?.total_revenue) return undefined;
-    return {
-      ...data.kpi.total_revenue,
-      formatted: formatCurrency(data.kpi.total_revenue.value),
-    };
-  }, [data?.kpi?.total_revenue]);
+  const revenueSummary = data?.kpi?.total_revenue
+    ? {
+        ...data.kpi.total_revenue,
+        formatted: formatCurrency(data.kpi.total_revenue.value),
+      }
+    : undefined;
 
-  const ordersSummary = useMemo<KpiCardData | undefined>(() => {
-    if (!data?.kpi?.total_orders) return undefined;
-    return {
-      ...data.kpi.total_orders,
-      formatted: formatNumber(data.kpi.total_orders.value),
-    };
-  }, [data?.kpi?.total_orders]);
+  const ordersSummary = data?.kpi?.total_orders
+    ? {
+        ...data.kpi.total_orders,
+        formatted: formatNumber(data.kpi.total_orders.value),
+      }
+    : undefined;
 
-  const balanceSummary = useMemo<KpiCardData | undefined>(() => {
-    if (!data?.balance_overview) return undefined;
-    return {
-      ...data.balance_overview,
-      formatted: formatCurrency(data.balance_overview.value),
-    };
-  }, [data?.balance_overview]);
+  const balanceSummary = data?.balance_overview
+    ? {
+        ...data.balance_overview,
+        formatted: formatCurrency(data.balance_overview.value),
+      }
+    : undefined;
 
   if (!registry) return null;
-  if (!canView) return null;
+  if (!canView) {
+    return (
+      <Card className="h-full border-dashed">
+        <CardContent className="flex min-h-40 flex-col items-center justify-center gap-2 p-6 text-center">
+          <Lock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <p className="text-xs text-muted-foreground">{tAuthBlock("description")}</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // ── Non-overview widgets (self-fetching) ──
   if (isNonOverviewWidget(widget.type)) {
@@ -343,6 +352,24 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     case "travel_planner_overview":
       content = <TravelPlannerWidget />;
       break;
+
+    // ---- CRM widgets ----
+    case "crm_total_contacts":
+    case "crm_active_leads":
+    case "crm_deals_overview":
+    case "crm_activity_summary":
+      return <CrmKpiWidget widget={widget} />;
+
+    // ---- POS widgets ----
+    case "pos_outlet_sales":
+      return <PosOutletSalesWidget widget={widget} />;
+    case "pos_live_table_overview":
+      return <PosLiveTableWidget widget={widget} />;
+
+    // ---- HR widgets ----
+    case "hr_attendance_today":
+    case "hr_pending_leaves":
+      return <HrWidget widget={widget} />;
 
     default:
       content = null;

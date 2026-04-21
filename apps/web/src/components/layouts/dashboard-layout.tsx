@@ -31,6 +31,7 @@ import { LeaveRequestDrawer } from "@/features/hrd/leave-request/components/leav
 import { OvertimeDrawer } from "@/features/hrd/overtime/components/overtime-drawer";
 import { useLocationPermission } from "@/features/hrd/attendance-records/hooks/use-location-permission";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
+import { useOnboardingState } from "@/features/general/dashboard/hooks/use-onboarding";
 import { IconSidebar, type IconSidebarItem } from "./icon-sidebar";
 import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
 import { cn } from "@/lib/utils";
@@ -65,10 +66,8 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
 
   const mappings: Record<string, string> = {
     "/finance/accounting/journal-entries": "/finance/journals",
-    "/finance/accounting/journal-entries/purchase":
-      "/finance/journals/purchase",
-    "/finance/accounting/journal-entries/adjustment":
-      "/finance/journals/adjustment",
+    "/finance/accounting/journal-entries/purchase": "/finance/journals/purchase",
+    "/finance/accounting/journal-entries/adjustment": "/finance/journals/adjustment",
     "/finance/accounting/closing": "/finance/closing",
     "/finance/ar/customer-invoices": "/finance/journals/sales",
     "/finance/ar/customer-payments": "/finance/ap/payments",
@@ -80,8 +79,7 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
     "/finance/fixed-assets/assets": "/finance/assets",
     "/finance/fixed-assets/categories": "/finance/asset-categories",
     "/finance/fixed-assets/locations": "/finance/asset-locations",
-    "/finance/fixed-assets/depreciation-schedule":
-      "/finance/asset-batch-depreciation",
+    "/finance/fixed-assets/depreciation-schedule": "/finance/asset-batch-depreciation",
     "/finance/fixed-assets/disposal": "/finance/asset-disposal",
     "/finance/fixed-assets/revaluation": "/finance/asset-revaluation",
     "/finance/reports/trial-balance": "/finance/reports/general-ledger",
@@ -140,6 +138,12 @@ export const DashboardLayout = memo(function DashboardLayout({
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
   const pathname = usePathname();
   const isMobile = useIsMobile();
+  const isGeneralDashboardPage = Boolean(
+    pathname && /(^|\/)dashboard$/.test(pathname) && !pathname.includes("/system/"),
+  );
+  const { data: onboardingState } = useOnboardingState({
+    enabled: isGeneralDashboardPage,
+  });
 
   const userName = user?.name ?? "User";
   const tenantName = user?.tenant_name ?? "";
@@ -185,7 +189,6 @@ export const DashboardLayout = memo(function DashboardLayout({
   const [isDetailSidebarOpen, setIsDetailSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
   const [attendanceDrawerTab, setAttendanceDrawerTab] =
     useState<AttendanceDrawerTab>("calendar");
@@ -262,9 +265,7 @@ export const DashboardLayout = memo(function DashboardLayout({
             name: item.name,
             href,
             icon: getMenuIcon(item.icon),
-            children: item.children
-              ? buildDetailItems(item.children, detailId)
-              : undefined,
+            children: item.children ? buildDetailItems(item.children, detailId) : undefined,
           };
         });
     };
@@ -369,11 +370,7 @@ export const DashboardLayout = memo(function DashboardLayout({
     const handler = () => setIsMobileSidebarOpen(true);
     if (typeof window !== "undefined") {
       window.addEventListener("openMobileSidebar", handler as EventListener);
-      return () =>
-        window.removeEventListener(
-          "openMobileSidebar",
-          handler as EventListener,
-        );
+      return () => window.removeEventListener("openMobileSidebar", handler as EventListener);
     }
     return undefined;
   }, []);
@@ -421,6 +418,9 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/crm/area-mapping") ||
     pathname?.includes("/travel-planner") ||
     pathname?.includes("/visit-planner");
+  const isDashboardOnboardingMode =
+    isGeneralDashboardPage && onboardingState?.completed === false;
+  const shouldShowDashboardHeader = !isAIChatbotPage && !isFullScreenMapPage;
 
   const handleOpenAttendanceDrawer = useCallback(
     (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {
@@ -497,29 +497,50 @@ export const DashboardLayout = memo(function DashboardLayout({
           className="relative min-h-screen transition-[margin] duration-300 ease-out"
           style={{ marginLeft: contentMarginLeft }}
         >
-          <div className="min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]">
-            {!isAIChatbotPage && !isFullScreenMapPage && (
-              <DashboardHeader
-                userName={userName}
-                tenantName={tenantName}
-                avatarUrl={primaryAvatarUrl}
-                fallbackAvatarUrl={fallbackAvatarUrl}
-                onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
-                onSearchClick={() => setCommandPaletteOpen(true)}
-                showAttendanceIndicator={showAttendanceIndicator}
-                onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
-              />
+          <div
+            className={cn(
+              "relative min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]",
+              isDashboardOnboardingMode && "md:rounded-none md:shadow-none",
             )}
+          >
+            {shouldShowDashboardHeader &&
+              (isDashboardOnboardingMode ? (
+                <div className="absolute inset-x-0 top-0 z-20">
+                  <DashboardHeader
+                    userName={userName}
+                    tenantName={tenantName}
+                    avatarUrl={primaryAvatarUrl}
+                    fallbackAvatarUrl={fallbackAvatarUrl}
+                    onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                    showAttendanceIndicator={showAttendanceIndicator}
+                    onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
+                  />
+                </div>
+              ) : (
+                <DashboardHeader
+                  userName={userName}
+                  tenantName={tenantName}
+                  avatarUrl={primaryAvatarUrl}
+                  fallbackAvatarUrl={fallbackAvatarUrl}
+                  onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                  showAttendanceIndicator={showAttendanceIndicator}
+                  onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
+                />
+              ))}
 
             <div
               className={cn(
                 "flex flex-1 flex-col",
                 isAIChatbotPage || isFullScreenMapPage
                   ? "h-[calc(100vh-1px)] gap-0 p-0"
-                  : "gap-4 p-4 md:p-6",
+                  : isDashboardOnboardingMode
+                    ? "min-h-screen items-center justify-center gap-0 p-0"
+                    : "gap-4 p-4 md:p-6",
               )}
             >
-              {!isAIChatbotPage && !isFullScreenMapPage && <Breadcrumb />}
+              {!isAIChatbotPage &&
+                !isFullScreenMapPage &&
+                !isDashboardOnboardingMode && <Breadcrumb />}
               {children}
             </div>
           </div>
@@ -543,11 +564,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={setIsOvertimeDrawerOpen}
         />
 
-        <CommandPalette
-          menus={menus}
-          open={commandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-        />
+        <CommandPalette menus={menus} />
         {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>

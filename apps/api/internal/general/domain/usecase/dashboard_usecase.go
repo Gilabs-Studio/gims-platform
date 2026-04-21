@@ -166,6 +166,12 @@ func (u *dashboardUsecase) GetOverviewByScope(ctx context.Context, req dto.Dashb
 		u.loadGeoOverview(ctx, start, end, overview)
 	case dto.DashboardOverviewScopeWarehouse:
 		u.loadWarehouseOverview(ctx, overview)
+	case dto.DashboardOverviewScopePOS:
+		return u.loadPOSScopedResponse(ctx, req)
+	case dto.DashboardOverviewScopeHR:
+		return u.loadHRScopedResponse(ctx)
+	case dto.DashboardOverviewScopeCRM:
+		return u.loadCRMScopedResponse(ctx)
 	}
 
 	return toScopedOverviewResponse(overview, req.Scope), nil
@@ -407,4 +413,34 @@ func (u *dashboardUsecase) GetLayout(ctx context.Context, userID, dashboardType 
 // SaveLayout persists the user's custom dashboard layout to the database.
 func (u *dashboardUsecase) SaveLayout(ctx context.Context, userID string, req dto.DashboardLayoutSaveRequest) error {
 	return u.layoutRepo.SaveLayout(ctx, userID, req.DashboardType, req.LayoutJSON)
+}
+
+// loadPOSScopedResponse returns POS summary with RBAC outlet filtering.
+func (u *dashboardUsecase) loadPOSScopedResponse(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardScopedOverviewResponse, error) {
+	summary, err := u.repo.GetPOSSummary(ctx, req.UserID)
+	if err != nil {
+		log.Printf("[dashboard] pos summary error: %v", err)
+		summary = &dto.POSSummaryData{}
+	}
+	return &dto.DashboardScopedOverviewResponse{POSSummary: summary}, nil
+}
+
+// loadHRScopedResponse returns HR attendance and leave summary.
+func (u *dashboardUsecase) loadHRScopedResponse(ctx context.Context) (*dto.DashboardScopedOverviewResponse, error) {
+	summary, err := u.repo.GetHRSummary(ctx)
+	if err != nil {
+		log.Printf("[dashboard] hr summary error: %v", err)
+		summary = &dto.HRSummaryData{}
+	}
+	return &dto.DashboardScopedOverviewResponse{HRSummary: summary}, nil
+}
+
+// loadCRMScopedResponse returns CRM aggregated metrics.
+func (u *dashboardUsecase) loadCRMScopedResponse(ctx context.Context) (*dto.DashboardScopedOverviewResponse, error) {
+	summary, err := u.repo.GetCRMSummary(ctx)
+	if err != nil {
+		log.Printf("[dashboard] crm summary error: %v", err)
+		summary = &dto.CRMSummaryData{}
+	}
+	return &dto.DashboardScopedOverviewResponse{CRMSummary: summary}, nil
 }

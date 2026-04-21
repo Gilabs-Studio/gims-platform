@@ -480,6 +480,17 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			_ = err
 		}
 
+		// 1c. Bootstrap the onboarding record so the new tenant enters the guided setup flow
+		//     immediately after registration, ensuring per-tenant data isolation from day one.
+		if err := tx.Exec(`
+			INSERT INTO tenant_onboardings (id, tenant_id, business_type, completed, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, '', false, NOW(), NOW())`,
+			tenantID,
+		).Error; err != nil {
+			// Non-fatal: onboarding will be created lazily on the first GetState call if this fails.
+			_ = err
+		}
+
 		// 2. Hash password
 		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {

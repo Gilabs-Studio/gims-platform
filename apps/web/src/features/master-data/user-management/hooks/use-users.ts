@@ -43,6 +43,8 @@ export function useCreateUser() {
     mutationFn: (data: CreateUserFormData) => userService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      // Refresh the limit badge so the count is immediately accurate.
+      queryClient.invalidateQueries({ queryKey: ["users", "limit"] });
     },
   });
 }
@@ -67,6 +69,7 @@ export function useDeleteUser() {
     mutationFn: (id: string) => userService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["users", "limit"] });
     },
   });
 }

@@ -301,6 +301,8 @@ func AutoMigrate() error {
 		&crm.AreaCapture{},
 		// General: user dashboard layout preferences
 		&general.DashboardLayout{},
+		// General: tenant onboarding state
+		&general.TenantOnboarding{},
 		// POS entities (Floor Layout Designer + Full POS System)
 		&pos.FloorPlan{},
 		&pos.LayoutVersion{},

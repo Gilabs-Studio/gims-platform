@@ -14,6 +14,8 @@ export const userManagementEn = {
     allStatus: "All Status",
     allRoles: "All Roles",
     addUser: "Add User",
+    limitReached: "User limit reached. Upgrade your plan to add more users.",
+    userLimitLabel: "{current}/{max} users",
     empty: "No users found",
     createTitle: "Create User",
     editTitle: "Edit User",

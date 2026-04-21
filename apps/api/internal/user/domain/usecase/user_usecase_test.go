@@ -9,6 +9,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/role/data/models"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	"github.com/gilabs/gims/api/internal/user/domain/dto"
 	"github.com/gilabs/gims/api/internal/user/domain/usecase"
@@ -34,6 +35,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 	type fields struct {
 		userRepo       *mocks.UserRepository
 		roleRepo       *mocks.RoleRepository
+		tenantRepo     *mocks.TenantRepository
 		auditService   *mocks.AuditService
 		eventPublisher *mocks.EventPublisher
 		redis          *redis.Client
@@ -56,6 +58,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 			fields: fields{
 				userRepo:       mocks.NewUserRepository(t),
 				roleRepo:       mocks.NewRoleRepository(t),
+				tenantRepo:     mocks.NewTenantRepository(t),
 				auditService:   mocks.NewAuditService(t),
 				eventPublisher: mocks.NewEventPublisher(t),
 				redis:          rdb,
@@ -84,6 +87,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 			fields: fields{
 				userRepo:       mocks.NewUserRepository(t),
 				roleRepo:       mocks.NewRoleRepository(t),
+				tenantRepo:     mocks.NewTenantRepository(t),
 				auditService:   mocks.NewAuditService(t),
 				eventPublisher: mocks.NewEventPublisher(t),
 				redis:          rdb,
@@ -114,6 +118,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 			fields: fields{
 				userRepo:       mocks.NewUserRepository(t),
 				roleRepo:       mocks.NewRoleRepository(t),
+				tenantRepo:     mocks.NewTenantRepository(t),
 				auditService:   mocks.NewAuditService(t),
 				eventPublisher: mocks.NewEventPublisher(t),
 				redis:          rdb,
@@ -132,7 +137,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
+			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)
@@ -174,6 +179,7 @@ func TestUserUsecase_Create(t *testing.T) {
 	type fields struct {
 		userRepo       *mocks.UserRepository
 		roleRepo       *mocks.RoleRepository
+		tenantRepo     *mocks.TenantRepository
 		auditService   *mocks.AuditService
 		eventPublisher *mocks.EventPublisher
 		redis          *redis.Client
@@ -195,6 +201,7 @@ func TestUserUsecase_Create(t *testing.T) {
 			fields: fields{
 				userRepo:       mocks.NewUserRepository(t),
 				roleRepo:       mocks.NewRoleRepository(t),
+				tenantRepo:     mocks.NewTenantRepository(t),
 				auditService:   mocks.NewAuditService(t),
 				eventPublisher: mocks.NewEventPublisher(t),
 				redis:          rdb,
@@ -209,6 +216,9 @@ func TestUserUsecase_Create(t *testing.T) {
 				},
 			},
 			mock: func(f fields) {
+				// Limit check: Count returns 0, tenantRepo returns safe default on empty tenant_id
+				f.userRepo.On("Count", mock.Anything).Return(int64(0), nil)
+				f.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 5}, nil)
 				f.roleRepo.On("FindByID", mock.Anything, "role-1").Return(&models.Role{ID: "role-1"}, nil)
 				f.userRepo.On("FindByEmail", mock.Anything, "new@example.com").Return(nil, gorm.ErrRecordNotFound)
 				f.userRepo.On("Create", mock.Anything, mock.MatchedBy(func(u *userModels.User) bool {
@@ -237,6 +247,7 @@ func TestUserUsecase_Create(t *testing.T) {
 			fields: fields{
 				userRepo:       mocks.NewUserRepository(t),
 				roleRepo:       mocks.NewRoleRepository(t),
+				tenantRepo:     mocks.NewTenantRepository(t),
 				auditService:   mocks.NewAuditService(t),
 				eventPublisher: mocks.NewEventPublisher(t),
 				redis:          rdb,
@@ -250,6 +261,8 @@ func TestUserUsecase_Create(t *testing.T) {
 				},
 			},
 			mock: func(f fields) {
+				f.userRepo.On("Count", mock.Anything).Return(int64(0), nil)
+				f.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 5}, nil)
 				f.roleRepo.On("FindByID", mock.Anything, "role-99").Return(nil, gorm.ErrRecordNotFound)
 			},
 			want:    nil,
@@ -258,7 +271,7 @@ func TestUserUsecase_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
+			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

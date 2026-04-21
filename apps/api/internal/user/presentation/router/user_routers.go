@@ -17,6 +17,7 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 	{
 		// Static routes BEFORE parameterized /:id to avoid path conflicts
 		g.GET("/available", middleware.RequirePermission("employee.read"), h.GetAvailable)
+		g.GET("/limit", middleware.RequirePermission("user.read"), h.GetLimit)
 
 		g.GET("", middleware.RequirePermission("user.read"), h.List)
 		g.GET("/:id", middleware.RequirePermission("user.read"), h.GetByID)

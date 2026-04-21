@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -27,13 +27,14 @@ import { Link } from "@/i18n/routing";
 
 import type { CreateFloorPlanData } from "../types";
 import { getCreateFloorPlanSchema } from "../schemas/floor-layout.schema";
-import { useCreateFloorLayout, useFloorLayoutFormData } from "../hooks/use-floor-layouts";
+import { useCreateFloorLayout, useFloorLayoutFormDataWithCompany } from "../hooks/use-floor-layouts";
 
 interface CreateFloorPlanDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSuccess: (id: string) => void;
   readonly preSelectedOutletId?: string; // For single outlet auto-select
+  readonly companyId?: string;
 }
 
 export function CreateFloorPlanDialog({
@@ -41,10 +42,14 @@ export function CreateFloorPlanDialog({
   onOpenChange,
   onSuccess,
   preSelectedOutletId,
+  companyId,
 }: CreateFloorPlanDialogProps) {
   const t = useTranslations("floorLayout");
   const schema = getCreateFloorPlanSchema(t);
-  const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormData();
+  const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormDataWithCompany(
+    companyId,
+    { enabled: !!companyId }
+  );
   const createMutation = useCreateFloorLayout();
 
   const outlets = formData?.data?.outlets ?? [];
@@ -63,7 +68,10 @@ export function CreateFloorPlanDialog({
     },
   });
 
-  const selectedOutletId = form.watch("outlet_id");
+  const selectedOutletId = useWatch({
+    control: form.control,
+    name: "outlet_id",
+  });
   const selectedOutlet = outlets.find((outlet) => outlet.id === selectedOutletId);
 
   const handleSubmit = form.handleSubmit(async (data) => {
@@ -77,7 +85,10 @@ export function CreateFloorPlanDialog({
     }
 
     try {
-      const result = await createMutation.mutateAsync(data);
+      const result = await createMutation.mutateAsync({
+        ...data,
+        company_id: companyId,
+      });
       toast.success(t("messages.createSuccess"));
       form.reset();
       onOpenChange(false);
@@ -104,7 +115,7 @@ export function CreateFloorPlanDialog({
               <Skeleton className="h-9 w-full" />
             ) : (
               <Select
-                value={form.watch("outlet_id")}
+                value={selectedOutletId ?? ""}
                 onValueChange={(v) => form.setValue("outlet_id", v, { shouldValidate: true })}
               >
                 <SelectTrigger className="cursor-pointer">
