@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -126,7 +127,10 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	var employees []models.Employee
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.Employee{})
+	// Use WithContext instead of GetDB: when AreaID filter triggers a JOIN on employee_areas,
+	// both joined tables have tenant_id. GetDB adds unqualified WHERE tenant_id=? which
+	// causes PG ambiguity. The GORM callback (scope.go) adds the qualified table.tenant_id filter.
+	query := r.db.WithContext(ctx).Model(&models.Employee{})
 
 	// Apply search filter
 	if searchTerm := strings.TrimSpace(params.Search); searchTerm != "" {
@@ -242,7 +246,9 @@ func (r *employeeRepository) Delete(ctx context.Context, id string) error {
 // Used to populate outlet manager dropdowns with only eligible users.
 func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope string) ([]models.Employee, error) {
 	var employees []models.Employee
-	err := database.GetDB(ctx, r.db).
+	// Use WithContext (not GetDB) so that the unqualified WHERE tenant_id=? from GetDB is
+	// not added alongside the JOINed tables. The GORM callback adds employees.tenant_id=? (qualified).
+	err := r.db.WithContext(ctx).
 		Joins("INNER JOIN users ON users.id = employees.user_id AND users.deleted_at IS NULL").
 		Joins("INNER JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL").
 		Where("employees.is_active = ?", true).

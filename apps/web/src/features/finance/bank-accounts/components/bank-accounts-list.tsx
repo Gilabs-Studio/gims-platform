@@ -122,7 +122,7 @@ export function BankAccountsList() {
           name: entity.name,
           account_number: entity.account_number,
           account_holder: entity.account_holder,
-          currency_id: resolvedCurrencyId,
+          currency_id: entity.currency_id,
           chart_of_account_id: entity.chart_of_account_id ?? null,
           village_id: entity.village_id ?? null,
           bank_address: entity.bank_address,

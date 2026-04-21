@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 	"gorm.io/gorm"
 )
@@ -55,7 +54,7 @@ var approvedStatuses = []string{"approved", "closed"}
 
 func (r *dashboardRepository) GetRevenueKPI(ctx context.Context, start, end time.Time) (dto.KPICard, error) {
 	var current float64
-	if err := database.GetDB(ctx, r.db).Table("sales_orders").
+	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Where(approvedClosedWhere, approvedStatuses, start, end).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&current).Error; err != nil {
 		return dto.KPICard{}, err
@@ -63,7 +62,7 @@ func (r *dashboardRepository) GetRevenueKPI(ctx context.Context, start, end time
 	duration := end.Sub(start)
 	prevStart, prevEnd := start.Add(-duration), start.Add(-time.Second)
 	var previous float64
-	database.GetDB(ctx, r.db).Table("sales_orders").
+	r.db.WithContext(ctx).Table("sales_orders").
 		Where(approvedClosedWhere, approvedStatuses, prevStart, prevEnd).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&previous)
 	return dto.KPICard{Value: current, ChangePercent: calcChange(previous, current)}, nil
@@ -71,7 +70,7 @@ func (r *dashboardRepository) GetRevenueKPI(ctx context.Context, start, end time
 
 func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.Time) (dto.KPICard, error) {
 	var current int64
-	if err := database.GetDB(ctx, r.db).Table("sales_orders").
+	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).
 		Count(&current).Error; err != nil {
 		return dto.KPICard{}, err
@@ -79,7 +78,7 @@ func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.
 	duration := end.Sub(start)
 	prevStart, prevEnd := start.Add(-duration), start.Add(-time.Second)
 	var previous int64
-	database.GetDB(ctx, r.db).Table("sales_orders").
+	r.db.WithContext(ctx).Table("sales_orders").
 		Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", prevStart, prevEnd).
 		Count(&previous)
 	return dto.KPICard{Value: float64(current), ChangePercent: calcChange(float64(previous), float64(current))}, nil
@@ -87,7 +86,7 @@ func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.
 
 func (r *dashboardRepository) GetCustomersKPI(ctx context.Context) (dto.KPICard, error) {
 	var count int64
-	if err := database.GetDB(ctx, r.db).Table("customers").
+	if err := r.db.WithContext(ctx).Table("customers").
 		Where("is_active = ? AND deleted_at IS NULL", true).Count(&count).Error; err != nil {
 		return dto.KPICard{}, err
 	}
@@ -96,7 +95,7 @@ func (r *dashboardRepository) GetCustomersKPI(ctx context.Context) (dto.KPICard,
 
 func (r *dashboardRepository) GetProductsKPI(ctx context.Context) (dto.KPICard, error) {
 	var count int64
-	if err := database.GetDB(ctx, r.db).Table("products").
+	if err := r.db.WithContext(ctx).Table("products").
 		Where("status = ? AND deleted_at IS NULL", "approved").Count(&count).Error; err != nil {
 		return dto.KPICard{}, err
 	}
@@ -105,7 +104,7 @@ func (r *dashboardRepository) GetProductsKPI(ctx context.Context) (dto.KPICard, 
 
 func (r *dashboardRepository) GetEmployeeCountKPI(ctx context.Context) (dto.KPICard, error) {
 	var count int64
-	if err := database.GetDB(ctx, r.db).Table("employees").
+	if err := r.db.WithContext(ctx).Table("employees").
 		Where("is_active = ? AND deleted_at IS NULL", true).Count(&count).Error; err != nil {
 		return dto.KPICard{}, err
 	}
@@ -118,7 +117,7 @@ func (r *dashboardRepository) GetRevenueChart(ctx context.Context, start, end ti
 		Amount float64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("sales_orders").
+	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Select("TO_CHAR(order_date, 'YYYY-MM') as period, COALESCE(SUM(total_amount), 0) as amount").
 		Where(approvedClosedWhere, approvedStatuses, start, end).
 		Group("period").Order("period ASC").Scan(&rows).Error; err != nil {
@@ -137,7 +136,7 @@ func (r *dashboardRepository) GetCostsChart(ctx context.Context, start, end time
 		Amount float64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("journal_lines").
+	if err := r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit), 0) as amount").
 		Where(expenseWhere, "EXPENSE", start, end, "posted").
@@ -183,7 +182,7 @@ func (r *dashboardRepository) GetRevenueVsCosts(ctx context.Context, start, end 
 
 func (r *dashboardRepository) GetBalance(ctx context.Context, start, end time.Time) (dto.BalanceData, error) {
 	var current float64
-	database.GetDB(ctx, r.db).Table("journal_lines").
+	r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0)").
 		Where("chart_of_accounts.type IN ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
@@ -195,7 +194,7 @@ func (r *dashboardRepository) GetBalance(ctx context.Context, start, end time.Ti
 		Amount float64
 	}
 	var rows []row
-	database.GetDB(ctx, r.db).Table("journal_lines").
+	r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0) as amount").
 		Where("chart_of_accounts.type IN ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
@@ -215,7 +214,7 @@ func (r *dashboardRepository) GetCostsByCategory(ctx context.Context, start, end
 		Amount   float64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("journal_lines").
+	if err := r.db.WithContext(ctx).Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("chart_of_accounts.name as category, COALESCE(SUM(journal_lines.debit), 0) as amount").
 		Where(expenseWhere, "EXPENSE", start, end, "posted").
@@ -240,13 +239,13 @@ func (r *dashboardRepository) GetCostsByCategory(ctx context.Context, start, end
 func (r *dashboardRepository) GetInvoiceSummary(ctx context.Context, start, end time.Time) (dto.InvoiceSummaryData, error) {
 	var summary dto.InvoiceSummaryData
 	var total, paid, unpaid, overdue int64
-	database.GetDB(ctx, r.db).Table("customer_invoices").
+	r.db.WithContext(ctx).Table("customer_invoices").
 		Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).Count(&total)
-	database.GetDB(ctx, r.db).Table("customer_invoices").
+	r.db.WithContext(ctx).Table("customer_invoices").
 		Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL AND status = ?", start, end, "paid").Count(&paid)
-	database.GetDB(ctx, r.db).Table("customer_invoices").
+	r.db.WithContext(ctx).Table("customer_invoices").
 		Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL AND status IN (?)", start, end, []string{"unpaid", "draft", "sent", "approved"}).Count(&unpaid)
-	database.GetDB(ctx, r.db).Table("customer_invoices").
+	r.db.WithContext(ctx).Table("customer_invoices").
 		Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL AND status NOT IN (?) AND due_date < NOW()",
 			start, end, []string{"paid", "cancelled"}).Count(&overdue)
 	summary.Total = int(total)
@@ -267,7 +266,7 @@ func (r *dashboardRepository) GetRecentInvoices(ctx context.Context, limit int) 
 		DueDate      *time.Time
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("customer_invoices").
+	if err := r.db.WithContext(ctx).Table("customer_invoices").
 		Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
 		Select("customer_invoices.id, customer_invoices.code, COALESCE(sales_orders.customer_id::text, '') as customer_id, COALESCE(sales_orders.customer_name, '') as customer_name, customer_invoices.amount, customer_invoices.status, customer_invoices.due_date").
 		Where("customer_invoices.deleted_at IS NULL").
@@ -312,7 +311,7 @@ func (r *dashboardRepository) GetSalesPerformance(ctx context.Context, start, en
 		Orders     int64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("sales_orders").
+	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Joins("JOIN employees ON employees.id = sales_orders.sales_rep_id").
 		Select("employees.id::text as employee_id, employees.name as name, COALESCE(SUM(sales_orders.total_amount), 0) as revenue, COUNT(sales_orders.id) as orders").
 		Where(salesOrderWhere, approvedStatuses, start, end).
@@ -351,7 +350,7 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 		Revenue      float64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("sales_order_items").
+	if err := r.db.WithContext(ctx).Table("sales_order_items").
 		Joins("JOIN sales_orders ON sales_orders.id = sales_order_items.sales_order_id").
 		Joins("JOIN products ON products.id = sales_order_items.product_id").
 		Select("products.id::text as product_id, products.name as name, COALESCE(products.sku, '') as sku, COALESCE(SUM(sales_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(sales_order_items.subtotal), 0) as revenue").
@@ -375,14 +374,14 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 func (r *dashboardRepository) GetDeliveryStatus(ctx context.Context, start, end time.Time) (dto.DeliveryStatusData, error) {
 	var data dto.DeliveryStatusData
 	var total, pending, inTransit, delivered int64
-	database.GetDB(ctx, r.db).Table("delivery_orders").
+	r.db.WithContext(ctx).Table("delivery_orders").
 		Where("delivery_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).Count(&total)
-	database.GetDB(ctx, r.db).Table("delivery_orders").
+	r.db.WithContext(ctx).Table("delivery_orders").
 		Where("delivery_date BETWEEN ? AND ? AND deleted_at IS NULL AND status IN (?)",
 			start, end, []string{"draft", "sent", "approved", "prepared"}).Count(&pending)
-	database.GetDB(ctx, r.db).Table("delivery_orders").
+	r.db.WithContext(ctx).Table("delivery_orders").
 		Where("delivery_date BETWEEN ? AND ? AND deleted_at IS NULL AND status = ?", start, end, "shipped").Count(&inTransit)
-	database.GetDB(ctx, r.db).Table("delivery_orders").
+	r.db.WithContext(ctx).Table("delivery_orders").
 		Where("delivery_date BETWEEN ? AND ? AND deleted_at IS NULL AND status = ?", start, end, "delivered").Count(&delivered)
 	data.Total = int(total)
 	data.Pending = int(pending)
@@ -399,7 +398,7 @@ func (r *dashboardRepository) GetGeoOverview(ctx context.Context, start, end tim
 		Value        float64
 	}
 	var rows []row
-	if err := database.GetDB(ctx, r.db).Table("sales_orders").
+	if err := r.db.WithContext(ctx).Table("sales_orders").
 		Joins("JOIN customers ON customers.id = sales_orders.customer_id").
 		Joins("LEFT JOIN provinces ON provinces.id = customers.province_id").
 		Select("COALESCE(provinces.id::text, 'unknown') as code, COALESCE(provinces.name, 'Unknown') as name, COUNT(sales_orders.id) as count, COALESCE(SUM(sales_orders.total_amount), 0) as value").
@@ -438,7 +437,7 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 	// out_of_stock: available <= 0
 	// low_stock:    available > 0 AND available <= products.min_stock
 	// in_stock:     available > products.min_stock (or min_stock = 0 and available > 0)
-	if err := database.GetDB(ctx, r.db).Raw(`
+	if err := r.db.WithContext(ctx).Raw(`
 		WITH stock_levels AS (
 			SELECT
 				ib.warehouse_id,
@@ -527,7 +526,7 @@ func sortPeriodChartPoints(points []dto.PeriodChartPoint) {
 // GetPOSSummary returns today's POS sales per outlet with RBAC filtering.
 // If userID is non-empty and the user has OUTLET scope, only their assigned outlets are returned.
 func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID string) (*dto.POSSummaryData, error) {
-	db := database.GetDB(ctx, r.db)
+	db := r.db.WithContext(ctx)
 
 	// Resolve outlet filter for RBAC
 	var outletIDs []string
@@ -635,7 +634,7 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID string) 
 
 // GetHRSummary returns today's attendance and pending leave data.
 func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryData, error) {
-	db := database.GetDB(ctx, r.db)
+	db := r.db.WithContext(ctx)
 
 	result := &dto.HRSummaryData{}
 
@@ -671,7 +670,7 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 
 // GetCRMSummary returns aggregated CRM metrics.
 func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummaryData, error) {
-	db := database.GetDB(ctx, r.db)
+	db := r.db.WithContext(ctx)
 
 	result := &dto.CRMSummaryData{}
 

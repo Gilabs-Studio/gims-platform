@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/loyalty/data/models"
 	"gorm.io/gorm"
@@ -64,7 +65,9 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 	var members []models.LoyaltyMember
 	var total int64
 
-	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyMember{})
+	// Use WithContext (not GetDB) because ProgramOutletIDs filter JOINs loyalty_programs.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	q := r.db.WithContext(ctx).Model(&models.LoyaltyMember{})
 
 	// Outlet-scope filter: only members whose program belongs to the given outlets (or is global).
 	if len(params.ProgramOutletIDs) > 0 {

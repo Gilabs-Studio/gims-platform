@@ -96,7 +96,9 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 	var orders []models.SalesOrder
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.SalesOrder{})
+	// Use WithContext (not getDB) because search conditionally JOINs employees which has tenant_id.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	query := r.db.WithContext(ctx).Model(&models.SalesOrder{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())

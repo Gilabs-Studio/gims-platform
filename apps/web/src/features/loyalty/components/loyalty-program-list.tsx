@@ -28,7 +28,7 @@ export function LoyaltyProgramList() {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
   const { user } = useAuthStore();
-  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LoyaltyProgram | null>(null);

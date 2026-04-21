@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -135,7 +136,9 @@ func (r *leaveRequestRepository) List(ctx context.Context, employeeID *string, s
 	var leaveRequests []*models.LeaveRequest
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{})
+	// Use WithContext (not GetDB): search conditionally JOINs employees + leave_types which
+	// both have tenant_id. GetDB's unqualified WHERE tenant_id=? causes PG ambiguity.
+	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
@@ -287,7 +290,7 @@ func (r *leaveRequestRepository) CalculateUsedLeaveDays(ctx context.Context, emp
 
 	var totalDays float64
 
-	query := database.GetDB(ctx, r.db).Model(&models.LeaveRequest{}).
+	query := r.db.WithContext(ctx).Model(&models.LeaveRequest{}).
 		Select("COALESCE(SUM(total_days), 0)").
 		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.LeaveStatusApproved)

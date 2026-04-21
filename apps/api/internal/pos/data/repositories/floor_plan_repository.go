@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -60,7 +61,9 @@ func (r *floorPlanRepository) FindByID(ctx context.Context, id string) (*models.
 func (r *floorPlanRepository) List(ctx context.Context, params FloorPlanListParams) ([]models.FloorPlan, int64, error) {
 	var plans []models.FloorPlan
 	var total int64
-	query := database.GetDB(ctx, r.db).Model(&models.FloorPlan{})
+	// Use WithContext (not GetDB) because CompanyID filter JOINs outlets which has tenant_id.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	query := r.db.WithContext(ctx).Model(&models.FloorPlan{})
 
 	// Company-level filtering (RBAC scoping)
 	if params.OutletID != "" {

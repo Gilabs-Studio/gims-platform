@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -63,7 +64,9 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 	var items []financeModels.UpCountryCost
 	var total int64
 
-	q := database.GetDB(ctx, r.db).Model(&financeModels.UpCountryCost{})
+	// Use WithContext (not GetDB) because EmployeeID filter JOINs up_country_cost_employees.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	q := r.db.WithContext(ctx).Model(&financeModels.UpCountryCost{})
 	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.EmployeeID != nil && *params.EmployeeID != "" {

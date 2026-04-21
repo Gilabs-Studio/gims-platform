@@ -94,7 +94,7 @@ export function LoyaltyEnrollDialog({ open, onOpenChange }: LoyaltyEnrollDialogP
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
   const { user } = useAuthStore();
-  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   const { data: myOutletsData } = useMyOutlets({ enabled: isOutletScoped });
   // For outlet-scoped users, default the enrollment outlet to their first outlet.
   const myFirstOutletId = myOutletsData?.data?.[0]?.id;
