@@ -29,6 +29,7 @@ import (
 var (
 	ErrDeliveryOrderNotFound           = errors.New("delivery order not found")
 	ErrDeliveryOrderAlreadyExists      = errors.New("delivery order with this code already exists")
+	ErrDeliveryOrderAlreadyPosted      = errors.New("delivery order has already been posted")
 	ErrInvalidDeliveryStatusTransition = errors.New("invalid delivery status transition")
 	ErrDeliveryProductNotFound         = errors.New("product not found in delivery")
 	ErrInvalidDeliveryOrderStatus      = errors.New("cannot modify delivery order in current status")
@@ -608,6 +609,9 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	if deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
+	if deliveryOrder.IsPosted || (deliveryOrder.JournalEntryID != nil && strings.TrimSpace(*deliveryOrder.JournalEntryID) != "") {
+		return nil, ErrDeliveryOrderAlreadyPosted
+	}
 	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
 		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
@@ -713,9 +717,11 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 		if journalEntry != nil && strings.TrimSpace(journalEntry.ID) != "" {
 			if err := tx.Model(&models.DeliveryOrder{}).
 				Where("id = ?", deliveryOrder.ID).
-				Update("journal_entry_id", journalEntry.ID).Error; err != nil {
+				Updates(map[string]interface{}{"journal_entry_id": journalEntry.ID, "is_posted": true}).Error; err != nil {
 				return fmt.Errorf("link delivery order journal: %w", err)
 			}
+			deliveryOrder.JournalEntryID = &journalEntry.ID
+			deliveryOrder.IsPosted = true
 		}
 
 		return nil

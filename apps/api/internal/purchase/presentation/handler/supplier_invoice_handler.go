@@ -154,6 +154,35 @@ func (h *SupplierInvoiceHandler) Create(c *gin.Context) {
 	response.SuccessResponseCreated(c, res, nil)
 }
 
+// PreviewJournal handles POST /purchase/supplier-invoices/preview
+func (h *SupplierInvoiceHandler) PreviewJournal(c *gin.Context) {
+	var req dto.CreateSupplierInvoiceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	preview, err := h.uc.PreviewJournal(c.Request.Context(), &req)
+	if err != nil {
+		if err == usecase.ErrGoodsReceiptNotFound {
+			errors.NotFoundResponse(c, "goods_receipt", fmt.Sprintf("%v", req.GoodsReceiptID))
+			return
+		}
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, preview, nil)
+}
+
 // Update handles PUT /purchase/supplier-invoices/:id
 func (h *SupplierInvoiceHandler) Update(c *gin.Context) {
 	id := c.Param("id")

@@ -81,6 +81,8 @@ type SupplierInvoice struct {
 	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
 	Status      SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	IsPosted    bool                  `gorm:"default:false;index" json:"is_posted"`
+	JournalEntryID *string            `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
 	PaymentAt   *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
 	SubmittedAt *time.Time            `gorm:"type:timestamp" json:"submitted_at,omitempty"`
 	ApprovedAt  *time.Time            `gorm:"type:timestamp" json:"approved_at,omitempty"`

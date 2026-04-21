@@ -74,6 +74,10 @@ type CustomerInvoice struct {
 	// Status and workflow
 	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
 	Notes  string                `gorm:"type:text" json:"notes"`
+	IsPosted bool                `gorm:"default:false;index" json:"is_posted"`
+
+	// Accounting linkage
+	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
 
 	// Payment timestamp
 	PaymentAt *time.Time `json:"payment_at"`

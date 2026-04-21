@@ -17,6 +17,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -52,6 +53,7 @@ type SupplierInvoiceUsecase interface {
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
 	TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error
+	PreviewJournal(ctx context.Context, req *dto.CreateSupplierInvoiceRequest) (*dto.SupplierInvoiceJournalPreviewResponse, error)
 }
 
 type supplierInvoiceUsecase struct {
@@ -171,8 +173,10 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 		database.GetDB(ctx, uc.db).Where("purchase_order_id IN ?", poIDList).Find(&allPOItems)
 	}
 	priceMap := make(map[string]float64)
+	qtyMap := make(map[string]float64)
 	for _, p := range allPOItems {
 		priceMap[p.ID] = p.Price
+		qtyMap[p.ID] = p.Quantity
 	}
 
 	grIDs := make([]string, 0, len(grs))
@@ -235,6 +239,7 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 				ID:                  it.ID,
 				PurchaseOrderItemID: it.PurchaseOrderItemID,
 				Product:             prod,
+				QuantityPO:          qtyMap[it.PurchaseOrderItemID],
 				QuantityReceived:    it.QuantityReceived,
 				QuantityInvoiced:    qtyInv,
 				QuantityRemaining:   qtyRem,
@@ -1182,11 +1187,26 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 	}
 
 	if uc.purchaseJournalSvc != nil {
-		if _, err := uc.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+		postedJournal, err := uc.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
 			Profile: accounting.ProfileSupplierInvoice,
 			Data:    data,
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("failed to post supplier invoice journal: %w", err)
+		}
+
+		if postedJournal != nil && strings.TrimSpace(postedJournal.ID) != "" {
+			if err := database.GetDB(ctx, uc.db).
+				Model(&models.SupplierInvoice{}).
+				Where("id = ?", si.ID).
+				Updates(map[string]interface{}{
+					"journal_entry_id": postedJournal.ID,
+					"is_posted":       true,
+				}).Error; err != nil {
+				return fmt.Errorf("failed to link supplier invoice journal: %w", err)
+			}
+			si.JournalEntryID = &postedJournal.ID
+			si.IsPosted = true
 		}
 
 		log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSupplierInvoice, si.ID)
@@ -1208,9 +1228,23 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		return fmt.Errorf("generated supplier invoice journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
 	}
 
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	postedJournal, err := uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to post supplier invoice journal: %w", err)
+	}
+
+	if postedJournal != nil && strings.TrimSpace(postedJournal.ID) != "" {
+		if err := database.GetDB(ctx, uc.db).
+			Model(&models.SupplierInvoice{}).
+			Where("id = ?", si.ID).
+			Updates(map[string]interface{}{
+				"journal_entry_id": postedJournal.ID,
+				"is_posted":       true,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to link supplier invoice journal: %w", err)
+		}
+		si.JournalEntryID = &postedJournal.ID
+		si.IsPosted = true
 	}
 
 	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSupplierInvoice, si.ID)
@@ -1309,6 +1343,232 @@ func (uc *supplierInvoiceUsecase) reverse(ctx context.Context, id string, reason
 
 func (uc *supplierInvoiceUsecase) TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error {
 	return uc.triggerJournalEntry(ctx, si)
+}
+
+func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.CreateSupplierInvoiceRequest) (*dto.SupplierInvoiceJournalPreviewResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	if uc.engine == nil {
+		return nil, errors.New("accounting engine is not configured")
+	}
+
+	var preview *dto.SupplierInvoiceJournalPreviewResponse
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var gr models.GoodsReceipt
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Items").
+			Preload("Items.Product").
+			First(&gr, "id = ?", req.GoodsReceiptID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrGoodsReceiptNotFound
+			}
+			return err
+		}
+
+		if gr.Status != models.GoodsReceiptStatusApproved && gr.Status != models.GoodsReceiptStatusPartial && gr.Status != models.GoodsReceiptStatusClosed {
+			return ErrInvalidStatus
+		}
+
+		if _, err := uc.validateSIQuantity(ctx, tx, &gr, req.Items, ""); err != nil {
+			return err
+		}
+
+		// Build PO item references for matching and valuation basis.
+		var poItems []models.PurchaseOrderItem
+		if err := tx.Where("purchase_order_id = ?", gr.PurchaseOrderID).Find(&poItems).Error; err != nil {
+			return err
+		}
+
+		poQtyByProduct := make(map[string]float64, len(poItems))
+		poPriceByProduct := make(map[string]float64, len(poItems))
+		for _, it := range poItems {
+			poQtyByProduct[it.ProductID] = it.Quantity
+			poPriceByProduct[it.ProductID] = it.Price
+		}
+
+		type qtySum struct {
+			ProductID string
+			Qty       float64
+		}
+
+		var receivedSums []qtySum
+		receivedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+			Table("goods_receipt_items")
+		receivedQuery, err := applyTenantJoinScope(ctx, receivedQuery, "goods_receipt_items.tenant_id", "goods_receipts.tenant_id")
+		if err != nil {
+			return err
+		}
+		if err := receivedQuery.
+			Select("product_id, SUM(quantity_received) as qty").
+			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+			Where("goods_receipts.purchase_order_id = ? AND goods_receipts.status IN ?", gr.PurchaseOrderID, []string{
+				string(models.GoodsReceiptStatusApproved),
+				string(models.GoodsReceiptStatusPartial),
+				string(models.GoodsReceiptStatusClosed),
+			}).
+			Group("product_id").
+			Scan(&receivedSums).Error; err != nil {
+			return err
+		}
+		receivedByProduct := make(map[string]float64, len(receivedSums))
+		for _, row := range receivedSums {
+			receivedByProduct[row.ProductID] = row.Qty
+		}
+
+		var invoicedSums []qtySum
+		invoicedQuery := tx.Session(&gorm.Session{NewDB: true}).WithContext(ctx).
+			Table("supplier_invoice_items")
+		invoicedQuery, err = applyTenantJoinScope(ctx, invoicedQuery, "supplier_invoice_items.tenant_id", "supplier_invoices.tenant_id")
+		if err != nil {
+			return err
+		}
+		if err := invoicedQuery.
+			Select("supplier_invoice_items.product_id, SUM(supplier_invoice_items.quantity) as qty").
+			Joins("JOIN supplier_invoices ON supplier_invoices.id = supplier_invoice_items.supplier_invoice_id").
+			Where("supplier_invoices.purchase_order_id = ? AND supplier_invoices.status NOT IN ?", gr.PurchaseOrderID, []string{
+				string(models.SupplierInvoiceStatusRejected),
+				string(models.SupplierInvoiceStatusCancelled),
+			}).
+			Where("supplier_invoices.deleted_at IS NULL").
+			Group("supplier_invoice_items.product_id").
+			Scan(&invoicedSums).Error; err != nil {
+			return err
+		}
+		invoicedByProduct := make(map[string]float64, len(invoicedSums))
+		for _, row := range invoicedSums {
+			invoicedByProduct[row.ProductID] = row.Qty
+		}
+
+		grItemByProduct := make(map[string]models.GoodsReceiptItem, len(gr.Items))
+		for _, item := range gr.Items {
+			grItemByProduct[item.ProductID] = item
+		}
+
+		requestQtyByProduct := make(map[string]float64)
+		subtotal := 0.0
+		for _, item := range req.Items {
+			discount := math.Max(0, math.Min(100, item.Discount))
+			line := round2dp(item.Quantity * item.Price * (1 - discount/100))
+			subtotal += line
+			requestQtyByProduct[item.ProductID] += item.Quantity
+		}
+
+		matching := make([]dto.SupplierInvoiceThreeWayMatchingLine, 0, len(requestQtyByProduct))
+		for productID, qtyBill := range requestQtyByProduct {
+			grItem := grItemByProduct[productID]
+			productName := ""
+			productCode := ""
+			if grItem.Product != nil {
+				productName = strings.TrimSpace(grItem.Product.Name)
+				productCode = strings.TrimSpace(grItem.Product.Code)
+			}
+
+			qtyPO := poQtyByProduct[productID]
+			qtyGR := receivedByProduct[productID]
+			qtyAlreadyBilled := invoicedByProduct[productID]
+			qtyRemaining := qtyGR - qtyAlreadyBilled - qtyBill
+			isValid := qtyRemaining >= -0.0001
+
+			matching = append(matching, dto.SupplierInvoiceThreeWayMatchingLine{
+				ProductID:             productID,
+				ProductCode:           productCode,
+				ProductName:           productName,
+				QuantityPO:            qtyPO,
+				QuantityGR:            qtyGR,
+				QuantityAlreadyBilled: qtyAlreadyBilled,
+				QuantityBill:          qtyBill,
+				QuantityRemaining:     qtyRemaining,
+				IsValid:               isValid,
+			})
+		}
+
+		taxRate := math.Max(0, math.Min(100, req.TaxRate))
+		taxAmount := round2dp(subtotal * taxRate / 100)
+		totalAmount := round2dp(subtotal + taxAmount + math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost))
+
+		dpAmount := 0.0
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND status = ? AND deleted_at IS NULL",
+			gr.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment, models.SupplierInvoiceStatusPaid).
+			Find(&dpInvoices).Error; err == nil {
+			for _, dp := range dpInvoices {
+				dpAmount += dp.PaidAmount
+			}
+		}
+
+		companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, gr.CompanyID, gr.FiscalYearID, req.InvoiceDate)
+		if err != nil {
+			return err
+		}
+
+		journalReq, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, accounting.TransactionData{
+			ReferenceType:   reference.RefTypeSupplierInvoice,
+			ReferenceID:     "preview",
+			CompanyID:       companyID,
+			FiscalYearID:    fiscalYearID,
+			EntryDate:       req.InvoiceDate,
+			Description:     fmt.Sprintf("Supplier Invoice Preview %s", req.InvoiceNumber),
+			TotalAmount:     totalAmount,
+			SubTotal:        subtotal,
+			TaxTotal:        taxAmount,
+			DepositTotal:    dpAmount,
+			OtherTotal:      math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost),
+			DescriptionArgs: []interface{}{req.InvoiceNumber, gr.SupplierNameSnapshot},
+		})
+		if err != nil {
+			return err
+		}
+
+		preview = &dto.SupplierInvoiceJournalPreviewResponse{
+			ReferenceType:    reference.RefTypeSupplierInvoice,
+			ReferenceID:      "preview",
+			InvoiceDate:      req.InvoiceDate,
+			InvoiceNumber:    req.InvoiceNumber,
+			Subtotal:         subtotal,
+			TaxAmount:        taxAmount,
+			DownPayment:      dpAmount,
+			TotalAmount:      totalAmount,
+			IsBalanced:       isSupplierInvoicePreviewBalanced(journalReq),
+			ThreeWayMatching: matching,
+			Lines:            make([]dto.SupplierInvoiceJournalPreviewLine, 0, len(journalReq.Lines)),
+		}
+
+		for _, line := range journalReq.Lines {
+			preview.Lines = append(preview.Lines, dto.SupplierInvoiceJournalPreviewLine{
+				ChartOfAccountID: line.ChartOfAccountID,
+				Debit:            line.Debit,
+				Credit:           line.Credit,
+				Memo:             line.Memo,
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return preview, nil
+}
+
+func isSupplierInvoicePreviewBalanced(req *finDto.CreateJournalEntryRequest) bool {
+	if req == nil {
+		return false
+	}
+
+	var debitTotal float64
+	var creditTotal float64
+	for _, line := range req.Lines {
+		debitTotal += line.Debit
+		creditTotal += line.Credit
+	}
+
+	return math.Abs(debitTotal-creditTotal) <= 0.001
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

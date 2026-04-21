@@ -12,7 +12,7 @@ import (
 // without recompiling the application.
 type FinanceSetting struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID    string         `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SettingKey  string         `gorm:"type:varchar(100);uniqueIndex;not null" json:"setting_key"`
 	Value       string         `gorm:"type:text;not null" json:"value"`
 	Description string         `gorm:"type:text" json:"description"`
@@ -157,4 +157,8 @@ const (
 	// SettingValuationReconciliationTolerance maps to the tolerance for inventory valuation reconciliation.
 	// Default value: "0.01" (1% tolerance for rounding differences)
 	SettingValuationReconciliationTolerance = "valuation.reconciliation_tolerance"
+
+	// SettingAgingBucketConfig maps to aging report bucket configuration in JSON array format.
+	// Example value: [{"key":"current","label":"Current","min_days":null,"max_days":0}, ...]
+	SettingAgingBucketConfig = "report.aging.bucket_config"
 )

@@ -3,6 +3,7 @@ import type {
   CustomerInvoiceListResponse,
   CustomerInvoiceSingleResponse,
   CustomerInvoiceItemsListResponse,
+  CustomerInvoiceJournalPreviewResponse,
   ListCustomerInvoicesParams,
   ListCustomerInvoiceItemsParams,
   CreateCustomerInvoiceData,
@@ -48,6 +49,16 @@ export const invoiceService = {
   ): Promise<CustomerInvoiceSingleResponse> {
     const response = await apiClient.post<CustomerInvoiceSingleResponse>(
       BASE_PATH,
+      data
+    );
+    return response.data;
+  },
+
+  async preview(
+    data: CreateCustomerInvoiceData
+  ): Promise<CustomerInvoiceJournalPreviewResponse> {
+    const response = await apiClient.post<CustomerInvoiceJournalPreviewResponse>(
+      `${BASE_PATH}/preview`,
       data
     );
     return response.data;

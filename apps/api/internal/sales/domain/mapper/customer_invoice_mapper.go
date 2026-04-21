@@ -33,6 +33,8 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 		RemainingAmount:   invoice.RemainingAmount,
 		Status:            string(invoice.Status),
 		Notes:             invoice.Notes,
+		IsPosted:          invoice.IsPosted,
+		JournalEntryID:    invoice.JournalEntryID,
 		CreatedBy:         invoice.CreatedBy,
 		CancelledBy:       invoice.CancelledBy,
 		CreatedAt:         invoice.CreatedAt.Format(time.RFC3339),

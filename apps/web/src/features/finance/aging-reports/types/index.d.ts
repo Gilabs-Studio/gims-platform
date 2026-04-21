@@ -26,6 +26,14 @@ export interface AgingBuckets {
   days_31_60: number;
   days_61_90: number;
   over_90: number;
+  dynamic?: Record<string, number>;
+}
+
+export interface AgingBucketDefinition {
+  key: string;
+  label: string;
+  min_days?: number;
+  max_days?: number;
 }
 
 export interface AgingTotals {
@@ -94,6 +102,7 @@ export interface APAgingSupplierGroup {
 
 export interface ARAgingReport {
   as_of_date: string;
+  bucket_config?: AgingBucketDefinition[];
   rows: ARAgingInvoiceRow[];
   totals: AgingTotals;
   summary?: AgingSummary;
@@ -102,6 +111,7 @@ export interface ARAgingReport {
 
 export interface APAgingReport {
   as_of_date: string;
+  bucket_config?: AgingBucketDefinition[];
   rows: APAgingInvoiceRow[];
   totals: AgingTotals;
   summary?: AgingSummary;

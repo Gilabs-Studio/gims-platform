@@ -10,6 +10,9 @@ export interface CashFlowReportRow {
   name: string;
   account_type?: string;
   amount: number;
+  drilldown?: {
+    general_ledger_url: string;
+  };
 }
 
 export interface CashFlowSection {

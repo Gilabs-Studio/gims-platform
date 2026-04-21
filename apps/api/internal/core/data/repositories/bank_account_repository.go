@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
@@ -110,6 +111,31 @@ type bankAccountRepository struct {
 
 func NewBankAccountRepository(db *gorm.DB) BankAccountRepository {
 	return &bankAccountRepository{db: db}
+}
+
+func applyQualifiedTenantFilter(ctx context.Context, query *gorm.DB, qualifiedColumns ...string) *gorm.DB {
+	if query == nil {
+		return query
+	}
+
+	if middleware.IsSystemAdmin(ctx) {
+		return query
+	}
+
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID == "" {
+		return query
+	}
+
+	for _, col := range qualifiedColumns {
+		col = strings.TrimSpace(col)
+		if col == "" {
+			continue
+		}
+		query = query.Where(col+" = ?", tenantID)
+	}
+
+	return query
 }
 
 func (r *bankAccountRepository) Create(ctx context.Context, bankAccount *models.BankAccount) error {
@@ -231,11 +257,12 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 	}
 
 	var customerBanks []customerModels.CustomerBank
-	if err := database.GetDB(ctx, r.db).
+	customerBankQuery := r.db.WithContext(ctx).
 		Preload("Bank").
 		Preload("Currency").
-		Joins("JOIN customers ON customers.id = customer_banks.customer_id AND customers.deleted_at IS NULL").
-		Find(&customerBanks).Error; err != nil {
+		Joins("JOIN customers ON customers.id = customer_banks.customer_id AND customers.deleted_at IS NULL")
+	customerBankQuery = applyQualifiedTenantFilter(ctx, customerBankQuery, "customer_banks.tenant_id", "customers.tenant_id")
+	if err := customerBankQuery.Find(&customerBanks).Error; err != nil {
 		return nil, 0, err
 	}
 	for _, bank := range customerBanks {
@@ -289,11 +316,12 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 	}
 
 	var supplierBanks []supplierModels.SupplierBank
-	if err := database.GetDB(ctx, r.db).
+	supplierBankQuery := r.db.WithContext(ctx).
 		Preload("Bank").
 		Preload("Currency").
-		Joins("JOIN suppliers ON suppliers.id = supplier_banks.supplier_id AND suppliers.deleted_at IS NULL").
-		Find(&supplierBanks).Error; err != nil {
+		Joins("JOIN suppliers ON suppliers.id = supplier_banks.supplier_id AND suppliers.deleted_at IS NULL")
+	supplierBankQuery = applyQualifiedTenantFilter(ctx, supplierBankQuery, "supplier_banks.tenant_id", "suppliers.tenant_id")
+	if err := supplierBankQuery.Find(&supplierBanks).Error; err != nil {
 		return nil, 0, err
 	}
 	for _, bank := range supplierBanks {

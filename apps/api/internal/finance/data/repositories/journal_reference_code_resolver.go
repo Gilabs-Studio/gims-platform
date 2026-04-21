@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"gorm.io/gorm"
@@ -98,6 +99,31 @@ func appendUnique(dst []string, v string) []string {
 		}
 	}
 	return append(dst, v)
+}
+
+func applyQualifiedTenantFilter(ctx context.Context, query *gorm.DB, qualifiedColumns ...string) *gorm.DB {
+	if query == nil {
+		return query
+	}
+
+	if middleware.IsSystemAdmin(ctx) {
+		return query
+	}
+
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID == "" {
+		return query
+	}
+
+	for _, col := range qualifiedColumns {
+		col = strings.TrimSpace(col)
+		if col == "" {
+			continue
+		}
+		query = query.Where(col+" = ?", tenantID)
+	}
+
+	return query
 }
 
 // BatchResolveJournalReferenceCodes resolves human-readable business codes for journal rows (per page).
@@ -272,10 +298,12 @@ func BatchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries
 			InvoiceCode     *string `gorm:"column:invoice_code"`
 		}
 		var rows []spRow
-		err := db.WithContext(ctx).Table("sales_payments sp").
+		query := db.WithContext(ctx).Session(&gorm.Session{NewDB: true}).Table("sales_payments sp").
 			Select("sp.id, sp.reference_number, ci.code AS invoice_code").
 			Joins("LEFT JOIN customer_invoices ci ON ci.id = sp.customer_invoice_id").
-			Where("sp.id IN ?", ids).Scan(&rows).Error
+			Where("sp.id IN ?", ids)
+		query = applyQualifiedTenantFilter(ctx, query, "sp.tenant_id", "ci.tenant_id")
+		err := query.Scan(&rows).Error
 		if err == nil {
 			m := codeByKindAndID["SALES_PAYMENT"]
 			if m == nil {
@@ -304,10 +332,12 @@ func BatchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries
 			InvoiceCode     *string `gorm:"column:invoice_code"`
 		}
 		var rows []ppRow
-		err := db.WithContext(ctx).Table("purchase_payments pp").
+		query := db.WithContext(ctx).Session(&gorm.Session{NewDB: true}).Table("purchase_payments pp").
 			Select("pp.id, pp.reference_number, si.code AS invoice_code").
 			Joins("LEFT JOIN supplier_invoices si ON si.id = pp.supplier_invoice_id").
-			Where("pp.id IN ?", ids).Scan(&rows).Error
+			Where("pp.id IN ?", ids)
+		query = applyQualifiedTenantFilter(ctx, query, "pp.tenant_id", "si.tenant_id")
+		err := query.Scan(&rows).Error
 		if err == nil {
 			m := codeByKindAndID["PURCHASE_PAYMENT"]
 			if m == nil {

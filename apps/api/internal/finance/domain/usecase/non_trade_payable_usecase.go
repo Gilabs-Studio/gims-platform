@@ -2,8 +2,8 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -459,6 +459,10 @@ func (uc *nonTradePayableUsecase) Post(ctx context.Context, id string) (*dto.Non
 			return nil
 		}
 
+		if err := ensureNotClosed(txCtx, tx, item.TransactionDate); err != nil {
+			return err
+		}
+
 		txData := accounting.TransactionData{
 			ReferenceType:    reference.RefTypeNonTradePayable,
 			ReferenceID:      item.ID,
@@ -576,7 +580,8 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 	if strings.TrimSpace(req.PaymentDate) == "" {
 		return nil, errors.New("payment_date is required")
 	}
-	if _, err := time.Parse("2006-01-02", strings.TrimSpace(req.PaymentDate)); err != nil {
+	paymentDate, err := time.Parse("2006-01-02", strings.TrimSpace(req.PaymentDate))
+	if err != nil {
 		return nil, errors.New("invalid payment_date")
 	}
 
@@ -606,6 +611,10 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 		}
 		if item.Status == financeModels.NTPStatusDraft || item.Status == financeModels.NTPStatusSubmitted {
 			return errors.New("non-trade payable must be posted before payment")
+		}
+
+		if err := ensureNotClosed(txCtx, tx, paymentDate); err != nil {
+			return err
 		}
 
 		paidBefore, err := uc.getPaidAmount(txCtx, item.ID)
