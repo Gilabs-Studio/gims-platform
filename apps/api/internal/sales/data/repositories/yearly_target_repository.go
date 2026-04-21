@@ -57,7 +57,9 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	var targets []models.YearlyTarget
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.YearlyTarget{})
+	// Use WithContext (not getDB) because search conditionally JOINs areas which has tenant_id.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	query := r.db.WithContext(ctx).Model(&models.YearlyTarget{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())

@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -51,7 +52,9 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 	rows := make([]*models.SalesReturn, 0)
 	var total int64
 
-	q := database.GetDB(ctx, r.db).Model(&models.SalesReturn{}).Preload("Items")
+	// Use WithContext (not GetDB) because search conditionally JOINs customers which has tenant_id.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
+	q := r.db.WithContext(ctx).Model(&models.SalesReturn{}).Preload("Items")
 	q = security.ApplyScopeFilter(q, ctx, security.SalesScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {

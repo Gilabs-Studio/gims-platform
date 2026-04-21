@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
@@ -75,7 +76,9 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 	var requests []models.RecruitmentRequest
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.RecruitmentRequest{})
+	// Use WithContext (not GetDB) because a conditional JOIN on employees is added when
+	// searching — both tables have tenant_id and GetDB's unqualified WHERE causes PG ambiguity.
+	query := r.db.WithContext(ctx).Model(&models.RecruitmentRequest{})
 
 	// Apply filters
 	if search != "" {
