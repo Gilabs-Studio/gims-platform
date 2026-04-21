@@ -128,7 +128,7 @@ export default function SystemAdminLoginForm() {
                 className="w-full cursor-pointer"
                 disabled={isLoading}
               >
-                {isLoading ? <ButtonLoading /> : "Sign In"}
+                {isLoading ? <ButtonLoading loading>Signing in...</ButtonLoading> : "Sign In"}
               </Button>
             </form>
           </CardContent>

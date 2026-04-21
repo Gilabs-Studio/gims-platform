@@ -543,6 +543,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       } else {
         const createPayload: CreateCustomerInvoiceData = {
           ...data,
+          invoice_date: data.invoice_date ?? new Date().toISOString().split("T")[0],
           due_date: toOptionalString(data.due_date),
           sales_order_id: toOptionalString(data.sales_order_id),
           delivery_order_id: toOptionalString(data.delivery_order_id),

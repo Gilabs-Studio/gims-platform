@@ -16,7 +16,7 @@ export function SystemAdminAuthGuard({
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <ButtonLoading />
+        <ButtonLoading loading>Loading...</ButtonLoading>
       </div>
     );
   }
