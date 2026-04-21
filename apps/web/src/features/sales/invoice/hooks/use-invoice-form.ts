@@ -11,6 +11,7 @@ import {
   type CreateInvoiceFormData,
   type UpdateInvoiceFormData,
 } from "../schemas/invoice.schema";
+import { invoiceService } from "../services/invoice-service";
 import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-invoices";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCustomerInvoiceDPs } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
@@ -18,7 +19,7 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { productService } from "@/features/master-data/product/services/product-service";
 import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
 import { orderService } from "@/features/sales/order/services/order-service";
-import type { CreateCustomerInvoiceData, CustomerInvoice } from "../types";
+import type { CreateCustomerInvoiceData, CustomerInvoice, CustomerInvoiceJournalPreviewResponse, UpdateCustomerInvoiceData } from "../types";
 import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
@@ -46,6 +47,8 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const t = useTranslations("invoice");
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
+  const [journalPreview, setJournalPreview] = useState<CustomerInvoiceJournalPreviewResponse["data"] | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
@@ -281,6 +284,36 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
     return sorted[0]?.id;
   }, [detectedDownPayments]);
+
+  const buildCreatePayload = useCallback(
+    (data: CreateInvoiceFormData | UpdateInvoiceFormData): CreateCustomerInvoiceData => ({
+      ...data,
+      invoice_date: data.invoice_date ?? new Date().toISOString().split("T")[0],
+      due_date: toOptionalString(data.due_date),
+      sales_order_id: toOptionalString(data.sales_order_id),
+      delivery_order_id: toOptionalString(data.delivery_order_id),
+      payment_terms_id: toOptionalString(data.payment_terms_id),
+      down_payment_invoice_id: data.type === "regular" ? selectedDownPaymentInvoiceID : undefined,
+      notes: toOptionalString(data.notes),
+      items: (data.items ?? []).filter((item) => item.product_id),
+    }),
+    [selectedDownPaymentInvoiceID]
+  );
+
+  const buildUpdatePayload = useCallback(
+    (data: CreateInvoiceFormData | UpdateInvoiceFormData): UpdateCustomerInvoiceData => ({
+      invoice_date: data.invoice_date,
+      due_date: toOptionalString(data.due_date),
+      type: data.type,
+      payment_terms_id: toOptionalString(data.payment_terms_id),
+      tax_rate: data.tax_rate,
+      delivery_cost: data.delivery_cost,
+      other_cost: data.other_cost,
+      notes: toOptionalString(data.notes),
+      items: (data.items ?? []).filter((item) => item.product_id),
+    }),
+    []
+  );
 
   // Auto-fill payment terms + items from selected SO
   useEffect(() => {
@@ -525,35 +558,15 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     }
 
     try {
-      // Filter out items with empty product_id
-      const filteredItems = (data.items ?? []).filter((item) => item.product_id);
-      
       if (isEdit && invoice) {
+        const updatePayload = buildUpdatePayload(data);
         await updateInvoice.mutateAsync({
           id: invoice.id,
-          data: {
-            ...data,
-            due_date: toOptionalString(data.due_date),
-            payment_terms_id: toOptionalString(data.payment_terms_id),
-            notes: toOptionalString(data.notes),
-            items: filteredItems,
-          },
+          data: updatePayload,
         });
         toast.success(t("updated"));
       } else {
-        const createPayload: CreateCustomerInvoiceData = {
-          ...data,
-          invoice_date: data.invoice_date ?? new Date().toISOString().split("T")[0],
-          due_date: toOptionalString(data.due_date),
-          sales_order_id: toOptionalString(data.sales_order_id),
-          delivery_order_id: toOptionalString(data.delivery_order_id),
-          payment_terms_id: toOptionalString(data.payment_terms_id),
-          down_payment_invoice_id:
-            data.type === "regular" ? selectedDownPaymentInvoiceID : undefined,
-          notes: toOptionalString(data.notes),
-          items: filteredItems,
-        };
-
+        const createPayload = buildCreatePayload(data);
         await createInvoice.mutateAsync(createPayload);
         toast.success(t("created"));
       }
@@ -567,6 +580,24 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   const handleAddItem = () => {
     append({ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 });
+  };
+
+  const handlePreviewJournal = async () => {
+    if (isEdit) {
+      toast.error("Journal preview is available for new invoices only.");
+      return;
+    }
+
+    try {
+      setIsPreviewing(true);
+      const previewResponse = await invoiceService.preview(buildCreatePayload(getValues() as CreateInvoiceFormData));
+      setJournalPreview(previewResponse.data);
+      toast.success("Journal preview generated.");
+    } catch (error) {
+      toast.error(getSalesErrorMessage(error, t("common.error")));
+    } finally {
+      setIsPreviewing(false);
+    }
   };
 
   const handleProductChange = (index: number, productId: string) => {
@@ -654,6 +685,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     handleNext,
     handleFormSubmit,
     handleAddItem,
+    handlePreviewJournal,
     handleProductChange,
     handleDialogChange,
     onInvalid,
@@ -668,5 +700,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     productsCombobox,
     paymentTermsCombobox,
     ordersCombobox,
+    journalPreview,
+    isPreviewing,
   };
 }

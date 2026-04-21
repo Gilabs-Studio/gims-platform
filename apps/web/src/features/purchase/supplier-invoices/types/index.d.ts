@@ -78,6 +78,8 @@ export interface SupplierInvoiceListItem {
   remaining_amount: number;
   down_payment_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  is_posted?: boolean;
+  journal_entry_id?: string;
   supplier_id: string;
   supplier_name: string;
   created_by: string;
@@ -130,6 +132,8 @@ export interface SupplierInvoiceDetail {
   remaining_amount: number;
   down_payment_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
+  is_posted?: boolean;
+  journal_entry_id?: string;
   supplier_id: string;
   supplier_name: string;
   created_by: string;
@@ -186,13 +190,47 @@ export interface SupplierInvoiceAddGoodsReceiptItem {
   id: string;
   purchase_order_item_id: string;
   product?: SupplierInvoiceAddProductMini | null;
+  quantity_po: number;
   quantity_received: number;
-  quantity_invoiced: number;
-  quantity_remaining: number;
   quantity_invoiced: number;
   quantity_remaining: number;
   price: number;
   sub_total: number;
+}
+
+export interface SupplierInvoiceThreeWayMatchingLine {
+  product_id: string;
+  product_code?: string;
+  product_name?: string;
+  quantity_po: number;
+  quantity_gr: number;
+  quantity_already_billed: number;
+  quantity_bill: number;
+  quantity_remaining: number;
+  is_valid: boolean;
+}
+
+export interface SupplierInvoiceJournalPreviewLine {
+  chart_of_account_id: string;
+  chart_of_account_code?: string;
+  chart_of_account_name?: string;
+  debit: number;
+  credit: number;
+  memo: string;
+}
+
+export interface SupplierInvoiceJournalPreview {
+  reference_type: string;
+  reference_id: string;
+  invoice_date: string;
+  invoice_number?: string;
+  subtotal: number;
+  tax_amount: number;
+  down_payment: number;
+  total_amount: number;
+  is_balanced: boolean;
+  three_way_matching: SupplierInvoiceThreeWayMatchingLine[];
+  lines: SupplierInvoiceJournalPreviewLine[];
 }
 
 export interface SupplierInvoiceAddGoodsReceipt {
@@ -245,6 +283,8 @@ export interface CreateSupplierInvoiceInput {
 }
 
 export type UpdateSupplierInvoiceInput = CreateSupplierInvoiceInput;
+
+export type PreviewSupplierInvoiceInput = CreateSupplierInvoiceInput;
 
 export interface AuditTrailUser {
   id: string;

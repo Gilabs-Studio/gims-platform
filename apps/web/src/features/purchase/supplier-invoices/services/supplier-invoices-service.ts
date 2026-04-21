@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
   CreateSupplierInvoiceInput,
+  SupplierInvoiceJournalPreview,
   SupplierInvoiceAddResponse,
   SupplierInvoiceAuditTrailEntry,
   SupplierInvoiceDetail,
@@ -22,6 +23,11 @@ export const supplierInvoicesService = {
 
   addData: async (): Promise<ApiResponse<SupplierInvoiceAddResponse>> => {
     const response = await apiClient.get<ApiResponse<SupplierInvoiceAddResponse>>(`${BASE_URL}/add`);
+    return response.data;
+  },
+
+  preview: async (data: CreateSupplierInvoiceInput): Promise<ApiResponse<SupplierInvoiceJournalPreview>> => {
+    const response = await apiClient.post<ApiResponse<SupplierInvoiceJournalPreview>>(`${BASE_URL}/preview`, data);
     return response.data;
   },
 

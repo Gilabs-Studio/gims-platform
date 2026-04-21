@@ -17,8 +17,6 @@ import {
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,12 +29,13 @@ import { Link } from "@/i18n/routing";
 import { cn, formatCurrency, formatDate, toLocalDateString } from "@/lib/utils";
 
 import { useFinanceAPAging, useFinanceARAging } from "../hooks/use-finance-aging-reports";
-import type { APAgingInvoiceRow, ARAgingInvoiceRow } from "../types";
+import { AgingTable, defaultAgingBucketConfig } from "./aging-table";
+import type { AgingBucketDefinition, AgingBuckets, APAgingInvoiceRow, ARAgingInvoiceRow } from "../types";
 
 function resolveARHref(row: ARAgingInvoiceRow): string {
   const source = row.source_type?.toUpperCase() ?? "";
   if (source === "CUSTOMER_INVOICE") {
-    return "/finance/ar/customer-invoices";
+    return "/sales/invoices";
   }
   return "/finance/ar/aging-reports";
 }
@@ -44,12 +43,60 @@ function resolveARHref(row: ARAgingInvoiceRow): string {
 function resolveAPHref(row: APAgingInvoiceRow): string {
   const source = row.source_type?.toUpperCase() ?? "";
   if (source === "SUPPLIER_INVOICE") {
-    return "/finance/ap/supplier-invoices";
+    return "/purchase/supplier-invoices";
   }
   if (source === "NON_TRADE_PAYABLE") {
     return "/finance/ap/non-trade-payables";
   }
   return "/finance/ap/aging-reports";
+}
+
+function resolveBucketAmount(buckets: AgingBuckets | undefined, key: string): number {
+  if (!buckets) {
+    return 0;
+  }
+
+  switch (key) {
+    case "current":
+      return buckets.current ?? 0;
+    case "days_1_30":
+      return buckets.days_1_30 ?? 0;
+    case "days_31_60":
+      return buckets.days_31_60 ?? 0;
+    case "days_61_90":
+      return buckets.days_61_90 ?? 0;
+    case "over_90":
+      return buckets.over_90 ?? 0;
+    default:
+      return buckets.dynamic?.[key] ?? 0;
+  }
+}
+
+type AgingSummaryBucketStats = {
+  current: number;
+  firstOverdueLabel: string;
+  firstOverdueValue: number;
+  severeOverdueLabel: string;
+  severeOverdueValue: number;
+};
+
+function computeSummaryBucketStats(
+  buckets: AgingBuckets | undefined,
+  bucketConfig: AgingBucketDefinition[] | undefined,
+): AgingSummaryBucketStats {
+  const config = bucketConfig && bucketConfig.length > 0 ? bucketConfig : defaultAgingBucketConfig;
+  const overdueBuckets = config.filter((bucket) => (bucket.min_days ?? 0) > 0);
+
+  const firstOverdue = overdueBuckets[0] ?? config.find((bucket) => bucket.key === "days_1_30");
+  const severeOverdue = overdueBuckets[overdueBuckets.length - 1] ?? config.find((bucket) => bucket.key === "over_90");
+
+  return {
+    current: resolveBucketAmount(buckets, "current"),
+    firstOverdueLabel: firstOverdue?.label ?? "1-30",
+    firstOverdueValue: firstOverdue ? resolveBucketAmount(buckets, firstOverdue.key) : resolveBucketAmount(buckets, "days_1_30"),
+    severeOverdueLabel: severeOverdue?.label ?? ">90",
+    severeOverdueValue: severeOverdue ? resolveBucketAmount(buckets, severeOverdue.key) : resolveBucketAmount(buckets, "over_90"),
+  };
 }
 
 function normalizeSourceLabel(sourceType?: string): string {
@@ -101,6 +148,8 @@ export function AgingReportsView() {
   const apSummary = apQuery.data?.data?.summary;
   const arTotals = arQuery.data?.data?.totals;
   const apTotals = apQuery.data?.data?.totals;
+  const arBucketConfig = arQuery.data?.data?.bucket_config;
+  const apBucketConfig = apQuery.data?.data?.bucket_config;
 
   const arPagedRows = useMemo(() => {
     const start = (arPage - 1) * arPageSize;
@@ -119,14 +168,10 @@ export function AgingReportsView() {
   }
 
   const arTotalOutstanding = arSummary?.total_outstanding ?? arTotals?.remaining ?? 0;
-  const arCurrent = arSummary?.total_current ?? arTotals?.buckets.current ?? 0;
-  const arOverdue1To30 = arSummary?.buckets.days_1_30 ?? arTotals?.buckets.days_1_30 ?? 0;
-  const arOver90 = arSummary?.buckets.over_90 ?? arTotals?.buckets.over_90 ?? 0;
+  const arSummaryBuckets = computeSummaryBucketStats(arSummary?.buckets ?? arTotals?.buckets, arBucketConfig);
 
   const apTotalOutstanding = apSummary?.total_outstanding ?? apTotals?.remaining ?? 0;
-  const apCurrent = apSummary?.total_current ?? apTotals?.buckets.current ?? 0;
-  const apOverdue1To30 = apSummary?.buckets.days_1_30 ?? apTotals?.buckets.days_1_30 ?? 0;
-  const apOverdue61To90 = apSummary?.buckets.days_61_90 ?? apTotals?.buckets.days_61_90 ?? 0;
+  const apSummaryBuckets = computeSummaryBucketStats(apSummary?.buckets ?? apTotals?.buckets, apBucketConfig);
 
   return (
     <div className="space-y-6">
@@ -216,94 +261,71 @@ export function AgingReportsView() {
                 <ShieldCheck className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(arCurrent)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(arSummaryBuckets.current)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("summary.overdue1_30")}</CardTitle>
+                <CardTitle className="text-sm font-medium">{arSummaryBuckets.firstOverdueLabel}</CardTitle>
                 <AlertOctagon className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(arOverdue1To30)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(arSummaryBuckets.firstOverdueValue)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("summary.overdue90Plus")}</CardTitle>
+                <CardTitle className="text-sm font-medium">{arSummaryBuckets.severeOverdueLabel}</CardTitle>
                 <TrendingDown className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">{formatCurrency(arOver90)}</div>
+                <div className="text-2xl font-bold text-destructive">{formatCurrency(arSummaryBuckets.severeOverdueValue)}</div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="rounded-md border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("fields.customer")}</TableHead>
-                  <TableHead>{t("fields.code")}</TableHead>
-                  <TableHead>{t("fields.invoiceNumber")}</TableHead>
-                  <TableHead>{t("fields.dueDate")}</TableHead>
-                  <TableHead className="text-right">{t("fields.remaining")}</TableHead>
-                  <TableHead className="text-right">{t("fields.current")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days1To30")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days31To60")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days61To90")}</TableHead>
-                  <TableHead className="text-right text-destructive font-semibold">{t("fields.over90")}</TableHead>
-                  <TableHead className="text-center">{t("summary.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {arQuery.isLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell colSpan={11}>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : arPagedRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                      {tCommon("noData")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  arPagedRows.map((row) => {
-                    const isOverdue = row.days_past_due > 0;
-                    return (
-                      <TableRow key={row.invoice_id}>
-                        <TableCell className="font-medium">{row.customer_name ?? "-"}</TableCell>
-                        <TableCell className="font-medium">{row.code}</TableCell>
-                        <TableCell>{row.invoice_number ?? "-"}</TableCell>
-                        <TableCell>
-                          <span className={cn(isOverdue && "text-destructive font-medium")}>
-                            {formatDate(row.due_date) || "-"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(row.remaining_amount ?? 0)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.buckets?.current ?? 0)}</TableCell>
-                        <TableCell className="text-right text-warning/80 font-medium">{formatCurrency(row.buckets?.days_1_30 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-warning/90 font-medium">{formatCurrency(row.buckets?.days_31_60 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-destructive font-medium">{formatCurrency(row.buckets?.days_61_90 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-destructive font-bold">{formatCurrency(row.buckets?.over_90 ?? 0)}</TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" asChild title={t("summary.viewDetails")}>
-                            <Link href={resolveARHref(row)}>
-                              <FileText className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <AgingTable
+            rows={arPagedRows}
+            isLoading={arQuery.isLoading}
+            noDataText={tCommon("noData")}
+            rowKey={(row) => row.invoice_id}
+            leadColumns={[
+              {
+                header: t("fields.customer"),
+                className: "font-medium",
+                render: (row) => row.customer_name ?? "-",
+              },
+              {
+                header: t("fields.code"),
+                className: "font-medium",
+                render: (row) => row.code,
+              },
+              {
+                header: t("fields.invoiceNumber"),
+                render: (row) => row.invoice_number ?? "-",
+              },
+              {
+                header: t("fields.dueDate"),
+                render: (row) => (
+                  <span className={cn(row.days_past_due > 0 && "text-destructive font-medium")}>
+                    {formatDate(row.due_date) || "-"}
+                  </span>
+                ),
+              },
+            ]}
+            getBuckets={(row) => row.buckets}
+            getRemaining={(row) => row.remaining_amount ?? 0}
+            remainingHeader={t("fields.remaining")}
+            bucketConfig={arBucketConfig}
+            actionHeader={t("summary.actions")}
+            renderAction={(row) => (
+              <Button variant="ghost" size="icon" asChild title={t("summary.viewDetails")} className="cursor-pointer">
+                <Link href={resolveARHref(row)}>
+                  <FileText className="w-4 h-4" />
+                </Link>
+              </Button>
+            )}
+          />
 
           <DataTablePagination
             pageIndex={arPage}
@@ -334,101 +356,79 @@ export function AgingReportsView() {
                 <ShieldCheck className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(apCurrent)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(apSummaryBuckets.current)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("summary.overdue1_30")}</CardTitle>
+                <CardTitle className="text-sm font-medium">{apSummaryBuckets.firstOverdueLabel}</CardTitle>
                 <AlertOctagon className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(apOverdue1To30)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(apSummaryBuckets.firstOverdueValue)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("summary.overdue61_90")}</CardTitle>
+                <CardTitle className="text-sm font-medium">{apSummaryBuckets.severeOverdueLabel}</CardTitle>
                 <TrendingDown className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">{formatCurrency(apOverdue61To90)}</div>
+                <div className="text-2xl font-bold text-destructive">{formatCurrency(apSummaryBuckets.severeOverdueValue)}</div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="rounded-md border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("fields.supplier")}</TableHead>
-                  <TableHead>{t("fields.source")}</TableHead>
-                  <TableHead>{t("fields.code")}</TableHead>
-                  <TableHead>{t("fields.invoiceNumber")}</TableHead>
-                  <TableHead>{t("fields.dueDate")}</TableHead>
-                  <TableHead className="text-right">{t("fields.remaining")}</TableHead>
-                  <TableHead className="text-right">{t("fields.current")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days1To30")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days31To60")}</TableHead>
-                  <TableHead className="text-right">{t("fields.days61To90")}</TableHead>
-                  <TableHead className="text-right text-destructive font-semibold">{t("fields.over90")}</TableHead>
-                  <TableHead className="text-center">{t("summary.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {apQuery.isLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell colSpan={12}>
-                        <Skeleton className="h-10 w-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : apPagedRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
-                      {tCommon("noData")}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  apPagedRows.map((row) => {
-                    const isOverdue = row.days_past_due > 0;
-                    return (
-                      <TableRow key={row.invoice_id}>
-                        <TableCell className="font-medium">{row.supplier_name || "-"}</TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Building2 className="h-3.5 w-3.5" />
-                            {normalizeSourceLabel(row.source_type)}
-                          </span>
-                        </TableCell>
-                        <TableCell>{row.code}</TableCell>
-                        <TableCell>{row.invoice_number || "-"}</TableCell>
-                        <TableCell>
-                          <span className={cn(isOverdue && "text-destructive font-medium")}>
-                            {formatDate(row.due_date) || "-"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(row.remaining_amount ?? 0)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(row.buckets?.current ?? 0)}</TableCell>
-                        <TableCell className="text-right text-warning/80 font-medium">{formatCurrency(row.buckets?.days_1_30 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-warning/90 font-medium">{formatCurrency(row.buckets?.days_31_60 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-destructive font-medium">{formatCurrency(row.buckets?.days_61_90 ?? 0)}</TableCell>
-                        <TableCell className="text-right text-destructive font-bold">{formatCurrency(row.buckets?.over_90 ?? 0)}</TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" asChild title={t("summary.viewDetails")}>
-                            <Link href={resolveAPHref(row)}>
-                              <FileText className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <AgingTable
+            rows={apPagedRows}
+            isLoading={apQuery.isLoading}
+            noDataText={tCommon("noData")}
+            rowKey={(row) => row.invoice_id}
+            leadColumns={[
+              {
+                header: t("fields.supplier"),
+                className: "font-medium",
+                render: (row) => row.supplier_name || "-",
+              },
+              {
+                header: t("fields.source"),
+                render: (row) => (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Building2 className="h-3.5 w-3.5" />
+                    {normalizeSourceLabel(row.source_type)}
+                  </span>
+                ),
+              },
+              {
+                header: t("fields.code"),
+                render: (row) => row.code,
+              },
+              {
+                header: t("fields.invoiceNumber"),
+                render: (row) => row.invoice_number || "-",
+              },
+              {
+                header: t("fields.dueDate"),
+                render: (row) => (
+                  <span className={cn(row.days_past_due > 0 && "text-destructive font-medium")}>
+                    {formatDate(row.due_date) || "-"}
+                  </span>
+                ),
+              },
+            ]}
+            getBuckets={(row) => row.buckets}
+            getRemaining={(row) => row.remaining_amount ?? 0}
+            remainingHeader={t("fields.remaining")}
+            bucketConfig={apBucketConfig}
+            actionHeader={t("summary.actions")}
+            renderAction={(row) => (
+              <Button variant="ghost" size="icon" asChild title={t("summary.viewDetails")} className="cursor-pointer">
+                <Link href={resolveAPHref(row)}>
+                  <FileText className="w-4 h-4" />
+                </Link>
+              </Button>
+            )}
+          />
 
           <DataTablePagination
             pageIndex={apPage}

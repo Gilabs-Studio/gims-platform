@@ -58,6 +58,7 @@ type DeliveryOrder struct {
 	// Status and workflow
 	Status DeliveryOrderStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	Notes  string              `gorm:"type:text" json:"notes"`
+	IsPosted bool              `gorm:"default:false;index" json:"is_posted"`
 
 	// Partial delivery tracking
 	IsPartialDelivery bool `gorm:"default:false" json:"is_partial_delivery"`

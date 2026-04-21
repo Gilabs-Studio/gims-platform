@@ -19,12 +19,12 @@ import (
 )
 
 type FinanceReportUsecase interface {
-	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.GeneralLedgerResponse, error)
+	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) (*dto.GeneralLedgerResponse, error)
 	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) (*dto.BalanceSheetResponse, error)
 	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitAndLossResponse, error)
 	GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.TrialBalanceResponse, error)
 	GetCashFlow(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowReport, error)
-	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error)
+	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error)
 	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) ([]byte, error)
 	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error)
 }
@@ -86,6 +86,15 @@ func classifyCashFlowSection(accountType financeModels.AccountType) string {
 	default:
 		return "operating"
 	}
+}
+
+func buildGLDrilldownURL(startDate, endDate time.Time, accountID string) string {
+	return fmt.Sprintf(
+		"/finance/reports/general-ledger?start_date=%s&end_date=%s&account_id=%s",
+		startDate.Format("2006-01-02"),
+		endDate.Format("2006-01-02"),
+		strings.TrimSpace(accountID),
+	)
 }
 
 func isCashFlowExcludedEntry(entry *financeModels.JournalEntry) bool {
@@ -158,11 +167,22 @@ func (uc *financeReportUsecase) setCachedBalanceSheet(key string, res *dto.Balan
 	uc.cacheMu.Unlock()
 }
 
-func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.GeneralLedgerResponse, error) {
+func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) (*dto.GeneralLedgerResponse, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
 
 	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
+	accountID = normalizeReportScopeID(accountID)
+	if accountID != nil {
+		filtered := make([]financeModels.ChartOfAccount, 0, 1)
+		for _, coa := range allCoas {
+			if coa.ID == *accountID {
+				filtered = append(filtered, coa)
+				break
+			}
+		}
+		allCoas = filtered
+	}
 	balances, err := uc.loadBalancesByAccounts(ctx, allCoas, startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
 		return nil, err
@@ -814,7 +834,10 @@ func (uc *financeReportUsecase) GetCashFlow(ctx context.Context, startDate, endD
 					Code:        line.ChartOfAccount.Code,
 					Name:        line.ChartOfAccount.Name,
 					AccountType: string(line.ChartOfAccount.Type),
-					IsTotal:     false,
+					Drilldown: &dto.Drilldown{
+						GeneralLedgerURL: buildGLDrilldownURL(startDate, endDate, line.ChartOfAccountID),
+					},
+					IsTotal: false,
 				}
 				rows[line.ChartOfAccountID] = row
 			}
@@ -846,25 +869,25 @@ func (uc *financeReportUsecase) GetCashFlow(ctx context.Context, startDate, endD
 	}
 
 	return &dto.CashFlowReport{
-		FromDate:      startDate,
-		ToDate:        endDate,
-		Method:        "indirect",
-		Operating:     buildSection("Operating Activities", "operating"),
-		Investing:     buildSection("Investing Activities", "investing"),
-		Financing:     buildSection("Financing Activities", "financing"),
-		NetChange:     netChange,
-		BeginningCash: roundMoney(openingCash),
-		EndingCash:    roundMoney(endingCash),
-		IsReconciled:  isReconciled,
+		FromDate:          startDate,
+		ToDate:            endDate,
+		Method:            "indirect",
+		Operating:         buildSection("Operating Activities", "operating"),
+		Investing:         buildSection("Investing Activities", "investing"),
+		Financing:         buildSection("Financing Activities", "financing"),
+		NetChange:         netChange,
+		BeginningCash:     roundMoney(openingCash),
+		EndingCash:        roundMoney(endingCash),
+		IsReconciled:      isReconciled,
 		ReconciliationGap: reconciliationGap,
 	}, nil
 }
 
-func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error) {
+func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
 
-	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID)
+	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID, accountID)
 	if err != nil {
 		return nil, err
 	}

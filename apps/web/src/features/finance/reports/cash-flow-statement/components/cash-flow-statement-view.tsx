@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, ArrowDownUp, Landmark, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, ExternalLink, Landmark, Wallet } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Link } from "@/i18n/routing";
 import { formatCurrency } from "@/lib/utils";
 
 import { useCashFlowStatement } from "../hooks/use-cash-flow-statement";
@@ -152,12 +154,13 @@ export function CashFlowStatementView() {
                       <TableHead>{t("account_code")}</TableHead>
                       <TableHead>{t("account_name")}</TableHead>
                       <TableHead className="text-right">{t("amount")}</TableHead>
+                      <TableHead className="text-center">{t("action")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {(section?.items ?? []).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
                           {tCommon("noData")}
                         </TableCell>
                       </TableRow>
@@ -169,6 +172,17 @@ export function CashFlowStatementView() {
                           <TableCell className="text-right font-mono tabular-nums">
                             {formatCurrency(item.amount ?? 0)}
                           </TableCell>
+                          <TableCell className="text-center">
+                            {item.drilldown?.general_ledger_url ? (
+                              <Button variant="ghost" size="icon" asChild title={t("open_gl")} className="cursor-pointer">
+                                <Link href={item.drilldown.general_ledger_url}>
+                                  <ExternalLink className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -177,6 +191,7 @@ export function CashFlowStatementView() {
                       <TableCell className="text-right font-mono tabular-nums">
                         {formatCurrency(section?.amount ?? 0)}
                       </TableCell>
+                      <TableCell />
                     </TableRow>
                   </TableBody>
                 </Table>

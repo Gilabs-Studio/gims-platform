@@ -25,6 +25,7 @@ func RegisterSupplierInvoiceRoutes(r *gin.RouterGroup, h *handler.SupplierInvoic
 	g.GET("/add", middleware.RequirePermission(supplierInvoiceCreate), h.Add)
 	g.GET("", middleware.RequirePermission(supplierInvoiceRead), h.List)
 	g.GET("/export", middleware.RequirePermission(supplierInvoiceExport), h.Export)
+	g.POST("/preview", middleware.RequirePermission(supplierInvoiceCreate), h.PreviewJournal)
 	g.POST("", middleware.RequirePermission(supplierInvoiceCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(supplierInvoiceRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(supplierInvoiceRead), h.AuditTrail)

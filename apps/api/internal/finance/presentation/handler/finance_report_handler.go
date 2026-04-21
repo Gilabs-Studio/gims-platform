@@ -66,6 +66,14 @@ func parseOptionalFiscalYearID(c *gin.Context) *string {
 	return &value
 }
 
+func parseOptionalAccountID(c *gin.Context) *string {
+	value := strings.TrimSpace(c.Query("account_id"))
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 func parseIncludeZero(c *gin.Context) bool {
 	raw := strings.TrimSpace(c.Query("include_zero"))
 	if raw == "" {
@@ -83,8 +91,9 @@ func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
 	fiscalYearID := parseOptionalFiscalYearID(c)
+	accountID := parseOptionalAccountID(c)
 
-	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate, companyID, fiscalYearID, accountID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "GENERAL_LEDGER_FAILED", err.Error(), nil, nil)
 		return
@@ -154,8 +163,9 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
 	fiscalYearID := parseOptionalFiscalYearID(c)
+	accountID := parseOptionalAccountID(c)
 	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
-		bytes, err := h.uc.ExportGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID)
+		bytes, err := h.uc.ExportGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID, accountID)
 		if err != nil {
 			return nil, err
 		}

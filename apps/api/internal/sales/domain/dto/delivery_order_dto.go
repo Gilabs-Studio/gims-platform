@@ -120,6 +120,7 @@ type DeliveryOrderResponse struct {
 	ReceiverSignature  string                      `json:"receiver_signature"`
 	Status             string                      `json:"status"`
 	Notes              string                      `json:"notes"`
+	IsPosted           bool                        `json:"is_posted"`
 	IsPartialDelivery  bool                        `json:"is_partial_delivery"`
 	CreatedBy          *string                     `json:"created_by"`
 	ShippedBy          *string                     `json:"shipped_by"`

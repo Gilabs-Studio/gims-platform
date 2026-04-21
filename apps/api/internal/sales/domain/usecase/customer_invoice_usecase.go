@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/utils"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	loyaltyDto "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
@@ -53,6 +55,7 @@ type CustomerInvoiceUsecase interface {
 	Reverse(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error)
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error)
 	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
+	PreviewJournal(ctx context.Context, req *dto.CreateCustomerInvoiceRequest) (*dto.CustomerInvoiceJournalPreviewResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 	SetLoyaltyUsecase(luc loyaltyUsecase.LoyaltyUsecase)
 }
@@ -833,6 +836,25 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 			if err := uc.triggerSalesInvoiceJournal(triggerCtx, updatedInvoice); err != nil {
 				return fmt.Errorf("failed to trigger sales invoice journal: %w", err)
 			}
+
+			if updatedInvoice.JournalEntryID == nil || strings.TrimSpace(*updatedInvoice.JournalEntryID) == "" {
+				var journal financeModels.JournalEntry
+				if err := tx.WithContext(txCtx).
+					Where("reference_type = ? AND reference_id = ? AND status = ?", reference.RefTypeSalesInvoice, updatedInvoice.ID, financeModels.JournalStatusPosted).
+					Order("created_at DESC").First(&journal).Error; err == nil {
+					journalID := journal.ID
+					if err := tx.WithContext(txCtx).Model(&models.CustomerInvoice{}).
+						Where("id = ?", updatedInvoice.ID).
+						Updates(map[string]interface{}{
+							"journal_entry_id": journalID,
+							"is_posted":        true,
+						}).Error; err != nil {
+						return err
+					}
+					updatedInvoice.JournalEntryID = &journalID
+					updatedInvoice.IsPosted = true
+				}
+			}
 		}
 
 		if shouldTriggerSalesDPApplicationJournal(previousStatus, newStatus, updatedInvoice) {
@@ -1111,6 +1133,94 @@ func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, 
 	return uc.triggerSalesInvoiceJournal(ctx, invoice)
 }
 
+func (uc *customerInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.CreateCustomerInvoiceRequest) (*dto.CustomerInvoiceJournalPreviewResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+	if uc.engine == nil {
+		return nil, errors.New("accounting engine is not configured")
+	}
+
+	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items, subtotal, err := uc.buildCreateInvoiceItems(ctx, req, soItemMap)
+	if err != nil {
+		return nil, err
+	}
+
+	taxRate := req.TaxRate
+	if taxRate <= 0 {
+		taxRate = 11
+	}
+	taxAmount := subtotal * (taxRate / 100)
+	totalAmount := subtotal + taxAmount + req.DeliveryCost + req.OtherCost
+
+	tempInvoice := &models.CustomerInvoice{
+		Code:             "PREVIEW",
+		InvoiceDate:      parsePreviewInvoiceDate(req.InvoiceDate),
+		Type:             models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
+		SalesOrderID:     req.SalesOrderID,
+		DeliveryOrderID:   req.DeliveryOrderID,
+		TaxRate:          taxRate,
+		TaxAmount:        taxAmount,
+		DeliveryCost:     req.DeliveryCost,
+		OtherCost:        req.OtherCost,
+		Subtotal:         subtotal,
+		Amount:           totalAmount,
+		RemainingAmount:  totalAmount,
+		DownPaymentAmount: 0,
+		Items:            items,
+	}
+	if tempInvoice.Type == "" {
+		tempInvoice.Type = models.CustomerInvoiceTypeRegular
+	}
+	if err := uc.applyPaidDownPaymentsOnCreate(ctx, tempInvoice, req.SalesOrderID, tempInvoice.Type, req.DownPaymentInvoiceID); err != nil {
+		return nil, err
+	}
+
+	data := accounting.TransactionData{
+		ReferenceType:   reference.RefTypeSalesInvoice,
+		ReferenceID:     "preview",
+		EntryDate:       tempInvoice.InvoiceDate.Format(dateFormat),
+		Description:     fmt.Sprintf("Sales Invoice Preview %s", tempInvoice.Code),
+		TotalAmount:     tempInvoice.Amount,
+		SubTotal:        tempInvoice.Subtotal,
+		TaxTotal:        tempInvoice.TaxAmount,
+		DepositTotal:    tempInvoice.DownPaymentAmount,
+		DescriptionArgs: []interface{}{tempInvoice.Code, safeInvoiceNumber(tempInvoice.InvoiceNumber)},
+	}
+
+	reqJournal, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoice, data)
+	if err != nil {
+		return nil, err
+	}
+
+	preview := &dto.CustomerInvoiceJournalPreviewResponse{
+		ReferenceType: reference.RefTypeSalesInvoice,
+		ReferenceID:   "preview",
+		InvoiceDate:   tempInvoice.InvoiceDate.Format(dateFormat),
+		Subtotal:      tempInvoice.Subtotal,
+		TaxAmount:     tempInvoice.TaxAmount,
+		DownPayment:   tempInvoice.DownPaymentAmount,
+		TotalAmount:   tempInvoice.Amount,
+		IsBalanced:    isPreviewJournalBalanced(reqJournal),
+		Lines:         make([]dto.CustomerInvoiceJournalPreviewLine, 0, len(reqJournal.Lines)),
+	}
+	for _, line := range reqJournal.Lines {
+		preview.Lines = append(preview.Lines, dto.CustomerInvoiceJournalPreviewLine{
+			ChartOfAccountID: line.ChartOfAccountID,
+			Debit:            line.Debit,
+			Credit:           line.Credit,
+			Memo:             line.Memo,
+		})
+	}
+
+	return preview, nil
+}
+
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
 	if invoice != nil && invoice.DeliveryOrderID != nil && invoice.DeliveryOrder == nil && uc.invoiceRepo != nil {
 		if hydrated, err := uc.invoiceRepo.FindByID(ctx, invoice.ID); err == nil && hydrated != nil {
@@ -1162,13 +1272,48 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 		return fmt.Errorf("failed to generate sales invoice journal: %w", err)
 	}
 
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	postedJournal, err := uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to post sales invoice journal: %w", err)
 	}
 
+	if postedJournal != nil && strings.TrimSpace(postedJournal.ID) != "" && uc.db != nil {
+		if err := database.GetDB(ctx, uc.db).
+			Model(&models.CustomerInvoice{}).
+			Where("id = ?", invoice.ID).
+			Updates(map[string]interface{}{
+				"journal_entry_id": postedJournal.ID,
+				"is_posted":        true,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to link sales invoice journal: %w", err)
+		}
+		invoice.JournalEntryID = &postedJournal.ID
+		invoice.IsPosted = true
+	}
+
 	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSalesInvoice, invoice.ID)
 	return nil
+}
+
+func parsePreviewInvoiceDate(value string) time.Time {
+	parsed, err := time.Parse(dateFormat, value)
+	if err != nil {
+		return time.Now()
+	}
+	return parsed
+}
+
+func isPreviewJournalBalanced(req *finDto.CreateJournalEntryRequest) bool {
+	if req == nil {
+		return false
+	}
+	var debitTotal float64
+	var creditTotal float64
+	for _, line := range req.Lines {
+		debitTotal += line.Debit
+		creditTotal += line.Credit
+	}
+	return math.Abs(debitTotal-creditTotal) <= 0.001
 }
 
 func (uc *customerInvoiceUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {

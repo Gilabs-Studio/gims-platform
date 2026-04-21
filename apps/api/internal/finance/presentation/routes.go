@@ -100,7 +100,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
-	agingUC := usecase.NewAgingReportUsecase(agingRepo)
+	agingUC := usecase.NewAgingReportUsecase(agingRepo, settingsService)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
