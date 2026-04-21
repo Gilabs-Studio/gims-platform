@@ -113,6 +113,18 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Resource not found",
 	},
+	"RESOURCE_ALREADY_EXISTS": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Resource already exists",
+	},
+	"EMAIL_ALREADY_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Email is already registered",
+	},
+	"COMPANY_NAME_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Company name already in use",
+	},
 	"PRODUCT_NOT_FOUND": {
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Product not found",

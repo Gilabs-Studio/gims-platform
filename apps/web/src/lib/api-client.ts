@@ -511,9 +511,19 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle resource conflicts
-    if (errorCode === "RESOURCE_ALREADY_EXISTS" || errorCode === "CONFLICT") {
-      if (
+    // Handle resource conflicts (including explicit backend codes)
+    if (
+      errorCode === "RESOURCE_ALREADY_EXISTS" ||
+      errorCode === "CONFLICT" ||
+      errorCode === "EMAIL_ALREADY_TAKEN" ||
+      errorCode === "COMPANY_NAME_TAKEN"
+    ) {
+      if (errorCode === "EMAIL_ALREADY_TAKEN" && errorDetails?.field === "email") {
+        const msg = formatError("backend", "emailExists", {
+          email: String(errorDetails.value || ""),
+        });
+        notifyGlobalError(msg.title, msg.description, "backend-email-exists");
+      } else if (
         errorDetails?.field === "email" &&
         errorDetails?.resource === "user"
       ) {
