@@ -74,9 +74,12 @@ export const floorLayoutService = {
     return response.data;
   },
 
-  async getFormData(): Promise<FloorPlanFormDataResponse> {
+  async getFormData(companyId?: string): Promise<FloorPlanFormDataResponse> {
     const response = await apiClient.get<FloorPlanFormDataResponse>(
-      `${BASE_PATH}/form-data`
+      `${BASE_PATH}/form-data`,
+      {
+        params: companyId ? { company_id: companyId } : undefined,
+      }
     );
     return response.data;
   },
