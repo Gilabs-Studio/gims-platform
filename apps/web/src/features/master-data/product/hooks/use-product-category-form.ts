@@ -29,9 +29,16 @@ export interface UseProductCategoryFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem: ProductCategory | null;
   onCreated?: (id: string) => void;
+  initialName?: string;
 }
 
-export function useProductCategoryForm({ open, onOpenChange, editingItem, onCreated }: UseProductCategoryFormProps) {
+export function useProductCategoryForm({
+  open,
+  onOpenChange,
+  editingItem,
+  onCreated,
+  initialName,
+}: UseProductCategoryFormProps) {
   const t = useTranslations("product.productCategory");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -76,7 +83,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
         });
       } else {
         form.reset({
-          name: "",
+          name: initialName?.trim() ?? "",
           description: "",
           category_type: "GOODS",
           parent_id: null,
@@ -84,7 +91,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
         });
       }
     }
-  }, [open, editingItem, form]);
+  }, [open, editingItem, form, initialName]);
 
   const onSubmit: SubmitHandler<ProductCategoryFormData> = async (data) => {
     try {
