@@ -290,7 +290,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 	deliveryOrder.IsPartialDelivery = u.isPartialDelivery(salesOrder, deliveryOrder)
 
 	// Create delivery order and reserve batch stock (wrapped in transaction)
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Create delivery order
@@ -385,7 +385,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Release old batch reservations before applying new ones
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Release existing batch reservations
@@ -451,7 +451,7 @@ func (u *deliveryOrderUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	// Release batch stock reservations and delete (wrapped in transaction)
-	return u.db.Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		for _, item := range deliveryOrder.Items {
@@ -560,7 +560,7 @@ func (u *deliveryOrderUsecase) cancelAndReleaseStock(
 	userID *string,
 	reason *string,
 ) (*dto.DeliveryOrderResponse, error) {
-	err := u.db.Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Release batch-level and product-level stock reservations for each item
@@ -613,7 +613,7 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	}
 
 	// Atomic transaction for all stock and status changes
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		log.Printf("[Sales] PROCESSING SHIP for DO %s (%s)", id, deliveryOrder.Code)
@@ -745,6 +745,9 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 func (u *deliveryOrderUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if u.db == nil {
 		return nil, 0, errors.New(errDeliveryDBNil)
+	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, 0, ErrDeliveryOrderNotFound
 	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "delivery_order.", page, perPage)

@@ -98,6 +98,7 @@ func (do *DeliveryOrder) BeforeCreate(tx *gorm.DB) error {
 // DeliveryOrderItem represents an item in a delivery order
 type DeliveryOrderItem struct {
 	ID              string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID        string         `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	DeliveryOrderID string         `gorm:"type:uuid;not null;index" json:"delivery_order_id"`
 	DeliveryOrder   *DeliveryOrder `gorm:"foreignKey:DeliveryOrderID" json:"delivery_order,omitempty"`
 

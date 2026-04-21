@@ -48,8 +48,8 @@ func (r *productRepository) Create(ctx context.Context, product *models.Product)
 // stockSubquery is the SQL fragment that replaces the stale products.current_stock
 // and products.reserved_stock columns with live aggregates from inventory_batches.
 const stockSubquery = `products.*,
-	COALESCE((SELECT SUM(ib.current_quantity)  FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL), 0) AS current_stock,
-	COALESCE((SELECT SUM(ib.reserved_quantity) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL), 0) AS reserved_stock`
+	COALESCE((SELECT SUM(ib.current_quantity)  FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL), 0) AS current_stock,
+	COALESCE((SELECT SUM(ib.reserved_quantity) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL), 0) AS reserved_stock`
 
 func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Product, error) {
 	var product models.Product
@@ -131,8 +131,8 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	// Apply sorting
 	// For computed stock columns we must use the full subquery expression in ORDER BY
 	// to avoid PostgreSQL "ambiguous" error (products.* already contains current_stock column).
-	const currentStockExpr = "(SELECT COALESCE(SUM(ib.current_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL)"
-	const reservedStockExpr = "(SELECT COALESCE(SUM(ib.reserved_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.deleted_at IS NULL)"
+	const currentStockExpr = "(SELECT COALESCE(SUM(ib.current_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL)"
+	const reservedStockExpr = "(SELECT COALESCE(SUM(ib.reserved_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL)"
 
 	sortDir := "ASC"
 	if params.SortDir == "desc" {

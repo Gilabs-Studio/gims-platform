@@ -80,20 +80,36 @@ func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (
 func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliveryOrdersRequest) ([]models.DeliveryOrder, int64, error) {
 	var deliveryOrders []models.DeliveryOrder
 	var total int64
-
-	query := r.getDB(ctx).Model(&models.DeliveryOrder{})
-
-	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	var query *gorm.DB
 
 	// Apply search filter
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
-		query = query.
+		query = r.db.WithContext(ctx).Model(&models.DeliveryOrder{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = delivery_orders.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		
+		// Apply tenant filter manually since we are using joins
+		var err error
+		query, err = applyTenantFilter(ctx, query, "delivery_orders.tenant_id", "sales_orders.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
+
 		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR delivery_orders.receiver_name ILIKE ? OR delivery_orders.code ILIKE ? OR delivery_orders.tracking_number ILIKE ? OR delivery_orders.notes ILIKE ?", search, search, search, search, search, search)
+	} else {
+		// Even without search, if we use getDB it might fail on later joins if added.
+		// But let's be safe and use explicit prefix.
+		query = r.db.WithContext(ctx).Model(&models.DeliveryOrder{})
+		var err error
+		query, err = applyTenantFilter(ctx, query, "delivery_orders.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 	}
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply status filter
 	if req.Status != "" {
@@ -356,8 +372,16 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 	}
 
 	var results []result
-	err := r.getDB(ctx).
-		Table("delivery_order_items doi").
+	query := r.db.WithContext(ctx).Table("delivery_order_items doi")
+	
+	// Apply tenant filter with prefix
+	var err error
+	query, err = applyTenantFilter(ctx, query, "doi.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	err = query.
 		Select("doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
 		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
 		Where("dord.sales_order_id = ?", salesOrderID).

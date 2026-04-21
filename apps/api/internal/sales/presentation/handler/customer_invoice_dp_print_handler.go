@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -63,13 +64,29 @@ func (h *CustomerInvoiceDPPrintHandler) PrintDownPaymentInvoice(c *gin.Context) 
 	// Resolve company
 	var company orgModels.Company
 	if companyID := c.Query("company_id"); companyID != "" {
-		if err := h.db.Where("id = ?", companyID).First(&company).Error; err != nil {
-			company = orgModels.Company{Name: "Gilabs"}
+		err := database.GetDB(c.Request.Context(), h.db).
+			Where("id = ?", strings.TrimSpace(companyID)).
+			First(&company).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.String(http.StatusNotFound, "Company not found")
+				return
+			}
+			c.String(http.StatusInternalServerError, "Failed to load company")
+			return
 		}
 	} else {
-		if err := h.db.Where("is_active = ?", true).Order("created_at ASC").First(&company).Error; err != nil {
-			company = orgModels.Company{Name: "Gilabs"}
+		err := database.GetDB(c.Request.Context(), h.db).
+			Where("is_active = ?", true).
+			Order("created_at ASC").
+			First(&company).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
+			c.String(http.StatusInternalServerError, "Failed to load company")
+			return
 		}
+	}
+	if company.Name == "" {
+		company.Name = "Gilabs"
 	}
 
 	data := &dpInvoicePDFData{

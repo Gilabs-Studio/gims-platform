@@ -8,6 +8,7 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
 )
@@ -161,7 +162,12 @@ func lookupReferenceLabel(ctx context.Context, db *gorm.DB, idKey, id string, re
 		return ""
 	}
 
-	row := db.WithContext(ctx).Table(table).Select(column).Where("id = ?", id).Limit(1).Row()
+	queryDB := db.WithContext(ctx)
+	if !isGlobalSalesReferenceTable(table) {
+		queryDB = database.GetDB(ctx, db)
+	}
+
+	row := queryDB.Table(table).Select(column).Where("id = ?", id).Limit(1).Row()
 	var value string
 	if err := row.Scan(&value); err != nil {
 		refCache[cacheKey] = ""
@@ -205,6 +211,15 @@ func lookupSourceByReferenceKey(idKey string) (string, string) {
 	}
 
 	return source.table, source.column
+}
+
+func isGlobalSalesReferenceTable(table string) bool {
+	switch strings.TrimSpace(table) {
+	case "currencies":
+		return true
+	default:
+		return false
+	}
 }
 
 func buildAuditTrailUser(actorID string, actorEmail, actorName *string) *dto.AuditTrailUser {

@@ -56,9 +56,10 @@ func NewReceivablesRecapRepository(db *gorm.DB) *ReceivablesRecapRepository {
 	return &ReceivablesRecapRepository{db: db}
 }
 
-// baseCTE is the core CTE used by all methods.
-// It adapts to our schema: sales_payments.customer_invoice_id / sales_payments.status
-const baseCTE = `
+// baseCTETemplate is the core CTE used by all methods.
+// It adapts to our schema: sales_payments.customer_invoice_id / sales_payments.status.
+// Tenant clauses are injected per source table to prevent cross-tenant aggregates.
+const baseCTETemplate = `
 WITH return_totals AS (
 	SELECT
 		sr.customer_id AS customer_id,
@@ -66,7 +67,7 @@ WITH return_totals AS (
 		MAX(sr.created_at) AS last_return_at
 	FROM sales_returns sr
 	WHERE sr.deleted_at IS NULL
-	  AND sr.status IN ('SUBMITTED', 'PROCESSED', 'COMPLETED')
+	  AND sr.status IN ('SUBMITTED', 'PROCESSED', 'COMPLETED')%s
 	GROUP BY sr.customer_id
 ),
 customer_receivables AS (
@@ -102,15 +103,15 @@ customer_receivables AS (
                 ELSE 0
             END,
         0) AS aging_days
-    FROM customers c
-    LEFT JOIN sales_orders so ON c.id = so.customer_id AND so.deleted_at IS NULL
+	FROM customers c
+	LEFT JOIN sales_orders so ON c.id = so.customer_id AND so.deleted_at IS NULL%s
     LEFT JOIN customer_invoices ci ON so.id = ci.sales_order_id
         AND ci.status NOT IN ('DRAFT','NOT_CREATED')
-        AND ci.deleted_at IS NULL
+		AND ci.deleted_at IS NULL%s
     LEFT JOIN sales_payments sp ON ci.id = sp.customer_invoice_id
-        AND sp.deleted_at IS NULL
+		AND sp.deleted_at IS NULL%s
 	LEFT JOIN return_totals rt ON c.id = rt.customer_id
-    WHERE c.deleted_at IS NULL
+	WHERE c.deleted_at IS NULL%s
 	GROUP BY c.id, c.name, rt.total_return
 	HAVING COALESCE(SUM(DISTINCT ci.amount), 0) > 0 OR COALESCE(rt.total_return, 0) > 0
 )
@@ -148,7 +149,8 @@ var allowedSortCols = map[string]bool{
 
 func buildReceivablesRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
 	if middleware.IsSystemAdmin(ctx) {
-		return baseCTE, map[string]interface{}{}, nil
+		query := fmt.Sprintf(baseCTETemplate, "", "", "", "", "")
+		return query, map[string]interface{}{}, nil
 	}
 
 	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
@@ -156,15 +158,14 @@ func buildReceivablesRecapBaseQuery(ctx context.Context) (string, map[string]int
 		return "", nil, fmt.Errorf("tenant context is required")
 	}
 
-	query := fmt.Sprintf(`
-SELECT *
-FROM (%s) scoped
-WHERE scoped.customer_id IN (
-	SELECT c.id
-	FROM customers c
-	WHERE c.deleted_at IS NULL
-	  AND c.tenant_id = @tenantID
-)`, baseCTE)
+	query := fmt.Sprintf(
+		baseCTETemplate,
+		" AND sr.tenant_id = @tenantID",
+		" AND so.tenant_id = @tenantID",
+		" AND ci.tenant_id = @tenantID",
+		" AND sp.tenant_id = @tenantID",
+		" AND c.tenant_id = @tenantID",
+	)
 
 	return query, map[string]interface{}{"tenantID": tenantID}, nil
 }

@@ -596,7 +596,7 @@ func (uc *customerInvoiceUsecase) applyLinkedDownPaymentOnUpdate(ctx context.Con
 }
 
 func (uc *customerInvoiceUsecase) createInvoiceWithSOItemUpdates(ctx context.Context, invoice *models.CustomerInvoice) error {
-	return uc.db.Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		if err := uc.invoiceRepo.Create(txCtx, invoice); err != nil {
@@ -766,7 +766,7 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	// Rollback InvoicedQuantity on SO items and delete in a transaction
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		for _, item := range invoice.Items {
@@ -815,7 +815,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 	}
 
 	var updatedInvoice *models.CustomerInvoice
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		if err := uc.invoiceRepo.UpdateStatus(txCtx, id, newStatus, req.PaidAmount, paymentAt, userID); err != nil {
@@ -905,7 +905,7 @@ func (uc *customerInvoiceUsecase) reverse(ctx context.Context, id string, reason
 	}
 
 	var updatedInvoice *models.CustomerInvoice
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		now := time.Now()
@@ -949,6 +949,9 @@ func (uc *customerInvoiceUsecase) reverse(ctx context.Context, id string, reason
 func (uc *customerInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New("db is nil")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, 0, ErrCustomerInvoiceNotFound
 	}
 
 	return listAuditTrailEntries(ctx, uc.db, id, "customer_invoice.", page, perPage)
@@ -1132,9 +1135,12 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
 	totalInvoiceAmount := revenueBase + invoice.TaxAmount
 	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
-	journalAmount := invoice.Amount
+	journalAmount := totalInvoiceAmount
 	if journalAmount <= 0 {
-		journalAmount = totalInvoiceAmount
+		journalAmount = invoice.Amount
+	}
+	if journalAmount <= 0 {
+		journalAmount = revenueBase + invoice.TaxAmount
 	}
 
 	data := accounting.TransactionData{

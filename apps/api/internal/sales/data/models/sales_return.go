@@ -64,7 +64,8 @@ func (m *SalesReturn) BeforeCreate(tx *gorm.DB) error {
 }
 
 type SalesReturnItem struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	SalesReturnID string       `gorm:"type:uuid;index;not null" json:"sales_return_id"`
 	InvoiceItemID *string      `gorm:"type:uuid;index" json:"invoice_item_id,omitempty"`

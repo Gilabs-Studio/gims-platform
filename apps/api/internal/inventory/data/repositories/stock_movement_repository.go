@@ -50,7 +50,7 @@ func (r *stockMovementRepository) FindAll(ctx context.Context, req *dto.GetStock
 	var movements []models.StockMovement
 	var total int64
 
-	query := r.db.Model(&models.StockMovement{}).
+	query := database.GetDB(ctx, r.db).Model(&models.StockMovement{}).
 		Preload("Product").
 		Preload("Warehouse").
 		Preload("Creator").

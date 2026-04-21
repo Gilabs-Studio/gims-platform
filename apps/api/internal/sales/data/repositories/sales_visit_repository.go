@@ -88,20 +88,34 @@ func (r *salesVisitRepository) FindByCode(ctx context.Context, code string) (*mo
 func (r *salesVisitRepository) List(ctx context.Context, req *dto.ListSalesVisitsRequest) ([]models.SalesVisit, int64, error) {
 	var visits []models.SalesVisit
 	var total int64
-
-	query := r.getDB(ctx).Model(&models.SalesVisit{})
-
-	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
+	var query *gorm.DB
 
 	// Apply search filter
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
-		query = query.
+		query = r.db.WithContext(ctx).Model(&models.SalesVisit{}).
 			Joins("LEFT JOIN employees ON employees.id = sales_visits.employee_id").
 			Joins("LEFT JOIN companies ON companies.id = sales_visits.company_id")
+		
+		// Apply tenant filter manually since we are using joins
+		var err error
+		query, err = applyTenantFilter(ctx, query, "sales_visits.tenant_id", "employees.tenant_id", "companies.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
+
 		query = query.Where("companies.name ILIKE ? OR employees.name ILIKE ? OR sales_visits.contact_person ILIKE ? OR sales_visits.code ILIKE ? OR sales_visits.purpose ILIKE ? OR sales_visits.notes ILIKE ?", search, search, search, search, search, search)
+	} else {
+		query = r.db.WithContext(ctx).Model(&models.SalesVisit{})
+		var err error
+		query, err = applyTenantFilter(ctx, query, "sales_visits.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 	}
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
 	// Apply status filter
 	if req.Status != "" {
@@ -480,11 +494,16 @@ func (r *salesVisitRepository) GetCalendarSummary(ctx context.Context, req *dto.
 				) as rn
 			FROM sales_visits sv
 			LEFT JOIN companies c ON sv.company_id = c.id
-			WHERE sv.visit_date >= ? AND sv.visit_date <= ?
+			WHERE sv.tenant_id = ? 
+			AND sv.visit_date >= ? AND sv.visit_date <= ?
 			AND sv.deleted_at IS NULL
 			`
 	
-	args := []interface{}{req.DateFrom, req.DateTo}
+	tenantID := ""
+	if tid, ok := ctx.Value("tenant_id").(string); ok {
+		tenantID = tid
+	}
+	args := []interface{}{tenantID, req.DateFrom, req.DateTo}
 
 	if req.EmployeeID != "" {
 		rawQuery += " AND sv.employee_id = ?"

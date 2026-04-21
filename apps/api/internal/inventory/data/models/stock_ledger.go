@@ -11,7 +11,7 @@ import (
 // StockLedger is an immutable moving-average log per stock-changing transaction.
 type StockLedger struct {
 	ID              string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID        string    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	ProductID       string    `gorm:"type:uuid;not null;index" json:"product_id"`
 	TransactionID   string    `gorm:"type:varchar(255);not null;index" json:"transaction_id"`
 	TransactionType string    `gorm:"type:varchar(30);not null;index" json:"transaction_type"`
@@ -32,6 +32,12 @@ func (StockLedger) TableName() string {
 func (sl *StockLedger) BeforeCreate(tx *gorm.DB) error {
 	if sl.ID == "" {
 		sl.ID = uuid.New().String()
+	}
+
+	if sl.TenantID == "" {
+		if tid, ok := tx.Statement.Context.Value("tenant_id").(string); ok {
+			sl.TenantID = tid
+		}
 	}
 	return nil
 }

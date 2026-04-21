@@ -77,9 +77,12 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 	var quotations []models.SalesQuotation
 	var total int64
 
-	// Use WithContext (not getDB) because search conditionally JOINs employees which has tenant_id.
-	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
 	query := r.db.WithContext(ctx).Model(&models.SalesQuotation{})
+	var err error
+	query, err = applyTenantFilter(ctx, query, "sales_quotations.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())
@@ -88,6 +91,10 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
 		query = query.Joins("LEFT JOIN employees ON employees.id = sales_quotations.sales_rep_id")
+		query, err = applyTenantFilter(ctx, query, "employees.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		query = query.Where("sales_quotations.customer_name ILIKE ? OR employees.name ILIKE ? OR sales_quotations.code ILIKE ? OR sales_quotations.notes ILIKE ?", search, search, search, search)
 	}
 
@@ -145,7 +152,7 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 	query = query.Order(sortBy + " " + sortDir)
 
 	// Execute query with preloads
-	err := query.
+	err = query.
 		Preload("Customer").
 		Preload("PaymentTerms").
 		Preload("SalesRep").
@@ -192,27 +199,27 @@ func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQ
 		// Update scalar columns explicitly to avoid stale preloaded associations
 		// overriding foreign keys (e.g. customer_id, sales_rep_id, business_type_id).
 		quotationUpdates := map[string]interface{}{
-			"quotation_date":   sq.QuotationDate,
-			"valid_until":      sq.ValidUntil,
-			"payment_terms_id": sq.PaymentTermsID,
-			"sales_rep_id":     sq.SalesRepID,
-			"business_unit_id": sq.BusinessUnitID,
-			"business_type_id": sq.BusinessTypeID,
-			"customer_id":      sq.CustomerID,
+			"quotation_date":      sq.QuotationDate,
+			"valid_until":         sq.ValidUntil,
+			"payment_terms_id":    sq.PaymentTermsID,
+			"sales_rep_id":        sq.SalesRepID,
+			"business_unit_id":    sq.BusinessUnitID,
+			"business_type_id":    sq.BusinessTypeID,
+			"customer_id":         sq.CustomerID,
 			"customer_contact_id": sq.CustomerContactID,
-			"customer_name":    sq.CustomerName,
-			"customer_contact": sq.CustomerContact,
-			"customer_phone":   sq.CustomerPhone,
-			"customer_email":   sq.CustomerEmail,
-			"subtotal":         sq.Subtotal,
-			"discount_amount":  sq.DiscountAmount,
-			"tax_rate":         sq.TaxRate,
-			"tax_amount":       sq.TaxAmount,
-			"delivery_cost":    sq.DeliveryCost,
-			"other_cost":       sq.OtherCost,
-			"total_amount":     sq.TotalAmount,
-			"notes":            sq.Notes,
-			"updated_at":       sq.UpdatedAt,
+			"customer_name":       sq.CustomerName,
+			"customer_contact":    sq.CustomerContact,
+			"customer_phone":      sq.CustomerPhone,
+			"customer_email":      sq.CustomerEmail,
+			"subtotal":            sq.Subtotal,
+			"discount_amount":     sq.DiscountAmount,
+			"tax_rate":            sq.TaxRate,
+			"tax_amount":          sq.TaxAmount,
+			"delivery_cost":       sq.DeliveryCost,
+			"other_cost":          sq.OtherCost,
+			"total_amount":        sq.TotalAmount,
+			"notes":               sq.Notes,
+			"updated_at":          sq.UpdatedAt,
 		}
 
 		if err := tx.Model(&models.SalesQuotation{}).
@@ -287,10 +294,10 @@ func (r *salesQuotationRepository) GetNextQuotationNumber(ctx context.Context, p
 	// Format: SQ-20240115-0001
 	now := database.GetDB(ctx, r.db).NowFunc()
 	dateStr := now.Format("20060102")
-	
+
 	// Format sequence with 4 digits
 	code := prefix + "-" + dateStr + "-" + formatSequence(sequence)
-	
+
 	return code, nil
 }
 
@@ -360,11 +367,10 @@ func (r *salesQuotationRepository) ListItems(ctx context.Context, quotationID st
 		Limit(perPage).
 		Offset(offset).
 		Find(&items).Error
-	
+
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return items, total, nil
 }
-

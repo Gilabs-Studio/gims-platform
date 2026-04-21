@@ -52,14 +52,21 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 	rows := make([]*models.SalesReturn, 0)
 	var total int64
 
-	// Use WithContext (not GetDB) because search conditionally JOINs customers which has tenant_id.
-	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
 	q := r.db.WithContext(ctx).Model(&models.SalesReturn{}).Preload("Items")
+	var err error
+	q, err = applyTenantFilter(ctx, q, "sales_returns.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 	q = security.ApplyScopeFilter(q, ctx, security.SalesScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Joins("LEFT JOIN customers ON customers.id = sales_returns.customer_id")
+		q, err = applyTenantFilter(ctx, q, "customers.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		q = q.Where("customers.name ILIKE ? OR sales_returns.code ILIKE ? OR sales_returns.reason ILIKE ?", like, like, like)
 	}
 	if s := strings.TrimSpace(params.Status); s != "" {
