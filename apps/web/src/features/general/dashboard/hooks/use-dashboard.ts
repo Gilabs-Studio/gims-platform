@@ -48,6 +48,20 @@ const OVERVIEW_WIDGET_SCOPES: Partial<Record<WidgetType, DashboardOverviewScope>
   kpi_asset_turnover: "owner-kpi",
   kpi_opex_vs_capex: "owner-kpi",
   owner_intelligence: "owner-kpi",
+
+  // POS widgets
+  pos_outlet_sales: "pos",
+  pos_live_table_overview: "pos",
+
+  // HR widgets
+  hr_attendance_today: "hr",
+  hr_pending_leaves: "hr",
+
+  // CRM widgets
+  crm_total_contacts: "crm",
+  crm_active_leads: "crm",
+  crm_deals_overview: "crm",
+  crm_activity_summary: "crm",
 };
 
 function getOverviewScope(widgetType: WidgetType): DashboardOverviewScope | null {
@@ -76,14 +90,14 @@ export function useDashboard() {
 
 export function useDashboardWidgetOverview(
   widgetType: WidgetType,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; outletId?: string },
 ) {
   const dateFilter = useDashboardStore((s) => s.dateFilter);
   const scope = getOverviewScope(widgetType);
 
   return useQuery<Partial<DashboardOverviewData>>({
-    queryKey: ["dashboard", "overview-scope", scope ?? "none", dateFilter],
-    queryFn: () => dashboardService.getOverviewScope(scope ?? "kpi", dateFilter),
+    queryKey: ["dashboard", "overview-scope", scope ?? "none", dateFilter, options?.outletId],
+    queryFn: () => dashboardService.getOverviewScope(scope ?? "kpi", dateFilter, options?.outletId),
     enabled: (options?.enabled ?? true) && scope !== null,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,

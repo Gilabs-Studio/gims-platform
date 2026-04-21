@@ -109,9 +109,9 @@ export function DashboardGrid() {
   }, [saveLayout, widgets, toggleEditMode]);
 
   const handleReset = useCallback(() => {
+    // Restore pre-edit snapshot, stay in edit mode (no DB save)
     resetLayout();
-    saveLayout([]);
-  }, [resetLayout, saveLayout]);
+  }, [resetLayout]);
 
   const handleAddWidget = useCallback(async (type: WidgetType) => {
     const registry = WIDGET_REGISTRY[type];

@@ -39,7 +39,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
   total_revenue: {
     type: "total_revenue",
-    category: "finance",
+    category: "erp",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -50,7 +50,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   total_orders: {
     type: "total_orders",
-    category: "sales",
+    category: "erp",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -61,7 +61,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   total_customers: {
     type: "total_customers",
-    category: "sales",
+    category: "crm",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -72,7 +72,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   total_products: {
     type: "total_products",
-    category: "inventory",
+    category: "erp",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -181,7 +181,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   sales_performance: {
     type: "sales_performance",
-    category: "sales",
+    category: "erp",
     defaultSize: "lg",
     defaultColSpan: 3,
     defaultRowSpan: 2,
@@ -194,7 +194,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   delivery_status: {
     type: "delivery_status",
-    category: "overview",
+    category: "erp",
     defaultSize: "md",
     defaultColSpan: 2,
     defaultRowSpan: 1,
@@ -205,7 +205,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   geographic_overview: {
     type: "geographic_overview",
-    category: "geographic",
+    category: "other",
     defaultSize: "xl",
     defaultColSpan: 4,
     defaultRowSpan: 3,
@@ -218,7 +218,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   warehouse_overview: {
     type: "warehouse_overview",
-    category: "inventory",
+    category: "erp",
     defaultSize: "lg",
     defaultColSpan: 3,
     defaultRowSpan: 2,
@@ -278,7 +278,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   stat_summary_orders: {
     type: "stat_summary_orders",
-    category: "sales",
+    category: "erp",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -289,7 +289,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   best_selling: {
     type: "best_selling",
-    category: "sales",
+    category: "erp",
     defaultSize: "md",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -302,7 +302,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   track_orders: {
     type: "track_orders",
-    category: "sales",
+    category: "erp",
     defaultSize: "md",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -315,7 +315,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   track_purchase_orders: {
     type: "track_purchase_orders",
-    category: "purchase",
+    category: "erp",
     defaultSize: "md",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -328,7 +328,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   pending_approvals_sales: {
     type: "pending_approvals_sales",
-    category: "sales",
+    category: "erp",
     defaultSize: "xl",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -340,7 +340,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   pending_approvals_purchase: {
     type: "pending_approvals_purchase",
-    category: "purchase",
+    category: "erp",
     defaultSize: "xl",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -352,7 +352,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   travel_planner_overview: {
     type: "travel_planner_overview",
-    category: "sales",
+    category: "other",
     defaultSize: "xl",
     defaultColSpan: 4,
     defaultRowSpan: 2,
@@ -369,7 +369,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
   kpi_ccc: {
     type: "kpi_ccc",
-    category: "cashflow",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -380,7 +380,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_dio: {
     type: "kpi_dio",
-    category: "inventory",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -391,7 +391,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_ar_days: {
     type: "kpi_ar_days",
-    category: "cashflow",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -402,7 +402,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_ap_days: {
     type: "kpi_ap_days",
-    category: "cashflow",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -417,7 +417,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
   kpi_roe: {
     type: "kpi_roe",
-    category: "profitability",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -428,7 +428,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_roa: {
     type: "kpi_roa",
-    category: "asset",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -439,7 +439,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_net_profit_margin: {
     type: "kpi_net_profit_margin",
-    category: "profitability",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -450,7 +450,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_gross_profit_margin: {
     type: "kpi_gross_profit_margin",
-    category: "profitability",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -461,7 +461,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_inventory_turnover: {
     type: "kpi_inventory_turnover",
-    category: "inventory",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -472,7 +472,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_asset_turnover: {
     type: "kpi_asset_turnover",
-    category: "asset",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -487,7 +487,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
   kpi_cost_per_delivery: {
     type: "kpi_cost_per_delivery",
-    category: "logistics",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -498,7 +498,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_utilization_rate: {
     type: "kpi_utilization_rate",
-    category: "logistics",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -509,7 +509,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_otd_rate: {
     type: "kpi_otd_rate",
-    category: "logistics",
+    category: "finance",
     defaultSize: "sm",
     defaultColSpan: 1,
     defaultRowSpan: 1,
@@ -520,7 +520,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
   kpi_opex_vs_capex: {
     type: "kpi_opex_vs_capex",
-    category: "cost",
+    category: "finance",
     defaultSize: "md",
     defaultColSpan: 2,
     defaultRowSpan: 2,
@@ -537,7 +537,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
   owner_intelligence: {
     type: "owner_intelligence",
-    category: "intelligence",
+    category: "other",
     defaultSize: "xl",
     defaultColSpan: 4,
     defaultRowSpan: 2,
@@ -546,6 +546,110 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.owner_intelligence.title",
     descriptionKey: "widgets.owner_intelligence.description",
     icon: "Brain",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CRM Widgets
+  // ════════════════════════════════════════════════════════════════════════
+  crm_total_contacts: {
+    type: "crm_total_contacts",
+    category: "crm",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.crm_total_contacts.title",
+    descriptionKey: "widgets.crm_total_contacts.description",
+    icon: "ContactRound",
+    permission: "crm_lead.read",
+  },
+  crm_active_leads: {
+    type: "crm_active_leads",
+    category: "crm",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.crm_active_leads.title",
+    descriptionKey: "widgets.crm_active_leads.description",
+    icon: "UserPlus",
+    permission: "crm_lead.read",
+  },
+  crm_deals_overview: {
+    type: "crm_deals_overview",
+    category: "crm",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 1,
+    titleKey: "widgets.crm_deals_overview.title",
+    descriptionKey: "widgets.crm_deals_overview.description",
+    icon: "Handshake",
+    permission: "crm_deal.read",
+  },
+  crm_activity_summary: {
+    type: "crm_activity_summary",
+    category: "crm",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 1,
+    titleKey: "widgets.crm_activity_summary.title",
+    descriptionKey: "widgets.crm_activity_summary.description",
+    icon: "CalendarCheck",
+    permission: "crm_activity.read",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // POS Widgets
+  // ════════════════════════════════════════════════════════════════════════
+  pos_outlet_sales: {
+    type: "pos_outlet_sales",
+    category: "pos",
+    defaultSize: "lg",
+    defaultColSpan: 3,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "widgets.pos_outlet_sales.title",
+    descriptionKey: "widgets.pos_outlet_sales.description",
+    icon: "Store",
+    permission: "pos.order.create",
+  },
+  pos_live_table_overview: {
+    type: "pos_live_table_overview",
+    category: "pos",
+    defaultSize: "xl",
+    defaultColSpan: 4,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "widgets.pos_live_table_overview.title",
+    descriptionKey: "widgets.pos_live_table_overview.description",
+    icon: "LayoutGrid",
+    permission: "pos.order.create",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // HR Widgets
+  // ════════════════════════════════════════════════════════════════════════
+  hr_attendance_today: {
+    type: "hr_attendance_today",
+    category: "hr",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 1,
+    titleKey: "widgets.hr_attendance_today.title",
+    descriptionKey: "widgets.hr_attendance_today.description",
+    icon: "CalendarCheck2",
+    permission: "attendance.read",
+  },
+  hr_pending_leaves: {
+    type: "hr_pending_leaves",
+    category: "hr",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.hr_pending_leaves.title",
+    descriptionKey: "widgets.hr_pending_leaves.description",
+    icon: "ClipboardList",
+    permission: "leave_request.read",
   },
 };
 

@@ -30,11 +30,13 @@ export const dashboardService = {
   async getOverviewScope(
     scope: DashboardOverviewScope,
     filter?: DashboardDateFilter,
+    outletId?: string,
   ): Promise<Partial<DashboardOverviewData>> {
-    const params = {
+    const params: Record<string, string | number> = {
       ...buildDateParams(filter),
       scope,
     };
+    if (outletId) params.outlet_id = outletId;
     const response = await apiClient.get<{ success: boolean; data: Partial<DashboardOverviewData> }>(
       "/general/dashboard/overview",
       { params },

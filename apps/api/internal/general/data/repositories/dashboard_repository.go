@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 	"gorm.io/gorm"
 )
@@ -28,6 +29,9 @@ type DashboardRepository interface {
 	GetDeliveryStatus(ctx context.Context, start, end time.Time) (dto.DeliveryStatusData, error)
 	GetGeoOverview(ctx context.Context, start, end time.Time) (dto.GeoOverviewData, error)
 	GetWarehouses(ctx context.Context) ([]dto.WarehouseItem, error)
+	GetPOSSummary(ctx context.Context, userID string) (*dto.POSSummaryData, error)
+	GetHRSummary(ctx context.Context) (*dto.HRSummaryData, error)
+	GetCRMSummary(ctx context.Context) (*dto.CRMSummaryData, error)
 }
 
 type dashboardRepository struct {
@@ -518,4 +522,185 @@ func sortPeriodChartPoints(points []dto.PeriodChartPoint) {
 		}
 		points[j+1] = key
 	}
+}
+
+// GetPOSSummary returns today's POS sales per outlet with RBAC filtering.
+// If userID is non-empty and the user has OUTLET scope, only their assigned outlets are returned.
+func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID string) (*dto.POSSummaryData, error) {
+	db := database.GetDB(ctx, r.db)
+
+	// Resolve outlet filter for RBAC
+	var outletIDs []string
+	if userID != "" {
+		var dataScope string
+		err := db.Raw(`
+			SELECT r.data_scope FROM users u
+			JOIN roles r ON r.id = u.role_id
+			WHERE u.id = ?
+		`, userID).Scan(&dataScope).Error
+		if err == nil && dataScope == "OUTLET" {
+			db.Raw(`
+				SELECT eo.outlet_id FROM employee_outlets eo
+				JOIN employees e ON e.id = eo.employee_id
+				WHERE e.user_id = ?
+			`, userID).Scan(&outletIDs)
+		}
+	}
+
+	type outletRow struct {
+		OutletID       string  `gorm:"column:outlet_id"`
+		OutletName     string  `gorm:"column:outlet_name"`
+		TodayRevenue   float64 `gorm:"column:today_revenue"`
+		OrderCount     int     `gorm:"column:order_count"`
+		TablesTotal    int     `gorm:"column:tables_total"`
+		TablesOccupied int     `gorm:"column:tables_occupied"`
+	}
+
+	query := db.Raw(`
+		SELECT
+			o.id AS outlet_id,
+			o.name AS outlet_name,
+			COALESCE(SUM(CASE WHEN po.created_at::date = CURRENT_DATE THEN po.total ELSE 0 END), 0) AS today_revenue,
+			COUNT(CASE WHEN po.created_at::date = CURRENT_DATE THEN 1 END) AS order_count,
+			COALESCE(ft.tables_total, 0) AS tables_total,
+			COALESCE(ft.tables_occupied, 0) AS tables_occupied
+		FROM pos_outlets o
+		LEFT JOIN pos_orders po ON po.outlet_id = o.id AND po.deleted_at IS NULL
+		LEFT JOIN LATERAL (
+			SELECT
+				COUNT(*) AS tables_total,
+				COUNT(*) FILTER (WHERE pt.status = 'occupied') AS tables_occupied
+			FROM pos_tables pt
+			WHERE pt.outlet_id = o.id AND pt.deleted_at IS NULL
+		) ft ON true
+		WHERE o.deleted_at IS NULL
+		` + func() string {
+		if len(outletIDs) > 0 {
+			return "AND o.id IN ?"
+		}
+		return ""
+	}() + `
+		GROUP BY o.id, o.name, ft.tables_total, ft.tables_occupied
+		ORDER BY today_revenue DESC
+	`)
+
+	var rows []outletRow
+	if len(outletIDs) > 0 {
+		query = db.Raw(`
+			SELECT
+				o.id AS outlet_id,
+				o.name AS outlet_name,
+				COALESCE(SUM(CASE WHEN po.created_at::date = CURRENT_DATE THEN po.total ELSE 0 END), 0) AS today_revenue,
+				COUNT(CASE WHEN po.created_at::date = CURRENT_DATE THEN 1 END) AS order_count,
+				COALESCE(ft.tables_total, 0) AS tables_total,
+				COALESCE(ft.tables_occupied, 0) AS tables_occupied
+			FROM pos_outlets o
+			LEFT JOIN pos_orders po ON po.outlet_id = o.id AND po.deleted_at IS NULL
+			LEFT JOIN LATERAL (
+				SELECT
+					COUNT(*) AS tables_total,
+					COUNT(*) FILTER (WHERE pt.status = 'occupied') AS tables_occupied
+				FROM pos_tables pt
+				WHERE pt.outlet_id = o.id AND pt.deleted_at IS NULL
+			) ft ON true
+			WHERE o.deleted_at IS NULL AND o.id IN ?
+			GROUP BY o.id, o.name, ft.tables_total, ft.tables_occupied
+			ORDER BY today_revenue DESC
+		`, outletIDs)
+	}
+
+	if err := query.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	result := &dto.POSSummaryData{}
+	for _, row := range rows {
+		item := dto.POSOutletItem{
+			OutletID:              row.OutletID,
+			OutletName:            row.OutletName,
+			TodayRevenue:          row.TodayRevenue,
+			TodayRevenueFormatted: formatPOSCurrency(row.TodayRevenue),
+			OrderCount:            row.OrderCount,
+			TablesTotal:           row.TablesTotal,
+			TablesOccupied:        row.TablesOccupied,
+		}
+		result.Outlets = append(result.Outlets, item)
+		result.TodayTotalRevenue += row.TodayRevenue
+		result.TodayTotalOrders += row.OrderCount
+	}
+	result.TodayTotalRevenueFormatted = formatPOSCurrency(result.TodayTotalRevenue)
+
+	return result, nil
+}
+
+// GetHRSummary returns today's attendance and pending leave data.
+func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryData, error) {
+	db := database.GetDB(ctx, r.db)
+
+	result := &dto.HRSummaryData{}
+
+	// Total active employees for rate calculation
+	var totalEmployees int64
+	db.Raw(`SELECT COUNT(*) FROM employees WHERE deleted_at IS NULL AND status = 'active'`).Scan(&totalEmployees)
+
+	// Today's attendance
+	db.Raw(`
+		SELECT COUNT(*) FROM attendance_records
+		WHERE date = CURRENT_DATE AND deleted_at IS NULL AND status = 'present'
+	`).Scan(&result.PresentToday)
+
+	db.Raw(`
+		SELECT COUNT(*) FROM attendance_records
+		WHERE date = CURRENT_DATE AND deleted_at IS NULL AND is_late = true
+	`).Scan(&result.LateToday)
+
+	if totalEmployees > 0 {
+		result.AbsentToday = int(totalEmployees) - result.PresentToday
+		rate := float64(result.PresentToday) / float64(totalEmployees) * 100
+		result.AttendanceRate = float64(int(rate*10)) / 10 // 1 decimal
+	}
+
+	// Pending leaves
+	db.Raw(`
+		SELECT COUNT(*) FROM leave_requests
+		WHERE deleted_at IS NULL AND status = 'pending'
+	`).Scan(&result.PendingLeaves)
+
+	return result, nil
+}
+
+// GetCRMSummary returns aggregated CRM metrics.
+func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummaryData, error) {
+	db := database.GetDB(ctx, r.db)
+
+	result := &dto.CRMSummaryData{}
+
+	db.Raw(`SELECT COUNT(*) FROM crm_contacts WHERE deleted_at IS NULL`).Scan(&result.TotalContacts)
+	db.Raw(`SELECT COUNT(*) FROM crm_leads WHERE deleted_at IS NULL AND status = 'active'`).Scan(&result.ActiveLeads)
+	db.Raw(`
+		SELECT COUNT(*) FROM crm_leads
+		WHERE deleted_at IS NULL AND created_at >= date_trunc('month', CURRENT_DATE)
+	`).Scan(&result.LeadsThisMonth)
+	db.Raw(`SELECT COUNT(*) FROM crm_deals WHERE deleted_at IS NULL AND status = 'in_progress'`).Scan(&result.DealsInProgress)
+	db.Raw(`
+		SELECT COUNT(*) FROM crm_deals
+		WHERE deleted_at IS NULL AND status = 'won' AND closed_at >= date_trunc('month', CURRENT_DATE)
+	`).Scan(&result.DealsWonThisMonth)
+	db.Raw(`
+		SELECT COUNT(*) FROM crm_activities
+		WHERE deleted_at IS NULL AND scheduled_at::date = CURRENT_DATE
+	`).Scan(&result.ActivitiesToday)
+
+	return result, nil
+}
+
+func formatPOSCurrency(v float64) string {
+	if v >= 1_000_000_000 {
+		return fmt.Sprintf("Rp %.1fM", v/1_000_000_000)
+	} else if v >= 1_000_000 {
+		return fmt.Sprintf("Rp %.1fjt", v/1_000_000)
+	} else if v >= 1_000 {
+		return fmt.Sprintf("Rp %.0frb", v/1_000)
+	}
+	return fmt.Sprintf("Rp %.0f", v)
 }

@@ -5,6 +5,12 @@ import { DEFAULT_WIDGETS } from "../config/widget-registry";
 interface DashboardState {
   widgets: WidgetConfig[];
   isEditMode: boolean;
+  /**
+   * Snapshot of widgets captured when entering edit mode.
+   * Used by resetLayout to restore the layout to its pre-edit state
+   * without touching the DB (the user stays in edit mode after reset).
+   */
+  preEditSnapshot: WidgetConfig[] | null;
   dateFilter: DashboardDateFilter;
   // Actions
   setWidgets: (widgets: WidgetConfig[]) => void;
@@ -25,6 +31,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // (or DEFAULT_WIDGETS once onboarding is complete and no layout has been saved yet).
   widgets: [],
   isEditMode: false,
+  preEditSnapshot: null,
   dateFilter: {
     from: null,
     to: null,
@@ -97,11 +104,20 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   resetLayout: () => {
-    set({ widgets: DEFAULT_WIDGETS });
+    const { preEditSnapshot } = get();
+    // Restore to the snapshot taken before entering edit mode, stay in edit mode
+    set({ widgets: preEditSnapshot ?? DEFAULT_WIDGETS });
   },
 
   toggleEditMode: () => {
-    set((s) => ({ isEditMode: !s.isEditMode }));
+    const { isEditMode, widgets } = get();
+    if (!isEditMode) {
+      // Entering edit mode — capture a snapshot of the current layout
+      set({ isEditMode: true, preEditSnapshot: [...widgets] });
+    } else {
+      // Leaving edit mode — clear snapshot
+      set({ isEditMode: false, preEditSnapshot: null });
+    }
   },
 
   setDateFilter: (filter) => {

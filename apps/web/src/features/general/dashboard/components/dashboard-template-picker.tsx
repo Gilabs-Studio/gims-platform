@@ -2,40 +2,47 @@
 
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { BarChart2, ShoppingCart, DollarSign, LayoutDashboard, Grid2X2 } from "lucide-react";
+import { BarChart2, ShoppingCart, DollarSign, LayoutDashboard, Grid2X2, Store, Users2, Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_WIDGETS } from "../config/widget-registry";
 import type { WidgetConfig } from "../types";
 
 // ─── Template definitions ────────────────────────────────────────────────────
 
-const MINIMAL_WIDGETS: WidgetConfig[] = [
-  { id: "t-1", type: "total_revenue",   title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
-  { id: "t-2", type: "total_orders",    title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "total_customers", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "total_products",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+const ERP_WIDGETS: WidgetConfig[] = [
+  { id: "t-1", type: "total_orders",          title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "t-2", type: "total_revenue",         title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "t-3", type: "total_customers",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "t-4", type: "total_products",        title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+  { id: "t-5", type: "revenue_bar_chart",     title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
+  { id: "t-6", type: "track_orders",          title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "t-7", type: "track_purchase_orders", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+  { id: "t-8", type: "pending_approvals_sales",    title: "", size: "md", colSpan: 2, rowSpan: 2, order: 7, visible: true },
+  { id: "t-9", type: "pending_approvals_purchase",  title: "", size: "md", colSpan: 2, rowSpan: 2, order: 8, visible: true },
 ];
 
-const SALES_WIDGETS: WidgetConfig[] = [
-  { id: "t-1", type: "total_orders",         title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
-  { id: "t-2", type: "total_revenue",        title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "total_customers",      title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "total_products",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
-  { id: "t-5", type: "revenue_bar_chart",    title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
-  { id: "t-6", type: "track_orders",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
-  { id: "t-7", type: "track_purchase_orders",title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+const CRM_WIDGETS: WidgetConfig[] = [
+  { id: "t-1", type: "crm_total_contacts",    title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "t-2", type: "crm_active_leads",      title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "t-3", type: "crm_deals_overview",    title: "", size: "md", colSpan: 2, rowSpan: 1, order: 2, visible: true },
+  { id: "t-4", type: "crm_activity_summary",  title: "", size: "md", colSpan: 2, rowSpan: 1, order: 3, visible: true },
+  { id: "t-5", type: "total_customers",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
+  { id: "t-6", type: "travel_planner_overview", title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 5, visible: true },
 ];
 
-const FINANCE_WIDGETS: WidgetConfig[] = [
-  { id: "t-1", type: "kpi_net_profit_margin",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
-  { id: "t-2", type: "kpi_gross_profit_margin", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "kpi_roe",                title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "kpi_roa",                title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
-  { id: "t-5", type: "revenue_bar_chart",       title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
-  { id: "t-6", type: "kpi_opex_vs_capex",      title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
-  { id: "t-7", type: "kpi_ccc",                title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 6, visible: true },
-  { id: "t-8", type: "kpi_ar_days",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 7, visible: true },
-  { id: "t-9", type: "kpi_ap_days",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 8, visible: true },
+const POS_WIDGETS: WidgetConfig[] = [
+  { id: "t-1", type: "pos_outlet_sales",         title: "", size: "lg", colSpan: 3, rowSpan: 2, order: 0, visible: true },
+  { id: "t-2", type: "total_revenue",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "t-3", type: "total_orders",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "t-4", type: "pos_live_table_overview",  title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 3, visible: true },
+  { id: "t-5", type: "best_selling",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
+  { id: "t-6", type: "revenue_bar_chart",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+];
+
+const HR_WIDGETS: WidgetConfig[] = [
+  { id: "t-1", type: "employee_count",         title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "t-2", type: "hr_pending_leaves",      title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "t-3", type: "hr_attendance_today",    title: "", size: "md", colSpan: 2, rowSpan: 1, order: 2, visible: true },
 ];
 
 interface Template {
@@ -49,36 +56,36 @@ interface Template {
 
 const TEMPLATES: Template[] = [
   {
-    id: "minimal",
-    nameKey: "templatePicker.templates.minimal.name",
-    descriptionKey: "templatePicker.templates.minimal.description",
-    icon: Grid2X2,
-    widgets: MINIMAL_WIDGETS,
-    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }],
-  },
-  {
-    id: "sales",
-    nameKey: "templatePicker.templates.sales.name",
-    descriptionKey: "templatePicker.templates.sales.description",
+    id: "erp",
+    nameKey: "templatePicker.templates.erp.name",
+    descriptionKey: "templatePicker.templates.erp.description",
     icon: ShoppingCart,
-    widgets: SALES_WIDGETS,
+    widgets: ERP_WIDGETS,
     previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }],
   },
   {
-    id: "finance",
-    nameKey: "templatePicker.templates.finance.name",
-    descriptionKey: "templatePicker.templates.finance.description",
-    icon: DollarSign,
-    widgets: FINANCE_WIDGETS,
-    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }],
+    id: "crm",
+    nameKey: "templatePicker.templates.crm.name",
+    descriptionKey: "templatePicker.templates.crm.description",
+    icon: Headset,
+    widgets: CRM_WIDGETS,
+    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }, { cols: 1 }, { cols: 4 }],
   },
   {
-    id: "complete",
-    nameKey: "templatePicker.templates.complete.name",
-    descriptionKey: "templatePicker.templates.complete.description",
-    icon: LayoutDashboard,
-    widgets: DEFAULT_WIDGETS,
-    previewBlocks: [{ cols: 4 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }],
+    id: "pos",
+    nameKey: "templatePicker.templates.pos.name",
+    descriptionKey: "templatePicker.templates.pos.description",
+    icon: Store,
+    widgets: POS_WIDGETS,
+    previewBlocks: [{ cols: 3 }, { cols: 1 }, { cols: 4 }, { cols: 2 }, { cols: 2 }],
+  },
+  {
+    id: "hr",
+    nameKey: "templatePicker.templates.hr.name",
+    descriptionKey: "templatePicker.templates.hr.description",
+    icon: Users2,
+    widgets: HR_WIDGETS,
+    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 2 }],
   },
 ];
 
