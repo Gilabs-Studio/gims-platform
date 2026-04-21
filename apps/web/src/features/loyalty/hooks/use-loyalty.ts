@@ -27,7 +27,7 @@ const LEDGER_KEY = "loyaltyLedger";
  */
 export function useMyOutlets(options?: { enabled?: boolean }) {
   const { user } = useAuthStore();
-  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   return useOutlets({ per_page: 100, is_active: true }, { enabled: options?.enabled ?? isOutletScoped });
 }
 

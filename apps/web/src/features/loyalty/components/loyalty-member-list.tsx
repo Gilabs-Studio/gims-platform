@@ -38,7 +38,7 @@ export function LoyaltyMemberList() {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
   const { user } = useAuthStore();
-  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   const { data: myOutletsData } = useMyOutlets({ enabled: isOutletScoped });
   const outletNameById = new Map((myOutletsData?.data ?? []).map((outlet) => [outlet.id, outlet.name]));
   const canViewCustomerResearch = useHasPermission("report_customer_research.read");

@@ -48,6 +48,6 @@ export const publicRegisterSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
 });
 
-export type CreateLoyaltyProgramFormValues = z.infer<typeof createLoyaltyProgramSchema>;
+export type CreateLoyaltyProgramFormValues = z.input<typeof createLoyaltyProgramSchema>;
 export type EnrollMemberFormValues = z.infer<typeof enrollMemberSchema>;
 export type PublicRegisterFormValues = z.infer<typeof publicRegisterSchema>;

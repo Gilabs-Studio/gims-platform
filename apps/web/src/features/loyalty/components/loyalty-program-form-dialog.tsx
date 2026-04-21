@@ -69,7 +69,7 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
   const { user } = useAuthStore();
-  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   const createMutation = useCreateLoyaltyProgram();
   const updateMutation = useUpdateLoyaltyProgram();
   // Admins fetch all outlets; outlet managers get their own outlets via RBAC.
@@ -133,7 +133,17 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
   }, [program, reset, isOutletScoped, firstOutletId]);
 
   async function onSubmit(values: CreateLoyaltyProgramFormValues) {
-    const payload = { ...values, outlet_id: values.outlet_id || undefined };
+    const payload = {
+      ...values,
+      outlet_id: values.outlet_id || undefined,
+      config: {
+        ...values.config,
+        rewards: values.config.rewards.map((reward) => ({
+          ...reward,
+          is_active: reward.is_active ?? true,
+        })),
+      },
+    };
     try {
       if (program) {
         await updateMutation.mutateAsync({ id: program.id, data: payload });
