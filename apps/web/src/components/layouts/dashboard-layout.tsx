@@ -190,15 +190,20 @@ export const DashboardLayout = memo(function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
-  const [attendanceDrawerTab, setAttendanceDrawerTab] =
+  const [_attendanceDrawerTab, setAttendanceDrawerTab] =
     useState<AttendanceDrawerTab>("calendar");
-  const [openCreateLeaveSignal, setOpenCreateLeaveSignal] = useState(0);
 
   // Separate drawer states for Leave Request and Overtime
   const [isLeaveRequestDrawerOpen, setIsLeaveRequestDrawerOpen] =
     useState(false);
   const [isOvertimeDrawerOpen, setIsOvertimeDrawerOpen] = useState(false);
   const [openCreateLeaveInDrawer, setOpenCreateLeaveInDrawer] = useState(0);
+
+  // Command palette control (opened by header search)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const handleSearchClick = useCallback(() => {
+    setIsCommandPaletteOpen(true);
+  }, []);
 
   useEffect(() => {
     React.startTransition(() => {
@@ -512,6 +517,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                     avatarUrl={primaryAvatarUrl}
                     fallbackAvatarUrl={fallbackAvatarUrl}
                     onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                    onSearchClick={handleSearchClick}
                     showAttendanceIndicator={showAttendanceIndicator}
                     onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
                   />
@@ -523,6 +529,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                   avatarUrl={primaryAvatarUrl}
                   fallbackAvatarUrl={fallbackAvatarUrl}
                   onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
+                  onSearchClick={handleSearchClick}
                   showAttendanceIndicator={showAttendanceIndicator}
                   onOpenAttendanceDrawer={handleOpenAttendanceDrawer}
                 />
@@ -564,7 +571,11 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={setIsOvertimeDrawerOpen}
         />
 
-        <CommandPalette menus={menus} />
+        <CommandPalette
+          open={isCommandPaletteOpen}
+          onOpenChange={(open) => setIsCommandPaletteOpen(open)}
+          menus={menus}
+        />
         {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
