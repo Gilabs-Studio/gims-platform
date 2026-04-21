@@ -7,6 +7,8 @@ import {
   Building2,
   LogOut,
   ShieldCheck,
+  Ticket,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,16 @@ const sidebarLinks = [
     label: "Tenants",
     href: "/system/tenants",
     icon: Building2,
+  },
+  {
+    label: "Coupons",
+    href: "/system/coupons",
+    icon: Ticket,
+  },
+  {
+    label: "Subscriptions",
+    href: "/system/subscriptions",
+    icon: CreditCard,
   },
 ];
 

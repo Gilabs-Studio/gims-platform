@@ -87,3 +87,106 @@ export interface TenantListParams {
   per_page?: number;
   search?: string;
 }
+
+// ── Coupons ────────────────────────────────────────────────────────────────
+
+export type CouponType =
+  | "full_access"
+  | "pos_only"
+  | "erp_only"
+  | "crm_only"
+  | "hr_only";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string;
+  coupon_type: CouponType;
+  duration_days: number;
+  max_uses: number;
+  used_count: number;
+  is_active: boolean;
+  expires_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCouponRequest {
+  description: string;
+  coupon_type: CouponType;
+  duration_days: number;
+  max_uses?: number;
+  expires_at?: string | null;
+}
+
+export interface CouponListParams {
+  active_only?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+export interface CouponListResponse {
+  success: boolean;
+  data: Coupon[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface CouponDetailResponse {
+  success: boolean;
+  data: Coupon;
+}
+
+// ── Subscriptions ──────────────────────────────────────────────────────────
+
+export type SubscriptionPlan =
+  | "pos_essential"
+  | "pos_growth"
+  | "pos_enterprise"
+  | "erp_core"
+  | "erp_pro"
+  | "erp_enterprise"
+  | "crm_basic"
+  | "crm_growth"
+  | "crm_enterprise"
+  | "hr_basic"
+  | "hr_growth"
+  | "hr_enterprise"
+  | "full_access";
+
+export type BillingPeriod = "monthly" | "yearly" | "lifetime";
+export type SubscriptionStatus = "active" | "expired" | "cancelled" | "trial";
+
+export interface Subscription {
+  id: string;
+  tenant_id: string;
+  tenant_name?: string;
+  plan: SubscriptionPlan;
+  billing_period: BillingPeriod;
+  status: SubscriptionStatus;
+  starts_at: string;
+  expires_at: string | null;
+  coupon_id?: string | null;
+  coupon_code?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubscriptionListParams {
+  tenant_id?: string;
+  status?: SubscriptionStatus;
+  page?: number;
+  per_page?: number;
+}
+
+export interface SubscriptionListResponse {
+  success: boolean;
+  data: Subscription[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface SubscriptionDetailResponse {
+  success: boolean;
+  data: Subscription;
+}

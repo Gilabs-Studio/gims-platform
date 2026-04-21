@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterSystemAdminRoutes registers all system admin routes under /internal
+// RegisterSystemAdminRoutes registers all system admin routes under /internal.
 // These routes are completely separate from tenant API routes.
 func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwtManager *jwt.JWTManager, sysAdminRepo repositories.SystemAdminRepository) {
 	internal := r.Group("/internal")
@@ -23,8 +23,19 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			protected.GET("/me", h.Me)
 			protected.POST("/sys-logout", h.Logout)
 			protected.GET("/system-dashboard", h.Dashboard)
+
+			// Tenant management
 			protected.GET("/tenants", h.ListTenants)
 			protected.GET("/tenants/:id", h.GetTenantDetail)
+			protected.GET("/tenants/:id/subscription", h.GetTenantSubscription)
+
+			// Coupon management
+			protected.POST("/coupons", h.CreateCoupon)
+			protected.GET("/coupons", h.ListCoupons)
+			protected.PATCH("/coupons/:id/status", h.SetCouponStatus)
+
+			// Subscription management
+			protected.GET("/subscriptions", h.ListSubscriptions)
 		}
 	}
 }

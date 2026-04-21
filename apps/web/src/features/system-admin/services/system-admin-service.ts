@@ -7,6 +7,13 @@ import type {
   TenantListResponse,
   TenantDetailResponse,
   TenantListParams,
+  CouponListResponse,
+  CouponDetailResponse,
+  CouponListParams,
+  CreateCouponRequest,
+  SubscriptionListResponse,
+  SubscriptionDetailResponse,
+  SubscriptionListParams,
 } from "../types";
 
 const API_BASE_URL =
@@ -55,6 +62,39 @@ export const systemAdminService = {
 
   async getTenantDetail(id: string): Promise<TenantDetailResponse> {
     const { data } = await sysAdminClient.get<TenantDetailResponse>(`/tenants/${id}`);
+    return data;
+  },
+
+  // ── Coupon management ────────────────────────────────────────────────────
+
+  async createCoupon(payload: CreateCouponRequest): Promise<CouponDetailResponse> {
+    const { data } = await sysAdminClient.post<CouponDetailResponse>("/coupons", payload);
+    return data;
+  },
+
+  async getCoupons(params?: CouponListParams): Promise<CouponListResponse> {
+    const { data } = await sysAdminClient.get<CouponListResponse>("/coupons", { params });
+    return data;
+  },
+
+  async setCouponStatus(id: string, isActive: boolean): Promise<CouponDetailResponse> {
+    const { data } = await sysAdminClient.patch<CouponDetailResponse>(`/coupons/${id}/status`, {
+      is_active: isActive,
+    });
+    return data;
+  },
+
+  // ── Subscription management ───────────────────────────────────────────────
+
+  async getSubscriptions(params?: SubscriptionListParams): Promise<SubscriptionListResponse> {
+    const { data } = await sysAdminClient.get<SubscriptionListResponse>("/subscriptions", { params });
+    return data;
+  },
+
+  async getTenantSubscription(tenantId: string): Promise<SubscriptionDetailResponse> {
+    const { data } = await sysAdminClient.get<SubscriptionDetailResponse>(
+      `/tenants/${tenantId}/subscription`,
+    );
     return data;
   },
 };

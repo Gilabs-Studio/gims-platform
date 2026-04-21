@@ -12,17 +12,26 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// SystemAdminHandler handles system admin HTTP requests
+// SystemAdminHandler handles system admin HTTP requests.
 type SystemAdminHandler struct {
 	sysAdminUC usecase.SystemAdminUsecase
 	tenantUC   usecase.TenantUsecase
+	couponUC   usecase.CouponUsecase
+	subUC      usecase.SubscriptionUsecase
 }
 
-// NewSystemAdminHandler creates a new SystemAdminHandler
-func NewSystemAdminHandler(sysAdminUC usecase.SystemAdminUsecase, tenantUC usecase.TenantUsecase) *SystemAdminHandler {
+// NewSystemAdminHandler creates a new SystemAdminHandler.
+func NewSystemAdminHandler(
+	sysAdminUC usecase.SystemAdminUsecase,
+	tenantUC usecase.TenantUsecase,
+	couponUC usecase.CouponUsecase,
+	subUC usecase.SubscriptionUsecase,
+) *SystemAdminHandler {
 	return &SystemAdminHandler{
 		sysAdminUC: sysAdminUC,
 		tenantUC:   tenantUC,
+		couponUC:   couponUC,
+		subUC:      subUC,
 	}
 }
 
@@ -150,4 +159,121 @@ func (h *SystemAdminHandler) Dashboard(c *gin.Context) {
 		"total_tenants": len(tenants),
 		"tenants":       tenants,
 	}, nil)
+}
+
+// ─── Coupon endpoints ────────────────────────────────────────────────────────
+
+// CreateCoupon generates a new coupon (system admin only).
+func (h *SystemAdminHandler) CreateCoupon(c *gin.Context) {
+	var req dto.CreateCouponRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	adminEmail, _ := c.Get("user_email")
+	email, _ := adminEmail.(string)
+
+	coupon, err := h.couponUC.Create(c.Request.Context(), &req, email)
+	if err != nil {
+		if err == usecase.ErrCouponDuplicate {
+			errors.ErrorResponse(c, "COUPON_CODE_EXISTS", map[string]interface{}{
+				"field": "code",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, coupon, nil)
+}
+
+// ListCoupons returns a paginated list of coupons (system admin only).
+func (h *SystemAdminHandler) ListCoupons(c *gin.Context) {
+	var params dto.CouponListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	coupons, pagination, err := h.couponUC.List(c.Request.Context(), params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{Pagination: pagination}
+	response.SuccessResponse(c, coupons, meta)
+}
+
+// SetCouponStatus activates or deactivates a coupon (system admin only).
+func (h *SystemAdminHandler) SetCouponStatus(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"id": "required"}, nil)
+		return
+	}
+
+	var req dto.SetCouponStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.couponUC.SetActive(c.Request.Context(), id, req.IsActive); err != nil {
+		if err == usecase.ErrCouponNotFound {
+			errors.ErrorResponse(c, "COUPON_NOT_FOUND", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseNoContent(c)
+}
+
+// ─── Subscription endpoints ──────────────────────────────────────────────────
+
+// ListSubscriptions returns all tenant subscriptions (system admin only).
+func (h *SystemAdminHandler) ListSubscriptions(c *gin.Context) {
+	var params dto.SubscriptionListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	subs, pagination, err := h.subUC.ListAll(c.Request.Context(), params)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{Pagination: pagination}
+	response.SuccessResponse(c, subs, meta)
+}
+
+// GetTenantSubscription returns the active subscription for a specific tenant (system admin only).
+func (h *SystemAdminHandler) GetTenantSubscription(c *gin.Context) {
+	tenantID := c.Param("id")
+	if tenantID == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"tenant_id": "required"}, nil)
+		return
+	}
+
+	sub, err := h.subUC.GetActiveByTenant(c.Request.Context(), tenantID)
+	if err != nil {
+		if err == usecase.ErrSubscriptionNotFound {
+			errors.ErrorResponse(c, "SUBSCRIPTION_NOT_FOUND", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, sub, nil)
 }

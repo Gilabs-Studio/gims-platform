@@ -252,6 +252,8 @@ func main() {
 	// SaaS: System admin & tenant repositories
 	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
 	tenantRepository := tenantRepos.NewTenantRepository(database.DB)
+	couponRepository := tenantRepos.NewCouponRepository(database.DB)
+	subscriptionRepository := tenantRepos.NewSubscriptionRepository(database.DB)
 
 	// Setup Services
 	permissionService := security.NewPermissionService(database.DB)
@@ -262,14 +264,17 @@ func main() {
 	eventPublisher := events.NewNoOpEventPublisher(true) // Enable logging for development
 
 	// Setup Usecases
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher)
+	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
+	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient())
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
-	authH := authHandler.NewAuthHandler(authUC)
+	authH := authHandler.NewAuthHandler(authUC, couponUC)
+	xenditH := authHandler.NewXenditHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
@@ -278,7 +283,7 @@ func main() {
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -362,6 +367,7 @@ func main() {
 		})
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
+		authRouter.RegisterWebhookRoutes(v1, xenditH)
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)

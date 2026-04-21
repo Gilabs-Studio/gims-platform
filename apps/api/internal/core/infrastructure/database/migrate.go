@@ -75,6 +75,9 @@ func AutoMigrate() error {
 		// SaaS: Tenant & System Admin tables (must come before domain tables)
 		&tenant.Tenant{},
 		&tenant.SystemAdmin{},
+		&tenant.Coupon{},
+		&tenant.CouponUsage{},
+		&tenant.TenantSubscription{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
