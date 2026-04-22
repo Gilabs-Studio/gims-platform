@@ -10,6 +10,7 @@ export const loyaltyId = {
       edit: "Edit",
       delete: "Hapus",
       toggle: "Toggle Aktif",
+      viewDetails: "Lihat Detail",
       active: "Aktif",
       inactive: "Tidak Aktif",
       global: "Global (Semua Outlet)",

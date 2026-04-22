@@ -10,6 +10,7 @@ export const loyaltyEn = {
       edit: "Edit",
       delete: "Delete",
       toggle: "Toggle Active",
+      viewDetails: "View Details",
       active: "Active",
       inactive: "Inactive",
       global: "Global (All Outlets)",

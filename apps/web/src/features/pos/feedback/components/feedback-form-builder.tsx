@@ -11,6 +11,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -91,15 +92,16 @@ function QuestionEditor({ question, index, onUpdate, onChangeType, onRemove, sho
         <span className="flex-shrink-0 h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
           {index + 1}
         </span>
-        <select
-          className="border rounded-md px-2 py-1 text-sm bg-background cursor-pointer"
-          value={question.type}
-          onChange={(e) => onChangeType(e.target.value as QuestionType)}
-        >
-          <option value="rating">{t("form.types.rating")}</option>
-          <option value="multiple_choice">{t("form.types.multiple_choice")}</option>
-          <option value="text">{t("form.types.text")}</option>
-        </select>
+        <Select value={question.type} onValueChange={(v) => onChangeType(v as QuestionType)}>
+          <SelectTrigger className="w-44 h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="rating">{t("form.types.rating")}</SelectItem>
+            <SelectItem value="multiple_choice">{t("form.types.multiple_choice")}</SelectItem>
+            <SelectItem value="text">{t("form.types.text")}</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-1 ml-auto">
           <Switch
             id={`q-req-${question.id}`}
@@ -258,6 +260,7 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   const tCommon = useTranslations("common");
 
   const [formOutletId, setFormOutletId] = useState(editingItem?.outlet_id ?? "");
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState(editingItem?.title ?? "");
   const [formDescription, setFormDescription] = useState(editingItem?.description ?? "");
   const [formIsActive, setFormIsActive] = useState(editingItem?.is_active ?? false);
@@ -322,6 +325,14 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   }, []);
 
   async function handleSave() {
+    // Validate required fields
+    const trimmedTitle = formTitle.trim();
+    if (trimmedTitle.length < 2) {
+      setTitleError(t("form.titleRequired"));
+      return;
+    }
+    setTitleError(null);
+
     // Resolve final schema from active tab
     let finalQuestions = formQuestions;
     if (activeTab === "json") {
@@ -401,17 +412,16 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
           {!editingItem && (
             <div className="space-y-1.5">
               <Label htmlFor="fb-outlet">{t("form.outlet")}</Label>
-              <select
-                id="fb-outlet"
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background cursor-pointer"
-                value={formOutletId}
-                onChange={(e) => setFormOutletId(e.target.value)}
-              >
-                <option value="">{t("form.outletPlaceholder")}</option>
-                {outlets.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+              <Select value={formOutletId} onValueChange={setFormOutletId}>
+                <SelectTrigger id="fb-outlet">
+                  <SelectValue placeholder={t("form.outletPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -421,8 +431,18 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
               id="fb-title"
               placeholder={t("form.titlePlaceholder")}
               value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
+              onChange={(e) => {
+                setFormTitle(e.target.value);
+                if (titleError) setTitleError(null);
+              }}
+              className={titleError ? "border-destructive" : ""}
             />
+            {titleError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {titleError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">

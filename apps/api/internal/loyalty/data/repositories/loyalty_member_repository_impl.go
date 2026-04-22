@@ -69,6 +69,13 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
 	q := r.db.WithContext(ctx).Model(&models.LoyaltyMember{})
 
+	// When searching by name, join customers table to filter by customer name or member_code.
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		q = q.Joins("JOIN customers c ON c.id = loyalty_members.customer_id AND c.deleted_at IS NULL").
+			Where("c.name ILIKE ? OR loyalty_members.member_code ILIKE ?", searchPattern, searchPattern)
+	}
+
 	// Outlet-scope filter: only members whose program belongs to the given outlets (or is global).
 	if len(params.ProgramOutletIDs) > 0 {
 		q = q.Joins("JOIN loyalty_programs lp ON lp.id = loyalty_members.program_id AND lp.deleted_at IS NULL").

@@ -540,6 +540,7 @@ func (u *feedbackUsecase) ListResponses(ctx context.Context, req *dto.ListFeedba
 		FormID:    req.FormID,
 		StartDate: req.StartDate,
 		EndDate:   req.EndDate,
+		Search:    req.Search,
 		Page:      req.Page,
 		PerPage:   req.PerPage,
 	}

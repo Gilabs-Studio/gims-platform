@@ -107,6 +107,7 @@ export interface FeedbackListParams {
   form_id?: string;
   start_date?: string;
   end_date?: string;
+  search?: string;
 }
 
 export interface FeedbackFormListParams {

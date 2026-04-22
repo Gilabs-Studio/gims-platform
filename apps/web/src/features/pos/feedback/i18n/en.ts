@@ -81,6 +81,7 @@ export const feedbackEn = {
         choicePlaceholder: "Option text",
         textMaxLength: "Max Length",
         textPlaceholder: "Placeholder text",
+        titleRequired: "Form title is required (min. 2 characters)",
         types: {
           rating: "Rating",
           multiple_choice: "Multiple Choice",

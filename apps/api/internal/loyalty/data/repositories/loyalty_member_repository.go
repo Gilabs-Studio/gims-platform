@@ -15,6 +15,8 @@ type MemberListParams struct {
 	// given outlet IDs (or is a global program with outlet_id IS NULL).
 	// When nil, no program-scope filtering is applied (admin view).
 	ProgramOutletIDs []string
+	// Search filters members by customer name or member code (case-insensitive).
+	Search string
 }
 
 type LoyaltyMemberRepository interface {

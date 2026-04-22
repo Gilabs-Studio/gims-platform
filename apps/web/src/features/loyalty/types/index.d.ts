@@ -156,6 +156,7 @@ export interface PublicSelfRegisterResponse {
 export interface LoyaltyProgramListParams {
   page?: number;
   per_page?: number;
+  search?: string;
 }
 
 export interface LoyaltyMemberListParams {
@@ -163,6 +164,7 @@ export interface LoyaltyMemberListParams {
   per_page?: number;
   tier?: string;
   outlet_id?: string;
+  search?: string;
 }
 
 export interface LedgerListParams {
