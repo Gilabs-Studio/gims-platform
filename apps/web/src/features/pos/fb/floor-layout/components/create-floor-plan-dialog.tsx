@@ -48,7 +48,7 @@ export function CreateFloorPlanDialog({
   const schema = getCreateFloorPlanSchema(t);
   const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormDataWithCompany(
     companyId,
-    { enabled: !!companyId }
+    { enabled: open }
   );
   const createMutation = useCreateFloorLayout();
 
