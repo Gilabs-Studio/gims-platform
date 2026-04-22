@@ -138,9 +138,9 @@ export function FeedbackResponseList() {
         </div>
 
         <Select
-          value={filterFormId ?? ""}
+          value={filterFormId ?? "__all__"}
           onValueChange={(v) => {
-            setFilterFormId(v || undefined);
+            setFilterFormId(v === "__all__" ? undefined : v);
             setPage(1);
           }}
         >
@@ -148,7 +148,7 @@ export function FeedbackResponseList() {
             <SelectValue placeholder={t("filters.allForms")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t("filters.allForms")}</SelectItem>
+            <SelectItem value="__all__">{t("filters.allForms")}</SelectItem>
             {forms.map((f) => (
               <SelectItem key={f.id} value={f.id}>
                 {f.title}
