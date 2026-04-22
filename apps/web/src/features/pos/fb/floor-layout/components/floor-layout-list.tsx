@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { useDebounce } from "@/hooks/use-debounce";
 import { useFloorLayouts, useFloorLayoutFormDataWithCompany, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
 import { CreateFloorPlanDialog } from "./create-floor-plan-dialog";
 import type { FloorPlan, LayoutObject } from "../types";
@@ -45,13 +46,15 @@ export function FloorLayoutList({ onOpenEditor, companyId }: FloorLayoutListProp
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FloorPlan | null>(null);
 
+  const debouncedSearch = useDebounce(search, 300);
+
   const { data: formData } = useFloorLayoutFormDataWithCompany(companyId, {
-    enabled: !!companyId,
+    enabled: true,
   });
   const outlets = formData?.data?.outlets ?? [];
 
   const params = {
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     outlet_id: outletFilter !== "all" ? outletFilter : undefined,
     company_id: companyId,
     per_page: 50,
