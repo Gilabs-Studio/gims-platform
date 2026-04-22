@@ -280,6 +280,11 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 		return nil, ErrFloorPlanForbidden
 	}
 
+	// Prevent re-publishing an already-published floor plan.
+	if plan.Status == models.FloorPlanStatusPublished {
+		return nil, ErrFloorPlanAlreadyPublished
+	}
+
 	now := apptime.Now()
 	plan.Version++
 	plan.Status = models.FloorPlanStatusPublished

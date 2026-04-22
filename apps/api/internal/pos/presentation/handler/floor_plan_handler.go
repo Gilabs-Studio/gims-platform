@@ -81,6 +81,11 @@ func handleFloorPlanError(c *gin.Context, err error) {
 			"resource": "floor_plan",
 			"field":    "outlet_id",
 		}, nil)
+	case usecase.ErrFloorPlanAlreadyPublished:
+		coreErrors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
+			"resource": "floor_plan",
+			"field":    "status",
+		}, nil)
 	case usecase.ErrFloorPlanForbidden:
 		coreErrors.ForbiddenResponse(c, "pos.layout.manage", nil)
 	case usecase.ErrVersionNotFound:
