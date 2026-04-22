@@ -35,6 +35,7 @@ export const feedbackEn = {
       empty: "No forms found",
       active: "Active",
       inactive: "Inactive",
+      latest: "Latest",
       version: "Version",
       questions: "Questions",
       create: "Add Form",

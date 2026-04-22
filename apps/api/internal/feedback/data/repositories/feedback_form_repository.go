@@ -13,6 +13,7 @@ type FeedbackFormRepository interface {
 	FindByID(ctx context.Context, id string) (*models.FeedbackForm, error)
 	FindActiveByOutletID(ctx context.Context, outletID string) (*models.FeedbackForm, error)
 	FindByOutletID(ctx context.Context, outletID string) ([]models.FeedbackForm, error)
+	NextVersionForOutlet(ctx context.Context, outletID string) (int, error)
 	List(ctx context.Context, page, perPage int, outletIDs []string) ([]models.FeedbackForm, int64, error)
 	Create(ctx context.Context, form *models.FeedbackForm) error
 	Update(ctx context.Context, form *models.FeedbackForm) error
@@ -22,18 +23,24 @@ type FeedbackFormRepository interface {
 
 type feedbackFormRepository struct{ db *gorm.DB }
 
+const (
+	feedbackFormDeletedClause = "deleted_at IS NULL"
+	feedbackFormOutletClause  = "outlet_id = ? AND deleted_at IS NULL"
+	feedbackFormOrderClause   = "created_at DESC"
+)
+
 // NewFeedbackFormRepository creates a new FeedbackFormRepository implementation.
 func NewFeedbackFormRepository(db *gorm.DB) FeedbackFormRepository {
 	return &feedbackFormRepository{db: db}
 }
 
-func (r *feedbackFormRepository) db_(ctx context.Context) *gorm.DB {
+func (r *feedbackFormRepository) dbForContext(ctx context.Context) *gorm.DB {
 	return database.GetDB(ctx, r.db)
 }
 
 func (r *feedbackFormRepository) FindByID(ctx context.Context, id string) (*models.FeedbackForm, error) {
 	var form models.FeedbackForm
-	if err := r.db_(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&form).Error; err != nil {
+	if err := r.dbForContext(ctx).Where("id = ? AND "+feedbackFormDeletedClause, id).First(&form).Error; err != nil {
 		return nil, err
 	}
 	return &form, nil
@@ -41,9 +48,9 @@ func (r *feedbackFormRepository) FindByID(ctx context.Context, id string) (*mode
 
 func (r *feedbackFormRepository) FindActiveByOutletID(ctx context.Context, outletID string) (*models.FeedbackForm, error) {
 	var form models.FeedbackForm
-	if err := r.db_(ctx).
-		Where("outlet_id = ? AND is_active = true AND deleted_at IS NULL", outletID).
-		Order("created_at DESC").
+	if err := r.dbForContext(ctx).
+		Where("outlet_id = ? AND is_active = true AND "+feedbackFormDeletedClause, outletID).
+		Order(feedbackFormOrderClause).
 		First(&form).Error; err != nil {
 		return nil, err
 	}
@@ -52,13 +59,28 @@ func (r *feedbackFormRepository) FindActiveByOutletID(ctx context.Context, outle
 
 func (r *feedbackFormRepository) FindByOutletID(ctx context.Context, outletID string) ([]models.FeedbackForm, error) {
 	var forms []models.FeedbackForm
-	if err := r.db_(ctx).
-		Where("outlet_id = ? AND deleted_at IS NULL", outletID).
-		Order("created_at DESC").
+	if err := r.dbForContext(ctx).
+		Where(feedbackFormOutletClause, outletID).
+		Order(feedbackFormOrderClause).
 		Find(&forms).Error; err != nil {
 		return nil, err
 	}
 	return forms, nil
+}
+
+func (r *feedbackFormRepository) NextVersionForOutlet(ctx context.Context, outletID string) (int, error) {
+	var nextVersion int
+	if err := r.dbForContext(ctx).
+		Model(&models.FeedbackForm{}).
+		Where(feedbackFormOutletClause, outletID).
+		Select("COALESCE(MAX(version), 0) + 1").
+		Scan(&nextVersion).Error; err != nil {
+		return 0, err
+	}
+	if nextVersion < 1 {
+		nextVersion = 1
+	}
+	return nextVersion, nil
 }
 
 func (r *feedbackFormRepository) List(ctx context.Context, page, perPage int, outletIDs []string) ([]models.FeedbackForm, int64, error) {
@@ -66,7 +88,7 @@ func (r *feedbackFormRepository) List(ctx context.Context, page, perPage int, ou
 	var total int64
 	offset := (page - 1) * perPage
 
-	q := r.db_(ctx).Model(&models.FeedbackForm{}).Where("deleted_at IS NULL")
+	q := r.dbForContext(ctx).Model(&models.FeedbackForm{}).Where(feedbackFormDeletedClause)
 	if len(outletIDs) > 0 {
 		q = q.Where("outlet_id IN ?", outletIDs)
 	}
@@ -80,19 +102,19 @@ func (r *feedbackFormRepository) List(ctx context.Context, page, perPage int, ou
 }
 
 func (r *feedbackFormRepository) Create(ctx context.Context, form *models.FeedbackForm) error {
-	return r.db_(ctx).Create(form).Error
+	return r.dbForContext(ctx).Create(form).Error
 }
 
 func (r *feedbackFormRepository) Update(ctx context.Context, form *models.FeedbackForm) error {
-	return r.db_(ctx).Save(form).Error
+	return r.dbForContext(ctx).Save(form).Error
 }
 
 func (r *feedbackFormRepository) DeactivateAllForOutlet(ctx context.Context, outletID string) error {
-	return r.db_(ctx).Model(&models.FeedbackForm{}).
-		Where("outlet_id = ? AND deleted_at IS NULL", outletID).
+	return r.dbForContext(ctx).Model(&models.FeedbackForm{}).
+		Where(feedbackFormOutletClause, outletID).
 		Update("is_active", false).Error
 }
 
 func (r *feedbackFormRepository) Delete(ctx context.Context, id string) error {
-	return r.db_(ctx).Where("id = ?", id).Delete(&models.FeedbackForm{}).Error
+	return r.dbForContext(ctx).Where("id = ?", id).Delete(&models.FeedbackForm{}).Error
 }

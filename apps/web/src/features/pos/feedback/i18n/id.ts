@@ -35,6 +35,7 @@ export const feedbackId = {
       empty: "Tidak ada formulir",
       active: "Aktif",
       inactive: "Tidak Aktif",
+      latest: "Terbaru",
       version: "Versi",
       questions: "Pertanyaan",
       create: "Tambah Formulir",
