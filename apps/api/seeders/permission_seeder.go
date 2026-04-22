@@ -626,6 +626,11 @@ func SeedPermissions() error {
 		// POS
 		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
 		{"/pos/fb/floor-layout", "pos.layout.manage", "Manage POS Floor Layout", "MANAGE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.read", "View POS Floor Layout", "VIEW", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.create", "Create POS Floor Layout", "CREATE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.update", "Edit POS Floor Layout", "EDIT", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.delete", "Delete POS Floor Layout", "DELETE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.publish", "Publish POS Floor Layout", "PUBLISH", "pos_layout"},
 		{"/pos", "pos.outlet.read", "View POS Outlets", "VIEW", "pos_outlet"},
 		{"/pos", "pos.outlet.manage", "Manage POS Outlets", "MANAGE", "pos_outlet"},
 		{"/pos/fb/terminal", "pos.order.create", "Create POS Orders", "CREATE", "pos_order"},
