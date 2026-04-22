@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import { Link } from "@/i18n/routing";
-import { useFloorLayouts, useFloorLayoutFormDataWithCompany } from "../hooks/use-floor-layouts";
+import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
 import { FloorLayoutList } from "./floor-layout-list";
 import { FloorLayoutEditor } from "./floor-layout-editor";
@@ -38,12 +38,6 @@ export function FloorLayoutContainer() {
     return uniqueCompanyIDs.length === 1 ? uniqueCompanyIDs[0] : undefined;
   }, [assignedOutlets]);
 
-  // Fetch form data to get outlets with floor_plan status
-  const { isLoading: formDataLoading } = useFloorLayoutFormDataWithCompany(
-    companyId,
-    { enabled: assignedOutlets.length > 0 }
-  );
-
   // Fetch existing floor layouts
   const { data: layoutsData, isLoading: layoutsLoading } = useFloorLayouts(
     { per_page: 100, company_id: companyId },
@@ -70,7 +64,7 @@ export function FloorLayoutContainer() {
   // If user has only 1 outlet but no floor plan, open create dialog
   useEffect(() => {
     if (hasAutoNavigated.current) return;
-    if (outletsLoading || formDataLoading || layoutsLoading) return;
+    if (outletsLoading || layoutsLoading) return;
     if (assignedOutlets.length !== 1) return;
 
     hasAutoNavigated.current = true;
@@ -91,7 +85,7 @@ export function FloorLayoutContainer() {
         setShowCreateDialog(true);
       });
     }
-  }, [outletsLoading, formDataLoading, layoutsLoading, assignedOutlets, existingLayouts]);
+  }, [outletsLoading, layoutsLoading, assignedOutlets, existingLayouts]);
 
   // Editor mode
   if (editorFloorPlanId) {
@@ -147,7 +141,7 @@ export function FloorLayoutContainer() {
   // Loading state - when auto-navigating for single outlet
   if (
     assignedOutlets.length === 1 && 
-    (outletsLoading || formDataLoading || layoutsLoading)
+    (outletsLoading || layoutsLoading)
   ) {
     return (
       <PageMotion>

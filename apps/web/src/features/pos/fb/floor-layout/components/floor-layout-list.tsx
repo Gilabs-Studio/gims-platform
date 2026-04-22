@@ -60,7 +60,7 @@ export function FloorLayoutList({ onOpenEditor, companyId }: FloorLayoutListProp
     per_page: 50,
   };
   const { data, isPending, isError } = useFloorLayouts(params, {
-    enabled: !!companyId,
+    enabled: true,
   });
   const floorPlans = data?.data ?? [];
 

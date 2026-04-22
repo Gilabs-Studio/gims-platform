@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -74,8 +75,43 @@ export function CreateFloorPlanDialog({
   });
   const selectedOutlet = outlets.find((outlet) => outlet.id === selectedOutletId);
 
+  useEffect(() => {
+    if (!open) return;
+
+    if (preSelectedOutletId) {
+      form.setValue("outlet_id", preSelectedOutletId, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+      return;
+    }
+
+    if (selectedOutletId && availableOutlets.some((o) => o.id === selectedOutletId)) {
+      return;
+    }
+
+    if (availableOutlets.length > 0) {
+      // Default to first selectable outlet to avoid false "required" validation.
+      form.setValue("outlet_id", availableOutlets[0].id, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+  }, [open, preSelectedOutletId, selectedOutletId, availableOutlets, form]);
+
   const handleSubmit = form.handleSubmit(async (data) => {
-    const targetOutlet = outlets.find((outlet) => outlet.id === data.outlet_id);
+    if (availableOutlets.length === 0) {
+      toast.error(t("noAvailableOutletsHint"));
+      return;
+    }
+
+    const resolvedOutletId = data.outlet_id || availableOutlets[0]?.id;
+    if (!resolvedOutletId) {
+      toast.error(t("noAvailableOutletsHint"));
+      return;
+    }
+
+    const targetOutlet = outlets.find((outlet) => outlet.id === resolvedOutletId);
     if (targetOutlet?.has_floor_plan) {
       form.setError("outlet_id", {
         type: "validate",
@@ -87,6 +123,7 @@ export function CreateFloorPlanDialog({
     try {
       const result = await createMutation.mutateAsync({
         ...data,
+        outlet_id: resolvedOutletId,
         company_id: companyId,
       });
       toast.success(t("messages.createSuccess"));
@@ -185,7 +222,7 @@ export function CreateFloorPlanDialog({
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || isLoadingFormData || availableOutlets.length === 0}
               className="cursor-pointer"
             >
               {createMutation.isPending ? "Creating..." : t("create")}

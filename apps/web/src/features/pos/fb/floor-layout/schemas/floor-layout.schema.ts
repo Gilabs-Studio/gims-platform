@@ -4,7 +4,7 @@ type TranslationFn = (key: string) => string;
 
 export const getCreateFloorPlanSchema = (t?: TranslationFn) =>
   z.object({
-    outlet_id: z.string().uuid(t?.("validation.outletRequired") ?? "Outlet is required"),
+    outlet_id: z.string().optional(),
     name: z
       .string()
       .min(2, t?.("validation.nameMin") ?? "Name must be at least 2 characters")
