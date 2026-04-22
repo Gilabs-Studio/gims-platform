@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Link } from "@/i18n/routing";
 import L from "leaflet";
 import {
@@ -62,6 +63,14 @@ export function OutletMapView() {
   const { t } = translations;
   const updateOutlet = useUpdateOutlet();
   const { data: warehousesResp } = useWarehouses({ per_page: 100, is_active: true });
+
+  // Derive fly-to position from the currently selected outlet so the map
+  // pans to the marker whenever the user clicks an item in the sidebar list.
+  const flyToPosition = useMemo(() => {
+    const sel = data.selectedOutlet;
+    if (sel?.latitude == null || sel?.longitude == null) return null;
+    return { lat: Number(sel.latitude), lng: Number(sel.longitude) };
+  }, [data.selectedOutlet]);
 
   const renderMarkers = (markerList: MapMarker<Outlet>[]) => (
     <MarkerClusterGroup chunkedLoading>
@@ -330,6 +339,7 @@ export function OutletMapView() {
             defaultCenter={[-6.2088, 106.8456]}
             defaultZoom={12}
             selectedMarkerId={state.selectedOutletId}
+            flyToPosition={flyToPosition}
           />
         )}
       </div>
