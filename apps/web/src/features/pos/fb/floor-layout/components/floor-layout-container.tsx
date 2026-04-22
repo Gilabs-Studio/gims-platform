@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import { Link } from "@/i18n/routing";
-import { useFloorLayouts, useFloorLayoutFormDataWithCompany } from "../hooks/use-floor-layouts";
+import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
 import { FloorLayoutList } from "./floor-layout-list";
 import { FloorLayoutEditor } from "./floor-layout-editor";
@@ -27,18 +27,21 @@ export function FloorLayoutContainer() {
     per_page: 50 
   });
   const assignedOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
-  const companyId = assignedOutlets.find((outlet) => !!outlet.company_id)?.company_id;
-
-  // Fetch form data to get outlets with floor_plan status
-  const { isLoading: formDataLoading } = useFloorLayoutFormDataWithCompany(
-    companyId,
-    { enabled: assignedOutlets.length > 0 }
-  );
+  const companyId = useMemo(() => {
+    const uniqueCompanyIDs = Array.from(
+      new Set(
+        assignedOutlets
+          .map((outlet) => outlet.company_id)
+          .filter((id): id is string => !!id)
+      )
+    );
+    return uniqueCompanyIDs.length === 1 ? uniqueCompanyIDs[0] : undefined;
+  }, [assignedOutlets]);
 
   // Fetch existing floor layouts
   const { data: layoutsData, isLoading: layoutsLoading } = useFloorLayouts(
-    { status: "published", per_page: 100, company_id: companyId },
-    { enabled: assignedOutlets.length > 0 && !!companyId }
+    { per_page: 100, company_id: companyId },
+    { enabled: assignedOutlets.length > 0 }
   );
   const existingLayouts = useMemo(() => layoutsData?.data ?? [], [layoutsData?.data]);
 
@@ -61,7 +64,7 @@ export function FloorLayoutContainer() {
   // If user has only 1 outlet but no floor plan, open create dialog
   useEffect(() => {
     if (hasAutoNavigated.current) return;
-    if (outletsLoading || formDataLoading || layoutsLoading) return;
+    if (outletsLoading || layoutsLoading) return;
     if (assignedOutlets.length !== 1) return;
 
     hasAutoNavigated.current = true;
@@ -82,7 +85,7 @@ export function FloorLayoutContainer() {
         setShowCreateDialog(true);
       });
     }
-  }, [outletsLoading, formDataLoading, layoutsLoading, assignedOutlets, existingLayouts]);
+  }, [outletsLoading, layoutsLoading, assignedOutlets, existingLayouts]);
 
   // Editor mode
   if (editorFloorPlanId) {
@@ -138,7 +141,7 @@ export function FloorLayoutContainer() {
   // Loading state - when auto-navigating for single outlet
   if (
     assignedOutlets.length === 1 && 
-    (outletsLoading || formDataLoading || layoutsLoading)
+    (outletsLoading || layoutsLoading)
   ) {
     return (
       <PageMotion>

@@ -17,6 +17,7 @@ type Config struct {
 	Observability ObservabilityConfig
 	JWT           JWTConfig
 	Cerebras      CerebrasConfig
+	Xendit        XenditConfig
 	Storage       StorageConfig
 	RateLimit     RateLimitConfig
 	HSTS          HSTSConfig
@@ -103,6 +104,13 @@ type CerebrasConfig struct {
 	BaseURL string
 	APIKey  string
 	Model   string // Default model name
+}
+
+// XenditConfig holds Xendit payment gateway credentials.
+type XenditConfig struct {
+	SecretKey    string // Server-side Xendit secret key (sk_live_... / sk_test_...)
+	WebhookToken string // Xendit callback verification token
+	BaseURL      string // Xendit API base URL (overridable for sandbox)
 }
 
 type StorageConfig struct {
@@ -214,6 +222,11 @@ func Load() error {
 			BaseURL: getEnv("CEREBRAS_BASE_URL", "https://api.cerebras.ai"),
 			APIKey:  getEnv("CEREBRAS_API_KEY", ""),
 			Model:   getEnv("CEREBRAS_MODEL", "llama-3.1-8b"), // Default model
+		},
+		Xendit: XenditConfig{
+			SecretKey:    getEnv("XENDIT_SECRET_KEY", ""),
+			WebhookToken: getEnv("XENDIT_WEBHOOK_TOKEN", ""),
+			BaseURL:      getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
 		},
 		Storage: StorageConfig{
 			UploadDir:     getEnv("STORAGE_UPLOAD_DIR", "./uploads"),

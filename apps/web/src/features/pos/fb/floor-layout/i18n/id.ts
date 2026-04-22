@@ -106,6 +106,7 @@ export const floorLayoutId = {
     // Validation
     validation: {
       nameMin: "Nama minimal 2 karakter",
+      outletRequired: "Outlet wajib diisi",
       companyRequired: "Outlet wajib diisi",
       floorMin: "Nomor lantai minimal 1",
     },

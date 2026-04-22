@@ -87,6 +87,7 @@ export interface LayoutVersion {
   layout_data: string;
   published_at: string;
   published_by?: string;
+  published_by_name?: string;
 }
 
 export interface CreateFloorPlanData {

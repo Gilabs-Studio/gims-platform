@@ -40,6 +40,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// SaaS: Seed coupons (must come before subscriptions)
+	if err := SeedCoupons(); err != nil {
+		return err
+	}
+
+	// SaaS: Seed tenant subscriptions (Tenant 1 = lifetime, Tenant 2 = monthly trial)
+	if err := SeedSubscriptions(); err != nil {
+		return err
+	}
+
 	if err := SeedRoles(); err != nil {
 		return err
 	}

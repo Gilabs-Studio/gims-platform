@@ -3,41 +3,82 @@ package usecase
 import (
 	"context"
 	cryptorand "crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/auth/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	jwtManager "github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
+	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	ErrUserNotFound        = errors.New("user not found")
-	ErrUserInactive        = errors.New("user is inactive")
-	ErrRefreshTokenInvalid = errors.New("refresh token is invalid")
-	ErrRefreshTokenRevoked = errors.New("refresh token has been revoked")
-	ErrRefreshTokenExpired = errors.New("refresh token has expired")
-	ErrEmailAlreadyTaken   = errors.New("email already registered")
-	ErrSlugAlreadyTaken    = errors.New("organization slug already taken")
+	ErrInvalidCredentials        = errors.New("invalid credentials")
+	ErrUserNotFound              = errors.New("user not found")
+	ErrUserInactive              = errors.New("user is inactive")
+	ErrRefreshTokenInvalid       = errors.New("refresh token is invalid")
+	ErrRefreshTokenRevoked       = errors.New("refresh token has been revoked")
+	ErrRefreshTokenExpired       = errors.New("refresh token has expired")
+	ErrEmailAlreadyTaken         = errors.New("email already registered")
+	ErrSlugAlreadyTaken          = errors.New("organization slug already taken")
+	ErrPaymentRequired           = errors.New("payment or valid coupon required to register")
+	ErrPaymentGatewayUnavailable = errors.New("payment gateway is not configured")
+	ErrCouponInvalid             = errors.New("coupon is invalid, inactive, or exhausted")
+	ErrCouponAlreadyUsed         = errors.New("coupon already used by this email")
 )
+
+// pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
+const pendingRegTTL = 24 * time.Hour
+
+// pendingRegKeyPrefix is the Redis key prefix for pending registrations.
+const pendingRegKeyPrefix = "pending_reg:"
+
+// PendingRegistration is the Redis payload for a registration that awaits Xendit payment.
+type PendingRegistration struct {
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	HashedPwd     string `json:"hashed_pwd"`
+	CompanyName   string `json:"company_name"`
+	Plan          string `json:"plan"`
+	BillingPeriod string `json:"billing_period"`
+	UserCount     int    `json:"user_count"`
+	InvoiceID     string `json:"invoice_id"`
+	CreatedAt     string `json:"created_at"`
+}
+
+// RegisterTenantResult wraps the two possible outcomes of RegisterTenant:
+//   - Immediate: coupon flow — LoginResponse is set.
+//   - Deferred: paid plan flow — InvoiceResponse is set and RequiresPayment is true.
+type RegisterTenantResult struct {
+	RequiresPayment bool
+	LoginResponse   *dto.LoginResponse
+	InvoiceResponse *dto.RegisterInitResponse
+}
 
 type AuthUsecase interface {
 	Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*dto.LoginResponse, error)
 	Logout(ctx context.Context, refreshToken string) error
 	// RegisterTenant creates a new tenant and provisions an admin account for self-service sign-up.
-	// The returned LoginResponse can be used to immediately log the user in.
-	// TODO(future): Accept a package/tier parameter once batch billing is implemented.
-	RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*dto.LoginResponse, error)
+	// When using a paid plan, it creates a Xendit invoice instead of immediate provisioning.
+	RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error)
+	// CompletePendingRegistration is called by the Xendit webhook after successful payment.
+	// token is the UUID stored in the Xendit external_id / Redis key.
+	CompletePendingRegistration(ctx context.Context, token string) error
 }
 
 type authUsecase struct {
@@ -46,6 +87,9 @@ type authUsecase struct {
 	refreshTokenRepo refreshTokenRepo.RefreshTokenRepository
 	jwtManager       *jwtManager.JWTManager
 	eventPublisher   infraEvents.EventPublisher
+	couponUC         couponUC.CouponUsecase
+	redis            *redis.Client
+	xendit           *xenditClient.Client
 }
 
 func NewAuthUsecase(
@@ -54,22 +98,34 @@ func NewAuthUsecase(
 	refreshTokenRepo refreshTokenRepo.RefreshTokenRepository,
 	jwtManager *jwtManager.JWTManager,
 	eventPublisher infraEvents.EventPublisher,
+	couponUC couponUC.CouponUsecase,
+	redisClient *redis.Client,
 ) AuthUsecase {
+	var xc *xenditClient.Client
+	if config.AppConfig != nil {
+		xc = xenditClient.NewClient(
+			config.AppConfig.Xendit.SecretKey,
+			config.AppConfig.Xendit.BaseURL,
+		)
+	}
 	return &authUsecase{
 		db:               db,
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		jwtManager:       jwtManager,
 		eventPublisher:   eventPublisher,
+		couponUC:         couponUC,
+		redis:            redisClient,
+		xendit:           xc,
 	}
 }
 
 func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginResponse, error) {
 	var resp *dto.LoginResponse
-	
+
 	err := u.db.Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
-		
+
 		// Find user by email
 		user, err := u.userRepo.FindByEmail(txCtx, req.Email)
 		if err != nil {
@@ -189,13 +245,13 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			RefreshToken: refreshToken,
 			ExpiresIn:    expiresIn,
 		}
-		
+
 		// Publish login event (async, fire-and-forget)
 		u.publishLoginEvent(ctx, user.ID, user.Email, roleCode)
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +283,10 @@ func (u *authUsecase) publishLoginEvent(ctx context.Context, userID, email, role
 
 func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*dto.LoginResponse, error) {
 	var resp *dto.LoginResponse
-	
+
 	err := u.db.Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
-		
+
 		// Validate refresh token and extract user ID and token ID
 		userID, tokenID, err := u.jwtManager.ValidateRefreshTokenWithID(refreshToken)
 		if err != nil {
@@ -368,14 +424,14 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			TenantID:      tenantID,
 			TenantName:    tenantName,
 		}
-		
+
 		resp = &dto.LoginResponse{
 			User:         authUserResp,
 			Token:        accessToken,
 			RefreshToken: newRefreshToken,
 			ExpiresIn:    expiresIn,
 		}
-		
+
 		// Publish token refresh event (async, fire-and-forget)
 		u.eventPublisher.PublishAsync(ctx, events.NewTokenRefreshedEvent(ctx, events.TokenRefreshedPayload{
 			UserID:      user.ID,
@@ -390,7 +446,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return resp, nil
 }
 
@@ -406,17 +462,17 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 	// Use Transaction for consistency
 	return u.db.Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
-		
+
 		// Revoke the token
 		if err := u.refreshTokenRepo.Revoke(txCtx, tokenID); err != nil {
 			return err
 		}
-		
+
 		// Publish logout event (async, fire-and-forget)
 		u.eventPublisher.PublishAsync(ctx, events.NewUserLoggedOutEvent(ctx, events.UserLoggedOutPayload{
 			LoggedOutAt: apptime.Now(),
 		}))
-		
+
 		return nil
 	})
 }
@@ -425,11 +481,240 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 // in a single atomic transaction, then immediately returns a valid JWT so the caller
 // can start using the platform without a separate login step.
 //
-// TODO(future): Accept a plan/package parameter and enforce billing limits once the
+// Access gate (one required):
+//   - coupon: a promotional code that grants a trial TenantSubscription
+//   - plan + billing_period: a paid subscription handled via Xendit invoice
+func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
+	couponCode := strings.TrimSpace(req.Coupon)
+	plan := strings.TrimSpace(req.Plan)
+
+	// ── Gate: require either coupon or plan ─────────────────────────────────
+	if couponCode == "" && plan == "" {
+		return nil, ErrPaymentRequired
+	}
+
+	// ── Coupon path: validate first for fast feedback ────────────────────────
+	if couponCode != "" {
+		validity, err := u.couponUC.ValidateForEmail(ctx, couponCode, req.Email)
+		if err != nil {
+			return nil, err
+		}
+		if !validity.Valid {
+			if validity.Reason == "already_used_by_email" {
+				return nil, ErrCouponAlreadyUsed
+			}
+			return nil, ErrCouponInvalid
+		}
+	}
+
+	// ── Paid plan path: create Xendit invoice + store pending registration ───
+	if couponCode == "" && plan != "" {
+		return u.initPaidRegistration(ctx, req)
+	}
+
+	// ── Coupon path: provision tenant immediately ────────────────────────────
+	loginResp, err := u.provisionTenantWithCoupon(ctx, req, couponCode)
+	if err != nil {
+		return nil, err
+	}
+	return &RegisterTenantResult{LoginResponse: loginResp}, nil
+}
+
+// initPaidRegistration creates a Xendit invoice for the selected plan, stores the
+// pending registration in Redis, and returns the invoice URL for the frontend redirect.
+func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
+	if u.xendit == nil || !u.xendit.IsConfigured() {
+		return nil, ErrPaymentGatewayUnavailable
+	}
+
+	// Hash password early — we store it in Redis so the webhook can complete registration.
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	companyName := strings.TrimSpace(req.CompanyName)
+	if companyName == "" {
+		companyName = req.Name
+	}
+
+	// Generate a unique registration token (used as Xendit external_id and Redis key).
+	token := newUUID()
+
+	billingPeriod := req.BillingPeriod
+	if billingPeriod == "" {
+		billingPeriod = "monthly"
+	}
+
+	userCount := req.UserCount
+	if userCount < 1 {
+		userCount = 1
+	}
+	amount := planTotalPriceIDR(req.Plan, billingPeriod, userCount)
+	frontendBaseURL := ""
+	if config.AppConfig != nil {
+		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
+	}
+
+	invoice, err := u.xendit.CreateInvoice(ctx, xenditClient.CreateInvoiceRequest{
+		ExternalID:         token,
+		Amount:             amount,
+		PayerEmail:         req.Email,
+		Description:        fmt.Sprintf("GIMS %s (%s) for %d user(s) — %s", req.Plan, billingPeriod, userCount, companyName),
+		SuccessRedirectURL: frontendBaseURL + "/register/success?token=" + token,
+		FailureRedirectURL: frontendBaseURL + "/register?status=failed",
+		Currency:           "IDR",
+		InvoiceDuration:    86400,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create payment invoice: %w", err)
+	}
+
+	// Persist pending registration in Redis with a 24-hour TTL.
+	pending := PendingRegistration{
+		Name:          req.Name,
+		Email:         req.Email,
+		HashedPwd:     string(hashed),
+		CompanyName:   companyName,
+		Plan:          req.Plan,
+		BillingPeriod: billingPeriod,
+		UserCount:     userCount,
+		InvoiceID:     invoice.ID,
+		CreatedAt:     apptime.Now().Format(time.RFC3339),
+	}
+	pendingJSON, err := json.Marshal(pending)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.redis.Set(ctx, pendingRegKeyPrefix+token, string(pendingJSON), pendingRegTTL).Err(); err != nil {
+		return nil, fmt.Errorf("failed to store pending registration: %w", err)
+	}
+
+	return &RegisterTenantResult{
+		RequiresPayment: true,
+		InvoiceResponse: &dto.RegisterInitResponse{
+			InvoiceURL: invoice.InvoiceURL,
+			InvoiceID:  invoice.ID,
+			ExpiresAt:  invoice.ExpiryDate.Format(time.RFC3339),
+		},
+	}, nil
+}
+
+// CompletePendingRegistration is triggered by the Xendit webhook after a successful
+// payment. It retrieves the pending registration from Redis and provisions the tenant.
+func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token string) error {
+	key := pendingRegKeyPrefix + token
+	val, err := u.redis.Get(ctx, key).Result()
+	if err != nil {
+		return fmt.Errorf("pending registration not found or expired")
+	}
+
+	var pending PendingRegistration
+	if err := json.Unmarshal([]byte(val), &pending); err != nil {
+		return fmt.Errorf("corrupted pending registration data")
+	}
+
+	// Provision tenant using the stored data.
+	syntheticReq := &dto.RegisterTenantRequest{
+		Name:          pending.Name,
+		Email:         pending.Email,
+		Password:      "__pre-hashed__", // Signal to skip re-hashing
+		CompanyName:   pending.CompanyName,
+		Plan:          pending.Plan,
+		BillingPeriod: pending.BillingPeriod,
+	}
+
+	_, err = u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
+	if err != nil {
+		return fmt.Errorf("tenant provisioning after payment failed: %w", err)
+	}
+
+	// Remove the pending registration key to prevent double-provisioning.
+	u.redis.Del(ctx, key)
+	return nil
+}
+
+// planTotalPriceIDR returns the total invoice amount in IDR for the selected plan,
+// billing period, and number of users.
 //
-//	batch billing system is implemented. Currently every registration receives the
-//	"enterprise" plan with no user cap.
-func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*dto.LoginResponse, error) {
+// Pricing model: all plans are per-user. Bundle plans are intentionally cheaper
+// per-user than individual modules to create a decoy pricing effect — customers
+// who compare individual modules against bundles will see the bundle as the clear winner.
+//
+// Yearly billing applies a 10% annual discount.
+//
+// TODO(restrict-api-by-plan): After MVP, enforce plan-based API access gating here.
+// Current implementation: all paid plans grant full platform access.
+// Future: each plan ID should restrict which modules/routes are accessible.
+// Reference: docs/erp-sprint-planning.md — "Subscription tier API gating" task.
+func planTotalPriceIDR(plan, billingPeriod string, userCount int) int64 {
+	if userCount < 1 {
+		userCount = 1
+	}
+	// Per-user monthly prices in IDR.
+	// Modular plans are priced higher per-user so that bundles are always a better deal.
+	perUserMonthly := map[string]int64{
+		// ── Bundles (decoy anchors – best value) ──────────────────────────
+		"growth_suite":   149_000, // POS + ERP + CRM
+		"ultimate_suite": 175_000, // All modules (POS + ERP + CRM + HR)
+		// ── POS ──────────────────────────────────────────────────────────
+		"pos_essential":  149_000,
+		"pos_growth":     199_000,
+		"pos_enterprise": 299_000,
+		// ── ERP ──────────────────────────────────────────────────────────
+		"erp_core":       299_000,
+		"erp_pro":        399_000,
+		"erp_enterprise": 599_000,
+		// ── CRM ──────────────────────────────────────────────────────────
+		"crm_basic":      99_000,
+		"crm_growth":     149_000,
+		"crm_enterprise": 199_000,
+		// ── HR ───────────────────────────────────────────────────────────
+		"hr_basic":      49_000,
+		"hr_growth":     79_000,
+		"hr_enterprise": 119_000,
+		// ── Legacy full-access (coupon-based, not sold via Xendit) ───────
+		"full_access": 175_000,
+	}
+	perUser, ok := perUserMonthly[strings.ToLower(plan)]
+	if !ok {
+		perUser = 175_000 // Safe default — ultimate_suite price
+	}
+	total := perUser * int64(userCount)
+	if billingPeriod == "yearly" {
+		// 10% annual discount; charge the full year up-front.
+		total = int64(float64(total*12) * 0.9)
+	}
+	return total
+}
+
+// provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.
+func (u *authUsecase) provisionTenantWithCoupon(ctx context.Context, req *dto.RegisterTenantRequest, couponCode string) (*dto.LoginResponse, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := u.provisionTenantForPaidPlan(ctx, req, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+
+	// Redeem coupon AFTER the tenant transaction commits to avoid holding the row lock
+	// while expensive user/tenant inserts run. Failure is non-fatal for UX.
+	if couponCode != "" {
+		if _, redeemErr := u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID); redeemErr != nil {
+			_ = redeemErr
+		}
+	}
+
+	return resp, nil
+}
+
+// provisionTenantForPaidPlan creates the tenant, company, onboarding record, and admin
+// user inside a single DB transaction and returns the auth tokens.
+// hashedPwd must be a bcrypt hash of the user's password.
+func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.RegisterTenantRequest, hashedPwd string) (*dto.LoginResponse, error) {
 	var resp *dto.LoginResponse
 
 	err := u.db.Transaction(func(tx *gorm.DB) error {
@@ -442,10 +727,13 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			return ErrEmailAlreadyTaken
 		}
 
-		// Derive a URL-safe slug from the company name (lowercase, replace spaces with hyphens)
-		slug := slugify(req.CompanyName)
+		companyName := strings.TrimSpace(req.CompanyName)
+		if companyName == "" {
+			companyName = req.Name
+		}
 
-		// Guard: reject if slug collides with an existing tenant
+		slug := slugify(companyName)
+
 		var slugCount int64
 		if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
 			return err
@@ -457,60 +745,41 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		tenantID := newUUID()
 		userID := newUUID()
 
-		// 1. Create the tenant record
-		// TODO(future): replace hard-coded enterprise plan with a plan parameter
-		//               and enforce MaxUsers / feature flags per package tier.
 		if err := tx.Exec(`
 			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', 'enterprise', 999, NOW(), NOW())`,
-			tenantID, req.CompanyName, slug, userID,
+			VALUES (?, ?, ?, ?, 'active', 'trial', 999, NOW(), NOW())`,
+			tenantID, companyName, slug, userID,
 		).Error; err != nil {
 			return err
 		}
 
-		// 1b. Create a default company for the new tenant so the owner can start
-		//     configuring their organisation immediately after registration.
 		companyID := newUUID()
 		if err := tx.Exec(`
 			INSERT INTO companies (id, tenant_id, name, timezone, status, is_approved, is_active, created_at, updated_at)
 			VALUES (?, ?, ?, 'Asia/Jakarta', 'approved', true, true, NOW(), NOW())`,
-			companyID, tenantID, req.CompanyName,
+			companyID, tenantID, companyName,
 		).Error; err != nil {
-			// Non-fatal: the company can be created later from the UI
 			_ = err
 		}
 
-		// 1c. Bootstrap the onboarding record so the new tenant enters the guided setup flow
-		//     immediately after registration, ensuring per-tenant data isolation from day one.
 		if err := tx.Exec(`
 			INSERT INTO tenant_onboardings (id, tenant_id, business_type, completed, created_at, updated_at)
 			VALUES (gen_random_uuid(), ?, '', false, NOW(), NOW())`,
 			tenantID,
 		).Error; err != nil {
-			// Non-fatal: onboarding will be created lazily on the first GetState call if this fails.
 			_ = err
-		}
-
-		// 2. Hash password
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
 		}
 
 		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
 
-		// 3. Create the admin user scoped to the new tenant
-		// The admin role (code="admin") is platform-wide — no per-tenant role provisioning needed.
-		// roles/menus/permissions repositories bypass tenant scoping intentionally.
 		if err := tx.Exec(`
 			INSERT INTO users (id, tenant_id, email, password, name, avatar_url, role_id, status, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM roles WHERE code = 'admin' LIMIT 1), 'active', NOW(), NOW())`,
-			userID, tenantID, req.Email, string(hashed), req.Name, avatarURL,
+			userID, tenantID, req.Email, hashedPwd, req.Name, avatarURL,
 		).Error; err != nil {
 			return err
 		}
 
-		// 4. Resolve the admin role code and permissions for the JWT / response
 		roleCode := "admin"
 		roleName := "Admin"
 		roleDataScope := "ALL"
@@ -532,7 +801,6 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			permissions[rp.Code] = rp.Scope
 		}
 
-		// 5. Generate JWT with the new tenant_id embedded
 		accessToken, err := u.jwtManager.GenerateAccessToken(userID, req.Email, roleCode, tenantID)
 		if err != nil {
 			return err
@@ -568,7 +836,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 				Permissions:   permissions,
 				Status:        "active",
 				TenantID:      tenantID,
-				TenantName:    req.CompanyName,
+				TenantName:    companyName,
 			},
 			Token:        accessToken,
 			RefreshToken: refreshToken,
@@ -578,11 +846,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return resp, err
 }
 
 // slugify converts a human-readable string into a URL-safe slug.

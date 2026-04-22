@@ -250,17 +250,29 @@ export function POSTerminalContainer({
     if (cart.length === 0) return;
     setIsCheckingOut(true);
     try {
-      // First checkout for this session — create the order and batch-add all cart items.
-      if (!activeOrderId || isTerminalStatus) {
-        const orderId = await ensureOrder();
+      // Determine or create the active order id.
+      let orderId = (!activeOrderId || isTerminalStatus) ? null : activeOrderId;
+      if (!orderId) {
+        orderId = await ensureOrder();
         if (!orderId) return;
-        for (const item of cart) {
+      }
+
+      // Always sync cart items to the backend before opening payment.
+      // This handles the retry case where a previous attempt created the order
+      // but failed to add items (e.g. network error), leaving the backend
+      // order with 0 items while activeOrderId is already set.
+      const existingProductIds = new Set(
+        (activeOrder?.items ?? []).map((i) => i.product_id)
+      );
+      for (const item of cart) {
+        if (!existingProductIds.has(item.product_id)) {
           await addItem.mutateAsync({
             orderId,
             data: { product_id: item.product_id, quantity: item.quantity },
           });
         }
       }
+
       setPaymentOpen(true);
     } catch {
       toast.error("Failed to prepare order. Please try again.");

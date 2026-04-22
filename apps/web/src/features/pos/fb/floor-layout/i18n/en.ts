@@ -105,6 +105,7 @@ export const floorLayoutEn = {
     // Validation
     validation: {
       nameMin: "Name must be at least 2 characters",
+      outletRequired: "Outlet is required",
       companyRequired: "Outlet is required",
       floorMin: "Floor number must be at least 1",
     },

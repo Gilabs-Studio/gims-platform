@@ -84,11 +84,12 @@ func (h *OutletHandler) GetByID(c *gin.Context) {
 // List handles GET /outlets
 func (h *OutletHandler) List(c *gin.Context) {
 	params := repositories.OutletListParams{
-		Search:    c.Query("search"),
-		SortBy:    c.DefaultQuery("sort_by", "name"),
-		SortDir:   c.DefaultQuery("sort_dir", "asc"),
-		CompanyID: c.Query("company_id"),
-		UserID:    getOutletUserID(c), // RBAC: Filter by user's assigned warehouses
+		Search:      c.Query("search"),
+		SortBy:      c.DefaultQuery("sort_by", "name"),
+		SortDir:     c.DefaultQuery("sort_dir", "asc"),
+		CompanyID:   c.Query("company_id"),
+		WarehouseID: c.Query("warehouse_id"),
+		UserID:      getOutletUserID(c), // RBAC: Filter by user's assigned warehouses
 	}
 
 	// Parse is_active filter

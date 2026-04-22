@@ -136,8 +136,15 @@ func (r *floorPlanRepository) CreateVersion(ctx context.Context, version *models
 func (r *floorPlanRepository) ListVersions(ctx context.Context, floorPlanID string) ([]models.LayoutVersion, error) {
 	var versions []models.LayoutVersion
 	err := database.GetDB(ctx, r.db).
-		Where("floor_plan_id = ?", floorPlanID).
-		Order("version DESC").
+		Select(`pos_layout_versions.*, COALESCE((
+			SELECT u.name
+			FROM users u
+			WHERE u.id::text = pos_layout_versions.published_by
+			AND u.tenant_id = pos_layout_versions.tenant_id
+			LIMIT 1
+		), '') AS published_by_name`).
+		Where("pos_layout_versions.floor_plan_id = ?", floorPlanID).
+		Order("pos_layout_versions.version DESC").
 		Find(&versions).Error
 	return versions, err
 }

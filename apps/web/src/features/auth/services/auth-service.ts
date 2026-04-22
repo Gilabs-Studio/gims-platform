@@ -157,19 +157,44 @@ export const authService = {
 
   /**
    * Self-service tenant registration.
-   * Creates a new tenant + admin account in one atomic transaction.
-   * The backend sets HttpOnly auth cookies, so the response body carries
-   * the user payload only (tokens are intentionally empty).
+   * - Coupon flow: returns LoginResponse (user is provisioned immediately).
+   * - Paid plan flow: returns { invoice_url, invoice_id, expires_at } — caller must
+   *   redirect the browser to invoice_url to complete Xendit payment.
    */
   async register(
-    payload: { name: string; email: string; password: string; company_name: string },
+    payload: {
+      name: string;
+      email: string;
+      password: string;
+      company_name?: string;
+      coupon?: string;
+      plan?: string;
+      billing_period?: string;
+      user_count?: number;
+    },
     csrfToken?: string | null,
-  ): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>(
+  ): Promise<{ success: boolean; data: unknown }> {
+    const response = await apiClient.post(
       "/auth/register",
       payload,
       csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
     );
+    return response.data;
+  },
+
+  /**
+   * Validates a coupon code without consuming it.
+   * Used by the registration form to preview coupon details before submission.
+   */
+  async validateCoupon(
+    code: string,
+    email?: string,
+  ): Promise<{ data?: { valid: boolean; reason?: string; coupon_type?: string; duration_days?: number; description?: string } }> {
+    let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
+    if (email) {
+      url += `&email=${encodeURIComponent(email)}`;
+    }
+    const response = await apiClient.get(url);
     return response.data;
   },
 };

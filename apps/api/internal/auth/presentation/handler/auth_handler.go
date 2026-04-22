@@ -8,13 +8,57 @@ import (
 	"github.com/gilabs/gims/api/internal/auth/domain/usecase"
 	authDTO "github.com/gilabs/gims/api/internal/auth/presentation/dto"
 	"github.com/gilabs/gims/api/internal/core/errors"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/config" // Import config
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
-func isSecureRequest(c *gin.Context) bool {
+// AuthHandler handles all auth-related HTTP requests.
+type AuthHandler struct {
+	authUC   usecase.AuthUsecase
+	couponUC couponUC.CouponUsecase
+}
+
+func NewAuthHandler(authUC usecase.AuthUsecase, couponUC couponUC.CouponUsecase) *AuthHandler {
+	return &AuthHandler{
+		authUC:   authUC,
+		couponUC: couponUC,
+	}
+}
+
+// ValidateCoupon is a public endpoint that lets the registration form check a coupon
+// before submission. When email is provided it also checks the one-time-per-email rule.
+func (h *AuthHandler) ValidateCoupon(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	if code == "" || len(code) > 64 {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"code": "required, max 64 chars"}, nil)
+		return
+	}
+
+	email := strings.TrimSpace(c.Query("email"))
+
+	var result interface{}
+	var err error
+
+	if email != "" {
+		result, err = h.couponUC.ValidateForEmail(c.Request.Context(), code, email)
+	} else {
+		result, err = h.couponUC.Validate(c.Request.Context(), code)
+	}
+
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// isHTTPS returns true when the current request arrived over TLS, either
+// directly or via a trusted proxy that sets X-Forwarded-Proto.
+func isHTTPS(c *gin.Context) bool {
 	if config.AppConfig == nil || config.AppConfig.Server.Env != "production" {
 		return false
 	}
@@ -26,16 +70,6 @@ func isSecureRequest(c *gin.Context) bool {
 		return xfp == "https"
 	}
 	return false
-}
-
-type AuthHandler struct {
-	authUC usecase.AuthUsecase
-}
-
-func NewAuthHandler(authUC usecase.AuthUsecase) *AuthHandler {
-	return &AuthHandler{
-		authUC: authUC,
-	}
 }
 
 // Login handles login request
@@ -93,8 +127,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Map to Presentation DTO (Strict Mode: No tokens in JSON)
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{
-			ID:        loginResponse.User.ID,
-			Name:      loginResponse.User.Name,
+			ID:         loginResponse.User.ID,
+			Name:       loginResponse.User.Name,
 			Email:      loginResponse.User.Email,
 			AvatarURL:  loginResponse.User.AvatarURL,
 			EmployeeID: loginResponse.User.EmployeeID,
@@ -171,8 +205,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	// Map to Presentation DTO
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{
-			ID:        loginResponse.User.ID,
-			Name:      loginResponse.User.Name,
+			ID:         loginResponse.User.ID,
+			Name:       loginResponse.User.Name,
 			Email:      loginResponse.User.Email,
 			AvatarURL:  loginResponse.User.AvatarURL,
 			EmployeeID: loginResponse.User.EmployeeID,
@@ -267,6 +301,7 @@ func (h *AuthHandler) GetCSRFToken(c *gin.Context) {
 // RegisterTenant handles self-service tenant registration.
 // Creates a new tenant + admin account in one transaction and returns a JWT
 // so the caller can immediately access the platform (no separate login required).
+// When a paid plan is selected, returns an invoice URL for Xendit redirect instead.
 func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	var req dto.RegisterTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -278,7 +313,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		return
 	}
 
-	loginResponse, err := h.authUC.RegisterTenant(c.Request.Context(), &req)
+	result, err := h.authUC.RegisterTenant(c.Request.Context(), &req)
 	if err != nil {
 		switch err {
 		case usecase.ErrEmailAlreadyTaken:
@@ -289,15 +324,39 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			errors.ErrorResponse(c, "COMPANY_NAME_TAKEN", map[string]interface{}{
 				"field": "company_name",
 			}, nil)
+		case usecase.ErrPaymentRequired:
+			errors.ErrorResponse(c, "PAYMENT_REQUIRED", map[string]interface{}{
+				"message": "A valid coupon or subscription plan is required to register",
+			}, nil)
+		case usecase.ErrPaymentGatewayUnavailable:
+			errors.ErrorResponse(c, "SERVICE_UNAVAILABLE", map[string]interface{}{
+				"reason": "Paid registration is temporarily unavailable because Xendit is not configured",
+			}, nil)
+		case usecase.ErrCouponInvalid:
+			errors.ErrorResponse(c, "COUPON_INVALID", map[string]interface{}{
+				"field":   "coupon",
+				"message": "The coupon is invalid, inactive, or has reached its usage limit",
+			}, nil)
+		case usecase.ErrCouponAlreadyUsed:
+			errors.ErrorResponse(c, "COUPON_ALREADY_USED", map[string]interface{}{
+				"field":   "coupon",
+				"message": "This coupon has already been used with your email address",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}
 		return
 	}
 
+	// Paid plan path: return invoice URL for frontend Xendit redirect.
+	if result.RequiresPayment && result.InvoiceResponse != nil {
+		response.SuccessResponse(c, result.InvoiceResponse, nil)
+		return
+	}
+
+	loginResponse := result.LoginResponse
+
 	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
-	// Use Secure:true always — SameSite=None requires it and browsers reject the
-	// cookie when Secure is false, which would break the subsequent session check.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
 		Value:    loginResponse.Token,

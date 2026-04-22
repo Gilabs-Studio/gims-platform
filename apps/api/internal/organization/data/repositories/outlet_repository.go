@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -29,14 +30,15 @@ type OutletRepository interface {
 
 // OutletListParams defines parameters for listing outlets
 type OutletListParams struct {
-	Search    string
-	SortBy    string
-	SortDir   string
-	Limit     int
-	Offset    int
-	IsActive  *bool
-	CompanyID string
-	UserID    string // Optional: if set, filter by user-warehouse permissions (RBAC)
+	Search      string
+	SortBy      string
+	SortDir     string
+	Limit       int
+	Offset      int
+	IsActive    *bool
+	CompanyID   string
+	WarehouseID string // Optional: filter outlets belonging to a specific warehouse
+	UserID      string // Optional: if set, filter by user-warehouse permissions (RBAC)
 }
 
 type outletRepository struct {
@@ -113,6 +115,10 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 
 	if params.CompanyID != "" {
 		query = query.Where("company_id = ?", params.CompanyID)
+	}
+
+	if params.WarehouseID != "" {
+		query = query.Where("warehouse_id = ?", params.WarehouseID)
 	}
 
 	if params.IsActive != nil {

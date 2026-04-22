@@ -271,6 +271,7 @@ export function LocationPicker({
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationError(labels.locationNotSupported);
+      setIsMapPickerOpen(false);
       return;
     }
 
@@ -278,8 +279,11 @@ export function LocationPicker({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         handleCoordinateSelect(position.coords.latitude, position.coords.longitude);
+        setIsMapPickerOpen(false);
       },
       (error) => {
+        // Close the modal first so the error message below the button is visible.
+        setIsMapPickerOpen(false);
         if (error.code === error.PERMISSION_DENIED) {
           setLocationError(labels.locationPermissionDenied);
           return;
@@ -288,7 +292,7 @@ export function LocationPicker({
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  }, [handleCoordinateSelect, labels.locationFailed, labels.locationNotSupported, labels.locationPermissionDenied]);
+  }, [handleCoordinateSelect, labels.locationFailed, labels.locationNotSupported, labels.locationPermissionDenied, setIsMapPickerOpen]);
 
   // Auto-resolve location summary when coordinates are present (edit mode / form reset).
   // Tracks the last resolved coordinate pair so re-opening with a different record

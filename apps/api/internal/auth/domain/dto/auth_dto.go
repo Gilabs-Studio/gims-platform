@@ -9,16 +9,37 @@ type LoginRequest struct {
 }
 
 // RegisterTenantRequest represents self-service tenant registration payload.
-// On success the endpoint provisions a new tenant and returns a JWT — the user
-// can immediately start using the platform without a separate login step.
-//
-// TODO(future): Add a `plan` field once batch/billing packages are implemented.
-// For now every registration receives enterprise access with no user limit.
+// Access is gated by one of:
+//   - coupon: a valid promotional code granting a trial subscription
+//   - plan + billing_period: a paid subscription handled via Xendit invoice
 type RegisterTenantRequest struct {
-	Name        string `json:"name" binding:"required,min=2,max=100"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-	CompanyName string `json:"company_name" binding:"required,min=2,max=150"`
+	Name     string `json:"name"     binding:"required,min=2,max=100"`
+	Email    string `json:"email"    binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+	// Coupon bypasses payment and grants a trial subscription.
+	// Only alphanumeric chars accepted; input is normalised to uppercase.
+	Coupon string `json:"coupon" binding:"omitempty,min=4,max=64"`
+	// Plan is required when using paid registration (no coupon).
+	// Valid values: pos_essential, pos_growth, pos_enterprise,
+	//               erp_core, erp_pro, erp_enterprise,
+	//               crm_basic, crm_growth, crm_enterprise,
+	//               hr_basic, hr_growth, hr_enterprise, full_access
+	Plan string `json:"plan" binding:"omitempty"`
+	// BillingPeriod is required when Plan is set. Values: "monthly", "yearly".
+	BillingPeriod string `json:"billing_period" binding:"omitempty,oneof=monthly yearly"`
+	// UserCount is the number of users for per-user billing. Defaults to 1 when omitted.
+	UserCount int `json:"user_count" binding:"omitempty,min=1,max=500"`
+	// CompanyName is optional; defaults to the user's Name when omitted.
+	CompanyName string `json:"company_name" binding:"omitempty,min=2,max=150"`
+}
+
+// RegisterInitResponse is returned when a paid plan is selected during registration.
+// The frontend must redirect to InvoiceURL to complete payment; the tenant is
+// provisioned by the Xendit webhook after successful payment.
+type RegisterInitResponse struct {
+	InvoiceURL  string `json:"invoice_url"`
+	InvoiceID   string `json:"invoice_id"`
+	ExpiresAt   string `json:"expires_at"`
 }
 
 // LoginResponse represents login response DTO

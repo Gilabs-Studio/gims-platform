@@ -53,7 +53,7 @@ export function useFloorLayoutFormDataWithCompany(
   return useQuery({
     queryKey: [...floorLayoutKeys.formData(), companyId],
     queryFn: () => floorLayoutService.getFormData(companyId),
-    enabled: !!companyId && options?.enabled !== false,
+    enabled: options?.enabled !== false,
   });
 }
 
