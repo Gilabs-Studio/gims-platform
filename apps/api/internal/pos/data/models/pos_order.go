@@ -99,8 +99,9 @@ func (o *PosOrder) BeforeCreate(tx *gorm.DB) error {
 
 // PosOrderItem represents a single product line within a POS order
 type PosOrderItem struct {
-	ID          string        `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	PosOrderID  string        `gorm:"type:uuid;not null;index" json:"pos_order_id"`
+	ID         string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID   string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	PosOrderID string `gorm:"type:uuid;not null;index" json:"pos_order_id"`
 	ProductID   string        `gorm:"type:uuid;not null;index" json:"product_id"`
 	ProductName string        `gorm:"type:varchar(255);not null" json:"product_name"`
 	ProductCode string        `gorm:"type:varchar(100)" json:"product_code"`
