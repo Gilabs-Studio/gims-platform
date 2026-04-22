@@ -51,12 +51,13 @@ func ToFloorPlanListResponse(plans []models.FloorPlan) []dto.FloorPlanResponse {
 // ToLayoutVersionResponse converts model to response DTO
 func ToLayoutVersionResponse(m *models.LayoutVersion) *dto.LayoutVersionResponse {
 	return &dto.LayoutVersionResponse{
-		ID:          m.ID,
-		FloorPlanID: m.FloorPlanID,
-		Version:     m.Version,
-		LayoutData:  json.RawMessage(m.LayoutData),
-		PublishedAt: m.PublishedAt.Format(timeFormat),
-		PublishedBy: m.PublishedBy,
+		ID:              m.ID,
+		FloorPlanID:     m.FloorPlanID,
+		Version:         m.Version,
+		LayoutData:      json.RawMessage(m.LayoutData),
+		PublishedAt:     m.PublishedAt.Format(timeFormat),
+		PublishedBy:     m.PublishedBy,
+		PublishedByName: m.PublishedByName,
 	}
 }
 

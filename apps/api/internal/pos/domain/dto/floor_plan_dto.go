@@ -56,12 +56,13 @@ type FloorPlanResponse struct {
 
 // LayoutVersionResponse returned to client
 type LayoutVersionResponse struct {
-	ID          string          `json:"id"`
-	FloorPlanID string          `json:"floor_plan_id"`
-	Version     int             `json:"version"`
-	LayoutData  json.RawMessage `json:"layout_data"`
-	PublishedAt string          `json:"published_at"`
-	PublishedBy string          `json:"published_by"`
+	ID              string          `json:"id"`
+	FloorPlanID     string          `json:"floor_plan_id"`
+	Version         int             `json:"version"`
+	LayoutData      json.RawMessage `json:"layout_data"`
+	PublishedAt     string          `json:"published_at"`
+	PublishedBy     string          `json:"published_by"`
+	PublishedByName string          `json:"published_by_name"`
 }
 
 // OutletOption for form data select
