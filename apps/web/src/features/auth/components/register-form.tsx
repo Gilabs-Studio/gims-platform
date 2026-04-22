@@ -15,7 +15,6 @@ import {
   Minus,
   Plus,
   Zap,
-  Building2,
   Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import { cn } from "@/lib/utils";
 // ─── Pricing data ─────────────────────────────────────────────────────────────
 
 type BillingPeriod = "monthly" | "yearly";
-type PlanTab = "bundle" | "modular" | "coupon";
+type PlanTab = "bundle" | "modular";
 
 interface BundlePlan {
   id: string;
@@ -39,6 +38,7 @@ interface BundlePlan {
   modules: string[];
   highlight?: boolean;
   cta?: "select" | "contact";
+  comingSoon?: boolean;
 }
 
 interface ModularPlan {
@@ -48,6 +48,7 @@ interface ModularPlan {
   perUserMonthly: number;
   badge?: string;
   features: string[];
+  comingSoon?: boolean;
 }
 
 // Bundle plans — per user/month. Bundles are always cheaper per user than
@@ -58,6 +59,7 @@ const BUNDLES: BundlePlan[] = [
     name: "Growth Suite",
     tagline: "POS · ERP · CRM",
     perUserMonthly: 149_000,
+    comingSoon: true,
     modules: ["Point of Sale", "ERP (Purchase, Sales, Finance)", "CRM"],
   },
   {
@@ -91,10 +93,10 @@ const BUNDLES: BundlePlan[] = [
 ];
 
 const MODULAR_PLANS: ModularPlan[] = [
-  { id: "pos_growth", name: "POS Modular", category: "POS", perUserMonthly: 199_000, features: ["Multi-outlet cashier", "Loyalty programs", "Advanced sales reports"] },
-  { id: "erp_pro", name: "ERP Modular", category: "ERP", perUserMonthly: 399_000, features: ["Purchase and sales", "Finance and accounting", "Inventory operations"] },
-  { id: "crm_growth", name: "CRM Modular", category: "CRM", perUserMonthly: 149_000, features: ["Pipeline automation", "Custom fields", "Customer activity timeline"] },
-  { id: "hr_growth", name: "HR Modular", category: "HR", perUserMonthly: 79_000, features: ["Payroll processing", "Attendance tracking", "Performance reviews"] },
+  { id: "pos_growth", name: "POS Modular", category: "POS", perUserMonthly: 199_000, comingSoon: true, features: ["Multi-outlet cashier", "Loyalty programs", "Advanced sales reports"] },
+  { id: "erp_pro", name: "ERP Modular", category: "ERP", perUserMonthly: 399_000, comingSoon: true, features: ["Purchase and sales", "Finance and accounting", "Inventory operations"] },
+  { id: "crm_growth", name: "CRM Modular", category: "CRM", perUserMonthly: 149_000, comingSoon: true, features: ["Pipeline automation", "Custom fields", "Customer activity timeline"] },
+  { id: "hr_growth", name: "HR Modular", category: "HR", perUserMonthly: 79_000, comingSoon: true, features: ["Payroll processing", "Attendance tracking", "Performance reviews"] },
 ];
 
 const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20GiLabs%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
@@ -302,8 +304,9 @@ export default function RegisterForm() {
   // ── Submit ─────────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (planTab === "coupon" && couponState.isValid !== true) return;
     if (planTab === "bundle" && selectedBundle === "enterprise") return; // Contact Sales only
+    if (planTab === "bundle" && selectedBundle === "growth_suite") return;
+    if (planTab === "modular") return;
 
     setIsLoading(true);
     setSubmitError(null);
@@ -318,15 +321,13 @@ export default function RegisterForm() {
         company_name: account.company.trim() || undefined,
       };
 
-      const payload =
-        planTab === "coupon"
-          ? { ...basePayload, coupon: couponCode.trim().toUpperCase() }
-          : {
-              ...basePayload,
-              plan: planTab === "bundle" ? selectedBundle : selectedModular,
-              billing_period: billing,
-              user_count: userCount,
-            };
+      const payload = {
+        ...basePayload,
+        plan: selectedBundle,
+        billing_period: billing,
+        user_count: userCount,
+        ...(couponState.isValid ? { coupon: couponCode.trim().toUpperCase() } : {}),
+      };
 
       const response = await authService.register(payload, csrf);
 
@@ -369,6 +370,7 @@ export default function RegisterForm() {
   // ── Derived values ─────────────────────────────────────────────────────────────
   const selectedBundlePlan = BUNDLES.find((b) => b.id === selectedBundle) ?? BUNDLES[1];
   const selectedModularPlan = MODULAR_PLANS.find((p) => p.id === selectedModular)!;
+  const discountActive = planTab === "bundle" && selectedBundle !== "enterprise" && couponState.isValid === true;
 
   // Decoy banner: show if modular plan costs more than ultimate_suite for same users
   const ultimateCost = effectiveMonthlyPrice(175_000, userCount, billing);
@@ -376,12 +378,12 @@ export default function RegisterForm() {
   const showDecoySuggestion = planTab === "modular" && modularCost >= ultimateCost;
 
   const submitLabel = (): string => {
-    if (planTab === "coupon") return t("submit");
+    if (planTab === "modular") return t("comingSoon");
     if (planTab === "bundle" && selectedBundle === "enterprise") return t("contactSales");
     const total = planTab === "bundle"
       ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
       : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
-    return t("pay", { amount: formatIDR(total) });
+    return t("pay", { amount: formatIDR(discountActive ? 0 : total) });
   };
 
   const openContactSalesWhatsApp = () => {
@@ -403,7 +405,7 @@ export default function RegisterForm() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className={cn("w-full transition-[max-width] duration-300", step === 2 ? "max-w-5xl" : "max-w-lg")}>
 
         {/* Logo */}
@@ -557,20 +559,25 @@ export default function RegisterForm() {
                 </div>
 
                 {/* Plan mode tabs */}
-                <div className="flex rounded-lg border border-border/80 bg-card/70 p-1 text-sm shadow-sm backdrop-blur-sm">
-                  {(["bundle", "modular", "coupon"] as PlanTab[]).map((tab) => (
+                <div className="flex rounded-xl border border-border/70 p-1 text-sm">
+                  {(["bundle", "modular"] as PlanTab[]).map((tab) => (
                     <button
                       key={tab}
                       type="button"
-                      onClick={() => setPlanTab(tab)}
+                      onClick={() => {
+                        if (tab === "modular") return;
+                        setPlanTab(tab);
+                      }}
                       className={cn(
-                        "flex-1 rounded-lg py-1.5 font-medium transition-colors capitalize",
+                        "flex-1 rounded-lg py-1.5 font-medium transition-colors",
+                        tab === "modular" && "cursor-not-allowed opacity-60",
                         planTab === tab
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
+                      disabled={tab === "modular"}
                     >
-                      {tab === "bundle" ? t("tabs.bundle") : tab === "modular" ? t("tabs.modular") : t("tabs.coupon")}
+                      {tab === "bundle" ? t("tabs.bundle") : t("tabs.modular")}
                     </button>
                   ))}
                 </div>
@@ -588,7 +595,7 @@ export default function RegisterForm() {
                       className="space-y-5"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="inline-flex rounded-lg border border-border/70 bg-card p-1 text-xs">
+                        <div className="inline-flex rounded-lg border border-border/70 p-1 text-xs">
                           <button
                             type="button"
                             onClick={() => setBilling("monthly")}
@@ -614,7 +621,7 @@ export default function RegisterForm() {
 
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-muted-foreground">Users</span>
-                          <div className="flex items-center rounded-lg border border-border/70 bg-card">
+                          <div className="flex items-center rounded-lg border border-border/70">
                             <button
                               type="button"
                               onClick={() => setUserCount((n) => Math.max(1, n - 1))}
@@ -647,7 +654,56 @@ export default function RegisterForm() {
                         </div>
                       </div>
 
-                      <div className="overflow-x-auto rounded-lg border border-border/80 bg-card/80 shadow-sm">
+                      <div className="space-y-1.5">
+                        <label htmlFor="coupon" className="text-sm font-medium">{t("discountLabel")}</label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              id="coupon"
+                              type="text"
+                              autoComplete="off"
+                              placeholder={t("discountPlaceholder")}
+                              value={couponCode}
+                              onChange={(e) => {
+                                setCouponCode(e.target.value.toUpperCase());
+                                if (couponState.isValid !== null) {
+                                  setCouponState({ isChecking: false, isValid: null, message: null });
+                                }
+                              }}
+                              className="h-11 pr-9 uppercase tracking-widest"
+                              maxLength={64}
+                            />
+                            {couponCode.trim() && (
+                              <span className="absolute inset-y-0 right-3 flex items-center">
+                                {couponState.isChecking ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                ) : couponState.isValid === true ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                ) : couponState.isValid === false ? (
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                ) : null}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={couponState.isChecking || !couponCode.trim()}
+                            onClick={handleCheckCoupon}
+                            className="h-11 shrink-0"
+                          >
+                            {couponState.isChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : t("validate")}
+                          </Button>
+                        </div>
+                        {couponState.isValid === true && (
+                          <p className="text-xs text-emerald-600">{couponState.message ?? t("discountApplied")}</p>
+                        )}
+                        {couponState.isValid === false && (
+                          <p className="text-xs text-destructive">{couponState.message ?? t("couponInvalidOrExpired")}</p>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto rounded-lg border border-border/80">
                         <table className="w-full min-w-max border-collapse">
                           <thead>
                             <tr className="border-b border-border/80">
@@ -659,6 +715,7 @@ export default function RegisterForm() {
                                     key={b.id}
                                     className={cn(
                                       "px-6 py-4 text-left",
+                                      b.comingSoon && "blur-[1px] opacity-45",
                                       isSelected && b.cta !== "contact" && "bg-primary/5",
                                     )}
                                   >
@@ -695,24 +752,35 @@ export default function RegisterForm() {
 
                                 const baseMonthly = b.perUserMonthly * userCount;
                                 const effectiveMonthly = effectiveMonthlyPrice(b.perUserMonthly, userCount, billing);
+                                const discountedMonthly = discountActive ? 0 : effectiveMonthly;
 
                                 return (
                                   <td
                                     key={b.id}
-                                    className={cn("px-6 py-4 align-top", isSelected && "bg-primary/5")}
+                                    className={cn("px-6 py-4 align-top", b.comingSoon && "blur-[1px] opacity-45", isSelected && "bg-primary/5")}
                                   >
                                     {billing === "yearly" ? (
                                       <div>
                                         <p className="text-xs text-muted-foreground line-through">{formatIDR(baseMonthly)}/mo</p>
                                         <p className="text-xl font-semibold text-foreground">
-                                          {formatIDR(effectiveMonthly)}
+                                          {discountActive ? (
+                                            <>
+                                              <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
+                                              {formatIDR(discountedMonthly)}
+                                            </>
+                                          ) : formatIDR(discountedMonthly)}
                                           <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
                                         </p>
                                         <p className="mt-1 text-xs text-success">{t("billedAnnually")}</p>
                                       </div>
                                     ) : (
                                       <p className="text-xl font-semibold text-foreground">
-                                        {formatIDR(effectiveMonthly)}
+                                        {discountActive ? (
+                                          <>
+                                            <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
+                                            {formatIDR(discountedMonthly)}
+                                          </>
+                                        ) : formatIDR(discountedMonthly)}
                                         <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
                                       </p>
                                     )}
@@ -730,13 +798,15 @@ export default function RegisterForm() {
                               </tr>
                             ))}
 
-                            <tr className="bg-muted/20">
+                            <tr>
                               <td className="px-6 py-4" />
                               {BUNDLES.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 return (
                                   <td key={b.id} className={cn("px-6 py-4", isSelected && b.cta !== "contact" && "bg-primary/5")}>
-                                    {b.cta === "contact" ? (
+                                    {b.comingSoon ? (
+                                      <p className="text-center text-xs text-muted-foreground">{t("comingSoon")}</p>
+                                    ) : b.cta === "contact" ? (
                                       <Button
                                         type="button"
                                         variant="outline"
@@ -750,7 +820,10 @@ export default function RegisterForm() {
                                       <Button
                                         type="button"
                                         variant={isSelected ? "default" : "outline"}
-                                        onClick={() => setSelectedBundle(b.id)}
+                                        onClick={() => {
+                                          if (b.comingSoon) return;
+                                          setSelectedBundle(b.id);
+                                        }}
                                         className="h-10 w-full"
                                       >
                                         {isSelected ? t("selected") : t("chooseBundle", { name: b.name.replace(" Suite", "") })}
@@ -777,7 +850,7 @@ export default function RegisterForm() {
                       className="space-y-5"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="inline-flex rounded-lg border border-border/70 bg-card p-1 text-xs">
+                        <div className="inline-flex rounded-lg border border-border/70 p-1 text-xs">
                           <button
                             type="button"
                             onClick={() => setBilling("monthly")}
@@ -794,7 +867,7 @@ export default function RegisterForm() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-muted-foreground">{t("usersLabel")}</span>
-                          <div className="flex items-center rounded-lg border border-border/70 bg-card">
+                          <div className="flex items-center rounded-lg border border-border/70">
                             <button type="button" onClick={() => setUserCount((n) => Math.max(1, n - 1))} className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("decreaseUsers")}><Minus className="h-3 w-3" /></button>
                             <input type="number" min={1} max={500} value={userCount} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1 && v <= 500) setUserCount(v); }} className="h-9 w-14 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" aria-label={t("usersAria")} />
                             <button type="button" onClick={() => setUserCount((n) => Math.min(500, n + 1))} className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("increaseUsers")}><Plus className="h-3 w-3" /></button>
@@ -834,9 +907,13 @@ export default function RegisterForm() {
                             <button
                               key={p.id}
                               type="button"
-                              onClick={() => setSelectedModular(p.id)}
+                              onClick={() => {
+                                if (p.comingSoon) return;
+                                setSelectedModular(p.id);
+                              }}
                               className={cn(
                                 "relative flex min-h-64 flex-col rounded-lg border p-4 text-left transition-all",
+                                p.comingSoon && "cursor-not-allowed blur-[1px] opacity-45",
                                 isSelected
                                   ? "border-primary bg-primary/5 shadow-sm"
                                   : "border-border/80 bg-card hover:border-primary/40",
@@ -873,75 +950,11 @@ export default function RegisterForm() {
                           );
                         })}
                       </div>
+
+                      <p className="text-center text-xs text-muted-foreground">{t("comingSoon")}</p>
                     </motion.div>
                   )}
 
-                  {/* ── Coupon tab ───────────────────────────────────────────── */}
-                  {planTab === "coupon" && (
-                    <motion.div
-                      key="coupon"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.18 }}
-                      className="space-y-3"
-                    >
-                      <div className="space-y-1.5">
-                        <label htmlFor="coupon" className="text-sm font-medium">{t("couponLabel")}</label>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Input
-                              id="coupon"
-                              type="text"
-                              autoComplete="off"
-                              placeholder={t("couponPlaceholder")}
-                              value={couponCode}
-                              onChange={(e) => {
-                                setCouponCode(e.target.value.toUpperCase());
-                                if (couponState.isValid !== null) {
-                                  setCouponState({ isChecking: false, isValid: null, message: null });
-                                }
-                              }}
-                              className="h-11 pr-9 uppercase tracking-widest"
-                              maxLength={64}
-                            />
-                            {couponCode.trim() && (
-                              <span className="absolute inset-y-0 right-3 flex items-center">
-                                {couponState.isChecking ? (
-                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                ) : couponState.isValid === true ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                ) : couponState.isValid === false ? (
-                                  <XCircle className="h-4 w-4 text-destructive" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={couponState.isChecking || !couponCode.trim()}
-                            onClick={handleCheckCoupon}
-                            className="h-11 shrink-0"
-                          >
-                            {couponState.isChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : t("validate")}
-                          </Button>
-                        </div>
-                        {couponState.isValid === true && (
-                          <p className="text-xs text-emerald-600">{couponState.message}</p>
-                        )}
-                        {couponState.isValid === false && (
-                          <p className="text-xs text-destructive">{couponState.message}</p>
-                        )}
-                      </div>
-
-                      <div className="rounded-lg border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-                        <Building2 className="mb-1 h-4 w-4" />
-                        <p>{t("couponInfoLine1")}</p>
-                        <p className="mt-1">{t("couponInfoLine2")}</p>
-                      </div>
-                    </motion.div>
-                  )}
                 </AnimatePresence>
 
                 {/* Error */}
@@ -967,13 +980,20 @@ export default function RegisterForm() {
                     type="submit"
                     disabled={
                       isLoading ||
-                      (planTab === "coupon" && couponState.isValid !== true) ||
-                      (planTab === "bundle" && selectedBundle === "enterprise")
+                      planTab === "modular" ||
+                      (planTab === "bundle" && (selectedBundle === "enterprise" || selectedBundle === "growth_suite"))
                     }
                     className="h-11 flex-1 font-medium"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : discountActive ? (
+                      <span className="flex items-center gap-2">
+                        <span className="text-xs font-normal text-primary-foreground/80 line-through">
+                          {t("pay", { amount: formatIDR(totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)) })}
+                        </span>
+                        <span>{t("pay", { amount: formatIDR(0) })}</span>
+                      </span>
                     ) : (
                       submitLabel()
                     )}
