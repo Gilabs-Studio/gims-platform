@@ -147,6 +147,7 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   const userName = user?.name ?? "User";
   const tenantName = user?.tenant_name ?? "";
+  const subscriptionPlan = user?.subscription_plan;
   const primaryAvatarUrl =
     user?.avatar_url && user.avatar_url.trim() !== ""
       ? user.avatar_url
@@ -514,6 +515,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                   <DashboardHeader
                     userName={userName}
                     tenantName={tenantName}
+                    subscriptionPlan={subscriptionPlan}
                     avatarUrl={primaryAvatarUrl}
                     fallbackAvatarUrl={fallbackAvatarUrl}
                     onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
@@ -526,6 +528,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 <DashboardHeader
                   userName={userName}
                   tenantName={tenantName}
+                  subscriptionPlan={subscriptionPlan}
                   avatarUrl={primaryAvatarUrl}
                   fallbackAvatarUrl={fallbackAvatarUrl}
                   onMobileMenuClick={() => setIsMobileSidebarOpen(true)}

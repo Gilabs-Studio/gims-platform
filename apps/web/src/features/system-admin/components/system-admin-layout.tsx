@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Ticket,
   CreditCard,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,11 @@ const sidebarLinks = [
     label: "Coupons",
     href: "/system/coupons",
     icon: Ticket,
+  },
+  {
+    label: "Plans",
+    href: "/system/plans",
+    icon: Package,
   },
   {
     label: "Subscriptions",

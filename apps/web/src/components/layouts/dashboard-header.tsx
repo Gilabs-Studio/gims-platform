@@ -25,6 +25,7 @@ import type { AttendanceDrawerTab } from "@/features/hrd/attendance-records/comp
 interface DashboardHeaderProps {
   userName: string;
   tenantName?: string;
+  subscriptionPlan?: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
@@ -39,6 +40,7 @@ interface DashboardHeaderProps {
 export const DashboardHeader = memo(function DashboardHeader({
   userName,
   tenantName,
+  subscriptionPlan,
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
@@ -180,6 +182,11 @@ export const DashboardHeader = memo(function DashboardHeader({
               <div className="text-sm font-medium text-foreground">{userName}</div>
               {tenantName && (
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">{tenantName}</div>
+              )}
+              {subscriptionPlan && (
+                <div className="mt-1 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-primary">
+                  {subscriptionPlan.replace(/_/g, " ")}
+                </div>
               )}
             </div>
             <Separator className="my-1" />

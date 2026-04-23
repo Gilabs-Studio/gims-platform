@@ -77,6 +77,8 @@ func AutoMigrate() error {
 		&tenant.SystemAdmin{},
 		&tenant.Coupon{},
 		&tenant.CouponUsage{},
+		&tenant.SubscriptionPlanConfig{},
+		&tenant.PlanModuleEntitlement{},
 		&tenant.TenantSubscription{},
 		&user.User{},
 		&user.UserWarehouse{},

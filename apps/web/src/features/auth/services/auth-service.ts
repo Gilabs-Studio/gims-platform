@@ -5,6 +5,33 @@ import apiClient, {
 } from "@/lib/api-client";
 import type { LoginRequest, LoginResponse } from "../types";
 
+export interface SubscriptionPlanConfig {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  description?: string;
+  billing_type: "per_user" | "flat";
+  price_monthly_idr: number;
+  price_yearly_idr: number;
+  min_users: number;
+  max_users: number;
+  is_highlighted: boolean;
+  sort_order: number;
+  features?: string[];
+  module_slugs?: string[];
+}
+
+export interface ComputePriceResult {
+  plan_slug: string;
+  billing_period: string;
+  user_count: number;
+  base_amount_idr: number;
+  discount_amount_idr: number;
+  final_amount_idr: number;
+  coupon_applied?: boolean;
+}
+
 function isCSRFInvalidError(error: unknown): boolean {
   const axiosError = error as {
     response?: { status?: number; data?: { error?: { code?: string } } };
@@ -189,12 +216,46 @@ export const authService = {
   async validateCoupon(
     code: string,
     email?: string,
-  ): Promise<{ data?: { valid: boolean; reason?: string; coupon_type?: string; duration_days?: number; description?: string } }> {
+  ): Promise<{
+    data?: {
+      valid: boolean;
+      reason?: string;
+      coupon_type?: string;
+      discount_type?: string;
+      discount_value?: number;
+      duration_days?: number;
+      description?: string;
+      scope?: string;
+      target_plan_slug?: string;
+    };
+  }> {
     let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
     if (email) {
       url += `&email=${encodeURIComponent(email)}`;
     }
     const response = await apiClient.get(url);
     return response.data;
+  },
+
+  /**
+   * Returns all active subscription plan configs for the registration form.
+   */
+  async getSubscriptionPlans(): Promise<SubscriptionPlanConfig[]> {
+    const response = await apiClient.get("/auth/plans");
+    return response.data?.data ?? [];
+  },
+
+  /**
+   * Computes the final invoice amount for a plan + billing + user count, optionally
+   * applying a coupon discount.
+   */
+  async computePrice(params: {
+    plan_slug: string;
+    billing_period: "monthly" | "yearly";
+    user_count: number;
+    coupon_code?: string;
+  }): Promise<ComputePriceResult> {
+    const response = await apiClient.post("/auth/plans/compute-price", params);
+    return response.data?.data;
   },
 };

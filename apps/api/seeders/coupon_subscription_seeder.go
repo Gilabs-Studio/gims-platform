@@ -15,7 +15,7 @@ const (
 	DevCouponID   = "c0000001-0000-0000-0000-000000000001"
 	DevCouponCode = "GIMSDEV2026"
 
-	// Coupon: trial coupon for first production registrations (30-day full access)
+	// Coupon: trial coupon for first production registrations (30-day POS Growth plan)
 	TrialCouponID   = "c0000002-0000-0000-0000-000000000002"
 	TrialCouponCode = "GIMSTRIAL30"
 
@@ -41,15 +41,18 @@ func SeedCoupons() error {
 			CreatedBy:    SystemAdminEmail,
 		},
 		{
-			ID:           TrialCouponID,
-			Code:         TrialCouponCode,
-			Description:  "Trial coupon — 30-day full access for first production launch",
-			CouponType:   tenantModels.CouponTypeFullAccess,
-			DurationDays: 30,
-			MaxUses:      500,
-			IsActive:     true,
-			ExpiresAt:    nil,
-			CreatedBy:    SystemAdminEmail,
+			ID:              TrialCouponID,
+			Code:            TrialCouponCode,
+			Description:     "Trial coupon — 30-day POS Growth plan access for first production launch",
+			CouponType:      tenantModels.CouponTypePOSOnly,
+			DiscountType:    tenantModels.CouponDiscountTrial,
+			Scope:           tenantModels.CouponScopeTierSpecific,
+			TargetPlanSlug:  func() *string { s := "pos_growth"; return &s }(),
+			DurationDays:    30,
+			MaxUses:         500,
+			IsActive:        true,
+			ExpiresAt:       nil,
+			CreatedBy:       SystemAdminEmail,
 		},
 	}
 
@@ -84,24 +87,24 @@ func SeedSubscriptions() error {
 		{
 			ID:            Tenant1SubscriptionID,
 			TenantID:      DefaultTenantID,
-			Plan:          tenantModels.PlanFullAccess,
+			Plan:          tenantModels.PlanUltimateSuite,
 			BillingPeriod: tenantModels.BillingLifetime,
 			Status:        tenantModels.SubscriptionActive,
 			StartsAt:      now,
 			ExpiresAt:     nil, // lifetime — no expiry
 			CouponID:      &devCouponID,
-			Notes:         "GiLabs internal development — lifetime subscription",
+			Notes:         "admin@example.com — Ultimate Suite, lifetime subscription",
 		},
 		{
 			ID:            Tenant2SubscriptionID,
 			TenantID:      Tenant2ID,
-			Plan:          tenantModels.PlanFullAccess,
+			Plan:          tenantModels.PlanPOSGrowth,
 			BillingPeriod: tenantModels.BillingMonthly,
 			Status:        tenantModels.SubscriptionTrial,
 			StartsAt:      now,
 			ExpiresAt:     &tenant2Expires,
 			CouponID:      &trialCouponID,
-			Notes:         "Tenant 2 trial — 30-day full access via GIMSTRIAL30",
+			Notes:         "Tenant 2 trial — POS full plan (pos_growth) via GIMSTRIAL30",
 		},
 	}
 

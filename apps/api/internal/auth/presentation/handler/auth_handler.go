@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -19,12 +20,14 @@ import (
 type AuthHandler struct {
 	authUC   usecase.AuthUsecase
 	couponUC couponUC.CouponUsecase
+	planUC   couponUC.SubscriptionPlanUsecase
 }
 
-func NewAuthHandler(authUC usecase.AuthUsecase, couponUC couponUC.CouponUsecase) *AuthHandler {
+func NewAuthHandler(authUC usecase.AuthUsecase, couponUC couponUC.CouponUsecase, planUC couponUC.SubscriptionPlanUsecase) *AuthHandler {
 	return &AuthHandler{
 		authUC:   authUC,
 		couponUC: couponUC,
+		planUC:   planUC,
 	}
 }
 
@@ -393,6 +396,67 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		},
 		AccessToken:  "",
 		RefreshToken: "",
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// ListPublicPlans returns all active subscription plans for the public registration form.
+// GET /api/v1/auth/plans
+func (h *AuthHandler) ListPublicPlans(c *gin.Context) {
+	plans, err := h.planUC.ListPublic(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, plans, nil)
+}
+
+// ComputePrice computes the invoice amount for a plan/billing/usercount combination,
+// optionally applying a coupon discount.
+// POST /api/v1/auth/plans/compute-price
+func (h *AuthHandler) ComputePrice(c *gin.Context) {
+	var req struct {
+		PlanSlug      string `json:"plan_slug"      binding:"required"`
+		BillingPeriod string `json:"billing_period" binding:"required,oneof=monthly yearly"`
+		UserCount     int    `json:"user_count"     binding:"omitempty,min=1,max=500"`
+		CouponCode    string `json:"coupon_code"    binding:"omitempty,max=64"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+	if req.UserCount < 1 {
+		req.UserCount = 1
+	}
+
+	ctx := c.Request.Context()
+	baseAmount, err := h.planUC.ComputePrice(ctx, req.PlanSlug, req.BillingPeriod, req.UserCount)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	resp := &tenantDTO.ComputePriceResponse{
+		Slug:           req.PlanSlug,
+		BillingPeriod:  req.BillingPeriod,
+		UserCount:      req.UserCount,
+		BaseAmountIDR:  baseAmount,
+		FinalAmountIDR: baseAmount,
+	}
+
+	if couponCode := strings.TrimSpace(req.CouponCode); couponCode != "" {
+		discounted, applyErr := h.couponUC.ApplyDiscount(ctx, couponCode, req.PlanSlug, baseAmount)
+		if applyErr == nil {
+			resp.FinalAmountIDR = discounted
+			resp.DiscountIDR = baseAmount - discounted
+			resp.CouponApplied = true
+			resp.CouponCode = couponCode
+		}
 	}
 
 	response.SuccessResponse(c, resp, nil)

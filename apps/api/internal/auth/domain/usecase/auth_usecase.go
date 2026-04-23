@@ -19,6 +19,8 @@ import (
 	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
+	planRepo "github.com/gilabs/gims/api/internal/tenant/data/repositories"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/redis/go-redis/v9"
@@ -57,6 +59,8 @@ type PendingRegistration struct {
 	BillingPeriod string `json:"billing_period"`
 	UserCount     int    `json:"user_count"`
 	InvoiceID     string `json:"invoice_id"`
+	CouponCode    string `json:"coupon_code,omitempty"`
+	AmountPaid    int64  `json:"amount_paid"`
 	CreatedAt     string `json:"created_at"`
 }
 
@@ -79,6 +83,9 @@ type AuthUsecase interface {
 	// CompletePendingRegistration is called by the Xendit webhook after successful payment.
 	// token is the UUID stored in the Xendit external_id / Redis key.
 	CompletePendingRegistration(ctx context.Context, token string) error
+	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
+	// is paid. It extends the tenant's subscription next billing date.
+	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
 }
 
 type authUsecase struct {
@@ -88,6 +95,7 @@ type authUsecase struct {
 	jwtManager       *jwtManager.JWTManager
 	eventPublisher   infraEvents.EventPublisher
 	couponUC         couponUC.CouponUsecase
+	planRepo         planRepo.SubscriptionPlanRepository
 	redis            *redis.Client
 	xendit           *xenditClient.Client
 }
@@ -100,6 +108,7 @@ func NewAuthUsecase(
 	eventPublisher infraEvents.EventPublisher,
 	couponUC couponUC.CouponUsecase,
 	redisClient *redis.Client,
+	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
 ) AuthUsecase {
 	var xc *xenditClient.Client
 	if config.AppConfig != nil {
@@ -115,6 +124,7 @@ func NewAuthUsecase(
 		jwtManager:       jwtManager,
 		eventPublisher:   eventPublisher,
 		couponUC:         couponUC,
+		planRepo:         subscriptionPlanRepo,
 		redis:            redisClient,
 		xendit:           xc,
 	}
@@ -223,20 +233,21 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:            user.ID,
-			Email:         user.Email,
-			Name:          user.Name,
-			AvatarURL:     user.AvatarURL,
-			EmployeeID:    employeeID,
-			Role:          roleCode,
-			RoleName:      roleName,
-			RoleDataScope: roleDataScope,
-			Permissions:   permissions,
-			Status:        user.Status,
-			CreatedAt:     user.CreatedAt,
-			UpdatedAt:     user.UpdatedAt,
-			TenantID:      tenantID,
-			TenantName:    tenantName,
+			ID:               user.ID,
+			Email:            user.Email,
+			Name:             user.Name,
+			AvatarURL:        user.AvatarURL,
+			EmployeeID:       employeeID,
+			Role:             roleCode,
+			RoleName:         roleName,
+			RoleDataScope:    roleDataScope,
+			Permissions:      permissions,
+			Status:           user.Status,
+			CreatedAt:        user.CreatedAt,
+			UpdatedAt:        user.UpdatedAt,
+			TenantID:         tenantID,
+			TenantName:       tenantName,
+			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
 		}
 
 		resp = &dto.LoginResponse{
@@ -409,20 +420,21 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:            user.ID,
-			Email:         user.Email,
-			Name:          user.Name,
-			AvatarURL:     user.AvatarURL,
-			EmployeeID:    employeeID,
-			Role:          roleCode,
-			RoleName:      roleName,
-			RoleDataScope: roleDataScope,
-			Permissions:   permissions,
-			Status:        user.Status,
-			CreatedAt:     user.CreatedAt,
-			UpdatedAt:     user.UpdatedAt,
-			TenantID:      tenantID,
-			TenantName:    tenantName,
+			ID:               user.ID,
+			Email:            user.Email,
+			Name:             user.Name,
+			AvatarURL:        user.AvatarURL,
+			EmployeeID:       employeeID,
+			Role:             roleCode,
+			RoleName:         roleName,
+			RoleDataScope:    roleDataScope,
+			Permissions:      permissions,
+			Status:           user.Status,
+			CreatedAt:        user.CreatedAt,
+			UpdatedAt:        user.UpdatedAt,
+			TenantID:         tenantID,
+			TenantName:       tenantName,
+			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
 		}
 
 		resp = &dto.LoginResponse{
@@ -550,7 +562,24 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	if userCount < 1 {
 		userCount = 1
 	}
-	amount := planTotalPriceIDR(req.Plan, billingPeriod, userCount)
+
+	// Resolve price from DB-driven plan config with fallback to hardcoded map.
+	baseAmount := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+
+	// Apply coupon discount when a non-trial coupon is included.
+	couponCode := strings.TrimSpace(req.Coupon)
+	finalAmount := baseAmount
+	if couponCode != "" {
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount)
+		if applyErr == nil {
+			finalAmount = discounted
+		}
+		// If trial coupon (amount=0), route to coupon path instead of paid path.
+		if finalAmount == 0 {
+			return u.handleZeroAmountCouponRegistration(ctx, req, couponCode)
+		}
+	}
+
 	frontendBaseURL := ""
 	if config.AppConfig != nil {
 		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
@@ -558,7 +587,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 
 	invoice, err := u.xendit.CreateInvoice(ctx, xenditClient.CreateInvoiceRequest{
 		ExternalID:         token,
-		Amount:             amount,
+		Amount:             finalAmount,
 		PayerEmail:         req.Email,
 		Description:        fmt.Sprintf("GIMS %s (%s) for %d user(s) — %s", req.Plan, billingPeriod, userCount, companyName),
 		SuccessRedirectURL: frontendBaseURL + "/register/success?token=" + token,
@@ -580,6 +609,8 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		BillingPeriod: billingPeriod,
 		UserCount:     userCount,
 		InvoiceID:     invoice.ID,
+		CouponCode:    couponCode,
+		AmountPaid:    finalAmount,
 		CreatedAt:     apptime.Now().Format(time.RFC3339),
 	}
 	pendingJSON, err := json.Marshal(pending)
@@ -600,8 +631,36 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	}, nil
 }
 
+// resolvePlanPrice looks up the plan price from DB first; falls back to the hardcoded map.
+func (u *authUsecase) resolvePlanPrice(ctx context.Context, planSlug, billingPeriod string, userCount int) int64 {
+	if u.planRepo != nil {
+		plan, err := u.planRepo.FindBySlug(ctx, planSlug)
+		if err == nil {
+			return plan.TotalPriceIDR(billingPeriod, userCount)
+		}
+	}
+	return planTotalPriceIDR(planSlug, billingPeriod, userCount)
+}
+
+// handleZeroAmountCouponRegistration routes a discount coupon that results in 0 IDR
+// through the coupon (trial) provisioning path instead of creating a payment invoice.
+func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, req *dto.RegisterTenantRequest, couponCode string) (*RegisterTenantResult, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := u.provisionTenantForPaidPlan(ctx, req, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+	// Redeem coupon usage after provisioning.
+	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID)
+	return &RegisterTenantResult{LoginResponse: resp}, nil
+}
+
 // CompletePendingRegistration is triggered by the Xendit webhook after a successful
-// payment. It retrieves the pending registration from Redis and provisions the tenant.
+// payment. It retrieves the pending registration from Redis, provisions the tenant,
+// and creates the paid TenantSubscription record.
 func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token string) error {
 	key := pendingRegKeyPrefix + token
 	val, err := u.redis.Get(ctx, key).Result()
@@ -622,16 +681,79 @@ func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token str
 		CompanyName:   pending.CompanyName,
 		Plan:          pending.Plan,
 		BillingPeriod: pending.BillingPeriod,
+		UserCount:     pending.UserCount,
 	}
 
-	_, err = u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
+	loginResp, err := u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
 	if err != nil {
 		return fmt.Errorf("tenant provisioning after payment failed: %w", err)
+	}
+
+	// Create the TenantSubscription record to track the paid plan and Xendit invoice.
+	tenantID := loginResp.User.TenantID
+	now := apptime.Now()
+	// Monthly billing next cycle; yearly billing is 12 months out.
+	nextBilling := now.AddDate(0, 1, 0)
+	if pending.BillingPeriod == "yearly" {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+	xenditInvoiceID := pending.InvoiceID
+	userCount := pending.UserCount
+	if userCount < 1 {
+		userCount = 1
+	}
+	sub := &tenantModels.TenantSubscription{
+		TenantID:        tenantID,
+		Plan:            tenantModels.SubscriptionPlan(pending.Plan),
+		BillingPeriod:   tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
+		Status:          tenantModels.SubscriptionActive,
+		StartsAt:        now,
+		AmountPaidIDR:   pending.AmountPaid,
+		UserCount:       userCount,
+		XenditInvoiceID: &xenditInvoiceID,
+		NextBillingAt:   &nextBilling,
+		Notes:           fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
+	}
+	if pending.CouponCode != "" {
+		sub.Notes += fmt.Sprintf(" (coupon: %s)", pending.CouponCode)
+	}
+	if err := u.db.WithContext(ctx).Create(sub).Error; err != nil {
+		// Non-fatal: tenant is provisioned; subscription record failure should not
+		// block the user. Log and continue — ops can rectify via admin panel.
+		_ = err
 	}
 
 	// Remove the pending registration key to prevent double-provisioning.
 	u.redis.Del(ctx, key)
 	return nil
+}
+
+// HandleRecurringRenewal is called by the Xendit webhook when a recurring (subscription)
+// invoice is paid. It locates the TenantSubscription by XenditInvoiceID and advances
+// the next billing date by one billing cycle.
+func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error {
+	var sub tenantModels.TenantSubscription
+	err := u.db.WithContext(ctx).
+		Where("xendit_invoice_id = ? AND deleted_at IS NULL", xenditInvoiceID).
+		First(&sub).Error
+	if err != nil {
+		// No matching subscription — this may be a new-registration invoice, not a renewal.
+		return fmt.Errorf("subscription not found for invoice %s", xenditInvoiceID)
+	}
+
+	now := apptime.Now()
+	nextBilling := now.AddDate(0, 1, 0)
+	if sub.BillingPeriod == tenantModels.BillingYearly {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+
+	return u.db.WithContext(ctx).
+		Model(&tenantModels.TenantSubscription{}).
+		Where("id = ?", sub.ID).
+		Updates(map[string]interface{}{
+			"next_billing_at": nextBilling,
+			"status":          tenantModels.SubscriptionActive,
+		}).Error
 }
 
 // planTotalPriceIDR returns the total invoice amount in IDR for the selected plan,
@@ -826,17 +948,18 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 
 		resp = &dto.LoginResponse{
 			User: &dto.UserResponse{
-				ID:            userID,
-				Email:         req.Email,
-				Name:          req.Name,
-				AvatarURL:     avatarURL,
-				Role:          roleCode,
-				RoleName:      roleName,
-				RoleDataScope: roleDataScope,
-				Permissions:   permissions,
-				Status:        "active",
-				TenantID:      tenantID,
-				TenantName:    companyName,
+				ID:               userID,
+				Email:            req.Email,
+				Name:             req.Name,
+				AvatarURL:        avatarURL,
+				Role:             roleCode,
+				RoleName:         roleName,
+				RoleDataScope:    roleDataScope,
+				Permissions:      permissions,
+				Status:           "active",
+				TenantID:         tenantID,
+				TenantName:       companyName,
+				SubscriptionPlan: activePlanForTenant(tx, tenantID),
 			},
 			Token:        accessToken,
 			RefreshToken: refreshToken,
@@ -847,6 +970,22 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 	})
 
 	return resp, err
+}
+
+// activePlanForTenant returns the plan slug of the tenant's active or trial subscription.
+// Returns an empty string when the tenant has no subscription record.
+func activePlanForTenant(db *gorm.DB, tenantID string) string {
+	if tenantID == "" {
+		return ""
+	}
+	var plan string
+	db.Table("tenant_subscriptions").
+		Select("plan").
+		Where("tenant_id = ? AND status IN ('active','trial')", tenantID).
+		Order("created_at DESC").
+		Limit(1).
+		Row().Scan(&plan)
+	return plan
 }
 
 // slugify converts a human-readable string into a URL-safe slug.

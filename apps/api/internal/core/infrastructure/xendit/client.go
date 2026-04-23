@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	defaultBaseURL = "https://api.xendit.co"
-	invoicePath    = "/v2/invoices"
+	defaultBaseURL      = "https://api.xendit.co"
+	invoicePath         = "/v2/invoices"
+	subscriptionPath    = "/recurring/plans"
+	subscriptionAPIPath = "/recurring/subscriptions"
 )
 
 // Client is a minimal Xendit API client scoped to the Invoice API.
@@ -127,6 +129,132 @@ func (c *Client) CreateInvoice(ctx context.Context, req CreateInvoiceRequest) (*
 	var result CreateInvoiceResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("xendit: parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// ─── Recurring Subscription API ─────────────────────────────────────────────
+
+// CreateRecurringPlanRequest holds the fields for creating a Xendit recurring plan.
+// Reference: https://docs.xendit.co/docs/subscriptions-overview
+type CreateRecurringPlanRequest struct {
+	ReferenceID    string                 `json:"reference_id"`    // Unique plan reference (e.g. "gims_{tenantID}_{planSlug}")
+	CustomerID     string                 `json:"customer_id"`     // Xendit customer ID
+	RecurringAction string               `json:"recurring_action"` // "PAYMENT"
+	Currency       string                 `json:"currency"`         // "IDR"
+	Amount         int64                  `json:"amount"`
+	PaymentMethods []RecurringPaymentMethod `json:"payment_methods"`
+	Schedule       RecurringSchedule      `json:"schedule"`
+	SuccessReturnURL string              `json:"success_return_url"`
+	FailureReturnURL string              `json:"failure_return_url"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// RecurringPaymentMethod specifies how the recurring charge is collected.
+type RecurringPaymentMethod struct {
+	Type string `json:"type"` // "CREDIT_CARD", "DEBIT_CARD", "EWALLET", "BANK_TRANSFER"
+}
+
+// RecurringSchedule defines the billing frequency.
+type RecurringSchedule struct {
+	ReferenceID   string `json:"reference_id"`
+	Interval      string `json:"interval"`       // "MONTH" or "YEAR"
+	IntervalCount int    `json:"interval_count"` // 1 for monthly, 12 for yearly
+	AnchorDate    string `json:"anchor_date,omitempty"` // ISO-8601 start date
+}
+
+// RecurringPlanResponse is the Xendit recurring plan object.
+type RecurringPlanResponse struct {
+	ID          string `json:"id"`
+	ReferenceID string `json:"reference_id"`
+	Status      string `json:"status"` // "ACTIVE", "INACTIVE", "STOPPED"
+	CustomerID  string `json:"customer_id"`
+	Amount      int64  `json:"amount"`
+	Currency    string `json:"currency"`
+}
+
+// CreateRecurringSubscriptionRequest activates a recurring plan for a customer.
+type CreateRecurringSubscriptionRequest struct {
+	PlanID   string `json:"plan_id"`
+	CustomerID string `json:"customer_id"`
+}
+
+// RecurringSubscriptionResponse is the Xendit subscription object.
+type RecurringSubscriptionResponse struct {
+	ID         string `json:"id"`
+	PlanID     string `json:"plan_id"`
+	Status     string `json:"status"`
+	CustomerID string `json:"customer_id"`
+}
+
+// CreateCustomerRequest creates a Xendit customer for recurring billing.
+type CreateCustomerRequest struct {
+	ReferenceID  string `json:"reference_id"`
+	GivenNames   string `json:"given_names"`
+	Email        string `json:"email"`
+	Type         string `json:"type"` // "INDIVIDUAL" or "BUSINESS"
+}
+
+// CustomerResponse is the Xendit customer object.
+type CustomerResponse struct {
+	ID          string `json:"id"`
+	ReferenceID string `json:"reference_id"`
+	GivenNames  string `json:"given_names"`
+	Email       string `json:"email"`
+}
+
+// CreateCustomer creates a Xendit customer record for recurring billing.
+func (c *Client) CreateCustomer(ctx context.Context, req CreateCustomerRequest) (*CustomerResponse, error) {
+	return doPost[CustomerResponse](ctx, c, "/customers", req)
+}
+
+// CreateRecurringPlan registers a recurring billing plan in Xendit.
+func (c *Client) CreateRecurringPlan(ctx context.Context, req CreateRecurringPlanRequest) (*RecurringPlanResponse, error) {
+	return doPost[RecurringPlanResponse](ctx, c, subscriptionPath, req)
+}
+
+// CancelRecurringPlan deactivates a recurring plan (stops future charges).
+func (c *Client) CancelRecurringPlan(ctx context.Context, planID string) (*RecurringPlanResponse, error) {
+	return doPost[RecurringPlanResponse](ctx, c, subscriptionPath+"/"+planID+"/deactivate", nil)
+}
+
+// doPost is a typed helper that marshals req, sends a POST to path, and unmarshals into T.
+func doPost[T any](ctx context.Context, c *Client, path string, req any) (*T, error) {
+	var bodyReader *bytes.Reader
+	if req != nil {
+		b, err := json.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("xendit: marshal %s: %w", path, err)
+		}
+		bodyReader = bytes.NewReader(b)
+	} else {
+		bodyReader = bytes.NewReader([]byte("{}"))
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: build request %s: %w", path, err)
+	}
+	httpReq.SetBasicAuth(c.secretKey, "")
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: http %s: %w", path, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("xendit: read response %s: %w", path, err)
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("xendit: API error %d on %s: %s", resp.StatusCode, path, string(respBody))
+	}
+
+	var result T
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("xendit: parse response %s: %w", path, err)
 	}
 	return &result, nil
 }

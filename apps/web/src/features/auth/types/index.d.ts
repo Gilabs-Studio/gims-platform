@@ -24,6 +24,7 @@ export interface User {
   permissions: Record<string, string>; // code -> scope (OWN|DIVISION|AREA|ALL)
   tenant_id?: string;
   tenant_name?: string;
+  subscription_plan?: string;
 }
 
 export interface Role {

@@ -24,8 +24,9 @@ func NewXenditHandler(authUC usecase.AuthUsecase) *XenditHandler {
 
 // xenditWebhookBody is the relevant subset of the Xendit invoice callback payload.
 type xenditWebhookBody struct {
-	ExternalID string `json:"external_id"`
-	Status     string `json:"status"` // "PAID", "EXPIRED", "SETTLED"
+	ID         string `json:"id"`          // Xendit invoice ID (used for recurring renewal lookup)
+	ExternalID string `json:"external_id"` // Set to pending-reg token for new registrations
+	Status     string `json:"status"`      // "PAID", "EXPIRED", "SETTLED"
 }
 
 // InvoicePaid is called by Xendit when a payment invoice status changes.
@@ -70,11 +71,18 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 		return
 	}
 
-	// ── 3. Complete the pending registration ──────────────────────────────────
-	if err := h.authUC.CompletePendingRegistration(c.Request.Context(), payload.ExternalID); err != nil {
-		// Log but return 200 — Xendit will retry on non-200, and double-provisioning
-		// is prevented by the email uniqueness constraint.
-		_ = err
+	// ── 3. Route by payload type ──────────────────────────────────────────────
+	// Try completing a pending registration first. If Redis has no matching token
+	// (e.g. this is a recurring renewal, not a new sign-up), fall back to the
+	// renewal path using the Xendit invoice ID from the payload body.
+	reqCtx := c.Request.Context()
+	if err := h.authUC.CompletePendingRegistration(reqCtx, payload.ExternalID); err != nil {
+		// No pending registration matched — treat as a recurring subscription renewal.
+		if payload.ID != "" {
+			if renewErr := h.authUC.HandleRecurringRenewal(reqCtx, payload.ID); renewErr != nil {
+				_ = renewErr
+			}
+		}
 	}
 
 	response.SuccessResponse(c, gin.H{"message": "ok"}, nil)

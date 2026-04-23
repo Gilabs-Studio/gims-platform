@@ -36,6 +36,12 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 
 			// Subscription management
 			protected.GET("/subscriptions", h.ListSubscriptions)
+
+			// Subscription plan config management
+			protected.GET("/plans", h.ListPlans)
+			protected.PUT("/plans", h.UpsertPlan)
+			protected.PATCH("/plans/:slug/status", h.SetPlanActive)
+			protected.PUT("/plans/:slug/entitlements", h.SyncPlanEntitlements)
 		}
 	}
 }

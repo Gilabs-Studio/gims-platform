@@ -7,29 +7,39 @@ import "time"
 // CreateCouponRequest is the system-admin payload for generating a new coupon.
 type CreateCouponRequest struct {
 	// Code must be uppercase alphanumeric, 6-32 chars. Leave empty to auto-generate.
-	Code        string `json:"code"         binding:"omitempty,min=4,max=32,alphanum"`
-	Description string `json:"description"  binding:"required,min=5,max=255"`
-	CouponType  string `json:"coupon_type"  binding:"required,oneof=full_access pos_only erp_only crm_only hr_only"`
-	// DurationDays is how many days access is granted. Minimum 1.
-	DurationDays int        `json:"duration_days" binding:"required,min=1,max=3650"`
-	MaxUses      int        `json:"max_uses"      binding:"required,min=1,max=100000"`
-	ExpiresAt    *time.Time `json:"expires_at"    binding:"omitempty"`
+	Code           string  `json:"code"              binding:"omitempty,min=4,max=32,alphanum"`
+	Description    string  `json:"description"       binding:"required,min=5,max=255"`
+	CouponType     string  `json:"coupon_type"       binding:"required,oneof=full_access pos_only erp_only crm_only hr_only"`
+	DiscountType   string  `json:"discount_type"     binding:"omitempty,oneof=trial percent amount"`
+	DiscountValue  float64 `json:"discount_value"    binding:"omitempty,min=0"`
+	Scope          string  `json:"scope"             binding:"omitempty,oneof=general tier_specific"`
+	TargetPlanSlug string  `json:"target_plan_slug"  binding:"omitempty,max=64"`
+	// DurationDays is how many days access is granted (trial type only). Minimum 1.
+	DurationDays    int        `json:"duration_days"     binding:"required,min=1,max=3650"`
+	MaxUses         int        `json:"max_uses"          binding:"required,min=1,max=100000"`
+	MaxUsesPerEmail int        `json:"max_uses_per_email" binding:"omitempty,min=1,max=100"`
+	ExpiresAt       *time.Time `json:"expires_at"         binding:"omitempty"`
 }
 
 // CouponResponse is the safe representation of a coupon returned to system admins.
 type CouponResponse struct {
-	ID           string     `json:"id"`
-	Code         string     `json:"code"`
-	Description  string     `json:"description"`
-	CouponType   string     `json:"coupon_type"`
-	DurationDays int        `json:"duration_days"`
-	MaxUses      int        `json:"max_uses"`
-	UsedCount    int        `json:"used_count"`
-	IsActive     bool       `json:"is_active"`
-	ExpiresAt    *time.Time `json:"expires_at"`
-	CreatedBy    string     `json:"created_by"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID              string     `json:"id"`
+	Code            string     `json:"code"`
+	Description     string     `json:"description"`
+	CouponType      string     `json:"coupon_type"`
+	DiscountType    string     `json:"discount_type"`
+	DiscountValue   float64    `json:"discount_value"`
+	Scope           string     `json:"scope"`
+	TargetPlanSlug  string     `json:"target_plan_slug,omitempty"`
+	DurationDays    int        `json:"duration_days"`
+	MaxUses         int        `json:"max_uses"`
+	UsedCount       int        `json:"used_count"`
+	MaxUsesPerEmail int        `json:"max_uses_per_email"`
+	IsActive        bool       `json:"is_active"`
+	ExpiresAt       *time.Time `json:"expires_at"`
+	CreatedBy       string     `json:"created_by"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // SetCouponStatusRequest toggles a coupon active/inactive.
@@ -51,13 +61,17 @@ type ValidateCouponRequest struct {
 
 // ValidateCouponResponse is returned to the registration client before they commit.
 type ValidateCouponResponse struct {
-	Valid        bool   `json:"valid"`
+	Valid        bool    `json:"valid"`
 	// Reason is a machine-readable code for why the coupon is invalid (empty when valid).
-	// Values: "not_found", "inactive", "expired", "exhausted", "already_used_by_email"
-	Reason       string `json:"reason,omitempty"`
-	Description  string `json:"description,omitempty"`
-	CouponType   string `json:"coupon_type,omitempty"`
-	DurationDays int    `json:"duration_days,omitempty"`
+	// Values: "not_found", "inactive", "expired", "exhausted", "already_used_by_email", "plan_mismatch"
+	Reason          string  `json:"reason,omitempty"`
+	Description     string  `json:"description,omitempty"`
+	CouponType      string  `json:"coupon_type,omitempty"`
+	DiscountType    string  `json:"discount_type,omitempty"`
+	DiscountValue   float64 `json:"discount_value,omitempty"`
+	Scope           string  `json:"scope,omitempty"`
+	TargetPlanSlug  string  `json:"target_plan_slug,omitempty"`
+	DurationDays    int     `json:"duration_days,omitempty"`
 }
 
 // ─── Subscription DTOs ───────────────────────────────────────────────────────
@@ -72,6 +86,9 @@ type SubscriptionResponse struct {
 	Status          string     `json:"status"`
 	StartsAt        time.Time  `json:"starts_at"`
 	ExpiresAt       *time.Time `json:"expires_at"`
+	NextBillingAt   *time.Time `json:"next_billing_at,omitempty"`
+	UserCount       int        `json:"user_count"`
+	AmountPaidIDR   int64      `json:"amount_paid_idr"`
 	CouponCode      string     `json:"coupon_code,omitempty"`
 	XenditPaymentID string     `json:"xendit_payment_id,omitempty"`
 	Notes           string     `json:"notes,omitempty"`
@@ -82,4 +99,63 @@ type SubscriptionResponse struct {
 type SubscriptionListParams struct {
 	Page    int `form:"page"`
 	PerPage int `form:"per_page"`
+}
+
+// ─── Subscription Plan Config DTOs ───────────────────────────────────────────
+
+// SubscriptionPlanResponse is the public-facing representation of a plan.
+type SubscriptionPlanResponse struct {
+	Slug            string   `json:"slug"`
+	Name            string   `json:"name"`
+	Category        string   `json:"category"`
+	Description     string   `json:"description,omitempty"`
+	BillingType     string   `json:"billing_type"`
+	PriceMonthlyIDR int64    `json:"price_monthly_idr"`
+	PriceYearlyIDR  int64    `json:"price_yearly_idr"`
+	MinUsers        int      `json:"min_users"`
+	MaxUsers        int      `json:"max_users"`
+	IsActive        bool     `json:"is_active"`
+	IsHighlighted   bool     `json:"is_highlighted"`
+	SortOrder       int      `json:"sort_order"`
+	Features        []string `json:"features"`
+	Modules         []string `json:"modules"` // enabled module slugs
+}
+
+// UpsertPlanRequest is the system-admin payload for creating or updating a plan.
+type UpsertPlanRequest struct {
+	Slug            string   `json:"slug"              binding:"required,min=2,max=64"`
+	Name            string   `json:"name"              binding:"required,min=2,max=128"`
+	Category        string   `json:"category"          binding:"required,oneof=pos erp crm hr bundle"`
+	Description     string   `json:"description"       binding:"omitempty,max=1000"`
+	BillingType     string   `json:"billing_type"      binding:"required,oneof=per_user flat"`
+	PriceMonthlyIDR int64    `json:"price_monthly_idr" binding:"required,min=0"`
+	PriceYearlyIDR  int64    `json:"price_yearly_idr"  binding:"required,min=0"`
+	MinUsers        int      `json:"min_users"         binding:"omitempty,min=1"`
+	MaxUsers        int      `json:"max_users"         binding:"omitempty,min=1"`
+	IsHighlighted   bool     `json:"is_highlighted"`
+	SortOrder       int      `json:"sort_order"`
+	Features        []string `json:"features"          binding:"omitempty"`
+	Modules         []string `json:"modules"           binding:"omitempty"` // module slugs to entitle
+}
+
+// ComputePriceRequest is the payload for the public price-computation endpoint.
+type ComputePriceRequest struct {
+	Slug          string `json:"slug"           binding:"required"`
+	BillingPeriod string `json:"billing_period" binding:"required,oneof=monthly yearly"`
+	UserCount     int    `json:"user_count"     binding:"omitempty,min=1,max=500"`
+	CouponCode    string `json:"coupon_code"    binding:"omitempty,max=64"`
+}
+
+// ComputePriceResponse is the server-computed price breakdown.
+type ComputePriceResponse struct {
+	Slug           string  `json:"slug"`
+	BillingPeriod  string  `json:"billing_period"`
+	UserCount      int     `json:"user_count"`
+	BaseAmountIDR  int64   `json:"base_amount_idr"`
+	DiscountIDR    int64   `json:"discount_idr"`
+	FinalAmountIDR int64   `json:"final_amount_idr"`
+	CouponApplied  bool    `json:"coupon_applied"`
+	CouponCode     string  `json:"coupon_code,omitempty"`
+	DiscountType   string  `json:"discount_type,omitempty"`
+	DiscountValue  float64 `json:"discount_value,omitempty"`
 }

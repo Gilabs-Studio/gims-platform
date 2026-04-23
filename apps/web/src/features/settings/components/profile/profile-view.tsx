@@ -11,6 +11,7 @@ import { PasswordForm } from "./password-form";
 import { AvatarUpload } from "./avatar-upload";
 import { PreferencesForm } from "./preferences-form";
 import { PaymentSettings } from "./payment-settings";
+import { BillingTab } from "./billing-tab";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 
@@ -143,6 +144,9 @@ export function ProfileView() {
   const t = useTranslations("profile");
   const [activeTab, setActiveTab] = useState("overview");
   const canManagePayment = useHasPermission("pos.payment.manage");
+  const user = useAuthStore((state) => state.user);
+  // Billing tab is visible to tenant owners and system administrators.
+  const canManageBilling = user?.role?.code === "owner" || user?.role?.code === "admin";
 
   return (
     <div className="space-y-6 max-w-[1400px] w-full mx-auto">
@@ -179,6 +183,14 @@ export function ProfileView() {
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
               >
                 Payment
+              </TabsTrigger>
+            )}
+            {canManageBilling && (
+              <TabsTrigger
+                value="billing"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+              >
+                Billing
               </TabsTrigger>
             )}
           </TabsList>
@@ -219,6 +231,14 @@ export function ProfileView() {
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
                   >
                     Payment
+                  </TabsTrigger>
+                )}
+                {canManageBilling && (
+                  <TabsTrigger
+                    value="billing"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                  >
+                    Billing
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -281,6 +301,11 @@ export function ProfileView() {
             {canManagePayment && (
               <TabsContent value="payment" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
                 <PaymentSettings />
+              </TabsContent>
+            )}
+            {canManageBilling && (
+              <TabsContent value="billing" className="mt-0 animate-in fade-in-50 duration-500">
+                <BillingTab />
               </TabsContent>
             )}
           </div>

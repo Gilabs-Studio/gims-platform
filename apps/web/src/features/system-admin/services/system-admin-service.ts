@@ -14,6 +14,9 @@ import type {
   SubscriptionListResponse,
   SubscriptionDetailResponse,
   SubscriptionListParams,
+  PlanListResponse,
+  PlanDetailResponse,
+  UpsertPlanRequest,
 } from "../types";
 
 const API_BASE_URL =
@@ -95,6 +98,32 @@ export const systemAdminService = {
     const { data } = await sysAdminClient.get<SubscriptionDetailResponse>(
       `/tenants/${tenantId}/subscription`,
     );
+    return data;
+  },
+
+  // ── Subscription plan management ──────────────────────────────────────────
+
+  async listPlans(params?: { page?: number; per_page?: number }): Promise<PlanListResponse> {
+    const { data } = await sysAdminClient.get<PlanListResponse>("/plans", { params });
+    return data;
+  },
+
+  async upsertPlan(payload: UpsertPlanRequest): Promise<PlanDetailResponse> {
+    const { data } = await sysAdminClient.put<PlanDetailResponse>("/plans", payload);
+    return data;
+  },
+
+  async setPlanActive(slug: string, isActive: boolean): Promise<PlanDetailResponse> {
+    const { data } = await sysAdminClient.patch<PlanDetailResponse>(`/plans/${slug}/status`, {
+      is_active: isActive,
+    });
+    return data;
+  },
+
+  async syncPlanEntitlements(slug: string, moduleSlugs: string[]): Promise<PlanDetailResponse> {
+    const { data } = await sysAdminClient.put<PlanDetailResponse>(`/plans/${slug}/entitlements`, {
+      module_slugs: moduleSlugs,
+    });
     return data;
   },
 };

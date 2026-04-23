@@ -18,6 +18,7 @@ type SystemAdminHandler struct {
 	tenantUC   usecase.TenantUsecase
 	couponUC   usecase.CouponUsecase
 	subUC      usecase.SubscriptionUsecase
+	planUC     usecase.SubscriptionPlanUsecase
 }
 
 // NewSystemAdminHandler creates a new SystemAdminHandler.
@@ -26,12 +27,14 @@ func NewSystemAdminHandler(
 	tenantUC usecase.TenantUsecase,
 	couponUC usecase.CouponUsecase,
 	subUC usecase.SubscriptionUsecase,
+	planUC usecase.SubscriptionPlanUsecase,
 ) *SystemAdminHandler {
 	return &SystemAdminHandler{
 		sysAdminUC: sysAdminUC,
 		tenantUC:   tenantUC,
 		couponUC:   couponUC,
 		subUC:      subUC,
+		planUC:     planUC,
 	}
 }
 
@@ -276,4 +279,76 @@ func (h *SystemAdminHandler) GetTenantSubscription(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, sub, nil)
+}
+
+// ─── Subscription Plan endpoints ─────────────────────────────────────────────
+
+// ListPlans returns all subscription plan configs (system admin only).
+func (h *SystemAdminHandler) ListPlans(c *gin.Context) {
+	page := 1
+	perPage := 100
+	plans, _, err := h.planUC.ListAll(c.Request.Context(), page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, plans, nil)
+}
+
+// UpsertPlan creates or updates a subscription plan config (system admin only).
+func (h *SystemAdminHandler) UpsertPlan(c *gin.Context) {
+	var req dto.UpsertPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	plan, err := h.planUC.Upsert(c.Request.Context(), &req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, plan, nil)
+}
+
+// SetPlanActive toggles a plan's active state (system admin only).
+func (h *SystemAdminHandler) SetPlanActive(c *gin.Context) {
+	slug := c.Param("slug")
+	type reqBody struct {
+		IsActive bool `json:"is_active"`
+	}
+	var body reqBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.planUC.SetActive(c.Request.Context(), slug, body.IsActive); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, gin.H{"slug": slug, "is_active": body.IsActive}, nil)
+}
+
+// SyncPlanEntitlements replaces the module entitlements for a plan (system admin only).
+func (h *SystemAdminHandler) SyncPlanEntitlements(c *gin.Context) {
+	slug := c.Param("slug")
+	type reqBody struct {
+		ModuleSlugs []string `json:"module_slugs" binding:"required"`
+	}
+	var body reqBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.planUC.SyncEntitlements(c.Request.Context(), slug, body.ModuleSlugs); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, gin.H{"slug": slug, "module_slugs": body.ModuleSlugs}, nil)
 }

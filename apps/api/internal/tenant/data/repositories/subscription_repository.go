@@ -13,9 +13,14 @@ import (
 type SubscriptionRepository interface {
 	Create(ctx context.Context, sub *models.TenantSubscription) error
 	FindActiveByTenantID(ctx context.Context, tenantID string) (*models.TenantSubscription, error)
+	// FindByXenditInvoiceID retrieves a subscription by the stored Xendit invoice ID.
+	FindByXenditInvoiceID(ctx context.Context, invoiceID string) (*models.TenantSubscription, error)
 	ListByTenantID(ctx context.Context, tenantID string) ([]*models.TenantSubscription, error)
 	ListAll(ctx context.Context, page, perPage int) ([]*models.TenantSubscription, int64, error)
 	ExpireOldSubscriptions(ctx context.Context) error
+	// ExtendSubscription pushes the next billing date and records the new invoice ID
+	// after a successful recurring payment.
+	ExtendSubscription(ctx context.Context, id uint, nextBillingAt time.Time, newInvoiceID string) error
 }
 
 type subscriptionRepository struct {
@@ -81,4 +86,28 @@ func (r *subscriptionRepository) ExpireOldSubscriptions(ctx context.Context) err
 		Model(&models.TenantSubscription{}).
 		Where("status = ? AND expires_at IS NOT NULL AND expires_at < ?", models.SubscriptionActive, time.Now()).
 		Update("status", models.SubscriptionExpired).Error
+}
+
+func (r *subscriptionRepository) FindByXenditInvoiceID(ctx context.Context, invoiceID string) (*models.TenantSubscription, error) {
+	var sub models.TenantSubscription
+	err := r.db.WithContext(ctx).
+		Where("xendit_invoice_id = ? AND deleted_at IS NULL", invoiceID).
+		First(&sub).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}
+
+// ExtendSubscription records the result of a successful recurring payment by advancing
+// the next billing date and storing the new Xendit invoice ID for the next cycle.
+func (r *subscriptionRepository) ExtendSubscription(ctx context.Context, id uint, nextBillingAt time.Time, newInvoiceID string) error {
+	return r.db.WithContext(ctx).
+		Model(&models.TenantSubscription{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"next_billing_at":   nextBillingAt,
+			"xendit_invoice_id": newInvoiceID,
+			"status":            models.SubscriptionActive,
+		}).Error
 }

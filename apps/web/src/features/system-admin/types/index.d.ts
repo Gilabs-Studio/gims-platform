@@ -190,3 +190,52 @@ export interface SubscriptionDetailResponse {
   success: boolean;
   data: Subscription;
 }
+
+// ── Subscription Plans ─────────────────────────────────────────────────────
+
+export type PlanCategory = "pos" | "erp" | "crm" | "hr" | "bundle";
+export type PlanBillingType = "per_user" | "flat";
+
+export interface SubscriptionPlanConfig {
+  slug: string;
+  name: string;
+  category: PlanCategory;
+  description?: string;
+  billing_type: PlanBillingType;
+  price_monthly_idr: number;
+  price_yearly_idr: number;
+  min_users: number;
+  max_users: number;
+  is_active: boolean;
+  is_highlighted: boolean;
+  sort_order: number;
+  features: string[];
+  modules: string[];
+}
+
+export interface UpsertPlanRequest {
+  slug: string;
+  name: string;
+  category: PlanCategory;
+  description?: string;
+  billing_type: PlanBillingType;
+  price_monthly_idr: number;
+  price_yearly_idr: number;
+  min_users?: number;
+  max_users?: number;
+  is_highlighted?: boolean;
+  sort_order?: number;
+  features?: string[];
+  modules?: string[];
+}
+
+export interface PlanListResponse {
+  success: boolean;
+  data: SubscriptionPlanConfig[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface PlanDetailResponse {
+  success: boolean;
+  data: SubscriptionPlanConfig;
+}
