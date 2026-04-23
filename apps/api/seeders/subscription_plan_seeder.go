@@ -153,12 +153,12 @@ func SeedSubscriptionPlans() error {
 
 	// Seed module entitlements per plan.
 	entitlements := map[string][]string{
-		"pos_growth":     {"pos"},
-		"erp_pro":        {"purchase", "inventory", "finance", "sales"},
-		"crm_growth":     {"crm"},
-		"hr_growth":      {"hr"},
-		"growth_suite":   {"pos", "purchase", "inventory", "finance", "sales", "crm"},
-		"ultimate_suite": {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr"},
+		"pos_growth":     {"pos", "core", "inventory", "finance", "sales"}, // POS requires stock, finance (cash), sales (receipt)
+		"erp_pro":        {"purchase", "inventory", "finance", "sales", "core"},
+		"crm_growth":     {"crm", "core"},
+		"hr_growth":      {"hr", "core"},
+		"growth_suite":   {"pos", "purchase", "inventory", "finance", "sales", "crm", "core"},
+		"ultimate_suite": {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr", "core"},
 	}
 
 	for slug, modules := range entitlements {

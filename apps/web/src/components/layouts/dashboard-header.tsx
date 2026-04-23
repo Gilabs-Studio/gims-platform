@@ -71,7 +71,7 @@ export const DashboardHeader = memo(function DashboardHeader({
           size="icon"
           className="h-9 w-9 md:hidden"
           onClick={onMobileMenuClick}
-          aria-label="Open menu"
+          aria-label={t("openMenu")}
         >
           <MenuIcon className="h-5 w-5" />
         </Button>
@@ -108,7 +108,7 @@ export const DashboardHeader = memo(function DashboardHeader({
             onClick={onSearchClick}
           >
             <Search className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Open search</span>
+            <span className="sr-only">{t("openSearch")}</span>
           </Button>
         </div>
       </div>
@@ -208,7 +208,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                 onClick={() => setUserPopoverOpen(false)}
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                {t("settings")}
               </Link>
               <button
                 type="button"
@@ -218,7 +218,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                 }}
                 className="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
-                Logout
+                {t("logout")}
               </button>
             </div>
           </PopoverContent>

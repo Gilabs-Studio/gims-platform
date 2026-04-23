@@ -1,13 +1,15 @@
 package handler
 
 import (
+	"errors"
 	"io"
+	"log"
 	"net/http"
 
 	"encoding/json"
 
 	"github.com/gilabs/gims/api/internal/auth/domain/usecase"
-	"github.com/gilabs/gims/api/internal/core/errors"
+	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gin-gonic/gin"
@@ -37,7 +39,7 @@ type xenditWebhookBody struct {
 func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	// ── 1. Verify Xendit callback token ──────────────────────────────────────
 	if config.AppConfig == nil || config.AppConfig.Xendit.WebhookToken == "" {
-		errors.InternalServerErrorResponse(c, "webhook not configured")
+		coreErrors.InternalServerErrorResponse(c, "webhook not configured")
 		return
 	}
 
@@ -50,13 +52,13 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	// ── 2. Parse body ─────────────────────────────────────────────────────────
 	bodyBytes, err := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20))
 	if err != nil {
-		errors.InternalServerErrorResponse(c, "cannot read request body")
+		coreErrors.InternalServerErrorResponse(c, "cannot read request body")
 		return
 	}
 
 	var payload xenditWebhookBody
 	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
-		errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
+		coreErrors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
 		return
 	}
 
@@ -67,7 +69,7 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	}
 
 	if payload.ExternalID == "" {
-		errors.ErrorResponse(c, "MISSING_EXTERNAL_ID", nil, nil)
+		coreErrors.ErrorResponse(c, "MISSING_EXTERNAL_ID", nil, nil)
 		return
 	}
 
@@ -77,12 +79,26 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	// renewal path using the Xendit invoice ID from the payload body.
 	reqCtx := c.Request.Context()
 	if err := h.authUC.CompletePendingRegistration(reqCtx, payload.ExternalID); err != nil {
+		if errors.Is(err, usecase.ErrPendingRegistrationDataInvalid) {
+			log.Printf("[xendit] invalid pending registration payload for external_id=%s: %v", payload.ExternalID, err)
+			response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
+			return
+		}
+
 		// No pending registration matched — treat as a recurring subscription renewal.
 		if payload.ID != "" {
 			if renewErr := h.authUC.HandleRecurringRenewal(reqCtx, payload.ID); renewErr != nil {
-				_ = renewErr
+				log.Printf("[xendit] failed recurring renewal invoice_id=%s external_id=%s: %v", payload.ID, payload.ExternalID, renewErr)
+				response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
+				return
 			}
+			response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
+			return
 		}
+
+		log.Printf("[xendit] failed pending registration external_id=%s: %v", payload.ExternalID, err)
+		response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
+		return
 	}
 
 	response.SuccessResponse(c, gin.H{"message": "ok"}, nil)

@@ -145,8 +145,13 @@ export function ProfileView() {
   const [activeTab, setActiveTab] = useState("overview");
   const canManagePayment = useHasPermission("pos.payment.manage");
   const user = useAuthStore((state) => state.user);
-  // Billing tab is visible to tenant owners and system administrators.
-  const canManageBilling = user?.role?.code === "owner" || user?.role?.code === "admin";
+  // Billing & Payment tabs visible only to the unique tenant owner role.
+  // The server sets is_owner=true exclusively for the protected owner role created
+  // at tenant registration — no fragile code string-matching needed.
+  const canManageBilling = user?.role?.is_owner === true;
+
+  // Payment tab: visible to owner (billing) or anyone with pos.payment.manage permission
+  const canManagePaymentTab = canManageBilling || canManagePayment;
 
   return (
     <div className="space-y-6 max-w-[1400px] w-full mx-auto">
@@ -177,7 +182,7 @@ export function ProfileView() {
             >
               {t("security")}
             </TabsTrigger>
-            {canManagePayment && (
+            {canManagePaymentTab && (
               <TabsTrigger
                 value="payment"
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
@@ -225,7 +230,7 @@ export function ProfileView() {
                 >
                   {t("security")}
                 </TabsTrigger>
-                {canManagePayment && (
+                {canManagePaymentTab && (
                   <TabsTrigger
                     value="payment"
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
@@ -298,7 +303,7 @@ export function ProfileView() {
               </div>
             </TabsContent>
 
-            {canManagePayment && (
+            {canManagePaymentTab && (
               <TabsContent value="payment" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
                 <PaymentSettings />
               </TabsContent>

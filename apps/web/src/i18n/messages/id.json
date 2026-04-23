@@ -52,6 +52,10 @@
     "purchaseOrder": "Pesanan Pembelian",
     "goodsReceipt": "Penerimaan Barang",
     "createdBy": "Dibuat oleh",
+    "openMenu": "Buka menu",
+    "openSearch": "Buka pencarian",
+    "settings": "Pengaturan",
+    "logout": "Keluar",
     "days": "hari",
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
@@ -169,10 +173,21 @@
       "rememberMe": "Ingat saya",
       "submit": "Masuk",
       "submitting": "Masuk...",
+      "paymentSuccessToast": "Pembayaran terkonfirmasi. Silakan masuk untuk melanjutkan.",
       "verifyingSession": "Memverifikasi sesi...",
       "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}.",
       "noAccount": "Belum punya akun?",
       "createAccount": "Buat Akun"
+    },
+    "registerSuccess": {
+      "confirmingTitle": "Menyelesaikan pendaftaran Anda...",
+      "confirmingDescription": "Pembayaran Anda sudah diterima. Kami sedang menyiapkan akun Anda.",
+      "successTitle": "Pembayaran terkonfirmasi!",
+      "successDescription": "Akun Anda siap. Mengarahkan ke halaman login...",
+      "failedTitle": "Registrasi belum dapat diverifikasi",
+      "failedDescription": "Kami belum dapat memverifikasi registrasi Anda secara otomatis. Silakan hubungi support dengan referensi di bawah ini.",
+      "referenceLabel": "Referensi",
+      "backToRegister": "Kembali ke Pendaftaran"
     },
     "block": {
       "title": "Akses Diblokir",

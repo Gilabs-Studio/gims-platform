@@ -99,6 +99,9 @@ type ServerUser = {
   email: string;
   avatar_url: string;
   employee_id?: string;
+  tenant_id?: string;
+  tenant_name?: string;
+  subscription_plan?: string;
   role?: ServerRole;
   permissions?: Record<string, string>;
 } | null | undefined;
@@ -122,6 +125,9 @@ function normalizeUserResponse(rawUser: ServerUser): User | null {
       data_scope: dataScope,
     },
     permissions: rawUser.permissions ?? {},
+    tenant_id: rawUser.tenant_id ?? undefined,
+    tenant_name: rawUser.tenant_name ?? undefined,
+    subscription_plan: rawUser.subscription_plan ?? undefined,
   };
 }
 

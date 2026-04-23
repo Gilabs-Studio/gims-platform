@@ -7,9 +7,10 @@ import Image from "next/image";
 
 interface AuthLayoutProps {
   readonly children: ReactNode;
+  readonly compact?: boolean;
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
+export function AuthLayout({ children, compact = false }: AuthLayoutProps) {
   const { resolvedTheme } = useTheme();
 
   const bgImageSrc = useMemo(() => {
@@ -18,6 +19,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     }
     return "/login.png";
   }, [resolvedTheme]);
+
+  if (compact) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-md space-y-6">{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">

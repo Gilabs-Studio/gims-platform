@@ -21,6 +21,7 @@ func SeedRoles() error {
 			Description: "Administrator with full access",
 			Status:      "active",
 			DataScope:   models.DataScopeAll,
+			IsProtected: true,
 		},
 		{
 			ID:          ManagerRoleID,

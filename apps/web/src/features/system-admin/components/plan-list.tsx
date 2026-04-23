@@ -51,7 +51,7 @@ const CATEGORY_LABELS: Record<PlanCategory, string> = {
   bundle: "Bundle",
 };
 
-const AVAILABLE_MODULES = ["pos", "erp", "crm", "hrd"] as const;
+const AVAILABLE_MODULES = ["pos", "sales", "purchase", "inventory", "finance", "crm", "hr"] as const;
 
 function formatIDR(amount: number): string {
   return new Intl.NumberFormat("id-ID", {

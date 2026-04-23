@@ -246,6 +246,12 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}, nil)
 				return
 			}
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+					"reason": "One or more selected permissions are not included in the tenant's active subscription plan",
+				}, nil)
+				return
+			}
 			if err == repositories.ErrInvalidPermissionIDs {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
@@ -262,6 +268,12 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
 					"resource": "role",
 					"role_id":  id,
+				}, nil)
+				return
+			}
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+					"reason": "One or more selected permissions are not included in the tenant's active subscription plan",
 				}, nil)
 				return
 			}

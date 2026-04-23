@@ -16,6 +16,9 @@ func RegisterAuthRoutes(rg *gin.RouterGroup, h *handler.AuthHandler, jwtManager 
 		g.GET("/csrf", middleware.RateLimitMiddleware("public"), h.GetCSRFToken)
 		// Self-service tenant registration — requires a valid coupon or a selected subscription plan.
 		g.POST("/register", middleware.RateLimitMiddleware("login"), h.RegisterTenant)
+		// Payment confirmation endpoint used by frontend success page to finalize
+		// tenant provisioning and start a browser session immediately.
+		g.POST("/register/confirm", middleware.RateLimitMiddleware("public"), h.ConfirmPendingRegistration)
 		// Public coupon validation — accepts optional ?email= to check the one-time-per-email rule.
 		g.GET("/coupons/validate", middleware.RateLimitMiddleware("public"), h.ValidateCoupon)
 		// Public plan catalogue and price computation (used by registration form).

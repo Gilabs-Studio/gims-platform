@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, memo, startTransition } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer } from "@/components/ui/drawer";
@@ -11,7 +12,7 @@ import { useRole, useAssignPermissionsToRole } from "../hooks/use-roles";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Search, X, Info } from "lucide-react";
+import { ChevronRight, Search, X, Info, Lock, Zap } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
@@ -19,6 +20,7 @@ import { isValidRoute } from "@/lib/route-validator";
 import { ButtonLoading } from "@/components/loading";
 import type { Permission, PermissionScope } from "../types";
 import { Input } from "@/components/ui/input";
+import { billingService } from "@/features/settings/services/billing-service";
 import {
   Select,
   SelectContent,
@@ -62,6 +64,52 @@ const ACTION_ORDER: Record<string, number> = {
   delete: 5, approve: 6, reject: 7, assign_permissions: 8,
   export: 9, import: 10,
 };
+
+/**
+ * Maps normalized section names (lowercase) to the module slug returned by
+ * /billing/entitlements. Used to determine whether a permission section is
+ * available on the tenant's current plan.
+ */
+const SECTION_TO_MODULE: Record<string, string> = {
+  pos: "pos",
+  "point of sale": "pos",
+  hrd: "hr",
+  hr: "hr",
+  hrm: "hr",
+  "human resources": "hr",
+  crm: "crm",
+  finance: "finance",
+  sales: "sales",
+  purchase: "purchase",
+  inventory: "inventory",
+  "master data": "core",
+};
+
+function normalizePath(path?: string): string {
+  if (!path) return "";
+  const trimmed = path.trim().toLowerCase();
+  if (trimmed === "") return "";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function detectNodeModule(node: PermissionTreeNode): string | undefined {
+  const url = normalizePath(node.url);
+  if (!url) {
+    return SECTION_TO_MODULE[node.name.toLowerCase()];
+  }
+
+  if (url.startsWith("/hrd")) return "hr";
+  if (url.startsWith("/stock")) return "inventory";
+  if (url.startsWith("/pos")) return "pos";
+  if (url.startsWith("/crm")) return "crm";
+  if (url.startsWith("/finance")) return "finance";
+  if (url.startsWith("/sales")) return "sales";
+  if (url.startsWith("/purchase")) return "purchase";
+  if (url.startsWith("/master-data")) return "core";
+
+  return SECTION_TO_MODULE[node.name.toLowerCase()];
+}
+
 
 function actionSortKey(perm: Permission): number {
   const [, action] = perm.code.split(".");
@@ -537,6 +585,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
   onUpdateScope,
   t,
   searchActive,
+  isLocked,
 }: {
   node: PermissionTreeNode;
   depth: number;
@@ -549,6 +598,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
   onUpdateScope: (id: string, scope: PermissionScope) => void;
   t: ReturnType<typeof useTranslations>;
   searchActive: boolean;
+  isLocked?: boolean;
 }) {
   const isExpanded = searchActive || expanded.has(node.id);
   const count = counts.get(node.id) ?? { total: 0, selected: 0 };
@@ -570,7 +620,24 @@ const TreeBranchNode = memo(function TreeBranchNode({
   const paddingLeft = 8 + depth * 24;
 
   return (
-    <div>
+    <div className={cn("relative", isLocked && "overflow-hidden")}>
+      {/* Locked module overlay — blurs content and shows upgrade CTA */}
+      {isLocked && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-[3px] bg-background/60 rounded-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            {t("moduleLocked")}
+          </div>
+          <a
+            href="/profile?tab=billing"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
+            <Zap className="h-4 w-4" />
+            {t("upgradePlan")}
+          </a>
+        </div>
+      )}
+
       {/* Header row */}
       <div
         className={cn(
@@ -578,11 +645,12 @@ const TreeBranchNode = memo(function TreeBranchNode({
           isSection
             ? "bg-muted/50 hover:bg-muted/70 py-2.5"
             : "bg-muted/20 hover:bg-muted/40 py-2",
+          isLocked && "pointer-events-none",
         )}
         style={{ paddingLeft }}
         onClick={handleToggleExpand}
         role="button"
-        tabIndex={0}
+        tabIndex={isLocked ? -1 : 0}
         aria-expanded={isExpanded}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -695,11 +763,31 @@ function PermissionsSelector({
   // Provide a stable, typed translator function for buildPermissionTree
   const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
 
+  // Fetch tenant entitlements to determine which module sections are locked.
+  const { data: entitledModules = [] } = useQuery({
+    queryKey: ["my-entitlements"],
+    queryFn: () => billingService.getMyEntitlements(),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const { data: currentSubscription } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: () => billingService.getMySubscription(),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const planSlug = currentSubscription?.plan;
+
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
     () => buildPermissionTree(navigationConfig, permissions, tNavFn),
     [permissions, tNavFn],
   );
+
+  // No hardcoded tree alteration needed, relies on API returned module entitlements
+  const planScopedTree = tree;
 
   // Valid permission ID set for filtering stale IDs from the role
   const validPermIds = useMemo(() => new Set(permissions.map((p) => p.id)), [permissions]);
@@ -729,9 +817,9 @@ function PermissionsSelector({
 
   // Filtered tree for search
   const displayTree = useMemo(() => {
-    if (!searchActive) return tree;
-    return filterTree(tree, searchQuery.trim());
-  }, [tree, searchQuery, searchActive]);
+    if (!searchActive) return planScopedTree;
+    return filterTree(planScopedTree, searchQuery.trim());
+  }, [planScopedTree, searchQuery, searchActive]);
 
   // Counts map
   const countsMap = useMemo(
@@ -853,7 +941,7 @@ function PermissionsSelector({
     }
     walk(tree);
     setExpanded(allIds);
-  }, [tree]);
+  }, [planScopedTree]);
 
   const handleCollapseAll = useCallback(() => {
     setExpanded(new Set());
@@ -889,7 +977,7 @@ function PermissionsSelector({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search permissions..."
+            placeholder={t("searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-9 h-9 text-sm"
@@ -899,7 +987,7 @@ function PermissionsSelector({
               type="button"
               onClick={() => setSearchQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-sm transition-colors cursor-pointer"
-              aria-label="Clear search"
+              aria-label={t("clearSearch")}
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -908,7 +996,7 @@ function PermissionsSelector({
 
         {/* Counts */}
         <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-          {totalCounts.selected}/{totalCounts.total} selected
+          {t("selectedCount", { selected: totalCounts.selected, total: totalCounts.total })}
         </span>
 
         {/* Actions */}
@@ -919,7 +1007,7 @@ function PermissionsSelector({
             onClick={handleUnselectAllVisible}
             className="text-xs h-7 cursor-pointer"
           >
-            Unselect all
+            {t("unselectAll")}
           </Button>
           <Button
             variant="ghost"
@@ -927,7 +1015,7 @@ function PermissionsSelector({
             onClick={handleSelectAllVisible}
             className="text-xs h-7 cursor-pointer"
           >
-            Select all
+            {t("selectAll")}
           </Button>
           <span className="w-px h-4 bg-border mx-1" />
           <Button
@@ -936,7 +1024,7 @@ function PermissionsSelector({
             onClick={handleExpandAll}
             className="text-xs h-7 cursor-pointer"
           >
-            Expand
+            {t("expand")}
           </Button>
           <Button
             variant="ghost"
@@ -944,7 +1032,7 @@ function PermissionsSelector({
             onClick={handleCollapseAll}
             className="text-xs h-7 cursor-pointer"
           >
-            Collapse
+            {t("collapse")}
           </Button>
         </div>
       </div>
@@ -954,8 +1042,8 @@ function PermissionsSelector({
         {displayTree.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             {searchActive
-              ? "No permissions matching your search"
-              : "No permissions available"}
+              ? t("noSearchResults")
+              : t("noPermissions")}
           </div>
         ) : (
           displayTree.map((node) =>
@@ -984,6 +1072,16 @@ function PermissionsSelector({
                 onUpdateScope={handleUpdateScope}
                 t={t}
                 searchActive={searchActive}
+                isLocked={
+                  entitledModules.length > 0 &&
+                  node.type === "section" &&
+                  (() => {
+                    const moduleSlug = detectNodeModule(node);
+                    // A section is locked when the tenant has at least one module entitled
+                    // (meaning entitlements are active) but this specific module is missing.
+                    return moduleSlug !== undefined && !entitledModules.includes(moduleSlug);
+                  })()
+                }
               />
             ),
           )

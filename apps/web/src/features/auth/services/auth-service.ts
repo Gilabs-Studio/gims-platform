@@ -210,6 +210,22 @@ export const authService = {
   },
 
   /**
+   * Confirms a paid registration token after payment redirect.
+   * Backend finalizes tenant provisioning (if pending) and sets auth cookies.
+   */
+  async confirmPaidRegistration(
+    token: string,
+    csrfToken?: string | null,
+  ): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>(
+      "/auth/register/confirm",
+      { token },
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+    );
+    return response.data;
+  },
+
+  /**
    * Validates a coupon code without consuming it.
    * Used by the registration form to preview coupon details before submission.
    */

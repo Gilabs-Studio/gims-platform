@@ -19,6 +19,7 @@ type Role struct {
 	DataScope       string                        `gorm:"type:varchar(20);not null;default:'ALL'" json:"data_scope"` // Data isolation level: ALL, DIVISION, AREA, OUTLET, OWN
 	Permissions     []permissionModels.Permission `gorm:"many2many:role_permissions;" json:"permissions,omitempty"`
 	RolePermissions []RolePermission              `gorm:"foreignKey:RoleID" json:"role_permissions,omitempty"` // Explicit junction with scope
+	TenantID        *string                       `gorm:"type:uuid;index" json:"tenant_id,omitempty"`
 	CreatedAt       time.Time                     `json:"created_at"`
 	UpdatedAt       time.Time                     `gorm:"index" json:"updated_at"`
 	DeletedAt       gorm.DeletedAt                `gorm:"index" json:"-"`

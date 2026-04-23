@@ -42,6 +42,12 @@ type RegisterInitResponse struct {
 	ExpiresAt   string `json:"expires_at"`
 }
 
+// ConfirmPendingRegistrationRequest confirms a paid registration token and
+// provisions tenant/user when needed, then returns an authenticated session.
+type ConfirmPendingRegistrationRequest struct {
+	Token string `json:"token" binding:"required,uuid"`
+}
+
 // LoginResponse represents login response DTO
 type LoginResponse struct {
 	User         *UserResponse `json:"user"`
@@ -60,6 +66,10 @@ type UserResponse struct {
 	Role             string            `json:"role"`
 	RoleName         string            `json:"role_name"`
 	RoleDataScope    string            `json:"role_data_scope"`
+	// IsOwner is true when the logged-in user holds the protected tenant-owner role.
+	// Consumers should use this flag to gate owner-only UI (Billing, Payment) instead of
+	// pattern-matching on the role code string.
+	IsOwner          bool              `json:"is_owner"`
 	Permissions      map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
 	Status           string            `json:"status"`
 	CreatedAt        time.Time         `json:"created_at"`

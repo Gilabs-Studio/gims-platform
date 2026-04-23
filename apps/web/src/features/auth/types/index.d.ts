@@ -31,6 +31,9 @@ export interface Role {
   code: string;
   name: string;
   data_scope: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+  /** True when this is the unique, protected tenant-owner role created at registration.
+   *  Use this flag to gate owner-only UI (Billing, Payment) instead of string-matching on code. */
+  is_owner?: boolean;
 }
 
 export interface Menu {

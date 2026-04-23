@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
@@ -418,6 +419,7 @@ function PlanUpgradeTable({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function BillingTab() {
+  const t = useTranslations("profile");
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
   const [userCount, setUserCount] = useState(1);
   const [selectedBundle, setSelectedBundle] = useState("ultimate_suite");
@@ -454,6 +456,11 @@ export function BillingTab() {
     return enterpriseCta ? [...bundlePlans, enterpriseCta] : bundlePlans;
   }, [apiPlans]);
 
+  const modularPlans = useMemo(
+    () => (apiPlans ?? []).filter((p) => p.category !== "bundle"),
+    [apiPlans],
+  );
+
   // Resolve human-readable plan name from API plans (fallback to formatted slug)
   const currentPlanName = useMemo(() => {
     if (!subscription?.plan) return null;
@@ -465,12 +472,13 @@ export function BillingTab() {
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
   const isOnMaxPlan = subscription?.plan === "ultimate_suite" || subscription?.plan === "full_access";
 
-  const handleUpgrade = async () => {
-    if (!selectedBundle || selectedBundle === "enterprise") return;
+  const handleUpgrade = async (targetPlanSlug?: string) => {
+    const planSlug = targetPlanSlug ?? selectedBundle;
+    if (!planSlug || planSlug === "enterprise") return;
     setIsUpgrading(true);
     try {
       const result = await authService.computePrice({
-        plan_slug: selectedBundle,
+        plan_slug: planSlug,
         billing_period: billing,
         user_count: userCount,
       });
@@ -484,9 +492,9 @@ export function BillingTab() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-semibold">Billing &amp; Plan</h3>
+        <h3 className="text-lg font-semibold">{t("billing.title")}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your subscription plan and billing details.
+          {t("billing.description")}
         </p>
       </div>
 
@@ -501,7 +509,42 @@ export function BillingTab() {
         <CurrentPlanCard sub={subscription} planName={currentPlanName ?? subscription.plan} />
       ) : (
         <div className="rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">No active subscription found.</p>
+          <p className="text-sm text-muted-foreground">{t("billing.noSubscription")}</p>
+        </div>
+      )}
+
+      {subscription && modularPlans.length > 0 && (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <h4 className="text-base font-semibold">{t("billing.modularTitle")}</h4>
+            <p className="text-sm text-muted-foreground">{t("billing.modularDescription")}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {modularPlans.map((plan) => {
+              const isIncluded = plan.slug === subscription.plan;
+              return (
+                <div key={plan.slug} className="rounded-xl border border-border/80 bg-card p-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                    <p className="text-xs text-muted-foreground">{plan.description ?? plan.category.toUpperCase()}</p>
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-foreground">
+                    {formatIDR(plan.price_monthly_idr)}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant={isIncluded ? "outline" : "default"}
+                    disabled={isIncluded || isUpgrading}
+                    onClick={() => handleUpgrade(plan.slug)}
+                    className="mt-4 h-9 w-full"
+                  >
+                    {isIncluded ? t("billing.included") : t("billing.addModule")}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -529,7 +572,7 @@ export function BillingTab() {
           <div className="space-y-1">
             <h4 className="text-base font-semibold">Available Plans</h4>
             <p className="text-sm text-muted-foreground">
-              Compare plans and select one to upgrade your subscription.
+              {t("billing.availablePlansDescription")}
             </p>
           </div>
 

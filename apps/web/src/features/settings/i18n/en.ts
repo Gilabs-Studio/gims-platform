@@ -82,6 +82,16 @@ export const settingsEn = {
     dateOfBirth: "Date of birth:",
     titleLabel: "Title:",
     hireDateLabel: "Hire date:",
+    billing: {
+      title: "Billing & Plan",
+      description: "Manage your subscription plan and billing details.",
+      noSubscription: "No active subscription found.",
+      modularTitle: "Modular Add-ons",
+      modularDescription: "Add additional modules to expand your current subscription.",
+      included: "Included",
+      addModule: "Add Module",
+      availablePlansDescription: "Compare plans and select one to upgrade your subscription.",
+    },
     // Payment settings (Xendit)
     payment: {
       title: "Digital Payment Gateway",

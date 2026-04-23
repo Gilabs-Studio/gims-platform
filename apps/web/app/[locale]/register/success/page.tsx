@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { motion } from "framer-motion";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Confetti } from "@/components/ui/confetti";
+import type { ConfettiRef } from "@/components/ui/confetti";
 import { AuthLayout } from "@/features/auth/components/auth-layout";
 import { authService } from "@/features/auth/services/auth-service";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -18,60 +21,131 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
  * is set, then redirects to the dashboard.
  */
 export default function RegisterSuccessPage() {
+  const t = useTranslations("auth.registerSuccess");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token");
   const { setUser, setSessionVerified } = useAuthStore();
+  const confettiRef = useRef<ConfettiRef>(null);
+  const token = searchParams.get("token");
+  const isTokenValid =
+    typeof token === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
 
-  const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
-  const [attempts, setAttempts] = useState(0);
-  const MAX_ATTEMPTS = 12; // Poll for up to ~60s (5s × 12)
+  const [status, setStatus] = useState<"loading" | "success" | "failed">(
+    isTokenValid ? "loading" : "failed",
+  );
 
-  useEffect(() => {
-    if (!token) {
-      setStatus("failed");
+  const triggerConfetti = useCallback(() => {
+    const fire = confettiRef.current?.fire;
+    if (!fire) {
       return;
     }
 
-    let cancelled = false;
-    let attempt = 0;
+    fire({
+      particleCount: 50,
+      spread: 180,
+      startVelocity: 42,
+      decay: 0.92,
+      origin: { x: 0.5, y: 0.5 },
+    });
 
-    const poll = async () => {
-      if (attempt >= MAX_ATTEMPTS) {
-        if (!cancelled) setStatus("failed");
-        return;
-      }
-      attempt++;
-      if (!cancelled) setAttempts(attempt);
+    window.setTimeout(() => {
+      fire({
+        particleCount: 40,
+        spread: 360,
+        startVelocity: 52,
+        decay: 0.9,
+        scalar: 0.95,
+        origin: { x: 0.5, y: 0.5 },
+      });
 
+      window.setTimeout(() => {
+        fire({
+          particleCount: 20,
+          spread: 360,
+          startVelocity: 30,
+          decay: 0.94,
+          scalar: 1.1,
+          origin: { x: 0.5, y: 0.5 },
+        });
+      }, 130);
+    }, 140);
+  }, []);
+
+  useEffect(() => {
+    if (!isTokenValid || !token) {
+      return;
+    }
+
+    let isCancelled = false;
+    let redirectTimer: number | undefined;
+
+    const confirmAndLogin = async () => {
       try {
-        // verifySession() succeeds once the webhook fires and sets the session cookie.
-        const res = await authService.verifySession();
-        if (!cancelled && res?.data?.user) {
-          setUser(res.data.user);
-          setSessionVerified(true);
-          setStatus("success");
-          setTimeout(() => router.replace("/dashboard"), 1500);
+        const csrfToken = await authService.prefetchCSRFToken();
+        const response = await authService.confirmPaidRegistration(token, csrfToken);
+        if (!response.success || !response.data?.user) {
+          throw new Error("confirmation failed");
+        }
+
+        if (isCancelled) {
           return;
         }
+
+        setUser(response.data.user);
+        setSessionVerified(true);
+        setStatus("success");
       } catch {
-        // Not ready yet — continue polling.
-      }
-
-      if (!cancelled) {
-        setTimeout(poll, 5000);
+        if (!isCancelled) {
+          setStatus("failed");
+        }
       }
     };
 
-    poll();
+    void confirmAndLogin();
+
     return () => {
-      cancelled = true;
+      isCancelled = true;
+      if (redirectTimer) {
+        window.clearTimeout(redirectTimer);
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [isTokenValid, router, setSessionVerified, setUser, token]);
+
+  useEffect(() => {
+    if (status !== "success") {
+      return;
+    }
+
+    const id = window.requestAnimationFrame(() => {
+      triggerConfetti();
+    });
+
+    // Redirect after confetti animation completes
+    const redirectTimer = window.setTimeout(() => {
+      router.replace("/dashboard");
+    }, 700);
+
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.clearTimeout(redirectTimer);
+    };
+  }, [status, triggerConfetti, router]);
 
   return (
-    <AuthLayout>
+    <AuthLayout compact>
+      {status === "success" && (
+        <Confetti
+          ref={confettiRef}
+          manualstart={true}
+          options={{
+            particleCount: 150,
+            spread: 90,
+            origin: { y: 0.6 },
+          }}
+          className="fixed inset-0 z-[5] h-full w-full pointer-events-none"
+        />
+      )}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -82,15 +156,10 @@ export default function RegisterSuccessPage() {
           <>
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <div>
-              <h2 className="text-xl font-bold">Confirming your payment…</h2>
+              <h2 className="text-xl font-bold">{t("confirmingTitle")}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                This usually takes just a few seconds. Please stay on this page.
+                {t("confirmingDescription")}
               </p>
-              {attempts > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Checking… ({attempts}/{MAX_ATTEMPTS})
-                </p>
-              )}
             </div>
           </>
         )}
@@ -99,9 +168,9 @@ export default function RegisterSuccessPage() {
           <>
             <CheckCircle2 className="h-12 w-12 text-green-500" />
             <div>
-              <h2 className="text-xl font-bold">Payment confirmed!</h2>
+              <h2 className="text-xl font-bold">{t("successTitle")}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Your account is ready. Redirecting to dashboard…
+                {t("successDescription")}
               </p>
             </div>
           </>
@@ -111,20 +180,19 @@ export default function RegisterSuccessPage() {
           <>
             <XCircle className="h-12 w-12 text-destructive" />
             <div>
-              <h2 className="text-xl font-bold">Something went wrong</h2>
+              <h2 className="text-xl font-bold">{t("failedTitle")}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                We could not confirm your registration automatically.
-                Your payment may still have been processed — please contact support.
+                {t("failedDescription")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground break-all">
-                Reference: {token ?? "n/a"}
+                {t("referenceLabel")}: {token ?? "n/a"}
               </p>
             </div>
             <Button
               variant="outline"
               onClick={() => router.push("/register")}
             >
-              Back to Registration
+              {t("backToRegister")}
             </Button>
           </>
         )}

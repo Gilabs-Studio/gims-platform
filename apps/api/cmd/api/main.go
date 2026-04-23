@@ -270,7 +270,7 @@ func main() {
 	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
 	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, auditService, eventPublisher, redis.GetClient())
-	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
+	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 

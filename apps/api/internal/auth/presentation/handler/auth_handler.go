@@ -139,10 +139,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				Code:      loginResponse.User.Role,
 				Name:      loginResponse.User.RoleName,
 				DataScope: loginResponse.User.RoleDataScope,
+				IsOwner:   loginResponse.User.IsOwner,
 			},
 			Permissions: loginResponse.User.Permissions,
 			TenantID:    loginResponse.User.TenantID,
 			TenantName:  loginResponse.User.TenantName,
+			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "", // Removed for security
 		RefreshToken: "", // Removed for security
@@ -217,10 +219,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 				Code:      loginResponse.User.Role,
 				Name:      loginResponse.User.RoleName,
 				DataScope: loginResponse.User.RoleDataScope,
+				IsOwner:   loginResponse.User.IsOwner,
 			},
 			Permissions: loginResponse.User.Permissions,
 			TenantID:    loginResponse.User.TenantID,
 			TenantName:  loginResponse.User.TenantName,
+			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
 		RefreshToken: "",
@@ -389,10 +393,84 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				Code:      loginResponse.User.Role,
 				Name:      loginResponse.User.RoleName,
 				DataScope: loginResponse.User.RoleDataScope,
+				IsOwner:   loginResponse.User.IsOwner,
 			},
 			Permissions: loginResponse.User.Permissions,
 			TenantID:    loginResponse.User.TenantID,
 			TenantName:  loginResponse.User.TenantName,
+			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+		},
+		AccessToken:  "",
+		RefreshToken: "",
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// ConfirmPendingRegistration finalizes paid registration after payment callback and
+// immediately logs the user in by setting HttpOnly auth cookies.
+// POST /api/v1/auth/register/confirm
+func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
+	var req dto.ConfirmPendingRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	loginResponse, err := h.authUC.ConfirmPendingRegistration(c.Request.Context(), req.Token)
+	if err != nil {
+		switch err {
+		case usecase.ErrPendingRegistrationNotFound:
+			errors.ErrorResponse(c, "PENDING_REGISTRATION_NOT_FOUND", nil, nil)
+		case usecase.ErrPendingRegistrationDataInvalid:
+			errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
+		case usecase.ErrEmailAlreadyTaken:
+			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", nil, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_access_token",
+		Value:    loginResponse.Token,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_refresh_token",
+		Value:    loginResponse.RefreshToken,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	resp := authDTO.LoginResponseDTO{
+		User: authDTO.UserDTO{
+			ID:        loginResponse.User.ID,
+			Name:      loginResponse.User.Name,
+			Email:     loginResponse.User.Email,
+			AvatarURL: loginResponse.User.AvatarURL,
+			Role: authDTO.RoleDTO{
+				Code:      loginResponse.User.Role,
+				Name:      loginResponse.User.RoleName,
+				DataScope: loginResponse.User.RoleDataScope,
+				IsOwner:   loginResponse.User.IsOwner,
+			},
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
+			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
 		RefreshToken: "",
