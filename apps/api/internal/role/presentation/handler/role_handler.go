@@ -1,6 +1,7 @@
 package handler
 
 import (
+	goErrors "errors"
 	"log"
 	"strconv"
 
@@ -258,7 +259,7 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}, nil)
 				return
 			}
-			if err == repositories.ErrInvalidPermissionIDs {
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
 				}, nil)
@@ -333,7 +334,7 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}
 				return
 			}
-			if err == repositories.ErrInvalidPermissionIDs {
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
 				}, nil)
@@ -373,7 +374,7 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}
 				return
 			}
-			if err == repositories.ErrInvalidPermissionIDs {
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
 				}, nil)
@@ -442,7 +443,7 @@ func (h *RoleHandler) UpdateMenuAccess(c *gin.Context) {
 			}, nil)
 			return
 		}
-		if err == repositories.ErrInvalidPermissionIDs {
+		if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 				"reason": "One or more menu IDs are invalid or no longer exist. Please refresh and try again.",
 			}, nil)

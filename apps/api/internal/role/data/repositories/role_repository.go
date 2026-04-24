@@ -114,7 +114,8 @@ func (r *roleRepository) AssignPermissions(ctx context.Context, roleID string, p
 		// Validate all permission IDs exist before making changes
 		if len(permissionIDs) > 0 {
 			var validCount int64
-			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permissionIDs).Count(&validCount).Error; err != nil {
+			// permissions is a global table; avoid tenant-scoped DB here.
+			if err := r.db.WithContext(ctx).Table("permissions").Where("id IN ? AND deleted_at IS NULL", permissionIDs).Count(&validCount).Error; err != nil {
 				return err
 			}
 			if int(validCount) != len(permissionIDs) {
@@ -150,7 +151,8 @@ func (r *roleRepository) AssignPermissionsWithScope(ctx context.Context, roleID 
 			}
 
 			var existingIDs []string
-			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Pluck("id", &existingIDs).Error; err != nil {
+			// permissions is a global table; avoid tenant-scoped DB here.
+			if err := r.db.WithContext(ctx).Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Pluck("id", &existingIDs).Error; err != nil {
 				return err
 			}
 

@@ -1266,11 +1266,29 @@ function PermissionsSelector({
       const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
       for (const permId of added) {
         const scope = nextSelected[permId] ?? "ALL";
+        if (!permissionByID.has(permId)) {
+          console.error("AssignPermissions Debug: building addedWithScope but permission not found in permissionByID:", permId);
+        }
         addedWithScope.push({
           permission_id: permId,
           scope,
         });
       }
+
+      try {
+        console.groupCollapsed("AssignPermissions Debug: payload");
+        const payload = {
+          roleId,
+          permissionIds: [...added, ...removed],
+          diff: {
+            added,
+            added_with_scope: addedWithScope,
+            removed,
+          },
+        };
+        console.log(payload);
+        console.groupEnd();
+      } catch (e) { /* noop */ }
 
       await assignPermissions.mutateAsync({
         roleId,
