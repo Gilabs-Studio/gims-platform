@@ -437,6 +437,8 @@ func SeedPermissions() error {
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+		{"/finance/settings/fiscal-years", "fiscal_year.read", "View Fiscal Years", "VIEW", "fiscal_year"},
+		{"/finance/settings/fiscal-years", "fiscal_year.write", "Manage Fiscal Years", "EDIT", "fiscal_year"},
 		{"/finance/settings/accounting-mapping", "account_mappings.read", "View Account Mappings", "VIEW", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},

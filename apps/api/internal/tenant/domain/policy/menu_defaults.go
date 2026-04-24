@@ -52,8 +52,6 @@ var posGrowthDefaultMenuURLs = []string{
 	"/master-data/product",
 	"/master-data/products",
 	"/master-data/product-categories",
-	"/master-data/product-brands",
-	"/master-data/product-segments",
 	"/master-data/product-types",
 	"/master-data/packaging",
 	"/master-data/uom",
@@ -89,10 +87,19 @@ func NormalizePlanSlug(planSlug string) string {
 func DefaultPlanEntitlementRows(planSlug string) []PlanEntitlementRow {
 	switch NormalizePlanSlug(planSlug) {
 	case "pos_growth":
-		rows := make([]PlanEntitlementRow, 0, len(posGrowthDefaultMenuURLs))
+		rows := make([]PlanEntitlementRow, 0, len(posGrowthDefaultMenuURLs)+6)
 		for _, menuURL := range posGrowthDefaultMenuURLs {
 			rows = append(rows, PlanEntitlementRow{MenuURL: menuURL})
 		}
+		// Finance menu entitlements with permissions
+		rows = append(rows,
+			PlanEntitlementRow{MenuURL: "/finance/accounting/coa", PermissionCode: "coa.read"},
+			PlanEntitlementRow{MenuURL: "/finance/journals/sales", PermissionCode: "sales_journal.read"},
+			PlanEntitlementRow{MenuURL: "/finance/journals/purchase", PermissionCode: "purchase_journal.read"},
+			PlanEntitlementRow{MenuURL: "/finance/settings/fiscal-years", PermissionCode: "fiscal_year.read"},
+			PlanEntitlementRow{MenuURL: "/finance/settings/fiscal-years", PermissionCode: "fiscal_year.write"},
+			PlanEntitlementRow{MenuURL: "/finance/settings/accounting-mapping", PermissionCode: "account_mappings.read"},
+		)
 		return rows
 	default:
 		return nil

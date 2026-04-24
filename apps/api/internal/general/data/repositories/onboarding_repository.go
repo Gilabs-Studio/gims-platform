@@ -25,6 +25,7 @@ type OnboardingStepsData struct {
 	Products    bool
 	Warehouse   bool
 	Users       bool
+	FiscalYear  bool
 }
 
 type onboardingRepository struct {
@@ -68,6 +69,7 @@ func (r *onboardingRepository) Save(ctx context.Context, state *generalModels.Te
 // All other steps are complete when at least one record exists in the relevant table.
 func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingStepsData, error) {
 	db := database.GetDB(ctx, r.db)
+	tenantID := middleware.TenantFromContext(ctx)
 
 	var steps OnboardingStepsData
 
@@ -102,6 +104,24 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 	var userCount int64
 	db.Table("users").Where("deleted_at IS NULL").Count(&userCount)
 	steps.Users = userCount > 1
+
+	// FiscalYear: at least one fiscal year exists for tenant-owned companies.
+	var fiscalYearCount int64
+	if tenantID != "" {
+		err := r.db.WithContext(ctx).
+			Table("fiscal_years fy").
+			Joins("JOIN companies c ON c.id = fy.company_id AND c.deleted_at IS NULL").
+			Where("fy.deleted_at IS NULL").
+			Where("(fy.tenant_id = ? OR c.tenant_id = ?)", tenantID, tenantID).
+			Count(&fiscalYearCount).Error
+		if err != nil {
+			// Fallback to tenant-scoped default query path.
+			db.Table("fiscal_years").Where("deleted_at IS NULL").Count(&fiscalYearCount)
+		}
+	} else {
+		db.Table("fiscal_years").Where("deleted_at IS NULL").Count(&fiscalYearCount)
+	}
+	steps.FiscalYear = fiscalYearCount > 0
 
 	return &steps, nil
 }

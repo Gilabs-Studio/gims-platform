@@ -58,6 +58,10 @@
           "label": "Siapkan perusahaan Anda",
           "description": "Tambahkan nama, alamat, dan informasi dasar perusahaan"
         },
+        "fiscalYear": {
+          "label": "Atur Tahun Fiskal",
+          "description": "Atur setidaknya satu tahun fiskal aktif sebelum Anda dapat mencatat transaksi penjualan atau pembelian."
+        },
         "outlet": {
           "label": "Buat outlet pertama Anda",
           "description": "Tambahkan cabang atau lokasi tempat Anda beroperasi"

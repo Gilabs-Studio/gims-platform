@@ -1,4 +1,14 @@
 {
+  "dashboard": {
+    "onboarding": {
+      "steps": {
+        "fiscalYear": {
+          "label": "Atur Tahun Fiskal",
+          "description": "Atur setidaknya satu tahun fiskal aktif sebelum Anda dapat mencatat transaksi penjualan atau pembelian."
+        }
+      }
+    }
+  },
   "common": {
     "title": "Pengaturan Global",
     "loading": "Memuat...",

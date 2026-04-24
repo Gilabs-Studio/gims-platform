@@ -58,6 +58,10 @@
           "label": "Set up your company",
           "description": "Add your company name, address, and basic info"
         },
+        "fiscalYear": {
+          "label": "Setup Fiscal Years",
+          "description": "Set up at least one active fiscal year before you can record sales or purchase transactions."
+        },
         "outlet": {
           "label": "Create your first outlet",
           "description": "Add the branch or location where you operate"

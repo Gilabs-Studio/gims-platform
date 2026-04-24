@@ -39,20 +39,31 @@ function isItemVisible(item: NavItem, permissionMap: Record<string, string>): bo
   return true; 
 }
 
+function shouldHideForPlan(item: NavItem, planSlug?: string): boolean {
+  const normalizedPlan = (planSlug ?? "").trim().toLowerCase();
+  if (normalizedPlan !== "pos_growth") {
+    return false;
+  }
+
+  return item.i18nKey === "accountsReceivable" || item.i18nKey === "accountsPayable";
+}
+
 function transformItem(
   item: NavItem,
   permissionMap: Record<string, string>,
   t: (key: string) => string,
+  planSlug?: string,
   parentId = "root",
   index = 0,
 ): MenuWithActions | null {
+  if (shouldHideForPlan(item, planSlug)) return null;
   if (!isItemVisible(item, permissionMap)) return null;
 
   const itemId = buildMenuId(item, parentId, index);
 
   const children = item.children
     ? item.children
-        .map((child, childIndex) => transformItem(child, permissionMap, t, itemId, childIndex))
+        .map((child, childIndex) => transformItem(child, permissionMap, t, planSlug, itemId, childIndex))
         .filter((c): c is MenuWithActions => c !== null)
     : undefined;
 
@@ -86,10 +97,11 @@ export function useNavigation() {
   
   const menus = useMemo(() => {
     const permissionMap = user?.permissions ?? {};
+    const planSlug = user?.subscription_plan;
     return navigationConfig
-      .map((item) => transformItem(item, permissionMap, t))
+      .map((item) => transformItem(item, permissionMap, t, planSlug))
       .filter((item): item is MenuWithActions => item !== null);
-  }, [user?.permissions, t]);
+  }, [user?.permissions, user?.subscription_plan, t]);
 
   return { menus };
 }
