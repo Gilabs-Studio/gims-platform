@@ -19,29 +19,21 @@ import {
 import { cn } from "@/lib/utils";
 import type { ComponentType } from "react";
 import {
-  Activity,
-  BellRing,
   Building2,
   CheckCircle2,
-  CircleDot,
   Cpu,
   Database,
   Gauge,
-  LayoutGrid,
   ReceiptText,
   ShieldAlert,
   Sparkles,
-  TicketSlash,
   TrendingUp,
   TriangleAlert,
-  Users,
 } from "lucide-react";
 
 import { useSystemAdminDashboard } from "../hooks/use-tenants";
 import type {
   BillingActivitySummary,
-  BusinessHealthSummary,
-  InfrastructurePerformanceSummary,
   PlanMixItem,
   SupportIncidentsSummary,
   Tenant,
@@ -112,18 +104,12 @@ function getPlanLabel(plan: string) {
   return PLAN_LABELS[plan] ?? plan.replaceAll("_", " ");
 }
 
-function getStatusClass(status: string) {
+function getStatusVariant(status: string): "success" | "warning" | "destructive" | "inactive" {
   const normalized = status.toLowerCase();
-  if (normalized === "active") {
-    return "bg-lime-100 text-lime-800 ring-1 ring-lime-200 dark:bg-lime-900/30 dark:text-lime-300";
-  }
-  if (normalized === "trial") {
-    return "bg-amber-100 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-300";
-  }
-  if (normalized === "overdue" || normalized === "suspended") {
-    return "bg-rose-100 text-rose-800 ring-1 ring-rose-200 dark:bg-rose-900/30 dark:text-rose-300";
-  }
-  return "bg-muted text-muted-foreground";
+  if (normalized === "active") return "success";
+  if (normalized === "trial") return "warning";
+  if (normalized === "overdue" || normalized === "suspended") return "destructive";
+  return "inactive";
 }
 
 export function SystemAdminDashboard() {
@@ -241,7 +227,7 @@ export function SystemAdminDashboard() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="rounded-full bg-lime-100 px-3 py-1 text-lime-800 hover:bg-lime-100">
+              <Badge variant="success" className="rounded-full px-3 py-1">
                 System Normal
               </Badge>
               <Badge variant="outline" className="rounded-full px-3 py-1">
@@ -255,7 +241,7 @@ export function SystemAdminDashboard() {
           <SectionHeading title="Business Health" icon={TrendingUp} />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-              <MetricCard key={card.label} {...card} />
+            <MetricCard key={card.label} {...card} />
             ))}
           </div>
         </section>
@@ -306,9 +292,9 @@ export function SystemAdminDashboard() {
                           </TableCell>
                           <TableCell>{seat}</TableCell>
                           <TableCell>
-                            <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium capitalize", getStatusClass(status))}>
+                            <Badge variant={getStatusVariant(status)} className="capitalize">
                               {status}
-                            </span>
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             {isOverviewRow && tenant.mrr_idr ? formatCompactIDR(tenant.mrr_idr) : "—"}
@@ -411,7 +397,7 @@ function MetricCard({
       <CardContent className="pt-0">
         <Badge
           variant={tone === "danger" ? "destructive" : "secondary"}
-          className={cn("rounded-full px-3 py-1 text-xs", tone === "danger" && "bg-rose-100 text-rose-700")}
+          className="rounded-full px-3 py-1 text-xs"
         >
           {note}
         </Badge>
@@ -484,13 +470,8 @@ function BillingActivityCard({ billingActivity }: { billingActivity?: BillingAct
           <div key={row.label} className="flex items-center justify-between border-b border-border/60 pb-2 last:border-b-0 last:pb-0">
             <div className="text-sm text-muted-foreground">{row.label}</div>
             <Badge
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-semibold",
-                row.tone === "success" && "bg-lime-100 text-lime-800",
-                row.tone === "danger" && "bg-rose-100 text-rose-800",
-                row.tone === "warning" && "bg-amber-100 text-amber-800",
-                row.tone === "info" && "bg-sky-100 text-sky-800",
-              )}
+              variant={row.tone === "success" ? "success" : row.tone === "danger" ? "destructive" : row.tone === "warning" ? "warning" : "info"}
+              className="rounded-full px-3 py-1 text-xs font-semibold"
             >
               {row.value.toLocaleString("id-ID")}
             </Badge>
@@ -511,7 +492,7 @@ function SupportIncidentsCard({ support }: { support?: SupportIncidentsSummary }
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+        <div className="rounded-2xl border border-dashed border-warning/40 bg-warning/5 p-3 text-xs text-warning">
           TODO: sambungkan data helpdesk dan incident tracker ke dashboard ini.
         </div>
         <div className="space-y-2 text-sm">
@@ -539,12 +520,12 @@ function SupportStat({
   return (
     <div className="flex items-center justify-between gap-4 border-b border-border/60 pb-2 last:border-b-0 last:pb-0">
       <div className="text-muted-foreground">{label}</div>
-      <div
-        className={cn(
-          "font-semibold",
-          danger && "text-rose-600",
-          accent && "text-amber-600",
-        )}
+        <div
+          className={cn(
+            "font-semibold",
+            danger && "text-destructive",
+            accent && "text-warning",
+          )}
       >
         {value}
       </div>
@@ -565,9 +546,11 @@ function InfraCard({
 }) {
   return (
     <Card className="border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+      <CardHeader className="space-y-2 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-semibold tracking-tight">{value}</div>
@@ -586,16 +569,12 @@ function FlagItem({
   value: string;
   tone: "success" | "warning" | "info";
 }) {
-  const toneClass = {
-    success: "bg-lime-100 text-lime-800",
-    warning: "bg-amber-100 text-amber-800",
-    info: "bg-sky-100 text-sky-800",
-  }[tone];
+  const variant = tone === "success" ? "success" : tone === "warning" ? "warning" : "info";
 
   return (
     <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-4">
       <div className="text-sm text-muted-foreground">{label}</div>
-      <Badge className={cn("rounded-full px-3 py-1 text-xs font-semibold", toneClass)}>{value}</Badge>
+      <Badge variant={variant} className="rounded-full px-3 py-1 text-xs font-semibold">{value}</Badge>
     </div>
   );
 }

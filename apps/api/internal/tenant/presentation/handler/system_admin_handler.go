@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -265,7 +265,7 @@ func (h *SystemAdminHandler) Dashboard(c *gin.Context) {
 		TodoNote:        "TODO: sambungkan data helpdesk dan incident tracker ke dashboard ini.",
 		IsTodo:          true,
 	}
-	tenantOverview := h.loadTenantOverview(tenants)
+	tenantOverview := h.loadTenantOverview(ctx, tenants)
 	infrastructure := h.loadInfrastructureSummary(ctx)
 
 	return businessHealth, planMix, billingActivity, supportSummary, tenantOverview, infrastructure
@@ -406,7 +406,7 @@ func (h *SystemAdminHandler) loadBillingActivity(ctx context.Context, since time
 	}
 
 	var billing billingRow
-	_ = database.DB.WithContext(ctx).
+	if err := database.DB.WithContext(ctx).
 		Table("payment_transactions").
 		Select(`
 			COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS success_count,
@@ -416,7 +416,10 @@ func (h *SystemAdminHandler) loadBillingActivity(ctx context.Context, since time
 			COALESCE(SUM(CASE WHEN LOWER(COALESCE(description, '')) LIKE '%seat%' OR LOWER(COALESCE(notes, '')) LIKE '%seat%' THEN 1 ELSE 0 END), 0) AS add_seat
 		`).
 		Where("deleted_at IS NULL AND created_at >= ?", since).
-		Scan(&billing).Error
+		Scan(&billing).Error; err != nil {
+		// Non-fatal: return zeros on error
+		return dashboardBillingActivity{}
+	}
 
 	return dashboardBillingActivity{
 		SuccessCount:  billing.SuccessCount,
@@ -427,7 +430,7 @@ func (h *SystemAdminHandler) loadBillingActivity(ctx context.Context, since time
 	}
 }
 
-func (h *SystemAdminHandler) loadTenantOverview(tenants []dto.TenantListResponse) []dashboardTenantRow {
+func (h *SystemAdminHandler) loadTenantOverview(ctx context.Context, tenants []dto.TenantListResponse) []dashboardTenantRow {
 	rows := make([]dashboardTenantRow, 0, minInt(len(tenants), 4))
 	for _, tenant := range tenants {
 		joinedAt := time.Now()
@@ -437,10 +440,28 @@ func (h *SystemAdminHandler) loadTenantOverview(tenants []dto.TenantListResponse
 			}
 		}
 
+		// Prefer active subscription plan over tenants.plan (which may be stale 'trial')
+		plan := tenant.Plan
+		seat := tenant.MaxUsers
+		var sub struct {
+			Plan      string `gorm:"column:plan"`
+			UserCount int    `gorm:"column:user_count"`
+		}
+		if err := database.DB.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Select("plan, user_count").
+			Where("tenant_id = ? AND status IN ('active','trial') AND deleted_at IS NULL", tenant.ID).
+			Order("created_at DESC").
+			Limit(1).
+			Scan(&sub).Error; err == nil && sub.Plan != "" {
+			plan = sub.Plan
+			seat = sub.UserCount
+		}
+
 		rows = append(rows, dashboardTenantRow{
 			TenantName: tenant.Name,
-			Plan:       tenant.Plan,
-			Seat:       tenant.MaxUsers,
+			Plan:       plan,
+			Seat:       seat,
 			Status:     tenant.Status,
 			JoinedAt:   joinedAt,
 		})
