@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
 	"github.com/gilabs/gims/api/internal/tenant/data/repositories"
 	"github.com/gilabs/gims/api/internal/tenant/domain/dto"
+	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	"gorm.io/gorm"
 )
 
@@ -36,6 +37,13 @@ type SubscriptionPlanUsecase interface {
 
 type subscriptionPlanUsecase struct {
 	planRepo repositories.SubscriptionPlanRepository
+}
+
+var posGrowthBroadParentMenuURLs = map[string]struct{}{
+	"/sales":    {},
+	"/purchase": {},
+	"/stock":    {},
+	"/finance":  {},
 }
 
 // NewSubscriptionPlanUsecase creates a new SubscriptionPlanUsecase.
@@ -111,10 +119,11 @@ func (u *subscriptionPlanUsecase) Upsert(ctx context.Context, req *dto.UpsertPla
 		return nil, err
 	}
 	if req.MenuURLs != nil {
-		if err := u.planRepo.SyncMenuEntitlements(ctx, plan.Slug, req.MenuURLs); err != nil {
+		normalizedMenuURLs := sanitizeMenuURLsForPlan(plan.Slug, req.MenuURLs)
+		if err := u.planRepo.SyncMenuEntitlements(ctx, plan.Slug, normalizedMenuURLs); err != nil {
 			return nil, err
 		}
-		derivedModules := repositories.DeriveModulesFromMenuURLs(req.MenuURLs)
+		derivedModules := repositories.DeriveModulesFromMenuURLs(normalizedMenuURLs)
 		if err := u.planRepo.SyncEntitlements(ctx, plan.Slug, derivedModules); err != nil {
 			return nil, err
 		}
@@ -135,10 +144,11 @@ func (u *subscriptionPlanUsecase) SyncEntitlements(ctx context.Context, slug str
 }
 
 func (u *subscriptionPlanUsecase) SyncMenuEntitlements(ctx context.Context, slug string, menuURLs []string) error {
-	if err := u.planRepo.SyncMenuEntitlements(ctx, slug, menuURLs); err != nil {
+	normalizedMenuURLs := sanitizeMenuURLsForPlan(slug, menuURLs)
+	if err := u.planRepo.SyncMenuEntitlements(ctx, slug, normalizedMenuURLs); err != nil {
 		return err
 	}
-	return u.planRepo.SyncEntitlements(ctx, slug, repositories.DeriveModulesFromMenuURLs(menuURLs))
+	return u.planRepo.SyncEntitlements(ctx, slug, repositories.DeriveModulesFromMenuURLs(normalizedMenuURLs))
 }
 
 func (u *subscriptionPlanUsecase) ComputePrice(ctx context.Context, slug, billingPeriod string, userCount int) (int64, error) {
@@ -179,6 +189,7 @@ func planModelToDTO(p *models.SubscriptionPlanConfig) *dto.SubscriptionPlanRespo
 		menuSeen[menuURL] = struct{}{}
 		menuURLs = append(menuURLs, menuURL)
 	}
+	menuURLs = sanitizeMenuURLsForPlan(p.Slug, menuURLs)
 	if len(modules) == 0 {
 		modules = repositories.DeriveModulesFromMenuURLs(menuURLs)
 	}
@@ -199,4 +210,25 @@ func planModelToDTO(p *models.SubscriptionPlanConfig) *dto.SubscriptionPlanRespo
 		Modules:         modules,
 		MenuURLs:        menuURLs,
 	}
+}
+
+func sanitizeMenuURLsForPlan(planSlug string, menuURLs []string) []string {
+	normalizedPlanSlug := tenantPolicy.NormalizePlanSlug(planSlug)
+	if normalizedPlanSlug != "pos_growth" {
+		return menuURLs
+	}
+
+	result := make([]string, 0, len(menuURLs))
+	for _, rawMenuURL := range menuURLs {
+		menuURL := strings.ToLower(strings.TrimSpace(rawMenuURL))
+		if menuURL == "" {
+			continue
+		}
+		if _, blocked := posGrowthBroadParentMenuURLs[menuURL]; blocked {
+			continue
+		}
+		result = append(result, menuURL)
+	}
+
+	return result
 }

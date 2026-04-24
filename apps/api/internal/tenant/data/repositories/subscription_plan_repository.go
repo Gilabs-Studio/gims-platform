@@ -42,7 +42,7 @@ type subscriptionPlanRepository struct {
 }
 
 var fallbackPlanModules = map[string][]string{
-	"pos_growth":     {"pos", "sales", "inventory", "finance", "core"},
+	"pos_growth":     {"pos", "purchase", "sales", "inventory", "finance", "core"},
 	"erp_pro":        {"purchase", "inventory", "finance", "sales", "core"},
 	"crm_growth":     {"crm", "core"},
 	"hr_growth":      {"hr", "core"},
@@ -235,18 +235,31 @@ func (r *subscriptionPlanRepository) GetEnabledModules(ctx context.Context, plan
 	if err != nil {
 		return nil, err
 	}
+	seen := make(map[string]struct{}, len(entitlements))
 	modules := make([]string, 0, len(entitlements))
 	for _, e := range entitlements {
 		if e.IsEnabled {
-			modules = append(modules, strings.ToLower(strings.TrimSpace(e.ModuleSlug)))
+			module := strings.ToLower(strings.TrimSpace(e.ModuleSlug))
+			if module == "" {
+				continue
+			}
+			if _, exists := seen[module]; exists {
+				continue
+			}
+			seen[module] = struct{}{}
+			modules = append(modules, module)
 		}
 	}
-	if len(modules) == 0 {
-		menuURLs, menuErr := r.ListMenuEntitlements(ctx, normalizedPlanSlug)
-		if menuErr != nil {
-			return nil, menuErr
+	menuURLs, menuErr := r.ListMenuEntitlements(ctx, normalizedPlanSlug)
+	if menuErr != nil {
+		return nil, menuErr
+	}
+	for _, module := range DeriveModulesFromMenuURLs(menuURLs) {
+		if _, exists := seen[module]; exists {
+			continue
 		}
-		modules = DeriveModulesFromMenuURLs(menuURLs)
+		seen[module] = struct{}{}
+		modules = append(modules, module)
 	}
 	if len(modules) == 0 {
 		if fallback := fallbackModulesForPlan(normalizedPlanSlug); len(fallback) > 0 {

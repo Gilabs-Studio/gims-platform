@@ -1266,24 +1266,52 @@ function PermissionsSelector({
         }
       }
 
-      const assignments = Object.entries(nextSelected)
-        .filter(([permissionID]) => {
-          const permission = permissionByID.get(permissionID);
-          if (!permission) {
-            return false;
-          }
-          return isPermissionAllowedByPlan(permission);
-        })
-        .map(([permissionID, scope]) => ({
-          permission_id: permissionID,
+      // Compute DIFF: only send what changed, not the full state
+      const currentPermSet = new Set((role.permissions ?? []).map(p => p.id));
+      const nextPermSet = new Set(Object.keys(nextSelected));
+
+      const added: string[] = [];
+      const removed: string[] = [];
+
+      // Find added permissions (in nextSelected but not in current)
+      for (const permId of nextPermSet) {
+        if (!currentPermSet.has(permId)) {
+          added.push(permId);
+        }
+      }
+
+      // Find removed permissions (in current but not in nextSelected)
+      for (const permId of currentPermSet) {
+        if (!nextPermSet.has(permId)) {
+          removed.push(permId);
+        }
+      }
+
+      // If no changes, just close the dialog
+      if (added.length === 0 && removed.length === 0) {
+        toast.success(t("save") || "No changes to save");
+        onClose();
+        return;
+      }
+
+      // Build scope-aware assignments for added permissions
+      const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
+      for (const permId of added) {
+        const scope = nextSelected[permId] ?? "ALL";
+        addedWithScope.push({
+          permission_id: permId,
           scope,
-        }));
+        });
+      }
 
       await assignPermissions.mutateAsync({
         roleId,
-        permissionIds: assignments.map((item) => item.permission_id),
-        assignments,
-        tolerant: true,
+        permissionIds: [...added, ...removed],
+        diff: {
+          added,
+          added_with_scope: addedWithScope,
+          removed,
+        },
       });
       setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");

@@ -75,12 +75,18 @@ export function useAssignPermissionsToRole() {
       permissionIds,
       assignments,
       tolerant = false,
+      diff,
     }: {
       roleId: string;
       permissionIds: string[];
       assignments?: Array<{ permission_id: string; scope: string }>;
       tolerant?: boolean;
-    }) => roleService.assignPermissions(roleId, permissionIds, assignments, tolerant),
+      diff?: {
+        added: string[];
+        added_with_scope?: Array<{ permission_id: string; scope: string }>;
+        removed: string[];
+      };
+    }) => roleService.assignPermissions(roleId, permissionIds, assignments, tolerant, diff),
     onSuccess: async (updatedRole, variables) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });

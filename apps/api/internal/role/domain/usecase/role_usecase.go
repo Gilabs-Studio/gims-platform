@@ -60,6 +60,8 @@ var alwaysSafePermissionPrefixes = []string{
 	"employee.",
 }
 
+var mandatoryPermissionCodes = []string{"user.read", "role.read", "permission.read"}
+
 type RoleUsecase interface {
 	List(ctx context.Context, page, limit int) ([]dto.RoleResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.RoleResponse, error)
@@ -68,6 +70,9 @@ type RoleUsecase interface {
 	Delete(ctx context.Context, id string) error
 	AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error
 	AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []dto.PermissionAssignment) error
+	// UpdatePermissionsDiff applies differential permission updates (added/removed only).
+	// Only validates added permissions against plan; leaves existing unchanged untouched.
+	UpdatePermissionsDiff(ctx context.Context, roleID string, diff *dto.DiffPermissionsRequest) error
 	GetMenuAccess(ctx context.Context, roleID string) ([]dto.RoleMenuAccessResponse, error)
 	UpdateMenuAccess(ctx context.Context, roleID string, assignments []dto.RoleMenuAccessAssignment) error
 	FilterAllowedPermissions(ctx context.Context, permissionIDs []string) (allowed []string, blocked []string, err error)
@@ -378,6 +383,11 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 		return err
 	}
 
+	permissionIDs, err = u.withPreservedAlwaysSafePermissionIDs(ctx, roleID, permissionIDs)
+	if err != nil {
+		return err
+	}
+
 	if err := u.validatePlanPermissionBoundary(ctx, permissionIDs); err != nil {
 		return err
 	}
@@ -431,6 +441,15 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 		})
 	}
 
+	rolePerms, err = u.withPreservedAlwaysSafeRolePermissions(ctx, roleID, rolePerms)
+	if err != nil {
+		return err
+	}
+	permIDs = make([]string, 0, len(rolePerms))
+	for _, rp := range rolePerms {
+		permIDs = append(permIDs, rp.PermissionID)
+	}
+
 	if err := u.validatePlanPermissionBoundary(ctx, permIDs); err != nil {
 		return err
 	}
@@ -442,6 +461,151 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 	u.invalidatePermissionCaches(ctx, roleID, role.Code)
 
 	// Publish event with permission IDs
+	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
+		RoleID:        role.ID,
+		PermissionIDs: permIDs,
+		AssignedAt:    apptime.Now(),
+	}))
+
+	return nil
+}
+
+// UpdatePermissionsDiff applies differential permission updates.
+// Only validates added permissions against plan; existing unchanged permissions are left untouched.
+// This prevents the "plan restriction" error when bulk-updating with unchanged permissions included.
+func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, diff *dto.DiffPermissionsRequest) error {
+	// Validate role exists and get existing permissions
+	role, err := u.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return err
+	}
+
+	// Get current permissions from role.RolePermissions (already preloaded from FindByID)
+	existingSet := make(map[string]models.RolePermission)
+	for _, rp := range role.RolePermissions {
+		existingSet[rp.PermissionID] = rp
+	}
+
+	// Build next state: keep existing, remove specified, add specified
+	nextSet := make(map[string]models.RolePermission)
+
+	// Start with existing permissions
+	for permID, rp := range existingSet {
+		nextSet[permID] = rp
+	}
+
+	// Remove specified permission IDs
+	for _, permID := range diff.Removed {
+		delete(nextSet, permID)
+	}
+
+	// Add new permissions (validate these against plan)
+	addedToValidate := make([]string, 0)
+
+	// Handle simple added permissions
+	for _, permID := range diff.Added {
+		if _, exists := nextSet[permID]; !exists {
+			nextSet[permID] = models.RolePermission{
+				RoleID:       roleID,
+				PermissionID: permID,
+				Scope:        models.ScopeAll,
+			}
+			addedToValidate = append(addedToValidate, permID)
+		}
+	}
+
+	// Handle scope-aware added permissions
+	for _, a := range diff.AddedWithScope {
+		if !models.IsValidScope(a.Scope) {
+			return fmt.Errorf("invalid scope '%s' for permission '%s'", a.Scope, a.PermissionID)
+		}
+		if _, exists := nextSet[a.PermissionID]; !exists {
+			nextSet[a.PermissionID] = models.RolePermission{
+				RoleID:       roleID,
+				PermissionID: a.PermissionID,
+				Scope:        a.Scope,
+			}
+			addedToValidate = append(addedToValidate, a.PermissionID)
+		}
+	}
+
+	// Only validate added permissions against plan boundary
+	if len(addedToValidate) > 0 {
+		if err := u.validatePlanPermissionBoundary(ctx, addedToValidate); err != nil {
+			return err
+		}
+	}
+
+	// Preserve always-safe permissions (check using Permission.Code from preloaded data)
+	for permID, rp := range existingSet {
+		if rp.Permission != nil && isAlwaysSafePermissionCode(rp.Permission.Code) {
+			nextSet[permID] = rp
+		}
+	}
+
+	// Guarantee minimum required permissions (query database if needed)
+	minimumCodes := map[string]bool{
+		"user.read":       true,
+		"role.read":       true,
+		"permission.read": true,
+	}
+
+	// Get existing permission IDs for minimum codes from current set
+	for _, rp := range nextSet {
+		if rp.Permission != nil && minimumCodes[rp.Permission.Code] {
+			delete(minimumCodes, rp.Permission.Code) // Already have it
+		}
+	}
+
+	// If we're missing any minimum permissions, query database to find their IDs
+	if len(minimumCodes) > 0 {
+		var perms []struct {
+			ID   string
+			Code string
+		}
+		
+		codesToFind := make([]string, 0, len(minimumCodes))
+		for code := range minimumCodes {
+			codesToFind = append(codesToFind, code)
+		}
+
+		if err := coreDB.GetDB(ctx, u.db).
+			Table("permissions").
+			Select("id, code").
+			Where("code IN ?", codesToFind).
+			Scan(&perms).Error; err == nil {
+			for _, p := range perms {
+				nextSet[p.ID] = models.RolePermission{
+					RoleID:       roleID,
+					PermissionID: p.ID,
+					Scope:        models.ScopeAll,
+				}
+			}
+		}
+	}
+
+	// Convert map back to slice
+	final := make([]models.RolePermission, 0, len(nextSet))
+	for _, rp := range nextSet {
+		final = append(final, rp)
+	}
+
+	// Apply the change
+	if err := u.roleRepo.AssignPermissionsWithScope(ctx, roleID, final); err != nil {
+		return err
+	}
+
+	u.invalidatePermissionCaches(ctx, roleID, role.Code)
+
+	// Publish event with all final permission IDs
+	permIDs := make([]string, 0, len(final))
+	for _, rp := range final {
+		permIDs = append(permIDs, rp.PermissionID)
+	}
+
 	u.eventPublisher.PublishAsync(ctx, events.NewRolePermissionsAssignedEvent(ctx, events.RolePermissionsAssignedPayload{
 		RoleID:        role.ID,
 		PermissionIDs: permIDs,
@@ -765,6 +929,7 @@ func (u *roleUsecase) loadPlanPermissionPolicy(ctx context.Context, planSlug str
 		menuPrefixes: []string{},
 		hasRules:     false,
 	}
+	normalizedPlanSlug := normalizeTenantPlanSlug(planSlug)
 
 	rows := make([]struct {
 		PermissionCode string
@@ -801,6 +966,9 @@ func (u *roleUsecase) loadPlanPermissionPolicy(ctx context.Context, planSlug str
 	for _, row := range rows {
 		code := strings.ToLower(strings.TrimSpace(row.PermissionCode))
 		menuURL := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL) {
+			continue
+		}
 		if code != "" {
 			policy.codeSet[code] = struct{}{}
 			policy.hasRules = true
@@ -812,6 +980,18 @@ func (u *roleUsecase) loadPlanPermissionPolicy(ctx context.Context, planSlug str
 	}
 
 	return policy, nil
+}
+
+func isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL string) bool {
+	if normalizedPlanSlug != "pos_growth" {
+		return false
+	}
+	switch menuURL {
+	case "/sales", "/purchase", "/stock", "/finance":
+		return true
+	default:
+		return false
+	}
 }
 
 func isPermissionAllowedByPolicy(p permissionMetaRow, policy planPermissionPolicy) bool {
@@ -826,12 +1006,9 @@ func isPermissionAllowedByPolicy(p permissionMetaRow, policy planPermissionPolic
 	if menuURL == "" {
 		return true
 	}
-	if menuURL == masterDataMenuPrefix {
-		return true
-	}
 
 	for _, prefix := range policy.menuPrefixes {
-		if prefix == masterDataMenuPrefix && strings.HasPrefix(menuURL, prefix+"/") {
+		if menuURL == prefix || strings.HasPrefix(menuURL, prefix+"/") {
 			return true
 		}
 	}
@@ -1149,4 +1326,158 @@ func isAlwaysSafePermissionCode(code string) bool {
 		}
 	}
 	return false
+}
+
+func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, roleID string, permissionIDs []string) ([]string, error) {
+	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(permissionIDs)+len(alwaysSafeRows))
+	result := make([]string, 0, len(permissionIDs)+len(alwaysSafeRows))
+	for _, permissionID := range permissionIDs {
+		if permissionID == "" {
+			continue
+		}
+		if _, exists := seen[permissionID]; exists {
+			continue
+		}
+		seen[permissionID] = struct{}{}
+		result = append(result, permissionID)
+	}
+	for _, row := range alwaysSafeRows {
+		if row.PermissionID == "" {
+			continue
+		}
+		if _, exists := seen[row.PermissionID]; exists {
+			continue
+		}
+		seen[row.PermissionID] = struct{}{}
+		result = append(result, row.PermissionID)
+	}
+	for _, permissionID := range mandatoryPermissionIDs {
+		if permissionID == "" {
+			continue
+		}
+		if _, exists := seen[permissionID]; exists {
+			continue
+		}
+		seen[permissionID] = struct{}{}
+		result = append(result, permissionID)
+	}
+
+	return result, nil
+}
+
+func (u *roleUsecase) withPreservedAlwaysSafeRolePermissions(ctx context.Context, roleID string, rolePerms []models.RolePermission) ([]models.RolePermission, error) {
+	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	byPermissionID := make(map[string]models.RolePermission, len(rolePerms)+len(alwaysSafeRows))
+	for _, rolePerm := range rolePerms {
+		if rolePerm.PermissionID == "" {
+			continue
+		}
+		if rolePerm.Scope == "" {
+			rolePerm.Scope = models.ScopeAll
+		}
+		byPermissionID[rolePerm.PermissionID] = rolePerm
+	}
+	for _, row := range alwaysSafeRows {
+		if row.PermissionID == "" {
+			continue
+		}
+		if _, exists := byPermissionID[row.PermissionID]; exists {
+			continue
+		}
+		scope := row.Scope
+		if scope == "" {
+			scope = models.ScopeAll
+		}
+		byPermissionID[row.PermissionID] = models.RolePermission{
+			RoleID:       roleID,
+			PermissionID: row.PermissionID,
+			Scope:        scope,
+		}
+	}
+	for _, permissionID := range mandatoryPermissionIDs {
+		if permissionID == "" {
+			continue
+		}
+		if _, exists := byPermissionID[permissionID]; exists {
+			continue
+		}
+		byPermissionID[permissionID] = models.RolePermission{
+			RoleID:       roleID,
+			PermissionID: permissionID,
+			Scope:        models.ScopeAll,
+		}
+	}
+
+	result := make([]models.RolePermission, 0, len(byPermissionID))
+	for _, rolePerm := range byPermissionID {
+		result = append(result, rolePerm)
+	}
+
+	return result, nil
+}
+
+func (u *roleUsecase) loadExistingAlwaysSafeRolePermissions(ctx context.Context, roleID string) ([]models.RolePermission, error) {
+	type rolePermissionRow struct {
+		PermissionID string
+		Scope        string
+		Code         string
+	}
+
+	rows := make([]rolePermissionRow, 0)
+	err := u.db.WithContext(ctx).
+		Table("role_permissions rp").
+		Select("rp.permission_id, rp.scope, p.code").
+		Joins("JOIN permissions p ON p.id = rp.permission_id").
+		Where("rp.role_id = ? AND p.deleted_at IS NULL", roleID).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]models.RolePermission, 0, len(rows))
+	for _, row := range rows {
+		if !isAlwaysSafePermissionCode(strings.ToLower(strings.TrimSpace(row.Code))) {
+			continue
+		}
+		scope := strings.ToUpper(strings.TrimSpace(row.Scope))
+		if scope == "" {
+			scope = models.ScopeAll
+		}
+		result = append(result, models.RolePermission{
+			RoleID:       roleID,
+			PermissionID: row.PermissionID,
+			Scope:        scope,
+		})
+	}
+
+	return result, nil
+}
+
+func (u *roleUsecase) loadMandatoryPermissionIDs(ctx context.Context) ([]string, error) {
+	ids := make([]string, 0, len(mandatoryPermissionCodes))
+	err := u.db.WithContext(ctx).
+		Table("permissions").
+		Where("deleted_at IS NULL AND code IN ?", mandatoryPermissionCodes).
+		Pluck("id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }

@@ -535,6 +535,9 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			}
 			return nil, ErrCouponInvalid
 		}
+		if strings.TrimSpace(req.Plan) == "" && strings.TrimSpace(validity.TargetPlanSlug) != "" {
+			req.Plan = validity.TargetPlanSlug
+		}
 	}
 
 	// ── Paid plan path: create Xendit invoice + store pending registration ───
@@ -1029,6 +1032,10 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		permissions[a.Code] = scope
 	}
 
+	if err := u.assignRoleMenuAccessFromPlan(tx, roleID, tenantID, planSlug); err != nil {
+		return "", "", "", nil, err
+	}
+
 	return roleID, roleCode, roleName, permissions, nil
 }
 
@@ -1150,6 +1157,11 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 	if err != nil {
 		return nil, err
 	}
+	for _, menuPrefix := range permissionPolicy.menuPrefixes {
+		if module := moduleFromPermissionURL(menuPrefix); module != "" {
+			entitled[module] = struct{}{}
+		}
+	}
 
 	filtered := make([]rolePermissionAssignment, 0, len(rows))
 	for _, row := range rows {
@@ -1209,6 +1221,7 @@ func loadPlanPermissionPolicy(tx *gorm.DB, planSlug string) (planPermissionPolic
 		menuPrefixes: []string{},
 		hasRules:     false,
 	}
+	normalizedPlanSlug := normalizeTenantPlanSlug(planSlug)
 
 	rows := make([]struct {
 		PermissionCode string
@@ -1243,6 +1256,9 @@ func loadPlanPermissionPolicy(tx *gorm.DB, planSlug string) (planPermissionPolic
 	for _, row := range rows {
 		code := strings.ToLower(strings.TrimSpace(row.PermissionCode))
 		menu := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if isBlockedPOSBroadMenuURL(normalizedPlanSlug, menu) {
+			continue
+		}
 		if code != "" {
 			policy.codeSet[code] = struct{}{}
 			policy.hasRules = true
@@ -1254,6 +1270,18 @@ func loadPlanPermissionPolicy(tx *gorm.DB, planSlug string) (planPermissionPolic
 	}
 
 	return policy, nil
+}
+
+func isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL string) bool {
+	if normalizedPlanSlug != "pos_growth" {
+		return false
+	}
+	switch menuURL {
+	case "/sales", "/purchase", "/stock", "/finance":
+		return true
+	default:
+		return false
+	}
 }
 
 func isAssignmentAllowedByPolicy(row rolePermissionAssignment, policy planPermissionPolicy) bool {
@@ -1268,12 +1296,9 @@ func isAssignmentAllowedByPolicy(row rolePermissionAssignment, policy planPermis
 	if menu == "" {
 		return true
 	}
-	if menu == masterDataMenuPrefix {
-		return true
-	}
 
 	for _, prefix := range policy.menuPrefixes {
-		if prefix == masterDataMenuPrefix && strings.HasPrefix(menu, prefix+"/") {
+		if menu == prefix || strings.HasPrefix(menu, prefix+"/") {
 			return true
 		}
 	}
@@ -1289,6 +1314,73 @@ func sanitizeSlug(s string) string {
 		return "tenant"
 	}
 	return s
+}
+
+func (u *authUsecase) assignRoleMenuAccessFromPlan(tx *gorm.DB, roleID, tenantID, planSlug string) error {
+	normalizedPlanSlug := normalizeTenantPlanSlug(planSlug)
+
+	menuURLRows := make([]struct {
+		MenuURL string
+	}, 0)
+	err := tx.Table("plan_permission_entitlements").
+		Select("menu_url").
+		Where("plan_slug = ? AND is_enabled = true AND permission_code = '' AND menu_url <> ''", normalizedPlanSlug).
+		Scan(&menuURLRows).Error
+	if err != nil {
+		return err
+	}
+
+	defaultRows := tenantPolicy.DefaultPlanEntitlementRows(normalizedPlanSlug)
+	for _, row := range defaultRows {
+		menuURLRows = append(menuURLRows, struct{ MenuURL string }{MenuURL: row.MenuURL})
+	}
+
+	seenURLs := make(map[string]struct{}, len(menuURLRows))
+	normalizedMenuURLs := make([]string, 0, len(menuURLRows))
+	for _, row := range menuURLRows {
+		menuURL := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if menuURL == "" || isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL) {
+			continue
+		}
+		if _, exists := seenURLs[menuURL]; exists {
+			continue
+		}
+		seenURLs[menuURL] = struct{}{}
+		normalizedMenuURLs = append(normalizedMenuURLs, menuURL)
+	}
+
+	if len(normalizedMenuURLs) == 0 {
+		return nil
+	}
+
+	menuRows := make([]struct {
+		ID  string
+		URL string
+	}, 0, len(normalizedMenuURLs))
+	err = tx.Table("menus").
+		Select("id, url").
+		Where("deleted_at IS NULL AND status = ?", "active").
+		Where("url IN ?", normalizedMenuURLs).
+		Scan(&menuRows).Error
+	if err != nil {
+		return err
+	}
+
+	for _, menuRow := range menuRows {
+		if strings.TrimSpace(menuRow.ID) == "" {
+			continue
+		}
+		if err := tx.Exec(`
+			INSERT INTO role_menu_access (id, role_id, menu_id, scope, is_enabled, tenant_id, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, ?, 'ALL', true, ?, NOW(), NOW())
+			ON CONFLICT (role_id, menu_id)
+			DO UPDATE SET scope = 'ALL', is_enabled = true, tenant_id = EXCLUDED.tenant_id, deleted_at = NULL, updated_at = NOW()
+		`, roleID, menuRow.ID, tenantID).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func normalizeTenantPlanSlug(planSlug string) string {

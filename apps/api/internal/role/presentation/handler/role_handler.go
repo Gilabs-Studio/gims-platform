@@ -221,8 +221,9 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 }
 
 // AssignPermissions handles assign permissions to role request.
-// Supports both legacy format (permission_ids only) and scope-aware format (assignments with scope).
+// Supports legacy format (permission_ids), scope-aware format (assignments), and differential mode (diff).
 // Query parameter ?tolerant=true enables tolerant mode: drops unauthorized permissions instead of rejecting entire request.
+// Differential mode (mode=diff): Only validates added permissions against plan, leaving existing unchanged.
 func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 	id := c.Param("id")
 	tolerantMode := c.Query("tolerant") == "true"
@@ -234,6 +235,45 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 			return
 		}
 		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	// DIFF MODE: Only validate added permissions, leave unchanged untouched
+	if req.Mode == "diff" && req.Diff != nil {
+		err := h.roleUC.UpdatePermissionsDiff(c.Request.Context(), id, req.Diff)
+		if err != nil {
+			if err == usecase.ErrRoleNotFound {
+				errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+					"resource": "role",
+					"role_id":  id,
+				}, nil)
+				return
+			}
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+					"reason": "One or more added permissions are not included in the tenant's active subscription plan",
+				}, nil)
+				return
+			}
+			if err == repositories.ErrInvalidPermissionIDs {
+				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
+				}, nil)
+				return
+			}
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+
+		// Fetch and return updated role
+		role, err := h.roleUC.GetByID(c.Request.Context(), id)
+		if err == nil {
+			// return role as the data payload, with no meta
+			response.SuccessResponse(c, role, nil)
+			return
+		}
+		// return empty object as data when unable to fetch
+		response.SuccessResponse(c, gin.H{}, nil)
 		return
 	}
 

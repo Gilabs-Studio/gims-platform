@@ -158,7 +158,7 @@ func SeedSubscriptionPlans() error {
 
 	// Seed module entitlements per plan.
 	entitlements := map[string][]string{
-		"pos_growth":     {"pos", "core", "inventory", "finance", "sales"}, // POS requires stock, finance (cash), sales (receipt)
+		"pos_growth":     {"pos", "purchase", "core", "inventory", "finance", "sales"}, // POS Growth includes purchase, sales, finance, and inventory menus
 		"erp_pro":        {"purchase", "inventory", "finance", "sales", "core"},
 		"crm_growth":     {"crm", "core"},
 		"hr_growth":      {"hr", "core"},
@@ -200,18 +200,14 @@ func SeedSubscriptionPlans() error {
 		"/pos/loyalty",
 		"/pos/loyalty/config",
 		"/pos/loyalty/members",
-		"/sales",
 		"/sales/orders",
 		"/sales/invoices",
 		"/sales/payments",
-		"/purchase",
 		"/purchase/purchase-orders",
 		"/purchase/supplier-invoices",
 		"/purchase/payments",
-		"/stock",
 		"/stock/inventory",
 		"/stock/movements",
-		"/finance",
 		"/finance/journals/purchase",
 		"/finance/journals/sales",
 		"/finance/bank-accounts",

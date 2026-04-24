@@ -81,8 +81,26 @@ export const roleService = {
     roleId: string,
     permissionIds: string[],
     assignments?: Array<{ permission_id: string; scope: string }>,
-    tolerant: boolean = false
+    tolerant: boolean = false,
+    diff?: {
+      added: string[];
+      added_with_scope?: Array<{ permission_id: string; scope: string }>;
+      removed: string[];
+    }
   ): Promise<Role> {
+    // Use diff mode if diff is provided
+    if (diff) {
+      const body = {
+        mode: "diff",
+        diff,
+      };
+      const response = await apiClient.post<{ success: boolean; data: Role }>(
+        `/roles/${roleId}/permissions`,
+        body
+      );
+      return response.data.data;
+    }
+
     // Use scope-aware format if assignments provided, otherwise legacy format
     const body = assignments?.length
       ? { assignments }
