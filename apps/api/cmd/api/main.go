@@ -286,12 +286,12 @@ func main() {
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
 	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC)
-	
+
 	// Payment transaction usecase
 	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)
 	paymentTxnUC := tenantUsecase.NewPaymentTransactionUsecase(paymentTxnRepository, subscriptionRepository)
-	
-	billingH := tenantHandler.NewBillingHandler(subUC, paymentTxnUC, subscriptionPlanRepository)
+
+	billingH := tenantHandler.NewBillingHandler(subUC, paymentTxnUC, subscriptionPlanRepository, authUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -384,6 +384,7 @@ func main() {
 			billing.GET("/subscription", billingH.GetMySubscription)
 			billing.GET("/entitlements", billingH.GetMyEntitlements)
 			billing.GET("/payment-history", billingH.GetMyPaymentHistory)
+			billing.POST("/change", billingH.ChangeSubscription)
 		}
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)

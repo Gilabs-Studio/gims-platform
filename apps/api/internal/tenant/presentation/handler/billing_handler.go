@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -17,9 +18,14 @@ import (
 
 // BillingHandler exposes subscription and entitlement information to authenticated tenant users.
 type BillingHandler struct {
-	subUC             tenantUsecase.SubscriptionUsecase
-	paymentTxnUC      tenantUsecase.PaymentTransactionUsecase
-	planRepo          tenantRepos.SubscriptionPlanRepository
+	subUC           tenantUsecase.SubscriptionUsecase
+	paymentTxnUC    tenantUsecase.PaymentTransactionUsecase
+	planRepo        tenantRepos.SubscriptionPlanRepository
+	billingChangeUC billingChangeUsecase
+}
+
+type billingChangeUsecase interface {
+	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
 }
 
 const missingTenantContextMessage = "missing tenant context"
@@ -30,8 +36,8 @@ type planPermissionEntitlementRow struct {
 }
 
 // NewBillingHandler creates a BillingHandler.
-func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, paymentTxnUC tenantUsecase.PaymentTransactionUsecase, planRepo tenantRepos.SubscriptionPlanRepository) *BillingHandler {
-	return &BillingHandler{subUC: subUC, paymentTxnUC: paymentTxnUC, planRepo: planRepo}
+func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, paymentTxnUC tenantUsecase.PaymentTransactionUsecase, planRepo tenantRepos.SubscriptionPlanRepository, billingChangeUC billingChangeUsecase) *BillingHandler {
+	return &BillingHandler{subUC: subUC, paymentTxnUC: paymentTxnUC, planRepo: planRepo, billingChangeUC: billingChangeUC}
 }
 
 // GetMySubscription returns the active subscription for the calling tenant.
@@ -209,4 +215,62 @@ func (h *BillingHandler) GetMyPaymentHistory(c *gin.Context) {
 	response.SuccessResponse(c, gin.H{
 		"data": payments,
 	}, meta)
+}
+
+// ChangeSubscription handles seat-limit increases and plan upgrades.
+// POST /api/v1/billing/change
+func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+	if !isBillingOwnerRole(c) {
+		coreErrors.ForbiddenResponse(c, "billing.change", nil)
+		return
+	}
+
+	var req tenantDTO.BillingChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if h.billingChangeUC == nil {
+		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
+		return
+	}
+
+	resp, err := h.billingChangeUC.CreateBillingChangeInvoice(c.Request.Context(), &req, tenantID.(string))
+	if err != nil {
+		if errors.Is(err, authUsecase.ErrSeatLimitExceeded) {
+			coreErrors.ErrorResponse(c, "SEAT_LIMIT_EXCEEDED", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		if strings.EqualFold(err.Error(), "COUPON_INVALID") {
+			coreErrors.ErrorResponse(c, "COUPON_INVALID", map[string]any{"reason": "Coupon expired, used, or invalid"}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrBillingChangeUnsupported) {
+			coreErrors.ErrorResponse(c, "UNSUPPORTED_BILLING_CHANGE", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrPaymentGatewayUnavailable) {
+			coreErrors.InternalServerErrorResponse(c, "payment gateway unavailable")
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+func isBillingOwnerRole(c *gin.Context) bool {
+	roleValue, ok := c.Get("user_role")
+	if !ok {
+		return false
+	}
+	role := strings.ToLower(strings.TrimSpace(roleValue.(string)))
+	return strings.HasPrefix(role, "tenant_owner_") || role == "owner" || strings.HasSuffix(role, "_owner")
 }

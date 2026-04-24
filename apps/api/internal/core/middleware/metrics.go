@@ -19,6 +19,44 @@ type metricsStore struct {
 }
 
 var metrics = &metricsStore{}
+var metricsStartedAt = time.Now()
+
+type MetricsSnapshotData struct {
+	TotalRequests    uint64          `json:"total_requests"`
+	TotalErrors5xx   uint64          `json:"total_errors_5xx"`
+	TotalDurationMs  uint64          `json:"total_duration_ms"`
+	AvgDurationMs    float64         `json:"avg_duration_ms"`
+	RequestsByStatus map[int]uint64  `json:"requests_by_statuscode"`
+	UptimeSeconds    int64           `json:"uptime_seconds"`
+}
+
+func MetricsSnapshot() MetricsSnapshotData {
+	byStatus := make(map[int]uint64)
+	metrics.byStatus.Range(func(k, v any) bool {
+		status, ok := k.(int)
+		if !ok {
+			return true
+		}
+		byStatus[status] = atomic.LoadUint64(v.(*uint64))
+		return true
+	})
+
+	total := atomic.LoadUint64(&metrics.totalRequests)
+	durationMs := atomic.LoadUint64(&metrics.totalDurationMs)
+	avg := float64(0)
+	if total > 0 {
+		avg = float64(durationMs) / float64(total)
+	}
+
+	return MetricsSnapshotData{
+		TotalRequests:    total,
+		TotalErrors5xx:   atomic.LoadUint64(&metrics.totalErrors),
+		TotalDurationMs:  durationMs,
+		AvgDurationMs:    avg,
+		RequestsByStatus: byStatus,
+		UptimeSeconds:    int64(time.Since(metricsStartedAt).Seconds()),
+	}
+}
 
 func MetricsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -47,29 +85,6 @@ func MetricsHandler() gin.HandlerFunc {
 			return
 		}
 
-		byStatus := make(map[int]uint64)
-		metrics.byStatus.Range(func(k, v any) bool {
-			status, ok := k.(int)
-			if !ok {
-				return true
-			}
-			byStatus[status] = atomic.LoadUint64(v.(*uint64))
-			return true
-		})
-
-		total := atomic.LoadUint64(&metrics.totalRequests)
-		durationMs := atomic.LoadUint64(&metrics.totalDurationMs)
-		avg := float64(0)
-		if total > 0 {
-			avg = float64(durationMs) / float64(total)
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"total_requests":        total,
-			"total_errors_5xx":      atomic.LoadUint64(&metrics.totalErrors),
-			"total_duration_ms":     durationMs,
-			"avg_duration_ms":       avg,
-			"requests_by_statuscode": byStatus,
-		})
+		c.JSON(http.StatusOK, MetricsSnapshot())
 	}
 }

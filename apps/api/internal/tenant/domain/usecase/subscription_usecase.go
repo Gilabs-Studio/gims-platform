@@ -68,6 +68,9 @@ func (u *subscriptionUsecase) GetActiveByTenant(ctx context.Context, tenantID st
 		return nil, err
 	}
 	r := subModelToDTO(sub)
+	if activeUsers, countErr := u.tenantRepo.CountActiveUsers(ctx, tenantID); countErr == nil {
+		r.ActiveUsers = int(activeUsers)
+	}
 	r.TenantName = u.resolveTenantName(ctx, tenantID)
 	return r, nil
 }
@@ -101,9 +104,16 @@ func subModelToDTO(s *models.TenantSubscription) *dto.SubscriptionResponse {
 		ExpiresAt:     s.ExpiresAt,
 		NextBillingAt: s.NextBillingAt,
 		UserCount:     s.UserCount,
+		SeatLimit:     s.SeatLimit,
 		AmountPaidIDR: s.AmountPaidIDR,
 		Notes:         s.Notes,
 		CreatedAt:     s.CreatedAt,
+	}
+	if r.SeatLimit == 0 {
+		r.SeatLimit = s.UserCount
+	}
+	if r.UserCount == 0 {
+		r.UserCount = r.SeatLimit
 	}
 	if s.XenditPaymentID != nil {
 		r.XenditPaymentID = *s.XenditPaymentID

@@ -22,6 +22,7 @@ import (
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	planRepo "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
@@ -46,6 +47,10 @@ var (
 	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
 	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
+	ErrPendingBillingChangeNotFound   = errors.New("pending billing change not found or expired")
+	ErrPendingBillingChangeInvalid    = errors.New("pending billing change data is invalid")
+	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
+	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -53,6 +58,9 @@ const pendingRegTTL = 24 * time.Hour
 
 // pendingRegKeyPrefix is the Redis key prefix for pending registrations.
 const pendingRegKeyPrefix = "pending_reg:"
+
+// pendingBillingChangeKeyPrefix is the Redis key prefix for subscription change requests.
+const pendingBillingChangeKeyPrefix = "pending_billing_change:"
 
 const masterDataMenuPrefix = "/master-data"
 
@@ -98,6 +106,11 @@ type AuthUsecase interface {
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
 	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
+	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
+	// stores the pending mutation until the payment webhook confirms it.
+	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
+	// CompletePendingBillingChange finalizes a paid billing change after the webhook.
+	CompletePendingBillingChange(ctx context.Context, token string) error
 }
 
 type authUsecase struct {
