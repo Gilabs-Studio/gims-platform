@@ -161,6 +161,7 @@ interface CouponState {
   targetPlanSlug?: string;     // set when coupon has scope=tier_specific
   discountType?: string;       // "trial" | "percent" | "amount"
   discountValue?: number;      // % or IDR reduction
+  maxUsers?: number;           // limit on user count
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -198,6 +199,7 @@ export default function RegisterForm() {
   });
   const [accountErrors, setAccountErrors] = useState<AccountErrors>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isCheckingAccount, setIsCheckingAccount] = useState(false);
 
   // ── Step 2: plan ─────────────────────────────────────────────────────────────
   const [planTab, setPlanTab] = useState<PlanTab>("bundle");
@@ -275,8 +277,35 @@ export default function RegisterForm() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleContinue = () => {
-    if (validateAccount()) setStep(2);
+  const handleContinue = async () => {
+    if (!validateAccount()) return;
+
+    setIsCheckingAccount(true);
+    setAccountErrors((p) => ({ ...p, general: undefined }));
+
+    try {
+      const availability = await authService.checkAvailability({
+        email: account.email.trim(),
+        company_name: account.company.trim() || undefined,
+      });
+
+      const errs: AccountErrors = {};
+      if (!availability.email) errs.email = t("errors.emailTaken");
+      if (!availability.company_name) errs.company = t("errors.companyTaken");
+
+      if (Object.keys(errs).length > 0) {
+        setAccountErrors((p) => ({ ...p, ...errs }));
+      } else {
+        setStep(2);
+      }
+    } catch (err) {
+      console.error("Availability check failed:", err);
+      // Fail gracefully and allow user to continue if check fails?
+      // Or show a general error.
+      setAccountErrors((p) => ({ ...p, general: "Unable to verify account availability. Please try again." }));
+    } finally {
+      setIsCheckingAccount(false);
+    }
   };
 
   // ── Coupon validation ─────────────────────────────────────────────────────────
@@ -296,6 +325,7 @@ export default function RegisterForm() {
             : t("couponValid"),
           discountType: data.discount_type,
           discountValue: data.discount_value,
+          maxUsers: data.max_users,
         };
         // When coupon is locked to a specific plan, auto-switch to that plan.
         if (data.scope === "tier_specific" && data.target_plan_slug) {
@@ -305,6 +335,11 @@ export default function RegisterForm() {
           setSelectedModular(data.target_plan_slug);
         }
         setCouponState(newState);
+        
+        // Cek if current userCount already exceeds maxUsers
+        if (newState.maxUsers && newState.maxUsers > 0 && userCount > newState.maxUsers) {
+          setUserCount(newState.maxUsers);
+        }
       } else {
         const reasonMap: Record<string, string> = {
           not_found: t("couponReasons.not_found"),
@@ -319,9 +354,25 @@ export default function RegisterForm() {
           message: reasonMap[data?.reason ?? ""] ?? t("couponInvalidOrExpired"),
         });
       }
-    } catch {
+    } catch (err) {
+      console.error("Coupon check failed:", err);
       setCouponState({ isChecking: false, isValid: false, message: t("couponValidateFailed") });
     }
+  };
+
+  const applyCouponDiscount = (baseAmount: number): number => {
+    if (!couponState.isValid) return baseAmount;
+    if (couponState.discountType === "trial") return 0;
+    
+    if (couponState.discountType === "percent" && couponState.discountValue) {
+      return Math.round(baseAmount * (1 - couponState.discountValue / 100));
+    }
+    
+    if (couponState.discountType === "amount" && couponState.discountValue) {
+      return Math.max(0, baseAmount - couponState.discountValue);
+    }
+    
+    return baseAmount;
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────────
@@ -403,11 +454,23 @@ export default function RegisterForm() {
   const submitLabel = (): string => {
     if (planTab === "bundle" && selectedBundle === "enterprise") return t("contactSales");
     if (!selectedBundlePlan || !selectedModularPlan) return t("pay", { amount: formatIDR(0) });
-    const total = planTab === "bundle"
+    
+    const baseTotal = planTab === "bundle"
       ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
       : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
-    return t("pay", { amount: formatIDR(discountActive ? 0 : total) });
+      
+    const finalTotal = applyCouponDiscount(baseTotal);
+    
+    return t("pay", { amount: formatIDR(finalTotal) });
   };
+
+  const effectiveMaxUsers = useMemo(() => {
+    const apiMax = 500;
+    if (couponState.isValid && couponState.maxUsers && couponState.maxUsers > 0) {
+      return Math.min(apiMax, couponState.maxUsers);
+    }
+    return apiMax;
+  }, [couponState.isValid, couponState.maxUsers]);
 
   const openContactSalesWhatsApp = () => {
     if (typeof window !== "undefined") {
@@ -541,9 +604,14 @@ export default function RegisterForm() {
                       autoComplete="organization"
                       placeholder={t("companyPlaceholder")}
                       value={account.company}
-                      onChange={(e) => setAccount((p) => ({ ...p, company: e.target.value }))}
+                      onChange={(e) => {
+                        setAccount((p) => ({ ...p, company: e.target.value }));
+                        if (accountErrors.company) setAccountErrors((p) => ({ ...p, company: undefined }));
+                      }}
+                      aria-invalid={!!accountErrors.company}
                       className="h-11"
                     />
+                    {accountErrors.company && <p className="text-xs text-destructive">{accountErrors.company}</p>}
                   </div>
                 </div>
 
@@ -551,7 +619,9 @@ export default function RegisterForm() {
                   type="button"
                   onClick={handleContinue}
                   className="h-11 w-full font-medium"
+                  disabled={isCheckingAccount}
                 >
+                  {isCheckingAccount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {t("continue")}
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -676,7 +746,7 @@ export default function RegisterForm() {
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="w-12 text-center text-sm font-medium">{userCount} user{userCount > 1 ? "s" : ""}</span>
-                            <button type="button" onClick={() => setUserCount((n) => Math.min(500, n + 1))}
+                             <button type="button" onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))}
                               className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted">
                               <Plus className="h-3 w-3" />
                             </button>
@@ -799,18 +869,18 @@ export default function RegisterForm() {
                             <input
                               type="number"
                               min={1}
-                              max={500}
+                              max={effectiveMaxUsers}
                               value={userCount}
                               onChange={(e) => {
                                 const v = parseInt(e.target.value, 10);
-                                if (!isNaN(v) && v >= 1 && v <= 500) setUserCount(v);
+                                if (!isNaN(v) && v >= 1 && v <= effectiveMaxUsers) setUserCount(v);
                               }}
                               className="h-9 w-14 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               aria-label="Number of users"
                             />
                             <button
                               type="button"
-                              onClick={() => setUserCount((n) => Math.min(500, n + 1))}
+                              onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))}
                               className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-muted"
                               aria-label="Increase users"
                             >

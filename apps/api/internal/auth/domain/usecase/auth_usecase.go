@@ -86,6 +86,8 @@ type AuthUsecase interface {
 	// RegisterTenant creates a new tenant and provisions an admin account for self-service sign-up.
 	// When using a paid plan, it creates a Xendit invoice instead of immediate provisioning.
 	RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error)
+	// CheckAvailability checks if email and company name (slug) are available for registration.
+	CheckAvailability(ctx context.Context, email, companyName string) (map[string]bool, error)
 	// CompletePendingRegistration is called by the Xendit webhook after successful payment.
 	// token is the UUID stored in the Xendit external_id / Redis key.
 	CompletePendingRegistration(ctx context.Context, token string) error
@@ -507,6 +509,36 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 	})
 }
 
+func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName string) (map[string]bool, error) {
+	result := map[string]bool{
+		"email":        true,
+		"company_name": true,
+	}
+
+	if email != "" {
+		var count int64
+		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			result["email"] = false
+		}
+	}
+
+	if companyName != "" {
+		slug := slugify(companyName)
+		var count int64
+		if err := u.db.WithContext(ctx).Table("tenants").Where("slug = ?", slug).Count(&count).Error; err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			result["company_name"] = false
+		}
+	}
+
+	return result, nil
+}
+
 // RegisterTenant provisions a brand-new tenant and an enterprise-level admin account
 // in a single atomic transaction, then immediately returns a valid JWT so the caller
 // can start using the platform without a separate login step.
@@ -872,7 +904,7 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			return err
 		}
 		if slugCount > 0 {
-			slug = slug + "-" + shortID()
+			return ErrSlugAlreadyTaken
 		}
 
 		tenantID := newUUID()

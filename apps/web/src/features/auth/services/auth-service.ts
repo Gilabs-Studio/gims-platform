@@ -243,6 +243,7 @@ export const authService = {
       description?: string;
       scope?: string;
       target_plan_slug?: string;
+      max_users?: number;
     };
   }> {
     let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
@@ -251,6 +252,21 @@ export const authService = {
     }
     const response = await apiClient.get(url);
     return response.data;
+  },
+
+  /**
+   * Checks if email and/or company name are available for registration.
+   */
+  async checkAvailability(params: {
+    email?: string;
+    company_name?: string;
+  }): Promise<{ email: boolean; company_name: boolean }> {
+    const query = new URLSearchParams();
+    if (params.email) query.set("email", params.email);
+    if (params.company_name) query.set("company_name", params.company_name);
+
+    const response = await apiClient.get(`/auth/check-availability?${query.toString()}`);
+    return response.data?.data;
   },
 
   /**

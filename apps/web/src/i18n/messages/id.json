@@ -157,7 +157,9 @@
       "emailRequired": "Email wajib diisi",
       "emailInvalid": "Masukkan alamat email yang valid",
       "passwordRequired": "Kata sandi wajib diisi",
-      "passwordTooShort": "Minimal 8 karakter"
+      "passwordTooShort": "Minimal 8 karakter",
+      "emailTaken": "Email ini sudah terdaftar",
+      "companyTaken": "Nama perusahaan ini sudah digunakan"
     }
   },
   "login": {

@@ -59,6 +59,26 @@ func (h *AuthHandler) ValidateCoupon(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
+// CheckAvailability checks if email and company name are available for registration.
+// GET /api/v1/auth/check-availability?email=...&company_name=...
+func (h *AuthHandler) CheckAvailability(c *gin.Context) {
+	email := strings.TrimSpace(c.Query("email"))
+	companyName := strings.TrimSpace(c.Query("company_name"))
+
+	if email == "" && companyName == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"query": "either email or company_name is required"}, nil)
+		return
+	}
+
+	result, err := h.authUC.CheckAvailability(c.Request.Context(), email, companyName)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // isHTTPS returns true when the current request arrived over TLS, either
 // directly or via a trusted proxy that sets X-Forwarded-Proto.
 func isHTTPS(c *gin.Context) bool {
