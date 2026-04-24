@@ -3,6 +3,9 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"sort"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/role/data/models"
@@ -145,12 +148,31 @@ func (r *roleRepository) AssignPermissionsWithScope(ctx context.Context, roleID 
 			for _, a := range assignments {
 				permIDs = append(permIDs, a.PermissionID)
 			}
-			var validCount int64
-			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Count(&validCount).Error; err != nil {
+
+			var existingIDs []string
+			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Pluck("id", &existingIDs).Error; err != nil {
 				return err
 			}
-			if int(validCount) != len(permIDs) {
-				return ErrInvalidPermissionIDs
+
+			existingSet := make(map[string]bool, len(existingIDs))
+			for _, id := range existingIDs {
+				existingSet[id] = true
+			}
+
+			missingIDs := make([]string, 0)
+			for _, id := range permIDs {
+				if !existingSet[id] {
+					missingIDs = append(missingIDs, id)
+				}
+			}
+			if len(missingIDs) > 0 {
+				tenantID := ""
+				if v, ok := ctx.Value("tenant_id").(string); ok {
+					tenantID = v
+				}
+				sort.Strings(missingIDs)
+				log.Printf("[RoleRepository] AssignPermissionsWithScope invalid_permission_ids tenant_id=%s role_id=%s permission_ids=%v", tenantID, roleID, missingIDs)
+				return fmt.Errorf("%w: %v", ErrInvalidPermissionIDs, missingIDs)
 			}
 		}
 

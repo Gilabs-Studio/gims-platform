@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,12 +38,30 @@ var (
 )
 
 const (
-	cacheRoleByIDKey          = "roles:id:%s"
-	cacheRoleListKeyFmt       = "roles:list:page:%d:limit:%d"
+	cacheRoleByIDKeyLegacy    = "roles:id:%s"
+	cacheRoleListKeyFmtLegacy = "roles:list:page:%d:limit:%d"
 	cacheRoleListPage1Limit10 = "roles:list:page:1:limit:10"
 	cacheRoleListPage1Limit20 = "roles:list:page:1:limit:20"
 	masterDataMenuPrefix      = "/master-data"
 )
+
+func roleCacheScope(ctx context.Context) string {
+	if middleware.IsSystemAdmin(ctx) {
+		return "system_admin"
+	}
+	if tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx)); tenantID != "" {
+		return tenantID
+	}
+	return "public"
+}
+
+func roleListCacheKey(ctx context.Context, page, limit int) string {
+	return fmt.Sprintf("roles:list:scope:%s:page:%d:limit:%d", roleCacheScope(ctx), page, limit)
+}
+
+func roleByIDCacheKey(ctx context.Context, roleID string) string {
+	return fmt.Sprintf("roles:id:scope:%s:id:%s", roleCacheScope(ctx), roleID)
+}
 
 var alwaysSafePermissionPrefixes = []string{
 	"dashboard.",
@@ -100,7 +119,7 @@ func NewRoleUsecase(roleRepo repositories.RoleRepository, eventPublisher infraEv
 }
 
 func (u *roleUsecase) List(ctx context.Context, page, limit int) ([]dto.RoleResponse, int64, error) {
-	cacheKey := fmt.Sprintf(cacheRoleListKeyFmt, page, limit)
+	cacheKey := roleListCacheKey(ctx, page, limit)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -142,7 +161,7 @@ func (u *roleUsecase) List(ctx context.Context, page, limit int) ([]dto.RoleResp
 }
 
 func (u *roleUsecase) GetByID(ctx context.Context, id string) (*dto.RoleResponse, error) {
-	cacheKey := fmt.Sprintf("roles:id:%s", id)
+	cacheKey := roleByIDCacheKey(ctx, id)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -195,7 +214,12 @@ func (u *roleUsecase) Create(ctx context.Context, req *dto.CreateRoleRequest) (*
 	// For immediate consistency, we could use keys pattern matching but it's expensive.
 	// Enterprise solution: Use a "version" key for lists or just accept eventual consistency (5 mins).
 	// Let's implement partial invalidation for common first page.
-	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
+	u.redis.Del(ctx,
+		roleListCacheKey(ctx, 1, 10),
+		roleListCacheKey(ctx, 1, 20),
+		cacheRoleListPage1Limit10,
+		cacheRoleListPage1Limit20,
+	)
 
 	// Create role
 	r := &models.Role{
@@ -273,9 +297,15 @@ func (u *roleUsecase) Update(ctx context.Context, id string, req *dto.UpdateRole
 		return nil, err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, id))
-	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
+	// Invalidate cache (tenant-scoped + legacy keys)
+	u.redis.Del(ctx,
+		roleByIDCacheKey(ctx, id),
+		fmt.Sprintf(cacheRoleByIDKeyLegacy, id),
+		roleListCacheKey(ctx, 1, 10),
+		roleListCacheKey(ctx, 1, 20),
+		cacheRoleListPage1Limit10,
+		cacheRoleListPage1Limit20,
+	)
 
 	// Reload with permissions
 	updatedRole, err := u.roleRepo.FindByID(ctx, r.ID)
@@ -359,9 +389,15 @@ func (u *roleUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, id))
-	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
+	// Invalidate cache (tenant-scoped + legacy keys)
+	u.redis.Del(ctx,
+		roleByIDCacheKey(ctx, id),
+		fmt.Sprintf(cacheRoleByIDKeyLegacy, id),
+		roleListCacheKey(ctx, 1, 10),
+		roleListCacheKey(ctx, 1, 20),
+		cacheRoleListPage1Limit10,
+		cacheRoleListPage1Limit20,
+	)
 
 	// Publish event (async, fire-and-forget)
 	u.eventPublisher.PublishAsync(ctx, events.NewRoleDeletedEvent(ctx, events.RoleDeletedPayload{
@@ -474,6 +510,9 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 // Only validates added permissions against plan; existing unchanged permissions are left untouched.
 // This prevents the "plan restriction" error when bulk-updating with unchanged permissions included.
 func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, diff *dto.DiffPermissionsRequest) error {
+	tenantID := middleware.TenantFromContext(ctx)
+	log.Printf("[RoleUsecase] UpdatePermissionsDiff tenant_id=%s role_id=%s added=%d removed=%d added_with_scope=%d", tenantID, roleID, len(diff.Added), len(diff.Removed), len(diff.AddedWithScope))
+
 	// Validate role exists and get existing permissions
 	role, err := u.roleRepo.FindByID(ctx, roleID)
 	if err != nil {
@@ -560,19 +599,20 @@ func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, 
 		}
 	}
 
-	// If we're missing any minimum permissions, query database to find their IDs
+	// If we're missing any minimum permissions, query database to find their IDs.
+	// Must use u.db directly (not GetDB) because permissions is a global/shared table with no tenant_id.
 	if len(minimumCodes) > 0 {
 		var perms []struct {
 			ID   string
 			Code string
 		}
-		
+
 		codesToFind := make([]string, 0, len(minimumCodes))
 		for code := range minimumCodes {
 			codesToFind = append(codesToFind, code)
 		}
 
-		if err := coreDB.GetDB(ctx, u.db).
+		if err := u.db.WithContext(ctx).
 			Table("permissions").
 			Select("id, code").
 			Where("code IN ?", codesToFind).
@@ -587,6 +627,64 @@ func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, 
 		}
 	}
 
+	// Revalidate final permission IDs against source-of-truth permissions table.
+	// This removes stale IDs from legacy rows while still rejecting explicitly invalid user additions.
+	finalIDs := make([]string, 0, len(nextSet))
+	for permID := range nextSet {
+		finalIDs = append(finalIDs, permID)
+	}
+
+	if len(finalIDs) > 0 {
+		var existingIDs []string
+		// Must use u.db directly — permissions is a global/shared table with no tenant_id column.
+		// Using GetDB here would inject WHERE tenant_id=? causing all IDs to appear non-existent,
+		// which would silently delete the entire permission set.
+		if err := u.db.WithContext(ctx).
+			Table("permissions").
+			Where("id IN ? AND deleted_at IS NULL", finalIDs).
+			Pluck("id", &existingIDs).Error; err != nil {
+			return err
+		}
+
+		existingIDSet := make(map[string]bool, len(existingIDs))
+		for _, id := range existingIDs {
+			existingIDSet[id] = true
+		}
+
+		addedSet := make(map[string]bool, len(diff.Added)+len(diff.AddedWithScope))
+		for _, id := range diff.Added {
+			addedSet[id] = true
+		}
+		for _, a := range diff.AddedWithScope {
+			addedSet[a.PermissionID] = true
+		}
+
+		missingAdded := make([]string, 0)
+		filteredStale := make([]string, 0)
+		for _, id := range finalIDs {
+			if existingIDSet[id] {
+				continue
+			}
+			if addedSet[id] {
+				missingAdded = append(missingAdded, id)
+				continue
+			}
+			filteredStale = append(filteredStale, id)
+			delete(nextSet, id)
+		}
+
+		if len(missingAdded) > 0 {
+			sort.Strings(missingAdded)
+			log.Printf("[RoleUsecase] UpdatePermissionsDiff invalid_added_permissions tenant_id=%s role_id=%s permission_ids=%v", tenantID, roleID, missingAdded)
+			return fmt.Errorf("invalid permission IDs in diff.added: %v", missingAdded)
+		}
+
+		if len(filteredStale) > 0 {
+			sort.Strings(filteredStale)
+			log.Printf("[RoleUsecase] UpdatePermissionsDiff filtered_stale_permissions tenant_id=%s role_id=%s permission_ids=%v", tenantID, roleID, filteredStale)
+		}
+	}
+
 	// Convert map back to slice
 	final := make([]models.RolePermission, 0, len(nextSet))
 	for _, rp := range nextSet {
@@ -595,6 +693,7 @@ func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, 
 
 	// Apply the change
 	if err := u.roleRepo.AssignPermissionsWithScope(ctx, roleID, final); err != nil {
+		log.Printf("[RoleUsecase] UpdatePermissionsDiff assign_failed tenant_id=%s role_id=%s err=%v", tenantID, roleID, err)
 		return err
 	}
 
@@ -751,13 +850,16 @@ func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permis
 
 	planSlug, err := u.resolveTenantPlanSlug(ctx, tenantID)
 	if err != nil || planSlug == "" {
+		log.Printf("[RoleUsecase] validatePlanPermissionBoundary no_active_plan tenant_id=%s err=%v", tenantID, err)
 		return ErrPermissionNotAllowedForPlan
 	}
 
 	modules, err := u.planRepo.GetEnabledModules(ctx, planSlug)
 	if err != nil {
+		log.Printf("[RoleUsecase] validatePlanPermissionBoundary modules_load_failed tenant_id=%s plan=%s err=%v", tenantID, planSlug, err)
 		return ErrPermissionNotAllowedForPlan
 	}
+	log.Printf("[RoleUsecase] validatePlanPermissionBoundary tenant_id=%s plan=%s requested_permissions=%d enabled_modules=%d", tenantID, planSlug, len(permissionIDs), len(modules))
 	allowedModules := make(map[string]struct{}, len(modules))
 	for _, m := range modules {
 		allowedModules[strings.ToLower(strings.TrimSpace(m))] = struct{}{}
@@ -804,9 +906,11 @@ func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permis
 			continue
 		}
 		if _, ok := allowedModules[module]; !ok {
+			log.Printf("[RoleUsecase] validatePlanPermissionBoundary blocked_by_module tenant_id=%s plan=%s permission_code=%s module=%s", tenantID, planSlug, p.Code, module)
 			return ErrPermissionNotAllowedForPlan
 		}
 		if policy.hasRules && !isPermissionAllowedByPolicy(p, policy) {
+			log.Printf("[RoleUsecase] validatePlanPermissionBoundary blocked_by_policy tenant_id=%s plan=%s permission_code=%s module=%s", tenantID, planSlug, p.Code, module)
 			return ErrPermissionNotAllowedForPlan
 		}
 	}
@@ -1008,6 +1112,10 @@ func isPermissionAllowedByPolicy(p permissionMetaRow, policy planPermissionPolic
 	}
 
 	for _, prefix := range policy.menuPrefixes {
+		// "/" means allow all URLs — used by ultimate_suite and enterprise plans.
+		if prefix == "/" {
+			return true
+		}
 		if menuURL == prefix || strings.HasPrefix(menuURL, prefix+"/") {
 			return true
 		}
@@ -1063,8 +1171,14 @@ func moduleFromURL(url string) string {
 // Both L1 (in-memory via PermissionService) and L2 (Redis) caches are invalidated
 // to ensure permission/scope changes take effect immediately.
 func (u *roleUsecase) invalidatePermissionCaches(ctx context.Context, roleID string, roleCode string) {
-	u.redis.Del(ctx, fmt.Sprintf(cacheRoleByIDKey, roleID))
-	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
+	u.redis.Del(ctx,
+		roleByIDCacheKey(ctx, roleID),
+		fmt.Sprintf(cacheRoleByIDKeyLegacy, roleID),
+		roleListCacheKey(ctx, 1, 10),
+		roleListCacheKey(ctx, 1, 20),
+		cacheRoleListPage1Limit10,
+		cacheRoleListPage1Limit20,
+	)
 
 	// Invalidate L1 in-memory cache in PermissionService (immediate effect)
 	if u.permService != nil {

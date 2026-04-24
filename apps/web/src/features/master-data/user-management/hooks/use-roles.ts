@@ -7,15 +7,19 @@ import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.sch
 import type { Role, ListRolesResponse, RoleMenuAccessAssignment } from "../types";
 
 export function useRoles(params?: { search?: string }) {
+  const tenantScope = useAuthStore((state) => state.user?.tenant_id ?? "anonymous");
+
   return useQuery({
-    queryKey: ["roles", params],
+    queryKey: ["roles", tenantScope, params],
     queryFn: () => roleService.list(params),
   });
 }
 
 export function useRole(id: string) {
+  const tenantScope = useAuthStore((state) => state.user?.tenant_id ?? "anonymous");
+
   return useQuery({
-    queryKey: ["role", id],
+    queryKey: ["role", tenantScope, id],
     queryFn: () => roleService.getById(id),
     enabled: !!id,
   });
@@ -114,8 +118,10 @@ export function useAssignPermissionsToRole() {
 }
 
 export function useRoleMenuAccess(roleId: string) {
+  const tenantScope = useAuthStore((state) => state.user?.tenant_id ?? "anonymous");
+
   return useQuery({
-    queryKey: ["role-menu-access", roleId],
+    queryKey: ["role-menu-access", tenantScope, roleId],
     queryFn: () => roleService.getMenuAccess(roleId),
     enabled: !!roleId,
   });

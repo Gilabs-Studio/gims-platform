@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -226,6 +227,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 // Differential mode (mode=diff): Only validates added permissions against plan, leaving existing unchanged.
 func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 	tolerantMode := c.Query("tolerant") == "true"
 	var req dto.AssignPermissionsRequest
 
@@ -240,6 +242,7 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 
 	// DIFF MODE: Only validate added permissions, leave unchanged untouched
 	if req.Mode == "diff" && req.Diff != nil {
+		log.Printf("[RoleHandler] assign_permissions mode=diff tenant_id=%s role_id=%s added=%v removed=%v added_with_scope=%d", tenantID, id, req.Diff.Added, req.Diff.Removed, len(req.Diff.AddedWithScope))
 		err := h.roleUC.UpdatePermissionsDiff(c.Request.Context(), id, req.Diff)
 		if err != nil {
 			if err == usecase.ErrRoleNotFound {
@@ -279,6 +282,12 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 
 	// Use scope-aware assignments if provided, otherwise fall back to legacy format
 	if len(req.Assignments) > 0 {
+		permissionIDs := make([]string, 0, len(req.Assignments))
+		for _, assignment := range req.Assignments {
+			permissionIDs = append(permissionIDs, assignment.PermissionID)
+		}
+		log.Printf("[RoleHandler] assign_permissions mode=scope tenant_id=%s role_id=%s permission_ids=%v", tenantID, id, permissionIDs)
+
 		// In tolerant mode, filter out unauthorized permissions before assignment
 		if tolerantMode {
 			permIDs := make([]string, 0, len(req.Assignments))
@@ -334,6 +343,7 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 			return
 		}
 	} else {
+		log.Printf("[RoleHandler] assign_permissions mode=legacy tenant_id=%s role_id=%s permission_ids=%v", tenantID, id, req.PermissionIDs)
 		// Legacy format (permission_ids only)
 		if tolerantMode {
 			allowed, _, err := h.roleUC.FilterAllowedPermissions(c.Request.Context(), req.PermissionIDs)

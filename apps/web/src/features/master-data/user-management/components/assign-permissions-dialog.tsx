@@ -769,17 +769,6 @@ const TreeBranchNode = memo(function TreeBranchNode({
 
   return (
     <div className="relative">
-      {/* Section-level lock: full blur overlay with upgrade CTA (only for top-level sections) */}
-      {isLocked && isSection && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-[3px] bg-background/60 rounded-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Lock className="h-4 w-4 text-muted-foreground" />
-            {t("moduleLocked")}
-            {lockedModuleLabel ? ` (${lockedModuleLabel})` : ""}
-          </div>
-        </div>
-      )}
-
       {/* Header row */}
       <div
         className={cn(
@@ -787,8 +776,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
           isSection
             ? "bg-muted/50 hover:bg-muted/70 py-2.5"
             : "bg-muted/20 hover:bg-muted/40 py-2",
-          isLocked && !isSection && "opacity-60 pointer-events-none",
-          isLocked && isSection && "pointer-events-none",
+          isLocked && "opacity-50 pointer-events-none",
         )}
         style={{ paddingLeft }}
         onClick={handleToggleExpand}
@@ -802,7 +790,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
           }
         }}
       >
-        {isLocked && !isSection ? (
+        {isLocked ? (
           <Lock className="size-4 text-muted-foreground shrink-0" />
         ) : (
           <ChevronRight
@@ -847,7 +835,12 @@ const TreeBranchNode = memo(function TreeBranchNode({
         >
           {node.name}
         </span>
-        {isLocked && !isSection && lockedModuleLabel && (
+        {isLocked && (
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+            {t("moduleLocked")}
+          </span>
+        )}
+        {isLocked && lockedModuleLabel && (
           <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
             {lockedModuleLabel}
           </span>
@@ -1059,34 +1052,9 @@ function PermissionsSelector({
   const [selectedPermissions, setSelectedPermissions] =
     useState<Record<string, string>>(initialPermissions);
   const [searchQuery, setSearchQuery] = useState("");
-  const defaultExpandedIds = useMemo(() => {
-    const ids = new Set<string>();
+  const defaultExpandedIds = useMemo(() => new Set<string>(), [role?.id]);
 
-    const hasAllowedPermissionInNode = (node: PermissionTreeNode): boolean => {
-      if (node.type === "resource") {
-        return (node.permissions ?? []).some((permission) => isPermissionAllowedByPlan(permission));
-      }
-      return (node.children ?? []).some((child) => hasAllowedPermissionInNode(child));
-    };
-
-    const walk = (nodes: PermissionTreeNode[]): void => {
-      for (const node of nodes) {
-        if (!node.children?.length) {
-          continue;
-        }
-        if (getNodeLockMeta(node).locked || !hasAllowedPermissionInNode(node)) {
-          continue;
-        }
-        ids.add(node.id);
-        walk(node.children);
-      }
-    };
-
-    walk(tree);
-    return ids;
-  }, [tree, getNodeLockMeta, isPermissionAllowedByPlan]);
-
-  const [expanded, setExpanded] = useState<Set<string>>(defaultExpandedIds);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setExpanded(defaultExpandedIds);
