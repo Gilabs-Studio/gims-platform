@@ -22,6 +22,7 @@ import (
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	planRepo "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/redis/go-redis/v9"
@@ -30,19 +31,19 @@ import (
 )
 
 var (
-	ErrInvalidCredentials        = errors.New("invalid credentials")
-	ErrUserNotFound              = errors.New("user not found")
-	ErrUserInactive              = errors.New("user is inactive")
-	ErrRefreshTokenInvalid       = errors.New("refresh token is invalid")
-	ErrRefreshTokenRevoked       = errors.New("refresh token has been revoked")
-	ErrRefreshTokenExpired       = errors.New("refresh token has expired")
-	ErrEmailAlreadyTaken         = errors.New("email already registered")
-	ErrSlugAlreadyTaken          = errors.New("organization slug already taken")
-	ErrPaymentRequired           = errors.New("payment or valid coupon required to register")
-	ErrPaymentGatewayUnavailable = errors.New("payment gateway is not configured")
-	ErrCouponInvalid             = errors.New("coupon is invalid, inactive, or exhausted")
-	ErrCouponAlreadyUsed         = errors.New("coupon already used by this email")
-	ErrPendingRegistrationNotFound = errors.New("pending registration not found or expired")
+	ErrInvalidCredentials             = errors.New("invalid credentials")
+	ErrUserNotFound                   = errors.New("user not found")
+	ErrUserInactive                   = errors.New("user is inactive")
+	ErrRefreshTokenInvalid            = errors.New("refresh token is invalid")
+	ErrRefreshTokenRevoked            = errors.New("refresh token has been revoked")
+	ErrRefreshTokenExpired            = errors.New("refresh token has expired")
+	ErrEmailAlreadyTaken              = errors.New("email already registered")
+	ErrSlugAlreadyTaken               = errors.New("organization slug already taken")
+	ErrPaymentRequired                = errors.New("payment or valid coupon required to register")
+	ErrPaymentGatewayUnavailable      = errors.New("payment gateway is not configured")
+	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
+	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
+	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
 )
 
@@ -578,8 +579,11 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		userCount = 1
 	}
 
-	// Resolve price from DB-driven plan config with fallback to hardcoded map.
-	baseAmount := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+	// Resolve price from DB-driven plan config.
+	baseAmount, err := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+	if err != nil {
+		return nil, err
+	}
 
 	// Apply coupon discount when a non-trial coupon is included.
 	couponCode := strings.TrimSpace(req.Coupon)
@@ -646,15 +650,21 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	}, nil
 }
 
-// resolvePlanPrice looks up the plan price from DB first; falls back to the hardcoded map.
-func (u *authUsecase) resolvePlanPrice(ctx context.Context, planSlug, billingPeriod string, userCount int) int64 {
-	if u.planRepo != nil {
-		plan, err := u.planRepo.FindBySlug(ctx, planSlug)
-		if err == nil {
-			return plan.TotalPriceIDR(billingPeriod, userCount)
-		}
+// resolvePlanPrice looks up plan price from DB config.
+func (u *authUsecase) resolvePlanPrice(ctx context.Context, planSlug, billingPeriod string, userCount int) (int64, error) {
+	if u.planRepo == nil {
+		return 0, ErrPaymentGatewayUnavailable
 	}
-	return planTotalPriceIDR(planSlug, billingPeriod, userCount)
+
+	plan, err := u.planRepo.FindBySlug(ctx, planSlug)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrPaymentRequired
+		}
+		return 0, err
+	}
+
+	return plan.TotalPriceIDR(billingPeriod, userCount), nil
 }
 
 // handleZeroAmountCouponRegistration routes a discount coupon that results in 0 IDR
@@ -806,60 +816,6 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		}).Error
 }
 
-// planTotalPriceIDR returns the total invoice amount in IDR for the selected plan,
-// billing period, and number of users.
-//
-// Pricing model: all plans are per-user. Bundle plans are intentionally cheaper
-// per-user than individual modules to create a decoy pricing effect — customers
-// who compare individual modules against bundles will see the bundle as the clear winner.
-//
-// Yearly billing applies a 10% annual discount.
-//
-// TODO(restrict-api-by-plan): After MVP, enforce plan-based API access gating here.
-// Current implementation: all paid plans grant full platform access.
-// Future: each plan ID should restrict which modules/routes are accessible.
-// Reference: docs/erp-sprint-planning.md — "Subscription tier API gating" task.
-func planTotalPriceIDR(plan, billingPeriod string, userCount int) int64 {
-	if userCount < 1 {
-		userCount = 1
-	}
-	// Per-user monthly prices in IDR.
-	// Modular plans are priced higher per-user so that bundles are always a better deal.
-	perUserMonthly := map[string]int64{
-		// ── Bundles (decoy anchors – best value) ──────────────────────────
-		"growth_suite":   149_000, // POS + ERP + CRM
-		"ultimate_suite": 175_000, // All modules (POS + ERP + CRM + HR)
-		// ── POS ──────────────────────────────────────────────────────────
-		"pos_essential":  149_000,
-		"pos_growth":     199_000,
-		"pos_enterprise": 299_000,
-		// ── ERP ──────────────────────────────────────────────────────────
-		"erp_core":       299_000,
-		"erp_pro":        399_000,
-		"erp_enterprise": 599_000,
-		// ── CRM ──────────────────────────────────────────────────────────
-		"crm_basic":      99_000,
-		"crm_growth":     149_000,
-		"crm_enterprise": 199_000,
-		// ── HR ───────────────────────────────────────────────────────────
-		"hr_basic":      49_000,
-		"hr_growth":     79_000,
-		"hr_enterprise": 119_000,
-		// ── Legacy full-access (coupon-based, not sold via Xendit) ───────
-		"full_access": 175_000,
-	}
-	perUser, ok := perUserMonthly[strings.ToLower(plan)]
-	if !ok {
-		perUser = 175_000 // Safe default — ultimate_suite price
-	}
-	total := perUser * int64(userCount)
-	if billingPeriod == "yearly" {
-		// 10% annual discount; charge the full year up-front.
-		total = int64(float64(total*12) * 0.9)
-	}
-	return total
-}
-
 // provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.
 func (u *authUsecase) provisionTenantWithCoupon(ctx context.Context, req *dto.RegisterTenantRequest, couponCode string) (*dto.LoginResponse, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -993,13 +949,13 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 
 		resp = &dto.LoginResponse{
 			User: &dto.UserResponse{
-				ID:               userID,
-				Email:            req.Email,
-				Name:             req.Name,
-				AvatarURL:        avatarURL,
-				Role:             roleCode,
-				RoleName:         roleName,
-				RoleDataScope:    roleDataScope,
+				ID:            userID,
+				Email:         req.Email,
+				Name:          req.Name,
+				AvatarURL:     avatarURL,
+				Role:          roleCode,
+				RoleName:      roleName,
+				RoleDataScope: roleDataScope,
 				// Owner role is always is_protected=true; safe to hard-code here since
 				// createTenantOwnerRole always marks it as protected.
 				IsOwner:          true,
@@ -1153,8 +1109,9 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 	return nil
 }
 
-
 func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug string) ([]rolePermissionAssignment, error) {
+	planSlug = normalizeTenantPlanSlug(planSlug)
+
 	rows := make([]rolePermissionAssignment, 0)
 	err := tx.Raw(`
 		SELECT p.id AS permission_id,
@@ -1187,6 +1144,11 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 		entitled[normalizePlanModule(m)] = struct{}{}
 	}
 
+	permissionPolicy, err := loadPlanPermissionPolicy(tx, planSlug)
+	if err != nil {
+		return nil, err
+	}
+
 	filtered := make([]rolePermissionAssignment, 0, len(rows))
 	for _, row := range rows {
 		// Core platform permissions that must be available for ALL plans regardless of entitlement.
@@ -1197,6 +1159,7 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 			strings.HasPrefix(codeLower, "profile.") ||
 			strings.HasPrefix(codeLower, "setting") ||
 			strings.HasPrefix(codeLower, "billing.") ||
+			codeLower == "pos.payment.manage" ||
 			// User and role management: always needed so the owner can manage their team
 			strings.HasPrefix(codeLower, "user.") ||
 			strings.HasPrefix(codeLower, "role.") ||
@@ -1221,12 +1184,96 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 			continue
 		}
 		if _, ok := entitled[module]; ok {
+			if permissionPolicy.hasRules && !isAssignmentAllowedByPolicy(row, permissionPolicy) {
+				continue
+			}
 			filtered = append(filtered, row)
 		}
 	}
 
 	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Code < filtered[j].Code })
 	return filtered, nil
+}
+
+type planPermissionPolicy struct {
+	codeSet      map[string]struct{}
+	menuPrefixes []string
+	hasRules     bool
+}
+
+func loadPlanPermissionPolicy(tx *gorm.DB, planSlug string) (planPermissionPolicy, error) {
+	policy := planPermissionPolicy{
+		codeSet:      map[string]struct{}{},
+		menuPrefixes: []string{},
+		hasRules:     false,
+	}
+
+	rows := make([]struct {
+		PermissionCode string
+		MenuURL        string
+	}, 0)
+	err := tx.Table("plan_permission_entitlements").
+		Select("permission_code, menu_url").
+		Where("plan_slug = ? AND is_enabled = true", strings.ToLower(strings.TrimSpace(planSlug))).
+		Scan(&rows).Error
+	if err != nil {
+		return policy, err
+	}
+	defaultRows := tenantPolicy.DefaultPlanEntitlementRows(planSlug)
+	if len(defaultRows) > 0 {
+		merged := make([]struct {
+			PermissionCode string
+			MenuURL        string
+		}, 0, len(rows)+len(defaultRows))
+		merged = append(merged, rows...)
+		for _, row := range defaultRows {
+			merged = append(merged, struct {
+				PermissionCode string
+				MenuURL        string
+			}{
+				PermissionCode: row.PermissionCode,
+				MenuURL:        row.MenuURL,
+			})
+		}
+		rows = merged
+	}
+
+	for _, row := range rows {
+		code := strings.ToLower(strings.TrimSpace(row.PermissionCode))
+		menu := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if code != "" {
+			policy.codeSet[code] = struct{}{}
+			policy.hasRules = true
+		}
+		if menu != "" {
+			policy.menuPrefixes = append(policy.menuPrefixes, menu)
+			policy.hasRules = true
+		}
+	}
+
+	return policy, nil
+}
+
+func isAssignmentAllowedByPolicy(row rolePermissionAssignment, policy planPermissionPolicy) bool {
+	code := strings.ToLower(strings.TrimSpace(row.Code))
+	if code != "" {
+		if _, ok := policy.codeSet[code]; ok {
+			return true
+		}
+	}
+
+	menu := strings.ToLower(strings.TrimSpace(row.MenuURL))
+	if menu == "" {
+		return true
+	}
+
+	for _, prefix := range policy.menuPrefixes {
+		if menu == prefix || strings.HasPrefix(menu, prefix+"/") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func sanitizeSlug(s string) string {
@@ -1239,11 +1286,34 @@ func sanitizeSlug(s string) string {
 	return s
 }
 
+func normalizeTenantPlanSlug(planSlug string) string {
+	normalized := strings.ToLower(strings.TrimSpace(planSlug))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+
+	switch normalized {
+	case "pos", "pos_modular":
+		return "pos_growth"
+	case "erp", "erp_modular":
+		return "erp_pro"
+	case "crm", "crm_modular":
+		return "crm_growth"
+	case "hr", "hr_modular":
+		return "hr_growth"
+	default:
+		return normalized
+	}
+}
+
 func normalizePlanModule(module string) string {
 	m := strings.ToLower(strings.TrimSpace(module))
 	switch m {
 	case "hrd", "human_resources", "human-resources":
 		return "hr"
+	case "master_data", "master-data":
+		return "core"
+	case "fb", "feedback", "loyalty":
+		return "pos"
 	case "stock":
 		return "inventory"
 	default:
@@ -1271,6 +1341,8 @@ func moduleFromPermissionURL(url string) string {
 		return "sales"
 	case strings.HasPrefix(p, "/purchase"):
 		return "purchase"
+	case strings.HasPrefix(p, "/master-data"):
+		return "core"
 	default:
 		return ""
 	}

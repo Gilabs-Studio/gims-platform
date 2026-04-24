@@ -2,11 +2,14 @@ package seeders
 
 import (
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm/clause"
 )
+
+const posPaymentManagePermission = "pos.payment.manage"
 
 // SeedSubscriptionPlans upserts all subscription plan configs and their module entitlements.
 // Prices are in IDR per user per month. Yearly prices are the full-year charge with a 10% discount
@@ -159,6 +162,7 @@ func SeedSubscriptionPlans() error {
 		"hr_growth":      {"hr", "core"},
 		"growth_suite":   {"pos", "purchase", "inventory", "finance", "sales", "crm", "core"},
 		"ultimate_suite": {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr", "core"},
+		"enterprise":     {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr", "core"},
 	}
 
 	for slug, modules := range entitlements {
@@ -177,6 +181,142 @@ func SeedSubscriptionPlans() error {
 				DoUpdates: clause.AssignmentColumns([]string{"is_enabled", "updated_at"}),
 			}).Create(&ent).Error; err != nil {
 				log.Printf("Warning: failed to seed entitlement %s/%s: %v", slug, moduleSlug, err)
+			}
+		}
+	}
+
+	// Seed granular permission/menu policy entitlements per plan.
+	// pos_growth uses explicit exact menu URLs per product definition.
+	posExactMenuURLs := []string{
+		"/dashboard",
+		"/pos",
+		"/pos/fb/floor-layout",
+		"/pos/fb/terminal",
+		"/pos/feedback",
+		"/pos/feedback/response",
+		"/pos/feedback/forms",
+		"/pos/loyalty",
+		"/pos/loyalty/config",
+		"/pos/loyalty/members",
+		"/sales",
+		"/sales/orders",
+		"/sales/invoices",
+		"/sales/payments",
+		"/purchase",
+		"/purchase/purchase-orders",
+		"/purchase/supplier-invoices",
+		"/purchase/payments",
+		"/stock",
+		"/stock/inventory",
+		"/stock/movements",
+		"/finance",
+		"/finance/journals/purchase",
+		"/finance/journals/sales",
+		"/finance/bank-accounts",
+		"/finance/settings/fiscal-years",
+		"/master-data",
+	}
+	erpMenuPrefixes := []string{"/purchase", "/sales", "/stock", "/finance", "/master-data"}
+	crmMenuPrefixes := []string{"/crm", "/master-data"}
+	hrMenuPrefixes := []string{"/hrd", "/master-data"}
+	growthSuitePrefixes := []string{"/pos", "/purchase", "/sales", "/stock", "/finance", "/crm", "/master-data"}
+	ultimateSuitePrefixes := []string{"/"}
+
+	planPermissionPolicies := map[string]struct {
+		menuURLs        []string
+		menuPrefixes    []string
+		permissionCodes []string
+	}{
+		"pos_growth": {
+			menuURLs:        posExactMenuURLs,
+			menuPrefixes:    []string{"/master-data"},
+			permissionCodes: []string{posPaymentManagePermission},
+		},
+		"erp_pro": {
+			menuURLs:        []string{},
+			menuPrefixes:    erpMenuPrefixes,
+			permissionCodes: []string{},
+		},
+		"crm_growth": {
+			menuURLs:        []string{},
+			menuPrefixes:    crmMenuPrefixes,
+			permissionCodes: []string{},
+		},
+		"hr_growth": {
+			menuURLs:        []string{},
+			menuPrefixes:    hrMenuPrefixes,
+			permissionCodes: []string{},
+		},
+		"growth_suite": {
+			menuURLs:        []string{},
+			menuPrefixes:    growthSuitePrefixes,
+			permissionCodes: []string{},
+		},
+		"ultimate_suite": {
+			menuURLs:        []string{},
+			menuPrefixes:    ultimateSuitePrefixes,
+			permissionCodes: []string{},
+		},
+		"enterprise": {
+			menuURLs:        []string{},
+			menuPrefixes:    ultimateSuitePrefixes,
+			permissionCodes: []string{},
+		},
+	}
+
+	normalizeMenuRules := func(values []string) []string {
+		seen := make(map[string]struct{}, len(values))
+		result := make([]string, 0, len(values))
+		for _, raw := range values {
+			value := strings.ToLower(strings.TrimSpace(raw))
+			if value == "" {
+				continue
+			}
+			if !strings.HasPrefix(value, "/") {
+				value = "/" + value
+			}
+			if _, exists := seen[value]; exists {
+				continue
+			}
+			seen[value] = struct{}{}
+			result = append(result, value)
+		}
+		return result
+	}
+
+	for slug, policy := range planPermissionPolicies {
+		if err := db.Where("plan_slug = ?", slug).Delete(&tenantModels.PlanPermissionEntitlement{}).Error; err != nil {
+			log.Printf("Warning: failed to clear permission entitlements for %s: %v", slug, err)
+		}
+
+		mergedURLs := normalizeMenuRules(append(policy.menuURLs, policy.menuPrefixes...))
+		for _, menuURL := range mergedURLs {
+			entry := tenantModels.PlanPermissionEntitlement{
+				PlanSlug:       slug,
+				PermissionCode: "",
+				MenuURL:        menuURL,
+				IsEnabled:      true,
+			}
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "plan_slug"}, {Name: "permission_code"}, {Name: "menu_url"}},
+				DoUpdates: clause.AssignmentColumns([]string{"is_enabled", "updated_at"}),
+			}).Create(&entry).Error; err != nil {
+				log.Printf("Warning: failed to seed menu entitlement %s/%s: %v", slug, menuURL, err)
+			}
+		}
+
+		for _, permissionCode := range policy.permissionCodes {
+			entry := tenantModels.PlanPermissionEntitlement{
+				PlanSlug:       slug,
+				PermissionCode: permissionCode,
+				MenuURL:        "",
+				IsEnabled:      true,
+			}
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "plan_slug"}, {Name: "permission_code"}, {Name: "menu_url"}},
+				DoUpdates: clause.AssignmentColumns([]string{"is_enabled", "updated_at"}),
+			}).Create(&entry).Error; err != nil {
+				log.Printf("Warning: failed to seed permission entitlement %s/%s: %v", slug, permissionCode, err)
 			}
 		}
 	}

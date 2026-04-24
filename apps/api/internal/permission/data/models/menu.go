@@ -20,6 +20,7 @@ type Menu struct {
 	Status      string         `gorm:"type:varchar(20);not null;default:'active'" json:"status"`
 	Module      string         `gorm:"type:varchar(100);index" json:"module"`
 	Slug        string         `gorm:"type:varchar(255);index" json:"slug"`
+	Access      bool           `gorm:"type:boolean;default:true" json:"access"`
 	IsActive    bool           `gorm:"type:boolean;default:true" json:"is_active"`
 	IsClickable bool           `gorm:"type:boolean;default:true" json:"is_clickable"`
 	CreatedAt   time.Time      `json:"created_at"`

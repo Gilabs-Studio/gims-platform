@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { roleService } from "../services/user-service";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { CreateRoleFormData, UpdateRoleFormData } from "../schemas/role.schema";
-import type { Role, ListRolesResponse } from "../types";
+import type { Role, ListRolesResponse, RoleMenuAccessAssignment } from "../types";
 
 export function useRoles(params?: { search?: string }) {
   return useQuery({
@@ -74,11 +74,13 @@ export function useAssignPermissionsToRole() {
       roleId,
       permissionIds,
       assignments,
+      tolerant = false,
     }: {
       roleId: string;
       permissionIds: string[];
       assignments?: Array<{ permission_id: string; scope: string }>;
-    }) => roleService.assignPermissions(roleId, permissionIds, assignments),
+      tolerant?: boolean;
+    }) => roleService.assignPermissions(roleId, permissionIds, assignments, tolerant),
     onSuccess: async (updatedRole, variables) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });
@@ -100,6 +102,35 @@ export function useAssignPermissionsToRole() {
       }
       
       // Invalidate user-permissions query last to trigger menu re-render
+      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
+    },
+  });
+}
+
+export function useRoleMenuAccess(roleId: string) {
+  return useQuery({
+    queryKey: ["role-menu-access", roleId],
+    queryFn: () => roleService.getMenuAccess(roleId),
+    enabled: !!roleId,
+  });
+}
+
+export function useUpdateRoleMenuAccess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      roleId,
+      assignments,
+    }: {
+      roleId: string;
+      assignments: RoleMenuAccessAssignment[];
+    }) => roleService.updateMenuAccess(roleId, assignments),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["role-menu-access", variables.roleId] });
+      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
     },
   });

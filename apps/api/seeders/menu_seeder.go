@@ -129,6 +129,7 @@ func createMenu(menu *permission.Menu) error {
 			"status":       menu.Status,
 			"module":       menu.Module,
 			"slug":         menu.Slug,
+			"access":       menu.Access,
 			"is_active":    menu.IsActive,
 			"is_clickable": menu.IsClickable,
 		}).Error; err != nil {
@@ -148,6 +149,14 @@ func createMenu(menu *permission.Menu) error {
 
 // createChildMenu creates a child menu under a parent
 func createChildMenu(name, icon, url string, parentID *string, order int) (*permission.Menu, error) {
+	access := true
+	if parentID != nil {
+		var parent permission.Menu
+		if err := database.DB.Where("id = ?", *parentID).First(&parent).Error; err == nil {
+			access = parent.Access
+		}
+	}
+
 	menu := &permission.Menu{
 		Name:     name,
 		Icon:     icon,
@@ -155,6 +164,7 @@ func createChildMenu(name, icon, url string, parentID *string, order int) (*perm
 		ParentID: parentID,
 		Order:    order,
 		Status:   "active",
+		Access:   access,
 	}
 	if err := createMenu(menu); err != nil {
 		return nil, err
@@ -178,6 +188,7 @@ func SeedMenus() error {
 		URL:    "/dashboard",
 		Order:  1,
 		Status: "active",
+		Access: true,
 	}
 	if err := createMenu(dashboardMenu); err != nil {
 		return err
@@ -190,6 +201,7 @@ func SeedMenus() error {
 		URL:    "/master-data",
 		Order:  9,
 		Status: "active",
+		Access: true,
 	}
 	if err := createMenu(masterDataMenu); err != nil {
 		return err
@@ -202,6 +214,7 @@ func SeedMenus() error {
 		URL:    "/sales",
 		Order:  3,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(salesMenu); err != nil {
 		return err
@@ -214,6 +227,7 @@ func SeedMenus() error {
 		URL:    "/purchase",
 		Order:  4,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(purchaseMenu); err != nil {
 		return err
@@ -226,6 +240,7 @@ func SeedMenus() error {
 		URL:    "/stock",
 		Order:  5,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(stockMenu); err != nil {
 		return err
@@ -238,6 +253,7 @@ func SeedMenus() error {
 		URL:    "/finance",
 		Order:  6,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(financeMenu); err != nil {
 		return err
@@ -250,6 +266,7 @@ func SeedMenus() error {
 		URL:    "/hrd",
 		Order:  7,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(hrdMenu); err != nil {
 		return err
@@ -262,6 +279,7 @@ func SeedMenus() error {
 		URL:    "/reports",
 		Order:  8,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(reportsMenu); err != nil {
 		return err
@@ -274,6 +292,7 @@ func SeedMenus() error {
 		URL:    "/ai-assistant",
 		Order:  10,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(aiMenu); err != nil {
 		return err
@@ -286,6 +305,7 @@ func SeedMenus() error {
 		URL:    "/crm",
 		Order:  2,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(crmMenu); err != nil {
 		return err
@@ -298,6 +318,7 @@ func SeedMenus() error {
 		URL:    "/travel/travel-planner",
 		Order:  11,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(travelPlannerMenu); err != nil {
 		return err
@@ -310,6 +331,7 @@ func SeedMenus() error {
 		URL:    "/pos",
 		Order:  12,
 		Status: "active",
+		Access: false,
 	}
 	if err := createMenu(posMenu); err != nil {
 		return err

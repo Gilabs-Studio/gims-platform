@@ -41,11 +41,22 @@ export interface PermissionAssignment {
   scope: PermissionScope;
 }
 
+export interface RoleMenuAccessAssignment {
+  menu_id: string;
+  scope: PermissionScope;
+  is_enabled?: boolean;
+}
+
+export interface RoleMenuAccessResponse {
+  assignments: RoleMenuAccessAssignment[];
+}
+
 export interface Menu {
   id: string;
   name: string;
   icon: string;
   url: string;
+  access?: boolean;
   parent_id?: string;
   parent?: Menu;
   children?: Menu[];

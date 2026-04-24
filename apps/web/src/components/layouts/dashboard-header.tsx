@@ -204,6 +204,7 @@ export const DashboardHeader = memo(function DashboardHeader({
               </button>
               <Link
                 href="/profile"
+                locale={locale}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 onClick={() => setUserPopoverOpen(false)}
               >

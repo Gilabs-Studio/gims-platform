@@ -17,6 +17,7 @@ type MenuResponse struct {
 	Name     string         `json:"name"`
 	Icon     string         `json:"icon"`
 	URL      string         `json:"url"`
+	Access   bool           `json:"access"`
 	ParentID *string        `json:"parent_id,omitempty"`
 	Parent   *MenuResponse  `json:"parent,omitempty"`
 	Children []MenuResponse `json:"children,omitempty"`

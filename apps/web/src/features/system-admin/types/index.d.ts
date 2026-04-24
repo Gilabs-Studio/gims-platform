@@ -211,6 +211,7 @@ export interface SubscriptionPlanConfig {
   sort_order: number;
   features: string[];
   modules: string[];
+  menu_urls: string[];
 }
 
 export interface UpsertPlanRequest {
@@ -227,6 +228,7 @@ export interface UpsertPlanRequest {
   sort_order?: number;
   features?: string[];
   modules?: string[];
+  menu_urls?: string[];
 }
 
 export interface PlanListResponse {

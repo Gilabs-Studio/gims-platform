@@ -20,6 +20,8 @@ func RegisterRoleRoutes(rg *gin.RouterGroup, h *handler.RoleHandler, jwtManager 
 		g.PUT("/:id", middleware.RequirePermission("role.update"), h.Update)
 		g.DELETE("/:id", middleware.RequirePermission("role.delete"), h.Delete)
 		g.POST("/:id/permissions", middleware.RequirePermission("role.assign_permissions"), h.AssignPermissions)
+		g.GET("/:id/menu-access", middleware.RequirePermission("role.read"), h.GetMenuAccess)
+		g.PUT("/:id/menu-access", middleware.RequirePermission("role.assign_permissions"), h.UpdateMenuAccess)
 		g.GET("/validate", h.ValidateUserRole)
 	}
 }

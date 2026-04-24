@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -25,6 +26,10 @@ type SubscriptionPlanRepository interface {
 	ListEntitlements(ctx context.Context, planSlug string) ([]*models.PlanModuleEntitlement, error)
 	// SyncEntitlements replaces all entitlements for a plan with the provided list.
 	SyncEntitlements(ctx context.Context, planSlug string, modules []string) error
+	// ListMenuEntitlements returns all enabled menu URLs for a given plan slug.
+	ListMenuEntitlements(ctx context.Context, planSlug string) ([]string, error)
+	// SyncMenuEntitlements replaces all menu entitlement rows for a plan.
+	SyncMenuEntitlements(ctx context.Context, planSlug string, menuURLs []string) error
 	// GetEnabledModules returns the set of enabled module slugs for a plan slug.
 	GetEnabledModules(ctx context.Context, planSlug string) ([]string, error)
 	// GetEnabledModulesForTenant looks up the tenant's active subscription plan and
@@ -34,6 +39,88 @@ type SubscriptionPlanRepository interface {
 
 type subscriptionPlanRepository struct {
 	db *gorm.DB
+}
+
+var fallbackPlanModules = map[string][]string{
+	"pos_growth":     {"pos", "sales", "inventory", "finance", "core"},
+	"erp_pro":        {"purchase", "inventory", "finance", "sales", "core"},
+	"crm_growth":     {"crm", "core"},
+	"hr_growth":      {"hr", "core"},
+	"growth_suite":   {"pos", "purchase", "inventory", "finance", "sales", "crm", "core"},
+	"ultimate_suite": {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr", "core"},
+	"enterprise":     {"pos", "purchase", "inventory", "finance", "sales", "crm", "hr", "core"},
+}
+
+func normalizePlanSlug(slug string) string {
+	normalized := strings.ToLower(strings.TrimSpace(slug))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+
+	switch normalized {
+	case "pos", "pos_modular":
+		return "pos_growth"
+	case "erp", "erp_modular":
+		return "erp_pro"
+	case "crm", "crm_modular":
+		return "crm_growth"
+	case "hr", "hr_modular":
+		return "hr_growth"
+	default:
+		return normalized
+	}
+}
+
+func fallbackModulesForPlan(slug string) []string {
+	mods, ok := fallbackPlanModules[normalizePlanSlug(slug)]
+	if !ok {
+		return nil
+	}
+	out := make([]string, len(mods))
+	copy(out, mods)
+	return out
+}
+
+func deriveModuleFromMenuURL(menuURL string) string {
+	path := strings.ToLower(strings.TrimSpace(menuURL))
+	switch {
+	case strings.HasPrefix(path, "/dashboard"):
+		return "core"
+	case strings.HasPrefix(path, "/pos"):
+		return "pos"
+	case strings.HasPrefix(path, "/sales"):
+		return "sales"
+	case strings.HasPrefix(path, "/purchase"):
+		return "purchase"
+	case strings.HasPrefix(path, "/stock"):
+		return "inventory"
+	case strings.HasPrefix(path, "/finance"):
+		return "finance"
+	case strings.HasPrefix(path, "/crm"):
+		return "crm"
+	case strings.HasPrefix(path, "/hrd"):
+		return "hr"
+	case strings.HasPrefix(path, "/master-data"):
+		return "core"
+	default:
+		return ""
+	}
+}
+
+func DeriveModulesFromMenuURLs(menuURLs []string) []string {
+	seen := make(map[string]struct{})
+	modules := make([]string, 0)
+	for _, menuURL := range menuURLs {
+		module := deriveModuleFromMenuURL(menuURL)
+		if module == "" {
+			continue
+		}
+		if _, exists := seen[module]; exists {
+			continue
+		}
+		seen[module] = struct{}{}
+		modules = append(modules, module)
+	}
+	return modules
 }
 
 // NewSubscriptionPlanRepository creates a new SubscriptionPlanRepository.
@@ -51,6 +138,7 @@ func (r *subscriptionPlanRepository) ListActive(ctx context.Context) ([]*models.
 	var plans []*models.SubscriptionPlanConfig
 	err := r.getDB(ctx).
 		Preload("Entitlements").
+		Preload("PermissionEntitlements").
 		Where("is_active = true AND deleted_at IS NULL").
 		Order("sort_order ASC, name ASC").
 		Find(&plans).Error
@@ -68,6 +156,7 @@ func (r *subscriptionPlanRepository) ListAll(ctx context.Context, page, perPage 
 
 	offset := (page - 1) * perPage
 	err := q.Preload("Entitlements").
+		Preload("PermissionEntitlements").
 		Order("sort_order ASC, name ASC").
 		Offset(offset).Limit(perPage).
 		Find(&plans).Error
@@ -78,6 +167,7 @@ func (r *subscriptionPlanRepository) FindBySlug(ctx context.Context, slug string
 	var plan models.SubscriptionPlanConfig
 	err := r.getDB(ctx).
 		Preload("Entitlements").
+		Preload("PermissionEntitlements").
 		Where("slug = ? AND deleted_at IS NULL", slug).
 		First(&plan).Error
 	if err != nil {
@@ -140,14 +230,27 @@ func (r *subscriptionPlanRepository) SyncEntitlements(ctx context.Context, planS
 }
 
 func (r *subscriptionPlanRepository) GetEnabledModules(ctx context.Context, planSlug string) ([]string, error) {
-	entitlements, err := r.ListEntitlements(ctx, planSlug)
+	normalizedPlanSlug := normalizePlanSlug(planSlug)
+	entitlements, err := r.ListEntitlements(ctx, normalizedPlanSlug)
 	if err != nil {
 		return nil, err
 	}
 	modules := make([]string, 0, len(entitlements))
 	for _, e := range entitlements {
 		if e.IsEnabled {
-			modules = append(modules, e.ModuleSlug)
+			modules = append(modules, strings.ToLower(strings.TrimSpace(e.ModuleSlug)))
+		}
+	}
+	if len(modules) == 0 {
+		menuURLs, menuErr := r.ListMenuEntitlements(ctx, normalizedPlanSlug)
+		if menuErr != nil {
+			return nil, menuErr
+		}
+		modules = DeriveModulesFromMenuURLs(menuURLs)
+	}
+	if len(modules) == 0 {
+		if fallback := fallbackModulesForPlan(normalizedPlanSlug); len(fallback) > 0 {
+			return fallback, nil
 		}
 	}
 	return modules, nil
@@ -169,5 +272,53 @@ func (r *subscriptionPlanRepository) GetEnabledModulesForTenant(ctx context.Cont
 		// Tenant has no active subscription — grant no module access.
 		return []string{}, nil
 	}
-	return r.GetEnabledModules(ctx, planSlug)
+	return r.GetEnabledModules(ctx, normalizePlanSlug(planSlug))
+}
+
+func (r *subscriptionPlanRepository) ListMenuEntitlements(ctx context.Context, planSlug string) ([]string, error) {
+	rows := make([]models.PlanPermissionEntitlement, 0)
+	err := r.getDB(ctx).
+		Where("plan_slug = ? AND is_enabled = true AND permission_code = '' AND menu_url <> ''", normalizePlanSlug(planSlug)).
+		Order("menu_url ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	menuURLs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		menuURLs = append(menuURLs, strings.ToLower(strings.TrimSpace(row.MenuURL)))
+	}
+	return menuURLs, nil
+}
+
+func (r *subscriptionPlanRepository) SyncMenuEntitlements(ctx context.Context, planSlug string, menuURLs []string) error {
+	db := r.getDB(ctx)
+	normalizedPlanSlug := normalizePlanSlug(planSlug)
+
+	if err := db.Where("plan_slug = ? AND permission_code = ''", normalizedPlanSlug).Delete(&models.PlanPermissionEntitlement{}).Error; err != nil {
+		return err
+	}
+
+	seen := make(map[string]struct{}, len(menuURLs))
+	for _, menuURL := range menuURLs {
+		normalizedMenuURL := strings.ToLower(strings.TrimSpace(menuURL))
+		if normalizedMenuURL == "" {
+			continue
+		}
+		if _, exists := seen[normalizedMenuURL]; exists {
+			continue
+		}
+		seen[normalizedMenuURL] = struct{}{}
+		entitlement := models.PlanPermissionEntitlement{
+			PlanSlug:       normalizedPlanSlug,
+			PermissionCode: "",
+			MenuURL:        normalizedMenuURL,
+			IsEnabled:      true,
+		}
+		if err := db.Create(&entitlement).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

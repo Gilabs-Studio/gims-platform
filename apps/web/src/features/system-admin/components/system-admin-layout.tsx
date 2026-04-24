@@ -76,7 +76,7 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-3">
           {sidebarLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}

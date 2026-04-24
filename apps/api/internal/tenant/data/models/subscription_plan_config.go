@@ -34,8 +34,8 @@ func (f *PlanFeatureList) Scan(value interface{}) error {
 type BillingType string
 
 const (
-	BillingTypePerUser  BillingType = "per_user"
-	BillingTypeFlat     BillingType = "flat"
+	BillingTypePerUser BillingType = "per_user"
+	BillingTypeFlat    BillingType = "flat"
 )
 
 // SubscriptionPlanConfig stores pricing and metadata for each plan.
@@ -60,7 +60,8 @@ type SubscriptionPlanConfig struct {
 	DeletedAt       gorm.DeletedAt  `gorm:"index"                                           json:"-"`
 
 	// Associations
-	Entitlements []PlanModuleEntitlement `gorm:"foreignKey:PlanSlug;references:Slug" json:"entitlements,omitempty"`
+	Entitlements           []PlanModuleEntitlement     `gorm:"foreignKey:PlanSlug;references:Slug" json:"entitlements,omitempty"`
+	PermissionEntitlements []PlanPermissionEntitlement `gorm:"foreignKey:PlanSlug;references:Slug" json:"permission_entitlements,omitempty"`
 }
 
 func (SubscriptionPlanConfig) TableName() string { return "subscription_plan_configs" }
@@ -106,6 +107,28 @@ type PlanModuleEntitlement struct {
 func (PlanModuleEntitlement) TableName() string { return "plan_module_entitlements" }
 
 func (e *PlanModuleEntitlement) BeforeCreate(tx *gorm.DB) error {
+	if e.ID == "" {
+		e.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// PlanPermissionEntitlement maps a plan slug to granular access policy entries.
+// A row can target a specific permission code and/or a menu URL prefix.
+// This enables flexible menu-level plan access without hardcoding policy in code.
+type PlanPermissionEntitlement struct {
+	ID             string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()"                                      json:"id"`
+	PlanSlug       string    `gorm:"type:varchar(64);not null;index:idx_plan_permission_entitlement,unique"              json:"plan_slug"`
+	PermissionCode string    `gorm:"type:varchar(128);not null;default:'';index:idx_plan_permission_entitlement,unique"  json:"permission_code"`
+	MenuURL        string    `gorm:"type:varchar(255);not null;default:'';index:idx_plan_permission_entitlement,unique"  json:"menu_url"`
+	IsEnabled      bool      `gorm:"type:boolean;not null;default:true"                                                    json:"is_enabled"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func (PlanPermissionEntitlement) TableName() string { return "plan_permission_entitlements" }
+
+func (e *PlanPermissionEntitlement) BeforeCreate(tx *gorm.DB) error {
 	if e.ID == "" {
 		e.ID = uuid.New().String()
 	}

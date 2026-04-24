@@ -61,17 +61,17 @@ type ValidateCouponRequest struct {
 
 // ValidateCouponResponse is returned to the registration client before they commit.
 type ValidateCouponResponse struct {
-	Valid        bool    `json:"valid"`
+	Valid bool `json:"valid"`
 	// Reason is a machine-readable code for why the coupon is invalid (empty when valid).
 	// Values: "not_found", "inactive", "expired", "exhausted", "already_used_by_email", "plan_mismatch"
-	Reason          string  `json:"reason,omitempty"`
-	Description     string  `json:"description,omitempty"`
-	CouponType      string  `json:"coupon_type,omitempty"`
-	DiscountType    string  `json:"discount_type,omitempty"`
-	DiscountValue   float64 `json:"discount_value,omitempty"`
-	Scope           string  `json:"scope,omitempty"`
-	TargetPlanSlug  string  `json:"target_plan_slug,omitempty"`
-	DurationDays    int     `json:"duration_days,omitempty"`
+	Reason         string  `json:"reason,omitempty"`
+	Description    string  `json:"description,omitempty"`
+	CouponType     string  `json:"coupon_type,omitempty"`
+	DiscountType   string  `json:"discount_type,omitempty"`
+	DiscountValue  float64 `json:"discount_value,omitempty"`
+	Scope          string  `json:"scope,omitempty"`
+	TargetPlanSlug string  `json:"target_plan_slug,omitempty"`
+	DurationDays   int     `json:"duration_days,omitempty"`
 }
 
 // ─── Subscription DTOs ───────────────────────────────────────────────────────
@@ -119,6 +119,7 @@ type SubscriptionPlanResponse struct {
 	SortOrder       int      `json:"sort_order"`
 	Features        []string `json:"features"`
 	Modules         []string `json:"modules"` // enabled module slugs
+	MenuURLs        []string `json:"menu_urls"`
 }
 
 // UpsertPlanRequest is the system-admin payload for creating or updating a plan.
@@ -136,6 +137,7 @@ type UpsertPlanRequest struct {
 	SortOrder       int      `json:"sort_order"`
 	Features        []string `json:"features"          binding:"omitempty"`
 	Modules         []string `json:"modules"           binding:"omitempty"` // module slugs to entitle
+	MenuURLs        []string `json:"menu_urls"         binding:"omitempty"`
 }
 
 // ComputePriceRequest is the payload for the public price-computation endpoint.

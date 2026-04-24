@@ -2,6 +2,7 @@
 
 import React, { memo } from "react";
 import Image from "next/image";
+import { useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { Plus, Settings } from "lucide-react";
 
@@ -37,6 +38,7 @@ export const IconSidebar = memo(function IconSidebar({
   logoAlt = "Logo",
 }: IconSidebarProps) {
   const pathname = usePathname();
+  const locale = useLocale();
 
   const isItemActive = (item: IconSidebarItem) => {
     if (item.id === activeParentId) return true;
@@ -141,7 +143,7 @@ export const IconSidebar = memo(function IconSidebar({
 
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <Link href="/profile">
+            <Link href="/profile" locale={locale}>
               <Button
                 variant="ghost"
                 size="icon"

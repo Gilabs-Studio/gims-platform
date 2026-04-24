@@ -12,6 +12,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
+	coreDB "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
@@ -20,26 +21,43 @@ import (
 	"github.com/gilabs/gims/api/internal/role/domain/dto"
 	"github.com/gilabs/gims/api/internal/role/domain/mapper"
 	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrRoleNotFound           = errors.New("role not found")
-	ErrRoleAlreadyExists      = errors.New("role already exists")
-	ErrRoleProtected          = errors.New("role is protected and cannot be deleted or modified")
-	ErrRoleInUse              = errors.New("role is in use by users and cannot be deleted")
-	ErrLastAdminCannotDelete  = errors.New("cannot delete the last admin role")
-	ErrLastAdminCannotDisable = errors.New("cannot disable the last admin role")
+	ErrRoleNotFound                = errors.New("role not found")
+	ErrRoleAlreadyExists           = errors.New("role already exists")
+	ErrRoleProtected               = errors.New("role is protected and cannot be deleted or modified")
+	ErrRoleInUse                   = errors.New("role is in use by users and cannot be deleted")
+	ErrLastAdminCannotDelete       = errors.New("cannot delete the last admin role")
+	ErrLastAdminCannotDisable      = errors.New("cannot disable the last admin role")
 	ErrPermissionNotAllowedForPlan = errors.New("one or more permissions are not allowed for the tenant plan")
 )
 
 const (
-	cacheRoleByIDKey = "roles:id:%s"
-	cacheRoleListKeyFmt = "roles:list:page:%d:limit:%d"
+	cacheRoleByIDKey          = "roles:id:%s"
+	cacheRoleListKeyFmt       = "roles:list:page:%d:limit:%d"
 	cacheRoleListPage1Limit10 = "roles:list:page:1:limit:10"
 	cacheRoleListPage1Limit20 = "roles:list:page:1:limit:20"
 )
+
+var alwaysSafePermissionPrefixes = []string{
+	"dashboard.",
+	"profile.",
+	"setting",
+	"billing.",
+	"user.",
+	"role.",
+	"permission.",
+	"company.",
+	"warehouse.",
+	"product.",
+	"customer.",
+	"supplier.",
+	"employee.",
+}
 
 type RoleUsecase interface {
 	List(ctx context.Context, page, limit int) ([]dto.RoleResponse, int64, error)
@@ -49,6 +67,9 @@ type RoleUsecase interface {
 	Delete(ctx context.Context, id string) error
 	AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error
 	AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []dto.PermissionAssignment) error
+	GetMenuAccess(ctx context.Context, roleID string) ([]dto.RoleMenuAccessResponse, error)
+	UpdateMenuAccess(ctx context.Context, roleID string, assignments []dto.RoleMenuAccessAssignment) error
+	FilterAllowedPermissions(ctx context.Context, permissionIDs []string) (allowed []string, blocked []string, err error)
 	ValidateUserRole(ctx context.Context, userID string, roleID string) (bool, error)
 }
 
@@ -133,7 +154,7 @@ func (u *roleUsecase) GetByID(ctx context.Context, id string) (*dto.RoleResponse
 		}
 		return nil, err
 	}
-	
+
 	resp := mapper.ToRoleResponse(r)
 
 	// Cache result (TTL 15 minutes)
@@ -161,15 +182,15 @@ func (u *roleUsecase) Create(ctx context.Context, req *dto.CreateRoleRequest) (*
 	}
 
 	// Invalidate cache
-	// We scan only a few keys or just expire them. Since we don't know all pages, 
+	// We scan only a few keys or just expire them. Since we don't know all pages,
 	// specific invalidation is hard without maintaining a set of keys.
-	// For now, let's just invalidate the specific role ID cache. 
+	// For now, let's just invalidate the specific role ID cache.
 	// List cache uses 5 min TTL, so it will expire eventually.
 	// For immediate consistency, we could use keys pattern matching but it's expensive.
 	// Enterprise solution: Use a "version" key for lists or just accept eventual consistency (5 mins).
 	// Let's implement partial invalidation for common first page.
 	u.redis.Del(ctx, cacheRoleListPage1Limit10, cacheRoleListPage1Limit20)
- 	
+
 	// Create role
 	r := &models.Role{
 		Name:        req.Name,
@@ -429,6 +450,125 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 	return nil
 }
 
+func (u *roleUsecase) GetMenuAccess(ctx context.Context, roleID string) ([]dto.RoleMenuAccessResponse, error) {
+	if _, err := u.roleRepo.FindByID(ctx, roleID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, err
+	}
+
+	rows := make([]models.RoleMenuAccess, 0)
+	err := coreDB.GetDB(ctx, u.db).
+		Where("role_id = ? AND is_enabled = true", roleID).
+		Order("created_at ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]dto.RoleMenuAccessResponse, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, dto.RoleMenuAccessResponse{
+			MenuID:    row.MenuID,
+			Scope:     row.Scope,
+			IsEnabled: row.IsEnabled,
+		})
+	}
+
+	return result, nil
+}
+
+func (u *roleUsecase) UpdateMenuAccess(ctx context.Context, roleID string, assignments []dto.RoleMenuAccessAssignment) error {
+	role, err := u.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrRoleNotFound
+		}
+		return err
+	}
+
+	normalizedAssignments := make([]dto.RoleMenuAccessAssignment, 0, len(assignments))
+	seen := make(map[string]struct{}, len(assignments))
+	menuIDs := make([]string, 0, len(assignments))
+	for _, assignment := range assignments {
+		menuID := strings.TrimSpace(assignment.MenuID)
+		if menuID == "" {
+			continue
+		}
+		if _, exists := seen[menuID]; exists {
+			continue
+		}
+		scope := strings.ToUpper(strings.TrimSpace(assignment.Scope))
+		if scope == "" {
+			scope = models.ScopeAll
+		}
+		if !models.IsValidScope(scope) {
+			return fmt.Errorf("invalid scope '%s' for menu '%s'", assignment.Scope, menuID)
+		}
+
+		seen[menuID] = struct{}{}
+		normalizedAssignments = append(normalizedAssignments, dto.RoleMenuAccessAssignment{
+			MenuID: menuID,
+			Scope:  scope,
+		})
+		menuIDs = append(menuIDs, menuID)
+	}
+
+	if len(menuIDs) > 0 {
+		var validCount int64
+		err = u.db.WithContext(ctx).
+			Table("menus").
+			Where("id IN ? AND deleted_at IS NULL", menuIDs).
+			Count(&validCount).Error
+		if err != nil {
+			return err
+		}
+		if int(validCount) != len(menuIDs) {
+			return repositories.ErrInvalidPermissionIDs
+		}
+	}
+
+	return coreDB.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDB.WithTx(ctx, tx)
+
+		if err := tx.Exec("DELETE FROM role_menu_access WHERE role_id = ?", roleID).Error; err != nil {
+			return err
+		}
+
+		if len(normalizedAssignments) > 0 {
+			rows := make([]models.RoleMenuAccess, 0, len(normalizedAssignments))
+			for _, assignment := range normalizedAssignments {
+				rows = append(rows, models.RoleMenuAccess{
+					RoleID:    roleID,
+					MenuID:    assignment.MenuID,
+					Scope:     assignment.Scope,
+					IsEnabled: true,
+					TenantID:  role.TenantID,
+				})
+			}
+			if err := tx.Create(&rows).Error; err != nil {
+				return err
+			}
+		}
+
+		roleAssignments, permissionIDs, err := u.deriveRolePermissionAssignmentsFromMenus(txCtx, roleID, normalizedAssignments)
+		if err != nil {
+			return err
+		}
+
+		if err := u.validatePlanPermissionBoundary(txCtx, permissionIDs); err != nil {
+			return err
+		}
+
+		if err := u.roleRepo.AssignPermissionsWithScope(txCtx, roleID, roleAssignments); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permissionIDs []string) error {
 	if len(permissionIDs) == 0 || u.db == nil || u.planRepo == nil {
 		return nil
@@ -463,6 +603,11 @@ func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permis
 		return err
 	}
 
+	policy, err := u.loadPlanPermissionPolicy(ctx, planSlug)
+	if err != nil {
+		return err
+	}
+
 	if len(permissionMeta) == 0 {
 		return nil
 	}
@@ -473,6 +618,7 @@ func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permis
 			strings.HasPrefix(codeLower, "profile.") ||
 			strings.HasPrefix(codeLower, "setting") ||
 			strings.HasPrefix(codeLower, "billing.") ||
+			codeLower == "pos.payment.manage" ||
 			strings.HasPrefix(codeLower, "user.") ||
 			strings.HasPrefix(codeLower, "role.") ||
 			strings.HasPrefix(codeLower, "permission.") ||
@@ -495,6 +641,9 @@ func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permis
 		if _, ok := allowedModules[module]; !ok {
 			return ErrPermissionNotAllowedForPlan
 		}
+		if policy.hasRules && !isPermissionAllowedByPolicy(p, policy) {
+			return ErrPermissionNotAllowedForPlan
+		}
 	}
 
 	return nil
@@ -512,13 +661,45 @@ func (u *roleUsecase) resolveTenantPlanSlug(ctx context.Context, tenantID string
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(strings.ToLower(planSlug)), nil
+	return normalizeTenantPlanSlug(planSlug), nil
+}
+
+func normalizeTenantPlanSlug(planSlug string) string {
+	normalized := strings.ToLower(strings.TrimSpace(planSlug))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+
+	switch normalized {
+	case "pos", "pos_modular":
+		return "pos_growth"
+	case "erp", "erp_modular":
+		return "erp_pro"
+	case "crm", "crm_modular":
+		return "crm_growth"
+	case "hr", "hr_modular":
+		return "hr_growth"
+	default:
+		return normalized
+	}
 }
 
 type permissionMetaRow struct {
 	Code       string
 	MenuURL    string
 	MenuModule string
+}
+
+type permissionMetaRowWithID struct {
+	ID         string
+	Code       string
+	MenuURL    string
+	MenuModule string
+}
+
+type planPermissionPolicy struct {
+	codeSet      map[string]struct{}
+	menuPrefixes []string
+	hasRules     bool
 }
 
 func (u *roleUsecase) fetchPermissionMeta(ctx context.Context, permissionIDs []string) ([]permissionMetaRow, error) {
@@ -549,11 +730,120 @@ func (u *roleUsecase) fetchPermissionMeta(ctx context.Context, permissionIDs []s
 	return rows, nil
 }
 
+func (u *roleUsecase) fetchPermissionMetaWithID(ctx context.Context, permissionIDs []string) ([]permissionMetaRowWithID, error) {
+	uniq := make([]string, 0, len(permissionIDs))
+	seen := make(map[string]struct{}, len(permissionIDs))
+	for _, id := range permissionIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+
+	if len(uniq) == 0 {
+		return []permissionMetaRowWithID{}, nil
+	}
+
+	rows := make([]permissionMetaRowWithID, 0, len(uniq))
+	err := u.db.WithContext(ctx).
+		Table("permissions p").
+		Select("p.id AS id, p.code AS code, COALESCE(m.url, '') AS menu_url, COALESCE(m.module, '') AS menu_module").
+		Joins("LEFT JOIN menus m ON m.id = p.menu_id").
+		Where("p.id IN ? AND p.deleted_at IS NULL", uniq).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (u *roleUsecase) loadPlanPermissionPolicy(ctx context.Context, planSlug string) (planPermissionPolicy, error) {
+	policy := planPermissionPolicy{
+		codeSet:      map[string]struct{}{},
+		menuPrefixes: []string{},
+		hasRules:     false,
+	}
+
+	rows := make([]struct {
+		PermissionCode string
+		MenuURL        string
+	}, 0)
+
+	err := u.db.WithContext(ctx).
+		Table("plan_permission_entitlements").
+		Select("permission_code, menu_url").
+		Where("plan_slug = ? AND is_enabled = true", planSlug).
+		Scan(&rows).Error
+	if err != nil {
+		return policy, err
+	}
+	defaultRows := tenantPolicy.DefaultPlanEntitlementRows(planSlug)
+	if len(defaultRows) > 0 {
+		merged := make([]struct {
+			PermissionCode string
+			MenuURL        string
+		}, 0, len(rows)+len(defaultRows))
+		merged = append(merged, rows...)
+		for _, row := range defaultRows {
+			merged = append(merged, struct {
+				PermissionCode string
+				MenuURL        string
+			}{
+				PermissionCode: row.PermissionCode,
+				MenuURL:        row.MenuURL,
+			})
+		}
+		rows = merged
+	}
+
+	for _, row := range rows {
+		code := strings.ToLower(strings.TrimSpace(row.PermissionCode))
+		menuURL := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if code != "" {
+			policy.codeSet[code] = struct{}{}
+			policy.hasRules = true
+		}
+		if menuURL != "" {
+			policy.menuPrefixes = append(policy.menuPrefixes, menuURL)
+			policy.hasRules = true
+		}
+	}
+
+	return policy, nil
+}
+
+func isPermissionAllowedByPolicy(p permissionMetaRow, policy planPermissionPolicy) bool {
+	code := strings.ToLower(strings.TrimSpace(p.Code))
+	if code != "" {
+		if _, ok := policy.codeSet[code]; ok {
+			return true
+		}
+	}
+
+	menuURL := strings.ToLower(strings.TrimSpace(p.MenuURL))
+	if menuURL == "" {
+		return true
+	}
+
+	for _, prefix := range policy.menuPrefixes {
+		if menuURL == prefix || strings.HasPrefix(menuURL, prefix+"/") {
+			return true
+		}
+	}
+
+	return false
+}
+
 func normalizeMenuModule(module string) string {
 	m := strings.ToLower(strings.TrimSpace(module))
 	switch m {
 	case "hrd", "human-resources", "human_resources":
 		return "hr"
+	case "master_data", "master-data":
+		return "core"
+	case "fb", "feedback", "loyalty":
+		return "pos"
 	case "stock":
 		return "inventory"
 	default:
@@ -581,12 +871,12 @@ func moduleFromURL(url string) string {
 		return "purchase"
 	case strings.HasPrefix(p, "/finance"):
 		return "finance"
+	case strings.HasPrefix(p, "/master-data"):
+		return "core"
 	default:
 		return ""
 	}
 }
-
-
 
 // invalidatePermissionCaches clears role and permission caches after assignment changes.
 // Both L1 (in-memory via PermissionService) and L2 (Redis) caches are invalidated
@@ -627,4 +917,232 @@ func (u *roleUsecase) ValidateUserRole(ctx context.Context, userID string, roleI
 	}
 
 	return true, nil
+}
+
+// FilterAllowedPermissions returns which permission IDs are allowed and which are blocked by the plan.
+// This is used for tolerant mode assignment where we drop blocked IDs instead of rejecting the entire request.
+func (u *roleUsecase) FilterAllowedPermissions(ctx context.Context, permissionIDs []string) (allowed []string, blocked []string, err error) {
+	if len(permissionIDs) == 0 {
+		return []string{}, []string{}, nil
+	}
+
+	// System admins are not constrained by plan
+	if middleware.IsSystemAdmin(ctx) {
+		return permissionIDs, []string{}, nil
+	}
+
+	tenantID := middleware.TenantFromContext(ctx)
+	if tenantID == "" {
+		// If no tenant context, all permissions are allowed (fallback)
+		return permissionIDs, []string{}, nil
+	}
+
+	planSlug, err := u.resolveTenantPlanSlug(ctx, tenantID)
+	if err != nil || planSlug == "" {
+		// If we can't resolve plan, block all
+		return []string{}, permissionIDs, nil
+	}
+
+	modules, err := u.planRepo.GetEnabledModules(ctx, planSlug)
+	if err != nil {
+		// If we can't get modules, block all
+		return []string{}, permissionIDs, nil
+	}
+	allowedModules := make(map[string]struct{}, len(modules))
+	for _, m := range modules {
+		allowedModules[strings.ToLower(strings.TrimSpace(m))] = struct{}{}
+	}
+
+	permissionMeta, err := u.fetchPermissionMetaWithID(ctx, permissionIDs)
+	if err != nil {
+		// If we can't fetch metadata, allow all (assume permissions are valid)
+		return permissionIDs, []string{}, nil
+	}
+
+	policy, err := u.loadPlanPermissionPolicy(ctx, planSlug)
+	if err != nil {
+		// If we can't load policy, allow all (assume no strict policy)
+		return permissionIDs, []string{}, nil
+	}
+
+	allowedList := make([]string, 0)
+	blockedList := make([]string, 0)
+
+	for _, meta := range permissionMeta {
+		// Check if permission is in always-allowed list
+		codeLower := strings.ToLower(meta.Code)
+		if strings.HasPrefix(codeLower, "dashboard.") ||
+			strings.HasPrefix(codeLower, "profile.") ||
+			strings.HasPrefix(codeLower, "setting") ||
+			strings.HasPrefix(codeLower, "billing.") ||
+			codeLower == "pos.payment.manage" ||
+			strings.HasPrefix(codeLower, "user.") ||
+			strings.HasPrefix(codeLower, "role.") ||
+			strings.HasPrefix(codeLower, "permission.") ||
+			strings.HasPrefix(codeLower, "company.") ||
+			strings.HasPrefix(codeLower, "warehouse.") ||
+			strings.HasPrefix(codeLower, "product.") ||
+			strings.HasPrefix(codeLower, "customer.") ||
+			strings.HasPrefix(codeLower, "supplier.") ||
+			strings.HasPrefix(codeLower, "employee.") {
+			allowedList = append(allowedList, meta.ID)
+			continue
+		}
+
+		// Check module entitlement
+		module := normalizeMenuModule(meta.MenuModule)
+		if module == "" {
+			module = moduleFromURL(meta.MenuURL)
+		}
+		if module == "" {
+			// No module detected, allow it
+			allowedList = append(allowedList, meta.ID)
+			continue
+		}
+
+		if _, ok := allowedModules[module]; !ok {
+			// Module not allowed
+			blockedList = append(blockedList, meta.ID)
+			continue
+		}
+
+		// Check granular policy
+		if policy.hasRules && !isPermissionAllowedByPolicy(permissionMetaRow{
+			Code:       meta.Code,
+			MenuURL:    meta.MenuURL,
+			MenuModule: meta.MenuModule,
+		}, policy) {
+			blockedList = append(blockedList, meta.ID)
+			continue
+		}
+
+		// Permission is allowed
+		allowedList = append(allowedList, meta.ID)
+	}
+
+	return allowedList, blockedList, nil
+}
+
+func (u *roleUsecase) deriveRolePermissionAssignmentsFromMenus(ctx context.Context, roleID string, menuAssignments []dto.RoleMenuAccessAssignment) ([]models.RolePermission, []string, error) {
+	type menuRow struct {
+		ID       string
+		ParentID *string
+	}
+	type permissionRow struct {
+		ID     string
+		Code   string
+		MenuID *string
+	}
+
+	menuRows := make([]menuRow, 0)
+	if err := u.db.WithContext(ctx).
+		Table("menus").
+		Select("id, parent_id").
+		Where("deleted_at IS NULL").
+		Scan(&menuRows).Error; err != nil {
+		return nil, nil, err
+	}
+
+	parentByMenuID := make(map[string]string, len(menuRows))
+	childrenByMenuID := make(map[string][]string, len(menuRows))
+	for _, row := range menuRows {
+		if row.ParentID != nil && *row.ParentID != "" {
+			parentByMenuID[row.ID] = *row.ParentID
+			childrenByMenuID[*row.ParentID] = append(childrenByMenuID[*row.ParentID], row.ID)
+		}
+	}
+
+	scopeBySelectedMenuID := make(map[string]string, len(menuAssignments))
+	for _, assignment := range menuAssignments {
+		scopeBySelectedMenuID[assignment.MenuID] = assignment.Scope
+	}
+
+	allowedMenuIDs := make(map[string]struct{}, len(menuAssignments))
+	queue := make([]string, 0, len(menuAssignments))
+	for _, assignment := range menuAssignments {
+		if _, exists := allowedMenuIDs[assignment.MenuID]; exists {
+			continue
+		}
+		allowedMenuIDs[assignment.MenuID] = struct{}{}
+		queue = append(queue, assignment.MenuID)
+	}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, childID := range childrenByMenuID[current] {
+			if _, exists := allowedMenuIDs[childID]; exists {
+				continue
+			}
+			allowedMenuIDs[childID] = struct{}{}
+			queue = append(queue, childID)
+		}
+	}
+
+	permissionRows := make([]permissionRow, 0)
+	if err := u.db.WithContext(ctx).
+		Table("permissions").
+		Select("id, code, menu_id").
+		Where("deleted_at IS NULL").
+		Scan(&permissionRows).Error; err != nil {
+		return nil, nil, err
+	}
+
+	permissionScopeMap := make(map[string]string)
+	for _, permissionRow := range permissionRows {
+		codeLower := strings.ToLower(strings.TrimSpace(permissionRow.Code))
+		if isAlwaysSafePermissionCode(codeLower) {
+			permissionScopeMap[permissionRow.ID] = models.ScopeAll
+			continue
+		}
+		if permissionRow.MenuID == nil || *permissionRow.MenuID == "" {
+			continue
+		}
+		if _, allowed := allowedMenuIDs[*permissionRow.MenuID]; !allowed {
+			continue
+		}
+
+		scope := resolveScopeForMenu(*permissionRow.MenuID, parentByMenuID, scopeBySelectedMenuID)
+		permissionScopeMap[permissionRow.ID] = scope
+	}
+
+	roleAssignments := make([]models.RolePermission, 0, len(permissionScopeMap))
+	permissionIDs := make([]string, 0, len(permissionScopeMap))
+	for permissionID, scope := range permissionScopeMap {
+		roleAssignments = append(roleAssignments, models.RolePermission{
+			RoleID:       roleID,
+			PermissionID: permissionID,
+			Scope:        scope,
+		})
+		permissionIDs = append(permissionIDs, permissionID)
+	}
+
+	return roleAssignments, permissionIDs, nil
+}
+
+func resolveScopeForMenu(menuID string, parentByMenuID map[string]string, scopeBySelectedMenuID map[string]string) string {
+	current := menuID
+	for current != "" {
+		if scope, exists := scopeBySelectedMenuID[current]; exists && scope != "" {
+			return scope
+		}
+		parentID, exists := parentByMenuID[current]
+		if !exists {
+			break
+		}
+		current = parentID
+	}
+	return models.ScopeAll
+}
+
+func isAlwaysSafePermissionCode(code string) bool {
+	if code == "pos.payment.manage" {
+		return true
+	}
+	for _, prefix := range alwaysSafePermissionPrefixes {
+		if strings.HasPrefix(code, prefix) {
+			return true
+		}
+	}
+	return false
 }

@@ -334,11 +334,11 @@ func (h *SystemAdminHandler) SetPlanActive(c *gin.Context) {
 	response.SuccessResponse(c, gin.H{"slug": slug, "is_active": body.IsActive}, nil)
 }
 
-// SyncPlanEntitlements replaces the module entitlements for a plan (system admin only).
+// SyncPlanEntitlements replaces the menu entitlements for a plan (system admin only).
 func (h *SystemAdminHandler) SyncPlanEntitlements(c *gin.Context) {
 	slug := c.Param("slug")
 	type reqBody struct {
-		ModuleSlugs []string `json:"module_slugs" binding:"required"`
+		MenuURLs []string `json:"menu_urls" binding:"required"`
 	}
 	var body reqBody
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -346,9 +346,9 @@ func (h *SystemAdminHandler) SyncPlanEntitlements(c *gin.Context) {
 		return
 	}
 
-	if err := h.planUC.SyncEntitlements(c.Request.Context(), slug, body.ModuleSlugs); err != nil {
+	if err := h.planUC.SyncMenuEntitlements(c.Request.Context(), slug, body.MenuURLs); err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	response.SuccessResponse(c, gin.H{"slug": slug, "module_slugs": body.ModuleSlugs}, nil)
+	response.SuccessResponse(c, gin.H{"slug": slug, "menu_urls": body.MenuURLs}, nil)
 }

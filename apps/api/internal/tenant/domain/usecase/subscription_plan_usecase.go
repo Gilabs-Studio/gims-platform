@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -27,6 +28,8 @@ type SubscriptionPlanUsecase interface {
 	SetActive(ctx context.Context, slug string, active bool) error
 	// SyncEntitlements replaces the module entitlement list for a plan.
 	SyncEntitlements(ctx context.Context, slug string, modules []string) error
+	// SyncMenuEntitlements replaces the menu entitlement list for a plan.
+	SyncMenuEntitlements(ctx context.Context, slug string, menuURLs []string) error
 	// ComputePrice returns the invoice amount for a plan/billing/usercount combination.
 	ComputePrice(ctx context.Context, slug, billingPeriod string, userCount int) (int64, error)
 }
@@ -107,8 +110,15 @@ func (u *subscriptionPlanUsecase) Upsert(ctx context.Context, req *dto.UpsertPla
 	if err := u.planRepo.Upsert(ctx, plan); err != nil {
 		return nil, err
 	}
-	// Sync entitlements if provided.
-	if len(req.Modules) > 0 {
+	if req.MenuURLs != nil {
+		if err := u.planRepo.SyncMenuEntitlements(ctx, plan.Slug, req.MenuURLs); err != nil {
+			return nil, err
+		}
+		derivedModules := repositories.DeriveModulesFromMenuURLs(req.MenuURLs)
+		if err := u.planRepo.SyncEntitlements(ctx, plan.Slug, derivedModules); err != nil {
+			return nil, err
+		}
+	} else if req.Modules != nil {
 		if err := u.planRepo.SyncEntitlements(ctx, plan.Slug, req.Modules); err != nil {
 			return nil, err
 		}
@@ -122,6 +132,13 @@ func (u *subscriptionPlanUsecase) SetActive(ctx context.Context, slug string, ac
 
 func (u *subscriptionPlanUsecase) SyncEntitlements(ctx context.Context, slug string, modules []string) error {
 	return u.planRepo.SyncEntitlements(ctx, slug, modules)
+}
+
+func (u *subscriptionPlanUsecase) SyncMenuEntitlements(ctx context.Context, slug string, menuURLs []string) error {
+	if err := u.planRepo.SyncMenuEntitlements(ctx, slug, menuURLs); err != nil {
+		return err
+	}
+	return u.planRepo.SyncEntitlements(ctx, slug, repositories.DeriveModulesFromMenuURLs(menuURLs))
 }
 
 func (u *subscriptionPlanUsecase) ComputePrice(ctx context.Context, slug, billingPeriod string, userCount int) (int64, error) {
@@ -138,10 +155,32 @@ func (u *subscriptionPlanUsecase) ComputePrice(ctx context.Context, slug, billin
 // planModelToDTO converts a SubscriptionPlanConfig model to its DTO.
 func planModelToDTO(p *models.SubscriptionPlanConfig) *dto.SubscriptionPlanResponse {
 	modules := make([]string, 0, len(p.Entitlements))
+	moduleSeen := make(map[string]struct{}, len(p.Entitlements))
 	for _, e := range p.Entitlements {
 		if e.IsEnabled {
-			modules = append(modules, e.ModuleSlug)
+			moduleSlug := strings.ToLower(strings.TrimSpace(e.ModuleSlug))
+			if _, exists := moduleSeen[moduleSlug]; exists {
+				continue
+			}
+			moduleSeen[moduleSlug] = struct{}{}
+			modules = append(modules, moduleSlug)
 		}
+	}
+	menuURLs := make([]string, 0, len(p.PermissionEntitlements))
+	menuSeen := make(map[string]struct{}, len(p.PermissionEntitlements))
+	for _, entitlement := range p.PermissionEntitlements {
+		if !entitlement.IsEnabled || strings.TrimSpace(entitlement.MenuURL) == "" {
+			continue
+		}
+		menuURL := strings.ToLower(strings.TrimSpace(entitlement.MenuURL))
+		if _, exists := menuSeen[menuURL]; exists {
+			continue
+		}
+		menuSeen[menuURL] = struct{}{}
+		menuURLs = append(menuURLs, menuURL)
+	}
+	if len(modules) == 0 {
+		modules = repositories.DeriveModulesFromMenuURLs(menuURLs)
 	}
 	return &dto.SubscriptionPlanResponse{
 		Slug:            p.Slug,
@@ -158,5 +197,6 @@ func planModelToDTO(p *models.SubscriptionPlanConfig) *dto.SubscriptionPlanRespo
 		SortOrder:       p.SortOrder,
 		Features:        []string(p.Features),
 		Modules:         modules,
+		MenuURLs:        menuURLs,
 	}
 }

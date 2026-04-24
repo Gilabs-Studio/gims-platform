@@ -18,6 +18,8 @@ export interface TenantSubscription {
 
 export interface TenantEntitlements {
   modules: string[];
+  menu_urls?: string[];
+  permission_codes?: string[];
 }
 
 export const billingService = {
@@ -28,10 +30,14 @@ export const billingService = {
     return response.data.data;
   },
 
-  getMyEntitlements: async (): Promise<string[]> => {
+  getMyEntitlements: async (): Promise<TenantEntitlements> => {
     const response = await apiClient.get<{ success: boolean; data: TenantEntitlements }>(
       "/billing/entitlements",
     );
-    return response.data.data?.modules ?? [];
+    return {
+      modules: response.data.data?.modules ?? [],
+      menu_urls: response.data.data?.menu_urls ?? [],
+      permission_codes: response.data.data?.permission_codes ?? [],
+    };
   },
 };

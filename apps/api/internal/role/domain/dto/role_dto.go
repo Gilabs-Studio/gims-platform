@@ -48,3 +48,21 @@ type PermissionAssignment struct {
 	PermissionID string `json:"permission_id" binding:"required,uuid"`
 	Scope        string `json:"scope" binding:"required,oneof=OWN DIVISION AREA ALL"`
 }
+
+// RoleMenuAccessRequest represents menu-level access assignment request.
+type RoleMenuAccessRequest struct {
+	Assignments []RoleMenuAccessAssignment `json:"assignments" binding:"omitempty,dive"`
+}
+
+// RoleMenuAccessAssignment represents one role-menu assignment.
+type RoleMenuAccessAssignment struct {
+	MenuID string `json:"menu_id" binding:"required,uuid"`
+	Scope  string `json:"scope" binding:"required,oneof=OWN DIVISION AREA WAREHOUSE OUTLET ALL"`
+}
+
+// RoleMenuAccessResponse represents menu-level access entry.
+type RoleMenuAccessResponse struct {
+	MenuID    string `json:"menu_id"`
+	Scope     string `json:"scope"`
+	IsEnabled bool   `json:"is_enabled"`
+}
