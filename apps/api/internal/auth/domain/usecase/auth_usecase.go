@@ -1271,6 +1271,30 @@ type rolePermissionAssignment struct {
 	MenuModule   string
 }
 
+func ensureUniqueRoleName(tx *gorm.DB, baseName string) (string, error) {
+	name := strings.TrimSpace(baseName)
+	if name == "" {
+		name = "Tenant Role"
+	}
+
+	for i := 0; i < 10; i++ {
+		candidate := name
+		if i > 0 {
+			candidate = fmt.Sprintf("%s (%s)", name, shortID())
+		}
+
+		var count int64
+		if err := tx.Table("roles").Where("name = ? AND deleted_at IS NULL", candidate).Count(&count).Error; err != nil {
+			return "", err
+		}
+		if count == 0 {
+			return candidate, nil
+		}
+	}
+
+	return fmt.Sprintf("%s (%s)", name, newUUID()[:8]), nil
+}
+
 func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string) (string, string, string, map[string]string, error) {
 	roleID := newUUID()
 	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
@@ -1280,11 +1304,16 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		roleName = "Tenant Owner"
 	}
 
+	uniqueRoleName, err := ensureUniqueRoleName(tx, roleName)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
 	if err := tx.Exec(`
 		INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
 		VALUES (?, ?, ?, ?, 'active', true, 'ALL', ?, NOW(), NOW())`,
 		roleID,
-		roleName,
+		uniqueRoleName,
 		roleCode,
 		fmt.Sprintf("Auto-generated owner role for tenant %s (%s)", tenantID, planSlug),
 		tenantID,
@@ -1318,7 +1347,7 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		return "", "", "", nil, err
 	}
 
-	return roleID, roleCode, roleName, permissions, nil
+	return roleID, roleCode, uniqueRoleName, permissions, nil
 }
 
 func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string) error {
@@ -1373,12 +1402,16 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		codeSuffix := shortID()
 		newCode := fmt.Sprintf("%s_%s_%s", tCode, sanitizeSlug(companyName), codeSuffix)
 		newName := fmt.Sprintf("%s - %s", tmplRole.Name, companyName)
+		uniqueRoleName, err := ensureUniqueRoleName(tx, newName)
+		if err != nil {
+			return err
+		}
 
 		if err := tx.Exec(`
 			INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
 			VALUES (?, ?, ?, ?, 'active', false, 'ALL', ?, NOW(), NOW())`,
 			newRoleID,
-			newName,
+			uniqueRoleName,
 			newCode,
 			fmt.Sprintf("Auto-generated %s role for %s", tmplRole.Name, companyName),
 			tenantID,
