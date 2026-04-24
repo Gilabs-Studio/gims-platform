@@ -53,6 +53,8 @@ const pendingRegTTL = 24 * time.Hour
 // pendingRegKeyPrefix is the Redis key prefix for pending registrations.
 const pendingRegKeyPrefix = "pending_reg:"
 
+const masterDataMenuPrefix = "/master-data"
+
 // PendingRegistration is the Redis payload for a registration that awaits Xendit payment.
 type PendingRegistration struct {
 	Name          string `json:"name"`
@@ -1266,9 +1268,12 @@ func isAssignmentAllowedByPolicy(row rolePermissionAssignment, policy planPermis
 	if menu == "" {
 		return true
 	}
+	if menu == masterDataMenuPrefix {
+		return true
+	}
 
 	for _, prefix := range policy.menuPrefixes {
-		if menu == prefix || strings.HasPrefix(menu, prefix+"/") {
+		if prefix == masterDataMenuPrefix && strings.HasPrefix(menu, prefix+"/") {
 			return true
 		}
 	}

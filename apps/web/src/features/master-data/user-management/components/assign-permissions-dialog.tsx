@@ -117,10 +117,8 @@ function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string
     return true;
   }
 
-  for (const prefix of entitledMenuURLSet) {
-    if (menuURL.startsWith(`${prefix}/`)) {
-      return true;
-    }
+  if (entitledMenuURLSet.has("/master-data") && menuURL.startsWith("/master-data/")) {
+    return true;
   }
 
   return false;

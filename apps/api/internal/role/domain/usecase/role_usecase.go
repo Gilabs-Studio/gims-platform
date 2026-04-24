@@ -41,6 +41,7 @@ const (
 	cacheRoleListKeyFmt       = "roles:list:page:%d:limit:%d"
 	cacheRoleListPage1Limit10 = "roles:list:page:1:limit:10"
 	cacheRoleListPage1Limit20 = "roles:list:page:1:limit:20"
+	masterDataMenuPrefix      = "/master-data"
 )
 
 var alwaysSafePermissionPrefixes = []string{
@@ -825,9 +826,12 @@ func isPermissionAllowedByPolicy(p permissionMetaRow, policy planPermissionPolic
 	if menuURL == "" {
 		return true
 	}
+	if menuURL == masterDataMenuPrefix {
+		return true
+	}
 
 	for _, prefix := range policy.menuPrefixes {
-		if menuURL == prefix || strings.HasPrefix(menuURL, prefix+"/") {
+		if prefix == masterDataMenuPrefix && strings.HasPrefix(menuURL, prefix+"/") {
 			return true
 		}
 	}

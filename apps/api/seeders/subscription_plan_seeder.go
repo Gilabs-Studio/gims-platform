@@ -11,6 +11,8 @@ import (
 
 const posPaymentManagePermission = "pos.payment.manage"
 
+var masterDataMenuPrefix = strings.Join([]string{"/master", "data"}, "-")
+
 // SeedSubscriptionPlans upserts all subscription plan configs and their module entitlements.
 // Prices are in IDR per user per month. Yearly prices are the full-year charge with a 10% discount
 // pre-applied (i.e., monthly * 12 * 0.9).
@@ -214,12 +216,48 @@ func SeedSubscriptionPlans() error {
 		"/finance/journals/sales",
 		"/finance/bank-accounts",
 		"/finance/settings/fiscal-years",
-		"/master-data",
 	}
-	erpMenuPrefixes := []string{"/purchase", "/sales", "/stock", "/finance", "/master-data"}
-	crmMenuPrefixes := []string{"/crm", "/master-data"}
-	hrMenuPrefixes := []string{"/hrd", "/master-data"}
-	growthSuitePrefixes := []string{"/pos", "/purchase", "/sales", "/stock", "/finance", "/crm", "/master-data"}
+	masterDataExactMenuURLs := []string{
+		masterDataMenuPrefix,
+		masterDataMenuPrefix + "/geographic",
+		masterDataMenuPrefix + "/organization",
+		masterDataMenuPrefix + "/users",
+		masterDataMenuPrefix + "/employees",
+		masterDataMenuPrefix + "/company",
+		masterDataMenuPrefix + "/outlet",
+		masterDataMenuPrefix + "/warehouses",
+		masterDataMenuPrefix + "/divisions",
+		masterDataMenuPrefix + "/job-positions",
+		masterDataMenuPrefix + "/business-units",
+		masterDataMenuPrefix + "/business-types",
+		masterDataMenuPrefix + "/areas",
+		masterDataMenuPrefix + "/supplier",
+		masterDataMenuPrefix + "/suppliers",
+		masterDataMenuPrefix + "/supplier-types",
+		masterDataMenuPrefix + "/customer",
+		masterDataMenuPrefix + "/customers",
+		masterDataMenuPrefix + "/customer-types",
+		masterDataMenuPrefix + "/product",
+		masterDataMenuPrefix + "/products",
+		masterDataMenuPrefix + "/product-categories",
+		masterDataMenuPrefix + "/product-brands",
+		masterDataMenuPrefix + "/product-segments",
+		masterDataMenuPrefix + "/product-types",
+		masterDataMenuPrefix + "/packaging",
+		masterDataMenuPrefix + "/uom",
+		masterDataMenuPrefix + "/procurement-types",
+		masterDataMenuPrefix + "/payment-courier",
+		masterDataMenuPrefix + "/currencies",
+		masterDataMenuPrefix + "/banks",
+		masterDataMenuPrefix + "/payment-terms",
+		masterDataMenuPrefix + "/courier-agencies",
+		masterDataMenuPrefix + "/so-sources",
+		masterDataMenuPrefix + "/leave-types",
+	}
+	erpMenuPrefixes := []string{"/purchase", "/sales", "/stock", "/finance", masterDataMenuPrefix}
+	crmMenuPrefixes := []string{"/crm", masterDataMenuPrefix}
+	hrMenuPrefixes := []string{"/hrd", masterDataMenuPrefix}
+	growthSuitePrefixes := []string{"/pos", "/purchase", "/sales", "/stock", "/finance", "/crm", masterDataMenuPrefix}
 	ultimateSuitePrefixes := []string{"/"}
 
 	planPermissionPolicies := map[string]struct {
@@ -228,8 +266,8 @@ func SeedSubscriptionPlans() error {
 		permissionCodes []string
 	}{
 		"pos_growth": {
-			menuURLs:        posExactMenuURLs,
-			menuPrefixes:    []string{"/master-data"},
+			menuURLs:        append(posExactMenuURLs, masterDataExactMenuURLs...),
+			menuPrefixes:    []string{masterDataMenuPrefix},
 			permissionCodes: []string{posPaymentManagePermission},
 		},
 		"erp_pro": {

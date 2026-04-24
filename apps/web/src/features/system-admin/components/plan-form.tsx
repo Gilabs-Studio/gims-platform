@@ -28,6 +28,7 @@ import type {
   UpsertPlanRequest,
 } from "../types";
 import {
+  expandMasterDataMenuURLs,
   getDefaultMenuURLsForPlan,
   getMenuSectionSummary,
   getPlanMenuCatalog,
@@ -55,11 +56,11 @@ function buildInitialForm(plan?: SubscriptionPlanConfig | null): UpsertPlanReque
     is_highlighted: plan?.is_highlighted ?? false,
     sort_order: plan?.sort_order ?? 0,
     features: plan?.features ?? [],
-    menu_urls: getDefaultMenuURLsForPlan({
+    menu_urls: expandMasterDataMenuURLs(getDefaultMenuURLsForPlan({
       slug: plan?.slug,
       category: plan?.category,
       existingMenuURLs: plan?.menu_urls,
-    }),
+    })),
   };
 }
 
@@ -216,14 +217,16 @@ export function PlanForm() {
       category: form.category,
       existingMenuURLs: [],
     });
-    updateField("menu_urls", menuURLs);
+    updateField("menu_urls", expandMasterDataMenuURLs(menuURLs));
   };
 
   const handleCategoryChange = (value: PlanCategory) => {
     setForm((prev) => {
       const next = { ...prev, category: value };
       if (isNew) {
-        next.menu_urls = getDefaultMenuURLsForPlan({ slug: next.slug, category: value, existingMenuURLs: [] });
+        next.menu_urls = expandMasterDataMenuURLs(
+          getDefaultMenuURLsForPlan({ slug: next.slug, category: value, existingMenuURLs: [] }),
+        );
       }
       return next;
     });

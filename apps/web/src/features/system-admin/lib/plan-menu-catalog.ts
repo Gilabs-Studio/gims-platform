@@ -99,6 +99,23 @@ function uniqueMenuURLs(urls: readonly string[]): string[] {
   return result;
 }
 
+function selectByPrefix(prefixes: string[]): string[] {
+  const normalizedPrefixes = prefixes.map((prefix) => normalizeUrl(prefix));
+  return fullCatalog
+    .filter((item) =>
+      normalizedPrefixes.some((prefix) => item.url === prefix || item.url.startsWith(`${prefix}/`)),
+    )
+    .map((item) => item.url);
+}
+
+export function expandMasterDataMenuURLs(urls: readonly string[]): string[] {
+  const normalized = uniqueMenuURLs(urls);
+  if (!normalized.includes("/master-data")) {
+    return normalized;
+  }
+  return uniqueMenuURLs([...normalized, ...selectByPrefix(["/master-data"])]);
+}
+
 export function getPlanMenuCatalog(): PlanMenuItem[] {
   return fullCatalog;
 }
@@ -114,9 +131,10 @@ export function getDefaultMenuURLsForPlan(options: {
 
   const slug = (options.slug ?? "").toLowerCase();
   const category = options.category;
+  const masterDataURLs = selectByPrefix(["/master-data"]);
 
   if (slug.startsWith("pos_") || category === "pos") {
-    return uniqueMenuURLs(["/dashboard", "/pos", ...POS_EXACT_MENU_URLS.slice(2), "/master-data"]);
+    return uniqueMenuURLs([...POS_EXACT_MENU_URLS, ...masterDataURLs]);
   }
 
   if (slug.startsWith("erp_") || category === "erp") {
@@ -126,7 +144,7 @@ export function getDefaultMenuURLsForPlan(options: {
       "/purchase",
       "/stock",
       "/finance",
-      "/master-data",
+      ...masterDataURLs,
     ]);
   }
 
@@ -134,7 +152,7 @@ export function getDefaultMenuURLsForPlan(options: {
     return uniqueMenuURLs([
       "/dashboard",
       "/crm",
-      "/master-data",
+      ...masterDataURLs,
     ]);
   }
 
@@ -142,7 +160,7 @@ export function getDefaultMenuURLsForPlan(options: {
     return uniqueMenuURLs([
       "/dashboard",
       "/hrd",
-      "/master-data",
+      ...masterDataURLs,
     ]);
   }
 
@@ -156,11 +174,11 @@ export function getDefaultMenuURLsForPlan(options: {
       "/finance",
       "/crm",
       "/hrd",
-      "/master-data",
+      ...masterDataURLs,
     ]);
   }
 
-  return uniqueMenuURLs(["/dashboard", "/master-data"]);
+  return uniqueMenuURLs(["/dashboard", ...masterDataURLs]);
 }
 
 export function getMenuSectionSummary(menuURLs: string[]): Record<string, number> {
