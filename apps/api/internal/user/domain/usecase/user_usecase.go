@@ -223,8 +223,7 @@ func (u *userUsecase) GetLimit(ctx context.Context) (*UserLimitResponse, error) 
 	tenantID := middleware.TenantFromContext(ctx)
 	tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
 	if err != nil {
-		// Return safe default when tenant record is missing
-		return &UserLimitResponse{Current: int(current), Max: 5}, nil
+		return nil, err
 	}
 
 	return &UserLimitResponse{Current: int(current), Max: tenant.MaxUsers}, nil
