@@ -102,8 +102,17 @@ export interface Coupon {
   code: string;
   description: string;
   coupon_type: CouponType;
+  discount_type?: "trial" | "percent" | "amount";
+  discount_value?: number;
+  max_user_count?: number;
+  lock_user_count?: boolean;
+  package_price_monthly_idr?: number;
+  package_price_yearly_idr?: number;
+  scope?: "general" | "tier_specific";
+  target_plan_slug?: string;
   duration_days: number;
   max_uses: number;
+  max_uses_per_email?: number;
   used_count: number;
   is_active: boolean;
   expires_at: string | null;
@@ -113,12 +122,24 @@ export interface Coupon {
 }
 
 export interface CreateCouponRequest {
+  code?: string;
   description: string;
   coupon_type: CouponType;
+  discount_type?: "trial" | "percent" | "amount";
+  discount_value?: number;
+  max_user_count?: number;
+  lock_user_count?: boolean;
+  package_price_monthly_idr?: number;
+  package_price_yearly_idr?: number;
+  scope?: "general" | "tier_specific";
+  target_plan_slug?: string;
   duration_days: number;
   max_uses?: number;
+  max_uses_per_email?: number;
   expires_at?: string | null;
 }
+
+export type UpdateCouponRequest = CreateCouponRequest;
 
 export interface CouponListParams {
   active_only?: boolean;

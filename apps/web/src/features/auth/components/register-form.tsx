@@ -161,7 +161,53 @@ interface CouponState {
   targetPlanSlug?: string;     // set when coupon has scope=tier_specific
   discountType?: string;       // "trial" | "percent" | "amount"
   discountValue?: number;      // % or IDR reduction
-  maxUsers?: number;           // limit on user count
+  maxUserCount?: number;       // 0/undefined = unlimited
+  lockUserCount?: boolean;
+  packagePriceMonthlyIDR?: number;
+  packagePriceYearlyIDR?: number;
+}
+
+function applyCouponPreview(
+  perUserMonthly: number,
+  users: number,
+  billing: BillingPeriod,
+  coupon: CouponState,
+  planSlug: string,
+): number {
+  const baseAmount = totalInvoice(perUserMonthly, users, billing);
+  if (coupon.isValid !== true) return baseAmount;
+  if (coupon.targetPlanSlug && coupon.targetPlanSlug !== planSlug) return baseAmount;
+
+  if (coupon.discountType === "trial") {
+    return 0;
+  }
+
+  if ((coupon.packagePriceMonthlyIDR ?? 0) > 0 && (coupon.maxUserCount ?? 0) > 0) {
+    const packageAmount = billing === "yearly"
+      ? Math.round((coupon.packagePriceYearlyIDR && coupon.packagePriceYearlyIDR > 0
+        ? coupon.packagePriceYearlyIDR
+        : (coupon.packagePriceMonthlyIDR ?? 0) * 12 * 0.9))
+      : Math.round(coupon.packagePriceMonthlyIDR ?? 0);
+
+    if (users <= (coupon.maxUserCount ?? 0)) {
+      return Math.max(0, packageAmount);
+    }
+
+    const extraUsers = users - (coupon.maxUserCount ?? 0);
+    const extraAmount = totalInvoice(perUserMonthly, extraUsers, billing);
+    return Math.max(0, packageAmount + extraAmount);
+  }
+
+  if (coupon.discountType === "percent" && (coupon.discountValue ?? 0) > 0) {
+    return Math.max(0, Math.round(baseAmount * (1 - (coupon.discountValue ?? 0) / 100)));
+  }
+
+  if (coupon.discountType === "amount" && (coupon.discountValue ?? 0) > 0) {
+    const nominal = billing === "yearly" ? (coupon.discountValue ?? 0) * 12 : (coupon.discountValue ?? 0);
+    return Math.max(0, Math.round(baseAmount - nominal));
+  }
+
+  return baseAmount;
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -199,7 +245,6 @@ export default function RegisterForm() {
   });
   const [accountErrors, setAccountErrors] = useState<AccountErrors>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [isCheckingAccount, setIsCheckingAccount] = useState(false);
 
   // ── Step 2: plan ─────────────────────────────────────────────────────────────
   const [planTab, setPlanTab] = useState<PlanTab>("bundle");
@@ -280,7 +325,7 @@ export default function RegisterForm() {
   const handleContinue = async () => {
     if (!validateAccount()) return;
 
-    setIsCheckingAccount(true);
+    setIsLoading(true);
     setAccountErrors((p) => ({ ...p, general: undefined }));
 
     try {
@@ -300,11 +345,12 @@ export default function RegisterForm() {
       }
     } catch (err) {
       console.error("Availability check failed:", err);
-      // Fail gracefully and allow user to continue if check fails?
-      // Or show a general error.
-      setAccountErrors((p) => ({ ...p, general: "Unable to verify account availability. Please try again." }));
+      setAccountErrors((p) => ({
+        ...p,
+        general: t("errors.availabilityCheckFailed"),
+      }));
     } finally {
-      setIsCheckingAccount(false);
+      setIsLoading(false);
     }
   };
 
@@ -321,25 +367,31 @@ export default function RegisterForm() {
           isChecking: false,
           isValid: true,
           message: data.description
-            ? `${data.description} — ${data.duration_days ?? "?"} ${t("daysAccess")}`
+            ? `${data.description} — ${data.duration_days ?? "?"} ${t("daysAccess")}${(data.package_price_monthly_idr ?? 0) > 0 && (data.max_user_count ?? 0) > 0 ? ` · ${t("packageSummary", { users: data.max_user_count ?? 0, price: formatIDR(data.package_price_monthly_idr ?? 0) })}` : ""}`
             : t("couponValid"),
           discountType: data.discount_type,
           discountValue: data.discount_value,
-          maxUsers: data.max_users,
+          maxUserCount: data.max_user_count,
+          lockUserCount: data.lock_user_count,
+          packagePriceMonthlyIDR: data.package_price_monthly_idr,
+          packagePriceYearlyIDR: data.package_price_yearly_idr,
         };
         // When coupon is locked to a specific plan, auto-switch to that plan.
         if (data.scope === "tier_specific" && data.target_plan_slug) {
           newState.targetPlanSlug = data.target_plan_slug;
-          // Switch to modular tab and select the locked plan.
-          setPlanTab("modular");
-          setSelectedModular(data.target_plan_slug);
+          const bundleMatch = dynamicBundles.find((p) => p.id === data.target_plan_slug);
+          if (bundleMatch && bundleMatch.id !== "enterprise") {
+            setPlanTab("bundle");
+            setSelectedBundle(bundleMatch.id);
+          } else {
+            setPlanTab("modular");
+            setSelectedModular(data.target_plan_slug);
+          }
+        }
+        if ((data.lock_user_count ?? false) && (data.max_user_count ?? 0) > 0) {
+          setUserCount(data.max_user_count ?? userCount);
         }
         setCouponState(newState);
-        
-        // Cek if current userCount already exceeds maxUsers
-        if (newState.maxUsers && newState.maxUsers > 0 && userCount > newState.maxUsers) {
-          setUserCount(newState.maxUsers);
-        }
       } else {
         const reasonMap: Record<string, string> = {
           not_found: t("couponReasons.not_found"),
@@ -352,27 +404,12 @@ export default function RegisterForm() {
           isChecking: false,
           isValid: false,
           message: reasonMap[data?.reason ?? ""] ?? t("couponInvalidOrExpired"),
+          maxUserCount: data?.max_user_count,
         });
       }
-    } catch (err) {
-      console.error("Coupon check failed:", err);
+    } catch {
       setCouponState({ isChecking: false, isValid: false, message: t("couponValidateFailed") });
     }
-  };
-
-  const applyCouponDiscount = (baseAmount: number): number => {
-    if (!couponState.isValid) return baseAmount;
-    if (couponState.discountType === "trial") return 0;
-    
-    if (couponState.discountType === "percent" && couponState.discountValue) {
-      return Math.round(baseAmount * (1 - couponState.discountValue / 100));
-    }
-    
-    if (couponState.discountType === "amount" && couponState.discountValue) {
-      return Math.max(0, baseAmount - couponState.discountValue);
-    }
-    
-    return baseAmount;
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────────
@@ -432,6 +469,8 @@ export default function RegisterForm() {
         setCouponState({ isChecking: false, isValid: false, message: "This coupon has already been used with your email" });
       } else if (code === "COUPON_INVALID") {
         setCouponState({ isChecking: false, isValid: false, message: "Coupon is no longer valid" });
+      } else if (code === "COUPON_USER_LIMIT_EXCEEDED") {
+        setSubmitError("Selected user count exceeds coupon limit");
       } else {
         setSubmitError(message);
       }
@@ -443,7 +482,16 @@ export default function RegisterForm() {
   // ── Derived values ─────────────────────────────────────────────────────────────
   const selectedBundlePlan = dynamicBundles.find((b) => b.id === selectedBundle) ?? dynamicBundles.find((b) => b.id !== "enterprise") ?? dynamicBundles[0];
   const selectedModularPlan = dynamicModular.find((p) => p.id === selectedModular) ?? dynamicModular[0] ?? { id: "", name: "", category: "", perUserMonthly: 0, features: [] as string[] };
-  const discountActive = planTab === "bundle" && selectedBundle !== "enterprise" && couponState.isValid === true;
+  const hasPackageCoupon = couponState.isValid === true && (couponState.packagePriceMonthlyIDR ?? 0) > 0 && (couponState.maxUserCount ?? 0) > 0;
+  const packageUserCount = couponState.maxUserCount ?? 0;
+  const effectiveMinUsers = couponState.isValid === true && (couponState.lockUserCount ?? false) && (couponState.maxUserCount ?? 0) > 0
+    ? (couponState.maxUserCount ?? 1)
+    : 1;
+  const effectiveMaxUsers = hasPackageCoupon
+    ? 500
+    : couponState.isValid === true && (couponState.maxUserCount ?? 0) > 0
+      ? (couponState.maxUserCount ?? 500)
+      : 500;
 
   // Decoy banner: show if modular plan costs more than ultimate_suite for same users
   const ultimatePlan = dynamicBundles.find((b) => b.id === "ultimate_suite");
@@ -451,26 +499,24 @@ export default function RegisterForm() {
   const modularCost = effectiveMonthlyPrice(selectedModularPlan.perUserMonthly, userCount, billing);
   const showDecoySuggestion = planTab === "modular" && modularCost >= ultimateCost;
 
+  const selectedPlanSlug = planTab === "bundle" ? selectedBundlePlan?.id ?? "" : selectedModularPlan.id;
+  const selectedPlanTotal = planTab === "bundle"
+    ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
+    : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
+  const discountedSelectedPlanTotal = applyCouponPreview(
+    planTab === "bundle" ? selectedBundlePlan.perUserMonthly : selectedModularPlan.perUserMonthly,
+    userCount,
+    billing,
+    couponState,
+    selectedPlanSlug,
+  );
+  const discountActive = couponState.isValid === true && discountedSelectedPlanTotal < selectedPlanTotal;
+
   const submitLabel = (): string => {
     if (planTab === "bundle" && selectedBundle === "enterprise") return t("contactSales");
     if (!selectedBundlePlan || !selectedModularPlan) return t("pay", { amount: formatIDR(0) });
-    
-    const baseTotal = planTab === "bundle"
-      ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
-      : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
-      
-    const finalTotal = applyCouponDiscount(baseTotal);
-    
-    return t("pay", { amount: formatIDR(finalTotal) });
+    return t("pay", { amount: formatIDR(discountedSelectedPlanTotal) });
   };
-
-  const effectiveMaxUsers = useMemo(() => {
-    const apiMax = 500;
-    if (couponState.isValid && couponState.maxUsers && couponState.maxUsers > 0) {
-      return Math.min(apiMax, couponState.maxUsers);
-    }
-    return apiMax;
-  }, [couponState.isValid, couponState.maxUsers]);
 
   const openContactSalesWhatsApp = () => {
     if (typeof window !== "undefined") {
@@ -604,24 +650,18 @@ export default function RegisterForm() {
                       autoComplete="organization"
                       placeholder={t("companyPlaceholder")}
                       value={account.company}
-                      onChange={(e) => {
-                        setAccount((p) => ({ ...p, company: e.target.value }));
-                        if (accountErrors.company) setAccountErrors((p) => ({ ...p, company: undefined }));
-                      }}
-                      aria-invalid={!!accountErrors.company}
+                      onChange={(e) => setAccount((p) => ({ ...p, company: e.target.value }))}
                       className="h-11"
                     />
-                    {accountErrors.company && <p className="text-xs text-destructive">{accountErrors.company}</p>}
                   </div>
                 </div>
 
                 <Button
                   type="button"
                   onClick={handleContinue}
+                  disabled={isLoading}
                   className="h-11 w-full font-medium"
-                  disabled={isCheckingAccount}
                 >
-                  {isCheckingAccount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {t("continue")}
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -657,15 +697,9 @@ export default function RegisterForm() {
                     ?? { id: couponState.targetPlanSlug, name: couponState.targetPlanSlug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), category: "", perUserMonthly: 0, features: [] };
                   const isTrial = couponState.discountType === "trial";
                   const originalMonthly = effectiveMonthlyPrice(lockedPlan.perUserMonthly, userCount, billing);
-                  let finalMonthly = originalMonthly;
-                  if (couponState.discountType === "percent" && couponState.discountValue) {
-                    finalMonthly = Math.round(originalMonthly * (1 - couponState.discountValue / 100));
-                  } else if (couponState.discountType === "amount" && couponState.discountValue) {
-                    finalMonthly = Math.max(0, originalMonthly - couponState.discountValue);
-                  } else if (isTrial) {
-                    finalMonthly = 0;
-                  }
+                  const finalMonthly = applyCouponPreview(lockedPlan.perUserMonthly, userCount, billing, couponState, lockedPlan.id);
                   const hasDiscount = finalMonthly < originalMonthly;
+                  const userLabel = userCount === 1 ? t("userSingular") : t("userPlural");
                   return (
                     <motion.div
                       key="locked-plan"
@@ -677,9 +711,17 @@ export default function RegisterForm() {
                         {/* Left: plan info */}
                         <div className="flex-1 p-6 space-y-4">
                           <div>
-                            <p className="text-xs font-medium uppercase tracking-widest text-primary">{lockedPlan.category || "Modular Plan"}</p>
+                            <p className="text-xs font-medium uppercase tracking-widest text-primary">{lockedPlan.category || t("modularPlanFallback")}</p>
                             <h2 className="mt-1 text-xl font-bold text-foreground">{lockedPlan.name}</h2>
                             <p className="mt-1 text-sm text-muted-foreground">{couponState.message}</p>
+                            {couponState.lockUserCount && packageUserCount > 0 && (
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                {t("includedUsersPackage", {
+                                  count: packageUserCount,
+                                  price: formatIDR(couponState.packagePriceMonthlyIDR ?? 0),
+                                })}
+                              </p>
+                            )}
                           </div>
                           {lockedPlan.features.length > 0 && (
                             <ul className="space-y-1.5">
@@ -692,7 +734,7 @@ export default function RegisterForm() {
                             </ul>
                           )}
                           <p className="text-[11px] text-muted-foreground italic">
-                            All subscriptions come with a 30-day money-back guarantee. Cancel anytime.
+                            {t("moneyBackGuarantee")}
                           </p>
                         </div>
                         {/* Right: pricing + controls */}
@@ -701,11 +743,11 @@ export default function RegisterForm() {
                           <div className="flex items-center justify-center gap-2 text-xs">
                             <button type="button" onClick={() => setBilling("monthly")}
                               className={cn("px-2 py-1 rounded font-medium transition-colors", billing === "monthly" ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                              Monthly
+                              {t("monthly")}
                             </button>
                             <button
                               type="button"
-                              className={cn("relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                              className={cn("relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
                                 billing === "yearly" ? "bg-primary" : "bg-muted")}
                               role="switch"
                               aria-checked={billing === "yearly"}
@@ -716,37 +758,37 @@ export default function RegisterForm() {
                             </button>
                             <button type="button" onClick={() => setBilling("yearly")}
                               className={cn("px-2 py-1 rounded font-medium transition-colors", billing === "yearly" ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                              Annual
+                              {t("yearly")}
                             </button>
                           </div>
                           {/* Price */}
                           <div className="text-center">
                             {isTrial ? (
                               <div>
-                                <p className="text-3xl font-bold text-foreground">Free</p>
-                                <p className="text-xs text-muted-foreground mt-1">30-day trial</p>
+                                <p className="text-3xl font-bold text-foreground">{t("free")}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{t("trialPeriod")}</p>
                               </div>
                             ) : hasDiscount ? (
                               <div>
                                 <p className="text-sm text-muted-foreground line-through">{formatIDR(originalMonthly)}<span className="text-xs">/mo</span></p>
                                 <p className="text-3xl font-bold text-foreground">{formatIDR(finalMonthly)}</p>
-                                <p className="text-xs text-muted-foreground">/month</p>
+                                <p className="text-xs text-muted-foreground">{t("perMonth")}</p>
                               </div>
                             ) : (
                               <div>
                                 <p className="text-3xl font-bold text-foreground">{formatIDR(originalMonthly)}</p>
-                                <p className="text-xs text-muted-foreground">/month</p>
+                                <p className="text-xs text-muted-foreground">{t("perMonth")}</p>
                               </div>
                             )}
                           </div>
                           {/* User count */}
                           <div className="flex items-center justify-center gap-2">
-                            <button type="button" onClick={() => setUserCount((n) => Math.max(1, n - 1))}
+                            <button type="button" onClick={() => setUserCount((n) => Math.max(effectiveMinUsers, n - 1))}
                               className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted">
                               <Minus className="h-3 w-3" />
                             </button>
-                            <span className="w-12 text-center text-sm font-medium">{userCount} user{userCount > 1 ? "s" : ""}</span>
-                             <button type="button" onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))}
+                            <span className="w-16 text-center text-sm font-medium">{t("userCountLabel", { count: userCount, label: userLabel })}</span>
+                            <button type="button" onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))}
                               className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted">
                               <Plus className="h-3 w-3" />
                             </button>
@@ -758,7 +800,7 @@ export default function RegisterForm() {
                             disabled={isLoading}
                           >
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {isTrial ? "Start Free Trial" : `Start ${lockedPlan.name}`}
+                            {isTrial ? t("startFreeTrial") : t("startPlan", { name: lockedPlan.name })}
                           </Button>
                           {/* Coupon code input (compact) */}
                           <div className="space-y-1">
@@ -840,7 +882,7 @@ export default function RegisterForm() {
                               billing === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                             )}
                           >
-                            Monthly
+                            {t("monthly")}
                           </button>
                           <button
                             type="button"
@@ -850,39 +892,39 @@ export default function RegisterForm() {
                               billing === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                             )}
                           >
-                            Yearly
+                            {t("yearly")}
                             <span className="rounded-lg bg-success/15 px-2 py-0.5 text-success">{t("save10")}</span>
                           </button>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-muted-foreground">Users</span>
+                          <span className="text-xs font-medium text-muted-foreground">{t("usersLabel")}</span>
                           <div className="flex items-center rounded-lg border border-border/70">
                             <button
                               type="button"
-                              onClick={() => setUserCount((n) => Math.max(1, n - 1))}
+                              onClick={() => setUserCount((n) => Math.max(effectiveMinUsers, n - 1))}
                               className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:bg-muted"
-                              aria-label="Decrease users"
+                              aria-label={t("decreaseUsers")}
                             >
                               <Minus className="h-3 w-3" />
                             </button>
                             <input
                               type="number"
-                              min={1}
+                              min={effectiveMinUsers}
                               max={effectiveMaxUsers}
                               value={userCount}
                               onChange={(e) => {
                                 const v = parseInt(e.target.value, 10);
-                                if (!isNaN(v) && v >= 1 && v <= effectiveMaxUsers) setUserCount(v);
+                                if (!isNaN(v) && v >= effectiveMinUsers && v <= effectiveMaxUsers) setUserCount(v);
                               }}
                               className="h-9 w-14 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                              aria-label="Number of users"
+                              aria-label={t("usersAria")}
                             />
                             <button
                               type="button"
                               onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))}
                               className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-muted"
-                              aria-label="Increase users"
+                              aria-label={t("increaseUsers")}
                             >
                               <Plus className="h-3 w-3" />
                             </button>
@@ -935,6 +977,13 @@ export default function RegisterForm() {
                         {couponState.isValid === true && (
                           <p className="text-xs text-emerald-600">{couponState.message ?? t("discountApplied")}</p>
                         )}
+                        {couponState.isValid === true && packageUserCount > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {couponState.packagePriceMonthlyIDR && couponState.packagePriceMonthlyIDR > 0
+                              ? t("couponPackageSummary", { price: formatIDR(couponState.packagePriceMonthlyIDR), users: packageUserCount })
+                              : t("couponUserLimit", { count: packageUserCount })}
+                          </p>
+                        )}
                         {couponState.isValid === false && (
                           <p className="text-xs text-destructive">{couponState.message ?? t("couponInvalidOrExpired")}</p>
                         )}
@@ -971,7 +1020,7 @@ export default function RegisterForm() {
                           </thead>
                           <tbody>
                             <tr className="border-b border-border/70">
-                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-foreground">Price</th>
+                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-foreground">{t("price")}</th>
                               {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 if (b.cta === "contact") {
@@ -980,15 +1029,15 @@ export default function RegisterForm() {
                                       key={b.id}
                                       className={cn("px-6 py-4 align-top", isSelected && "bg-primary/5")}
                                     >
-                                      <p className="text-xl font-semibold text-foreground">Custom</p>
-                                      <p className="mt-1 text-xs text-muted-foreground">Talk with our team for volume pricing</p>
+                                      <p className="text-xl font-semibold text-foreground">{t("custom")}</p>
+                                      <p className="mt-1 text-xs text-muted-foreground">{t("contactSalesHint")}</p>
                                     </td>
                                   );
                                 }
 
-                                const baseMonthly = b.perUserMonthly * userCount;
                                 const effectiveMonthly = effectiveMonthlyPrice(b.perUserMonthly, userCount, billing);
-                                const discountedMonthly = discountActive ? 0 : effectiveMonthly;
+                                const discountedMonthly = applyCouponPreview(b.perUserMonthly, userCount, billing, couponState, b.id);
+                                const planHasDiscount = discountedMonthly < effectiveMonthly;
 
                                 return (
                                   <td
@@ -997,27 +1046,27 @@ export default function RegisterForm() {
                                   >
                                     {billing === "yearly" ? (
                                       <div>
-                                        <p className="text-xs text-muted-foreground line-through">{formatIDR(baseMonthly)}/mo</p>
+                                        <p className="text-xs text-muted-foreground line-through">{formatIDR(b.perUserMonthly * userCount)}/mo</p>
                                         <p className="text-xl font-semibold text-foreground">
-                                          {discountActive ? (
+                                          {planHasDiscount ? (
                                             <>
                                               <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
                                               {formatIDR(discountedMonthly)}
                                             </>
                                           ) : formatIDR(discountedMonthly)}
-                                          <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+                                          <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
                                         </p>
                                         <p className="mt-1 text-xs text-success">{t("billedAnnually")}</p>
                                       </div>
                                     ) : (
                                       <p className="text-xl font-semibold text-foreground">
-                                        {discountActive ? (
+                                        {planHasDiscount ? (
                                           <>
                                             <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
                                             {formatIDR(discountedMonthly)}
                                           </>
                                         ) : formatIDR(discountedMonthly)}
-                                        <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+                                        <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
                                       </p>
                                     )}
                                   </td>
@@ -1099,12 +1148,16 @@ export default function RegisterForm() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-muted-foreground">{t("usersLabel")}</span>
                           <div className="flex items-center rounded-lg border border-border/70">
-                            <button type="button" onClick={() => setUserCount((n) => Math.max(1, n - 1))} className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("decreaseUsers")}><Minus className="h-3 w-3" /></button>
-                            <input type="number" min={1} max={500} value={userCount} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 1 && v <= 500) setUserCount(v); }} className="h-9 w-14 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" aria-label={t("usersAria")} />
-                            <button type="button" onClick={() => setUserCount((n) => Math.min(500, n + 1))} className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("increaseUsers")}><Plus className="h-3 w-3" /></button>
+                            <button type="button" onClick={() => setUserCount((n) => Math.max(effectiveMinUsers, n - 1))} className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("decreaseUsers")}><Minus className="h-3 w-3" /></button>
+                            <input type="number" min={effectiveMinUsers} max={effectiveMaxUsers} value={userCount} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= effectiveMinUsers && v <= effectiveMaxUsers) setUserCount(v); }} className="h-9 w-14 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" aria-label={t("usersAria")} />
+                            <button type="button" onClick={() => setUserCount((n) => Math.min(effectiveMaxUsers, n + 1))} className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted" aria-label={t("increaseUsers")}><Plus className="h-3 w-3" /></button>
                           </div>
                         </div>
                       </div>
+
+                      {couponState.isValid === true && packageUserCount > 0 && (
+                        <p className="text-xs text-muted-foreground">{t("couponUserLimit", { count: packageUserCount })}</p>
+                      )}
 
                       {showDecoySuggestion && (
                         <motion.div
@@ -1114,9 +1167,12 @@ export default function RegisterForm() {
                         >
                           <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                           <div className="text-xs">
-                            <p className="font-semibold text-foreground">Bundle value is significantly better</p>
+                            <p className="font-semibold text-foreground">{t("bundleValueBetter")}</p>
                             <p className="mt-0.5 text-muted-foreground">
-                              Ultimate Suite is {formatIDR(ultimateCost)}/mo for all modules, while this modular option is {formatIDR(modularCost)}/mo.
+                              {t("modularOptionComparison", {
+                                ultimate: formatIDR(ultimateCost),
+                                modular: formatIDR(modularCost),
+                              })}
                               <button
                                 type="button"
                                 onClick={() => { setPlanTab("bundle"); setSelectedBundle("ultimate_suite"); }}
@@ -1155,11 +1211,11 @@ export default function RegisterForm() {
                               <p className="mt-1 text-sm font-semibold text-foreground">{p.name}</p>
                               <div className="mt-3">
                                 {billing === "yearly" && (
-                                  <p className="text-xs text-muted-foreground line-through">{formatIDR(baseMonthly)}/mo</p>
+                                  <p className="text-xs text-muted-foreground line-through">{formatIDR(baseMonthly)}{t("perMonthShort")}</p>
                                 )}
                                 <p className="text-lg font-semibold text-foreground">
                                   {formatIDR(monthly)}
-                                  <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+                                  <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
                                 </p>
                               </div>
                               <ul className="mt-3 space-y-1">
@@ -1218,9 +1274,9 @@ export default function RegisterForm() {
                     ) : discountActive ? (
                       <span className="flex items-center gap-2">
                         <span className="text-xs font-normal text-primary-foreground/80 line-through">
-                          {t("pay", { amount: formatIDR(totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)) })}
+                          {t("pay", { amount: formatIDR(selectedPlanTotal) })}
                         </span>
-                        <span>{t("pay", { amount: formatIDR(0) })}</span>
+                        <span>{t("pay", { amount: formatIDR(discountedSelectedPlanTotal) })}</span>
                       </span>
                     ) : (
                       submitLabel()

@@ -28,8 +28,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "pos",
 			Description:     "Multi-outlet cashier with loyalty and advanced reports.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 199_000,
-			PriceYearlyIDR:  2_149_200, // 199000 * 12 * 0.9
+			PriceMonthlyIDR: 79_000,
+			PriceYearlyIDR:  853_200, // 79000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -47,8 +47,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "erp",
 			Description:     "Purchase, sales, finance, and inventory operations.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 399_000,
-			PriceYearlyIDR:  4_309_200, // 399000 * 12 * 0.9
+			PriceMonthlyIDR: 109_000,
+			PriceYearlyIDR:  1_177_200, // 109000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -66,8 +66,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "crm",
 			Description:     "Pipeline automation, custom fields, and activity timeline.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 149_000,
-			PriceYearlyIDR:  1_609_200, // 149000 * 12 * 0.9
+			PriceMonthlyIDR: 89_000,
+			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -85,8 +85,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "hr",
 			Description:     "Payroll processing, attendance, and performance reviews.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 79_000,
-			PriceYearlyIDR:  853_200, // 79000 * 12 * 0.9
+			PriceMonthlyIDR: 89_000,
+			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -105,8 +105,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "bundle",
 			Description:     "POS · ERP · CRM",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 149_000,
-			PriceYearlyIDR:  1_609_200, // 149000 * 12 * 0.9
+			PriceMonthlyIDR: 125_000,
+			PriceYearlyIDR:  1_350_000, // 125000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,

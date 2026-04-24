@@ -43,6 +43,7 @@ var (
 	ErrPaymentGatewayUnavailable      = errors.New("payment gateway is not configured")
 	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
 	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
+	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
 	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
 )
@@ -549,6 +550,9 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
 	couponCode := strings.TrimSpace(req.Coupon)
 	plan := strings.TrimSpace(req.Plan)
+	if req.UserCount < 1 {
+		req.UserCount = 1
+	}
 
 	// ── Gate: require either coupon or plan ─────────────────────────────────
 	if couponCode == "" && plan == "" {
@@ -556,6 +560,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 	}
 
 	// ── Coupon path: validate first for fast feedback ────────────────────────
+	couponIsTrial := false
 	if couponCode != "" {
 		validity, err := u.couponUC.ValidateForEmail(ctx, couponCode, req.Email)
 		if err != nil {
@@ -569,20 +574,30 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		}
 		if strings.TrimSpace(req.Plan) == "" && strings.TrimSpace(validity.TargetPlanSlug) != "" {
 			req.Plan = validity.TargetPlanSlug
+			plan = validity.TargetPlanSlug
 		}
+		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+			return nil, ErrCouponUserLimitExceeded
+		}
+		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
 	}
 
-	// ── Paid plan path: create Xendit invoice + store pending registration ───
-	if couponCode == "" && plan != "" {
+	// ── Trial coupon path: provision tenant immediately ───────────────────────
+	if couponCode != "" && couponIsTrial {
+		loginResp, err := u.provisionTenantWithCoupon(ctx, req, couponCode)
+		if err != nil {
+			return nil, err
+		}
+		return &RegisterTenantResult{LoginResponse: loginResp}, nil
+	}
+
+	// ── Paid path (with or without discount coupon): create invoice ───────────
+	plan = strings.TrimSpace(req.Plan)
+	if plan != "" {
 		return u.initPaidRegistration(ctx, req)
 	}
 
-	// ── Coupon path: provision tenant immediately ────────────────────────────
-	loginResp, err := u.provisionTenantWithCoupon(ctx, req, couponCode)
-	if err != nil {
-		return nil, err
-	}
-	return &RegisterTenantResult{LoginResponse: loginResp}, nil
+	return nil, ErrPaymentRequired
 }
 
 // initPaidRegistration creates a Xendit invoice for the selected plan, stores the
@@ -626,7 +641,10 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	couponCode := strings.TrimSpace(req.Coupon)
 	finalAmount := baseAmount
 	if couponCode != "" {
-		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount)
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount, userCount, billingPeriod)
+		if errors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			return nil, ErrCouponUserLimitExceeded
+		}
 		if applyErr == nil {
 			finalAmount = discounted
 		}

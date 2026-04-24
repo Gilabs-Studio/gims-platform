@@ -214,6 +214,37 @@ func (h *SystemAdminHandler) ListCoupons(c *gin.Context) {
 	response.SuccessResponse(c, coupons, meta)
 }
 
+// UpdateCoupon updates an existing coupon (system admin only).
+func (h *SystemAdminHandler) UpdateCoupon(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"id": "required"}, nil)
+		return
+	}
+
+	var req dto.UpdateCouponRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	coupon, err := h.couponUC.Update(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrCouponNotFound {
+			errors.ErrorResponse(c, "COUPON_NOT_FOUND", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, coupon, nil)
+}
+
 // SetCouponStatus activates or deactivates a coupon (system admin only).
 func (h *SystemAdminHandler) SetCouponStatus(c *gin.Context) {
 	id := c.Param("id")

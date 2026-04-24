@@ -1,6 +1,7 @@
 package handler
 
 import (
+	goerrors "errors"
 	"net/http"
 	"strings"
 
@@ -161,9 +162,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "", // Removed for security
@@ -241,9 +242,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
@@ -369,6 +370,11 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				"field":   "coupon",
 				"message": "This coupon has already been used with your email address",
 			}, nil)
+		case usecase.ErrCouponUserLimitExceeded:
+			errors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]interface{}{
+				"field":   "user_count",
+				"message": "Selected user count exceeds coupon limit",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}
@@ -415,9 +421,9 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
@@ -548,7 +554,13 @@ func (h *AuthHandler) ComputePrice(c *gin.Context) {
 	}
 
 	if couponCode := strings.TrimSpace(req.CouponCode); couponCode != "" {
-		discounted, applyErr := h.couponUC.ApplyDiscount(ctx, couponCode, req.PlanSlug, baseAmount)
+		discounted, applyErr := h.couponUC.ApplyDiscount(ctx, couponCode, req.PlanSlug, baseAmount, req.UserCount, req.BillingPeriod)
+		if goerrors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+				"user_count": "selected user count exceeds coupon limit",
+			}, nil)
+			return
+		}
 		if applyErr == nil {
 			resp.FinalAmountIDR = discounted
 			resp.DiscountIDR = baseAmount - discounted
