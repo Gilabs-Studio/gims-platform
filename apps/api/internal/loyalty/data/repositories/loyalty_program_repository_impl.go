@@ -30,12 +30,15 @@ func (r *loyaltyProgramRepo) GetByID(ctx context.Context, id string) (*models.Lo
 	return &program, err
 }
 
-func (r *loyaltyProgramRepo) List(ctx context.Context, page, perPage int) ([]models.LoyaltyProgram, int64, error) {
+func (r *loyaltyProgramRepo) List(ctx context.Context, page, perPage int, search string) ([]models.LoyaltyProgram, int64, error) {
 	var programs []models.LoyaltyProgram
 	var total int64
 
 	offset := (page - 1) * perPage
 	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyProgram{})
+	if search != "" {
+		q = q.Where("name ILIKE ?", "%"+search+"%")
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -48,13 +51,16 @@ func (r *loyaltyProgramRepo) List(ctx context.Context, page, perPage int) ([]mod
 }
 
 // ListWithOutletFilter returns global programs and programs owned by any of the given outlet IDs.
-func (r *loyaltyProgramRepo) ListWithOutletFilter(ctx context.Context, outletIDs []string, page, perPage int) ([]models.LoyaltyProgram, int64, error) {
+func (r *loyaltyProgramRepo) ListWithOutletFilter(ctx context.Context, outletIDs []string, page, perPage int, search string) ([]models.LoyaltyProgram, int64, error) {
 	var programs []models.LoyaltyProgram
 	var total int64
 
 	offset := (page - 1) * perPage
 	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyProgram{}).
 		Where("outlet_id IS NULL OR outlet_id IN ?", outletIDs)
+	if search != "" {
+		q = q.Where("name ILIKE ?", "%"+search+"%")
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

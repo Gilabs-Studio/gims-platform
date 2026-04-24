@@ -40,6 +40,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// SaaS: Seed subscription plan configs (must come before coupons)
+	if err := SeedSubscriptionPlans(); err != nil {
+		return err
+	}
+
 	// SaaS: Seed coupons (must come before subscriptions)
 	if err := SeedCoupons(); err != nil {
 		return err

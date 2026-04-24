@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -69,6 +70,7 @@ export function FeedbackResponseList() {
     per_page: pageSize,
     outlet_id: filterOutletId,
     form_id: filterFormId,
+    search: debouncedSearch || undefined,
   });
 
   const { data: formsData } = useFeedbackForms({ per_page: 100 });
@@ -135,21 +137,25 @@ export function FeedbackResponseList() {
           />
         </div>
 
-        <select
-          className="border rounded-md px-3 py-2 text-sm bg-background cursor-pointer"
-          value={filterFormId ?? ""}
-          onChange={(e) => {
-            setFilterFormId(e.target.value || undefined);
+        <Select
+          value={filterFormId ?? "__all__"}
+          onValueChange={(v) => {
+            setFilterFormId(v === "__all__" ? undefined : v);
             setPage(1);
           }}
         >
-          <option value="">{t("filters.allForms")}</option>
-          {forms.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="min-w-40">
+            <SelectValue placeholder={t("filters.allForms")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{t("filters.allForms")}</SelectItem>
+            {forms.map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {f.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -328,47 +334,65 @@ function DetailContent({ item }: { item: FeedbackResponseItem }) {
 
   return (
     <div className="space-y-4 text-sm">
-      <div className="grid grid-cols-2 gap-2">
-        <span className="text-muted-foreground">{t("customer")}</span>
-        <span>{item.customer_name ?? "—"}</span>
-        <span className="text-muted-foreground">{t("outlet")}</span>
-        <span>{item.outlet_name ?? item.outlet_id ?? "—"}</span>
-        {item.pos_order_id && (
-          <>
-            <span className="text-muted-foreground">{t("orderId")}</span>
-            <span>{item.pos_order_id}</span>
-          </>
-        )}
-        {item.avg_score != null && (
-          <>
-            <span className="text-muted-foreground">{t("avgScore")}</span>
-            <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
-              {item.avg_score.toFixed(1)}
-            </span>
-          </>
-        )}
-        <span className="text-muted-foreground">{t("submittedAt")}</span>
-        <span>
-          {format(new Date(item.submitted_at), "dd MMM yyyy HH:mm")}
-        </span>
-      </div>
+      <Table>
+        <TableBody>
+          <TableRow>
+            <TableCell className="text-muted-foreground font-medium w-32">{t("customer")}</TableCell>
+            <TableCell>{item.customer_name ?? "—"}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell className="text-muted-foreground font-medium">{t("outlet")}</TableCell>
+            <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
+          </TableRow>
+          {item.pos_order_id && (
+            <TableRow>
+              <TableCell className="text-muted-foreground font-medium">{t("orderId")}</TableCell>
+              <TableCell>{item.pos_order_id}</TableCell>
+            </TableRow>
+          )}
+          {item.avg_score != null && (
+            <TableRow>
+              <TableCell className="text-muted-foreground font-medium">{t("avgScore")}</TableCell>
+              <TableCell className="flex items-center gap-1">
+                <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
+                {item.avg_score.toFixed(1)}
+              </TableCell>
+            </TableRow>
+          )}
+          <TableRow>
+            <TableCell className="text-muted-foreground font-medium">{t("submittedAt")}</TableCell>
+            <TableCell>
+              {format(new Date(item.submitted_at), "dd MMM yyyy HH:mm")}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
 
       {entries.length > 0 && (
         <div className="border-t pt-3 space-y-2">
           <p className="font-medium">{t("detail.answers")}</p>
-          {entries.map(([key, val]) => (
-            <div key={key} className="grid grid-cols-2 gap-2">
-              <span className="text-muted-foreground break-words">{key}</span>
-              <span>
-                {Array.isArray(val)
-                  ? val.join(", ")
-                  : val !== null && val !== undefined
-                  ? String(val)
-                  : t("detail.noAnswer")}
-              </span>
-            </div>
-          ))}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/2">Question</TableHead>
+                <TableHead>Answer</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map(([key, val]) => (
+                <TableRow key={key}>
+                  <TableCell className="text-muted-foreground wrap-break-word">{key}</TableCell>
+                  <TableCell>
+                    {Array.isArray(val)
+                      ? val.join(", ")
+                      : val !== null && val !== undefined
+                      ? String(val)
+                      : t("detail.noAnswer")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

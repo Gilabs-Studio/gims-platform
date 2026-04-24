@@ -84,6 +84,16 @@ export const settingsId: SettingsTranslations = {
     dateOfBirth: "Tanggal lahir:",
     titleLabel: "Jabatan:",
     hireDateLabel: "Tanggal bergabung:",
+    billing: {
+      title: "Tagihan & Paket",
+      description: "Kelola paket langganan dan detail tagihan Anda.",
+      noSubscription: "Tidak ada langganan aktif.",
+      modularTitle: "Add-on Modular",
+      modularDescription: "Tambahkan modul lain untuk memperluas langganan Anda saat ini.",
+      included: "Sudah Termasuk",
+      addModule: "Tambah Modul",
+      availablePlansDescription: "Bandingkan paket dan pilih untuk upgrade langganan Anda.",
+    },
     // Payment settings (Xendit)
     payment: {
       title: "Gerbang Pembayaran Digital",

@@ -60,6 +60,10 @@
     "purchaseOrder": "Purchase Order",
     "goodsReceipt": "Goods Receipt",
     "createdBy": "Created by",
+    "openMenu": "Open menu",
+    "openSearch": "Open search",
+    "settings": "Settings",
+    "logout": "Logout",
     "days": "days",
     "validationError": "Please check the form for errors",
     "myActivities": "My Activities",
@@ -170,10 +174,21 @@
       "rememberMe": "Remember me",
       "submit": "Sign In",
       "submitting": "Signing in...",
+      "paymentSuccessToast": "Payment confirmed. Please sign in to continue.",
       "verifyingSession": "Verifying session...",
       "rateLimitMessage": "Too many login attempts. Please try again in {countdown}.",
       "noAccount": "Don't have an account?",
       "createAccount": "Create Account"
+    },
+    "registerSuccess": {
+      "confirmingTitle": "Finalizing your registration...",
+      "confirmingDescription": "Your payment was received. We are preparing your account.",
+      "successTitle": "Payment confirmed!",
+      "successDescription": "Your account is ready. Redirecting you to login...",
+      "failedTitle": "Unable to verify registration",
+      "failedDescription": "We could not verify your registration automatically. Please contact support with the reference below.",
+      "referenceLabel": "Reference",
+      "backToRegister": "Back to Registration"
     },
     "block": {
       "title": "Access Blocked",

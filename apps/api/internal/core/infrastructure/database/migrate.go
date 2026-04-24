@@ -77,10 +77,14 @@ func AutoMigrate() error {
 		&tenant.SystemAdmin{},
 		&tenant.Coupon{},
 		&tenant.CouponUsage{},
+		&tenant.SubscriptionPlanConfig{},
+		&tenant.PlanModuleEntitlement{},
+		&tenant.PlanPermissionEntitlement{},
 		&tenant.TenantSubscription{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
+		&role.RoleMenuAccess{},
 		&role.Role{},
 		&permission.Permission{},
 		&permission.Menu{},
@@ -1216,6 +1220,7 @@ func migrateTimezoneData() error {
 	log.Println("Timezone data migration completed")
 	return nil
 }
+
 // backfillTenantIDs assigns the default tenant ID to all existing rows whose
 // tenant_id is NULL. This is a one-time idempotent migration that runs on
 // every server start (the UPDATE is a no-op when there are no NULL rows).

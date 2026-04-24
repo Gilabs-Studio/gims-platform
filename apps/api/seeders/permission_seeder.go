@@ -30,6 +30,14 @@ func SeedPermissions() error {
 		// Dashboard
 		{"/dashboard", "dashboard.view", "View Dashboard", "VIEW", "dashboard"},
 
+		// User Profile & Settings - available to all users
+		{"/profile", "profile.read", "View Profile", "VIEW", "profile"},
+		{"/profile", "profile.update", "Edit Profile", "EDIT", "profile"},
+		{"/settings", "settings.read", "View Settings", "VIEW", "settings"},
+		{"/settings", "settings.update", "Edit Settings", "EDIT", "settings"},
+		{"/settings/billing", "billing.read", "View Billing", "VIEW", "billing"},
+		{"/settings/billing", "billing.update", "Edit Billing", "EDIT", "billing"},
+
 		// Master Data - Geographic (read-only map page)
 		{"/master-data/geographic", "geographic.read", "View Geographic Map", "VIEW", "geographic"},
 

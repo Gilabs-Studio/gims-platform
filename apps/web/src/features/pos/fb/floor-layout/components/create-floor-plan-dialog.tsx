@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 
 import type { CreateFloorPlanData } from "../types";
-import { getCreateFloorPlanSchema } from "../schemas/floor-layout.schema";
+import { getCreateFloorPlanSchema, type CreateFloorPlanFormData } from "../schemas/floor-layout.schema";
 import { useCreateFloorLayout, useFloorLayoutFormDataWithCompany } from "../hooks/use-floor-layouts";
 
 interface CreateFloorPlanDialogProps {
@@ -56,7 +56,7 @@ export function CreateFloorPlanDialog({
   const outlets = formData?.data?.outlets ?? [];
   const availableOutlets = outlets.filter((outlet) => !outlet.has_floor_plan);
 
-  const form = useForm<CreateFloorPlanData>({
+  const form = useForm<CreateFloorPlanFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
@@ -122,10 +122,15 @@ export function CreateFloorPlanDialog({
 
     try {
       const result = await createMutation.mutateAsync({
-        ...data,
+        name: data.name,
+        floor_number: data.floor_number,
         outlet_id: resolvedOutletId,
         company_id: companyId,
-      });
+        grid_size: data.grid_size,
+        snap_to_grid: data.snap_to_grid,
+        width: data.width,
+        height: data.height,
+      } as CreateFloorPlanData);
       toast.success(t("messages.createSuccess"));
       form.reset();
       onOpenChange(false);

@@ -42,6 +42,12 @@ type RegisterInitResponse struct {
 	ExpiresAt   string `json:"expires_at"`
 }
 
+// ConfirmPendingRegistrationRequest confirms a paid registration token and
+// provisions tenant/user when needed, then returns an authenticated session.
+type ConfirmPendingRegistrationRequest struct {
+	Token string `json:"token" binding:"required,uuid"`
+}
+
 // LoginResponse represents login response DTO
 type LoginResponse struct {
 	User         *UserResponse `json:"user"`
@@ -52,18 +58,23 @@ type LoginResponse struct {
 
 // UserResponse represents user response DTO for auth
 type UserResponse struct {
-	ID            string            `json:"id"`
-	Email         string            `json:"email"`
-	Name          string            `json:"name"`
-	AvatarURL     string            `json:"avatar_url"`
-	EmployeeID    string            `json:"employee_id,omitempty"`
-	Role          string            `json:"role"`
-	RoleName      string            `json:"role_name"`
-	RoleDataScope string            `json:"role_data_scope"`
-	Permissions   map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
-	Status        string            `json:"status"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
-	TenantID      string            `json:"tenant_id,omitempty"`
-	TenantName    string            `json:"tenant_name,omitempty"`
+	ID               string            `json:"id"`
+	Email            string            `json:"email"`
+	Name             string            `json:"name"`
+	AvatarURL        string            `json:"avatar_url"`
+	EmployeeID       string            `json:"employee_id,omitempty"`
+	Role             string            `json:"role"`
+	RoleName         string            `json:"role_name"`
+	RoleDataScope    string            `json:"role_data_scope"`
+	// IsOwner is true when the logged-in user holds the protected tenant-owner role.
+	// Consumers should use this flag to gate owner-only UI (Billing, Payment) instead of
+	// pattern-matching on the role code string.
+	IsOwner          bool              `json:"is_owner"`
+	Permissions      map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
+	Status           string            `json:"status"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+	TenantID         string            `json:"tenant_id,omitempty"`
+	TenantName       string            `json:"tenant_name,omitempty"`
+	SubscriptionPlan string            `json:"subscription_plan,omitempty"`
 }

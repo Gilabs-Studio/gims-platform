@@ -107,6 +107,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusForbidden,
 		Message:    "You do not have permission to access this resource",
 	},
+	"MODULE_NOT_ENTITLED": {
+		HTTPStatus: http.StatusForbidden,
+		Message:    "Your subscription plan does not include access to this module",
+	},
 
 	// Resource Errors
 	"NOT_FOUND": {

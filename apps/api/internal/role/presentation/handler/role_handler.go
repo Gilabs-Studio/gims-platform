@@ -1,6 +1,8 @@
 package handler
 
 import (
+	goErrors "errors"
+	"log"
 	"strconv"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -26,7 +28,7 @@ func NewRoleHandler(roleUC usecase.RoleUsecase) *RoleHandler {
 func (h *RoleHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	
+
 	if page < 1 {
 		page = 1
 	}
@@ -221,9 +223,13 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 }
 
 // AssignPermissions handles assign permissions to role request.
-// Supports both legacy format (permission_ids only) and scope-aware format (assignments with scope).
+// Supports legacy format (permission_ids), scope-aware format (assignments), and differential mode (diff).
+// Query parameter ?tolerant=true enables tolerant mode: drops unauthorized permissions instead of rejecting entire request.
+// Differential mode (mode=diff): Only validates added permissions against plan, leaving existing unchanged.
 func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+	tolerantMode := c.Query("tolerant") == "true"
 	var req dto.AssignPermissionsRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -235,8 +241,77 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 		return
 	}
 
+	// DIFF MODE: Only validate added permissions, leave unchanged untouched
+	if req.Mode == "diff" && req.Diff != nil {
+		log.Printf("[RoleHandler] assign_permissions mode=diff tenant_id=%s role_id=%s added=%v removed=%v added_with_scope=%d", tenantID, id, req.Diff.Added, req.Diff.Removed, len(req.Diff.AddedWithScope))
+		err := h.roleUC.UpdatePermissionsDiff(c.Request.Context(), id, req.Diff)
+		if err != nil {
+			if err == usecase.ErrRoleNotFound {
+				errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+					"resource": "role",
+					"role_id":  id,
+				}, nil)
+				return
+			}
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+					"reason": "One or more added permissions are not included in the tenant's active subscription plan",
+				}, nil)
+				return
+			}
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
+				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
+				}, nil)
+				return
+			}
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+
+		// Fetch and return updated role
+		role, err := h.roleUC.GetByID(c.Request.Context(), id)
+		if err == nil {
+			// return role as the data payload, with no meta
+			response.SuccessResponse(c, role, nil)
+			return
+		}
+		// return empty object as data when unable to fetch
+		response.SuccessResponse(c, gin.H{}, nil)
+		return
+	}
+
 	// Use scope-aware assignments if provided, otherwise fall back to legacy format
 	if len(req.Assignments) > 0 {
+		permissionIDs := make([]string, 0, len(req.Assignments))
+		for _, assignment := range req.Assignments {
+			permissionIDs = append(permissionIDs, assignment.PermissionID)
+		}
+		log.Printf("[RoleHandler] assign_permissions mode=scope tenant_id=%s role_id=%s permission_ids=%v", tenantID, id, permissionIDs)
+
+		// In tolerant mode, filter out unauthorized permissions before assignment
+		if tolerantMode {
+			permIDs := make([]string, 0, len(req.Assignments))
+			for _, a := range req.Assignments {
+				permIDs = append(permIDs, a.PermissionID)
+			}
+			allowed, _, err := h.roleUC.FilterAllowedPermissions(c.Request.Context(), permIDs)
+			if err == nil {
+				// Filter assignments to only include allowed permissions
+				filteredAssignments := make([]dto.PermissionAssignment, 0, len(allowed))
+				allowedSet := make(map[string]struct{}, len(allowed))
+				for _, id := range allowed {
+					allowedSet[id] = struct{}{}
+				}
+				for _, a := range req.Assignments {
+					if _, ok := allowedSet[a.PermissionID]; ok {
+						filteredAssignments = append(filteredAssignments, a)
+					}
+				}
+				req.Assignments = filteredAssignments
+			}
+		}
+
 		err := h.roleUC.AssignPermissionsWithScope(c.Request.Context(), id, req.Assignments)
 		if err != nil {
 			if err == usecase.ErrRoleNotFound {
@@ -246,7 +321,20 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}, nil)
 				return
 			}
-			if err == repositories.ErrInvalidPermissionIDs {
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				// In tolerant mode, this shouldn't happen after filtering, but handle it
+				if tolerantMode {
+					errors.ErrorResponse(c, "PARTIAL_ASSIGNMENT", map[string]interface{}{
+						"reason": "Some permissions could not be assigned due to plan restrictions",
+					}, nil)
+				} else {
+					errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+						"reason": "One or more selected permissions are not included in the tenant's active subscription plan",
+					}, nil)
+				}
+				return
+			}
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
 				}, nil)
@@ -256,6 +344,15 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 			return
 		}
 	} else {
+		log.Printf("[RoleHandler] assign_permissions mode=legacy tenant_id=%s role_id=%s permission_ids=%v", tenantID, id, req.PermissionIDs)
+		// Legacy format (permission_ids only)
+		if tolerantMode {
+			allowed, _, err := h.roleUC.FilterAllowedPermissions(c.Request.Context(), req.PermissionIDs)
+			if err == nil {
+				req.PermissionIDs = allowed
+			}
+		}
+
 		err := h.roleUC.AssignPermissions(c.Request.Context(), id, req.PermissionIDs)
 		if err != nil {
 			if err == usecase.ErrRoleNotFound {
@@ -265,7 +362,19 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 				}, nil)
 				return
 			}
-			if err == repositories.ErrInvalidPermissionIDs {
+			if err == usecase.ErrPermissionNotAllowedForPlan {
+				if tolerantMode {
+					errors.ErrorResponse(c, "PARTIAL_ASSIGNMENT", map[string]interface{}{
+						"reason": "Some permissions could not be assigned due to plan restrictions",
+					}, nil)
+				} else {
+					errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+						"reason": "One or more selected permissions are not included in the tenant's active subscription plan",
+					}, nil)
+				}
+				return
+			}
+			if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
 				errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
 					"reason": "One or more permission IDs are invalid or no longer exist. Please refresh and try again.",
 				}, nil)
@@ -284,6 +393,73 @@ func (h *RoleHandler) AssignPermissions(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, updatedRole, nil)
+}
+
+// GetMenuAccess handles get role menu-access request.
+func (h *RoleHandler) GetMenuAccess(c *gin.Context) {
+	id := c.Param("id")
+
+	menuAccess, err := h.roleUC.GetMenuAccess(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrRoleNotFound {
+			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+				"resource": "role",
+				"role_id":  id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"assignments": menuAccess}, nil)
+}
+
+// UpdateMenuAccess handles replace role menu-access request.
+func (h *RoleHandler) UpdateMenuAccess(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.RoleMenuAccessRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.roleUC.UpdateMenuAccess(c.Request.Context(), id, req.Assignments); err != nil {
+		if err == usecase.ErrRoleNotFound {
+			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
+				"resource": "role",
+				"role_id":  id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrPermissionNotAllowedForPlan {
+			errors.ErrorResponse(c, "MODULE_NOT_ENTITLED", map[string]interface{}{
+				"reason": "One or more selected menus are not included in the tenant's active subscription plan",
+			}, nil)
+			return
+		}
+		if goErrors.Is(err, repositories.ErrInvalidPermissionIDs) {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+				"reason": "One or more menu IDs are invalid or no longer exist. Please refresh and try again.",
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	menuAccess, err := h.roleUC.GetMenuAccess(c.Request.Context(), id)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"assignments": menuAccess}, nil)
 }
 
 // ValidateUserRole handles validate user role request

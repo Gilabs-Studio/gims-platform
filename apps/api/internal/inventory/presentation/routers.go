@@ -60,6 +60,7 @@ func RegisterRoutes(
 	{
 		// Alias endpoints for new inventory namespace (kept compatible with existing /stock routes)
 		inventory.GET("/stock", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+		inventory.GET("/stock/metrics", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetInventoryMetrics)
 		inventory.GET("/stock/:product_id", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockByProduct)
 		inventory.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
 

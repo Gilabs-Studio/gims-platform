@@ -7,6 +7,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -63,6 +64,27 @@ type userUsecase struct {
 	redis          *redis.Client
 }
 
+func userCacheScope(ctx context.Context) string {
+	if middleware.IsSystemAdmin(ctx) {
+		return "system_admin"
+	}
+	if tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx)); tenantID != "" {
+		return tenantID
+	}
+	return "public"
+}
+
+func userListCacheKey(ctx context.Context, req *dto.ListUsersRequest) string {
+	scope := userCacheScope(ctx)
+	return fmt.Sprintf("users:list:scope:%s:page:%d:perPage:%d:search:%s:status:%s:roleID:%s",
+		scope, req.Page, req.PerPage, req.Search, req.Status, req.RoleID)
+}
+
+func userByIDCacheKey(ctx context.Context, id string) string {
+	scope := userCacheScope(ctx)
+	return fmt.Sprintf("users:id:scope:%s:id:%s", scope, id)
+}
+
 func NewUserUsecase(
 	userRepo repositories.UserRepository,
 	roleRepo roleRepositories.RoleRepository,
@@ -82,9 +104,8 @@ func NewUserUsecase(
 }
 
 func (u *userUsecase) List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error) {
-	// Generate cache key
-	cacheKey := fmt.Sprintf("users:list:page:%d:perPage:%d:search:%s:status:%s:roleID:%s",
-		req.Page, req.PerPage, req.Search, req.Status, req.RoleID)
+	// Generate tenant-scoped cache key to prevent cross-tenant data leakage.
+	cacheKey := userListCacheKey(ctx, req)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -145,7 +166,7 @@ func (u *userUsecase) List(ctx context.Context, req *dto.ListUsersRequest) ([]dt
 }
 
 func (u *userUsecase) GetByID(ctx context.Context, id string) (*dto.UserResponse, error) {
-	cacheKey := fmt.Sprintf("users:id:%s", id)
+	cacheKey := userByIDCacheKey(ctx, id)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -349,8 +370,8 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 		return nil, err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -397,8 +418,8 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -456,8 +477,8 @@ func (u *userUsecase) UpdateProfile(ctx context.Context, id string, req *dto.Upd
 		return nil, err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -539,8 +560,8 @@ func (u *userUsecase) UpdateAvatar(ctx context.Context, id string, avatarURL str
 		return err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"

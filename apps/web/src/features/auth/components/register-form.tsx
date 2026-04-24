@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -38,7 +39,6 @@ interface BundlePlan {
   modules: string[];
   highlight?: boolean;
   cta?: "select" | "contact";
-  comingSoon?: boolean;
 }
 
 interface ModularPlan {
@@ -48,56 +48,25 @@ interface ModularPlan {
   perUserMonthly: number;
   badge?: string;
   features: string[];
-  comingSoon?: boolean;
 }
 
-// Bundle plans — per user/month. Bundles are always cheaper per user than
-// combining the equivalent modular plans (decoy effect).
-const BUNDLES: BundlePlan[] = [
-  {
-    id: "growth_suite",
-    name: "Growth Suite",
-    tagline: "POS · ERP · CRM",
-    perUserMonthly: 149_000,
-    comingSoon: true,
-    modules: ["Point of Sale", "ERP (Purchase, Sales, Finance)", "CRM"],
-  },
-  {
-    id: "ultimate_suite",
-    name: "Ultimate Suite",
-    tagline: "All modules included",
-    perUserMonthly: 175_000,
-    badge: "Most Popular",
-    highlight: true,
-    modules: [
-      "Point of Sale",
-      "ERP (Full suite)",
-      "CRM",
-      "HR & Payroll",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    tagline: "Custom for your business",
-    perUserMonthly: 0, // Contact Sales
-    cta: "contact",
-    modules: [
-      "Everything in Ultimate",
-      "Unlimited users",
-      "Dedicated SLA",
-      "Custom integrations",
-      "On-premise option",
-    ],
-  },
-];
+// Enterprise plan — non-purchasable, always displayed as a CTA.
+const ENTERPRISE_CTA: BundlePlan = {
+  id: "enterprise",
+  name: "Enterprise",
+  tagline: "Custom for your business",
+  perUserMonthly: 0,
+  cta: "contact",
+  modules: [
+    "Everything in Ultimate",
+    "Unlimited users",
+    "Dedicated SLA",
+    "Custom integrations",
+    "On-premise option",
+  ],
+};
 
-const MODULAR_PLANS: ModularPlan[] = [
-  { id: "pos_growth", name: "POS Modular", category: "POS", perUserMonthly: 199_000, comingSoon: true, features: ["Multi-outlet cashier", "Loyalty programs", "Advanced sales reports"] },
-  { id: "erp_pro", name: "ERP Modular", category: "ERP", perUserMonthly: 399_000, comingSoon: true, features: ["Purchase and sales", "Finance and accounting", "Inventory operations"] },
-  { id: "crm_growth", name: "CRM Modular", category: "CRM", perUserMonthly: 149_000, comingSoon: true, features: ["Pipeline automation", "Custom fields", "Customer activity timeline"] },
-  { id: "hr_growth", name: "HR Modular", category: "HR", perUserMonthly: 79_000, comingSoon: true, features: ["Payroll processing", "Attendance tracking", "Performance reviews"] },
-];
+
 
 const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20GiLabs%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
@@ -189,6 +158,9 @@ interface CouponState {
   isChecking: boolean;
   isValid: boolean | null;
   message: string | null;
+  targetPlanSlug?: string;     // set when coupon has scope=tier_specific
+  discountType?: string;       // "trial" | "percent" | "amount"
+  discountValue?: number;      // % or IDR reduction
 }
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -240,6 +212,47 @@ export default function RegisterForm() {
     message: null,
   });
 
+  // ── Subscription plans (fetched from API, falls back to static data) ──────────
+  const { data: apiPlans } = useQuery({
+    queryKey: ["public-subscription-plans"],
+    queryFn: () => authService.getSubscriptionPlans(),
+    staleTime: 5 * 60 * 1000, // 5 min
+    retry: false,
+  });
+
+  const dynamicBundles = useMemo<BundlePlan[]>(() => {
+    const bundlePlans = (apiPlans ?? [])
+      .filter((p) => p.category === "bundle")
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map<BundlePlan>((p) => ({
+        id: p.slug,
+        name: p.name,
+        tagline: p.description ?? p.name,
+        perUserMonthly: p.price_monthly_idr,
+        badge: p.is_highlighted ? "Most Popular" : undefined,
+        highlight: p.is_highlighted,
+        modules: p.features ?? p.module_slugs ?? [],
+      }));
+    // Always append the non-purchasable Enterprise CTA at the end
+    return [...bundlePlans, ENTERPRISE_CTA];
+  }, [apiPlans]);
+
+  const dynamicModular = useMemo<ModularPlan[]>(() => {
+    return (apiPlans ?? [])
+      .filter((p) => p.category !== "bundle")
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map<ModularPlan>((p) => ({
+        id: p.slug,
+        name: p.name,
+        category: p.category.toUpperCase(),
+        perUserMonthly: p.price_monthly_idr,
+        features: p.features ?? [],
+      }));
+  }, [apiPlans]);
+
+  // Modular tab is enabled once plans are loaded and at least one non-bundle plan exists.
+  const hasModularPlans = dynamicModular.length > 0;
+
   // ── Submission ────────────────────────────────────────────────────────────────
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -275,13 +288,23 @@ export default function RegisterForm() {
       const result = await authService.validateCoupon(code, account.email.trim() || undefined);
       const data = result.data;
       if (data?.valid) {
-        setCouponState({
+        const newState: CouponState = {
           isChecking: false,
           isValid: true,
           message: data.description
             ? `${data.description} — ${data.duration_days ?? "?"} ${t("daysAccess")}`
             : t("couponValid"),
-        });
+          discountType: data.discount_type,
+          discountValue: data.discount_value,
+        };
+        // When coupon is locked to a specific plan, auto-switch to that plan.
+        if (data.scope === "tier_specific" && data.target_plan_slug) {
+          newState.targetPlanSlug = data.target_plan_slug;
+          // Switch to modular tab and select the locked plan.
+          setPlanTab("modular");
+          setSelectedModular(data.target_plan_slug);
+        }
+        setCouponState(newState);
       } else {
         const reasonMap: Record<string, string> = {
           not_found: t("couponReasons.not_found"),
@@ -305,8 +328,6 @@ export default function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (planTab === "bundle" && selectedBundle === "enterprise") return; // Contact Sales only
-    if (planTab === "bundle" && selectedBundle === "growth_suite") return;
-    if (planTab === "modular") return;
 
     setIsLoading(true);
     setSubmitError(null);
@@ -323,7 +344,8 @@ export default function RegisterForm() {
 
       const payload = {
         ...basePayload,
-        plan: selectedBundle,
+        // When a coupon is locked to a specific plan, use that plan slug regardless of tab selection.
+        plan: couponState.targetPlanSlug ?? (planTab === "bundle" ? selectedBundle : selectedModular),
         billing_period: billing,
         user_count: userCount,
         ...(couponState.isValid ? { coupon: couponCode.trim().toUpperCase() } : {}),
@@ -368,18 +390,19 @@ export default function RegisterForm() {
   };
 
   // ── Derived values ─────────────────────────────────────────────────────────────
-  const selectedBundlePlan = BUNDLES.find((b) => b.id === selectedBundle) ?? BUNDLES[1];
-  const selectedModularPlan = MODULAR_PLANS.find((p) => p.id === selectedModular)!;
+  const selectedBundlePlan = dynamicBundles.find((b) => b.id === selectedBundle) ?? dynamicBundles.find((b) => b.id !== "enterprise") ?? dynamicBundles[0];
+  const selectedModularPlan = dynamicModular.find((p) => p.id === selectedModular) ?? dynamicModular[0] ?? { id: "", name: "", category: "", perUserMonthly: 0, features: [] as string[] };
   const discountActive = planTab === "bundle" && selectedBundle !== "enterprise" && couponState.isValid === true;
 
   // Decoy banner: show if modular plan costs more than ultimate_suite for same users
-  const ultimateCost = effectiveMonthlyPrice(175_000, userCount, billing);
+  const ultimatePlan = dynamicBundles.find((b) => b.id === "ultimate_suite");
+  const ultimateCost = effectiveMonthlyPrice(ultimatePlan?.perUserMonthly ?? 175_000, userCount, billing);
   const modularCost = effectiveMonthlyPrice(selectedModularPlan.perUserMonthly, userCount, billing);
   const showDecoySuggestion = planTab === "modular" && modularCost >= ultimateCost;
 
   const submitLabel = (): string => {
-    if (planTab === "modular") return t("comingSoon");
     if (planTab === "bundle" && selectedBundle === "enterprise") return t("contactSales");
+    if (!selectedBundlePlan || !selectedModularPlan) return t("pay", { amount: formatIDR(0) });
     const total = planTab === "bundle"
       ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
       : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
@@ -558,28 +581,171 @@ export default function RegisterForm() {
                   <p className="text-sm text-muted-foreground">{t("planDescription")}</p>
                 </div>
 
+                {/* ── Tier-locked coupon view: show a single plan card ─────────── */}
+                {couponState.isValid && couponState.targetPlanSlug ? (() => {
+                  const lockedPlan = dynamicModular.find((p) => p.id === couponState.targetPlanSlug)
+                    ?? { id: couponState.targetPlanSlug, name: couponState.targetPlanSlug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), category: "", perUserMonthly: 0, features: [] };
+                  const isTrial = couponState.discountType === "trial";
+                  const originalMonthly = effectiveMonthlyPrice(lockedPlan.perUserMonthly, userCount, billing);
+                  let finalMonthly = originalMonthly;
+                  if (couponState.discountType === "percent" && couponState.discountValue) {
+                    finalMonthly = Math.round(originalMonthly * (1 - couponState.discountValue / 100));
+                  } else if (couponState.discountType === "amount" && couponState.discountValue) {
+                    finalMonthly = Math.max(0, originalMonthly - couponState.discountValue);
+                  } else if (isTrial) {
+                    finalMonthly = 0;
+                  }
+                  const hasDiscount = finalMonthly < originalMonthly;
+                  return (
+                    <motion.div
+                      key="locked-plan"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-xl border border-primary/20 bg-card shadow-sm overflow-hidden"
+                    >
+                      <div className="flex flex-col sm:flex-row">
+                        {/* Left: plan info */}
+                        <div className="flex-1 p-6 space-y-4">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-widest text-primary">{lockedPlan.category || "Modular Plan"}</p>
+                            <h2 className="mt-1 text-xl font-bold text-foreground">{lockedPlan.name}</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">{couponState.message}</p>
+                          </div>
+                          {lockedPlan.features.length > 0 && (
+                            <ul className="space-y-1.5">
+                              {lockedPlan.features.map((f) => (
+                                <li key={f} className="flex items-start gap-2 text-sm">
+                                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                                  <span>{f}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <p className="text-[11px] text-muted-foreground italic">
+                            All subscriptions come with a 30-day money-back guarantee. Cancel anytime.
+                          </p>
+                        </div>
+                        {/* Right: pricing + controls */}
+                        <div className="sm:w-56 border-t sm:border-t-0 sm:border-l border-border/60 p-6 flex flex-col gap-4">
+                          {/* Billing toggle */}
+                          <div className="flex items-center justify-center gap-2 text-xs">
+                            <button type="button" onClick={() => setBilling("monthly")}
+                              className={cn("px-2 py-1 rounded font-medium transition-colors", billing === "monthly" ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                              Monthly
+                            </button>
+                            <button
+                              type="button"
+                              className={cn("relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                billing === "yearly" ? "bg-primary" : "bg-muted")}
+                              role="switch"
+                              aria-checked={billing === "yearly"}
+                              onClick={() => setBilling(billing === "monthly" ? "yearly" : "monthly")}
+                            >
+                              <span className={cn("pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                billing === "yearly" ? "translate-x-4" : "translate-x-0")} />
+                            </button>
+                            <button type="button" onClick={() => setBilling("yearly")}
+                              className={cn("px-2 py-1 rounded font-medium transition-colors", billing === "yearly" ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                              Annual
+                            </button>
+                          </div>
+                          {/* Price */}
+                          <div className="text-center">
+                            {isTrial ? (
+                              <div>
+                                <p className="text-3xl font-bold text-foreground">Free</p>
+                                <p className="text-xs text-muted-foreground mt-1">30-day trial</p>
+                              </div>
+                            ) : hasDiscount ? (
+                              <div>
+                                <p className="text-sm text-muted-foreground line-through">{formatIDR(originalMonthly)}<span className="text-xs">/mo</span></p>
+                                <p className="text-3xl font-bold text-foreground">{formatIDR(finalMonthly)}</p>
+                                <p className="text-xs text-muted-foreground">/month</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <p className="text-3xl font-bold text-foreground">{formatIDR(originalMonthly)}</p>
+                                <p className="text-xs text-muted-foreground">/month</p>
+                              </div>
+                            )}
+                          </div>
+                          {/* User count */}
+                          <div className="flex items-center justify-center gap-2">
+                            <button type="button" onClick={() => setUserCount((n) => Math.max(1, n - 1))}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted">
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-12 text-center text-sm font-medium">{userCount} user{userCount > 1 ? "s" : ""}</span>
+                            <button type="button" onClick={() => setUserCount((n) => Math.min(500, n + 1))}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted">
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                          {/* CTA */}
+                          <Button
+                            type="submit"
+                            className="w-full h-11 font-semibold"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {isTrial ? "Start Free Trial" : `Start ${lockedPlan.name}`}
+                          </Button>
+                          {/* Coupon code input (compact) */}
+                          <div className="space-y-1">
+                            <div className="flex gap-1">
+                              <Input
+                                type="text"
+                                autoComplete="off"
+                                placeholder={t("discountPlaceholder")}
+                                value={couponCode}
+                                onChange={(e) => {
+                                  setCouponCode(e.target.value.toUpperCase());
+                                  if (couponState.isValid !== null) {
+                                    setCouponState({ isChecking: false, isValid: null, message: null });
+                                  }
+                                }}
+                                className="h-8 text-xs uppercase tracking-widest"
+                                maxLength={64}
+                              />
+                              <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs shrink-0"
+                                disabled={couponState.isChecking || !couponCode.trim()}
+                                onClick={handleCheckCoupon}>
+                                {couponState.isChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : t("validate")}
+                              </Button>
+                            </div>
+                            {couponState.isValid === true && (
+                              <p className="text-[10px] text-emerald-600">{couponState.message}</p>
+                            )}
+                            {/* isValid false cannot occur here; state resets before user sees this view */}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })() : (
+                <>
                 {/* Plan mode tabs */}
                 <div className="flex rounded-xl border border-border/70 p-1 text-sm">
-                  {(["bundle", "modular"] as PlanTab[]).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => {
-                        if (tab === "modular") return;
-                        setPlanTab(tab);
-                      }}
-                      className={cn(
-                        "flex-1 rounded-lg py-1.5 font-medium transition-colors",
-                        tab === "modular" && "cursor-not-allowed opacity-60",
-                        planTab === tab
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                      disabled={tab === "modular"}
-                    >
-                      {tab === "bundle" ? t("tabs.bundle") : t("tabs.modular")}
-                    </button>
-                  ))}
+                  {(["bundle", "modular"] as PlanTab[]).map((tab) => {
+                    const isDisabled = tab === "modular" && !hasModularPlans;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => { if (!isDisabled) setPlanTab(tab); }}
+                        className={cn(
+                          "flex-1 rounded-lg py-1.5 font-medium transition-colors",
+                          isDisabled && "cursor-not-allowed opacity-40",
+                          planTab === tab
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                        disabled={isDisabled}
+                      >
+                        {tab === "bundle" ? t("tabs.bundle") : t("tabs.modular")}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <AnimatePresence mode="wait">
@@ -667,6 +833,7 @@ export default function RegisterForm() {
                               onChange={(e) => {
                                 setCouponCode(e.target.value.toUpperCase());
                                 if (couponState.isValid !== null) {
+                                  // Clear coupon state and any plan lock when the code is edited.
                                   setCouponState({ isChecking: false, isValid: null, message: null });
                                 }
                               }}
@@ -708,14 +875,13 @@ export default function RegisterForm() {
                           <thead>
                             <tr className="border-b border-border/80">
                               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">{t("features")}</th>
-                              {BUNDLES.map((b) => {
+                              {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 return (
                                   <th
                                     key={b.id}
                                     className={cn(
                                       "px-6 py-4 text-left",
-                                      b.comingSoon && "blur-[1px] opacity-45",
                                       isSelected && b.cta !== "contact" && "bg-primary/5",
                                     )}
                                   >
@@ -736,7 +902,7 @@ export default function RegisterForm() {
                           <tbody>
                             <tr className="border-b border-border/70">
                               <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-foreground">Price</th>
-                              {BUNDLES.map((b) => {
+                              {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 if (b.cta === "contact") {
                                   return (
@@ -757,7 +923,7 @@ export default function RegisterForm() {
                                 return (
                                   <td
                                     key={b.id}
-                                    className={cn("px-6 py-4 align-top", b.comingSoon && "blur-[1px] opacity-45", isSelected && "bg-primary/5")}
+                                    className={cn("px-6 py-4 align-top", isSelected && "bg-primary/5")}
                                   >
                                     {billing === "yearly" ? (
                                       <div>
@@ -800,13 +966,11 @@ export default function RegisterForm() {
 
                             <tr>
                               <td className="px-6 py-4" />
-                              {BUNDLES.map((b) => {
+                              {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 return (
                                   <td key={b.id} className={cn("px-6 py-4", isSelected && b.cta !== "contact" && "bg-primary/5")}>
-                                    {b.comingSoon ? (
-                                      <p className="text-center text-xs text-muted-foreground">{t("comingSoon")}</p>
-                                    ) : b.cta === "contact" ? (
+                                    {b.cta === "contact" ? (
                                       <Button
                                         type="button"
                                         variant="outline"
@@ -820,10 +984,7 @@ export default function RegisterForm() {
                                       <Button
                                         type="button"
                                         variant={isSelected ? "default" : "outline"}
-                                        onClick={() => {
-                                          if (b.comingSoon) return;
-                                          setSelectedBundle(b.id);
-                                        }}
+                                        onClick={() => setSelectedBundle(b.id)}
                                         className="h-10 w-full"
                                       >
                                         {isSelected ? t("selected") : t("chooseBundle", { name: b.name.replace(" Suite", "") })}
@@ -899,7 +1060,7 @@ export default function RegisterForm() {
                       )}
 
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        {MODULAR_PLANS.map((p) => {
+                        {dynamicModular.map((p) => {
                           const isSelected = selectedModular === p.id;
                           const monthly = effectiveMonthlyPrice(p.perUserMonthly, userCount, billing);
                           const baseMonthly = p.perUserMonthly * userCount;
@@ -907,13 +1068,9 @@ export default function RegisterForm() {
                             <button
                               key={p.id}
                               type="button"
-                              onClick={() => {
-                                if (p.comingSoon) return;
-                                setSelectedModular(p.id);
-                              }}
+                              onClick={() => setSelectedModular(p.id)}
                               className={cn(
                                 "relative flex min-h-64 flex-col rounded-lg border p-4 text-left transition-all",
-                                p.comingSoon && "cursor-not-allowed blur-[1px] opacity-45",
                                 isSelected
                                   ? "border-primary bg-primary/5 shadow-sm"
                                   : "border-border/80 bg-card hover:border-primary/40",
@@ -950,12 +1107,13 @@ export default function RegisterForm() {
                           );
                         })}
                       </div>
-
-                      <p className="text-center text-xs text-muted-foreground">{t("comingSoon")}</p>
                     </motion.div>
                   )}
 
                 </AnimatePresence>
+
+                </> // end normal plan selection
+                )} {/* end: coupon-locked vs full plan selection */}
 
                 {/* Error */}
                 {submitError && (
@@ -964,7 +1122,8 @@ export default function RegisterForm() {
                   </p>
                 )}
 
-                {/* Actions */}
+                {/* Actions — Back button always visible; submit only shown in normal mode (locked plan has its own CTA) */}
+                {!(couponState.isValid && couponState.targetPlanSlug) && (
                 <div className="flex gap-3 pt-1">
                   <Button
                     type="button"
@@ -980,8 +1139,7 @@ export default function RegisterForm() {
                     type="submit"
                     disabled={
                       isLoading ||
-                      planTab === "modular" ||
-                      (planTab === "bundle" && (selectedBundle === "enterprise" || selectedBundle === "growth_suite"))
+                      (planTab === "bundle" && selectedBundle === "enterprise")
                     }
                     className="h-11 flex-1 font-medium"
                   >
@@ -999,6 +1157,23 @@ export default function RegisterForm() {
                     )}
                   </Button>
                 </div>
+                )} {/* end: normal plan actions */}
+
+                {/* Back button shown separately in locked plan mode */}
+                {couponState.isValid && couponState.targetPlanSlug && (
+                  <div className="flex justify-start pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(1)}
+                      disabled={isLoading}
+                      className="h-11 w-12 shrink-0"
+                      aria-label={t("back")}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
 
                 <p className="text-center text-sm text-muted-foreground">
                   {t("alreadyHaveAccount")}{" "}

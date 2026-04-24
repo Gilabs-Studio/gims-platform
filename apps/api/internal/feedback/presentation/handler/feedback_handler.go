@@ -88,6 +88,7 @@ func (h *FeedbackHandler) GetForm(c *gin.Context) {
 func (h *FeedbackHandler) ListForms(c *gin.Context) {
 	page := 1
 	perPage := 20
+	outletID := c.Query("outlet_id")
 	if p := c.Query("page"); p != "" {
 		if v, err := parseInt(p); err == nil && v > 0 {
 			page = v
@@ -99,7 +100,7 @@ func (h *FeedbackHandler) ListForms(c *gin.Context) {
 		}
 	}
 
-	forms, pagination, err := h.uc.ListForms(c.Request.Context(), page, perPage)
+	forms, pagination, err := h.uc.ListForms(c.Request.Context(), page, perPage, outletID)
 	if err != nil {
 		handleFeedbackError(c, err)
 		return

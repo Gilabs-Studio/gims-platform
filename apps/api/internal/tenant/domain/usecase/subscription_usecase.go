@@ -94,6 +94,9 @@ func subModelToDTO(s *models.TenantSubscription) *dto.SubscriptionResponse {
 		Status:        string(s.Status),
 		StartsAt:      s.StartsAt,
 		ExpiresAt:     s.ExpiresAt,
+		NextBillingAt: s.NextBillingAt,
+		UserCount:     s.UserCount,
+		AmountPaidIDR: s.AmountPaidIDR,
 		Notes:         s.Notes,
 		CreatedAt:     s.CreatedAt,
 	}

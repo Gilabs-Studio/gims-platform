@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { Search, UserPlus, MoreHorizontal, ArrowRightLeft } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,8 +49,8 @@ export function LoyaltyMemberList() {
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  // The members hook doesn't accept `search` in its params type — pass pagination only.
-  const { data, isLoading } = useLoyaltyMembers({ page, per_page: perPage });
+  const debouncedSearch = useDebounce(search, 300);
+  const { data, isLoading } = useLoyaltyMembers({ page, per_page: perPage, search: debouncedSearch || undefined });
 
   const members = data?.data ?? [];
   const pagination = data?.meta?.pagination;

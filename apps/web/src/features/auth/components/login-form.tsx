@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,6 +36,9 @@ import { ButtonLoading } from "@/components/loading";
 
 export default function LoginForm() {
   const t = useTranslations("auth.login");
+  const searchParams = useSearchParams();
+  const hasShownPaymentToast = useRef(false);
+  const isPaymentSuccessView = searchParams.get("payment") === "success";
 
   /**
    * useLoginGuard handles authentication verification:
@@ -113,6 +118,14 @@ export default function LoginForm() {
     }
   }, [error, setError, clearError]);
 
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment");
+    if (paymentStatus === "success" && !hasShownPaymentToast.current) {
+      hasShownPaymentToast.current = true;
+      toast.success(t("paymentSuccessToast"));
+    }
+  }, [searchParams, t]);
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       await handleLogin(data);
@@ -142,7 +155,7 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthLayout>
+    <AuthLayout compact={isPaymentSuccessView}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -14,6 +15,10 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) gin.HandlerFunc {
+	type tenantAwarePermissionService interface {
+		GetPermissionsForTenant(roleCode string, tenantID string) ([]string, error)
+		GetPermissionsWithScopeForTenant(roleCode string, tenantID string) (map[string]string, error)
+	}
 	return func(c *gin.Context) {
 		// 0. Exclude webhooks that do not use browser JWT sessions
 		if isCRMLeadUpsertWebhookRequest(c.Request.Method, c.Request.URL.Path) {
@@ -126,20 +131,30 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			reqCtx = context.WithValue(reqCtx, "is_system_admin", true)
 		}
 
-		// Load Permissions with scope (with fallback to non-scoped permissions)
-		permScopeMap, err := permService.GetPermissionsWithScope(claims.Role)
+		log.Printf("[AuthMiddleware] method=%s path=%s user_id=%s role=%s tenant_id=%s", c.Request.Method, c.Request.URL.Path, claims.UserID, claims.Role, claims.TenantID)
+
+		// Load permissions with strict tenant boundary when available.
+		permScopeMap := map[string]string{}
+		tenantAwareSvc, isTenantAware := permService.(tenantAwarePermissionService)
+		if isTenantAware && claims.TenantID != "" {
+			permScopeMap, err = tenantAwareSvc.GetPermissionsWithScopeForTenant(claims.Role, claims.TenantID)
+		} else {
+			permScopeMap, err = permService.GetPermissionsWithScope(claims.Role)
+		}
 		if err != nil {
-			// Fallback: try loading non-scoped permissions and default scope to ALL
-			plainPerms, fallbackErr := permService.GetPermissions(claims.Role)
-			if fallbackErr != nil {
-				// Both methods failed - deny access
+			var plainPerms []string
+			if isTenantAware && claims.TenantID != "" {
+				plainPerms, err = tenantAwareSvc.GetPermissionsForTenant(claims.Role, claims.TenantID)
+			} else {
+				plainPerms, err = permService.GetPermissions(claims.Role)
+			}
+			if err != nil {
 				errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
 					"reason": "unable to load user permissions",
 				}, nil)
 				c.Abort()
 				return
 			}
-			// Build scope map with ALL as default for all permissions
 			permScopeMap = make(map[string]string, len(plainPerms))
 			for _, code := range plainPerms {
 				permScopeMap[code] = "ALL"

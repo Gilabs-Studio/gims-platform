@@ -96,8 +96,9 @@ func (h *LoyaltyHandler) ListPrograms(c *gin.Context) {
 page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 perPage = clampPerPage(perPage)
+search := c.Query("search")
 
-items, pagination, err := h.uc.ListPrograms(c.Request.Context(), page, perPage)
+items, pagination, err := h.uc.ListPrograms(c.Request.Context(), page, perPage, search)
 if err != nil {
 handleLoyaltyError(c, err)
 return
@@ -197,6 +198,7 @@ Page:     page,
 PerPage:  perPage,
 Tier:     c.Query("tier"),
 OutletID: c.Query("outlet_id"),
+Search:   c.Query("search"),
 }
 
 items, pagination, err := h.uc.ListMembers(c.Request.Context(), params)

@@ -30,7 +30,9 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 		if roleRaw, exists := c.Get("user_role"); exists {
 			if role, ok := roleRaw.(string); ok {
 				normalized := strings.ToLower(strings.TrimSpace(role))
-				if normalized == "admin" || normalized == "superadmin" {
+				isOwnerRoleCode := strings.HasPrefix(normalized, "tenant_owner_") || normalized == "owner" || strings.HasSuffix(normalized, "_owner")
+				isOwnerPaymentBypass := requiredPermission == "pos.payment.manage" && isOwnerRoleCode
+				if normalized == "admin" || normalized == "superadmin" || isOwnerPaymentBypass {
 					c.Set("permission_scope", "ALL")
 					reqCtx := c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "permission_scope", "ALL")

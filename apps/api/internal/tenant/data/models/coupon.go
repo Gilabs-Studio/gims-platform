@@ -18,22 +18,50 @@ const (
 	CouponTypeHROnly     CouponType = "hr_only"
 )
 
-// Coupon represents a promotional code that grants subscription access without payment.
-// Coupons are created exclusively by system admins.
+// CouponDiscountType classifies whether a coupon grants trial access or a price discount.
+type CouponDiscountType string
+
+const (
+	// CouponDiscountTrial grants free subscription access for DurationDays — no payment required.
+	CouponDiscountTrial   CouponDiscountType = "trial"
+	// CouponDiscountPercent applies a percentage reduction to the invoice amount.
+	CouponDiscountPercent CouponDiscountType = "percent"
+	// CouponDiscountAmount deducts a fixed IDR amount from the invoice.
+	CouponDiscountAmount  CouponDiscountType = "amount"
+)
+
+// CouponScope restricts which plans the coupon can be applied to.
+type CouponScope string
+
+const (
+	// CouponScopeGeneral applies to any plan.
+	CouponScopeGeneral      CouponScope = "general"
+	// CouponScopeTierSpecific restricts the coupon to TargetPlanSlug only.
+	CouponScopeTierSpecific CouponScope = "tier_specific"
+)
+
+// Coupon represents a promotional code created by system admins.
+// It can grant a free trial (discount_type = trial) or reduce the invoice price
+// by a percentage or fixed amount (discount_type = percent / amount).
 type Coupon struct {
-	ID           string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Code         string         `gorm:"type:varchar(64);uniqueIndex;not null"           json:"code"`
-	Description  string         `gorm:"type:varchar(255);not null"                      json:"description"`
-	CouponType   CouponType     `gorm:"type:varchar(50);not null;default:'full_access'" json:"coupon_type"`
-	DurationDays int            `gorm:"type:int;not null;default:30"                   json:"duration_days"`
-	MaxUses      int            `gorm:"type:int;not null;default:1"                    json:"max_uses"`
-	UsedCount    int            `gorm:"type:int;not null;default:0"                    json:"used_count"`
-	IsActive     bool           `gorm:"type:boolean;not null;default:true;index"       json:"is_active"`
-	ExpiresAt    *time.Time     `gorm:"type:timestamptz"                               json:"expires_at"`
-	CreatedBy    string         `gorm:"type:varchar(255);not null"                     json:"created_by"` // system admin email
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"                                          json:"-"`
+	ID             string             `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Code           string             `gorm:"type:varchar(64);uniqueIndex;not null"           json:"code"`
+	Description    string             `gorm:"type:varchar(255);not null"                      json:"description"`
+	CouponType     CouponType         `gorm:"type:varchar(50);not null;default:'full_access'" json:"coupon_type"`
+	DiscountType   CouponDiscountType `gorm:"type:varchar(20);not null;default:'trial'"       json:"discount_type"`
+	DiscountValue  float64            `gorm:"type:numeric(12,2);not null;default:0"           json:"discount_value"` // % (0-100) for percent, IDR for amount
+	Scope          CouponScope        `gorm:"type:varchar(20);not null;default:'general'"     json:"scope"`
+	TargetPlanSlug *string            `gorm:"type:varchar(64)"                                json:"target_plan_slug,omitempty"` // set when scope = tier_specific
+	DurationDays   int                `gorm:"type:int;not null;default:30"                   json:"duration_days"` // for trial type
+	MaxUses        int                `gorm:"type:int;not null;default:1"                    json:"max_uses"`
+	UsedCount      int                `gorm:"type:int;not null;default:0"                    json:"used_count"`
+	MaxUsesPerEmail int               `gorm:"type:int;not null;default:1"                    json:"max_uses_per_email"`
+	IsActive       bool               `gorm:"type:boolean;not null;default:true;index"       json:"is_active"`
+	ExpiresAt      *time.Time         `gorm:"type:timestamptz"                               json:"expires_at"`
+	CreatedBy      string             `gorm:"type:varchar(255);not null"                     json:"created_by"` // system admin email
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt     `gorm:"index"                                          json:"-"`
 }
 
 // TableName specifies the table name for Coupon.

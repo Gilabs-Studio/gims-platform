@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { AlertCircle, Code2, Copy, Eye, FileQuestion, Pencil, Plus, Save, Settings2, Trash2, X } from "lucide-react";
+import { AlertCircle, Building2, ChevronDown, ChevronRight, Code2, Copy, Eye, FileQuestion, Pencil, Plus, Save, Settings2, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -11,6 +11,8 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -88,18 +90,19 @@ function QuestionEditor({ question, index, onUpdate, onChangeType, onRemove, sho
     <div className="rounded-lg border bg-card p-4 space-y-3">
       {/* Header row */}
       <div className="flex items-center gap-2">
-        <span className="flex-shrink-0 h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+        <span className="shrink-0 h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
           {index + 1}
         </span>
-        <select
-          className="border rounded-md px-2 py-1 text-sm bg-background cursor-pointer"
-          value={question.type}
-          onChange={(e) => onChangeType(e.target.value as QuestionType)}
-        >
-          <option value="rating">{t("form.types.rating")}</option>
-          <option value="multiple_choice">{t("form.types.multiple_choice")}</option>
-          <option value="text">{t("form.types.text")}</option>
-        </select>
+        <Select value={question.type} onValueChange={(v) => onChangeType(v as QuestionType)}>
+          <SelectTrigger className="w-44 h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="rating">{t("form.types.rating")}</SelectItem>
+            <SelectItem value="multiple_choice">{t("form.types.multiple_choice")}</SelectItem>
+            <SelectItem value="text">{t("form.types.text")}</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex items-center gap-1 ml-auto">
           <Switch
             id={`q-req-${question.id}`}
@@ -258,9 +261,9 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   const tCommon = useTranslations("common");
 
   const [formOutletId, setFormOutletId] = useState(editingItem?.outlet_id ?? "");
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState(editingItem?.title ?? "");
   const [formDescription, setFormDescription] = useState(editingItem?.description ?? "");
-  const [formIsActive, setFormIsActive] = useState(editingItem?.is_active ?? false);
   const [formQuestions, setFormQuestions] = useState<FormQuestion[]>(
     editingItem?.schema_json?.questions?.length
       ? editingItem.schema_json.questions
@@ -322,6 +325,14 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   }, []);
 
   async function handleSave() {
+    // Validate required fields
+    const trimmedTitle = formTitle.trim();
+    if (trimmedTitle.length < 2) {
+      setTitleError(t("form.titleRequired"));
+      return;
+    }
+    setTitleError(null);
+
     // Resolve final schema from active tab
     let finalQuestions = formQuestions;
     if (activeTab === "json") {
@@ -340,7 +351,6 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
         title: formTitle,
         description: formDescription || undefined,
         schema_json: { questions: orderedQuestions },
-        is_active: formIsActive,
       };
       try {
         await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
@@ -355,7 +365,6 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
         title: formTitle,
         description: formDescription || undefined,
         schema_json: { questions: orderedQuestions },
-        is_active: formIsActive,
       };
       try {
         await createMutation.mutateAsync(payload);
@@ -376,11 +385,7 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
           <h3 className="font-semibold">
             {editingItem ? t("edit") : t("create")}
           </h3>
-          {editingItem && (
-            <Badge variant={editingItem.is_active ? "default" : "secondary"} className="ml-1">
-              v{editingItem.version}
-            </Badge>
-          )}
+          {editingItem && <Badge variant="secondary" className="ml-1">v{editingItem.version}</Badge>}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onCancel} className="cursor-pointer">
@@ -401,17 +406,16 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
           {!editingItem && (
             <div className="space-y-1.5">
               <Label htmlFor="fb-outlet">{t("form.outlet")}</Label>
-              <select
-                id="fb-outlet"
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background cursor-pointer"
-                value={formOutletId}
-                onChange={(e) => setFormOutletId(e.target.value)}
-              >
-                <option value="">{t("form.outletPlaceholder")}</option>
-                {outlets.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+              <Select value={formOutletId} onValueChange={setFormOutletId}>
+                <SelectTrigger id="fb-outlet">
+                  <SelectValue placeholder={t("form.outletPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -421,8 +425,18 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
               id="fb-title"
               placeholder={t("form.titlePlaceholder")}
               value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
+              onChange={(e) => {
+                setFormTitle(e.target.value);
+                if (titleError) setTitleError(null);
+              }}
+              className={titleError ? "border-destructive" : ""}
             />
+            {titleError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {titleError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -436,17 +450,6 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
             />
           </div>
 
-          <div className="flex items-center gap-3">
-            <Switch
-              id="fb-active"
-              checked={formIsActive}
-              onCheckedChange={setFormIsActive}
-            />
-            <div>
-              <Label htmlFor="fb-active" className="cursor-pointer">{t("form.isActive")}</Label>
-              <p className="text-xs text-muted-foreground">{t("form.isActiveHint")}</p>
-            </div>
-          </div>
         </div>
 
         <Separator />
@@ -493,7 +496,7 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
           <TabsContent value="json" className="mt-0">
             {jsonError && (
               <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive mb-3">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{jsonError}</span>
               </div>
             )}
@@ -516,6 +519,12 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
             </p>
           </TabsContent>
         </Tabs>
+
+        {editingItem && (
+          <p className="text-xs text-muted-foreground mt-4 pt-4 border-t">
+            {t("latest")} {t("version")} {editingItem.version} automatically applies after save.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -537,6 +546,7 @@ export function FeedbackFormBuilder() {
   const [copyItem, setCopyItem] = useState<FeedbackForm | null>(null);
   const [copyOutletId, setCopyOutletId] = useState("");
   const [copyAllOutlets, setCopyAllOutlets] = useState(false);
+  const [expandedOutlets, setExpandedOutlets] = useState<Record<string, boolean>>({});
 
   const { data, isLoading, isError, refetch } = useFeedbackForms({
     page,
@@ -548,6 +558,59 @@ export function FeedbackFormBuilder() {
   const deleteMutation = useDeleteFeedbackForm();
   const copyMutation = useCopyFeedbackForm();
   const items = data?.data ?? [];
+
+  const outletNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    outlets.forEach((outlet) => {
+      map.set(outlet.id, outlet.name);
+    });
+    return map;
+  }, [outlets]);
+
+  const visibleItems = useMemo(() => {
+    if (outlets.length === 0) return items;
+    const allowed = new Set(outlets.map((outlet) => outlet.id));
+    return items.filter((item) => allowed.has(item.outlet_id));
+  }, [items, outlets]);
+
+  const groupedForms = useMemo(() => {
+    const groups = new Map<string, { outletName: string; forms: FeedbackForm[] }>();
+
+    for (const item of visibleItems) {
+      const key = item.outlet_id || "unknown";
+      const existing = groups.get(key);
+      if (existing) {
+        existing.forms.push(item);
+      } else {
+        groups.set(key, {
+          outletName: outletNameMap.get(item.outlet_id) ?? item.outlet_id,
+          forms: [item],
+        });
+      }
+    }
+
+    return Array.from(groups.entries())
+      .map(([outletId, value]) => ({
+        outletId,
+        outletName: value.outletName,
+        forms: value.forms.sort((a, b) => {
+          if (b.version !== a.version) return b.version - a.version;
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        }),
+      }))
+      .sort((a, b) => a.outletName.localeCompare(b.outletName));
+  }, [visibleItems, outletNameMap]);
+
+  function isOutletExpanded(outletId: string) {
+    return expandedOutlets[outletId] ?? true;
+  }
+
+  function toggleOutlet(outletId: string) {
+    setExpandedOutlets((prev) => ({
+      ...prev,
+      [outletId]: !(prev[outletId] ?? true),
+    }));
+  }
 
   function startCreate() {
     setSelectedItem(null);
@@ -590,7 +653,6 @@ export function FeedbackFormBuilder() {
         data: {
           apply_to_all_outlets: copyAllOutlets,
           outlet_ids: copyAllOutlets ? undefined : [copyOutletId],
-          is_active: copyItem.is_active,
         },
       });
       toast.success(t("copied"));
@@ -609,7 +671,7 @@ export function FeedbackFormBuilder() {
   return (
     <div className="flex h-[calc(100vh-8rem)] overflow-hidden rounded-xl border bg-background">
       {/* ── Left panel: form list ── */}
-      <aside className="w-72 flex-shrink-0 flex flex-col border-r">
+      <aside className="w-72 shrink-0 flex flex-col border-r">
         {/* List header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
           <div className="flex items-center gap-2">
@@ -638,7 +700,7 @@ export function FeedbackFormBuilder() {
                 {tCommon("retry")}
               </Button>
             </div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 px-4 text-center text-muted-foreground">
               <FileQuestion className="h-8 w-8 opacity-40" />
               <p className="text-sm">{t("empty")}</p>
@@ -650,65 +712,107 @@ export function FeedbackFormBuilder() {
               )}
             </div>
           ) : (
-            items.map((item: FeedbackForm) => {
-              const isActive = item.id === selectedItem?.id;
+            groupedForms.map((group) => {
+              const latestVersion = Math.max(...group.forms.map((form) => form.version));
+              const expanded = isOutletExpanded(group.outletId);
+
               return (
-                <div
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setIsCreating(false);
-                    setSelectedItem(item);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setIsCreating(false);
-                      setSelectedItem(item);
-                    }
-                  }}
-                  className={`w-full text-left px-4 py-3 border-b transition-colors hover:bg-muted/50 cursor-pointer ${
-                    isActive ? "bg-primary/5 border-l-2 border-l-primary" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{item.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {item.schema_json?.questions?.length ?? 0} questions · v{item.version}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Badge
-                        variant={item.is_active ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0"
+                <Collapsible key={group.outletId} open={expanded} onOpenChange={() => toggleOutlet(group.outletId)}>
+                  <div className="mx-2 my-2 overflow-hidden rounded-lg border bg-card">
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 border-b bg-muted/20 px-3 py-2 text-left transition-colors hover:bg-muted/40 cursor-pointer"
                       >
-                        {item.is_active ? t("active") : t("inactive")}
-                      </Badge>
-                      {canDelete && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteItem(item); }}
-                          className="p-0.5 rounded hover:text-destructive text-muted-foreground transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
-                      {canCreate && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openCopyDialog(item);
-                          }}
-                          className="p-0.5 rounded hover:text-primary text-muted-foreground transition-colors cursor-pointer"
-                          aria-label={t("copy.action")}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
+                        {expanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold">{group.outletName}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {group.forms.length} {t("version")}{group.forms.length > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          v{latestVersion}
+                        </Badge>
+                      </button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                      <div className="ml-5 space-y-2 border-l-2 border-dashed border-muted/70 py-2 pl-2.5">
+                        {group.forms.map((item: FeedbackForm) => {
+                          const isSelected = item.id === selectedItem?.id;
+                          const isLatestVersion = item.version === latestVersion;
+
+                          return (
+                            <div
+                              key={item.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                setIsCreating(false);
+                                setSelectedItem(item);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setIsCreating(false);
+                                  setSelectedItem(item);
+                                }
+                              }}
+                              className={`relative w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/50 cursor-pointer ${
+                                isSelected ? "border-primary bg-primary/5" : "bg-background"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium">{item.title}</p>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {item.schema_json?.questions?.length ?? 0} {t("questions").toLowerCase()}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                    v{item.version}
+                                  </Badge>
+                                  {isLatestVersion && (
+                                    <Badge variant="default" className="text-[10px] px-1.5 py-0">
+                                      {t("latest")}
+                                    </Badge>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setDeleteItem(item); }}
+                                      className="p-0.5 rounded hover:text-destructive text-muted-foreground transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                  {canCreate && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openCopyDialog(item);
+                                      }}
+                                      className="p-0.5 rounded hover:text-primary text-muted-foreground transition-colors cursor-pointer"
+                                      aria-label={t("copy.action")}
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               );
             })
           )}

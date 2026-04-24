@@ -254,6 +254,7 @@ func main() {
 	tenantRepository := tenantRepos.NewTenantRepository(database.DB)
 	couponRepository := tenantRepos.NewCouponRepository(database.DB)
 	subscriptionRepository := tenantRepos.NewSubscriptionRepository(database.DB)
+	subscriptionPlanRepository := tenantRepos.NewSubscriptionPlanRepository(database.DB)
 
 	// Setup Services
 	permissionService := security.NewPermissionService(database.DB)
@@ -266,14 +267,15 @@ func main() {
 	// Setup Usecases
 	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
 	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient())
+	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, auditService, eventPublisher, redis.GetClient())
-	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
+	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
-	authH := authHandler.NewAuthHandler(authUC, couponUC)
+	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
 	xenditH := authHandler.NewXenditHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
@@ -283,7 +285,8 @@ func main() {
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC)
+	billingH := tenantHandler.NewBillingHandler(subUC, subscriptionPlanRepository)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -368,6 +371,14 @@ func main() {
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
 		authRouter.RegisterWebhookRoutes(v1, xenditH)
+
+		// Tenant billing: authenticated users can query their subscription + entitlements.
+		billing := v1.Group("/billing")
+		billing.Use(middleware.AuthMiddleware(jwtManager, permissionService))
+		{
+			billing.GET("/subscription", billingH.GetMySubscription)
+			billing.GET("/entitlements", billingH.GetMyEntitlements)
+		}
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)

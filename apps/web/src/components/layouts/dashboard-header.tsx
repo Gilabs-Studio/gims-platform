@@ -25,6 +25,7 @@ import type { AttendanceDrawerTab } from "@/features/hrd/attendance-records/comp
 interface DashboardHeaderProps {
   userName: string;
   tenantName?: string;
+  subscriptionPlan?: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
@@ -39,6 +40,7 @@ interface DashboardHeaderProps {
 export const DashboardHeader = memo(function DashboardHeader({
   userName,
   tenantName,
+  subscriptionPlan,
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
@@ -69,7 +71,7 @@ export const DashboardHeader = memo(function DashboardHeader({
           size="icon"
           className="h-9 w-9 md:hidden"
           onClick={onMobileMenuClick}
-          aria-label="Open menu"
+          aria-label={t("openMenu")}
         >
           <MenuIcon className="h-5 w-5" />
         </Button>
@@ -106,7 +108,7 @@ export const DashboardHeader = memo(function DashboardHeader({
             onClick={onSearchClick}
           >
             <Search className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Open search</span>
+            <span className="sr-only">{t("openSearch")}</span>
           </Button>
         </div>
       </div>
@@ -181,6 +183,11 @@ export const DashboardHeader = memo(function DashboardHeader({
               {tenantName && (
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">{tenantName}</div>
               )}
+              {subscriptionPlan && (
+                <div className="mt-1 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-primary">
+                  {subscriptionPlan.replace(/_/g, " ")}
+                </div>
+              )}
             </div>
             <Separator className="my-1" />
             <div className="flex flex-col gap-1">
@@ -197,11 +204,12 @@ export const DashboardHeader = memo(function DashboardHeader({
               </button>
               <Link
                 href="/profile"
+                locale={locale}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 onClick={() => setUserPopoverOpen(false)}
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                {t("settings")}
               </Link>
               <button
                 type="button"
@@ -211,7 +219,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                 }}
                 className="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
-                Logout
+                {t("logout")}
               </button>
             </div>
           </PopoverContent>

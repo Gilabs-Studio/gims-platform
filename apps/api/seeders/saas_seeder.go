@@ -44,7 +44,7 @@ func SeedTenant() error {
 		Slug:        DefaultTenantSlug,
 		OwnerUserID: &ownerUserID,
 		Status:      "active",
-		Plan:        "enterprise",
+		Plan:        "ultimate_suite",
 		MaxUsers:    999,
 	}
 
@@ -74,7 +74,7 @@ func SeedTenant2() error {
 		Slug:        Tenant2Slug,
 		OwnerUserID: &tenant2AdminID,
 		Status:      "active",
-		Plan:        "starter",
+		Plan:        "pos_growth",
 		MaxUsers:    10,
 	}
 

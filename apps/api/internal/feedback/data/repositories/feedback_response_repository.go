@@ -15,6 +15,7 @@ type FeedbackResponseFilter struct {
 	FormID    string
 	StartDate string // YYYY-MM-DD
 	EndDate   string // YYYY-MM-DD
+	Search    string
 	Page      int
 	PerPage   int
 }
@@ -70,6 +71,9 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 	}
 	if f.FormID != "" {
 		q = q.Where("form_id = ?", f.FormID)
+	}
+	if f.Search != "" {
+		q = q.Where("customer_name ILIKE ?", "%"+f.Search+"%")
 	}
 	if f.StartDate != "" {
 		q = q.Where("submitted_at >= ?", f.StartDate+" 00:00:00")

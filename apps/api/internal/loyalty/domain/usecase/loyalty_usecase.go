@@ -43,7 +43,7 @@ type LoyaltyUsecase interface {
 	UpdateProgram(ctx context.Context, id, updatedBy string, req *dto.UpdateLoyaltyProgramRequest) (*dto.LoyaltyProgramResponse, error)
 	DeleteProgram(ctx context.Context, id string) error
 	GetProgram(ctx context.Context, id string) (*dto.LoyaltyProgramResponse, error)
-	ListPrograms(ctx context.Context, page, perPage int) ([]dto.LoyaltyProgramResponse, *utils.PaginationResult, error)
+	ListPrograms(ctx context.Context, page, perPage int, search string) ([]dto.LoyaltyProgramResponse, *utils.PaginationResult, error)
 	ToggleProgramActive(ctx context.Context, id, updatedBy string) (*dto.LoyaltyProgramResponse, error)
 
 	// Member management
@@ -218,7 +218,7 @@ func (u *loyaltyUsecase) GetProgram(ctx context.Context, id string) (*dto.Loyalt
 	return mapper.ToLoyaltyProgramResponse(program), nil
 }
 
-func (u *loyaltyUsecase) ListPrograms(ctx context.Context, page, perPage int) ([]dto.LoyaltyProgramResponse, *utils.PaginationResult, error) {
+func (u *loyaltyUsecase) ListPrograms(ctx context.Context, page, perPage int, search string) ([]dto.LoyaltyProgramResponse, *utils.PaginationResult, error) {
 	var programs []models.LoyaltyProgram
 	var total int64
 	var fetchErr error
@@ -230,9 +230,9 @@ func (u *loyaltyUsecase) ListPrograms(ctx context.Context, page, perPage int) ([
 		return nil, nil, err
 	}
 	if isScoped {
-		programs, total, fetchErr = u.programRepo.ListWithOutletFilter(ctx, outletIDs, page, perPage)
+		programs, total, fetchErr = u.programRepo.ListWithOutletFilter(ctx, outletIDs, page, perPage, search)
 	} else {
-		programs, total, fetchErr = u.programRepo.List(ctx, page, perPage)
+		programs, total, fetchErr = u.programRepo.List(ctx, page, perPage, search)
 	}
 	if fetchErr != nil {
 		return nil, nil, fetchErr

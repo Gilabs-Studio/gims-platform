@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
+	planRepo "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/redis/go-redis/v9"
@@ -27,18 +31,20 @@ import (
 )
 
 var (
-	ErrInvalidCredentials        = errors.New("invalid credentials")
-	ErrUserNotFound              = errors.New("user not found")
-	ErrUserInactive              = errors.New("user is inactive")
-	ErrRefreshTokenInvalid       = errors.New("refresh token is invalid")
-	ErrRefreshTokenRevoked       = errors.New("refresh token has been revoked")
-	ErrRefreshTokenExpired       = errors.New("refresh token has expired")
-	ErrEmailAlreadyTaken         = errors.New("email already registered")
-	ErrSlugAlreadyTaken          = errors.New("organization slug already taken")
-	ErrPaymentRequired           = errors.New("payment or valid coupon required to register")
-	ErrPaymentGatewayUnavailable = errors.New("payment gateway is not configured")
-	ErrCouponInvalid             = errors.New("coupon is invalid, inactive, or exhausted")
-	ErrCouponAlreadyUsed         = errors.New("coupon already used by this email")
+	ErrInvalidCredentials             = errors.New("invalid credentials")
+	ErrUserNotFound                   = errors.New("user not found")
+	ErrUserInactive                   = errors.New("user is inactive")
+	ErrRefreshTokenInvalid            = errors.New("refresh token is invalid")
+	ErrRefreshTokenRevoked            = errors.New("refresh token has been revoked")
+	ErrRefreshTokenExpired            = errors.New("refresh token has expired")
+	ErrEmailAlreadyTaken              = errors.New("email already registered")
+	ErrSlugAlreadyTaken               = errors.New("organization slug already taken")
+	ErrPaymentRequired                = errors.New("payment or valid coupon required to register")
+	ErrPaymentGatewayUnavailable      = errors.New("payment gateway is not configured")
+	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
+	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
+	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
+	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -46,6 +52,8 @@ const pendingRegTTL = 24 * time.Hour
 
 // pendingRegKeyPrefix is the Redis key prefix for pending registrations.
 const pendingRegKeyPrefix = "pending_reg:"
+
+const masterDataMenuPrefix = "/master-data"
 
 // PendingRegistration is the Redis payload for a registration that awaits Xendit payment.
 type PendingRegistration struct {
@@ -57,6 +65,8 @@ type PendingRegistration struct {
 	BillingPeriod string `json:"billing_period"`
 	UserCount     int    `json:"user_count"`
 	InvoiceID     string `json:"invoice_id"`
+	CouponCode    string `json:"coupon_code,omitempty"`
+	AmountPaid    int64  `json:"amount_paid"`
 	CreatedAt     string `json:"created_at"`
 }
 
@@ -79,6 +89,12 @@ type AuthUsecase interface {
 	// CompletePendingRegistration is called by the Xendit webhook after successful payment.
 	// token is the UUID stored in the Xendit external_id / Redis key.
 	CompletePendingRegistration(ctx context.Context, token string) error
+	// ConfirmPendingRegistration is called by frontend after payment redirect to
+	// finalize provisioning and immediately return a logged-in session.
+	ConfirmPendingRegistration(ctx context.Context, token string) (*dto.LoginResponse, error)
+	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
+	// is paid. It extends the tenant's subscription next billing date.
+	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
 }
 
 type authUsecase struct {
@@ -88,6 +104,7 @@ type authUsecase struct {
 	jwtManager       *jwtManager.JWTManager
 	eventPublisher   infraEvents.EventPublisher
 	couponUC         couponUC.CouponUsecase
+	planRepo         planRepo.SubscriptionPlanRepository
 	redis            *redis.Client
 	xendit           *xenditClient.Client
 }
@@ -100,6 +117,7 @@ func NewAuthUsecase(
 	eventPublisher infraEvents.EventPublisher,
 	couponUC couponUC.CouponUsecase,
 	redisClient *redis.Client,
+	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
 ) AuthUsecase {
 	var xc *xenditClient.Client
 	if config.AppConfig != nil {
@@ -115,6 +133,7 @@ func NewAuthUsecase(
 		jwtManager:       jwtManager,
 		eventPublisher:   eventPublisher,
 		couponUC:         couponUC,
+		planRepo:         subscriptionPlanRepo,
 		redis:            redisClient,
 		xendit:           xc,
 	}
@@ -149,12 +168,16 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		roleCode := "user"
 		roleName := "User"
 		roleDataScope := "OWN"
+		isOwner := false
 		permissions := make(map[string]string)
 
 		if user.Role != nil {
 			roleCode = user.Role.Code
 			roleName = user.Role.Name
 			roleDataScope = user.Role.DataScope
+			// is_protected=true is exclusively set on the auto-generated tenant owner role;
+			// use this flag instead of string-matching on role codes.
+			isOwner = user.Role.IsProtected
 			if roleDataScope == "" {
 				roleDataScope = "ALL"
 			}
@@ -223,20 +246,22 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:            user.ID,
-			Email:         user.Email,
-			Name:          user.Name,
-			AvatarURL:     user.AvatarURL,
-			EmployeeID:    employeeID,
-			Role:          roleCode,
-			RoleName:      roleName,
-			RoleDataScope: roleDataScope,
-			Permissions:   permissions,
-			Status:        user.Status,
-			CreatedAt:     user.CreatedAt,
-			UpdatedAt:     user.UpdatedAt,
-			TenantID:      tenantID,
-			TenantName:    tenantName,
+			ID:               user.ID,
+			Email:            user.Email,
+			Name:             user.Name,
+			AvatarURL:        user.AvatarURL,
+			EmployeeID:       employeeID,
+			Role:             roleCode,
+			RoleName:         roleName,
+			RoleDataScope:    roleDataScope,
+			IsOwner:          isOwner,
+			Permissions:      permissions,
+			Status:           user.Status,
+			CreatedAt:        user.CreatedAt,
+			UpdatedAt:        user.UpdatedAt,
+			TenantID:         tenantID,
+			TenantName:       tenantName,
+			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
 		}
 
 		resp = &dto.LoginResponse{
@@ -407,22 +432,27 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
 
+		// Determine is_owner from role.is_protected flag (owner role is always protected)
+		refreshIsOwner := user.Role != nil && user.Role.IsProtected
+
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:            user.ID,
-			Email:         user.Email,
-			Name:          user.Name,
-			AvatarURL:     user.AvatarURL,
-			EmployeeID:    employeeID,
-			Role:          roleCode,
-			RoleName:      roleName,
-			RoleDataScope: roleDataScope,
-			Permissions:   permissions,
-			Status:        user.Status,
-			CreatedAt:     user.CreatedAt,
-			UpdatedAt:     user.UpdatedAt,
-			TenantID:      tenantID,
-			TenantName:    tenantName,
+			ID:               user.ID,
+			Email:            user.Email,
+			Name:             user.Name,
+			AvatarURL:        user.AvatarURL,
+			EmployeeID:       employeeID,
+			Role:             roleCode,
+			RoleName:         roleName,
+			RoleDataScope:    roleDataScope,
+			IsOwner:          refreshIsOwner,
+			Permissions:      permissions,
+			Status:           user.Status,
+			CreatedAt:        user.CreatedAt,
+			UpdatedAt:        user.UpdatedAt,
+			TenantID:         tenantID,
+			TenantName:       tenantName,
+			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
 		}
 
 		resp = &dto.LoginResponse{
@@ -505,6 +535,9 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			}
 			return nil, ErrCouponInvalid
 		}
+		if strings.TrimSpace(req.Plan) == "" && strings.TrimSpace(validity.TargetPlanSlug) != "" {
+			req.Plan = validity.TargetPlanSlug
+		}
 	}
 
 	// ── Paid plan path: create Xendit invoice + store pending registration ───
@@ -550,7 +583,27 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	if userCount < 1 {
 		userCount = 1
 	}
-	amount := planTotalPriceIDR(req.Plan, billingPeriod, userCount)
+
+	// Resolve price from DB-driven plan config.
+	baseAmount, err := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply coupon discount when a non-trial coupon is included.
+	couponCode := strings.TrimSpace(req.Coupon)
+	finalAmount := baseAmount
+	if couponCode != "" {
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount)
+		if applyErr == nil {
+			finalAmount = discounted
+		}
+		// If trial coupon (amount=0), route to coupon path instead of paid path.
+		if finalAmount == 0 {
+			return u.handleZeroAmountCouponRegistration(ctx, req, couponCode)
+		}
+	}
+
 	frontendBaseURL := ""
 	if config.AppConfig != nil {
 		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
@@ -558,7 +611,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 
 	invoice, err := u.xendit.CreateInvoice(ctx, xenditClient.CreateInvoiceRequest{
 		ExternalID:         token,
-		Amount:             amount,
+		Amount:             finalAmount,
 		PayerEmail:         req.Email,
 		Description:        fmt.Sprintf("GIMS %s (%s) for %d user(s) — %s", req.Plan, billingPeriod, userCount, companyName),
 		SuccessRedirectURL: frontendBaseURL + "/register/success?token=" + token,
@@ -580,6 +633,8 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		BillingPeriod: billingPeriod,
 		UserCount:     userCount,
 		InvoiceID:     invoice.ID,
+		CouponCode:    couponCode,
+		AmountPaid:    finalAmount,
 		CreatedAt:     apptime.Now().Format(time.RFC3339),
 	}
 	pendingJSON, err := json.Marshal(pending)
@@ -600,18 +655,65 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	}, nil
 }
 
+// resolvePlanPrice looks up plan price from DB config.
+func (u *authUsecase) resolvePlanPrice(ctx context.Context, planSlug, billingPeriod string, userCount int) (int64, error) {
+	if u.planRepo == nil {
+		return 0, ErrPaymentGatewayUnavailable
+	}
+
+	plan, err := u.planRepo.FindBySlug(ctx, planSlug)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrPaymentRequired
+		}
+		return 0, err
+	}
+
+	return plan.TotalPriceIDR(billingPeriod, userCount), nil
+}
+
+// handleZeroAmountCouponRegistration routes a discount coupon that results in 0 IDR
+// through the coupon (trial) provisioning path instead of creating a payment invoice.
+func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, req *dto.RegisterTenantRequest, couponCode string) (*RegisterTenantResult, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := u.provisionTenantForPaidPlan(ctx, req, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+	// Redeem coupon usage after provisioning.
+	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID)
+	return &RegisterTenantResult{LoginResponse: resp}, nil
+}
+
 // CompletePendingRegistration is triggered by the Xendit webhook after a successful
-// payment. It retrieves the pending registration from Redis and provisions the tenant.
+// payment. It retrieves the pending registration from Redis, provisions the tenant,
+// and creates the paid TenantSubscription record.
 func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token string) error {
+	_, err := u.completePendingRegistrationInternal(ctx, token)
+	return err
+}
+
+func (u *authUsecase) ConfirmPendingRegistration(ctx context.Context, token string) (*dto.LoginResponse, error) {
+	return u.completePendingRegistrationInternal(ctx, token)
+}
+
+func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, token string) (*dto.LoginResponse, error) {
+	if u.redis == nil {
+		return nil, ErrPendingRegistrationNotFound
+	}
+
 	key := pendingRegKeyPrefix + token
 	val, err := u.redis.Get(ctx, key).Result()
 	if err != nil {
-		return fmt.Errorf("pending registration not found or expired")
+		return nil, ErrPendingRegistrationNotFound
 	}
 
 	var pending PendingRegistration
 	if err := json.Unmarshal([]byte(val), &pending); err != nil {
-		return fmt.Errorf("corrupted pending registration data")
+		return nil, ErrPendingRegistrationDataInvalid
 	}
 
 	// Provision tenant using the stored data.
@@ -622,70 +724,101 @@ func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token str
 		CompanyName:   pending.CompanyName,
 		Plan:          pending.Plan,
 		BillingPeriod: pending.BillingPeriod,
+		UserCount:     pending.UserCount,
 	}
 
-	_, err = u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
+	loginResp, err := u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
 	if err != nil {
-		return fmt.Errorf("tenant provisioning after payment failed: %w", err)
+		return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
 	}
 
-	// Remove the pending registration key to prevent double-provisioning.
-	u.redis.Del(ctx, key)
-	return nil
-}
-
-// planTotalPriceIDR returns the total invoice amount in IDR for the selected plan,
-// billing period, and number of users.
-//
-// Pricing model: all plans are per-user. Bundle plans are intentionally cheaper
-// per-user than individual modules to create a decoy pricing effect — customers
-// who compare individual modules against bundles will see the bundle as the clear winner.
-//
-// Yearly billing applies a 10% annual discount.
-//
-// TODO(restrict-api-by-plan): After MVP, enforce plan-based API access gating here.
-// Current implementation: all paid plans grant full platform access.
-// Future: each plan ID should restrict which modules/routes are accessible.
-// Reference: docs/erp-sprint-planning.md — "Subscription tier API gating" task.
-func planTotalPriceIDR(plan, billingPeriod string, userCount int) int64 {
+	// Create the TenantSubscription record to track the paid plan and Xendit invoice.
+	tenantID := loginResp.User.TenantID
+	now := apptime.Now()
+	// Monthly billing next cycle; yearly billing is 12 months out.
+	nextBilling := now.AddDate(0, 1, 0)
+	if pending.BillingPeriod == "yearly" {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+	xenditInvoiceID := pending.InvoiceID
+	userCount := pending.UserCount
 	if userCount < 1 {
 		userCount = 1
 	}
-	// Per-user monthly prices in IDR.
-	// Modular plans are priced higher per-user so that bundles are always a better deal.
-	perUserMonthly := map[string]int64{
-		// ── Bundles (decoy anchors – best value) ──────────────────────────
-		"growth_suite":   149_000, // POS + ERP + CRM
-		"ultimate_suite": 175_000, // All modules (POS + ERP + CRM + HR)
-		// ── POS ──────────────────────────────────────────────────────────
-		"pos_essential":  149_000,
-		"pos_growth":     199_000,
-		"pos_enterprise": 299_000,
-		// ── ERP ──────────────────────────────────────────────────────────
-		"erp_core":       299_000,
-		"erp_pro":        399_000,
-		"erp_enterprise": 599_000,
-		// ── CRM ──────────────────────────────────────────────────────────
-		"crm_basic":      99_000,
-		"crm_growth":     149_000,
-		"crm_enterprise": 199_000,
-		// ── HR ───────────────────────────────────────────────────────────
-		"hr_basic":      49_000,
-		"hr_growth":     79_000,
-		"hr_enterprise": 119_000,
-		// ── Legacy full-access (coupon-based, not sold via Xendit) ───────
-		"full_access": 175_000,
+	sub := &tenantModels.TenantSubscription{
+		TenantID:        tenantID,
+		Plan:            tenantModels.SubscriptionPlan(pending.Plan),
+		BillingPeriod:   tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
+		Status:          tenantModels.SubscriptionActive,
+		StartsAt:        now,
+		AmountPaidIDR:   pending.AmountPaid,
+		UserCount:       userCount,
+		XenditInvoiceID: &xenditInvoiceID,
+		NextBillingAt:   &nextBilling,
+		Notes:           fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
 	}
-	perUser, ok := perUserMonthly[strings.ToLower(plan)]
-	if !ok {
-		perUser = 175_000 // Safe default — ultimate_suite price
+	if pending.CouponCode != "" {
+		sub.Notes += fmt.Sprintf(" (coupon: %s)", pending.CouponCode)
 	}
-	total := perUser * int64(userCount)
-	if billingPeriod == "yearly" {
-		// 10% annual discount; charge the full year up-front.
-		total = int64(float64(total*12) * 0.9)
+	if err := u.ensureSubscriptionRecord(ctx, sub); err != nil {
+		return nil, fmt.Errorf("failed to persist subscription record: %w", err)
 	}
-	return total
+
+	// Remove the pending registration key to prevent double-provisioning.
+	if err := u.redis.Del(ctx, key).Err(); err != nil {
+		return nil, fmt.Errorf("failed to finalize pending registration: %w", err)
+	}
+
+	return loginResp, nil
+}
+
+func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantModels.TenantSubscription) error {
+	if sub == nil {
+		return nil
+	}
+
+	if sub.XenditInvoiceID != nil && *sub.XenditInvoiceID != "" {
+		var invoiceCount int64
+		if err := u.db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("xendit_invoice_id = ? AND deleted_at IS NULL", *sub.XenditInvoiceID).
+			Count(&invoiceCount).Error; err != nil {
+			return err
+		}
+		if invoiceCount > 0 {
+			return nil
+		}
+	}
+
+	return u.db.WithContext(ctx).Create(sub).Error
+}
+
+// HandleRecurringRenewal is called by the Xendit webhook when a recurring (subscription)
+// invoice is paid. It locates the TenantSubscription by XenditInvoiceID and advances
+// the next billing date by one billing cycle.
+func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error {
+	var sub tenantModels.TenantSubscription
+	err := u.db.WithContext(ctx).
+		Where("xendit_invoice_id = ? AND deleted_at IS NULL", xenditInvoiceID).
+		First(&sub).Error
+	if err != nil {
+		// No matching subscription — this may be a new-registration invoice, not a renewal.
+		return fmt.Errorf("subscription not found for invoice %s", xenditInvoiceID)
+	}
+
+	now := apptime.Now()
+	nextBilling := now.AddDate(0, 1, 0)
+	if sub.BillingPeriod == tenantModels.BillingYearly {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+
+	return u.db.WithContext(ctx).
+		Model(&tenantModels.TenantSubscription{}).
+		Where("id = ?", sub.ID).
+		Updates(map[string]interface{}{
+			"next_billing_at": nextBilling,
+			"status":          tenantModels.SubscriptionActive,
+		}).Error
 }
 
 // provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.
@@ -772,34 +905,29 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 
 		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
 
-		if err := tx.Exec(`
-			INSERT INTO users (id, tenant_id, email, password, name, avatar_url, role_id, status, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM roles WHERE code = 'admin' LIMIT 1), 'active', NOW(), NOW())`,
-			userID, tenantID, req.Email, hashedPwd, req.Name, avatarURL,
-		).Error; err != nil {
+		planSlug := strings.TrimSpace(strings.ToLower(req.Plan))
+		if planSlug == "" {
+			planSlug = "full_access"
+		}
+
+		roleID, roleCode, roleName, permissions, err := u.createTenantOwnerRole(tx, tenantID, companyName, planSlug)
+		if err != nil {
 			return err
 		}
 
-		roleCode := "admin"
-		roleName := "Admin"
-		roleDataScope := "ALL"
-		permissions := make(map[string]string)
+		// Auto-generate standard roles (Admin, Cashier, etc.) tailored for this specific tenant
+		if err := u.generateDefaultTenantRoles(tx, companyName, planSlug, tenantID); err != nil {
+			return err
+		}
 
-		type rolePermRow struct {
-			Code  string
-			Scope string
+		if err := tx.Exec(`
+			INSERT INTO users (id, tenant_id, email, password, name, avatar_url, role_id, status, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+			userID, tenantID, req.Email, hashedPwd, req.Name, avatarURL, roleID,
+		).Error; err != nil {
+			return err
 		}
-		var rolePerms []rolePermRow
-		tx.Raw(`
-			SELECT p.code, COALESCE(rp.scope, 'ALL') AS scope
-			FROM role_permissions rp
-			JOIN permissions p ON p.id = rp.permission_id
-			JOIN roles r ON r.id = rp.role_id
-			WHERE r.code = 'admin'
-		`).Scan(&rolePerms)
-		for _, rp := range rolePerms {
-			permissions[rp.Code] = rp.Scope
-		}
+		roleDataScope := "ALL"
 
 		accessToken, err := u.jwtManager.GenerateAccessToken(userID, req.Email, roleCode, tenantID)
 		if err != nil {
@@ -833,10 +961,14 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 				Role:          roleCode,
 				RoleName:      roleName,
 				RoleDataScope: roleDataScope,
-				Permissions:   permissions,
-				Status:        "active",
-				TenantID:      tenantID,
-				TenantName:    companyName,
+				// Owner role is always is_protected=true; safe to hard-code here since
+				// createTenantOwnerRole always marks it as protected.
+				IsOwner:          true,
+				Permissions:      permissions,
+				Status:           "active",
+				TenantID:         tenantID,
+				TenantName:       companyName,
+				SubscriptionPlan: activePlanForTenant(tx, tenantID),
 			},
 			Token:        accessToken,
 			RefreshToken: refreshToken,
@@ -847,6 +979,556 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 	})
 
 	return resp, err
+}
+
+type rolePermissionAssignment struct {
+	PermissionID string
+	Code         string
+	Scope        string
+	MenuURL      string
+	MenuModule   string
+}
+
+func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string) (string, string, string, map[string]string, error) {
+	roleID := newUUID()
+	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
+	roleCode := fmt.Sprintf("tenant_owner_%s_%s", sanitizeSlug(planSlug), codeSuffix)
+	roleName := fmt.Sprintf("%s Owner", companyName)
+	if roleName == " Owner" {
+		roleName = "Tenant Owner"
+	}
+
+	if err := tx.Exec(`
+		INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, 'active', true, 'ALL', ?, NOW(), NOW())`,
+		roleID,
+		roleName,
+		roleCode,
+		fmt.Sprintf("Auto-generated owner role for tenant %s (%s)", tenantID, planSlug),
+		tenantID,
+	).Error; err != nil {
+		return "", "", "", nil, err
+	}
+
+	assignments, err := u.collectPlanPermissionAssignments(tx, planSlug)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
+	permissions := make(map[string]string, len(assignments))
+	for _, a := range assignments {
+		scope := strings.ToUpper(strings.TrimSpace(a.Scope))
+		if scope == "" {
+			scope = "ALL"
+		}
+		if err := tx.Exec(
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?)",
+			roleID,
+			a.PermissionID,
+			scope,
+		).Error; err != nil {
+			return "", "", "", nil, err
+		}
+		permissions[a.Code] = scope
+	}
+
+	if err := u.assignRoleMenuAccessFromPlan(tx, roleID, tenantID, planSlug); err != nil {
+		return "", "", "", nil, err
+	}
+
+	return roleID, roleCode, roleName, permissions, nil
+}
+
+func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string) error {
+	assignments, err := u.collectPlanPermissionAssignments(tx, planSlug)
+	if err != nil {
+		return err
+	}
+
+	allowedPerms := make(map[string]string)
+	for _, a := range assignments {
+		allowedPerms[a.Code] = a.PermissionID
+	}
+
+	var templateCodes []string
+	if isPOSModulePlan(planSlug) {
+		templateCodes = []string{"admin", "cashier", "outlet_manager"}
+	} else {
+		templateCodes = []string{"admin", "manager", "staff"}
+	}
+
+	for _, tCode := range templateCodes {
+		var tmplRole struct {
+			ID   string
+			Name string
+			Code string
+		}
+		if err := tx.Raw("SELECT id, name, code FROM roles WHERE code = ? AND deleted_at IS NULL LIMIT 1", tCode).Scan(&tmplRole).Error; err != nil {
+			continue // Skip if not found
+		}
+		if tmplRole.ID == "" {
+			continue
+		}
+
+		var permCodes []string
+		if err := tx.Raw(`
+			SELECT p.code 
+			FROM role_permissions rp
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE rp.role_id = ? AND p.deleted_at IS NULL
+		`, tmplRole.ID).Scan(&permCodes).Error; err != nil {
+			continue
+		}
+
+		var finalPermIDs []string
+		for _, pc := range permCodes {
+			if pid, ok := allowedPerms[pc]; ok {
+				finalPermIDs = append(finalPermIDs, pid)
+			}
+		}
+
+		newRoleID := newUUID()
+		codeSuffix := shortID()
+		newCode := fmt.Sprintf("%s_%s_%s", tCode, sanitizeSlug(companyName), codeSuffix)
+		newName := fmt.Sprintf("%s - %s", tmplRole.Name, companyName)
+
+		if err := tx.Exec(`
+			INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
+			VALUES (?, ?, ?, ?, 'active', false, 'ALL', ?, NOW(), NOW())`,
+			newRoleID,
+			newName,
+			newCode,
+			fmt.Sprintf("Auto-generated %s role for %s", tmplRole.Name, companyName),
+			tenantID,
+		).Error; err != nil {
+			return err
+		}
+
+		for _, pid := range finalPermIDs {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL')",
+				newRoleID,
+				pid,
+			).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug string) ([]rolePermissionAssignment, error) {
+	planSlug = normalizeTenantPlanSlug(planSlug)
+
+	rows := make([]rolePermissionAssignment, 0)
+	err := tx.Raw(`
+		SELECT p.id AS permission_id,
+		       p.code,
+		       COALESCE(m.url, '') AS menu_url,
+		       COALESCE(m.module, '') AS menu_module,
+		       'ALL' AS scope
+		FROM permissions p
+		LEFT JOIN menus m ON m.id = p.menu_id
+		WHERE p.deleted_at IS NULL
+	`).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.EqualFold(planSlug, "full_access") {
+		sort.Slice(rows, func(i, j int) bool { return rows[i].Code < rows[j].Code })
+		return rows, nil
+	}
+
+	entitled := make(map[string]struct{})
+	var modules []string
+	if err := tx.Table("plan_module_entitlements").
+		Select("module_slug").
+		Where("plan_slug = ? AND is_enabled = true", planSlug).
+		Find(&modules).Error; err != nil {
+		return nil, err
+	}
+	for _, m := range modules {
+		entitled[normalizePlanModule(m)] = struct{}{}
+	}
+
+	permissionPolicy, err := loadPlanPermissionPolicy(tx, planSlug)
+	if err != nil {
+		return nil, err
+	}
+	for _, menuPrefix := range permissionPolicy.menuPrefixes {
+		if module := moduleFromPermissionURL(menuPrefix); module != "" {
+			entitled[module] = struct{}{}
+		}
+	}
+
+	filtered := make([]rolePermissionAssignment, 0, len(rows))
+	for _, row := range rows {
+		// Core platform permissions that must be available for ALL plans regardless of entitlement.
+		// This ensures foundational capabilities like viewing users/roles, profile, and billing
+		// are always accessible to the owner/admin regardless of the subscription tier.
+		codeLower := strings.ToLower(row.Code)
+		if strings.HasPrefix(codeLower, "dashboard.") ||
+			strings.HasPrefix(codeLower, "profile.") ||
+			strings.HasPrefix(codeLower, "setting") ||
+			strings.HasPrefix(codeLower, "billing.") ||
+			codeLower == "pos.payment.manage" ||
+			// User and role management: always needed so the owner can manage their team
+			strings.HasPrefix(codeLower, "user.") ||
+			strings.HasPrefix(codeLower, "role.") ||
+			strings.HasPrefix(codeLower, "permission.") ||
+			// Master data core: always needed regardless of plan
+			strings.HasPrefix(codeLower, "company.") ||
+			strings.HasPrefix(codeLower, "warehouse.") ||
+			strings.HasPrefix(codeLower, "product.") ||
+			strings.HasPrefix(codeLower, "customer.") ||
+			strings.HasPrefix(codeLower, "supplier.") ||
+			strings.HasPrefix(codeLower, "employee.") {
+			filtered = append(filtered, row)
+			continue
+		}
+
+		module := normalizePlanModule(row.MenuModule)
+		if module == "" {
+			module = moduleFromPermissionURL(row.MenuURL)
+		}
+		if module == "" {
+			filtered = append(filtered, row)
+			continue
+		}
+		if _, ok := entitled[module]; ok {
+			if permissionPolicy.hasRules && !isAssignmentAllowedByPolicy(row, permissionPolicy) {
+				continue
+			}
+			filtered = append(filtered, row)
+		}
+	}
+
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Code < filtered[j].Code })
+	return filtered, nil
+}
+
+type planPermissionPolicy struct {
+	codeSet      map[string]struct{}
+	menuPrefixes []string
+	hasRules     bool
+}
+
+func loadPlanPermissionPolicy(tx *gorm.DB, planSlug string) (planPermissionPolicy, error) {
+	policy := planPermissionPolicy{
+		codeSet:      map[string]struct{}{},
+		menuPrefixes: []string{},
+		hasRules:     false,
+	}
+	normalizedPlanSlug := normalizeTenantPlanSlug(planSlug)
+
+	rows := make([]struct {
+		PermissionCode string
+		MenuURL        string
+	}, 0)
+	err := tx.Table("plan_permission_entitlements").
+		Select("permission_code, menu_url").
+		Where("plan_slug = ? AND is_enabled = true", strings.ToLower(strings.TrimSpace(planSlug))).
+		Scan(&rows).Error
+	if err != nil {
+		return policy, err
+	}
+	defaultRows := tenantPolicy.DefaultPlanEntitlementRows(planSlug)
+	if len(defaultRows) > 0 {
+		merged := make([]struct {
+			PermissionCode string
+			MenuURL        string
+		}, 0, len(rows)+len(defaultRows))
+		merged = append(merged, rows...)
+		for _, row := range defaultRows {
+			merged = append(merged, struct {
+				PermissionCode string
+				MenuURL        string
+			}{
+				PermissionCode: row.PermissionCode,
+				MenuURL:        row.MenuURL,
+			})
+		}
+		rows = merged
+	}
+
+	for _, row := range rows {
+		code := strings.ToLower(strings.TrimSpace(row.PermissionCode))
+		menu := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if isBlockedPOSBroadMenuURL(normalizedPlanSlug, menu) {
+			continue
+		}
+		if code != "" {
+			policy.codeSet[code] = struct{}{}
+			policy.hasRules = true
+		}
+		if menu != "" {
+			policy.menuPrefixes = append(policy.menuPrefixes, menu)
+			policy.hasRules = true
+		}
+	}
+
+	return policy, nil
+}
+
+func isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL string) bool {
+	if normalizedPlanSlug != "pos_growth" {
+		return false
+	}
+	switch menuURL {
+	case "/sales", "/purchase", "/stock", "/finance":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAssignmentAllowedByPolicy(row rolePermissionAssignment, policy planPermissionPolicy) bool {
+	code := strings.ToLower(strings.TrimSpace(row.Code))
+	if code != "" {
+		if _, ok := policy.codeSet[code]; ok {
+			return true
+		}
+	}
+
+	menu := strings.ToLower(strings.TrimSpace(row.MenuURL))
+	if menu == "" {
+		return true
+	}
+
+	for _, prefix := range policy.menuPrefixes {
+		if menu == prefix || strings.HasPrefix(menu, prefix+"/") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func sanitizeSlug(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, "-", "_")
+	s = strings.ReplaceAll(s, " ", "_")
+	if s == "" {
+		return "tenant"
+	}
+	return s
+}
+
+func (u *authUsecase) assignRoleMenuAccessFromPlan(tx *gorm.DB, roleID, tenantID, planSlug string) error {
+	normalizedPlanSlug := normalizeTenantPlanSlug(planSlug)
+
+	menuURLRows := make([]struct {
+		MenuURL string
+	}, 0)
+	err := tx.Table("plan_permission_entitlements").
+		Select("menu_url").
+		Where("plan_slug = ? AND is_enabled = true AND permission_code = '' AND menu_url <> ''", normalizedPlanSlug).
+		Scan(&menuURLRows).Error
+	if err != nil {
+		return err
+	}
+
+	defaultRows := tenantPolicy.DefaultPlanEntitlementRows(normalizedPlanSlug)
+	for _, row := range defaultRows {
+		menuURLRows = append(menuURLRows, struct{ MenuURL string }{MenuURL: row.MenuURL})
+	}
+
+	seenURLs := make(map[string]struct{}, len(menuURLRows))
+	normalizedMenuURLs := make([]string, 0, len(menuURLRows))
+	for _, row := range menuURLRows {
+		menuURL := strings.ToLower(strings.TrimSpace(row.MenuURL))
+		if menuURL == "" || isBlockedPOSBroadMenuURL(normalizedPlanSlug, menuURL) {
+			continue
+		}
+		if _, exists := seenURLs[menuURL]; exists {
+			continue
+		}
+		seenURLs[menuURL] = struct{}{}
+		normalizedMenuURLs = append(normalizedMenuURLs, menuURL)
+	}
+
+	if len(normalizedMenuURLs) == 0 {
+		return nil
+	}
+
+	menuRows := make([]struct {
+		ID  string
+		URL string
+	}, 0, len(normalizedMenuURLs))
+	err = tx.Table("menus").
+		Select("id, url").
+		Where("deleted_at IS NULL AND status = ?", "active").
+		Where("url IN ?", normalizedMenuURLs).
+		Scan(&menuRows).Error
+	if err != nil {
+		return err
+	}
+
+	for _, menuRow := range menuRows {
+		if strings.TrimSpace(menuRow.ID) == "" {
+			continue
+		}
+		if err := tx.Exec(`
+			INSERT INTO role_menu_access (id, role_id, menu_id, scope, is_enabled, tenant_id, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, ?, 'ALL', true, ?, NOW(), NOW())
+			ON CONFLICT (role_id, menu_id)
+			DO UPDATE SET scope = 'ALL', is_enabled = true, tenant_id = EXCLUDED.tenant_id, deleted_at = NULL, updated_at = NOW()
+		`, roleID, menuRow.ID, tenantID).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func normalizeTenantPlanSlug(planSlug string) string {
+	normalized := strings.ToLower(strings.TrimSpace(planSlug))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+
+	switch normalized {
+	case "pos", "pos_modular":
+		return "pos_growth"
+	case "erp", "erp_modular":
+		return "erp_pro"
+	case "crm", "crm_modular":
+		return "crm_growth"
+	case "hr", "hr_modular":
+		return "hr_growth"
+	default:
+		return normalized
+	}
+}
+
+func normalizePlanModule(module string) string {
+	m := strings.ToLower(strings.TrimSpace(module))
+	switch m {
+	case "hrd", "human_resources", "human-resources":
+		return "hr"
+	case "master_data", "master-data":
+		return "core"
+	case "fb", "feedback", "loyalty":
+		return "pos"
+	case "stock":
+		return "inventory"
+	default:
+		return m
+	}
+}
+
+func moduleFromPermissionURL(url string) string {
+	p := strings.ToLower(strings.TrimSpace(url))
+	if p == "" {
+		return ""
+	}
+	switch {
+	case strings.HasPrefix(p, "/hrd"):
+		return "hr"
+	case strings.HasPrefix(p, "/stock"):
+		return "inventory"
+	case strings.HasPrefix(p, "/pos"):
+		return "pos"
+	case strings.HasPrefix(p, "/crm"):
+		return "crm"
+	case strings.HasPrefix(p, "/finance"):
+		return "finance"
+	case strings.HasPrefix(p, "/sales"):
+		return "sales"
+	case strings.HasPrefix(p, "/purchase"):
+		return "purchase"
+	case strings.HasPrefix(p, "/master-data"):
+		return "core"
+	default:
+		return ""
+	}
+}
+
+func isAllowedForPOSPlanByURL(url string) bool {
+	p := strings.ToLower(strings.TrimSpace(url))
+	if p == "" {
+		return false
+	}
+
+	// Basic access always allowed for POS users
+	basicAccess := []string{
+		"/dashboard",
+		"/profile",
+		"/settings",
+		"/master-data/users",
+		"/master-data/companies",
+		"/master-data/warehouses",
+		"/master-data/products",
+		"/master-data/customers",
+		"/master-data/suppliers",
+		"/master-data/employees",
+	}
+	for _, prefix := range basicAccess {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+
+	allowedPrefixes := []string{
+		"/pos/terminal",
+		"/pos/fb/terminal",
+		"/pos/live-table",
+		"/pos/fb/live-table",
+		"/pos/floor-layout",
+		"/pos/fb/floor-layout",
+		"/pos/feedback",
+		"/pos/loyalty",
+		"/sales/sales-orders",
+		"/sales/customer-invoices",
+		"/sales/payments",
+		"/purchase/purchase-orders",
+		"/purchase/supplier-invoices",
+		"/purchase/payments",
+		"/stock/inventory",
+		"/stock/movements",
+		"/finance/journals/sales",
+		"/finance/journals/purchase",
+		"/finance/bank-accounts",
+		"/finance/settings/fiscal-years",
+	}
+
+	for _, prefix := range allowedPrefixes {
+		if strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isPOSModulePlan(planSlug string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(planSlug)), "pos_")
+}
+
+func isViewReadPermissionCode(code string) bool {
+	parts := strings.Split(strings.ToLower(strings.TrimSpace(code)), ".")
+	if len(parts) == 0 {
+		return false
+	}
+	action := parts[len(parts)-1]
+	return action == "view" || action == "read"
+}
+
+// activePlanForTenant returns the plan slug of the tenant's active or trial subscription.
+// Returns an empty string when the tenant has no subscription record.
+func activePlanForTenant(db *gorm.DB, tenantID string) string {
+	if tenantID == "" {
+		return ""
+	}
+	var plan string
+	db.Table("tenant_subscriptions").
+		Select("plan").
+		Where("tenant_id = ? AND status IN ('active','trial')", tenantID).
+		Order("created_at DESC").
+		Limit(1).
+		Row().Scan(&plan)
+	return plan
 }
 
 // slugify converts a human-readable string into a URL-safe slug.

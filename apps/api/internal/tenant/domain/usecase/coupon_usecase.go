@@ -34,8 +34,13 @@ type CouponUsecase interface {
 	Validate(ctx context.Context, code string) (*dto.ValidateCouponResponse, error)
 	// ValidateForEmail additionally checks if the given email has already used this coupon.
 	ValidateForEmail(ctx context.Context, code, email string) (*dto.ValidateCouponResponse, error)
+	// ValidateForPlan checks coupon validity for a specific plan slug (enforces tier_specific scope).
+	ValidateForPlan(ctx context.Context, code, email, planSlug string) (*dto.ValidateCouponResponse, error)
 	// RedeemForTenant validates the coupon, records the email usage, and creates a TenantSubscription.
 	RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error)
+	// ApplyDiscount computes the discounted invoice amount for a paid-plan coupon.
+	// Returns original amount when the coupon is a trial type or not applicable.
+	ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64) (int64, error)
 }
 
 type couponUsecase struct {
@@ -64,14 +69,32 @@ func (u *couponUsecase) Create(ctx context.Context, req *dto.CreateCouponRequest
 	}
 
 	coupon := &models.Coupon{
-		Code:         code,
-		Description:  req.Description,
-		CouponType:   models.CouponType(req.CouponType),
-		DurationDays: req.DurationDays,
-		MaxUses:      req.MaxUses,
-		IsActive:     true,
-		ExpiresAt:    req.ExpiresAt,
-		CreatedBy:    adminEmail,
+		Code:            code,
+		Description:     req.Description,
+		CouponType:      models.CouponType(req.CouponType),
+		DiscountType:    models.CouponDiscountType(req.DiscountType),
+		DiscountValue:   req.DiscountValue,
+		Scope:           models.CouponScope(req.Scope),
+		DurationDays:    req.DurationDays,
+		MaxUses:         req.MaxUses,
+		MaxUsesPerEmail: req.MaxUsesPerEmail,
+		IsActive:        true,
+		ExpiresAt:       req.ExpiresAt,
+		CreatedBy:       adminEmail,
+	}
+	if req.TargetPlanSlug != "" {
+		slug := req.TargetPlanSlug
+		coupon.TargetPlanSlug = &slug
+	}
+	if coupon.MaxUsesPerEmail < 1 {
+		coupon.MaxUsesPerEmail = 1
+	}
+	// Apply defaults for optional fields not provided by the caller.
+	if coupon.DiscountType == "" {
+		coupon.DiscountType = models.CouponDiscountTrial
+	}
+	if coupon.Scope == "" {
+		coupon.Scope = models.CouponScopeGeneral
 	}
 
 	if err := u.couponRepo.Create(ctx, coupon); err != nil {
@@ -134,6 +157,9 @@ func (u *couponUsecase) Validate(ctx context.Context, code string) (*dto.Validat
 		Valid:        true,
 		Description:  coupon.Description,
 		CouponType:   string(coupon.CouponType),
+		DiscountType: string(coupon.DiscountType),
+		DiscountValue: coupon.DiscountValue,
+		Scope:        string(coupon.Scope),
 		DurationDays: coupon.DurationDays,
 	}, nil
 }
@@ -168,15 +194,75 @@ func (u *couponUsecase) ValidateForEmail(ctx context.Context, code, email string
 	}
 
 	return &dto.ValidateCouponResponse{
-		Valid:        true,
-		Description:  coupon.Description,
-		CouponType:   string(coupon.CouponType),
-		DurationDays: coupon.DurationDays,
+		Valid:          true,
+		Description:    coupon.Description,
+		CouponType:     string(coupon.CouponType),
+		DiscountType:   string(coupon.DiscountType),
+		DiscountValue:  coupon.DiscountValue,
+		Scope:          string(coupon.Scope),
+		TargetPlanSlug: targetPlanSlug(coupon),
+		DurationDays:   coupon.DurationDays,
 	}, nil
 }
 
 // RedeemForTenant validates the coupon under a DB lock and creates a TenantSubscription.
-// email is recorded in coupon_usages to enforce one-redemption-per-email.
+
+func (u *couponUsecase) ValidateForPlan(ctx context.Context, code, email, planSlug string) (*dto.ValidateCouponResponse, error) {
+	resp, err := u.ValidateForEmail(ctx, code, email)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Valid {
+		return resp, nil
+	}
+	// Tier-specific coupons must match the requested plan.
+	if resp.Scope == string(models.CouponScopeTierSpecific) && resp.TargetPlanSlug != "" {
+		if planSlug != resp.TargetPlanSlug {
+			return &dto.ValidateCouponResponse{Valid: false, Reason: "plan_mismatch"}, nil
+		}
+	}
+	return resp, nil
+}
+
+// ApplyDiscount computes the discounted invoice amount for a percent/amount coupon.
+// Trial-type coupons set the amount to zero (they bypass the payment flow entirely).
+func (u *couponUsecase) ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64) (int64, error) {
+	if code == "" {
+		return baseAmount, nil
+	}
+	coupon, err := u.couponRepo.FindByCode(ctx, code)
+	if err != nil {
+		return baseAmount, nil // Best-effort: return original if coupon not found
+	}
+	if !coupon.IsUsable() {
+		return baseAmount, nil
+	}
+	if coupon.Scope == models.CouponScopeTierSpecific && coupon.TargetPlanSlug != nil {
+		if planSlug != *coupon.TargetPlanSlug {
+			return baseAmount, nil
+		}
+	}
+	switch coupon.DiscountType {
+	case models.CouponDiscountTrial:
+		return 0, nil
+	case models.CouponDiscountPercent:
+		if coupon.DiscountValue <= 0 {
+			return baseAmount, nil
+		}
+		discount := int64(float64(baseAmount) * coupon.DiscountValue / 100)
+		if final := baseAmount - discount; final >= 0 {
+			return final, nil
+		}
+		return 0, nil
+	case models.CouponDiscountAmount:
+		if final := baseAmount - int64(coupon.DiscountValue); final >= 0 {
+			return final, nil
+		}
+		return 0, nil
+	}
+	return baseAmount, nil
+}
+
 func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error) {
 	var sub *models.TenantSubscription
 
@@ -233,9 +319,15 @@ func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenant
 		expiresAt := now.Add(time.Duration(coupon.DurationDays) * 24 * time.Hour)
 		couponID := coupon.ID
 
+		// Determine the plan the coupon grants based on CouponType or TargetPlanSlug.
+		plan := couponTypeToPlan(coupon.CouponType)
+		if coupon.TargetPlanSlug != nil && *coupon.TargetPlanSlug != "" {
+			plan = models.SubscriptionPlan(*coupon.TargetPlanSlug)
+		}
+
 		sub = &models.TenantSubscription{
 			TenantID:      tenantID,
-			Plan:          models.PlanFullAccess,
+			Plan:          plan,
 			BillingPeriod: models.BillingMonthly,
 			Status:        models.SubscriptionTrial,
 			StartsAt:      now,
@@ -254,19 +346,51 @@ func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenant
 
 // toCouponDTO converts a model to the safe response DTO.
 func toCouponDTO(c *models.Coupon) *dto.CouponResponse {
-	return &dto.CouponResponse{
-		ID:           c.ID,
-		Code:         c.Code,
-		Description:  c.Description,
-		CouponType:   string(c.CouponType),
-		DurationDays: c.DurationDays,
-		MaxUses:      c.MaxUses,
-		UsedCount:    c.UsedCount,
-		IsActive:     c.IsActive,
-		ExpiresAt:    c.ExpiresAt,
-		CreatedBy:    c.CreatedBy,
-		CreatedAt:    c.CreatedAt,
-		UpdatedAt:    c.UpdatedAt,
+	r := &dto.CouponResponse{
+		ID:              c.ID,
+		Code:            c.Code,
+		Description:     c.Description,
+		CouponType:      string(c.CouponType),
+		DiscountType:    string(c.DiscountType),
+		DiscountValue:   c.DiscountValue,
+		Scope:           string(c.Scope),
+		DurationDays:    c.DurationDays,
+		MaxUses:         c.MaxUses,
+		UsedCount:       c.UsedCount,
+		MaxUsesPerEmail: c.MaxUsesPerEmail,
+		IsActive:        c.IsActive,
+		ExpiresAt:       c.ExpiresAt,
+		CreatedBy:       c.CreatedBy,
+		CreatedAt:       c.CreatedAt,
+		UpdatedAt:       c.UpdatedAt,
+	}
+	if c.TargetPlanSlug != nil {
+		r.TargetPlanSlug = *c.TargetPlanSlug
+	}
+	return r
+}
+
+// targetPlanSlug returns the target plan slug string from a coupon (empty when nil).
+func targetPlanSlug(c *models.Coupon) string {
+	if c.TargetPlanSlug != nil {
+		return *c.TargetPlanSlug
+	}
+	return ""
+}
+
+// couponTypeToPlan maps a CouponType to the closest SubscriptionPlan.
+func couponTypeToPlan(ct models.CouponType) models.SubscriptionPlan {
+	switch ct {
+	case models.CouponTypePOSOnly:
+		return models.PlanPOSGrowth
+	case models.CouponTypeERPOnly:
+		return models.PlanERPCore
+	case models.CouponTypeCRMOnly:
+		return models.PlanCRMGrowth
+	case models.CouponTypeHROnly:
+		return models.PlanHRGrowth
+	default:
+		return models.PlanFullAccess
 	}
 }
 
