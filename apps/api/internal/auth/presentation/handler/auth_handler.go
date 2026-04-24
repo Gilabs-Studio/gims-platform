@@ -1,6 +1,7 @@
 package handler
 
 import (
+	goerrors "errors"
 	"net/http"
 	"strings"
 
@@ -51,6 +52,26 @@ func (h *AuthHandler) ValidateCoupon(c *gin.Context) {
 		result, err = h.couponUC.Validate(c.Request.Context(), code)
 	}
 
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+// CheckAvailability checks if email and company name are available for registration.
+// GET /api/v1/auth/check-availability?email=...&company_name=...
+func (h *AuthHandler) CheckAvailability(c *gin.Context) {
+	email := strings.TrimSpace(c.Query("email"))
+	companyName := strings.TrimSpace(c.Query("company_name"))
+
+	if email == "" && companyName == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"query": "either email or company_name is required"}, nil)
+		return
+	}
+
+	result, err := h.authUC.CheckAvailability(c.Request.Context(), email, companyName)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
@@ -141,9 +162,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "", // Removed for security
@@ -221,9 +242,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
@@ -349,6 +370,11 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				"field":   "coupon",
 				"message": "This coupon has already been used with your email address",
 			}, nil)
+		case usecase.ErrCouponUserLimitExceeded:
+			errors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]interface{}{
+				"field":   "user_count",
+				"message": "Selected user count exceeds coupon limit",
+			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}
@@ -395,9 +421,9 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions: loginResponse.User.Permissions,
-			TenantID:    loginResponse.User.TenantID,
-			TenantName:  loginResponse.User.TenantName,
+			Permissions:      loginResponse.User.Permissions,
+			TenantID:         loginResponse.User.TenantID,
+			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
 		},
 		AccessToken:  "",
@@ -423,13 +449,15 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 
 	loginResponse, err := h.authUC.ConfirmPendingRegistration(c.Request.Context(), req.Token)
 	if err != nil {
-		switch err {
-		case usecase.ErrPendingRegistrationNotFound:
+		switch {
+		case goerrors.Is(err, usecase.ErrPendingRegistrationNotFound):
 			errors.ErrorResponse(c, "PENDING_REGISTRATION_NOT_FOUND", nil, nil)
-		case usecase.ErrPendingRegistrationDataInvalid:
+		case goerrors.Is(err, usecase.ErrPendingRegistrationDataInvalid):
 			errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
-		case usecase.ErrEmailAlreadyTaken:
+		case goerrors.Is(err, usecase.ErrEmailAlreadyTaken):
 			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", nil, nil)
+		case goerrors.Is(err, usecase.ErrSlugAlreadyTaken):
+			errors.ErrorResponse(c, "SLUG_ALREADY_TAKEN", nil, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}
@@ -528,7 +556,13 @@ func (h *AuthHandler) ComputePrice(c *gin.Context) {
 	}
 
 	if couponCode := strings.TrimSpace(req.CouponCode); couponCode != "" {
-		discounted, applyErr := h.couponUC.ApplyDiscount(ctx, couponCode, req.PlanSlug, baseAmount)
+		discounted, applyErr := h.couponUC.ApplyDiscount(ctx, couponCode, req.PlanSlug, baseAmount, req.UserCount, req.BillingPeriod)
+		if goerrors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+				"user_count": "selected user count exceeds coupon limit",
+			}, nil)
+			return
+		}
 		if applyErr == nil {
 			resp.FinalAmountIDR = discounted
 			resp.DiscountIDR = baseAmount - discounted

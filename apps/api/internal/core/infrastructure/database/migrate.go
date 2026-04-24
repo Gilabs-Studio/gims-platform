@@ -81,6 +81,7 @@ func AutoMigrate() error {
 		&tenant.PlanModuleEntitlement{},
 		&tenant.PlanPermissionEntitlement{},
 		&tenant.TenantSubscription{},
+		&tenant.PaymentTransaction{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},

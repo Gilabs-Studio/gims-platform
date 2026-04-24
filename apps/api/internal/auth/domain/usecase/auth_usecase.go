@@ -22,8 +22,10 @@ import (
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	planRepo "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
+	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
@@ -43,8 +45,13 @@ var (
 	ErrPaymentGatewayUnavailable      = errors.New("payment gateway is not configured")
 	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
 	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
+	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
 	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
+	ErrPendingBillingChangeNotFound   = errors.New("pending billing change not found or expired")
+	ErrPendingBillingChangeInvalid    = errors.New("pending billing change data is invalid")
+	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
+	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -52,6 +59,14 @@ const pendingRegTTL = 24 * time.Hour
 
 // pendingRegKeyPrefix is the Redis key prefix for pending registrations.
 const pendingRegKeyPrefix = "pending_reg:"
+
+// pendingRegDoneKeyPrefix stores short-lived completion metadata so frontend
+// confirm can still establish a login session when webhook already finalized
+// and removed the pending registration payload.
+const pendingRegDoneKeyPrefix = "pending_reg_done:"
+
+// pendingBillingChangeKeyPrefix is the Redis key prefix for subscription change requests.
+const pendingBillingChangeKeyPrefix = "pending_billing_change:"
 
 const masterDataMenuPrefix = "/master-data"
 
@@ -86,6 +101,8 @@ type AuthUsecase interface {
 	// RegisterTenant creates a new tenant and provisions an admin account for self-service sign-up.
 	// When using a paid plan, it creates a Xendit invoice instead of immediate provisioning.
 	RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error)
+	// CheckAvailability checks if email and company name (slug) are available for registration.
+	CheckAvailability(ctx context.Context, email, companyName string) (map[string]bool, error)
 	// CompletePendingRegistration is called by the Xendit webhook after successful payment.
 	// token is the UUID stored in the Xendit external_id / Redis key.
 	CompletePendingRegistration(ctx context.Context, token string) error
@@ -95,6 +112,11 @@ type AuthUsecase interface {
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
 	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
+	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
+	// stores the pending mutation until the payment webhook confirms it.
+	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
+	// CompletePendingBillingChange finalizes a paid billing change after the webhook.
+	CompletePendingBillingChange(ctx context.Context, token string) error
 }
 
 type authUsecase struct {
@@ -507,6 +529,36 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 	})
 }
 
+func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName string) (map[string]bool, error) {
+	result := map[string]bool{
+		"email":        true,
+		"company_name": true,
+	}
+
+	if email != "" {
+		var count int64
+		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			result["email"] = false
+		}
+	}
+
+	if companyName != "" {
+		slug := slugify(companyName)
+		var count int64
+		if err := u.db.WithContext(ctx).Table("tenants").Where("slug = ?", slug).Count(&count).Error; err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			result["company_name"] = false
+		}
+	}
+
+	return result, nil
+}
+
 // RegisterTenant provisions a brand-new tenant and an enterprise-level admin account
 // in a single atomic transaction, then immediately returns a valid JWT so the caller
 // can start using the platform without a separate login step.
@@ -517,6 +569,9 @@ func (u *authUsecase) Logout(ctx context.Context, refreshToken string) error {
 func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
 	couponCode := strings.TrimSpace(req.Coupon)
 	plan := strings.TrimSpace(req.Plan)
+	if req.UserCount < 1 {
+		req.UserCount = 1
+	}
 
 	// ── Gate: require either coupon or plan ─────────────────────────────────
 	if couponCode == "" && plan == "" {
@@ -524,6 +579,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 	}
 
 	// ── Coupon path: validate first for fast feedback ────────────────────────
+	couponIsTrial := false
 	if couponCode != "" {
 		validity, err := u.couponUC.ValidateForEmail(ctx, couponCode, req.Email)
 		if err != nil {
@@ -537,20 +593,30 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		}
 		if strings.TrimSpace(req.Plan) == "" && strings.TrimSpace(validity.TargetPlanSlug) != "" {
 			req.Plan = validity.TargetPlanSlug
+			plan = validity.TargetPlanSlug
 		}
+		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+			return nil, ErrCouponUserLimitExceeded
+		}
+		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
 	}
 
-	// ── Paid plan path: create Xendit invoice + store pending registration ───
-	if couponCode == "" && plan != "" {
+	// ── Trial coupon path: provision tenant immediately ───────────────────────
+	if couponCode != "" && couponIsTrial {
+		loginResp, err := u.provisionTenantWithCoupon(ctx, req, couponCode)
+		if err != nil {
+			return nil, err
+		}
+		return &RegisterTenantResult{LoginResponse: loginResp}, nil
+	}
+
+	// ── Paid path (with or without discount coupon): create invoice ───────────
+	plan = strings.TrimSpace(req.Plan)
+	if plan != "" {
 		return u.initPaidRegistration(ctx, req)
 	}
 
-	// ── Coupon path: provision tenant immediately ────────────────────────────
-	loginResp, err := u.provisionTenantWithCoupon(ctx, req, couponCode)
-	if err != nil {
-		return nil, err
-	}
-	return &RegisterTenantResult{LoginResponse: loginResp}, nil
+	return nil, ErrPaymentRequired
 }
 
 // initPaidRegistration creates a Xendit invoice for the selected plan, stores the
@@ -594,7 +660,10 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	couponCode := strings.TrimSpace(req.Coupon)
 	finalAmount := baseAmount
 	if couponCode != "" {
-		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount)
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount, userCount, billingPeriod)
+		if errors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			return nil, ErrCouponUserLimitExceeded
+		}
 		if applyErr == nil {
 			finalAmount = discounted
 		}
@@ -708,6 +777,14 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	key := pendingRegKeyPrefix + token
 	val, err := u.redis.Get(ctx, key).Result()
 	if err != nil {
+		doneKey := pendingRegDoneKeyPrefix + token
+		doneEmail, doneErr := u.redis.Get(ctx, doneKey).Result()
+		if doneErr == nil && strings.TrimSpace(doneEmail) != "" {
+			recoveredResp, recoverErr := u.buildLoginRespForExistingUser(ctx, doneEmail)
+			if recoverErr == nil {
+				return recoveredResp, nil
+			}
+		}
 		return nil, ErrPendingRegistrationNotFound
 	}
 
@@ -729,7 +806,25 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 
 	loginResp, err := u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
 	if err != nil {
-		return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+		// When the tenant was already provisioned (e.g. a previous retry succeeded but
+		// failed before Redis key deletion), recover by authenticating the existing user
+		// instead of failing the whole confirm flow.
+		if errors.Is(err, ErrEmailAlreadyTaken) || errors.Is(err, ErrSlugAlreadyTaken) {
+			recoveredResp, recoverErr := u.buildLoginRespForExistingUser(ctx, pending.Email)
+			if recoverErr == nil {
+				loginResp = recoveredResp
+			} else {
+				// If recovery cannot find an existing user, return the original provisioning
+				// conflict (email/slug already taken). This avoids masking the real cause
+				// behind a misleading ErrUserNotFound.
+				if errors.Is(recoverErr, ErrUserNotFound) {
+					return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+				}
+				return nil, fmt.Errorf("tenant provisioning after payment failed: %w", recoverErr)
+			}
+		} else {
+			return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+		}
 	}
 
 	// Create the TenantSubscription record to track the paid plan and Xendit invoice.
@@ -745,14 +840,49 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	if userCount < 1 {
 		userCount = 1
 	}
+	var couponID *string
+	if pending.CouponCode != "" {
+		var coupon tenantModels.Coupon
+		if err := u.db.WithContext(ctx).
+			Where("code = ? AND deleted_at IS NULL", strings.ToUpper(strings.TrimSpace(pending.CouponCode))).
+			First(&coupon).Error; err == nil {
+			couponID = &coupon.ID
+
+			normalizedEmail := strings.ToLower(strings.TrimSpace(pending.Email))
+			var usageCount int64
+			_ = u.db.WithContext(ctx).
+				Table("coupon_usages").
+				Where("coupon_id = ? AND email = ?", coupon.ID, normalizedEmail).
+				Count(&usageCount).Error
+
+			if usageCount == 0 {
+				_ = u.db.WithContext(ctx).Exec(
+					`INSERT INTO coupon_usages (id, coupon_id, email, used_at, created_at, updated_at)
+					 VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)`,
+					coupon.ID,
+					normalizedEmail,
+					now,
+					now,
+					now,
+				).Error
+
+				_ = u.db.WithContext(ctx).
+					Model(&tenantModels.Coupon{}).
+					Where("id = ?", coupon.ID).
+					UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error
+			}
+		}
+	}
 	sub := &tenantModels.TenantSubscription{
 		TenantID:        tenantID,
 		Plan:            tenantModels.SubscriptionPlan(pending.Plan),
 		BillingPeriod:   tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
 		Status:          tenantModels.SubscriptionActive,
 		StartsAt:        now,
+		ExpiresAt:       &nextBilling,
 		AmountPaidIDR:   pending.AmountPaid,
 		UserCount:       userCount,
+		CouponID:        couponID,
 		XenditInvoiceID: &xenditInvoiceID,
 		NextBillingAt:   &nextBilling,
 		Notes:           fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
@@ -764,12 +894,133 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		return nil, fmt.Errorf("failed to persist subscription record: %w", err)
 	}
 
+	// Backfill tenants.plan and tenants.max_users to match the purchased subscription,
+	// correcting the provisional 'trial' / default values set during provisioning.
+	_ = u.db.WithContext(ctx).
+		Table("tenants").
+		Where("id = ?", tenantID).
+		Updates(map[string]interface{}{
+			"plan":      pending.Plan,
+			"max_users": userCount,
+		}).Error
+
+	// Store payment transaction so Billing > Payment History has real rows.
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          tenantID,
+		Provider:          tenantModels.PaymentProviderXendit,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         pending.AmountPaid,
+		ProviderInvoiceID: pending.InvoiceID,
+		Description:       fmt.Sprintf("Subscription payment for %s (%s)", pending.Plan, pending.BillingPeriod),
+		PaidAt:            &now,
+		InvoiceURL:        "",
+		Metadata:          "{}",
+	}
+	if sub.ID != "" {
+		paymentTxn.SubscriptionID = sub.ID
+	}
+	paymentTxnQuery := u.db.WithContext(ctx).
+		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, pending.InvoiceID)
+
+	// subscription_id is nullable in DB, but sending an empty string to a UUID
+	// column causes SQLSTATE 22P02. Omit the field until a valid UUID exists.
+	if sub.ID == "" {
+		paymentTxnQuery = paymentTxnQuery.Omit("SubscriptionID")
+	}
+
+	if err := paymentTxnQuery.FirstOrCreate(paymentTxn).Error; err != nil {
+		return nil, fmt.Errorf("failed to persist payment transaction: %w", err)
+	}
+
+	doneKey := pendingRegDoneKeyPrefix + token
+	if err := u.redis.Set(ctx, doneKey, strings.ToLower(strings.TrimSpace(pending.Email)), pendingRegTTL).Err(); err != nil {
+		return nil, fmt.Errorf("failed to persist completed registration marker: %w", err)
+	}
+
 	// Remove the pending registration key to prevent double-provisioning.
 	if err := u.redis.Del(ctx, key).Err(); err != nil {
 		return nil, fmt.Errorf("failed to finalize pending registration: %w", err)
 	}
 
 	return loginResp, nil
+}
+
+// buildLoginRespForExistingUser looks up a user by email and generates fresh auth tokens.
+// Used as the idempotency recovery path in completePendingRegistrationInternal when the
+// tenant was already provisioned (e.g. a prior retry succeeded but died before Redis cleanup).
+func (u *authUsecase) buildLoginRespForExistingUser(ctx context.Context, email string) (*dto.LoginResponse, error) {
+	var resp *dto.LoginResponse
+
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		var user userModels.User
+		normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+		if err := tx.Preload("Role.Permissions").
+			Where("LOWER(email) = ? AND deleted_at IS NULL", normalizedEmail).
+			First(&user).Error; err != nil {
+			return ErrUserNotFound
+		}
+
+		roleCode := ""
+		roleName := ""
+		permissions := make(map[string]string)
+		if user.Role != nil {
+			roleCode = user.Role.Code
+			roleName = user.Role.Name
+			if user.Role.Permissions != nil {
+				for _, p := range user.Role.Permissions {
+					permissions[p.Code] = "ALL"
+				}
+			}
+		}
+
+		var tenantName string
+		_ = tx.Table("tenants").Select("name").Where("id = ?", user.TenantID).Row().Scan(&tenantName)
+
+		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
+		if err != nil {
+			return err
+		}
+		refreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID)
+		if err != nil {
+			return err
+		}
+		tokenID, err := u.jwtManager.ExtractRefreshTokenID(refreshToken)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`
+			INSERT INTO refresh_tokens (id, user_id, token_id, expires_at, revoked, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, ?, ?, false, NOW(), NOW())`,
+			user.ID, tokenID, apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
+		).Error; err != nil {
+			return err
+		}
+
+		resp = &dto.LoginResponse{
+			User: &dto.UserResponse{
+				ID:               user.ID,
+				Email:            user.Email,
+				Name:             user.Name,
+				AvatarURL:        user.AvatarURL,
+				Role:             roleCode,
+				RoleName:         roleName,
+				RoleDataScope:    "ALL",
+				IsOwner:          true,
+				Permissions:      permissions,
+				Status:           user.Status,
+				TenantID:         user.TenantID,
+				TenantName:       tenantName,
+				SubscriptionPlan: activePlanForTenant(tx, user.TenantID),
+			},
+			Token:        accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int(u.jwtManager.AccessTokenTTL().Seconds()),
+		}
+		return nil
+	})
+
+	return resp, err
 }
 
 func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantModels.TenantSubscription) error {
@@ -817,6 +1068,7 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		Where("id = ?", sub.ID).
 		Updates(map[string]interface{}{
 			"next_billing_at": nextBilling,
+			"expires_at":      nextBilling,
 			"status":          tenantModels.SubscriptionActive,
 		}).Error
 }
@@ -853,7 +1105,8 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 	err := u.db.Transaction(func(tx *gorm.DB) error {
 		// Guard: reject if email is already registered
 		var existingCount int64
-		if err := tx.Table("users").Where("email = ? AND deleted_at IS NULL", req.Email).Count(&existingCount).Error; err != nil {
+		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+		if err := tx.Table("users").Where("LOWER(email) = ?", normalizedEmail).Count(&existingCount).Error; err != nil {
 			return err
 		}
 		if existingCount > 0 {
@@ -865,24 +1118,57 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			companyName = req.Name
 		}
 
-		slug := slugify(companyName)
+		baseSlug := slugify(companyName)
+		slug := baseSlug
 
-		var slugCount int64
-		if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
-			return err
-		}
-		if slugCount > 0 {
-			slug = slug + "-" + shortID()
+		// Ensure slug uniqueness by appending a suffix if collision detected
+		for attempt := 0; attempt < 10; attempt++ {
+			var slugCount int64
+			if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
+				return err
+			}
+			if slugCount == 0 {
+				break // Slug is unique
+			}
+			// Append suffix (-1, -2, etc.) for uniqueness
+			slug = fmt.Sprintf("%s-%d", baseSlug, attempt+1)
 		}
 
 		tenantID := newUUID()
 		userID := newUUID()
 
+		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
+
+		planSlug := strings.TrimSpace(strings.ToLower(req.Plan))
+		if planSlug == "" {
+			planSlug = "full_access"
+		}
+
+		// Resolve plan config to get MaxUsers (don't hardcode to 5)
+		planConfig, err := u.planRepo.FindBySlug(ctx, planSlug)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPaymentRequired
+			}
+			return err
+		}
+
+		maxUsers := req.UserCount
+		if maxUsers < planConfig.MinUsers {
+			maxUsers = planConfig.MinUsers
+		}
+		if maxUsers > planConfig.MaxUsers {
+			maxUsers = planConfig.MaxUsers
+		}
+
 		if err := tx.Exec(`
 			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', 'trial', 999, NOW(), NOW())`,
-			tenantID, companyName, slug, userID,
+			VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
+			tenantID, companyName, slug, userID, planSlug, maxUsers,
 		).Error; err != nil {
+			if isUniqueViolationForSlug(err) {
+				return ErrSlugAlreadyTaken
+			}
 			return err
 		}
 
@@ -903,13 +1189,6 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			_ = err
 		}
 
-		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
-
-		planSlug := strings.TrimSpace(strings.ToLower(req.Plan))
-		if planSlug == "" {
-			planSlug = "full_access"
-		}
-
 		roleID, roleCode, roleName, permissions, err := u.createTenantOwnerRole(tx, tenantID, companyName, planSlug)
 		if err != nil {
 			return err
@@ -925,6 +1204,9 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
 			userID, tenantID, req.Email, hashedPwd, req.Name, avatarURL, roleID,
 		).Error; err != nil {
+			if isUniqueViolationForEmail(err) {
+				return ErrEmailAlreadyTaken
+			}
 			return err
 		}
 		roleDataScope := "ALL"
@@ -989,6 +1271,30 @@ type rolePermissionAssignment struct {
 	MenuModule   string
 }
 
+func ensureUniqueRoleName(tx *gorm.DB, baseName string) (string, error) {
+	name := strings.TrimSpace(baseName)
+	if name == "" {
+		name = "Tenant Role"
+	}
+
+	for i := 0; i < 10; i++ {
+		candidate := name
+		if i > 0 {
+			candidate = fmt.Sprintf("%s (%s)", name, shortID())
+		}
+
+		var count int64
+		if err := tx.Table("roles").Where("name = ? AND deleted_at IS NULL", candidate).Count(&count).Error; err != nil {
+			return "", err
+		}
+		if count == 0 {
+			return candidate, nil
+		}
+	}
+
+	return fmt.Sprintf("%s (%s)", name, newUUID()[:8]), nil
+}
+
 func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string) (string, string, string, map[string]string, error) {
 	roleID := newUUID()
 	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
@@ -998,11 +1304,16 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		roleName = "Tenant Owner"
 	}
 
+	uniqueRoleName, err := ensureUniqueRoleName(tx, roleName)
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
 	if err := tx.Exec(`
 		INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
 		VALUES (?, ?, ?, ?, 'active', true, 'ALL', ?, NOW(), NOW())`,
 		roleID,
-		roleName,
+		uniqueRoleName,
 		roleCode,
 		fmt.Sprintf("Auto-generated owner role for tenant %s (%s)", tenantID, planSlug),
 		tenantID,
@@ -1036,7 +1347,7 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		return "", "", "", nil, err
 	}
 
-	return roleID, roleCode, roleName, permissions, nil
+	return roleID, roleCode, uniqueRoleName, permissions, nil
 }
 
 func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string) error {
@@ -1091,12 +1402,16 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		codeSuffix := shortID()
 		newCode := fmt.Sprintf("%s_%s_%s", tCode, sanitizeSlug(companyName), codeSuffix)
 		newName := fmt.Sprintf("%s - %s", tmplRole.Name, companyName)
+		uniqueRoleName, err := ensureUniqueRoleName(tx, newName)
+		if err != nil {
+			return err
+		}
 
 		if err := tx.Exec(`
 			INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
 			VALUES (?, ?, ?, ?, 'active', false, 'ALL', ?, NOW(), NOW())`,
 			newRoleID,
-			newName,
+			uniqueRoleName,
 			newCode,
 			fmt.Sprintf("Auto-generated %s role for %s", tmplRole.Name, companyName),
 			tenantID,
@@ -1561,6 +1876,28 @@ func newUUID() string {
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+func isUniqueViolationForEmail(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+	return strings.Contains(msg, "email") || strings.Contains(msg, "users")
+}
+
+func isUniqueViolationForSlug(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+	return strings.Contains(msg, "slug") || strings.Contains(msg, "tenants")
 }
 
 // shortID returns a 6-character hex string for slug disambiguation.

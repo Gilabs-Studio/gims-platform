@@ -12,6 +12,7 @@ import { AvatarUpload } from "./avatar-upload";
 import { PreferencesForm } from "./preferences-form";
 import { PaymentSettings } from "./payment-settings";
 import { BillingTab } from "./billing-tab";
+import { PaymentHistory } from "./payment-history";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 
@@ -198,6 +199,14 @@ export function ProfileView() {
                 Billing
               </TabsTrigger>
             )}
+            {canManageBilling && (
+              <TabsTrigger
+                value="payment-history"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+              >
+                {t("paymentHistory.title")}
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -244,6 +253,14 @@ export function ProfileView() {
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
                   >
                     Billing
+                  </TabsTrigger>
+                )}
+                {canManageBilling && (
+                  <TabsTrigger
+                    value="payment-history"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                  >
+                    {t("paymentHistory.title")}
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -311,6 +328,11 @@ export function ProfileView() {
             {canManageBilling && (
               <TabsContent value="billing" className="mt-0 animate-in fade-in-50 duration-500">
                 <BillingTab />
+              </TabsContent>
+            )}
+            {canManageBilling && (
+              <TabsContent value="payment-history" className="mt-0 animate-in fade-in-50 duration-500">
+                <PaymentHistory />
               </TabsContent>
             )}
           </div>

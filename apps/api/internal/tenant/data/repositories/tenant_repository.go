@@ -27,6 +27,7 @@ type TenantRepository interface {
 	FindPaginated(ctx context.Context, search string, page, perPage int) ([]models.Tenant, int64, error)
 	FindPaginatedWithCounts(ctx context.Context, search string, page, perPage int) ([]TenantWithCounts, int64, error)
 	FindByIDWithCounts(ctx context.Context, id string) (*TenantWithCounts, error)
+	CountActiveUsers(ctx context.Context, tenantID string) (int64, error)
 	Create(ctx context.Context, tenant *models.Tenant) error
 	Update(ctx context.Context, tenant *models.Tenant) error
 }
@@ -46,13 +47,15 @@ func (r *tenantRepository) getDB(ctx context.Context) *gorm.DB {
 
 func (r *tenantRepository) FindByID(ctx context.Context, id string) (*models.Tenant, error) {
 	var tenant models.Tenant
-	err := r.getDB(ctx).Where("id = ?", id).First(&tenant).Error
+	// tenants is a platform-level table (no tenant_id column), so use global DB.
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&tenant).Error
 	return &tenant, err
 }
 
 func (r *tenantRepository) FindBySlug(ctx context.Context, slug string) (*models.Tenant, error) {
 	var tenant models.Tenant
-	err := r.getDB(ctx).Where("slug = ?", slug).First(&tenant).Error
+	// tenants is a platform-level table (no tenant_id column), so use global DB.
+	err := r.db.WithContext(ctx).Where("slug = ?", slug).First(&tenant).Error
 	return &tenant, err
 }
 
@@ -101,6 +104,15 @@ func (r *tenantRepository) FindByIDWithCounts(ctx context.Context, id string) (*
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &rows[0], nil
+}
+
+func (r *tenantRepository) CountActiveUsers(ctx context.Context, tenantID string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Table("users").
+		Where("tenant_id = ? AND status = ? AND deleted_at IS NULL", tenantID, "active").
+		Count(&count).Error
+	return count, err
 }
 
 func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search string, page, perPage int) ([]TenantWithCounts, int64, error) {

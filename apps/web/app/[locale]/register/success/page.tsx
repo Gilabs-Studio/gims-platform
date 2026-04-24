@@ -34,6 +34,8 @@ export default function RegisterSuccessPage() {
   const [status, setStatus] = useState<"loading" | "success" | "failed">(
     isTokenValid ? "loading" : "failed",
   );
+  const maxConfirmAttempts = 8;
+  const baseRetryDelayMs = 1200;
 
   const triggerConfetti = useCallback(() => {
     const fire = confettiRef.current?.fire;
@@ -78,12 +80,13 @@ export default function RegisterSuccessPage() {
     }
 
     let isCancelled = false;
-    let redirectTimer: number | undefined;
+    let retryTimer: number | undefined;
 
-    const confirmAndLogin = async () => {
+    const confirmAndLogin = async (attempt: number) => {
       try {
         const csrfToken = await authService.prefetchCSRFToken();
         const response = await authService.confirmPaidRegistration(token, csrfToken);
+
         if (!response.success || !response.data?.user) {
           throw new Error("confirmation failed");
         }
@@ -95,19 +98,57 @@ export default function RegisterSuccessPage() {
         setUser(response.data.user);
         setSessionVerified(true);
         setStatus("success");
-      } catch {
+      } catch (error) {
+        const maybeAxios = error as {
+          response?: {
+            status?: number;
+            data?: {
+              error?: {
+                code?: string;
+                message?: string;
+              };
+            };
+          };
+          message?: string;
+        };
+
+        const statusCode = maybeAxios?.response?.status;
+        const errorCode = maybeAxios?.response?.data?.error?.code;
+
+        // Only retry transient failures. Business conflicts/validation errors
+        // (4xx, including SLUG_ALREADY_TAKEN/EMAIL_ALREADY_TAKEN) should fail fast.
+        const isRetryable =
+          typeof statusCode !== "number" || statusCode >= 500 || statusCode === 429;
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (isRetryable && attempt < maxConfirmAttempts) {
+          const delay = baseRetryDelayMs * attempt;
+          retryTimer = window.setTimeout(() => {
+            void confirmAndLogin(attempt + 1);
+          }, delay);
+          return;
+        }
+
+        if (!isRetryable) {
+          setStatus("failed");
+          return;
+        }
+
         if (!isCancelled) {
           setStatus("failed");
         }
       }
     };
 
-    void confirmAndLogin();
+    void confirmAndLogin(1);
 
     return () => {
       isCancelled = true;
-      if (redirectTimer) {
-        window.clearTimeout(redirectTimer);
+      if (retryTimer) {
+        window.clearTimeout(retryTimer);
       }
     };
   }, [isTokenValid, router, setSessionVerified, setUser, token]);
@@ -143,7 +184,7 @@ export default function RegisterSuccessPage() {
             spread: 90,
             origin: { y: 0.6 },
           }}
-          className="fixed inset-0 z-[5] h-full w-full pointer-events-none"
+          className="fixed inset-0 z-5 h-full w-full pointer-events-none"
         />
       )}
       <motion.div
