@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/response"
 	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -16,9 +17,12 @@ import (
 
 // BillingHandler exposes subscription and entitlement information to authenticated tenant users.
 type BillingHandler struct {
-	subUC    tenantUsecase.SubscriptionUsecase
-	planRepo tenantRepos.SubscriptionPlanRepository
+	subUC             tenantUsecase.SubscriptionUsecase
+	paymentTxnUC      tenantUsecase.PaymentTransactionUsecase
+	planRepo          tenantRepos.SubscriptionPlanRepository
 }
+
+const missingTenantContextMessage = "missing tenant context"
 
 type planPermissionEntitlementRow struct {
 	PermissionCode string
@@ -26,8 +30,8 @@ type planPermissionEntitlementRow struct {
 }
 
 // NewBillingHandler creates a BillingHandler.
-func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, planRepo tenantRepos.SubscriptionPlanRepository) *BillingHandler {
-	return &BillingHandler{subUC: subUC, planRepo: planRepo}
+func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, paymentTxnUC tenantUsecase.PaymentTransactionUsecase, planRepo tenantRepos.SubscriptionPlanRepository) *BillingHandler {
+	return &BillingHandler{subUC: subUC, paymentTxnUC: paymentTxnUC, planRepo: planRepo}
 }
 
 // GetMySubscription returns the active subscription for the calling tenant.
@@ -36,7 +40,7 @@ func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, planRepo tenantR
 func (h *BillingHandler) GetMySubscription(c *gin.Context) {
 	tenantID, ok := c.Get("tenant_id")
 	if !ok || tenantID == "" {
-		coreErrors.UnauthorizedResponse(c, "missing tenant context")
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
 		return
 	}
 
@@ -59,7 +63,7 @@ func (h *BillingHandler) GetMySubscription(c *gin.Context) {
 func (h *BillingHandler) GetMyEntitlements(c *gin.Context) {
 	tenantID, ok := c.Get("tenant_id")
 	if !ok || tenantID == "" {
-		coreErrors.UnauthorizedResponse(c, "missing tenant context")
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
 		return
 	}
 	tenantIDStr := tenantID.(string)
@@ -177,4 +181,32 @@ func normalizePlanSlugKey(planSlug string) string {
 	normalized = strings.ReplaceAll(normalized, "-", "_")
 	normalized = strings.ReplaceAll(normalized, " ", "_")
 	return normalized
+}
+
+// GetMyPaymentHistory returns the payment history for the calling tenant.
+//
+// GET /api/v1/billing/payment-history
+func (h *BillingHandler) GetMyPaymentHistory(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+
+	var params tenantDTO.PaymentHistoryListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	payments, pagination, err := h.paymentTxnUC.ListByTenant(c.Request.Context(), tenantID.(string), params)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, "failed to load payment history")
+		return
+	}
+
+	meta := &response.Meta{Pagination: pagination}
+	response.SuccessResponse(c, gin.H{
+		"data": payments,
+	}, meta)
 }

@@ -77,9 +77,14 @@ func (u *subscriptionUsecase) resolveTenantName(ctx context.Context, tenantID st
 	if tenantID == "" {
 		return ""
 	}
-	tenants, _, _ := u.tenantRepo.FindPaginatedWithCounts(ctx, tenantID, 1, 1)
-	if len(tenants) > 0 {
-		return tenants[0].Name
+	tenant, err := u.tenantRepo.FindByIDWithCounts(ctx, tenantID)
+	if err == nil && tenant != nil {
+		if tenant.OwnerEmail != "" {
+			return tenant.OwnerEmail
+		}
+		if tenant.Name != "" {
+			return tenant.Name
+		}
 	}
 	return ""
 }

@@ -795,14 +795,49 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	if userCount < 1 {
 		userCount = 1
 	}
+	var couponID *string
+	if pending.CouponCode != "" {
+		var coupon tenantModels.Coupon
+		if err := u.db.WithContext(ctx).
+			Where("code = ? AND deleted_at IS NULL", strings.ToUpper(strings.TrimSpace(pending.CouponCode))).
+			First(&coupon).Error; err == nil {
+			couponID = &coupon.ID
+
+			normalizedEmail := strings.ToLower(strings.TrimSpace(pending.Email))
+			var usageCount int64
+			_ = u.db.WithContext(ctx).
+				Table("coupon_usages").
+				Where("coupon_id = ? AND email = ?", coupon.ID, normalizedEmail).
+				Count(&usageCount).Error
+
+			if usageCount == 0 {
+				_ = u.db.WithContext(ctx).Exec(
+					`INSERT INTO coupon_usages (id, coupon_id, email, used_at, created_at, updated_at)
+					 VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)`,
+					coupon.ID,
+					normalizedEmail,
+					now,
+					now,
+					now,
+				).Error
+
+				_ = u.db.WithContext(ctx).
+					Model(&tenantModels.Coupon{}).
+					Where("id = ?", coupon.ID).
+					UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error
+			}
+		}
+	}
 	sub := &tenantModels.TenantSubscription{
 		TenantID:        tenantID,
 		Plan:            tenantModels.SubscriptionPlan(pending.Plan),
 		BillingPeriod:   tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
 		Status:          tenantModels.SubscriptionActive,
 		StartsAt:        now,
+		ExpiresAt:       &nextBilling,
 		AmountPaidIDR:   pending.AmountPaid,
 		UserCount:       userCount,
+		CouponID:        couponID,
 		XenditInvoiceID: &xenditInvoiceID,
 		NextBillingAt:   &nextBilling,
 		Notes:           fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
@@ -812,6 +847,26 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	}
 	if err := u.ensureSubscriptionRecord(ctx, sub); err != nil {
 		return nil, fmt.Errorf("failed to persist subscription record: %w", err)
+	}
+
+	// Store payment transaction so Billing > Payment History has real rows.
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          tenantID,
+		Provider:          tenantModels.PaymentProviderXendit,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         pending.AmountPaid,
+		ProviderInvoiceID: pending.InvoiceID,
+		Description:       fmt.Sprintf("Subscription payment for %s (%s)", pending.Plan, pending.BillingPeriod),
+		PaidAt:            &now,
+		InvoiceURL:        "",
+	}
+	if sub.ID != "" {
+		paymentTxn.SubscriptionID = sub.ID
+	}
+	if err := u.db.WithContext(ctx).
+		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, pending.InvoiceID).
+		FirstOrCreate(paymentTxn).Error; err != nil {
+		return nil, fmt.Errorf("failed to persist payment transaction: %w", err)
 	}
 
 	// Remove the pending registration key to prevent double-provisioning.
@@ -867,6 +922,7 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		Where("id = ?", sub.ID).
 		Updates(map[string]interface{}{
 			"next_billing_at": nextBilling,
+			"expires_at":      nextBilling,
 			"status":          tenantModels.SubscriptionActive,
 		}).Error
 }
