@@ -25,6 +25,7 @@ import (
 	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
+	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
@@ -58,6 +59,11 @@ const pendingRegTTL = 24 * time.Hour
 
 // pendingRegKeyPrefix is the Redis key prefix for pending registrations.
 const pendingRegKeyPrefix = "pending_reg:"
+
+// pendingRegDoneKeyPrefix stores short-lived completion metadata so frontend
+// confirm can still establish a login session when webhook already finalized
+// and removed the pending registration payload.
+const pendingRegDoneKeyPrefix = "pending_reg_done:"
 
 // pendingBillingChangeKeyPrefix is the Redis key prefix for subscription change requests.
 const pendingBillingChangeKeyPrefix = "pending_billing_change:"
@@ -771,6 +777,14 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	key := pendingRegKeyPrefix + token
 	val, err := u.redis.Get(ctx, key).Result()
 	if err != nil {
+		doneKey := pendingRegDoneKeyPrefix + token
+		doneEmail, doneErr := u.redis.Get(ctx, doneKey).Result()
+		if doneErr == nil && strings.TrimSpace(doneEmail) != "" {
+			recoveredResp, recoverErr := u.buildLoginRespForExistingUser(ctx, doneEmail)
+			if recoverErr == nil {
+				return recoveredResp, nil
+			}
+		}
 		return nil, ErrPendingRegistrationNotFound
 	}
 
@@ -792,7 +806,25 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 
 	loginResp, err := u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
 	if err != nil {
-		return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+		// When the tenant was already provisioned (e.g. a previous retry succeeded but
+		// failed before Redis key deletion), recover by authenticating the existing user
+		// instead of failing the whole confirm flow.
+		if errors.Is(err, ErrEmailAlreadyTaken) || errors.Is(err, ErrSlugAlreadyTaken) {
+			recoveredResp, recoverErr := u.buildLoginRespForExistingUser(ctx, pending.Email)
+			if recoverErr == nil {
+				loginResp = recoveredResp
+			} else {
+				// If recovery cannot find an existing user, return the original provisioning
+				// conflict (email/slug already taken). This avoids masking the real cause
+				// behind a misleading ErrUserNotFound.
+				if errors.Is(recoverErr, ErrUserNotFound) {
+					return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+				}
+				return nil, fmt.Errorf("tenant provisioning after payment failed: %w", recoverErr)
+			}
+		} else {
+			return nil, fmt.Errorf("tenant provisioning after payment failed: %w", err)
+		}
 	}
 
 	// Create the TenantSubscription record to track the paid plan and Xendit invoice.
@@ -862,6 +894,16 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		return nil, fmt.Errorf("failed to persist subscription record: %w", err)
 	}
 
+	// Backfill tenants.plan and tenants.max_users to match the purchased subscription,
+	// correcting the provisional 'trial' / default values set during provisioning.
+	_ = u.db.WithContext(ctx).
+		Table("tenants").
+		Where("id = ?", tenantID).
+		Updates(map[string]interface{}{
+			"plan":      pending.Plan,
+			"max_users": userCount,
+		}).Error
+
 	// Store payment transaction so Billing > Payment History has real rows.
 	paymentTxn := &tenantModels.PaymentTransaction{
 		TenantID:          tenantID,
@@ -872,14 +914,27 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		Description:       fmt.Sprintf("Subscription payment for %s (%s)", pending.Plan, pending.BillingPeriod),
 		PaidAt:            &now,
 		InvoiceURL:        "",
+		Metadata:          "{}",
 	}
 	if sub.ID != "" {
 		paymentTxn.SubscriptionID = sub.ID
 	}
-	if err := u.db.WithContext(ctx).
-		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, pending.InvoiceID).
-		FirstOrCreate(paymentTxn).Error; err != nil {
+	paymentTxnQuery := u.db.WithContext(ctx).
+		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, pending.InvoiceID)
+
+	// subscription_id is nullable in DB, but sending an empty string to a UUID
+	// column causes SQLSTATE 22P02. Omit the field until a valid UUID exists.
+	if sub.ID == "" {
+		paymentTxnQuery = paymentTxnQuery.Omit("SubscriptionID")
+	}
+
+	if err := paymentTxnQuery.FirstOrCreate(paymentTxn).Error; err != nil {
 		return nil, fmt.Errorf("failed to persist payment transaction: %w", err)
+	}
+
+	doneKey := pendingRegDoneKeyPrefix + token
+	if err := u.redis.Set(ctx, doneKey, strings.ToLower(strings.TrimSpace(pending.Email)), pendingRegTTL).Err(); err != nil {
+		return nil, fmt.Errorf("failed to persist completed registration marker: %w", err)
 	}
 
 	// Remove the pending registration key to prevent double-provisioning.
@@ -888,6 +943,84 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	}
 
 	return loginResp, nil
+}
+
+// buildLoginRespForExistingUser looks up a user by email and generates fresh auth tokens.
+// Used as the idempotency recovery path in completePendingRegistrationInternal when the
+// tenant was already provisioned (e.g. a prior retry succeeded but died before Redis cleanup).
+func (u *authUsecase) buildLoginRespForExistingUser(ctx context.Context, email string) (*dto.LoginResponse, error) {
+	var resp *dto.LoginResponse
+
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		var user userModels.User
+		normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+		if err := tx.Preload("Role.Permissions").
+			Where("LOWER(email) = ? AND deleted_at IS NULL", normalizedEmail).
+			First(&user).Error; err != nil {
+			return ErrUserNotFound
+		}
+
+		roleCode := ""
+		roleName := ""
+		permissions := make(map[string]string)
+		if user.Role != nil {
+			roleCode = user.Role.Code
+			roleName = user.Role.Name
+			if user.Role.Permissions != nil {
+				for _, p := range user.Role.Permissions {
+					permissions[p.Code] = "ALL"
+				}
+			}
+		}
+
+		var tenantName string
+		_ = tx.Table("tenants").Select("name").Where("id = ?", user.TenantID).Row().Scan(&tenantName)
+
+		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
+		if err != nil {
+			return err
+		}
+		refreshToken, err := u.jwtManager.GenerateRefreshToken(user.ID)
+		if err != nil {
+			return err
+		}
+		tokenID, err := u.jwtManager.ExtractRefreshTokenID(refreshToken)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`
+			INSERT INTO refresh_tokens (id, user_id, token_id, expires_at, revoked, created_at, updated_at)
+			VALUES (gen_random_uuid(), ?, ?, ?, false, NOW(), NOW())`,
+			user.ID, tokenID, apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
+		).Error; err != nil {
+			return err
+		}
+
+		resp = &dto.LoginResponse{
+			User: &dto.UserResponse{
+				ID:               user.ID,
+				Email:            user.Email,
+				Name:             user.Name,
+				AvatarURL:        user.AvatarURL,
+				Role:             roleCode,
+				RoleName:         roleName,
+				RoleDataScope:    "ALL",
+				IsOwner:          true,
+				Permissions:      permissions,
+				Status:           user.Status,
+				TenantID:         user.TenantID,
+				TenantName:       tenantName,
+				SubscriptionPlan: activePlanForTenant(tx, user.TenantID),
+			},
+			Token:        accessToken,
+			RefreshToken: refreshToken,
+			ExpiresIn:    int(u.jwtManager.AccessTokenTTL().Seconds()),
+		}
+		return nil
+	})
+
+	return resp, err
 }
 
 func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantModels.TenantSubscription) error {
@@ -972,7 +1105,8 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 	err := u.db.Transaction(func(tx *gorm.DB) error {
 		// Guard: reject if email is already registered
 		var existingCount int64
-		if err := tx.Table("users").Where("email = ? AND deleted_at IS NULL", req.Email).Count(&existingCount).Error; err != nil {
+		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+		if err := tx.Table("users").Where("LOWER(email) = ?", normalizedEmail).Count(&existingCount).Error; err != nil {
 			return err
 		}
 		if existingCount > 0 {
@@ -984,24 +1118,57 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			companyName = req.Name
 		}
 
-		slug := slugify(companyName)
+		baseSlug := slugify(companyName)
+		slug := baseSlug
 
-		var slugCount int64
-		if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
-			return err
-		}
-		if slugCount > 0 {
-			return ErrSlugAlreadyTaken
+		// Ensure slug uniqueness by appending a suffix if collision detected
+		for attempt := 0; attempt < 10; attempt++ {
+			var slugCount int64
+			if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
+				return err
+			}
+			if slugCount == 0 {
+				break // Slug is unique
+			}
+			// Append suffix (-1, -2, etc.) for uniqueness
+			slug = fmt.Sprintf("%s-%d", baseSlug, attempt+1)
 		}
 
 		tenantID := newUUID()
 		userID := newUUID()
 
+		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
+
+		planSlug := strings.TrimSpace(strings.ToLower(req.Plan))
+		if planSlug == "" {
+			planSlug = "full_access"
+		}
+
+		// Resolve plan config to get MaxUsers (don't hardcode to 5)
+		planConfig, err := u.planRepo.FindBySlug(ctx, planSlug)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPaymentRequired
+			}
+			return err
+		}
+
+		maxUsers := req.UserCount
+		if maxUsers < planConfig.MinUsers {
+			maxUsers = planConfig.MinUsers
+		}
+		if maxUsers > planConfig.MaxUsers {
+			maxUsers = planConfig.MaxUsers
+		}
+
 		if err := tx.Exec(`
 			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', 'trial', 999, NOW(), NOW())`,
-			tenantID, companyName, slug, userID,
+			VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
+			tenantID, companyName, slug, userID, planSlug, maxUsers,
 		).Error; err != nil {
+			if isUniqueViolationForSlug(err) {
+				return ErrSlugAlreadyTaken
+			}
 			return err
 		}
 
@@ -1022,13 +1189,6 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			_ = err
 		}
 
-		avatarURL := "https://api.dicebear.com/7.x/lorelei/svg?seed=" + req.Email
-
-		planSlug := strings.TrimSpace(strings.ToLower(req.Plan))
-		if planSlug == "" {
-			planSlug = "full_access"
-		}
-
 		roleID, roleCode, roleName, permissions, err := u.createTenantOwnerRole(tx, tenantID, companyName, planSlug)
 		if err != nil {
 			return err
@@ -1044,6 +1204,9 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
 			userID, tenantID, req.Email, hashedPwd, req.Name, avatarURL, roleID,
 		).Error; err != nil {
+			if isUniqueViolationForEmail(err) {
+				return ErrEmailAlreadyTaken
+			}
 			return err
 		}
 		roleDataScope := "ALL"
@@ -1680,6 +1843,28 @@ func newUUID() string {
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+func isUniqueViolationForEmail(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+	return strings.Contains(msg, "email") || strings.Contains(msg, "users")
+}
+
+func isUniqueViolationForSlug(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+	return strings.Contains(msg, "slug") || strings.Contains(msg, "tenants")
 }
 
 // shortID returns a 6-character hex string for slug disambiguation.

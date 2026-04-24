@@ -449,13 +449,15 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 
 	loginResponse, err := h.authUC.ConfirmPendingRegistration(c.Request.Context(), req.Token)
 	if err != nil {
-		switch err {
-		case usecase.ErrPendingRegistrationNotFound:
+		switch {
+		case goerrors.Is(err, usecase.ErrPendingRegistrationNotFound):
 			errors.ErrorResponse(c, "PENDING_REGISTRATION_NOT_FOUND", nil, nil)
-		case usecase.ErrPendingRegistrationDataInvalid:
+		case goerrors.Is(err, usecase.ErrPendingRegistrationDataInvalid):
 			errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
-		case usecase.ErrEmailAlreadyTaken:
+		case goerrors.Is(err, usecase.ErrEmailAlreadyTaken):
 			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", nil, nil)
+		case goerrors.Is(err, usecase.ErrSlugAlreadyTaken):
+			errors.ErrorResponse(c, "SLUG_ALREADY_TAKEN", nil, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
 		}

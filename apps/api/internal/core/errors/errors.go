@@ -125,6 +125,18 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusConflict,
 		Message:    "Email is already registered",
 	},
+	"SLUG_ALREADY_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Organization slug already in use",
+	},
+	"PENDING_REGISTRATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Pending registration not found or already finalized",
+	},
+	"INVALID_PAYLOAD": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid payload",
+	},
 	"COMPANY_NAME_TAKEN": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Company name already in use",
