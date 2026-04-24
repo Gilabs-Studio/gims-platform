@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 
 	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
@@ -225,7 +226,7 @@ func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
 		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
 		return
 	}
-	if !isBillingOwnerRole(c) {
+	if !canModifyBilling(c) {
 		coreErrors.ForbiddenResponse(c, "billing.change", nil)
 		return
 	}
@@ -236,19 +237,32 @@ func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
 		return
 	}
 
+	tenantIDStr := tenantID.(string)
+	log.Printf("[billing.change] request tenant_id=%s action=%s target=%s action_date=%s idempotency_key=%s",
+		tenantIDStr, req.Action, req.Target, req.ActionDate, req.IdempotencyKey)
+
 	if h.billingChangeUC == nil {
 		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
 		return
 	}
 
-	resp, err := h.billingChangeUC.CreateBillingChangeInvoice(c.Request.Context(), &req, tenantID.(string))
+	resp, err := h.billingChangeUC.CreateBillingChangeInvoice(c.Request.Context(), &req, tenantIDStr)
 	if err != nil {
+		log.Printf("[billing.change] failed tenant_id=%s action=%s target=%s err=%v",
+			tenantIDStr, req.Action, req.Target, err)
 		if errors.Is(err, authUsecase.ErrSeatLimitExceeded) {
 			coreErrors.ErrorResponse(c, "SEAT_LIMIT_EXCEEDED", map[string]any{"reason": err.Error()}, nil)
 			return
 		}
 		if strings.EqualFold(err.Error(), "COUPON_INVALID") {
 			coreErrors.ErrorResponse(c, "COUPON_INVALID", map[string]any{"reason": "Coupon expired, used, or invalid"}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrCouponUserLimitExceeded) {
+			coreErrors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]any{
+				"field":   "user_count",
+				"message": "Selected user count exceeds coupon limit",
+			}, nil)
 			return
 		}
 		if errors.Is(err, authUsecase.ErrBillingChangeUnsupported) {
@@ -263,14 +277,28 @@ func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
 		return
 	}
 
+	log.Printf("[billing.change] success tenant_id=%s action=%s target=%s status=%s xendit_action=%s",
+		tenantIDStr, req.Action, req.Target, resp.Status, resp.XenditAction)
+
 	response.SuccessResponse(c, resp, nil)
 }
 
-func isBillingOwnerRole(c *gin.Context) bool {
+func canModifyBilling(c *gin.Context) bool {
+	if permsRaw, exists := c.Get("user_permissions"); exists {
+		if permMap, ok := permsRaw.(map[string]bool); ok {
+			if permMap["billing.change"] {
+				return true
+			}
+		}
+	}
+
 	roleValue, ok := c.Get("user_role")
 	if !ok {
 		return false
 	}
 	role := strings.ToLower(strings.TrimSpace(roleValue.(string)))
+	if role == "admin" || role == "superadmin" {
+		return true
+	}
 	return strings.HasPrefix(role, "tenant_owner_") || role == "owner" || strings.HasSuffix(role, "_owner")
 }
