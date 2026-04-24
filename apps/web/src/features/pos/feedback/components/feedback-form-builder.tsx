@@ -519,15 +519,15 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
             </p>
           </TabsContent>
         </Tabs>
+
+        {editingItem && (
+          <p className="text-xs text-muted-foreground mt-4 pt-4 border-t">
+            {t("latest")} {t("version")} {editingItem.version} automatically applies after save.
+          </p>
+        )}
       </div>
     </div>
   );
-
-          {editingItem && (
-            <p className="text-xs text-muted-foreground">
-              {t("latest")} {t("version")} {editingItem.version} automatically applies after save.
-            </p>
-          )}
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
