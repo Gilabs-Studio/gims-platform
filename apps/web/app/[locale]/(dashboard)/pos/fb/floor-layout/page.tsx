@@ -51,7 +51,7 @@ function PageSkeleton() {
 
 export default function FloorLayoutPage() {
   return (
-    <PermissionGuard requiredPermission="pos.layout.manage">
+    <PermissionGuard requiredPermission="pos.layout.read">
       <Suspense fallback={<PageSkeleton />}>
         <FloorLayoutContainer />
       </Suspense>

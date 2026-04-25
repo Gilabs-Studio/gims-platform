@@ -70,8 +70,10 @@ func SeedSubscriptionPlans() error {
 			RoleTemplates: tenantModels.RoleTemplateList{
 				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
 				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
-				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
-				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+				{Code: "finance", Name: "Finance", Description: "Manages finance, accounting, and payments."},
+				{Code: "purchasing", Name: "Purchasing", Description: "Handles purchase orders and supplier invoices."},
+				{Code: "warehouse", Name: "Warehouse", Description: "Manages inventory and stock movements."},
+				{Code: "sales", Name: "Sales", Description: "Handles sales orders and customer invoices."},
 			},
 		},
 		{
@@ -95,8 +97,8 @@ func SeedSubscriptionPlans() error {
 			RoleTemplates: tenantModels.RoleTemplateList{
 				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
 				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
-				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
-				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+				{Code: "sales_manager", Name: "Sales Manager", Description: "Manages sales team, pipeline, and targets."},
+				{Code: "sales", Name: "Sales", Description: "Handles leads, pipeline, and customer activities."},
 			},
 		},
 		{
@@ -120,8 +122,9 @@ func SeedSubscriptionPlans() error {
 			RoleTemplates: tenantModels.RoleTemplateList{
 				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
 				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
-				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
-				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+				{Code: "hr_manager", Name: "HR Manager", Description: "Manages HR operations, payroll, and reviews."},
+				{Code: "hr_staff", Name: "HR Staff", Description: "Handles attendance, leave, and daily HR tasks."},
+				{Code: "employee", Name: "Employee", Description: "Basic access for personal HR data and requests."},
 			},
 		},
 		// ── Bundle plans ──────────────────────────────────────────────────────
@@ -148,10 +151,13 @@ func SeedSubscriptionPlans() error {
 			RoleTemplates: tenantModels.RoleTemplateList{
 				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
 				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
-				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
-				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
 				{Code: "outlet_manager", Name: "Outlet Manager", Description: "Manages outlet operations and staff."},
-				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
+				{Code: "sales_manager", Name: "Sales Manager", Description: "Manages sales team, pipeline, and targets."},
+				{Code: "sales", Name: "Sales", Description: "Handles leads, pipeline, and customer activities."},
+				{Code: "finance", Name: "Finance", Description: "Manages finance, accounting, and payments."},
+				{Code: "purchasing", Name: "Purchasing", Description: "Handles purchase orders and supplier invoices."},
+				{Code: "warehouse", Name: "Warehouse", Description: "Manages inventory and stock movements."},
 			},
 		},
 		{
@@ -180,10 +186,16 @@ func SeedSubscriptionPlans() error {
 			RoleTemplates: tenantModels.RoleTemplateList{
 				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
 				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
-				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
-				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
 				{Code: "outlet_manager", Name: "Outlet Manager", Description: "Manages outlet operations and staff."},
-				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
+				{Code: "sales_manager", Name: "Sales Manager", Description: "Manages sales team, pipeline, and targets."},
+				{Code: "sales", Name: "Sales", Description: "Handles leads, pipeline, and customer activities."},
+				{Code: "finance", Name: "Finance", Description: "Manages finance, accounting, and payments."},
+				{Code: "purchasing", Name: "Purchasing", Description: "Handles purchase orders and supplier invoices."},
+				{Code: "warehouse", Name: "Warehouse", Description: "Manages inventory and stock movements."},
+				{Code: "hr_manager", Name: "HR Manager", Description: "Manages HR operations, payroll, and reviews."},
+				{Code: "hr_staff", Name: "HR Staff", Description: "Handles attendance, leave, and daily HR tasks."},
+				{Code: "employee", Name: "Employee", Description: "Basic access for personal HR data and requests."},
 			},
 		},
 	}
@@ -298,10 +310,145 @@ func SeedSubscriptionPlans() error {
 		masterDataMenuPrefix + "/so-sources",
 		masterDataMenuPrefix + "/leave-types",
 	}
-	erpMenuPrefixes := []string{"/purchase", "/sales", "/stock", "/finance", masterDataMenuPrefix}
-	crmMenuPrefixes := []string{"/crm", masterDataMenuPrefix}
-	hrMenuPrefixes := []string{"/hrd", masterDataMenuPrefix}
-	growthSuitePrefixes := []string{"/pos", "/purchase", "/sales", "/stock", "/finance", "/crm", masterDataMenuPrefix}
+	erpExactMenuURLs := []string{
+		"/dashboard",
+		"/sales",
+		"/sales/quotations",
+		"/sales/orders",
+		"/sales/delivery-orders",
+		"/sales/invoices",
+		"/sales/customer-invoice-down-payments",
+		"/sales/returns",
+		"/sales/payments",
+		"/sales/receivables-recap",
+		"/purchase",
+		"/purchase/purchase-requisitions",
+		"/purchase/purchase-orders",
+		"/purchase/goods-receipt",
+		"/purchase/supplier-invoices",
+		"/purchase/supplier-invoice-down-payments",
+		"/purchase/returns",
+		"/purchase/payments",
+		"/purchase/payable-recap",
+		"/stock",
+		"/stock/inventory",
+		"/stock/ledger",
+		"/stock/movements",
+		"/stock/opname",
+		"/finance",
+		"/finance/accounting/coa",
+		"/finance/journals",
+		"/finance/journals/sales",
+		"/finance/journals/purchase",
+		"/finance/journals/adjustment",
+		"/finance/closing",
+		"/finance/ar/customer-payments",
+		"/finance/ar/credit-notes",
+		"/finance/ar/aging-reports",
+		"/finance/ap/supplier-payments",
+		"/finance/ap/debit-notes",
+		"/finance/ap/non-trade-payables",
+		"/finance/ap/aging-reports",
+		"/finance/bank-accounts",
+		"/finance/journals/cash-bank",
+		"/finance/bank-transfer",
+		"/finance/bank-reconciliation",
+		"/finance/fixed-assets/assets",
+		"/finance/fixed-assets/categories",
+		"/finance/fixed-assets/locations",
+		"/finance/fixed-assets/depreciation-schedule",
+		"/finance/fixed-assets/disposal",
+		"/finance/fixed-assets/revaluation",
+		"/finance/reports/general-ledger",
+		"/finance/reports/trial-balance",
+		"/finance/reports/balance-sheet",
+		"/finance/reports/profit-loss",
+		"/finance/reports/cash-flow-statement",
+		"/finance/settings/accounting-mapping",
+		"/finance/settings/fiscal-years",
+		"/finance/settings/tax-config",
+		"/finance/settings/inventory",
+		"/finance/settings/opening-balance",
+		"/reports",
+		"/reports/sales-overview",
+		"/reports/product-analysis",
+		"/reports/customer-research",
+		"/reports/supplier-research",
+	}
+	crmExactMenuURLs := []string{
+		"/dashboard",
+		"/crm",
+		"/crm/leads",
+		"/crm/pipeline",
+		"/crm/tasks",
+		"/crm/visits",
+		"/crm/area-mapping",
+		"/crm/targets",
+		"/crm/settings",
+		"/crm/settings/pipeline-stages",
+		"/crm/settings/lead-sources",
+		"/crm/settings/lead-statuses",
+		"/crm/settings/contact-roles",
+		"/crm/settings/activity-types",
+		"/travel/travel-planner",
+		"/travel/visit-planner",
+		"/reports",
+		"/reports/sales-overview",
+		"/reports/geo-performance",
+		"/reports/customer-research",
+	}
+	hrExactMenuURLs := []string{
+		"/dashboard",
+		"/hrd",
+		"/hrd/attendance",
+		"/hrd/leave-requests",
+		"/hrd/overtime",
+		"/hrd/evaluation",
+		"/hrd/recruitment",
+		"/hrd/work-schedule",
+		"/hrd/holidays",
+	}
+	masterDataOrgURLs := []string{
+		masterDataMenuPrefix,
+		masterDataMenuPrefix + "/geographic",
+		masterDataMenuPrefix + "/organization",
+		masterDataMenuPrefix + "/users",
+		masterDataMenuPrefix + "/employees",
+		masterDataMenuPrefix + "/company",
+		masterDataMenuPrefix + "/outlet",
+		masterDataMenuPrefix + "/warehouses",
+		masterDataMenuPrefix + "/divisions",
+		masterDataMenuPrefix + "/job-positions",
+		masterDataMenuPrefix + "/business-units",
+		masterDataMenuPrefix + "/business-types",
+		masterDataMenuPrefix + "/areas",
+	}
+	masterDataSupplyChainURLs := []string{
+		masterDataMenuPrefix + "/supplier",
+		masterDataMenuPrefix + "/suppliers",
+		masterDataMenuPrefix + "/supplier-types",
+		masterDataMenuPrefix + "/customer",
+		masterDataMenuPrefix + "/customers",
+		masterDataMenuPrefix + "/customer-types",
+		masterDataMenuPrefix + "/product",
+		masterDataMenuPrefix + "/products",
+		masterDataMenuPrefix + "/product-categories",
+		masterDataMenuPrefix + "/product-brands",
+		masterDataMenuPrefix + "/product-segments",
+		masterDataMenuPrefix + "/product-types",
+		masterDataMenuPrefix + "/packaging",
+		masterDataMenuPrefix + "/uom",
+		masterDataMenuPrefix + "/procurement-types",
+		masterDataMenuPrefix + "/payment-courier",
+		masterDataMenuPrefix + "/currencies",
+		masterDataMenuPrefix + "/banks",
+		masterDataMenuPrefix + "/payment-terms",
+		masterDataMenuPrefix + "/courier-agencies",
+		masterDataMenuPrefix + "/so-sources",
+	}
+	masterDataHRURLs := []string{
+		masterDataMenuPrefix + "/leave-types",
+	}
 	allNavigationMenuURLs := []string{
 		"/dashboard",
 		"/pos",
@@ -448,7 +595,7 @@ func SeedSubscriptionPlans() error {
 	}{
 		"pos_growth": {
 			menuURLs:        append(posExactMenuURLs, masterDataExactMenuURLs...),
-			menuPrefixes:    []string{masterDataMenuPrefix},
+			menuPrefixes:    []string{},
 			permissionCodes: []string{
 				posPaymentManagePermission,
 				// Chart of Accounts (full CRUD)
@@ -468,24 +615,31 @@ func SeedSubscriptionPlans() error {
 			},
 		},
 		"erp_pro": {
-			menuURLs:        []string{},
-			menuPrefixes:    erpMenuPrefixes,
+			menuURLs:        append(erpExactMenuURLs, append(masterDataOrgURLs, masterDataSupplyChainURLs...)...),
+			menuPrefixes:    []string{},
 			permissionCodes: []string{},
 		},
 		"crm_growth": {
-			menuURLs:        []string{},
-			menuPrefixes:    crmMenuPrefixes,
+			menuURLs: append(crmExactMenuURLs, append(masterDataOrgURLs, []string{
+				masterDataMenuPrefix + "/customer",
+				masterDataMenuPrefix + "/customers",
+				masterDataMenuPrefix + "/customer-types",
+			}...)...),
+			menuPrefixes:    []string{},
 			permissionCodes: []string{},
 		},
 		"hr_growth": {
-			menuURLs:        []string{},
-			menuPrefixes:    hrMenuPrefixes,
+			menuURLs:        append(hrExactMenuURLs, append(masterDataOrgURLs, masterDataHRURLs...)...),
+			menuPrefixes:    []string{},
 			permissionCodes: []string{},
 		},
 		"growth_suite": {
-			menuURLs:        []string{},
-			menuPrefixes:    growthSuitePrefixes,
-			permissionCodes: []string{},
+			menuURLs: append(
+				append(posExactMenuURLs, erpExactMenuURLs...),
+				append(crmExactMenuURLs, append(masterDataOrgURLs, masterDataSupplyChainURLs...)...)...,
+			),
+			menuPrefixes:    []string{},
+			permissionCodes: []string{posPaymentManagePermission},
 		},
 		"ultimate_suite": {
 			menuURLs:        allNavigationMenuURLs,
@@ -590,19 +744,37 @@ func syncTenantRolesFromPlanTemplates(db *gorm.DB) error {
 
 	for _, tenant := range tenants {
 		templates := planTemplates[strings.TrimSpace(strings.ToLower(tenant.Plan))]
+		baseCodes := make([]string, 0, len(templates))
+		for _, template := range templates {
+			baseCode := strings.TrimSpace(strings.ToLower(template.Code))
+			if baseCode == "" {
+				continue
+			}
+			baseCodes = append(baseCodes, baseCode)
+		}
+
+		var tenantRoles []roleModels.Role
+		if err := db.Where("tenant_id = ? AND deleted_at IS NULL", tenant.ID).Find(&tenantRoles).Error; err != nil {
+			return err
+		}
+
 		for _, template := range templates {
 			baseCode := strings.TrimSpace(strings.ToLower(template.Code))
 			if baseCode == "" {
 				continue
 			}
 
-			codePattern := baseCode + "_%"
-			if baseCode == "tenant_owner" {
-				codePattern = "tenant_owner_%"
-			}
-
 			var role roleModels.Role
-			if err := db.Where("tenant_id = ? AND code LIKE ? AND deleted_at IS NULL", tenant.ID, codePattern).First(&role).Error; err != nil {
+			found := false
+			for _, candidate := range tenantRoles {
+				if !tenantRoleMatchesTemplateCode(candidate.Code, baseCode, baseCodes) {
+					continue
+				}
+				role = candidate
+				found = true
+				break
+			}
+			if !found {
 				continue
 			}
 
@@ -621,4 +793,31 @@ func syncTenantRolesFromPlanTemplates(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func tenantRoleMatchesTemplateCode(roleCode, baseCode string, allBaseCodes []string) bool {
+	normalizedRoleCode := strings.TrimSpace(strings.ToLower(roleCode))
+	normalizedBaseCode := strings.TrimSpace(strings.ToLower(baseCode))
+	if normalizedRoleCode == "" || normalizedBaseCode == "" {
+		return false
+	}
+	if normalizedRoleCode == normalizedBaseCode {
+		return true
+	}
+	prefix := normalizedBaseCode + "_"
+	if !strings.HasPrefix(normalizedRoleCode, prefix) {
+		return false
+	}
+
+	for _, otherBaseCode := range allBaseCodes {
+		normalizedOtherBaseCode := strings.TrimSpace(strings.ToLower(otherBaseCode))
+		if normalizedOtherBaseCode == "" || normalizedOtherBaseCode == normalizedBaseCode {
+			continue
+		}
+		if strings.HasPrefix(normalizedOtherBaseCode, prefix) && strings.HasPrefix(normalizedRoleCode, normalizedOtherBaseCode+"_") {
+			return false
+		}
+	}
+
+	return true
 }

@@ -27,7 +27,7 @@ export const navigationConfig: NavItem[] = [
         i18nKey: "floorLayoutDesigner",
         url: "/pos/fb/floor-layout",
         icon: "layout-list",
-        permission: "pos.layout.manage",
+        permission: "pos.layout.read",
       },
       {
         name: "POS Terminal",
