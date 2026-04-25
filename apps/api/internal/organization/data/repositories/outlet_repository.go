@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -85,11 +86,23 @@ func (r *outletRepository) GetByCode(ctx context.Context, code string) (*models.
 
 // GetNextCode generates the next sequential outlet code in OT-XXXXX format.
 func (r *outletRepository) GetNextCode(ctx context.Context) (string, error) {
-	var count int64
-	if err := database.GetDB(ctx, r.db).Unscoped().Model(&models.Outlet{}).Count(&count).Error; err != nil {
+	globalCtx := context.WithValue(ctx, middleware.IsSystemAdminKey, true)
+
+	var nextSeq int64
+	if err := r.db.WithContext(globalCtx).
+		Unscoped().
+		Model(&models.Outlet{}).
+		Select("COALESCE(MAX(CAST(SUBSTRING(code FROM 4) AS INTEGER)), 0) + 1").
+		Where("code ~ '^OT-[0-9]{5,}$'").
+		Scan(&nextSeq).Error; err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("OT-%05d", count+1), nil
+
+	if nextSeq < 1 {
+		nextSeq = 1
+	}
+
+	return fmt.Sprintf("OT-%05d", nextSeq), nil
 }
 
 // List retrieves outlets with pagination and filtering

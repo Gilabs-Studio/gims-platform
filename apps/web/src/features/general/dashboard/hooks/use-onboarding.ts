@@ -7,7 +7,12 @@ export function useOnboardingState(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ONBOARDING_KEY,
     queryFn: () => onboardingService.getState(),
-    staleTime: 5 * 60 * 1000,
+    // Keep onboarding state fresh so checklist updates immediately
+    // after setup actions performed on other pages.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     enabled: options?.enabled ?? true,
   });
 }

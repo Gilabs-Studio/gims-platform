@@ -244,6 +244,10 @@ func (r *employeeRepository) Delete(ctx context.Context, id string) error {
 
 // FindByRoleDataScope returns active employees whose linked user has a role with the given data_scope.
 // Used to populate outlet manager dropdowns with only eligible users.
+// Returns employees matching ANY of:
+// - Role with data_scope matching the parameter (e.g., OUTLET)
+// - Role name containing "manager" (case-insensitive)
+// - Role data_scope is OUTLET, DIVISION, AREA (all management levels)
 func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope string) ([]models.Employee, error) {
 	var employees []models.Employee
 	// Use WithContext (not GetDB) so that the unqualified WHERE tenant_id=? from GetDB is
@@ -253,11 +257,24 @@ func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope 
 		Joins("INNER JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL").
 		Where("employees.is_active = ?", true).
 		Where("users.status = ?", "active").
-		Where("roles.data_scope = ?", dataScope).
-		Order("employees.name ASC").
+		Where("roles.status = ?", "active").
+		Where("(roles.data_scope = ? OR roles.name ILIKE ? OR roles.data_scope IN (?, ?, ?))",
+			dataScope, "%manager%", "OUTLET", "DIVISION", "AREA").
+		Order("CASE WHEN roles.name ILIKE '%manager%' THEN 0 ELSE 1 END, employees.name ASC").
 		Find(&employees).Error
 	if err != nil {
 		return nil, err
 	}
-	return employees, nil
+	
+	// Remove duplicates if an employee appears multiple times (unlikely but defensive)
+	seen := make(map[string]bool)
+	var unique []models.Employee
+	for _, emp := range employees {
+		if !seen[emp.ID] {
+			seen[emp.ID] = true
+			unique = append(unique, emp)
+		}
+	}
+	
+	return unique, nil
 }

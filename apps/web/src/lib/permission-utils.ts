@@ -1,5 +1,10 @@
 export type PermissionMap = Record<string, string | boolean | null | undefined>;
 
+const permissionAliasMap: Record<string, string[]> = {
+  "fiscal_year.read": ["finance_settings.read"],
+  "fiscal_year.write": ["finance_settings.update"],
+};
+
 function isGrantedScope(value: string | boolean | null | undefined): boolean {
   if (typeof value === "boolean") {
     return value;
@@ -27,6 +32,13 @@ export function hasPermissionCode(
   const wildcard = `${module}.*`;
   if (Object.prototype.hasOwnProperty.call(permissions, wildcard)) {
     return isGrantedScope(permissions[wildcard]);
+  }
+
+  const aliases = permissionAliasMap[code] ?? [];
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(permissions, alias)) {
+      return isGrantedScope(permissions[alias]);
+    }
   }
 
   return false;

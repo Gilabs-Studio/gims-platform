@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 )
@@ -73,8 +74,10 @@ func (r *warehouseRepository) GetByID(ctx context.Context, id string) (*models.W
 // GetNextCode generates the next sequential warehouse code in WH-XXXXX format.
 // It counts all warehouses (including soft-deleted) to guarantee uniqueness.
 func (r *warehouseRepository) GetNextCode(ctx context.Context) (string, error) {
+	globalCtx := context.WithValue(ctx, middleware.IsSystemAdminKey, true)
+
 	var count int64
-	if err := database.GetDB(ctx, r.db).Unscoped().Model(&models.Warehouse{}).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(globalCtx).Unscoped().Model(&models.Warehouse{}).Count(&count).Error; err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("WH-%05d", count+1), nil

@@ -9,6 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func permissionAliases(requiredPermission string) []string {
+	switch requiredPermission {
+	case "fiscal_year.read":
+		return []string{"finance_settings.read"}
+	case "fiscal_year.write":
+		return []string{"finance_settings.update"}
+	default:
+		return nil
+	}
+}
+
 // RequirePermission check strictly against loaded permissions
 func RequirePermission(requiredPermission string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -58,7 +69,17 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
-		if !permMap[requiredPermission] {
+		hasPermission := permMap[requiredPermission]
+		if !hasPermission {
+			for _, alias := range permissionAliases(requiredPermission) {
+				if permMap[alias] {
+					hasPermission = true
+					break
+				}
+			}
+		}
+
+		if !hasPermission {
 			errors.ForbiddenResponse(c, fmt.Sprintf("Missing permission: %s", requiredPermission), nil)
 			c.Abort()
 			return

@@ -426,13 +426,6 @@ export const navigationConfig: NavItem[] = [
         icon: "receipt",
         children: [
           {
-            name: "Customer Invoices",
-            i18nKey: "customerInvoices",
-            url: "/finance/ar/customer-invoices",
-            icon: "receipt",
-            permission: "sales_journal.read",
-          },
-          {
             name: "Customer Payments",
             i18nKey: "payments",
             url: "/finance/ar/customer-payments",
@@ -461,13 +454,6 @@ export const navigationConfig: NavItem[] = [
         url: "",
         icon: "receipt",
         children: [
-          {
-            name: "Supplier Invoices",
-            i18nKey: "supplierInvoices",
-            url: "/finance/ap/supplier-invoices",
-            icon: "receipt",
-            permission: "supplier_invoice.read",
-          },
           {
             name: "Supplier Payments",
             i18nKey: "payments",
@@ -645,7 +631,7 @@ export const navigationConfig: NavItem[] = [
             i18nKey: "fiscalYears",
             url: "/finance/settings/fiscal-years",
             icon: "calendar-range",
-            permission: "finance_settings.read",
+            permission: "fiscal_year.read",
           },
           {
             name: "Tax Configuration",

@@ -29,14 +29,15 @@ func (u *onboardingUsecase) stepsFromRepo(ctx context.Context) *dto.OnboardingSt
 	if err != nil {
 		return nil
 	}
-	return &dto.OnboardingStepsResponse{
-		Company:     raw.Company,
-		Outlet:      raw.Outlet,
-		FloorLayout: raw.FloorLayout,
-		Products:    raw.Products,
-		Warehouse:   raw.Warehouse,
-		Users:       raw.Users,
-	}
+	       return &dto.OnboardingStepsResponse{
+		       Company:     raw.Company,
+		       Outlet:      raw.Outlet,
+		       FloorLayout: raw.FloorLayout,
+		       Products:    raw.Products,
+		       Warehouse:   raw.Warehouse,
+		       Users:       raw.Users,
+		       FiscalYear:  raw.FiscalYear,
+	       }
 }
 
 func (u *onboardingUsecase) GetState(ctx context.Context) (*dto.OnboardingStateResponse, error) {

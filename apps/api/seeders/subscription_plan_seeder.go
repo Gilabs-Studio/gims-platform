@@ -254,9 +254,11 @@ func SeedSubscriptionPlans() error {
 		"/purchase/payments",
 		"/stock/inventory",
 		"/stock/movements",
+		"/finance/accounting/coa",
 		"/finance/journals/purchase",
 		"/finance/journals/sales",
 		"/finance/bank-accounts",
+		"/finance/settings/accounting-mapping",
 		"/finance/settings/fiscal-years",
 	}
 	masterDataExactMenuURLs := []string{
@@ -447,7 +449,23 @@ func SeedSubscriptionPlans() error {
 		"pos_growth": {
 			menuURLs:        append(posExactMenuURLs, masterDataExactMenuURLs...),
 			menuPrefixes:    []string{masterDataMenuPrefix},
-			permissionCodes: []string{posPaymentManagePermission},
+			permissionCodes: []string{
+				posPaymentManagePermission,
+				// Chart of Accounts (full CRUD)
+				"coa.read",
+				"coa.create",
+				"coa.update",
+				"coa.delete",
+				// Sales Journal (read-only)
+				"sales_journal.read",
+				// Purchase Journal (read-only)
+				"purchase_journal.read",
+				// Fiscal Years (full CRUD)
+				"fiscal_year.read",
+				"fiscal_year.write",
+				// Accounting Mapping (read-only)
+				"account_mappings.read",
+			},
 		},
 		"erp_pro": {
 			menuURLs:        []string{},

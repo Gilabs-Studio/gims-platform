@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -15,7 +16,7 @@ import (
 var (
 	ErrFiscalYearNotFound                = errors.New("fiscal year not found")
 	ErrFiscalYearNotDraft                = errors.New("fiscal year can only be edited in draft status")
-	ErrFiscalYearInvalidRange            = errors.New("fiscal year must span exactly 12 months")
+	ErrFiscalYearInvalidRange            = errors.New("fiscal year end date must be on or after start date")
 	ErrFiscalYearActiveAlreadyUsed       = errors.New("another active fiscal year already exists")
 	ErrFiscalYearLockInvalidStatus       = errors.New("fiscal year can only be locked from active status")
 	ErrFiscalYearActivateInvalid         = errors.New("fiscal year can only be activated from draft status")
@@ -44,15 +45,10 @@ func NewFiscalYearUsecase(db *gorm.DB, repo repositories.FiscalYearRepository, o
 }
 
 func validateFiscalYearRange(startDate, endDate time.Time) error {
-	expected := startDate.AddDate(1, 0, -1)
-	if !sameDate(expected, endDate) {
+	if endDate.Before(startDate) {
 		return ErrFiscalYearInvalidRange
 	}
 	return nil
-}
-
-func sameDate(a, b time.Time) bool {
-	return a.Year() == b.Year() && a.Month() == b.Month() && a.Day() == b.Day()
 }
 
 func (uc *fiscalYearUsecase) parseDates(startDateRaw, endDateRaw string) (time.Time, time.Time, error) {
@@ -89,8 +85,10 @@ func (uc *fiscalYearUsecase) Create(ctx context.Context, req *dto.CreateFiscalYe
 	if err != nil {
 		return nil, err
 	}
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
 
 	item := &financeModels.FiscalYear{
+		TenantID:  tenantID,
 		CompanyID: req.CompanyID,
 		Name:      strings.TrimSpace(req.Name),
 		StartDate: startDate,

@@ -34,6 +34,12 @@ const FNB_CHECKLIST: ChecklistStep[] = [
     href: "/master-data/company",
   },
   {
+    key: "fiscal_year",
+    labelKey: "onboarding.steps.fiscalYear.label",
+    descriptionKey: "onboarding.steps.fiscalYear.description",
+    href: "/finance/settings/fiscal-years",
+  },
+  {
     key: "outlet",
     labelKey: "onboarding.steps.outlet.label",
     descriptionKey: "onboarding.steps.outlet.description",
@@ -65,6 +71,12 @@ const OTHER_CHECKLIST: ChecklistStep[] = [
     labelKey: "onboarding.steps.company.label",
     descriptionKey: "onboarding.steps.company.description",
     href: "/master-data/company",
+  },
+  {
+    key: "fiscal_year",
+    labelKey: "onboarding.steps.fiscalYear.label",
+    descriptionKey: "onboarding.steps.fiscalYear.description",
+    href: "/finance/settings/fiscal-years",
   },
   {
     key: "warehouse",

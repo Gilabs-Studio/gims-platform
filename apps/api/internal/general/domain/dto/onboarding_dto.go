@@ -8,6 +8,7 @@ type OnboardingStepsResponse struct {
 	Products    bool `json:"products"`
 	Warehouse   bool `json:"warehouse"`
 	Users       bool `json:"users"`
+	FiscalYear  bool `json:"fiscal_year"`
 }
 
 // OnboardingStateResponse is returned by GET /general/onboarding.

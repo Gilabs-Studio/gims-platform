@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -30,6 +31,21 @@ func getOutletUserID(c *gin.Context) string {
 		}
 	}
 	return ""
+}
+
+func shouldFilterOutletByUserWarehouse(c *gin.Context) bool {
+	scopeVal, exists := c.Get("permission_scope")
+	if !exists {
+		return false
+	}
+
+	scope, ok := scopeVal.(string)
+	if !ok {
+		return false
+	}
+
+	normalized := strings.ToUpper(strings.TrimSpace(scope))
+	return normalized == "OUTLET" || normalized == "WAREHOUSE"
 }
 
 // Create handles POST /outlets
@@ -83,13 +99,18 @@ func (h *OutletHandler) GetByID(c *gin.Context) {
 
 // List handles GET /outlets
 func (h *OutletHandler) List(c *gin.Context) {
+	userID := ""
+	if shouldFilterOutletByUserWarehouse(c) {
+		userID = getOutletUserID(c)
+	}
+
 	params := repositories.OutletListParams{
 		Search:      c.Query("search"),
 		SortBy:      c.DefaultQuery("sort_by", "name"),
 		SortDir:     c.DefaultQuery("sort_dir", "asc"),
 		CompanyID:   c.Query("company_id"),
 		WarehouseID: c.Query("warehouse_id"),
-		UserID:      getOutletUserID(c), // RBAC: Filter by user's assigned warehouses
+		UserID:      userID,
 	}
 
 	// Parse is_active filter
