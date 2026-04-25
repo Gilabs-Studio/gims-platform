@@ -17,6 +17,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	roleRepositories "github.com/gilabs/gims/api/internal/role/data/repositories"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	tenantRepositories "github.com/gilabs/gims/api/internal/tenant/data/repositories"
 	"github.com/gilabs/gims/api/internal/user/data/models"
 	"github.com/gilabs/gims/api/internal/user/data/repositories"
@@ -40,12 +41,16 @@ type UserLimitResponse struct {
 	Max     int `json:"max"`
 }
 
+type subscriptionFinder interface {
+	FindActiveByTenantID(ctx context.Context, tenantID string) (*tenantModels.TenantSubscription, error)
+}
+
 type UserUsecase interface {
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.UserResponse, error)
 	// GetAvailable returns active users not yet linked to an employee.
 	GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error)
-	// GetLimit returns the current and maximum user count for the active tenant.
+	// GetLimit returns the current user count and active subscription seat limit for the tenant.
 	GetLimit(ctx context.Context) (*UserLimitResponse, error)
 	Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error)
@@ -56,12 +61,13 @@ type UserUsecase interface {
 }
 
 type userUsecase struct {
-	userRepo       repositories.UserRepository
-	roleRepo       roleRepositories.RoleRepository
-	tenantRepo     tenantRepositories.TenantRepository
-	auditService   audit.AuditService
-	eventPublisher infraEvents.EventPublisher
-	redis          *redis.Client
+	userRepo         repositories.UserRepository
+	roleRepo         roleRepositories.RoleRepository
+	tenantRepo       tenantRepositories.TenantRepository
+	subscriptionRepo subscriptionFinder
+	auditService     audit.AuditService
+	eventPublisher   infraEvents.EventPublisher
+	redis            *redis.Client
 }
 
 func userCacheScope(ctx context.Context) string {
@@ -89,17 +95,19 @@ func NewUserUsecase(
 	userRepo repositories.UserRepository,
 	roleRepo roleRepositories.RoleRepository,
 	tenantRepo tenantRepositories.TenantRepository,
+	subscriptionRepo subscriptionFinder,
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
 	redis *redis.Client,
 ) UserUsecase {
 	return &userUsecase{
-		userRepo:       userRepo,
-		roleRepo:       roleRepo,
-		tenantRepo:     tenantRepo,
-		auditService:   auditService,
-		eventPublisher: eventPublisher,
-		redis:          redis,
+		userRepo:         userRepo,
+		roleRepo:         roleRepo,
+		tenantRepo:       tenantRepo,
+		subscriptionRepo: subscriptionRepo,
+		auditService:     auditService,
+		eventPublisher:   eventPublisher,
+		redis:            redis,
 	}
 }
 
@@ -208,7 +216,7 @@ func (u *userUsecase) GetAvailable(ctx context.Context, search string, excludeEm
 	return responses, nil
 }
 
-// GetLimit resolves the active tenant's MaxUsers setting and the current user count.
+// GetLimit resolves the active tenant's seat limit from the active subscription and the current user count.
 // System admins bypass tenant lookup and receive max=0 (unlimited).
 func (u *userUsecase) GetLimit(ctx context.Context) (*UserLimitResponse, error) {
 	current, err := u.userRepo.Count(ctx)
@@ -221,12 +229,29 @@ func (u *userUsecase) GetLimit(ctx context.Context) (*UserLimitResponse, error) 
 	}
 
 	tenantID := middleware.TenantFromContext(ctx)
-	tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
-	if err != nil {
-		return nil, err
+	max := 0
+	if u.subscriptionRepo != nil {
+		if sub, err := u.subscriptionRepo.FindActiveByTenantID(ctx, tenantID); err == nil && sub != nil {
+			max = sub.SeatLimit
+			if sub.UserCount > max {
+				max = sub.UserCount
+			}
+		}
 	}
 
-	return &UserLimitResponse{Current: int(current), Max: tenant.MaxUsers}, nil
+	if max <= 0 {
+		tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		max = tenant.MaxUsers
+	}
+
+	if max <= 0 {
+		max = 1
+	}
+
+	return &UserLimitResponse{Current: int(current), Max: max}, nil
 }
 
 func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error) {
@@ -576,4 +601,3 @@ func (u *userUsecase) UpdateAvatar(ctx context.Context, id string, avatarURL str
 
 	return nil
 }
-

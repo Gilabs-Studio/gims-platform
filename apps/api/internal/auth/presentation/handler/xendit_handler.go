@@ -81,6 +81,13 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	if err := h.authUC.CompletePendingRegistration(reqCtx, payload.ExternalID); err != nil {
 		if errors.Is(err, usecase.ErrPendingRegistrationDataInvalid) {
 			log.Printf("[xendit] invalid pending registration payload for external_id=%s: %v", payload.ExternalID, err)
+		}
+
+		if billingErr := h.authUC.CompletePendingBillingChange(reqCtx, payload.ExternalID); billingErr == nil {
+			response.SuccessResponse(c, gin.H{"message": "ok"}, nil)
+			return
+		} else if !errors.Is(billingErr, usecase.ErrPendingBillingChangeNotFound) && !errors.Is(billingErr, usecase.ErrPendingBillingChangeInvalid) {
+			log.Printf("[xendit] failed billing change external_id=%s: %v", payload.ExternalID, billingErr)
 			response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
 			return
 		}

@@ -27,9 +27,9 @@ const (
 	PlanCRMEnterprise SubscriptionPlan = "crm_enterprise"
 
 	// HR tiers
-	PlanHRBasic       SubscriptionPlan = "hr_basic"
-	PlanHRGrowth      SubscriptionPlan = "hr_growth"
-	PlanHREnterprise  SubscriptionPlan = "hr_enterprise"
+	PlanHRBasic      SubscriptionPlan = "hr_basic"
+	PlanHRGrowth     SubscriptionPlan = "hr_growth"
+	PlanHREnterprise SubscriptionPlan = "hr_enterprise"
 
 	// Bundle plans (per-user pricing, Decoy Effect strategy)
 	PlanBundleStarter  SubscriptionPlan = "bundle_starter"  // POS + CRM
@@ -66,27 +66,28 @@ const (
 // A tenant can have a single active subscription record; historical records are kept
 // for audit purposes (status = expired / cancelled).
 type TenantSubscription struct {
-	ID                     string                    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID               string                    `gorm:"type:uuid;not null;index"                        json:"tenant_id"`
-	Plan                   SubscriptionPlan          `gorm:"type:varchar(50);not null"                       json:"plan"`
-	BillingPeriod          SubscriptionBillingPeriod `gorm:"type:varchar(20);not null;default:'monthly'"     json:"billing_period"`
-	Status                 SubscriptionStatus        `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
-	UserCount              int                       `gorm:"type:int;not null;default:1"                     json:"user_count"`
-	AmountPaidIDR          int64                     `gorm:"type:bigint;not null;default:0"                  json:"amount_paid_idr"`
-	StartsAt               time.Time                 `gorm:"type:timestamptz;not null"                       json:"starts_at"`
-	ExpiresAt              *time.Time                `gorm:"type:timestamptz"                                json:"expires_at"` // nil = lifetime
-	NextBillingAt          *time.Time                `gorm:"type:timestamptz"                                json:"next_billing_at,omitempty"`
-	CouponID               *string                   `gorm:"type:uuid"                                       json:"coupon_id,omitempty"`
+	ID            string                    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID      string                    `gorm:"type:uuid;not null;index"                        json:"tenant_id"`
+	Plan          SubscriptionPlan          `gorm:"type:varchar(50);not null"                       json:"plan"`
+	BillingPeriod SubscriptionBillingPeriod `gorm:"type:varchar(20);not null;default:'monthly'"     json:"billing_period"`
+	Status        SubscriptionStatus        `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
+	UserCount     int                       `gorm:"type:int;not null;default:1"                     json:"user_count"`
+	SeatLimit     int                       `gorm:"type:int;not null;default:1"                     json:"seat_limit"`
+	AmountPaidIDR int64                     `gorm:"type:bigint;not null;default:0"                  json:"amount_paid_idr"`
+	StartsAt      time.Time                 `gorm:"type:timestamptz;not null"                       json:"starts_at"`
+	ExpiresAt     *time.Time                `gorm:"type:timestamptz"                                json:"expires_at"` // nil = lifetime
+	NextBillingAt *time.Time                `gorm:"type:timestamptz"                                json:"next_billing_at,omitempty"`
+	CouponID      *string                   `gorm:"type:uuid"                                       json:"coupon_id,omitempty"`
 	// Xendit invoice fields (one-time payment)
-	XenditPaymentID        *string                   `gorm:"type:varchar(255)"                               json:"xendit_payment_id,omitempty"`
-	XenditInvoiceID        *string                   `gorm:"type:varchar(255)"                               json:"xendit_invoice_id,omitempty"`
+	XenditPaymentID *string `gorm:"type:varchar(255)"                               json:"xendit_payment_id,omitempty"`
+	XenditInvoiceID *string `gorm:"type:varchar(255)"                               json:"xendit_invoice_id,omitempty"`
 	// Xendit subscription fields (recurring billing)
-	XenditSubscriptionID   *string                   `gorm:"type:varchar(255)"                               json:"xendit_subscription_id,omitempty"`
-	XenditCustomerID       *string                   `gorm:"type:varchar(255)"                               json:"xendit_customer_id,omitempty"`
-	Notes                  string                    `gorm:"type:text"                                       json:"notes,omitempty"`
-	CreatedAt              time.Time                 `json:"created_at"`
-	UpdatedAt       time.Time                 `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt            `gorm:"index"                                           json:"-"`
+	XenditSubscriptionID *string        `gorm:"type:varchar(255)"                               json:"xendit_subscription_id,omitempty"`
+	XenditCustomerID     *string        `gorm:"type:varchar(255)"                               json:"xendit_customer_id,omitempty"`
+	Notes                string         `gorm:"type:text"                                       json:"notes,omitempty"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
+	DeletedAt            gorm.DeletedAt `gorm:"index"                                           json:"-"`
 
 	// Associations (read-only)
 	Coupon *Coupon `gorm:"foreignKey:CouponID" json:"coupon,omitempty"`

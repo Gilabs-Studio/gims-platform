@@ -131,7 +131,10 @@ func NewSubscriptionPlanRepository(db *gorm.DB) SubscriptionPlanRepository {
 // getDB returns the db scoped to the context (respects transaction if present).
 // Plan configs are platform-wide, so we bypass tenant scoping intentionally.
 func (r *subscriptionPlanRepository) getDB(ctx context.Context) *gorm.DB {
-	return database.GetDB(ctx, r.db)
+	if tx := database.GetTx(ctx); tx != nil {
+		return tx.WithContext(ctx)
+	}
+	return r.db.WithContext(ctx)
 }
 
 func (r *subscriptionPlanRepository) ListActive(ctx context.Context) ([]*models.SubscriptionPlanConfig, error) {

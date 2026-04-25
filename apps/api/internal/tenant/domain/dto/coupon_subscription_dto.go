@@ -118,6 +118,8 @@ type SubscriptionResponse struct {
 	ExpiresAt       *time.Time `json:"expires_at"`
 	NextBillingAt   *time.Time `json:"next_billing_at,omitempty"`
 	UserCount       int        `json:"user_count"`
+	SeatLimit       int        `json:"seat_limit,omitempty"`
+	ActiveUsers     int        `json:"active_users,omitempty"`
 	AmountPaidIDR   int64      `json:"amount_paid_idr"`
 	CouponCode      string     `json:"coupon_code,omitempty"`
 	XenditPaymentID string     `json:"xendit_payment_id,omitempty"`
@@ -190,4 +192,52 @@ type ComputePriceResponse struct {
 	CouponCode     string  `json:"coupon_code,omitempty"`
 	DiscountType   string  `json:"discount_type,omitempty"`
 	DiscountValue  float64 `json:"discount_value,omitempty"`
+}
+
+// BillingChangeAction describes the self-service billing lifecycle action.
+type BillingChangeAction string
+
+const (
+	BillingChangeActionAddSeat     BillingChangeAction = "add_seat"
+	BillingChangeActionUpgradePlan BillingChangeAction = "upgrade_plan"
+	BillingChangeActionAddModule   BillingChangeAction = "add_module"
+	BillingChangeActionDowngrade   BillingChangeAction = "downgrade"
+)
+
+// BillingChangeRequest is the tenant-facing payload for requesting a billing change.
+type BillingChangeRequest struct {
+	Action           BillingChangeAction `json:"action" binding:"required,oneof=add_seat upgrade_plan add_module downgrade"`
+	Target           string              `json:"target" binding:"required,min=1,max=128"`
+	ActionDate       string              `json:"action_date" binding:"required,datetime=2006-01-02"`
+	CouponCode       string              `json:"coupon_code,omitempty" binding:"omitempty,max=64"`
+	IdempotencyKey   string              `json:"idempotency_key,omitempty" binding:"omitempty,max=255"`
+	XenditCustomerID string              `json:"xendit_customer_id,omitempty" binding:"omitempty,max=255"`
+	XenditPlanID     string              `json:"xendit_plan_id,omitempty" binding:"omitempty,max=255"`
+}
+
+// BillingChangeResponse represents the computed billing delta and checkout payload.
+type BillingChangeResponse struct {
+	Status        string `json:"status"`
+	ErrorCode     string `json:"error_code,omitempty"`
+	SyncRequired  bool   `json:"sync_required,omitempty"`
+	BillingChange struct {
+		OldSeatLimit          int    `json:"old_seat_limit"`
+		NewSeatLimit          int    `json:"new_seat_limit"`
+		OldAmountPerCycle     int64  `json:"old_amount_per_cycle"`
+		NewAmountPerCycle     int64  `json:"new_amount_per_cycle"`
+		ProrationAmount       int64  `json:"proration_amount"`
+		ProrationWaivedReason string `json:"proration_waived_reason"`
+	} `json:"billing_change"`
+	CouponApplied struct {
+		Code           string `json:"code"`
+		DiscountAmount int64  `json:"discount_amount"`
+		MarkAsUsed     bool   `json:"mark_as_used"`
+	} `json:"coupon_applied"`
+	XenditAction     string         `json:"xendit_action"`
+	XenditPayload    map[string]any `json:"xendit_payload"`
+	UserNotification struct {
+		Title        string `json:"title"`
+		Message      string `json:"message"`
+		AmountDueNow int64  `json:"amount_due_now"`
+	} `json:"user_notification"`
 }

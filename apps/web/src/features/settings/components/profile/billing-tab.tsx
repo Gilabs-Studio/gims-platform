@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   Minus,
@@ -15,12 +15,21 @@ import {
   CalendarClock,
   Users,
   BadgeCheck,
+  ArrowUpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
-import { billingService, type TenantSubscription } from "../../services/billing-service";
+import {
+  billingService,
+  type BillingChangeAction,
+  type BillingChangeResponse,
+  type TenantSubscription,
+} from "../../services/billing-service";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -101,6 +110,24 @@ function effectiveMonthlyPrice(perUser: number, users: number, billing: BillingP
 function totalInvoice(perUser: number, users: number, billing: BillingPeriod): number {
   const monthly = effectiveMonthlyPrice(perUser, users, billing);
   return billing === "yearly" ? monthly * 12 : monthly;
+}
+
+function estimateCycleTotal(plan: SubscriptionPlanConfig | undefined, billingPeriod: string | undefined, seatCount: number): number {
+  if (!plan) {
+    return 0;
+  }
+  const period = billingPeriod === "yearly" ? "yearly" : "monthly";
+  const safeSeats = Math.max(1, seatCount);
+  if (plan.billing_type === "flat") {
+    return period === "yearly" ? plan.price_yearly_idr : plan.price_monthly_idr;
+  }
+  const unitPrice = period === "yearly" ? plan.price_yearly_idr : plan.price_monthly_idr;
+  return unitPrice * safeSeats;
+}
+
+function resolveInvoiceURL(result: BillingChangeResponse): string | null {
+  const raw = result.xendit_payload?.invoice_url;
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
 }
 
 function statusBadgeClass(status: TenantSubscription["status"]): string {
@@ -420,8 +447,12 @@ function PlanUpgradeTable({
 
 export function BillingTab() {
   const t = useTranslations("profile");
+  const queryClient = useQueryClient();
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [userCount, setUserCount] = useState(1);
+  // seatCount: dedicated seat tab input — independent from plan pricing
+  const [seatCount, setSeatCount] = useState(1);
+  // planUserCount: user count for plan comparison pricing only
+  const [planUserCount, setPlanUserCount] = useState(1);
   const [selectedBundle, setSelectedBundle] = useState("ultimate_suite");
   const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -436,6 +467,31 @@ export function BillingTab() {
     queryFn: () => authService.getSubscriptionPlans(),
     staleTime: 5 * 60_000,
     retry: false,
+  });
+
+  const billingChangeMutation = useMutation({
+    mutationFn: (payload: {
+      action: BillingChangeAction;
+      target: string;
+      action_date: string;
+      idempotency_key: string;
+    }) => billingService.changeSubscription(payload),
+    onSuccess: async (result) => {
+      const nextCycleAmount = result.billing_change?.new_amount_per_cycle ?? 0;
+      const dueNow = result.user_notification?.amount_due_now ?? 0;
+      toast.success(
+        `${result.user_notification?.title ?? "Billing updated"} Due now: ${formatIDR(dueNow)}. Next cycle: ${formatIDR(nextCycleAmount)}.`,
+      );
+      const invoiceURL = resolveInvoiceURL(result);
+      if (invoiceURL) {
+        window.open(invoiceURL, "_blank", "noopener,noreferrer");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+      await queryClient.invalidateQueries({ queryKey: ["payment-history"] });
+    },
+    onError: () => {
+      toast.error("Failed to update billing. Please try again.");
+    },
   });
 
   const bundles = useMemo<BundlePlan[]>(() => {
@@ -472,22 +528,73 @@ export function BillingTab() {
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
   const isOnMaxPlan = subscription?.plan === "ultimate_suite" || subscription?.plan === "full_access";
 
-  const handleUpgrade = async (targetPlanSlug?: string) => {
+  const currentSeatLimit = subscription?.seat_limit ?? subscription?.user_count ?? 1;
+  const activeUsers = subscription?.active_users ?? 0;
+  const requiredAdditionalSeats = Math.max(0, seatCount - currentSeatLimit);
+  const currentPlanConfig = useMemo(
+    () => (apiPlans ?? []).find((p) => p.slug === subscription?.plan),
+    [apiPlans, subscription?.plan],
+  );
+  const estimatedCurrentCycle = useMemo(
+    () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, currentSeatLimit),
+    [currentPlanConfig, subscription?.billing_period, currentSeatLimit],
+  );
+  const estimatedNextCycle = useMemo(
+    () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, seatCount),
+    [currentPlanConfig, subscription?.billing_period, seatCount],
+  );
+  const estimatedNextCycleDelta = Math.max(0, estimatedNextCycle - estimatedCurrentCycle);
+
+  useEffect(() => {
+    if (subscription) {
+      setSeatCount((prev) => (prev === 1 ? currentSeatLimit : prev));
+      setPlanUserCount((prev) => (prev === 1 ? currentSeatLimit : prev));
+    }
+  }, [subscription, currentSeatLimit]);
+
+  const submitBillingChange = useCallback(async (action: BillingChangeAction, target: string) => {
+    const actionDate = new Date().toISOString().slice(0, 10);
+    const idempotencyKey = `${subscription?.id ?? "sub"}-${action}-${actionDate}-${target}`;
+    await billingChangeMutation.mutateAsync({
+      action,
+      target,
+      action_date: actionDate,
+      idempotency_key: idempotencyKey,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscription?.id, billingChangeMutation]);
+
+  const handlePlanUpgrade = useCallback(async (targetPlanSlug?: string) => {
     const planSlug = targetPlanSlug ?? selectedBundle;
     if (!planSlug || planSlug === "enterprise") return;
+    if (!subscription) {
+      toast.error("No active subscription found.");
+      return;
+    }
     setIsUpgrading(true);
     try {
-      const result = await authService.computePrice({
-        plan_slug: planSlug,
-        billing_period: billing,
-        user_count: userCount,
-      });
-      void result;
-      window.open(CONTACT_SALES_URL, "_blank", "noopener,noreferrer");
+      const action: BillingChangeAction = targetPlanSlug ? "add_module" : "upgrade_plan";
+      await submitBillingChange(action, planSlug);
     } finally {
       setIsUpgrading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBundle, subscription, submitBillingChange]);
+
+  const handleSeatUpdate = useCallback(async (newLimit: number) => {
+    if (!subscription) return;
+    if (newLimit <= currentSeatLimit) {
+      toast.error("New seat limit must be greater than current seat limit.");
+      return;
+    }
+    setIsUpgrading(true);
+    try {
+      await submitBillingChange("add_seat", String(newLimit));
+    } finally {
+      setIsUpgrading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscription, currentSeatLimit, submitBillingChange]);
 
   return (
     <div className="space-y-8">
@@ -513,91 +620,195 @@ export function BillingTab() {
         </div>
       )}
 
-      {subscription && modularPlans.length > 0 && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h4 className="text-base font-semibold">{t("billing.modularTitle")}</h4>
-            <p className="text-sm text-muted-foreground">{t("billing.modularDescription")}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {modularPlans.map((plan) => {
-              const isIncluded = plan.slug === subscription.plan;
-              return (
-                <div key={plan.slug} className="rounded-xl border border-border/80 bg-card p-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">{plan.name}</p>
-                    <p className="text-xs text-muted-foreground">{plan.description ?? plan.category.toUpperCase()}</p>
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-foreground">
-                    {formatIDR(plan.price_monthly_idr)}
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+      {subscription && (
+        <Tabs defaultValue="seat" className="space-y-6">
+          <TabsList className="h-10">
+            <TabsTrigger value="seat" className="gap-2">
+              <Users className="h-3.5 w-3.5" />
+              {t("billing.seatTab")}
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-2">
+              <ArrowUpCircle className="h-3.5 w-3.5" />
+              {t("billing.planTab")}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="seat" className="space-y-6">
+            <div className="rounded-xl border border-border/80 bg-card p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="text-base font-semibold">{t("billing.seatTitle")}</h4>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {t("billing.seatDescription", { plan: currentPlanName ?? subscription.plan })}
                   </p>
-                  <Button
-                    type="button"
-                    variant={isIncluded ? "outline" : "default"}
-                    disabled={isIncluded || isUpgrading}
-                    onClick={() => handleUpgrade(plan.slug)}
-                    className="mt-4 h-9 w-full"
-                  >
-                    {isIncluded ? t("billing.included") : t("billing.addModule")}
-                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>{t("billing.activeUsers", { count: activeUsers })}</span>
+                  <span>/</span>
+                  <span>{t("billing.seatCount", { count: currentSeatLimit })}</span>
+                </div>
+              </div>
 
-      {/* If on max plan show a "best plan" notice; otherwise show upgrade table */}
-      {isOnMaxPlan ? (
-        <div className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/5 px-5 py-5">
-          <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-          <div>
-            <p className="font-semibold text-foreground">You&apos;re on the best plan</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {currentPlanName} gives you access to every module. Need custom limits or a dedicated SLA?{" "}
-              <a
-                href={CONTACT_SALES_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                Contact our team.
-              </a>
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-1">
-            <h4 className="text-base font-semibold">Available Plans</h4>
-            <p className="text-sm text-muted-foreground">
-              {t("billing.availablePlansDescription")}
-            </p>
-          </div>
+              <div className="mb-5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t("billing.capacityUsed")}</span>
+                  <span>{Math.round((activeUsers / Math.max(1, currentSeatLimit)) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.round((activeUsers / Math.max(1, currentSeatLimit)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="plans"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <PlanUpgradeTable
-                bundles={bundles}
-                billing={billing}
-                userCount={userCount}
-                selectedBundle={selectedBundle}
-                currentPlanSlug={subscription?.plan}
-                onSelectBundle={setSelectedBundle}
-                onBillingChange={setBilling}
-                onUserCountChange={setUserCount}
-                isUpgrading={isUpgrading}
-                onUpgrade={handleUpgrade}
-              />
-            </motion.div>
-          </AnimatePresence>
-        </>
+              <div className="mb-5 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm">
+                <p className="font-medium text-foreground">{t("billing.seatEstimateTitle")}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.seatNeedToAdd", { count: requiredAdditionalSeats })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.nextCycleTotal", { amount: formatIDR(estimatedNextCycle) })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.nextCycleIncrease", { amount: formatIDR(estimatedNextCycleDelta) })}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">{t("billing.newSeatCount")}</label>
+                  <div className="flex items-center rounded-lg border border-border/70">
+                    <button
+                      type="button"
+                      onClick={() => setSeatCount((v) => Math.max(currentSeatLimit + 1, v - 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:bg-muted"
+                      aria-label={t("billing.decreaseSeat")}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <input
+                      type="number"
+                      min={currentSeatLimit + 1}
+                      max={500}
+                      value={seatCount}
+                      onChange={(e) => {
+                        const next = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(next) && next >= 1 && next <= 500) setSeatCount(next);
+                      }}
+                      className="h-9 w-16 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      aria-label={t("billing.newSeatCount")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSeatCount((v) => Math.min(500, v + 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-muted"
+                      aria-label={t("billing.increaseSeat")}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="h-9"
+                  disabled={isUpgrading || seatCount <= currentSeatLimit}
+                  onClick={() => handleSeatUpdate(seatCount)}
+                >
+                  {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {isUpgrading ? t("billing.processing") : t("billing.addSeatToCount", { count: seatCount })}
+                </Button>
+                {seatCount <= currentSeatLimit && (
+                  <p className="text-xs text-muted-foreground">{t("billing.seatMustExceed", { count: currentSeatLimit })}</p>
+                )}
+              </div>
+            </div>
+
+            {modularPlans.length > 0 && (
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold">{t("billing.modularTitle")}</h4>
+                  <p className="text-xs text-muted-foreground">{t("billing.modularSeatInfo")}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {modularPlans.map((plan) => {
+                    const isIncluded = plan.slug === subscription.plan;
+                    return (
+                      <div
+                        key={plan.slug}
+                        className={cn(
+                          "flex items-center justify-between rounded-xl border p-4",
+                          isIncluded ? "border-primary/30 bg-primary/5" : "border-border/70 bg-card",
+                        )}
+                      >
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium">{plan.name}</p>
+                          <p className="text-xs text-muted-foreground">{plan.description ?? plan.category.toUpperCase()}</p>
+                        </div>
+                        {isIncluded ? (
+                          <Badge variant="active" className="shrink-0">
+                            {t("billing.activeSeatBadge", { count: currentSeatLimit })}
+                          </Badge>
+                        ) : (
+                          <Badge variant="inactive" className="shrink-0">
+                            {t("billing.inactive")}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="plan" className="space-y-6">
+            {isOnMaxPlan ? (
+              <div className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/5 px-5 py-5">
+                <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                <div>
+                  <p className="font-semibold text-foreground">{t("billing.bestPlanTitle")}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("billing.bestPlanDescription", { plan: currentPlanName ?? subscription.plan })}{" "}
+                    <a
+                      href={CONTACT_SALES_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      {t("billing.contactTeam")}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key="plans"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <PlanUpgradeTable
+                    bundles={bundles}
+                    billing={billing}
+                    userCount={planUserCount}
+                    selectedBundle={selectedBundle}
+                    currentPlanSlug={subscription?.plan}
+                    onSelectBundle={setSelectedBundle}
+                    onBillingChange={setBilling}
+                    onUserCountChange={setPlanUserCount}
+                    isUpgrading={isUpgrading}
+                    onUpgrade={handlePlanUpgrade}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

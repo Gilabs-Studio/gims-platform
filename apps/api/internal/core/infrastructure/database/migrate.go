@@ -70,6 +70,13 @@ func AutoMigrate() error {
 		USING reference_id::varchar;
 	`)
 
+	// PRE-MIGRATION: Add seat_limit and payment_transactions.tenant_id safely.
+	// These must run BEFORE AutoMigrate so GORM sees consistent schema.
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS seat_limit integer NOT NULL DEFAULT 1`)
+	_ = DB.Exec(`UPDATE tenant_subscriptions SET seat_limit = GREATEST(user_count, 1) WHERE seat_limit = 0`)
+	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
+
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)

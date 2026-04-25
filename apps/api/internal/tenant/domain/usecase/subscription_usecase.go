@@ -68,10 +68,28 @@ func (u *subscriptionUsecase) GetActiveByTenant(ctx context.Context, tenantID st
 		return nil, err
 	}
 	r := subModelToDTO(sub)
+	if tenant, tenantErr := u.tenantRepo.FindByIDWithCounts(ctx, tenantID); tenantErr == nil && tenant != nil {
+		// Legacy tenants can still have seat_limit/user_count defaulted to 1 in tenant_subscriptions,
+		// so the repository normalizes MaxUsers from the active subscription seat_limit first and
+		// only falls back to tenants.max_users when subscription data is unavailable.
+		if tenant.MaxUsers > r.SeatLimit {
+			r.SeatLimit = tenant.MaxUsers
+		}
+		if tenant.MaxUsers > r.UserCount {
+			r.UserCount = tenant.MaxUsers
+		}
+		if tenant.OwnerEmail != "" {
+			r.TenantName = tenant.OwnerEmail
+		} else if tenant.Name != "" {
+			r.TenantName = tenant.Name
+		}
+	}
 	if activeUsers, countErr := u.tenantRepo.CountActiveUsers(ctx, tenantID); countErr == nil {
 		r.ActiveUsers = int(activeUsers)
 	}
-	r.TenantName = u.resolveTenantName(ctx, tenantID)
+	if r.TenantName == "" {
+		r.TenantName = u.resolveTenantName(ctx, tenantID)
+	}
 	return r, nil
 }
 
@@ -108,6 +126,9 @@ func subModelToDTO(s *models.TenantSubscription) *dto.SubscriptionResponse {
 		AmountPaidIDR: s.AmountPaidIDR,
 		Notes:         s.Notes,
 		CreatedAt:     s.CreatedAt,
+	}
+	if r.SeatLimit < s.UserCount {
+		r.SeatLimit = s.UserCount
 	}
 	if r.SeatLimit == 0 {
 		r.SeatLimit = s.UserCount

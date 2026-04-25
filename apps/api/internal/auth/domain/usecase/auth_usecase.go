@@ -117,6 +117,9 @@ type AuthUsecase interface {
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
 	// CompletePendingBillingChange finalizes a paid billing change after the webhook.
 	CompletePendingBillingChange(ctx context.Context, token string) error
+	// ConfirmPendingBillingChange allows authenticated tenants to reconcile a paid
+	// billing change when webhook processing is delayed.
+	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
 }
 
 type authUsecase struct {
@@ -595,7 +598,10 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			req.Plan = validity.TargetPlanSlug
 			plan = validity.TargetPlanSlug
 		}
-		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+		// For package coupons (fixed package price + included users), exceeding max_user_count
+		// is allowed and billed as extra seats by ApplyDiscount.
+		isPackageCoupon := validity.PackagePriceMonthlyIDR > 0 && validity.MaxUserCount > 0
+		if !isPackageCoupon && validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
 			return nil, ErrCouponUserLimitExceeded
 		}
 		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
