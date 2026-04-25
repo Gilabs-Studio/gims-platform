@@ -239,3 +239,48 @@ func TestChartOfAccountUpdate_ShouldRejectCircularParentReference(t *testing.T) 
 	require.ErrorIs(t, err, ErrCOAInvalidParent)
 }
 
+func TestChartOfAccountCreate_ShouldAutoGenerateCode_FromParent(t *testing.T) {
+	t.Parallel()
+
+	rootID := "root"
+	parentID := "parent"
+	repo := newInMemoryCOARepo(
+		financeModels.ChartOfAccount{ID: rootID, Code: "10000", Name: "Assets", Type: financeModels.AccountTypeAsset, IsActive: true, IsPostable: false},
+		financeModels.ChartOfAccount{ID: parentID, Code: "11000", Name: "Current Assets", Type: financeModels.AccountTypeAsset, ParentID: &rootID, IsActive: true, IsPostable: false},
+		financeModels.ChartOfAccount{ID: "child-1", Code: "11100", Name: "Cash Group", Type: financeModels.AccountTypeAsset, ParentID: &parentID, IsActive: true, IsPostable: true},
+		financeModels.ChartOfAccount{ID: "child-2", Code: "11120", Name: "Receivable Group", Type: financeModels.AccountTypeAsset, ParentID: &parentID, IsActive: true, IsPostable: true},
+	)
+	uc := NewChartOfAccountUsecase(nil, repo, mapper.NewChartOfAccountMapper())
+
+	created, err := uc.Create(context.Background(), &dto.CreateChartOfAccountRequest{
+		Code:     "manual-code-should-be-ignored",
+		Name:     "Generated Child",
+		Type:     financeModels.AccountTypeAsset,
+		ParentID: &parentID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "11121", created.Code)
+}
+
+func TestChartOfAccountCreate_ShouldKeepNonPostable_WhenRequested(t *testing.T) {
+	t.Parallel()
+
+	rootID := "root"
+	parentID := "parent"
+	repo := newInMemoryCOARepo(
+		financeModels.ChartOfAccount{ID: rootID, Code: "10000", Name: "Assets", Type: financeModels.AccountTypeAsset, IsActive: true, IsPostable: false},
+		financeModels.ChartOfAccount{ID: parentID, Code: "11100", Name: "Cash and Cash Equivalent", Type: financeModels.AccountTypeCashBank, ParentID: &rootID, IsActive: true, IsPostable: false},
+	)
+	uc := NewChartOfAccountUsecase(nil, repo, mapper.NewChartOfAccountMapper())
+
+	isPostable := false
+	created, err := uc.Create(context.Background(), &dto.CreateChartOfAccountRequest{
+		Name:       "Petty Cash",
+		Type:       financeModels.AccountTypeCashBank,
+		ParentID:   &parentID,
+		IsPostable: &isPostable,
+	})
+	require.NoError(t, err)
+	require.False(t, created.IsPostable)
+}
+

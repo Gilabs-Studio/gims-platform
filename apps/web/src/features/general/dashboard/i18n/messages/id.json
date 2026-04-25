@@ -13,25 +13,89 @@
     "compareLastMonth": "Dibanding bulan lalu",
     "formula": "Formula",
     "purpose": "Tujuan",
+    "templatePicker": {
+      "title": "Pilih tata letak dasbor Anda",
+      "description": "Pilih template untuk memulai. Anda bisa mengubahnya kapan saja.",
+      "useTemplate": "Gunakan template ini",
+      "templates": {
+        "erp": {
+          "name": "ERP",
+          "description": "Pesanan, pendapatan, inventaris, dan gambaran operasional"
+        },
+        "crm": {
+          "name": "CRM",
+          "description": "Kontak, prospek, kesepakatan, dan pelacakan aktivitas"
+        },
+        "pos": {
+          "name": "POS",
+          "description": "Penjualan outlet, meja langsung, dan produk terlaris"
+        },
+        "hr": {
+          "name": "HR",
+          "description": "Jumlah karyawan, kehadiran, dan manajemen cuti"
+        }
+      }
+    },
+    "onboarding": {
+      "welcome": "Selamat datang di GIMS!",
+      "chooseTypePrompt": "Mari siapkan akun Anda. Bisnis apa yang sedang Anda jalankan?",
+      "setupChecklist": "Daftar Periksa Setup",
+      "checklistPrompt": "Selesaikan langkah-langkah berikut untuk menyiapkan workspace Anda ({done}/{total} selesai)",
+      "dismiss": "Lewati untuk sekarang",
+      "markDone": "Selesaikan setup",
+      "types": {
+        "fnb": {
+          "label": "Makanan & Minuman",
+          "description": "Restoran, kafe, katering, atau operasi F&B lainnya"
+        },
+        "other": {
+          "label": "Bisnis Lainnya",
+          "description": "Retail, distribusi, manufaktur, atau jasa"
+        }
+      },
+      "steps": {
+        "company": {
+          "label": "Siapkan perusahaan Anda",
+          "description": "Tambahkan nama, alamat, dan informasi dasar perusahaan"
+        },
+        "fiscalYear": {
+          "label": "Atur Tahun Fiskal",
+          "description": "Atur setidaknya satu tahun fiskal aktif sebelum Anda dapat mencatat transaksi penjualan atau pembelian."
+        },
+        "outlet": {
+          "label": "Buat outlet pertama Anda",
+          "description": "Tambahkan cabang atau lokasi tempat Anda beroperasi"
+        },
+        "floorLayout": {
+          "label": "Desain tata letak lantai",
+          "description": "Atur meja dan bagian untuk tempat Anda"
+        },
+        "products": {
+          "label": "Tambahkan produk / menu",
+          "description": "Siapkan item yang Anda jual atau sajikan"
+        },
+        "warehouse": {
+          "label": "Buat gudang",
+          "description": "Siapkan lokasi penyimpanan stok utama Anda"
+        },
+        "users": {
+          "label": "Undang anggota tim",
+          "description": "Tambahkan akun staf dan tetapkan peran"
+        }
+      }
+    },
     "status": {
       "good": "Sehat",
       "warning": "Waspada",
       "danger": "Kritis"
     },
     "categories": {
-      "overview": "Overview",
-      "finance": "Finance",
-      "sales": "Sales",
-      "purchase": "Purchase",
-      "inventory": "Inventory",
-      "geographic": "Geographical",
+      "erp": "ERP",
+      "crm": "CRM",
+      "pos": "POS",
       "hr": "HR",
-      "profitability": "Profitabilitas",
-      "cashflow": "Cashflow",
-      "logistics": "Logistik",
-      "asset": "Aset",
-      "cost": "Biaya",
-      "intelligence": "Intelligence"
+      "finance": "Keuangan",
+      "other": "Lainnya"
     },
     "revenueChart": {
       "title": "Grafik Pendapatan",
@@ -266,6 +330,56 @@
       "owner_intelligence": {
         "title": "Owner Intelligence",
         "description": "Analisis kesehatan bisnis otomatis, deteksi bottleneck, dan insight actionable"
+      },
+      "crm_total_contacts": {
+        "title": "Total Kontak",
+        "description": "Total kontak CRM"
+      },
+      "crm_active_leads": {
+        "title": "Prospek Aktif",
+        "description": "Prospek aktif dalam pipeline",
+        "thisMonth": "baru bulan ini"
+      },
+      "crm_deals_overview": {
+        "title": "Ringkasan Kesepakatan",
+        "description": "Kesepakatan berlangsung dan berhasil bulan ini",
+        "inProgress": "Berlangsung",
+        "wonThisMonth": "Berhasil Bulan Ini"
+      },
+      "crm_activity_summary": {
+        "title": "Ringkasan Aktivitas",
+        "description": "Aktivitas CRM yang dijadwalkan hari ini",
+        "activitiesToday": "aktivitas hari ini"
+      },
+      "pos_outlet_sales": {
+        "title": "Penjualan Outlet",
+        "description": "Pendapatan dan pesanan hari ini per outlet",
+        "allOutlets": "Semua Outlet",
+        "todayRevenue": "Pendapatan Hari Ini",
+        "todayOrders": "Pesanan Hari Ini",
+        "outlet": "Outlet",
+        "revenue": "Pendapatan",
+        "orders": "Pesanan",
+        "tables": "Meja"
+      },
+      "pos_live_table_overview": {
+        "title": "Tampilan Meja Langsung",
+        "description": "Okupansi meja real-time di semua outlet",
+        "allOutlets": "Semua Outlet",
+        "occupancy": "Okupansi Meja"
+      },
+      "hr_attendance_today": {
+        "title": "Kehadiran Hari Ini",
+        "description": "Ringkasan kehadiran karyawan hari ini",
+        "present": "Hadir",
+        "late": "Terlambat",
+        "absent": "Tidak Hadir",
+        "attendanceRate": "Tingkat Kehadiran"
+      },
+      "hr_pending_leaves": {
+        "title": "Cuti Menunggu",
+        "description": "Permintaan cuti menunggu persetujuan",
+        "pendingRequests": "permintaan menunggu"
       }
     },
     "ownerKpi": {

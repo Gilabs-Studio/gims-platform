@@ -34,6 +34,7 @@ type Props = {
     type: CoaType;
     parent_id?: string | null;
     is_active: boolean;
+    is_postable?: boolean;
     is_protected?: boolean;
   } | null;
   parentOptions: Array<Pick<ChartOfAccount, "id" | "code" | "name">>;
@@ -69,6 +70,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
       type: initialData?.type ?? "ASSET",
       parent_id: initialData?.parent_id ?? null,
       is_active: initialData?.is_active ?? true,
+      is_postable: initialData?.is_postable ?? true,
     }),
     [initialData],
   );
@@ -96,6 +98,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
         type: values.type,
         parent_id: values.parent_id ?? null,
         is_active: values.is_active ?? true,
+        is_postable: values.is_postable ?? true,
       };
 
       if (mode === "create") {
@@ -133,7 +136,15 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
 
           <div className="space-y-2">
             <Label htmlFor="code">{t("fields.code")}</Label>
-            <Input id="code" {...form.register("code")} disabled={isProtected} />
+            <Input
+              id="code"
+              {...form.register("code")}
+              disabled={isProtected || (mode === "create" && (form.watch("parent_id") ?? null) !== null)}
+              placeholder={mode === "create" && (form.watch("parent_id") ?? null) !== null ? t("messages.autoCodeFromParent") : undefined}
+            />
+            {mode === "create" && (form.watch("parent_id") ?? null) !== null && (
+              <p className="text-xs text-muted-foreground">{t("messages.autoCodeHint")}</p>
+            )}
             {form.formState.errors.code && (
               <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
             )}
@@ -179,6 +190,9 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 value={form.watch("parent_id") ?? "__none__"}
                 onValueChange={(v) => {
                   form.setValue("parent_id", v === "__none__" ? null : v, { shouldDirty: true });
+                  if (mode === "create" && v !== "__none__") {
+                    form.setValue("code", "", { shouldDirty: true, shouldValidate: true });
+                  }
                 }}
                 disabled={isProtected}
               >
@@ -217,6 +231,25 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
               disabled={isProtected}
             />
           </div>
+
+          {mode === "create" && (
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="space-y-0.5">
+                <div className="text-sm font-medium">{t("fields.isPostable")}</div>
+                <div className="text-xs text-muted-foreground">
+                  {(form.watch("is_postable") ?? true) ? t("status.postable") : t("status.nonPostable")}
+                </div>
+              </div>
+              <Switch
+                checked={form.watch("is_postable") ?? true}
+                onCheckedChange={(checked) => {
+                  form.setValue("is_postable", checked, { shouldDirty: true });
+                }}
+                className="cursor-pointer"
+                disabled={isProtected}
+              />
+            </div>
+          )}
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button

@@ -452,14 +452,23 @@ func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliver
 	if len(quotation.Items) > 0 {
 		order.Items = make([]salesModels.SalesOrderItem, len(quotation.Items))
 		for i, item := range quotation.Items {
+			productCode := ""
+			productName := ""
+			if item.Product != nil {
+				productCode = item.Product.Code
+				productName = item.Product.Name
+			}
+
 			order.Items[i] = salesModels.SalesOrderItem{
-				ProductID: item.ProductID,
-				Quantity:  item.Quantity,
-				Price:     item.Price,
-				Discount:  item.Discount,
-				Subtotal:  item.Subtotal,
-				CreatedAt: apptime.Now(),
-				UpdatedAt: apptime.Now(),
+				ProductID:   item.ProductID,
+				ProductCode: productCode,
+				ProductName: productName,
+				Quantity:    item.Quantity,
+				Price:       item.Price,
+				Discount:    item.Discount,
+				Subtotal:    item.Subtotal,
+				CreatedAt:   apptime.Now(),
+				UpdatedAt:   apptime.Now(),
 			}
 		}
 	}

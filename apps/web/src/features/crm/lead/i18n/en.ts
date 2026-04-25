@@ -14,9 +14,11 @@ export const crmLeadEn = {
     searchPlaceholder: "Search leads...",
     emptyState: "No leads found",
     deleteTitle: "Delete Lead",
-    deleteDescription: "Are you sure you want to delete this lead? This action cannot be undone.",
+    deleteDescription:
+      "Are you sure you want to delete this lead? This action cannot be undone.",
     convertTitle: "Convert to Pipeline",
-    convertDescription: "Convert this lead into a deal in the pipeline. Activities and data will be linked to the new deal.",
+    convertDescription:
+      "Convert this lead into a deal in the pipeline. Activities and data will be linked to the new deal.",
     convertedBadge: "Converted",
     convertButton: "Convert to Pipeline",
     lostBadge: "Lost",
@@ -28,7 +30,8 @@ export const crmLeadEn = {
     clickToUpdateLocation: "Click to update location",
     openInMaps: "Open in Maps",
     noLocation: "No location set",
-    pickLocationDesc: "Click on the map or drag the marker to set the lead's location",
+    pickLocationDesc:
+      "Click on the map or drag the marker to set the lead's location",
     potentialCustomer: "Potential Customer",
     updatedAt: "Updated at",
     allStatuses: "All Statuses",
@@ -98,7 +101,8 @@ export const crmLeadEn = {
       dealValuePlaceholder: "0",
       pipelineStage: "Pipeline Stage",
       pipelineStagePlaceholder: "Select stage (default: lowest probability)",
-      pipelineStageHint: "If not selected, defaults to the stage with the lowest pipeline probability",
+      pipelineStageHint:
+        "If not selected, defaults to the stage with the lowest pipeline probability",
       website: "Social Media / Link",
       bankAccount: "Linked Bank Account",
       bankAccountPlaceholder: "Select linked bank account",
@@ -154,6 +158,10 @@ export const crmLeadEn = {
       firstNameMin: "First name must be at least 2 characters",
       firstNameMax: "First name must be at most 100 characters",
       emailInvalid: "Please enter a valid email address",
+      probabilityMax: "Max probability is 100%",
+      phoneInvalid:
+        "Phone number may only contain digits, +, -, spaces, and parentheses",
+      phoneMax: "Phone number must be at most 20 characters",
     },
     viewDeal: "View Deal",
     viewInPipeline: "View in Pipeline",
@@ -170,7 +178,8 @@ export const crmLeadEn = {
         employee: "Employee",
         employeePlaceholder: "Select employee",
         description: "Description",
-        descriptionPlaceholder: "Describe the activity (e.g. result of the call, topics discussed)",
+        descriptionPlaceholder:
+          "Describe the activity (e.g. result of the call, topics discussed)",
         date: "Date",
         time: "Time",
         pickDate: "Pick a date",
@@ -205,21 +214,28 @@ export const crmLeadEn = {
     generate: {
       buttonLabel: "Generate Leads",
       title: "Generate Leads via n8n",
-      description: "Download n8n workflow templates to scrape leads from Google Maps or LinkedIn using free APIs, then push them to GIMS.",
+      description:
+        "Download n8n workflow templates to scrape leads from Google Maps or LinkedIn using free APIs, then push them to GIMS.",
       selectSource: "Lead Source",
       keyword: "Keyword",
       keywordPlaceholder: "e.g. IT Company, Restaurant",
       city: "City",
       cityPlaceholder: "e.g. Jakarta, Surabaya",
       limit: "Max Results",
-      limitHintMaps: "Serper.dev free tier: max 20 results per search, 2,500 searches/month",
-      limitHintLinkedin: "Apollo.io free tier: max 25 exports/month — includes AI parsing + Tavily company research",
+      limitHintMaps:
+        "Serper.dev free tier: max 20 results per search, 2,500 searches/month",
+      limitHintLinkedin:
+        "Apollo.io free tier: max 25 exports/month — includes AI parsing + Tavily company research",
       howToUse: "How to Use",
-      step1: "Copy the workflow JSON and import into n8n (Settings > Import from clipboard)",
-      step2: "Configure credentials: Groq API (free), Apollo.io (free), Tavily (free)",
+      step1:
+        "Copy the workflow JSON and import into n8n (Settings > Import from clipboard)",
+      step2:
+        "Configure credentials: Groq API (free), Apollo.io (free), Tavily (free)",
       step3: "Set n8n Variables: APOLLO_API_KEY and SERPER_API_KEY",
-      step4: "Activate the workflow, then copy your /webhook/ URL (not /webhook-test/)",
-      step5: "Paste the URL above and click Run — n8n will scrape, AI-parse, research, and push leads to GIMS",
+      step4:
+        "Activate the workflow, then copy your /webhook/ URL (not /webhook-test/)",
+      step5:
+        "Paste the URL above and click Run — n8n will scrape, AI-parse, research, and push leads to GIMS",
       freeApis: "Free APIs",
       downloadWorkflow: "Download Workflow",
       downloadUniversal: "Universal Workflow",
@@ -228,10 +244,14 @@ export const crmLeadEn = {
       jsonCopied: "Workflow JSON copied to clipboard",
       copyFailed: "Failed to copy to clipboard",
       webhookUrl: "n8n Webhook URL (managed)",
-      webhookUrlPlaceholder: "https://your-instance.n8n.cloud/webhook/gims-generate-leads",
-      webhookUrlHint: "Webhook URL is managed by the server. No client action needed.",
-      webhookTestModeWarning: "⚠ n8n webhook URL is managed by the server; ensure the workflow is active in your n8n instance.",
-      serverManagedMessage: "n8n endpoint is configured server-side via API environment variables.",
+      webhookUrlPlaceholder:
+        "https://your-instance.n8n.cloud/webhook/gims-generate-leads",
+      webhookUrlHint:
+        "Webhook URL is managed by the server. No client action needed.",
+      webhookTestModeWarning:
+        "⚠ n8n webhook URL is managed by the server; ensure the workflow is active in your n8n instance.",
+      serverManagedMessage:
+        "n8n endpoint is configured server-side via API environment variables.",
       run: "Run",
       running: "Running...",
       test: "Test Connection",
@@ -246,7 +266,8 @@ export const crmLeadEn = {
     },
     productItems: {
       empty: "No product interest recorded yet",
-      emptyHint: "Product interest will appear here when a visit report with products is submitted for this lead.",
+      emptyHint:
+        "Product interest will appear here when a visit report with products is submitted for this lead.",
       product: "Product",
       sku: "SKU",
       interest: "Interest",

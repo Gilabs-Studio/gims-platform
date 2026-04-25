@@ -16,6 +16,7 @@ const (
 
 type Budget struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Name        string `gorm:"type:varchar(255);not null;index" json:"name"`
 	Description string `gorm:"type:text" json:"description"`

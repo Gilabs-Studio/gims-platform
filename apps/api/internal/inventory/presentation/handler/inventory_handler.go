@@ -152,6 +152,9 @@ func (h *InventoryHandler) GetInventoryMetrics(c *gin.Context) {
 
 func (h *InventoryHandler) GetProductLedgers(c *gin.Context) {
 	productID := strings.TrimSpace(c.Param("product_id"))
+	if productID == "" {
+		productID = strings.TrimSpace(c.Param("id"))
+	}
 	if _, err := uuid.Parse(productID); err != nil {
 		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "product_id must be a valid UUID", map[string]interface{}{"product_id": "invalid UUID"})
 		return
@@ -197,4 +200,10 @@ func (h *InventoryHandler) GetProductLedgers(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, result, nil)
+}
+
+// GetStockByProduct is an alias endpoint for inventory stock detail by product.
+// It currently returns the same ledger payload used by /inventory/products/:product_id/ledgers.
+func (h *InventoryHandler) GetStockByProduct(c *gin.Context) {
+	h.GetProductLedgers(c)
 }

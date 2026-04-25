@@ -86,6 +86,8 @@ export function OutletDialog({
                 <Label htmlFor="phone">{t("outlet.form.phone")}</Label>
                 <Input
                   id="phone"
+                  type="tel"
+                  inputMode="numeric"
                   {...register("phone")}
                   placeholder={t("outlet.form.phonePlaceholder")}
                 />

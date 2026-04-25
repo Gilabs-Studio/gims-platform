@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, MoreHorizontal, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,27 +14,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import {
   useLoyaltyPrograms,
   useDeleteLoyaltyProgram,
   useToggleLoyaltyProgram,
 } from "../hooks/use-loyalty";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { LoyaltyProgram } from "../types";
 import { LoyaltyProgramFormDialog } from "./loyalty-program-form-dialog";
+import { LoyaltyProgramDetailDialog } from "./loyalty-program-detail-dialog";
 
 export function LoyaltyProgramList() {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
+  const { user } = useAuthStore();
+  const isOutletScoped = user?.role.data_scope === "OUTLET";
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LoyaltyProgram | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingProgram, setViewingProgram] = useState<LoyaltyProgram | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const debouncedSearch = useDebounce(search, 300);
 
-  // hook params do not accept `search` in the current type; keep pagination only
-  const { data, isLoading } = useLoyaltyPrograms({ page, per_page: perPage });
+  const { data, isLoading } = useLoyaltyPrograms({ page, per_page: perPage, search: debouncedSearch || undefined });
   const deleteMutation = useDeleteLoyaltyProgram();
   const toggleMutation = useToggleLoyaltyProgram();
 
@@ -71,6 +77,12 @@ export function LoyaltyProgramList() {
       toast.error(t("programs.updated") + " failed");
     }
   }
+
+  const canEditProgram = (program: LoyaltyProgram): boolean => {
+    // Outlet managers can only edit outlet-specific programs (not global ones).
+    if (isOutletScoped) return !!program.outlet_id;
+    return true;
+  };
 
   const getMembersCount = (program: LoyaltyProgram): number => {
     return program.member_count ?? program.members_count ?? 0;
@@ -143,19 +155,27 @@ export function LoyaltyProgramList() {
               programs.map((program) => (
                 <TableRow key={program.id}>
                   <TableCell className="font-medium">{program.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {program.outlet_id ? t("programs.outletSpecific") : t("programs.global")}
+                  <TableCell className="text-sm">
+                    {program.outlet_id ? (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {t("programs.scopeOutlet")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        {t("programs.scopeGlobal")}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={program.is_active}
                         onCheckedChange={(checked) => {
-                          if (checked !== program.is_active) {
+                          if (checked !== program.is_active && canEditProgram(program)) {
                             void handleToggle(program.id, program.name);
                           }
                         }}
-                        disabled={toggleMutation.isPending}
+                        disabled={toggleMutation.isPending || !canEditProgram(program)}
                         className="cursor-pointer"
                       />
                       <span className="text-sm text-muted-foreground">
@@ -176,14 +196,22 @@ export function LoyaltyProgramList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(program)} className="cursor-pointer">
-                          <Pencil className="mr-2 h-4 w-4" />
-                          {t("programs.edit")}
+                        <DropdownMenuItem onClick={() => setViewingProgram(program)} className="cursor-pointer">
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t("programs.viewDetails")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setDeletingId(program.id)} className="cursor-pointer text-destructive focus:text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {t("programs.delete")}
-                        </DropdownMenuItem>
+                        {canEditProgram(program) && (
+                          <DropdownMenuItem onClick={() => handleEdit(program)} className="cursor-pointer">
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("programs.edit")}
+                          </DropdownMenuItem>
+                        )}
+                        {canEditProgram(program) && (
+                          <DropdownMenuItem onClick={() => setDeletingId(program.id)} className="cursor-pointer text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("programs.delete")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -212,6 +240,12 @@ export function LoyaltyProgramList() {
         open={formOpen}
         onClose={handleCloseForm}
         program={editing}
+      />
+
+      <LoyaltyProgramDetailDialog
+        open={!!viewingProgram}
+        onClose={() => setViewingProgram(null)}
+        program={viewingProgram}
       />
 
       <DeleteDialog

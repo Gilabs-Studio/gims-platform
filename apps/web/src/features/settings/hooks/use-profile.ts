@@ -1,9 +1,15 @@
 import { useMutation } from "@tanstack/react-query";
 import { profileService } from "../services/profile-service";
 import type { UpdateProfileRequest, ChangePasswordRequest } from "../types";
+import type { User } from "@/features/auth/types";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import type { AxiosError } from "axios";
+
+type ApiErrorResponse = {
+  message?: string;
+};
 
 export function useUpdateProfile() {
   const setUser = useAuthStore((state) => state.setUser);
@@ -18,19 +24,26 @@ export function useUpdateProfile() {
       const updatedUser = response.data;
       if (updatedUser) {
           const currentUser = useAuthStore.getState().user;
-          // Merge with existing permissions as backend response might not include them
-          const mergedUser = {
-              ...updatedUser,
-              permissions: currentUser?.permissions ?? []
+          if (!currentUser) {
+            return;
+          }
+
+          const mergedUser: User = {
+              ...currentUser,
+              id: updatedUser.id,
+              email: updatedUser.email,
+              name: updatedUser.name,
+              avatar_url: updatedUser.avatar_url,
           };
-          setUser(mergedUser as any); 
+          setUser(mergedUser); 
       }
       toast.success(t("savedSuccessfully"));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // Error handling is usually done globally or via toast
       console.error("Profile update failed", error);
-      toast.error(error.response?.data?.message || t("somethingWentWrong"));
+      const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
+      toast.error(message || t("somethingWentWrong"));
     },
   });
 }
@@ -43,9 +56,10 @@ export function useChangePassword() {
     onSuccess: () => {
       toast.success(t("passwordChangedSuccessfully"));
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Change password failed", error);
-      toast.error(error.response?.data?.message || t("somethingWentWrong"));
+      const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
+      toast.error(message || t("somethingWentWrong"));
     },
   });
 }
@@ -70,9 +84,10 @@ export function useUploadAvatar() {
       }
       toast.success(t("avatarUpdatedSuccessfully"));
     },
-    onError: (error: any) => {
+     onError: (error: unknown) => {
        console.error("Avatar upload failed", error);
-       toast.error(error.response?.data?.message || t("somethingWentWrong"));
+       const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
+       toast.error(message || t("somethingWentWrong"));
     },
   });
 }

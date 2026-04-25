@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -45,12 +46,12 @@ func NewValuationRunRepository(db *gorm.DB) ValuationRunRepository {
 }
 
 func (r *valuationRunRepository) Create(ctx context.Context, run *financeModels.ValuationRun) error {
-	return r.db.WithContext(ctx).Create(run).Error
+	return database.GetDB(ctx, r.db).Create(run).Error
 }
 
 func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := r.db.WithContext(ctx).Preload("Details").First(&run, "id = ?", id).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("Details").First(&run, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
@@ -58,7 +59,7 @@ func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*fina
 
 func (r *valuationRunRepository) FindByReferenceID(ctx context.Context, refID string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := r.db.WithContext(ctx).Preload("Details").First(&run, "reference_id = ?", refID).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Preload("Details").First(&run, "reference_id = ?", refID).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
@@ -67,7 +68,7 @@ func (r *valuationRunRepository) FindByReferenceID(ctx context.Context, refID st
 // HasPendingRun checks if there is already a valuation run awaiting completion for the period.
 func (r *valuationRunRepository) HasPendingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&financeModels.ValuationRun{}).
 		Where("valuation_type = ? AND status IN ? AND period_start = ? AND period_end = ?",
 			valuationType,
@@ -98,7 +99,7 @@ func (r *valuationRunRepository) FindByIDForUpdate(ctx context.Context, tx *gorm
 }
 
 func (r *valuationRunRepository) Update(ctx context.Context, run *financeModels.ValuationRun) error {
-	return r.db.WithContext(ctx).Save(run).Error
+	return database.GetDB(ctx, r.db).Save(run).Error
 }
 
 func (r *valuationRunRepository) CreateDetails(ctx context.Context, tx *gorm.DB, details []financeModels.ValuationRunDetail) error {
@@ -110,7 +111,7 @@ func (r *valuationRunRepository) CreateDetails(ctx context.Context, tx *gorm.DB,
 
 func (r *valuationRunRepository) ListDetails(ctx context.Context, runID string) ([]financeModels.ValuationRunDetail, error) {
 	items := make([]financeModels.ValuationRunDetail, 0)
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("valuation_run_id = ?", runID).
 		Order("created_at asc").
 		Find(&items).Error
@@ -139,7 +140,7 @@ func (r *valuationRunRepository) List(ctx context.Context, params ValuationRunLi
 	var items []financeModels.ValuationRun
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.ValuationRun{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.ValuationRun{})
 
 	if params.ValuationType != nil {
 		q = q.Where("valuation_runs.valuation_type = ?", *params.ValuationType)

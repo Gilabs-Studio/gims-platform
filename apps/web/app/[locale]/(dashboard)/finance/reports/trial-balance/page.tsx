@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function FinanceTrialBalancePage() {
-  redirect("/finance/accounting/journal-entries");
+  redirect("/finance/reports/general-ledger");
 }

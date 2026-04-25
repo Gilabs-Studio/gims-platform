@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   BarChart3,
@@ -65,6 +66,7 @@ function toApiDate(d: Date): string {
 export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
+  const searchParams = useSearchParams();
   const canExport = useUserPermission("general_ledger_report.export");
   const exportProgress = useExportProgress();
 
@@ -87,6 +89,7 @@ export function GeneralLedgerView() {
     useState<UnifiedJournalRow | null>(null);
   const [isSourceDetailOpen, setIsSourceDetailOpen] = useState(false);
   const [isAccountDetailOpen, setIsAccountDetailOpen] = useState(false);
+  const accountIDFilter = searchParams.get("account_id")?.trim() ?? "";
   
 
   const dateRange = useMemo(
@@ -96,8 +99,9 @@ export function GeneralLedgerView() {
         : toApiDate(new Date(now.getFullYear(), 0, 1)),
       end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
       company_id: companyID.trim() || undefined,
+      account_id: accountIDFilter || undefined,
     }),
-    [pickerRange, now, companyID],
+    [pickerRange, now, companyID, accountIDFilter],
   );
 
   const { data, isLoading, isError } = useGeneralLedger(dateRange);
@@ -131,25 +135,15 @@ export function GeneralLedgerView() {
     });
   }, [accounts, accountTypeFilter, accountSearch]);
 
-  useEffect(() => {
-    if (filteredAccounts.length === 0) {
-      setSelectedAccountID(null);
-      return;
-    }
-
-    const stillExists = filteredAccounts.some(
-      (account) => account.account_id === selectedAccountID,
-    );
-    if (!stillExists) {
-      setSelectedAccountID(filteredAccounts[0].account_id);
-    }
-  }, [filteredAccounts, selectedAccountID]);
-
   const selectedAccount = useMemo(() => {
-    if (!selectedAccountID) return null;
+    const effectiveSelectedAccountID = selectedAccountID && filteredAccounts.some((account) => account.account_id === selectedAccountID)
+      ? selectedAccountID
+      : filteredAccounts[0]?.account_id ?? null;
+
+    if (!effectiveSelectedAccountID) return null;
     return (
       filteredAccounts.find(
-        (account) => account.account_id === selectedAccountID,
+        (account) => account.account_id === effectiveSelectedAccountID,
       ) ?? null
     );
   }, [filteredAccounts, selectedAccountID]);

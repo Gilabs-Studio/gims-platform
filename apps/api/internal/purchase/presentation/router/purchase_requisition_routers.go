@@ -7,16 +7,16 @@ import (
 )
 
 const (
-	purchaseRequisitionCreate    = "purchase_requisition.create"
-	purchaseRequisitionRead      = "purchase_requisition.read"
-	purchaseRequisitionUpdate    = "purchase_requisition.update"
-	purchaseRequisitionDelete    = "purchase_requisition.delete"
-	purchaseRequisitionSubmit    = "purchase_requisition.submit"
-	purchaseRequisitionApprove   = "purchase_requisition.approve"
-	purchaseRequisitionReject    = "purchase_requisition.reject"
-	purchaseRequisitionConvert   = "purchase_requisition.convert"
-	purchaseRequisitionExport    = "purchase_requisition.export"
-	purchaseRequisitionPrint      = "purchase_requisition.print"
+	purchaseRequisitionCreate  = "purchase_requisition.create"
+	purchaseRequisitionRead    = "purchase_requisition.read"
+	purchaseRequisitionUpdate  = "purchase_requisition.update"
+	purchaseRequisitionDelete  = "purchase_requisition.delete"
+	purchaseRequisitionSubmit  = "purchase_requisition.submit"
+	purchaseRequisitionApprove = "purchase_requisition.approve"
+	purchaseRequisitionReject  = "purchase_requisition.reject"
+	purchaseRequisitionConvert = "purchase_requisition.convert"
+	purchaseRequisitionExport  = "purchase_requisition.export"
+	purchaseRequisitionPrint   = "purchase_requisition.print"
 )
 
 func RegisterPurchaseRequisitionRoutes(rg *gin.RouterGroup, h *handler.PurchaseRequisitionHandler, printH *handler.PurchaseRequisitionPrintHandler) {
@@ -31,6 +31,9 @@ func RegisterPurchaseRequisitionRoutes(rg *gin.RouterGroup, h *handler.PurchaseR
 		g.POST("/:id/submit", middleware.RequirePermission(purchaseRequisitionSubmit), h.Submit)
 		g.POST("/:id/approve", middleware.RequirePermission(purchaseRequisitionApprove), h.Approve)
 		g.POST("/:id/reject", middleware.RequirePermission(purchaseRequisitionReject), h.Reject)
+		g.PATCH("/:id/submit", middleware.RequirePermission(purchaseRequisitionSubmit), h.Submit)
+		g.PATCH("/:id/approve", middleware.RequirePermission(purchaseRequisitionApprove), h.Approve)
+		g.PATCH("/:id/reject", middleware.RequirePermission(purchaseRequisitionReject), h.Reject)
 		g.POST("/:id/convert", middleware.RequirePermission(purchaseRequisitionConvert), h.Convert)
 		g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseRequisitionRead), h.AuditTrail)
 		g.GET("/:id/print", middleware.RequirePermission(purchaseRequisitionPrint), printH.PrintPurchaseRequisition)

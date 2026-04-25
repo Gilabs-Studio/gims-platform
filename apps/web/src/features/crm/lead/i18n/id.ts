@@ -14,9 +14,11 @@ export const crmLeadId = {
     searchPlaceholder: "Cari lead...",
     emptyState: "Tidak ada lead ditemukan",
     deleteTitle: "Hapus Lead",
-    deleteDescription: "Apakah Anda yakin ingin menghapus lead ini? Tindakan ini tidak dapat dibatalkan.",
+    deleteDescription:
+      "Apakah Anda yakin ingin menghapus lead ini? Tindakan ini tidak dapat dibatalkan.",
     convertTitle: "Konversi Lead ke Pipeline",
-    convertDescription: "Konversi lead ini menjadi deal di pipeline. Aktivitas dan data akan ditautkan ke deal baru.",
+    convertDescription:
+      "Konversi lead ini menjadi deal di pipeline. Aktivitas dan data akan ditautkan ke deal baru.",
     convertedBadge: "Terkonversi",
     convertButton: "Konversi ke Pipeline",
     lostBadge: "Hilang",
@@ -28,7 +30,8 @@ export const crmLeadId = {
     clickToUpdateLocation: "Klik untuk memperbarui lokasi",
     openInMaps: "Buka di Maps",
     noLocation: "Belum ada lokasi",
-    pickLocationDesc: "Klik pada peta atau seret penanda untuk mengatur lokasi lead",
+    pickLocationDesc:
+      "Klik pada peta atau seret penanda untuk mengatur lokasi lead",
     potentialCustomer: "Pelanggan Potensial",
     updatedAt: "Diperbarui",
     allStatuses: "Semua Status",
@@ -98,7 +101,8 @@ export const crmLeadId = {
       dealValuePlaceholder: "0",
       pipelineStage: "Tahap Pipeline",
       pipelineStagePlaceholder: "Pilih tahap (default: probabilitas terendah)",
-      pipelineStageHint: "Jika tidak dipilih, otomatis ke tahap dengan probabilitas terendah",
+      pipelineStageHint:
+        "Jika tidak dipilih, otomatis ke tahap dengan probabilitas terendah",
       website: "Media Sosial / Tautan",
       bankAccount: "Rekening Tertaut",
       bankAccountPlaceholder: "Pilih rekening tertaut",
@@ -154,6 +158,10 @@ export const crmLeadId = {
       firstNameMin: "Nama depan minimal 2 karakter",
       firstNameMax: "Nama depan maksimal 100 karakter",
       emailInvalid: "Masukkan alamat email yang valid",
+      probabilityMax: "Probabilitas maksimal adalah 100%",
+      phoneInvalid:
+        "Nomor telepon hanya boleh berisi angka, +, -, spasi, dan tanda kurung",
+      phoneMax: "Nomor telepon maksimal 20 karakter",
     },
     viewDeal: "Lihat Deal",
     viewInPipeline: "Lihat di Pipeline",
@@ -170,7 +178,8 @@ export const crmLeadId = {
         employee: "Karyawan",
         employeePlaceholder: "Pilih karyawan",
         description: "Keterangan",
-        descriptionPlaceholder: "Deskripsikan aktivitas ini (misal: hasil panggilan, topik yang dibahas)",
+        descriptionPlaceholder:
+          "Deskripsikan aktivitas ini (misal: hasil panggilan, topik yang dibahas)",
         date: "Tanggal",
         time: "Waktu",
         pickDate: "Pilih tanggal",
@@ -205,21 +214,28 @@ export const crmLeadId = {
     generate: {
       buttonLabel: "Generate Leads",
       title: "Generate Leads via n8n",
-      description: "Unduh template workflow n8n untuk meng-scrape leads dari Google Maps atau LinkedIn menggunakan API gratis, lalu kirim ke GIMS.",
+      description:
+        "Unduh template workflow n8n untuk meng-scrape leads dari Google Maps atau LinkedIn menggunakan API gratis, lalu kirim ke GIMS.",
       selectSource: "Sumber Lead",
       keyword: "Kata Kunci",
       keywordPlaceholder: "contoh: Perusahaan IT, Restoran",
       city: "Kota",
       cityPlaceholder: "contoh: Jakarta, Surabaya",
       limit: "Maks Hasil",
-      limitHintMaps: "Serper.dev gratis: maks 20 hasil per pencarian, 2.500 pencarian/bulan",
-      limitHintLinkedin: "Apollo.io gratis: maks 25 ekspor/bulan — termasuk parsing AI + riset perusahaan Tavily",
+      limitHintMaps:
+        "Serper.dev gratis: maks 20 hasil per pencarian, 2.500 pencarian/bulan",
+      limitHintLinkedin:
+        "Apollo.io gratis: maks 25 ekspor/bulan — termasuk parsing AI + riset perusahaan Tavily",
       howToUse: "Cara Penggunaan",
-      step1: "Salin JSON workflow dan import ke n8n (Settings > Import from clipboard)",
-      step2: "Konfigurasi credentials: Groq API (gratis), Apollo.io (gratis), Tavily (gratis)",
+      step1:
+        "Salin JSON workflow dan import ke n8n (Settings > Import from clipboard)",
+      step2:
+        "Konfigurasi credentials: Groq API (gratis), Apollo.io (gratis), Tavily (gratis)",
       step3: "Set n8n Variables: APOLLO_API_KEY dan SERPER_API_KEY",
-      step4: "Aktifkan workflow, lalu salin URL /webhook/ (bukan /webhook-test/)",
-      step5: "Tempel URL di atas dan klik Run — n8n akan scrape, parse AI, riset perusahaan, dan push leads ke GIMS",
+      step4:
+        "Aktifkan workflow, lalu salin URL /webhook/ (bukan /webhook-test/)",
+      step5:
+        "Tempel URL di atas dan klik Run — n8n akan scrape, parse AI, riset perusahaan, dan push leads ke GIMS",
       freeApis: "API Gratis",
       downloadWorkflow: "Unduh Workflow",
       downloadUniversal: "Workflow Universal",
@@ -228,10 +244,14 @@ export const crmLeadId = {
       jsonCopied: "JSON workflow berhasil disalin ke clipboard",
       copyFailed: "Gagal menyalin ke clipboard",
       webhookUrl: "URL Webhook n8n (dikelola)",
-      webhookUrlPlaceholder: "https://your-instance.n8n.cloud/webhook/gims-generate-leads",
-      webhookUrlHint: "URL webhook dikelola server. Tidak perlu tindakan dari client.",
-      webhookTestModeWarning: "⚠ URL webhook n8n dikelola server; pastikan workflow aktif di instance n8n Anda.",
-      serverManagedMessage: "Endpoint n8n dikonfigurasi di sisi server melalui environment variables API.",
+      webhookUrlPlaceholder:
+        "https://your-instance.n8n.cloud/webhook/gims-generate-leads",
+      webhookUrlHint:
+        "URL webhook dikelola server. Tidak perlu tindakan dari client.",
+      webhookTestModeWarning:
+        "⚠ URL webhook n8n dikelola server; pastikan workflow aktif di instance n8n Anda.",
+      serverManagedMessage:
+        "Endpoint n8n dikonfigurasi di sisi server melalui environment variables API.",
       run: "Jalankan",
       running: "Menjalankan...",
       test: "Tes Koneksi",
@@ -239,14 +259,16 @@ export const crmLeadId = {
       testSuccess: "Koneksi ke n8n berhasil",
       testError: "Gagal menjangkau n8n: {message}",
       testErrorNoUrl: "Masukkan URL webhook terlebih dahulu.",
-      runSuccess: "Workflow berhasil dijalankan. {created} dibuat, {updated} diperbarui.",
+      runSuccess:
+        "Workflow berhasil dijalankan. {created} dibuat, {updated} diperbarui.",
       runError: "Gagal menjalankan workflow: {message}",
       errorNoKeyword: "Masukkan kata kunci terlebih dahulu.",
       errorNoCity: "Masukkan kota terlebih dahulu.",
     },
     productItems: {
       empty: "Belum ada minat produk yang tercatat",
-      emptyHint: "Minat produk akan muncul di sini saat laporan kunjungan dengan produk dikirimkan untuk lead ini.",
+      emptyHint:
+        "Minat produk akan muncul di sini saat laporan kunjungan dengan produk dikirimkan untuk lead ini.",
       product: "Produk",
       sku: "SKU",
       interest: "Minat",

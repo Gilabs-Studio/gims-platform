@@ -148,7 +148,7 @@ func validateTrialBalance(ctx context.Context, start, end time.Time) error {
 }
 
 func validateProfitAndLoss(ctx context.Context, uc usecase.FinanceReportUsecase, start, end time.Time) error {
-	pl, err := uc.GetProfitAndLoss(ctx, start, end, nil)
+	pl, err := uc.GetProfitAndLoss(ctx, start, end, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func validateCrossModule(ctx context.Context, uc usecase.FinanceReportUsecase, s
 	`, start, end).Scan(&salesInvTotal).Error; err != nil {
 		return err
 	}
-	pl, err := uc.GetProfitAndLoss(ctx, start, end, nil)
+	pl, err := uc.GetProfitAndLoss(ctx, start, end, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func validateCrossModule(ctx context.Context, uc usecase.FinanceReportUsecase, s
 }
 
 func validateBalanceSheet(ctx context.Context, uc usecase.FinanceReportUsecase, start, end time.Time) error {
-	bs, err := uc.GetBalanceSheet(ctx, start, end, nil, true)
+	bs, err := uc.GetBalanceSheet(ctx, start, end, nil, nil, true)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -17,14 +18,14 @@ func NewLoyaltyPointLedgerRepository(db *gorm.DB) LoyaltyPointLedgerRepository {
 }
 
 func (r *loyaltyPointLedgerRepo) Create(ctx context.Context, entry *models.LoyaltyPointLedger) error {
-	return r.db.WithContext(ctx).Create(entry).Error
+	return database.GetDB(ctx, r.db).Create(entry).Error
 }
 
 func (r *loyaltyPointLedgerRepo) ListByMember(ctx context.Context, params LedgerListParams) ([]models.LoyaltyPointLedger, int64, error) {
 	var entries []models.LoyaltyPointLedger
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.LoyaltyPointLedger{}).Where("member_id = ?", params.MemberID)
+	q := database.GetDB(ctx, r.db).Model(&models.LoyaltyPointLedger{}).Where("member_id = ?", params.MemberID)
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -37,7 +38,7 @@ func (r *loyaltyPointLedgerRepo) ListByMember(ctx context.Context, params Ledger
 
 func (r *loyaltyPointLedgerRepo) FindByTransaction(ctx context.Context, memberID, transactionID, entryType string) (*models.LoyaltyPointLedger, error) {
 	var entry models.LoyaltyPointLedger
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("member_id = ? AND transaction_id = ? AND entry_type = ?", memberID, transactionID, entryType).
 		First(&entry).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

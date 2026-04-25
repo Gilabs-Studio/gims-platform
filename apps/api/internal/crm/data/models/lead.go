@@ -16,6 +16,7 @@ import (
 // Lead represents a sales prospect with BANT qualification scoring
 type Lead struct {
 	ID          string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code        string  `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	FirstName   string  `gorm:"type:varchar(100);not null;index" json:"first_name"`
 	LastName    string  `gorm:"type:varchar(100);index" json:"last_name"`
@@ -24,14 +25,14 @@ type Lead struct {
 	Phone       string  `gorm:"type:varchar(30)" json:"phone"`
 	ContactRoleID *string `gorm:"type:uuid;index" json:"contact_role_id"`
 	ContactRole   *ContactRole `gorm:"foreignKey:ContactRoleID" json:"contact_role,omitempty"`
-	JobTitle    string  `gorm:"type:varchar(100)" json:"job_title"`
-	Address     string  `gorm:"type:text" json:"address"`
-	City        string  `gorm:"type:varchar(100)" json:"city"`
-	Province    string  `gorm:"type:varchar(100)" json:"province"`
-	ProvinceID  *string `gorm:"type:uuid;index" json:"province_id"`
-	CityID      *string `gorm:"type:uuid;index" json:"city_id"`
-	DistrictID  *string `gorm:"type:uuid;index" json:"district_id"`
-	VillageName string  `gorm:"type:varchar(200)" json:"village_name"`
+	JobTitle      string       `gorm:"type:varchar(100)" json:"job_title"`
+	Address       string       `gorm:"type:text" json:"address"`
+	City          string       `gorm:"type:varchar(100)" json:"city"`
+	Province      string       `gorm:"type:varchar(100)" json:"province"`
+	ProvinceID    *string      `gorm:"type:uuid;index" json:"province_id"`
+	CityID        *string      `gorm:"type:uuid;index" json:"city_id"`
+	DistrictID    *string      `gorm:"type:uuid;index" json:"district_id"`
+	VillageName   string       `gorm:"type:varchar(200)" json:"village_name"`
 
 	// Classification
 	LeadSourceID *string     `gorm:"type:uuid;index" json:"lead_source_id"`
@@ -94,13 +95,13 @@ type Lead struct {
 	BankAccountReference string   `gorm:"type:varchar(255)" json:"bank_account_reference"`
 
 	// Metadata
-	Notes              string         `gorm:"type:text" json:"notes"`
-	ProcessedFromN8N   bool           `gorm:"type:boolean;default:false;index" json:"processed_from_n8n"`
-	ProcessedAt        *time.Time     `gorm:"type:timestamptz" json:"processed_at"`
-	CreatedBy          *string        `gorm:"type:uuid" json:"created_by"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+	Notes            string         `gorm:"type:text" json:"notes"`
+	ProcessedFromN8N bool           `gorm:"type:boolean;default:false;index" json:"processed_from_n8n"`
+	ProcessedAt      *time.Time     `gorm:"type:timestamptz" json:"processed_at"`
+	CreatedBy        *string        `gorm:"type:uuid" json:"created_by"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Associations
 	Activities   []Activity        `gorm:"foreignKey:LeadID" json:"activities,omitempty"`

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"gorm.io/gorm"
 )
@@ -132,7 +134,7 @@ type ProductDetailRow struct {
 	CostPrice    float64
 	CurrentStock float64
 	// Current period stats
-	TotalQty    float64
+	TotalQty     float64
 	TotalRevenue float64
 	TotalOrders  int
 	// Previous period stats for comparison
@@ -219,6 +221,11 @@ func NewProductAnalysisRepository(db *gorm.DB) ProductAnalysisRepository {
 }
 
 func (r *productAnalysisRepository) ListProductPerformance(ctx context.Context, params ListProductPerformanceParams) ([]ProductPerformanceRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -237,19 +244,21 @@ func (r *productAnalysisRepository) ListProductPerformance(ctx context.Context, 
 			FROM sales_order_items soi
 			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 				AND so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			WHERE soi.deleted_at IS NULL
 			GROUP BY soi.product_id
 		) soi_agg ON soi_agg.product_id = p.id
 		WHERE p.deleted_at IS NULL
+			AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 			AND p.is_active = true
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	if params.Search != "" {
 		baseQuery += ` AND (p.name ILIKE @search OR p.code ILIKE @search OR p.sku ILIKE @search)`
@@ -264,7 +273,7 @@ func (r *productAnalysisRepository) ListProductPerformance(ctx context.Context, 
 	// Count total
 	var total int64
 	countSQL := "SELECT COUNT(*) " + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count product performance: %w", err)
 	}
 
@@ -311,7 +320,7 @@ func (r *productAnalysisRepository) ListProductPerformance(ctx context.Context, 
 	queryParams["offset"] = offset
 
 	var rows []ProductPerformanceRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list product performance: %w", err)
 	}
 
@@ -327,6 +336,11 @@ func (r *productAnalysisRepository) ListProductPerformance(ctx context.Context, 
 }
 
 func (r *productAnalysisRepository) GetMonthlyProductSales(ctx context.Context, startDate, endDate time.Time) ([]MonthlyProductSalesRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	query := `
 		SELECT
 			EXTRACT(MONTH FROM so.order_date)::int AS month,
@@ -337,6 +351,7 @@ func (r *productAnalysisRepository) GetMonthlyProductSales(ctx context.Context, 
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		WHERE soi.deleted_at IS NULL
@@ -345,10 +360,10 @@ func (r *productAnalysisRepository) GetMonthlyProductSales(ctx context.Context, 
 	`
 
 	var rows []MonthlyProductSalesRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly product sales: %w", err)
 	}
 
@@ -356,6 +371,11 @@ func (r *productAnalysisRepository) GetMonthlyProductSales(ctx context.Context, 
 }
 
 func (r *productAnalysisRepository) GetProductDetail(ctx context.Context, productID string, startDate, endDate time.Time) (*ProductDetailRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	// Calculate previous period for comparison
 	duration := endDate.Sub(startDate)
 	prevEnd := startDate.Add(-1 * 24 * time.Hour)
@@ -389,6 +409,7 @@ func (r *productAnalysisRepository) GetProductDetail(ctx context.Context, produc
 				COUNT(DISTINCT soi.sales_order_id) AS total_orders
 			FROM sales_order_items soi
 			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.deleted_at IS NULL AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			WHERE soi.deleted_at IS NULL
@@ -401,22 +422,24 @@ func (r *productAnalysisRepository) GetProductDetail(ctx context.Context, produc
 				COUNT(DISTINCT soi.sales_order_id) AS total_orders
 			FROM sales_order_items soi
 			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.deleted_at IS NULL AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @prevStart AND @prevEnd
 			WHERE soi.deleted_at IS NULL
 			GROUP BY soi.product_id
 		) prev ON prev.product_id = p.id
 		WHERE p.id = @productID AND p.deleted_at IS NULL
+			AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 	`
 
 	var row ProductDetailRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"productID": productID,
 		"startDate": startDate,
 		"endDate":   endDate,
 		"prevStart": prevStart,
 		"prevEnd":   prevEnd,
-	}).Scan(&row).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get product detail: %w", err)
 	}
 
@@ -428,6 +451,11 @@ func (r *productAnalysisRepository) GetProductDetail(ctx context.Context, produc
 }
 
 func (r *productAnalysisRepository) GetProductTopCustomers(ctx context.Context, productID string, params ProductCustomerParams) ([]ProductCustomerRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -439,25 +467,26 @@ func (r *productAnalysisRepository) GetProductTopCustomers(ctx context.Context, 
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
-		LEFT JOIN customers c ON c.id = so.customer_id AND c.deleted_at IS NULL
+		LEFT JOIN customers c ON c.id = so.customer_id AND c.deleted_at IS NULL AND (@tenantFilter = false OR c.tenant_id = @tenantID)
 		LEFT JOIN customer_types ct ON ct.id = c.customer_type_id AND ct.deleted_at IS NULL
 		LEFT JOIN cities ci ON ci.id = c.city_id AND ci.deleted_at IS NULL
 		WHERE soi.deleted_at IS NULL
 			AND soi.product_id = @productID
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"productID": productID,
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Count distinct customers
 	var total int64
 	countSQL := "SELECT COUNT(DISTINCT so.customer_id) " + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count product customers: %w", err)
 	}
 
@@ -499,7 +528,7 @@ func (r *productAnalysisRepository) GetProductTopCustomers(ctx context.Context, 
 	queryParams["offset"] = offset
 
 	var rows []ProductCustomerRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to get product top customers: %w", err)
 	}
 
@@ -515,6 +544,11 @@ func (r *productAnalysisRepository) GetProductTopCustomers(ctx context.Context, 
 }
 
 func (r *productAnalysisRepository) GetProductTopSalesReps(ctx context.Context, productID string, params ProductSalesRepParams) ([]ProductSalesRepRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -526,25 +560,26 @@ func (r *productAnalysisRepository) GetProductTopSalesReps(ctx context.Context, 
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
-		INNER JOIN employees e ON e.id = so.sales_rep_id AND e.deleted_at IS NULL
+		INNER JOIN employees e ON e.id = so.sales_rep_id AND e.deleted_at IS NULL AND (@tenantFilter = false OR e.tenant_id = @tenantID)
 		LEFT JOIN job_positions jp ON jp.id = e.job_position_id
 		LEFT JOIN users u ON u.id = e.user_id
 		WHERE soi.deleted_at IS NULL
 			AND soi.product_id = @productID
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"productID": productID,
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	// Count distinct sales reps
 	var total int64
 	countSQL := "SELECT COUNT(DISTINCT so.sales_rep_id) " + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count product sales reps: %w", err)
 	}
 
@@ -586,7 +621,7 @@ func (r *productAnalysisRepository) GetProductTopSalesReps(ctx context.Context, 
 	queryParams["offset"] = offset
 
 	var rows []ProductSalesRepRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to get product top sales reps: %w", err)
 	}
 
@@ -602,6 +637,11 @@ func (r *productAnalysisRepository) GetProductTopSalesReps(ctx context.Context, 
 }
 
 func (r *productAnalysisRepository) GetProductMonthlyTrend(ctx context.Context, productID string, startDate, endDate time.Time) ([]MonthlyProductTrendRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	query := `
 		SELECT
 			EXTRACT(MONTH FROM so.order_date)::int AS month,
@@ -612,6 +652,7 @@ func (r *productAnalysisRepository) GetProductMonthlyTrend(ctx context.Context, 
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		WHERE soi.deleted_at IS NULL
@@ -621,11 +662,11 @@ func (r *productAnalysisRepository) GetProductMonthlyTrend(ctx context.Context, 
 	`
 
 	var rows []MonthlyProductTrendRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"productID": productID,
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get product monthly trend: %w", err)
 	}
 
@@ -633,6 +674,11 @@ func (r *productAnalysisRepository) GetProductMonthlyTrend(ctx context.Context, 
 }
 
 func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context, params ListCategoryPerformanceParams) ([]CategoryPerformanceRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -652,19 +698,21 @@ func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context,
 			FROM sales_order_items soi
 			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 				AND so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			WHERE soi.deleted_at IS NULL
 			GROUP BY soi.product_id
 		) soi_agg ON soi_agg.product_id = p.id
 		WHERE p.deleted_at IS NULL
+			AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 			AND p.is_active = true
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	if params.Search != "" {
 		baseQuery += ` AND pc.name ILIKE @search`
@@ -674,7 +722,7 @@ func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context,
 	// Count distinct categories
 	countSQL := "SELECT COUNT(DISTINCT COALESCE(pc.id::text, 'uncategorized')) " + baseQuery
 	var total int64
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count category performance: %w", err)
 	}
 
@@ -722,7 +770,7 @@ func (r *productAnalysisRepository) ListCategoryPerformance(ctx context.Context,
 	queryParams["offset"] = offset
 
 	var rows []CategoryPerformanceRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list category performance: %w", err)
 	}
 
@@ -746,6 +794,11 @@ func (r *productAnalysisRepository) listDimensionPerformance(
 	fkColumn,
 	dimNameCol string,
 ) ([]DimensionPerformanceRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -764,19 +817,21 @@ func (r *productAnalysisRepository) listDimensionPerformance(
 			FROM sales_order_items soi
 			INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 				AND so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			WHERE soi.deleted_at IS NULL
 			GROUP BY soi.product_id
 		) soi_agg ON soi_agg.product_id = p.id
 		WHERE p.deleted_at IS NULL
+			AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 			AND p.is_active = true
 	`, dimensionTable, fkColumn)
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	if params.Search != "" {
 		baseQuery += fmt.Sprintf(` AND dim.%s ILIKE @search`, dimNameCol)
@@ -785,7 +840,7 @@ func (r *productAnalysisRepository) listDimensionPerformance(
 
 	countSQL := fmt.Sprintf("SELECT COUNT(DISTINCT COALESCE(dim.id::text, 'uncategorized')) %s", baseQuery)
 	var total int64
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count %s performance: %w", dimensionTable, err)
 	}
 
@@ -832,7 +887,7 @@ func (r *productAnalysisRepository) listDimensionPerformance(
 	queryParams["offset"] = offset
 
 	var rows []DimensionPerformanceRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list %s performance: %w", dimensionTable, err)
 	}
 

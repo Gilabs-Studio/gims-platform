@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -21,6 +22,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -39,6 +41,8 @@ type purchaseReturnCreateContext struct {
 	GoodsReceiptID string
 	WarehouseID    string
 	SupplierID     string
+	CompanyID      *string
+	FiscalYearID   *string
 	Action         models.PurchaseReturnAction
 }
 
@@ -47,6 +51,7 @@ type PurchaseReturnUsecase interface {
 	List(ctx context.Context, params repositories.PurchaseReturnListParams) ([]*dto.PurchaseReturnResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.PurchaseReturnResponse, error)
 	Create(ctx context.Context, req *dto.CreatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error)
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.PurchaseReturnResponse, error)
 	Delete(ctx context.Context, id string) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseReturnAuditTrailEntry, int64, error)
@@ -54,13 +59,14 @@ type PurchaseReturnUsecase interface {
 }
 
 type purchaseReturnUsecase struct {
-	db           *gorm.DB
-	repo         repositories.PurchaseReturnRepository
-	invUC        invUsecase.InventoryUsecase
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	auditService audit.AuditService
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.PurchaseReturnRepository
+	invUC              invUsecase.InventoryUsecase
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	auditService       audit.AuditService
+	engine             accounting.AccountingEngine
+	purchaseJournalSvc purchaseService.PurchaseJournalService
 }
 
 func NewPurchaseReturnUsecase(
@@ -73,13 +79,14 @@ func NewPurchaseReturnUsecase(
 	engine accounting.AccountingEngine,
 ) PurchaseReturnUsecase {
 	return &purchaseReturnUsecase{
-		db:           db,
-		repo:         repo,
-		invUC:        invUC,
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		auditService: auditService,
-		engine:       engine,
+		db:                 db,
+		repo:               repo,
+		invUC:              invUC,
+		journalUC:          journalUC,
+		coaUC:              coaUC,
+		auditService:       auditService,
+		engine:             engine,
+		purchaseJournalSvc: purchaseService.NewPurchaseJournalService(db, journalUC, engine),
 	}
 }
 
@@ -189,6 +196,8 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		Status:          models.PurchaseReturnStatusDraft,
 		Notes:           req.Notes,
 		CreatedBy:       actorID,
+		CompanyID:       createCtx.CompanyID,
+		FiscalYearID:    createCtx.FiscalYearID,
 	}
 
 	items := make([]models.PurchaseReturnItem, 0, len(req.Items))
@@ -222,6 +231,159 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	return mapPurchaseReturnRow(created), nil
 }
 
+func (u *purchaseReturnUsecase) Update(ctx context.Context, id string, req *dto.UpdatePurchaseReturnRequest) (*dto.PurchaseReturnResponse, error) {
+	if req == nil || len(req.Items) == 0 {
+		return nil, ErrPurchaseReturnInvalid
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	if u.db == nil {
+		return nil, errors.New(errPurchaseReturnDBNil)
+	}
+
+	row, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchaseReturnNotFound
+		}
+		return nil, err
+	}
+
+	if row.Status != models.PurchaseReturnStatusDraft {
+		return nil, ErrPurchaseReturnInvalid
+	}
+
+	action, err := normalizePurchaseReturnAction(req.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	// warehouse validation (same as create)
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		return nil, errors.New("warehouse_id is required")
+	}
+	goodsReceipt, err := u.getGoodsReceipt(ctx, row.GoodsReceiptID)
+	if err != nil {
+		return nil, err
+	}
+	sourceWarehouseID := ""
+	if goodsReceipt.WarehouseID != nil {
+		sourceWarehouseID = strings.TrimSpace(*goodsReceipt.WarehouseID)
+	}
+	if sourceWarehouseID != "" && sourceWarehouseID != warehouseID {
+		if !hasWarehouseOverridePermission(ctx, purchaseReturnWarehouseOverridePermission) {
+			u.logWarehouseMismatchAttempt(ctx, row.GoodsReceiptID, sourceWarehouseID, warehouseID, "denied")
+			return nil, errors.New("warehouse_id must match goods receipt warehouse")
+		}
+		u.logWarehouseMismatchAttempt(ctx, row.GoodsReceiptID, sourceWarehouseID, warehouseID, "allowed")
+	}
+
+	// Validate quantities: add back current return quantities so user can reallocate them
+	if err := u.validateRequestedQtyForUpdate(ctx, row, req.Items); err != nil {
+		return nil, err
+	}
+	if err := u.validateRequestedQtyAgainstWarehouseStockForUpdate(ctx, warehouseID, mapUpdateItemsToCreateItems(req.Items), row.Items); err != nil {
+		return nil, err
+	}
+
+	now := apptime.Now()
+	row.WarehouseID = warehouseID
+	row.Reason = strings.TrimSpace(req.Reason)
+	row.Action = action
+	row.Notes = req.Notes
+	row.UpdatedAt = now
+
+	items := make([]models.PurchaseReturnItem, 0, len(req.Items))
+	totalAmount := 0.0
+	for _, item := range req.Items {
+		subtotal := item.Qty * item.UnitCost
+		totalAmount += subtotal
+		items = append(items, models.PurchaseReturnItem{
+			PurchaseReturnID:   row.ID,
+			GoodsReceiptItemID: normalizeOptionalString(item.GoodsReceiptItemID),
+			ProductID:          strings.TrimSpace(item.ProductID),
+			UOMID:              normalizeOptionalString(item.UOMID),
+			Condition:          strings.ToUpper(strings.TrimSpace(item.Condition)),
+			Notes:              normalizeOptionalString(item.Notes),
+			Quantity:           item.Qty,
+			UnitCost:           item.UnitCost,
+			Subtotal:           subtotal,
+		})
+	}
+	row.TotalAmount = totalAmount
+	row.Items = items
+
+	if err := u.repo.Update(ctx, row); err != nil {
+		return nil, err
+	}
+
+	updated, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.auditService != nil {
+		u.auditService.Log(ctx, "purchase_return.update", updated.ID, map[string]interface{}{
+			"code": updated.Code,
+		})
+	}
+
+	return mapPurchaseReturnRow(updated), nil
+}
+
+func (u *purchaseReturnUsecase) validateRequestedQtyForUpdate(
+	ctx context.Context,
+	existing *models.PurchaseReturn,
+	items []dto.UpdatePurchaseReturnItemRequest,
+) error {
+	availableQtyByProduct, err := u.getAvailableGoodsReceiptQtyByProduct(ctx, existing.GoodsReceiptID)
+	if err != nil {
+		return err
+	}
+
+	// Add back this return's own quantities so they can be reallocated
+	for _, item := range existing.Items {
+		availableQtyByProduct[item.ProductID] += item.Quantity
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		requestedQtyByProduct[productID] += item.Qty
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
+			return errors.New("return quantity exceeds available quantity from goods receipt")
+		}
+	}
+
+	return nil
+}
+
+func mapUpdateItemsToCreateItems(items []dto.UpdatePurchaseReturnItemRequest) []dto.CreatePurchaseReturnItemRequest {
+	out := make([]dto.CreatePurchaseReturnItemRequest, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.CreatePurchaseReturnItemRequest{
+			GoodsReceiptItemID: item.GoodsReceiptItemID,
+			ProductID:          item.ProductID,
+			UOMID:              item.UOMID,
+			Condition:          item.Condition,
+			Notes:              item.Notes,
+			Qty:                item.Qty,
+			UnitCost:           item.UnitCost,
+		})
+	}
+	return out
+}
+
 func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, status string) (*dto.PurchaseReturnResponse, error) {
 	row, err := u.repo.GetByID(ctx, id)
 	if err != nil {
@@ -248,15 +410,15 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 		err = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			actorID, _ := ctx.Value("user_id").(string)
 			actorID = strings.TrimSpace(actorID)
-			
+
 			// 1. Create Stock Movements
 			if err := u.createStockMovementsFromRows(database.WithTx(ctx, tx), row.Items, row.WarehouseID, row.Code, actorID); err != nil {
 				return err
 			}
 
-			// 2. Trigger Journal Entry
+			// 2. Trigger Journal Entry (must be atomic with status update and stock movement)
 			if err := u.TriggerJournalForReturn(database.WithTx(ctx, tx), row); err != nil {
-				log.Printf("⚠️ Failed to trigger journal for purchase return %s: %v\n", id, err)
+				return fmt.Errorf("failed to trigger journal for purchase return %s: %w", id, err)
 			}
 
 			// 3. Update Related Invoices (The Business Fix)
@@ -264,11 +426,11 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 			var invoices []models.SupplierInvoice
 			query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 				Where("purchase_order_id = ? AND status NOT IN ?", row.PurchaseOrderID, []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusPaid, models.SupplierInvoiceStatusCancelled, models.SupplierInvoiceStatusRejected})
-			
+
 			if row.GoodsReceiptID != "" {
 				query = query.Where("goods_receipt_id = ?", row.GoodsReceiptID)
 			}
-			
+
 			if err := query.Find(&invoices).Error; err != nil {
 				return err
 			}
@@ -304,7 +466,7 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 				if err := tx.Model(inv).Updates(updates).Error; err != nil {
 					return err
 				}
-				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f", 
+				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f",
 					inv.Code, row.Code, deduction, newRemaining)
 			}
 
@@ -351,6 +513,10 @@ func (u *purchaseReturnUsecase) ListAuditTrail(ctx context.Context, id string, p
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.PurchaseReturn{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchaseReturnNotFound
 	}
 
 	tx := u.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
@@ -468,10 +634,27 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 		return nil, errors.New("supplier_id is required")
 	}
 
+	companyID := goodsReceipt.CompanyID
+	fiscalYearID := goodsReceipt.FiscalYearID
+	if companyID == nil || fiscalYearID == nil {
+		receiptDate := ""
+		if goodsReceipt.ReceiptDate != nil {
+			receiptDate = goodsReceipt.ReceiptDate.Format("2006-01-02")
+		}
+		resolvedCompanyID, resolvedFiscalYearID, err := newPurchaseFiscalYearResolver(u.db, financeRepositories.NewFiscalYearRepository(u.db)).Resolve(ctx, receiptDate)
+		if err != nil {
+			return nil, err
+		}
+		companyID = &resolvedCompanyID
+		fiscalYearID = &resolvedFiscalYearID
+	}
+
 	return &purchaseReturnCreateContext{
 		GoodsReceiptID: goodsReceiptID,
 		WarehouseID:    warehouseID,
 		SupplierID:     supplierID,
+		CompanyID:      companyID,
+		FiscalYearID:   fiscalYearID,
 		Action:         action,
 	}, nil
 }
@@ -631,6 +814,52 @@ func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStock(
 	return nil
 }
 
+func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStockForUpdate(
+	ctx context.Context,
+	warehouseID string,
+	items []dto.CreatePurchaseReturnItemRequest,
+	existingItems []models.PurchaseReturnItem,
+) error {
+	if u.invUC == nil {
+		return nil
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	productIDs := make(map[string]struct{})
+
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		requestedQtyByProduct[productID] += item.Qty
+		productIDs[productID] = struct{}{}
+	}
+
+	availableQtyByProduct, err := u.getWarehouseAvailableQtyByProduct(ctx, warehouseID, productIDs)
+	if err != nil {
+		return err
+	}
+
+	// Add back this return's own quantities so they can be reallocated
+	for _, item := range existingItems {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		availableQtyByProduct[productID] += item.Quantity
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty > availableQty+0.0001 {
+			return fmt.Errorf("return quantity exceeds available warehouse stock for product %s", productID)
+		}
+	}
+
+	return nil
+}
+
 func (u *purchaseReturnUsecase) getWarehouseAvailableQtyByProduct(
 	ctx context.Context,
 	warehouseID string,
@@ -736,7 +965,7 @@ func (u *purchaseReturnUsecase) getGoodsReceipt(ctx context.Context, goodsReceip
 	}
 
 	var goodsReceipt models.GoodsReceipt
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Preload("Items").
 		First(&goodsReceipt, "id = ?", goodsReceiptID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -759,7 +988,7 @@ func (u *purchaseReturnUsecase) getAvailableGoodsReceiptQtyByProduct(ctx context
 	}
 
 	sourceRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&models.GoodsReceiptItem{}).
 		Select("product_id, COALESCE(SUM(quantity_received), 0) AS qty").
 		Where("goods_receipt_id = ?", goodsReceiptID).
@@ -769,8 +998,14 @@ func (u *purchaseReturnUsecase) getAvailableGoodsReceiptQtyByProduct(ctx context
 	}
 
 	returnedRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
-		Model(&models.PurchaseReturnItem{}).
+	returnedQuery := u.db.WithContext(ctx).
+		Model(&models.PurchaseReturnItem{})
+	returnedQuery, err := applyTenantJoinScope(ctx, returnedQuery, "purchase_return_items.tenant_id", "purchase_returns.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := returnedQuery.
 		Select("purchase_return_items.product_id, COALESCE(SUM(purchase_return_items.quantity), 0) AS qty").
 		Joins("JOIN purchase_returns ON purchase_returns.id = purchase_return_items.purchase_return_id").
 		Where("purchase_returns.goods_receipt_id = ?", goodsReceiptID).
@@ -803,14 +1038,38 @@ func (u *purchaseReturnUsecase) TriggerJournalForReturn(ctx context.Context, ret
 		return nil
 	}
 
+	referenceDate := ret.CreatedAt.Format("2006-01-02")
+	if strings.TrimSpace(referenceDate) == "" || ret.CreatedAt.IsZero() {
+		referenceDate = apptime.Now().Format("2006-01-02")
+	}
+
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, u.db, ret.CompanyID, ret.FiscalYearID, referenceDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve purchase return journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
 		ReferenceType:   "PURCHASE_RETURN",
 		ReferenceID:     ret.ID,
+		CompanyID:       companyID,
+		FiscalYearID:    fiscalYearID,
 		EntryDate:       apptime.Now().Format("2006-01-02"),
 		Description:     fmt.Sprintf("Purchase Return %s", ret.Code),
 		TotalAmount:     ret.TotalAmount,
 		SubTotal:        ret.TotalAmount, // Assuming no tax split on return for now
 		DescriptionArgs: []interface{}{ret.Code},
+	}
+
+	if u.purchaseJournalSvc != nil {
+		if _, err := u.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: accounting.ProfilePurchaseReturn,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post purchase return journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success module=purchase_return reference_id=%s", ret.ID)
+		return nil
 	}
 
 	req, err := u.engine.GenerateJournal(ctx, accounting.ProfilePurchaseReturn, data)
@@ -860,6 +1119,8 @@ func mapPurchaseReturnRow(row *models.PurchaseReturn) *dto.PurchaseReturnRespons
 		GoodsReceiptID:    row.GoodsReceiptID,
 		PurchaseOrderID:   row.PurchaseOrderID,
 		SupplierID:        row.SupplierID,
+		CompanyID:         row.CompanyID,
+		FiscalYearID:      row.FiscalYearID,
 		WarehouseID:       row.WarehouseID,
 		Reason:            row.Reason,
 		Action:            string(row.Action),

@@ -58,6 +58,8 @@ import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
 import { inventoryEn } from "@/features/stock/inventory/i18n/en";
 import { inventoryId } from "@/features/stock/inventory/i18n/id";
+import { stockLedgerEn } from "@/features/stock/stock-ledger/i18n/en";
+import { stockLedgerId } from "@/features/stock/stock-ledger/i18n/id";
 import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
 import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
 import { stockMovementEn } from "@/features/stock/stock-movement/i18n/en";
@@ -138,6 +140,8 @@ import { financeNonTradePayablesEn } from "@/features/finance/non-trade-payables
 import { financeNonTradePayablesId } from "@/features/finance/non-trade-payables/i18n/id";
 import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
 import { financeSalaryId } from "@/features/finance/salary/i18n/id";
+import { financeFixedAssetsEn } from "@/features/finance/fixed-assets/i18n/en";
+import { financeFixedAssetsId } from "@/features/finance/fixed-assets/i18n/id";
 import { aiChatEn } from "@/features/ai-chat/i18n/en";
 import { aiChatId } from "@/features/ai-chat/i18n/id";
 
@@ -189,6 +193,10 @@ import { feedbackEn } from "@/features/pos/feedback/i18n/en";
 import { feedbackId } from "@/features/pos/feedback/i18n/id";
 import { loyaltyEn } from "@/features/loyalty/i18n/en";
 import { loyaltyId } from "@/features/loyalty/i18n/id";
+import { landingEn } from "@/features/landing/i18n/en";
+import { landingId } from "@/features/landing/i18n/id";
+import { systemAdminEn } from "@/features/system-admin/i18n/en";
+import { systemAdminId } from "@/features/system-admin/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -223,6 +231,7 @@ const messages = {
     ...targetsEn,
     ...hrdEn,
     ...inventoryEn,
+    stock_ledger: stockLedgerEn,
     stock_opname: stockOpnameEn,
     ...stockMovementEn,
     ...settingsEn,
@@ -261,6 +270,7 @@ const messages = {
     financeTaxInvoices: financeTaxInvoicesEn,
     financeNonTradePayables: financeNonTradePayablesEn,
     financeSalary: financeSalaryEn,
+    financeFixedAssets: financeFixedAssetsEn,
     ...aiChatEn,
     pipelineStage: pipelineStageEn,
     leadSource: leadSourceEn,
@@ -286,6 +296,8 @@ const messages = {
     ...posTerminalEn,
     ...feedbackEn,
     ...loyaltyEn,
+    ...landingEn,
+    ...systemAdminEn,
   },
   id: {
     ...globalIdMessages,
@@ -317,6 +329,7 @@ const messages = {
     ...targetsId,
     ...hrdId,
     ...inventoryId,
+    stock_ledger: stockLedgerId,
     stock_opname: stockOpnameId,
     ...stockMovementId,
     ...settingsId,
@@ -355,6 +368,7 @@ const messages = {
     financeTaxInvoices: financeTaxInvoicesId,
     financeNonTradePayables: financeNonTradePayablesId,
     financeSalary: financeSalaryId,
+    financeFixedAssets: financeFixedAssetsId,
     ...aiChatId,
     pipelineStage: pipelineStageId,
     leadSource: leadSourceId,
@@ -380,6 +394,8 @@ const messages = {
     ...posTerminalId,
     ...feedbackId,
     ...loyaltyId,
+    ...landingId,
+    ...systemAdminId,
   },
 } as const;
 

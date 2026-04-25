@@ -253,7 +253,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   );
 
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
-  const formResolver = zodResolver(schema as any) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
+  const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
 
   const form = useForm<CreateQuotationFormData | UpdateQuotationFormData>({
     resolver: formResolver,
@@ -290,6 +290,10 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_id: "",
+          payment_terms_id: "",
+          sales_rep_id: "",
+          business_unit_id: "",
           customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
@@ -513,6 +517,10 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_id: "",
+          payment_terms_id: "",
+          sales_rep_id: "",
+          business_unit_id: "",
           customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
@@ -529,6 +537,10 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
         delivery_cost: 0,
         other_cost: 0,
         discount_amount: 0,
+        customer_id: "",
+        payment_terms_id: "",
+        sales_rep_id: "",
+        business_unit_id: "",
         customer_contact_id: "",
         customer_name: "",
         customer_contact: "",

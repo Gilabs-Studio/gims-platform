@@ -117,6 +117,26 @@ export interface CreateSalesReturnInput {
   items: CreateSalesReturnItemInput[];
 }
 
+export interface UpdateSalesReturnItemInput {
+  invoice_item_id?: string;
+  product_id: string;
+  uom_id?: string;
+  condition: string;
+  notes?: string;
+  qty: number;
+  unit_price: number;
+}
+
+export interface UpdateSalesReturnInput {
+  invoice_id?: string;
+  warehouse_id: string;
+  customer_id?: string;
+  reason: string;
+  action: string;
+  notes?: string;
+  items: UpdateSalesReturnItemInput[];
+}
+
 export interface UpdateSalesReturnStatusInput {
   status: SalesReturnStatus;
 }

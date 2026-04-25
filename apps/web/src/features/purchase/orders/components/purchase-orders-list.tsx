@@ -57,6 +57,7 @@ import { SupplierDetailModal } from "@/features/master-data/supplier/components/
 import {
   useApprovePurchaseOrder,
   useClosePurchaseOrder,
+  useConfirmPurchaseOrder,
   useDeletePurchaseOrder,
   usePurchaseOrders,
   useRejectPurchaseOrder,
@@ -190,6 +191,7 @@ export function PurchaseOrdersList() {
 
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
+  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
   const closeMutation = useClosePurchaseOrder();
@@ -379,6 +381,7 @@ export function PurchaseOrdersList() {
             ) : (
               items.map((it) => {
                 const status = normalStatus(it);
+                const hasGoodsReceipt = (it.fulfillment?.total_received ?? 0) > 0;
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
                   canReject || canClose || canDelete || canPrint;
@@ -579,6 +582,23 @@ export function PurchaseOrdersList() {
                               </>
                             )}
 
+                            {canApprove && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-success focus:text-success"
+                                onClick={async () => {
+                                  try {
+                                    await confirmMutation.mutateAsync(it.id);
+                                    toast.success(t("toast.confirmed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.confirm")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canClose && status === "APPROVED" && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-warning focus:text-warning"
@@ -610,7 +630,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSI && status === "APPROVED" && (
+                            {canCreateSI && status === "APPROVED" && hasGoodsReceipt && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
@@ -623,7 +643,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSIDP && status === "APPROVED" && (
+                            {canCreateSIDP && status === "APPROVED" && hasGoodsReceipt && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {

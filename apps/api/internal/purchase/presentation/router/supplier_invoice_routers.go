@@ -7,17 +7,17 @@ import (
 )
 
 const (
-	supplierInvoiceRead       = "supplier_invoice.read"
-	supplierInvoiceCreate     = "supplier_invoice.create"
-	supplierInvoiceUpdate     = "supplier_invoice.update"
-	supplierInvoiceDelete     = "supplier_invoice.delete"
-	supplierInvoiceSubmit     = "supplier_invoice.submit"
-	supplierInvoiceApprove    = "supplier_invoice.approve"
-	supplierInvoiceReject     = "supplier_invoice.reject"
-	supplierInvoiceCancel     = "supplier_invoice.cancel"
-	supplierInvoicePending    = "supplier_invoice.pending"
-	supplierInvoiceExport     = "supplier_invoice.export"
-	supplierInvoicePrint      = "supplier_invoice.print"
+	supplierInvoiceRead    = "supplier_invoice.read"
+	supplierInvoiceCreate  = "supplier_invoice.create"
+	supplierInvoiceUpdate  = "supplier_invoice.update"
+	supplierInvoiceDelete  = "supplier_invoice.delete"
+	supplierInvoiceSubmit  = "supplier_invoice.submit"
+	supplierInvoiceApprove = "supplier_invoice.approve"
+	supplierInvoiceReject  = "supplier_invoice.reject"
+	supplierInvoiceCancel  = "supplier_invoice.cancel"
+	supplierInvoicePending = "supplier_invoice.pending"
+	supplierInvoiceExport  = "supplier_invoice.export"
+	supplierInvoicePrint   = "supplier_invoice.print"
 )
 
 func RegisterSupplierInvoiceRoutes(r *gin.RouterGroup, h *handler.SupplierInvoiceHandler, printH *handler.SupplierInvoicePrintHandler) {
@@ -25,6 +25,7 @@ func RegisterSupplierInvoiceRoutes(r *gin.RouterGroup, h *handler.SupplierInvoic
 	g.GET("/add", middleware.RequirePermission(supplierInvoiceCreate), h.Add)
 	g.GET("", middleware.RequirePermission(supplierInvoiceRead), h.List)
 	g.GET("/export", middleware.RequirePermission(supplierInvoiceExport), h.Export)
+	g.POST("/preview", middleware.RequirePermission(supplierInvoiceCreate), h.PreviewJournal)
 	g.POST("", middleware.RequirePermission(supplierInvoiceCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(supplierInvoiceRead), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(supplierInvoiceRead), h.AuditTrail)
@@ -37,4 +38,11 @@ func RegisterSupplierInvoiceRoutes(r *gin.RouterGroup, h *handler.SupplierInvoic
 	g.POST("/:id/cancel", middleware.RequirePermission(supplierInvoiceCancel), h.Cancel)
 	g.POST("/:id/pending", middleware.RequirePermission(supplierInvoicePending), h.Pending)
 	g.POST("/:id/reverse", middleware.RequirePermission(supplierInvoiceCancel), h.Reverse)
+	g.PATCH("/:id/submit", middleware.RequirePermission(supplierInvoiceSubmit), h.Submit)
+	g.PATCH("/:id/approve", middleware.RequirePermission(supplierInvoiceApprove), h.Approve)
+	g.PATCH("/:id/reject", middleware.RequirePermission(supplierInvoiceReject), h.Reject)
+	g.PATCH("/:id/cancel", middleware.RequirePermission(supplierInvoiceCancel), h.Cancel)
+	g.PATCH("/:id/pending", middleware.RequirePermission(supplierInvoicePending), h.Pending)
+	g.PATCH("/:id/post", middleware.RequirePermission(supplierInvoicePending), h.Pending)
+	g.PATCH("/:id/reverse", middleware.RequirePermission(supplierInvoiceCancel), h.Reverse)
 }

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -56,7 +57,7 @@ func (r *assetAuditLogRepository) Create(ctx context.Context, log *models.AssetA
 	}
 	log.PerformedAt = time.Now()
 
-	return r.db.WithContext(ctx).Create(log).Error
+	return database.GetDB(ctx, r.db).Create(log).Error
 }
 
 // CreateBatch creates multiple audit log entries in a batch
@@ -68,13 +69,13 @@ func (r *assetAuditLogRepository) CreateBatch(ctx context.Context, logs []*model
 		log.PerformedAt = time.Now()
 	}
 
-	return r.db.WithContext(ctx).CreateInBatches(logs, 100).Error
+	return database.GetDB(ctx, r.db).CreateInBatches(logs, 100).Error
 }
 
 // GetByID retrieves an audit log by ID
 func (r *assetAuditLogRepository) GetByID(ctx context.Context, id string) (*models.AssetAuditLog, error) {
 	var log models.AssetAuditLog
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ?", id).
 		First(&log).Error
 
@@ -92,7 +93,7 @@ func (r *assetAuditLogRepository) GetByID(ctx context.Context, id string) (*mode
 func (r *assetAuditLogRepository) GetByAssetID(ctx context.Context, assetID string, limit int) ([]models.AssetAuditLog, error) {
 	var logs []models.AssetAuditLog
 
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("performed_at DESC")
 
@@ -107,7 +108,7 @@ func (r *assetAuditLogRepository) GetByAssetID(ctx context.Context, assetID stri
 // GetByAssetIDAndAction retrieves audit logs for a specific asset and action
 func (r *assetAuditLogRepository) GetByAssetIDAndAction(ctx context.Context, assetID string, action string) ([]models.AssetAuditLog, error) {
 	var logs []models.AssetAuditLog
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("asset_id = ? AND action = ?", assetID, action).
 		Order("performed_at DESC").
 		Find(&logs).Error
@@ -120,7 +121,7 @@ func (r *assetAuditLogRepository) Search(ctx context.Context, params AuditLogSea
 	var logs []models.AssetAuditLog
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.AssetAuditLog{})
+	query := database.GetDB(ctx, r.db).Model(&models.AssetAuditLog{})
 
 	// Apply filters
 	if params.AssetID != "" {
@@ -173,7 +174,7 @@ func (r *assetAuditLogRepository) GetRecentActivity(ctx context.Context, limit i
 		limit = 50
 	}
 
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Order("performed_at DESC").
 		Limit(limit).
 		Find(&logs).Error
@@ -189,7 +190,7 @@ func (r *assetAuditLogRepository) GetActivityCountByDate(ctx context.Context, st
 	}
 
 	var results []result
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.AssetAuditLog{}).
 		Select("DATE(performed_at) as date, COUNT(*) as count").
 		Where("performed_at BETWEEN ? AND ?", startDate, endDate).

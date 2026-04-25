@@ -10,9 +10,11 @@ import type {
   SaveStockOpnameItemsRequest,
   ProductStockLedgerFilter,
   ProductStockLedgerListResponse,
+  InventoryStockLevelListResponse,
 } from "../types";
 
-const BASE_PATH = "/stock-opnames";
+const BASE_PATH = "/inventory/opname";
+const LEGACY_BASE_PATH = "/stock-opnames";
 
 export const stockOpnameService = {
   async list(
@@ -65,8 +67,22 @@ export const stockOpnameService = {
     data: UpdateStockOpnameStatusRequest
   ): Promise<StockOpnameSingleResponse> {
     const response = await apiClient.post<StockOpnameSingleResponse>(
-      `${BASE_PATH}/${id}/status`,
+      `${LEGACY_BASE_PATH}/${id}/status`,
       data
+    );
+    return response.data;
+  },
+
+  async generateJournal(id: string): Promise<StockOpnameSingleResponse> {
+    const response = await apiClient.post<StockOpnameSingleResponse>(
+      `${BASE_PATH}/${id}/generate-journal`
+    );
+    return response.data;
+  },
+
+  async submitApproval(id: string): Promise<StockOpnameSingleResponse> {
+    const response = await apiClient.post<StockOpnameSingleResponse>(
+      `${BASE_PATH}/${id}/submit-approval`
     );
     return response.data;
   },
@@ -95,6 +111,17 @@ export const stockOpnameService = {
     const response = await apiClient.get<ProductStockLedgerListResponse>(
       `/inventory/products/${productId}/ledgers`,
       { params },
+    );
+    return response.data;
+  },
+
+  async getProductStockLevel(
+    productId: string,
+    warehouseId: string,
+  ): Promise<InventoryStockLevelListResponse> {
+    const response = await apiClient.get<InventoryStockLevelListResponse>(
+      `/inventory/stock`,
+      { params: { product_id: productId, warehouse_id: warehouseId, per_page: 1 } },
     );
     return response.data;
   },

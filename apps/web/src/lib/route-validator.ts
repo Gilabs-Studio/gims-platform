@@ -18,6 +18,7 @@ function flattenNavigationRoutes(items: readonly NavItem[]): string[] {
 
 const EXTRA_VALID_ROUTES = [
   "/stock/movements/create",
+  "/stock/ledger",
   "/stock/opname",
   "/master-data/currencies",
   "/master-data/payment-terms",
@@ -48,8 +49,9 @@ const EXTRA_VALID_ROUTES = [
   "/finance/fixed-assets/categories",
   "/finance/fixed-assets/locations",
   "/finance/fixed-assets/depreciation-schedule",
-  "/finance/fixed-assets/disposal",
-  "/finance/fixed-assets/revaluation",
+  "/finance/asset-batch-depreciation",
+  "/finance/asset-disposal",
+  "/finance/asset-revaluation",
   "/finance/settings/accounting-mapping",
   "/finance/settings/fiscal-years",
   "/finance/settings/tax-config",

@@ -11,6 +11,8 @@ type NonTradePayableStatus string
 
 const (
 	NTPStatusDraft     NonTradePayableStatus = "draft"
+	NTPStatusPosted    NonTradePayableStatus = "posted"
+	NTPStatusPartial   NonTradePayableStatus = "partial"
 	NTPStatusSubmitted NonTradePayableStatus = "submitted"
 	NTPStatusApproved  NonTradePayableStatus = "approved"
 	NTPStatusRejected  NonTradePayableStatus = "rejected"
@@ -20,6 +22,7 @@ const (
 
 type NonTradePayable struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	TransactionDate time.Time `gorm:"type:date;not null;index" json:"transaction_date"`
 	Code            string    `gorm:"type:varchar(50);unique;not null;index" json:"code"`

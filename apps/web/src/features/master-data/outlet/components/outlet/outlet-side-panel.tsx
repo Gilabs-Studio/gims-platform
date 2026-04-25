@@ -79,6 +79,8 @@ export function OutletSidePanel({
             <Field orientation="vertical">
               <FieldLabel>{t("outlet.form.phone")}</FieldLabel>
               <Input
+                type="tel"
+                inputMode="numeric"
                 placeholder={t("outlet.form.phonePlaceholder")}
                 {...register("phone")}
               />

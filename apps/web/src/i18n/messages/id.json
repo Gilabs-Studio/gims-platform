@@ -1,4 +1,14 @@
 {
+  "dashboard": {
+    "onboarding": {
+      "steps": {
+        "fiscalYear": {
+          "label": "Atur Tahun Fiskal",
+          "description": "Atur setidaknya satu tahun fiskal aktif sebelum Anda dapat mencatat transaksi penjualan atau pembelian."
+        }
+      }
+    }
+  },
   "common": {
     "title": "Pengaturan Global",
     "loading": "Memuat...",
@@ -52,6 +62,10 @@
     "purchaseOrder": "Pesanan Pembelian",
     "goodsReceipt": "Penerimaan Barang",
     "createdBy": "Dibuat oleh",
+    "openMenu": "Buka menu",
+    "openSearch": "Buka pencarian",
+    "settings": "Pengaturan",
+    "logout": "Keluar",
     "days": "hari",
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
@@ -88,7 +102,95 @@
     }
   },
   "auth": {
-    "login": {
+    "register": {
+    "title": "Buat Akun Anda",
+    "description": "Daftarkan bisnis Anda di platform GIMS — tanpa kartu kredit",
+    "nameLabel": "Nama Lengkap",
+    "namePlaceholder": "Masukkan nama lengkap Anda",
+    "emailLabel": "Email Kerja",
+    "emailPlaceholder": "Masukkan email kerja Anda",
+    "passwordLabel": "Kata Sandi",
+    "passwordPlaceholder": "Buat kata sandi (min. 8 karakter)",
+    "couponLabel": "Kode Kupon",
+    "couponPlaceholder": "MASUKKAN-KUPON",
+    "couponOptional": "Opsional",
+    "submit": "Buat Akun",
+    "submitting": "Membuat akun...",
+    "alreadyHaveAccount": "Sudah punya akun?",
+    "signIn": "Masuk",
+    "brandName": "GIMS",
+    "brandBy": "oleh GiLabs",
+    "companyLabel": "Nama Perusahaan",
+    "companyOptional": "Opsional",
+    "companyPlaceholder": "Nama perusahaan atau usaha Anda",
+    "back": "Kembali",
+    "continue": "Lanjut",
+    "planTitle": "Pilih paket Anda",
+    "planDescription": "Harga yang bersih dan transparan untuk tim yang berkembang pesat.",
+    "tabs": { "bundle": "Paket", "modular": "Modular", "coupon": "Kupon" },
+    "monthly": "Bulanan",
+    "yearly": "Tahunan",
+    "save10": "Hemat 10%",
+    "free": "Gratis",
+    "trialPeriod": "Trial 30 hari",
+    "moneyBackGuarantee": "Semua langganan memiliki garansi uang kembali 30 hari. Bisa dibatalkan kapan saja.",
+    "perMonth": "/bulan",
+    "perMonthShort": "/bln",
+    "userSingular": "pengguna",
+    "userPlural": "pengguna",
+    "userCountLabel": "{count} {label}",
+    "modularPlanFallback": "Paket Modular",
+    "includedUsersPackage": "{count} pengguna termasuk di {price}/bln, lalu harga normal per pengguna berlaku.",
+    "packageSummary": "{users} pengguna termasuk, {price}/bln",
+    "startFreeTrial": "Mulai Trial Gratis",
+    "startPlan": "Mulai {name}",
+    "couponPackageSummary": "Paket kupon: {price} / bulan hingga {users} pengguna, lalu harga normal per pengguna.",
+    "couponUserLimit": "Kupon ini mendukung hingga {count} pengguna.",
+    "bundleValueBetter": "Nilai paket jauh lebih baik",
+    "modularOptionComparison": "Ultimate Suite adalah {ultimate}/bln untuk semua modul, sedangkan opsi modular ini {modular}/bln.",
+    "usersLabel": "Pengguna",
+    "decreaseUsers": "Kurangi pengguna",
+    "increaseUsers": "Tambah pengguna",
+    "usersAria": "Jumlah pengguna",
+    "features": "Fitur",
+    "price": "Harga",
+    "custom": "Kustom",
+    "contactSalesHint": "Hubungi tim kami untuk harga volume",
+    "billedAnnually": "Ditagihkan tahunan",
+    "contactSales": "Hubungi Sales",
+    "selected": "Terpilih",
+    "chooseBundle": "Pilih {name}",
+    "validate": "Validasi",
+    "discountLabel": "Kode Diskon",
+    "discountPlaceholder": "MASUKKAN-DISKON",
+    "discountApplied": "Diskon aktif",
+    "comingSoon": "Coming soon",
+    "couponInfoLine1": "Kode kupon memberikan akses trial dan akan divalidasi berdasarkan alamat email Anda.",
+    "couponInfoLine2": "Setiap kode hanya dapat digunakan satu kali per email.",
+    "pay": "Bayar {amount}",
+    "daysAccess": "hari akses",
+    "couponValid": "Kupon valid",
+    "couponInvalidOrExpired": "Kupon tidak valid atau sudah kedaluwarsa",
+    "couponValidateFailed": "Gagal memvalidasi kupon",
+    "couponReasons": {
+      "not_found": "Kupon tidak ditemukan",
+      "inactive": "Kupon tidak aktif",
+      "expired": "Kupon sudah kedaluwarsa",
+      "exhausted": "Kupon telah mencapai batas penggunaan",
+      "already_used_by_email": "Kupon ini sudah digunakan untuk email Anda"
+    },
+    "errors": {
+      "nameRequired": "Nama lengkap wajib diisi",
+      "emailRequired": "Email wajib diisi",
+      "emailInvalid": "Masukkan alamat email yang valid",
+      "passwordRequired": "Kata sandi wajib diisi",
+      "passwordTooShort": "Minimal 8 karakter",
+      "emailTaken": "Email ini sudah terdaftar",
+      "companyTaken": "Nama perusahaan ini sudah digunakan",
+      "availabilityCheckFailed": "Gagal memverifikasi ketersediaan akun. Silakan coba lagi."
+    }
+  },
+  "login": {
       "title": "Selamat Datang Kembali",
       "description": "Masuk ke akun Anda untuk melanjutkan",
       "emailLabel": "Email",
@@ -101,8 +203,21 @@
       "rememberMe": "Ingat saya",
       "submit": "Masuk",
       "submitting": "Masuk...",
+      "paymentSuccessToast": "Pembayaran terkonfirmasi. Silakan masuk untuk melanjutkan.",
       "verifyingSession": "Memverifikasi sesi...",
-      "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}."
+      "rateLimitMessage": "Terlalu banyak percobaan login. Silakan coba lagi dalam {countdown}.",
+      "noAccount": "Belum punya akun?",
+      "createAccount": "Buat Akun"
+    },
+    "registerSuccess": {
+      "confirmingTitle": "Menyelesaikan pendaftaran Anda...",
+      "confirmingDescription": "Pembayaran Anda sudah diterima. Kami sedang menyiapkan akun Anda.",
+      "successTitle": "Pembayaran terkonfirmasi!",
+      "successDescription": "Akun Anda siap. Mengarahkan ke halaman login...",
+      "failedTitle": "Registrasi belum dapat diverifikasi",
+      "failedDescription": "Kami belum dapat memverifikasi registrasi Anda secara otomatis. Silakan hubungi support dengan referensi di bawah ini.",
+      "referenceLabel": "Referensi",
+      "backToRegister": "Kembali ke Pendaftaran"
     },
     "block": {
       "title": "Akses Diblokir",
@@ -187,6 +302,7 @@
     "payableRecap": "Rekap Hutang",
     "stock": "Stok",
     "inventory": "Inventaris",
+    "stockLedger": "Buku Besar Persediaan",
     "stockMovement": "Pergerakan Stok",
     "stockOpname": "Opname Stok",
     "finance": "Keuangan",

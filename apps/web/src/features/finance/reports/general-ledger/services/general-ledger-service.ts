@@ -8,6 +8,7 @@ export type ReportQueryParams = {
   start_date: string;
   end_date: string;
   company_id?: string;
+  account_id?: string;
 };
 
 export const generalLedgerService = {

@@ -25,6 +25,7 @@ const (
 // SalesQuotation represents a sales quotation document
 type SalesQuotation struct {
 	ID        string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code      string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	QuotationDate time.Time `gorm:"type:date;not null;index" json:"quotation_date"`
 	ValidUntil    *time.Time `gorm:"type:date" json:"valid_until"`
@@ -106,6 +107,7 @@ func (sq *SalesQuotation) BeforeCreate(tx *gorm.DB) error {
 // SalesQuotationItem represents an item in a sales quotation
 type SalesQuotationItem struct {
 	ID               string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID         string    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SalesQuotationID string    `gorm:"type:uuid;not null;index" json:"sales_quotation_id"`
 	SalesQuotation   *SalesQuotation `gorm:"foreignKey:SalesQuotationID" json:"sales_quotation,omitempty"`
 	

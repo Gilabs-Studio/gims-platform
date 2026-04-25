@@ -47,7 +47,7 @@ import {
   useUpdateCustomerInvoiceDP,
 } from "../hooks/use-customer-invoice-dp";
 import {
-  customerInvoiceDPSchema,
+  getCustomerInvoiceDPSchema,
   type CustomerInvoiceDPFormData,
 } from "../schemas/customer-invoice-dp.schema";
 
@@ -78,7 +78,7 @@ export function CustomerInvoiceDPFormDialog({
   const [attachments, setAttachments] = useState<File[]>([]);
 
   const form = useForm<CustomerInvoiceDPFormData>({
-    resolver: zodResolver(customerInvoiceDPSchema),
+    resolver: zodResolver(getCustomerInvoiceDPSchema(t)),
     defaultValues: {
       sales_order_id: "",
       invoice_date: "",

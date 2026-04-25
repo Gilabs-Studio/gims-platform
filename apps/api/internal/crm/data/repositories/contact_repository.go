@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -38,12 +39,12 @@ func NewContactRepository(db *gorm.DB) ContactRepository {
 }
 
 func (r *contactRepository) Create(ctx context.Context, contact *models.Contact) error {
-	return r.db.WithContext(ctx).Create(contact).Error
+	return database.GetDB(ctx, r.db).Create(contact).Error
 }
 
 func (r *contactRepository) FindByID(ctx context.Context, id string) (*models.Contact, error) {
 	var contact models.Contact
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Customer").
 		Preload("ContactRole").
 		First(&contact, "id = ?", id).Error
@@ -57,7 +58,7 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	var contacts []models.Contact
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Contact{})
+	query := database.GetDB(ctx, r.db).Model(&models.Contact{})
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
@@ -108,7 +109,7 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 	var contacts []models.Contact
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Contact{}).Where("customer_id = ?", customerID)
+	query := database.GetDB(ctx, r.db).Model(&models.Contact{}).Where("customer_id = ?", customerID)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
@@ -148,16 +149,16 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 }
 
 func (r *contactRepository) Update(ctx context.Context, contact *models.Contact) error {
-	return r.db.WithContext(ctx).Save(contact).Error
+	return database.GetDB(ctx, r.db).Save(contact).Error
 }
 
 func (r *contactRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Contact{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Contact{}, "id = ?", id).Error
 }
 
 func (r *contactRepository) CountByCustomerID(ctx context.Context, customerID string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&models.Contact{}).Where("customer_id = ?", customerID).Count(&count).Error
+	err := database.GetDB(ctx, r.db).Model(&models.Contact{}).Where("customer_id = ?", customerID).Count(&count).Error
 	return count, err
 }
 
@@ -173,7 +174,7 @@ func (r *contactRepository) CountByCustomerIDs(ctx context.Context, customerIDs 
 	}
 	var results []countResult
 
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.Contact{}).
 		Select("customer_id, count(*) as count").
 		Where("customer_id IN ?", customerIDs).
@@ -192,7 +193,7 @@ func (r *contactRepository) CountByCustomerIDs(ctx context.Context, customerIDs 
 
 func (r *contactRepository) ExistsByNameAndCustomer(ctx context.Context, name string, customerID string, excludeID string) (bool, error) {
 	var count int64
-	query := r.db.WithContext(ctx).Model(&models.Contact{}).
+	query := database.GetDB(ctx, r.db).Model(&models.Contact{}).
 		Where("name = ? AND customer_id = ?", name, customerID)
 	if excludeID != "" {
 		query = query.Where("id != ?", excludeID)

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -35,7 +36,7 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	// Complex query to aggregate batches
 	// We'll select from Products and left join aggregated Batches
 
-	query := r.DB(ctx).Table("products p").
+	query := r.db.WithContext(ctx).Table("products p").
 		Select(`
 			p.id as product_id,
 			p.code as product_code,
@@ -56,25 +57,34 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 		`).
 		Joins("LEFT JOIN product_categories pc ON pc.id = p.category_id").
 		Joins("LEFT JOIN product_brands pb ON pb.id = p.brand_id").
-		Joins("LEFT JOIN units_of_measure u ON u.id = p.uom_id").
-		// Cross join (or similar) with Warehouses if we want to show 0 stock for all warehouses?
-		// For now, let's just show existing inventory or all products + default warehouse?
-		// The requirement implies warehouse filtering.
-		// If warehouse_id is provided, we filter inventory batches by that warehouse.
-		// If not, we might be aggregating ALL warehouses (which can be confusing if displayed as single row per product).
-		// The UI shows "Warehouse" column. This implies one row per Product-Warehouse combination.
+		Joins("LEFT JOIN units_of_measure u ON u.id = p.uom_id")
 
-		// Strategy:
-		// 1. Join InventoryBatches
-		// 2. Join Warehouses via Batches
-		Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL").
-		Joins("LEFT JOIN warehouses w ON w.id = ib.warehouse_id")
+	// Apply tenant filter manually since we are using joins and custom Table() call
+	var err error
+	query, err = applyTenantFilter(ctx, query, "p.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 
-	// Apply Warehouse Filter
 	if req.WarehouseID != "" {
-		query = query.Where("ib.warehouse_id = ?", req.WarehouseID)
+		query = query.
+			Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL AND ib.warehouse_id = ?", req.WarehouseID).
+			Joins("LEFT JOIN warehouses w ON w.id = ?", req.WarehouseID)
+		
+		query, err = applyTenantFilter(ctx, query, "ib.tenant_id", "w.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 	} else {
-		query = query.Where("ib.id IS NOT NULL")
+		query = query.
+			Joins("LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL").
+			Joins("LEFT JOIN warehouses w ON w.id = ib.warehouse_id").
+			Where("ib.id IS NOT NULL")
+		
+		query, err = applyTenantFilter(ctx, query, "ib.tenant_id", "w.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	// Apply Product Filter
@@ -123,7 +133,7 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 	}
 
 	// Count Total (wrapping group-by query in subquery for accuracy)
-	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -181,6 +191,11 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 	// Subquery to get product-warehouse availability first
 	// (Same as GetStockList core query but grouped by product+warehouse)
 
+	tenantID, scoped, err := tenantContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	query := `
 		WITH stock_levels AS (
 			SELECT 
@@ -218,7 +233,86 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 		ORDER BY w.name ASC
 	`
 
-	rows, err := r.DB(ctx).Raw(query).Rows()
+	args := make([]any, 0, 4)
+	if scoped {
+		query = `
+		WITH stock_levels AS (
+			SELECT 
+				w.id as warehouse_id,
+				p.id as product_id,
+				p.min_stock,
+				p.max_stock,
+				COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) as available
+			FROM warehouses w
+			JOIN inventory_batches ib ON ib.warehouse_id = w.id AND ib.deleted_at IS NULL
+			JOIN products p ON p.id = ib.product_id
+			WHERE w.tenant_id = ? AND ib.tenant_id = ? AND p.tenant_id = ?
+			  AND w.deleted_at IS NULL
+			GROUP BY w.id, p.id, p.min_stock, p.max_stock
+		)
+		SELECT 
+			w.id,
+			w.name,
+			COUNT(sl.product_id) as total_items,
+			COUNT(CASE 
+				WHEN sl.available <= 0 THEN 1 
+			END) as out_of_stock,
+			COUNT(CASE 
+				WHEN sl.available > 0 AND sl.available <= sl.min_stock THEN 1 
+			END) as low,
+			COUNT(CASE 
+				WHEN sl.max_stock > 0 AND sl.available > sl.max_stock THEN 1 
+			END) as overstock,
+			COUNT(CASE 
+				WHEN sl.available > sl.min_stock AND (sl.max_stock = 0 OR sl.available <= sl.max_stock) THEN 1 
+			END) as ok
+		FROM warehouses w
+		LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
+		WHERE w.tenant_id = ? AND w.deleted_at IS NULL
+		GROUP BY w.id, w.name
+		ORDER BY w.name ASC
+		`
+		args = append(args, tenantID, tenantID, tenantID, tenantID)
+	} else {
+		query = `
+		WITH stock_levels AS (
+			SELECT 
+				w.id as warehouse_id,
+				p.id as product_id,
+				p.min_stock,
+				p.max_stock,
+				COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) as available
+			FROM warehouses w
+			JOIN inventory_batches ib ON ib.warehouse_id = w.id AND ib.deleted_at IS NULL
+			JOIN products p ON p.id = ib.product_id
+			WHERE w.deleted_at IS NULL
+			GROUP BY w.id, p.id, p.min_stock, p.max_stock
+		)
+		SELECT 
+			w.id,
+			w.name,
+			COUNT(sl.product_id) as total_items,
+			COUNT(CASE 
+				WHEN sl.available <= 0 THEN 1 
+			END) as out_of_stock,
+			COUNT(CASE 
+				WHEN sl.available > 0 AND sl.available <= sl.min_stock THEN 1 
+			END) as low,
+			COUNT(CASE 
+				WHEN sl.max_stock > 0 AND sl.available > sl.max_stock THEN 1 
+			END) as overstock,
+			COUNT(CASE 
+				WHEN sl.available > sl.min_stock AND (sl.max_stock = 0 OR sl.available <= sl.max_stock) THEN 1 
+			END) as ok
+		FROM warehouses w
+		LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
+		WHERE w.deleted_at IS NULL
+		GROUP BY w.id, w.name
+		ORDER BY w.name ASC
+		`
+	}
+
+	rows, err := r.db.WithContext(ctx).Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +346,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	var summary dto.TreeProductsSummary
 
 	// Filter by WarehouseID IS REQUIRED and enforced by logic calling this
-	query := r.DB(ctx).Table("products p").
+	query := r.db.WithContext(ctx).Table("products p").
 		Select(`
 			p.id as product_id,
 			p.code as product_code,
@@ -276,6 +370,13 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 		Joins("JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL"). // Inner join to filtering batches
 		Joins("JOIN warehouses w ON w.id = ib.warehouse_id")
 
+	// Apply tenant filter manually since we are using joins and custom Table() call
+	var err error
+	query, err = applyTenantFilter(ctx, query, "p.tenant_id", "ib.tenant_id", "w.tenant_id")
+	if err != nil {
+		return nil, 0, summary, err
+	}
+
 	// Apply Warehouse ID Filter
 	query = query.Where("ib.warehouse_id = ?", req.WarehouseID)
 
@@ -292,7 +393,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name, p.is_ingredient")
 
 	// Count Total
-	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
 		return nil, 0, summary, err
 	}
 
@@ -305,7 +406,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	}
 
 	var summaryRow treeSummaryRow
-	if err := r.DB(ctx).Table("(?) as sub", query).
+	if err := r.db.WithContext(ctx).Table("(?) as sub", query).
 		Select(`
 			COALESCE(SUM(CASE WHEN sub.available <= 0 THEN 1 ELSE 0 END), 0) AS out_of_stock,
 			COALESCE(SUM(CASE WHEN sub.available > 0 AND sub.available <= sub.min_stock THEN 1 ELSE 0 END), 0) AS low,
@@ -399,6 +500,20 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 
 // GetInventoryMetrics returns high-level inventory summary for owner/admin dashboards
 func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.InventoryMetrics, error) {
+	permissionScope, _ := ctx.Value("permission_scope").(string)
+	permissionScope = strings.ToUpper(strings.TrimSpace(permissionScope))
+	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
+	warehouseScoped := permissionScope == "WAREHOUSE"
+
+	if warehouseScoped && len(warehouseIDs) == 0 {
+		return &dto.InventoryMetrics{}, nil
+	}
+
+	// CTE to aggregate product-warehouse stock levels
+	tenantID, scoped, err := tenantContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// CTE to aggregate product-warehouse stock levels
 	metricsQuery := `
 		WITH stock_levels AS (
@@ -413,6 +528,17 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 			JOIN inventory_batches ib ON ib.product_id = p.id AND ib.deleted_at IS NULL
 			JOIN warehouses w ON w.id = ib.warehouse_id AND w.deleted_at IS NULL
 			WHERE p.deleted_at IS NULL
+	`
+	metricsArgs := make([]any, 0, 3)
+	if scoped {
+		metricsQuery += "\n\t\t\tAND p.tenant_id = ? AND ib.tenant_id = ? AND w.tenant_id = ?"
+		metricsArgs = append(metricsArgs, tenantID, tenantID, tenantID)
+	}
+	if warehouseScoped {
+		metricsQuery += "\n\t\t\tAND w.id IN ?"
+		metricsArgs = append(metricsArgs, warehouseIDs)
+	}
+	metricsQuery += `
 			GROUP BY w.id, p.id, p.min_stock, p.max_stock
 		)
 		SELECT
@@ -439,7 +565,7 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 	}
 
 	var raw rawMetrics
-	if err := r.DB(ctx).Raw(metricsQuery).Scan(&raw).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(metricsQuery, metricsArgs...).Scan(&raw).Error; err != nil {
 		return nil, err
 	}
 
@@ -447,13 +573,19 @@ func (r *inventoryRepository) GetInventoryMetrics(ctx context.Context) (*dto.Inv
 	var expiringCount int64
 	var expiredCount int64
 
-	r.DB(ctx).Table("inventory_batches").
-		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'").
-		Count(&expiringCount)
+	expiringQuery := r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date >= CURRENT_DATE AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'")
+	if warehouseScoped {
+		expiringQuery = expiringQuery.Where("warehouse_id IN ?", warehouseIDs)
+	}
+	expiringQuery.Count(&expiringCount)
 
-	r.DB(ctx).Table("inventory_batches").
-		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date < CURRENT_DATE").
-		Count(&expiredCount)
+	expiredQuery := r.DB(ctx).Table("inventory_batches").
+		Where("deleted_at IS NULL AND current_quantity > 0 AND expiry_date < CURRENT_DATE")
+	if warehouseScoped {
+		expiredQuery = expiredQuery.Where("warehouse_id IN ?", warehouseIDs)
+	}
+	expiredQuery.Count(&expiredCount)
 
 	return &dto.InventoryMetrics{
 		TotalItems:           raw.TotalItems,
@@ -519,17 +651,26 @@ func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID
 }
 
 func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
+	batchID := strings.TrimSpace(req.InventoryBatchID)
+	var inventoryBatchID *string
+	if batchID != "" {
+		inventoryBatchID = &batchID
+	}
+
 	movement := models.StockMovement{
-		InventoryBatchID: &req.InventoryBatchID,
+		InventoryBatchID: inventoryBatchID,
 		ProductID:        req.ProductID,
 		WarehouseID:      req.WarehouseID,
 		MovementType:     models.StockMovementType(req.Type),
 		RefType:          reference.Normalize(req.ReferenceType),
 		RefID:            req.ReferenceID,
 		RefNumber:        req.ReferenceNumber,
-		Source:           req.Description,
+		Source:           strings.TrimSpace(req.Source),
 		CreatedBy:        req.CreatedBy,
 		Date:             apptime.Now(),
+	}
+	if movement.Source == "" {
+		movement.Source = req.Description
 	}
 
 	// Costing: Ensure we use the latest Product HPP if not provided on the request
@@ -620,6 +761,7 @@ func (r *inventoryRepository) GetBatchByID(ctx context.Context, batchID string) 
 			ib.expiry_date,
 			ib.current_quantity,
 			ib.reserved_quantity,
+			ib.cost_price,
 			(ib.current_quantity - ib.reserved_quantity) as available,
 			ib.is_active
 		`).

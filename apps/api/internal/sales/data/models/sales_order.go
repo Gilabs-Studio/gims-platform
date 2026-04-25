@@ -26,6 +26,7 @@ const (
 // SalesOrder represents a sales order document
 type SalesOrder struct {
 	ID        string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code      string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	OrderDate time.Time `gorm:"type:date;not null;index" json:"order_date"`
 
@@ -114,6 +115,7 @@ func (so *SalesOrder) BeforeCreate(tx *gorm.DB) error {
 // SalesOrderItem represents an item in a sales order
 type SalesOrderItem struct {
 	ID           string      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID     string      `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SalesOrderID string      `gorm:"type:uuid;not null;index" json:"sales_order_id"`
 	SalesOrder   *SalesOrder `gorm:"foreignKey:SalesOrderID" json:"sales_order,omitempty"`
 

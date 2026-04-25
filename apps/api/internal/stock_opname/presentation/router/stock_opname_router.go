@@ -68,4 +68,23 @@ func RegisterStockOpnameRoutes(
 
 	// Status
 	group.POST("/:id/status", requireAnyPermission("stock_opname.update", "stock_opname.approve", "stock_opname.reject", "stock_opname.post"), h.UpdateStatus)
+
+	// Inventory namespace aliases for phase inventory workflow
+	inventoryOpname := r.Group("/inventory/opname")
+	inventoryOpname.Use(middleware.AuthMiddleware(jwtManager, permService))
+	inventoryOpname.Use(middleware.ScopeMiddleware(db))
+
+	inventoryOpname.GET("", middleware.RequirePermission("stock_opname.read"), h.List)
+	inventoryOpname.POST("", middleware.RequirePermission("stock_opname.create"), h.Create)
+	inventoryOpname.GET("/:id", middleware.RequirePermission("stock_opname.read"), h.GetByID)
+	inventoryOpname.PUT("/:id", middleware.RequirePermission("stock_opname.update"), h.Update)
+
+	// Items aliases
+	inventoryOpname.GET("/:id/items", middleware.RequirePermission("stock_opname.read"), h.ListItems)
+	inventoryOpname.PUT("/:id/items", middleware.RequirePermission("stock_opname.update"), h.SaveItems)
+	// Backward-compatible path introduced during initial phase rollout
+	inventoryOpname.PUT("/:id/lines", middleware.RequirePermission("stock_opname.update"), h.SaveItems)
+	inventoryOpname.POST("/:id/generate-journal", middleware.RequirePermission("stock_opname.update"), h.GenerateJournal)
+	inventoryOpname.POST("/:id/submit-approval", middleware.RequirePermission("stock_opname.update"), h.SubmitApproval)
+	inventoryOpname.DELETE("/:id", middleware.RequirePermission("stock_opname.delete"), h.Delete)
 }

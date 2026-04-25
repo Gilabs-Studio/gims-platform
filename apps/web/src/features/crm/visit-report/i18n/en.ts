@@ -151,8 +151,8 @@ export const crmVisitReportEn = {
       total: "Total Visits",
       pending: "Pending Approval",
       approved: "Approved",
-      checkInRate: "Check-in Rate",
       withOutcome: "With Outcome",
+      checkInRate: "Check-in Rate",
     },
     calendar: {
       today: "Today",

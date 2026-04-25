@@ -11,6 +11,7 @@ import (
 // Contact represents a person associated with a Customer (child of Customer)
 type Contact struct {
 	ID            string                   `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CustomerID    string                   `gorm:"type:uuid;not null;index" json:"customer_id"`
 	Customer      *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
 	ContactRoleID *string                  `gorm:"type:uuid;index" json:"contact_role_id"`

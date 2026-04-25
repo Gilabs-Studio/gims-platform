@@ -17,7 +17,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	financeDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -25,13 +27,19 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	"github.com/gilabs/gims/api/internal/purchase/domain/mapper"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 var (
-	ErrPurchasePaymentNotFound = errors.New("purchase payment not found")
-	ErrPurchasePaymentConflict = errors.New("purchase payment conflict")
+	ErrPurchasePaymentNotFound     = errors.New("purchase payment not found")
+	ErrPurchasePaymentConflict     = errors.New("purchase payment conflict")
+	payableSupplierInvoiceStatuses = []models.SupplierInvoiceStatus{
+		models.SupplierInvoiceStatusUnpaid,
+		models.SupplierInvoiceStatusPartial,
+		models.SupplierInvoiceStatusWaitingPayment,
+	}
 )
 
 type PurchasePaymentUsecase interface {
@@ -39,8 +47,11 @@ type PurchasePaymentUsecase interface {
 	List(ctx context.Context, params repositories.PurchasePaymentListParams) ([]*dto.PurchasePaymentListResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error)
+	CreateBatch(ctx context.Context, req *dto.CreatePurchasePaymentBatchRequest) (*dto.PurchasePaymentBatchResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Confirm(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
+	ConfirmBatch(ctx context.Context, req *dto.ConfirmPurchasePaymentBatchRequest) (*dto.PurchasePaymentBatchResponse, error)
 	Reverse(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error)
@@ -49,23 +60,179 @@ type PurchasePaymentUsecase interface {
 }
 
 type purchasePaymentUsecase struct {
-	db           *gorm.DB
-	repo         repositories.PurchasePaymentRepository
-	siRepo       repositories.SupplierInvoiceRepository
-	auditService audit.AuditService
-	mapper       *mapper.PurchasePaymentMapper
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	engine       accounting.AccountingEngine
-	settingsUC   financesettings.SettingsService
+	db                 *gorm.DB
+	repo               repositories.PurchasePaymentRepository
+	siRepo             repositories.SupplierInvoiceRepository
+	auditService       audit.AuditService
+	mapper             *mapper.PurchasePaymentMapper
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	engine             accounting.AccountingEngine
+	settingsUC         financesettings.SettingsService
+	purchaseJournalSvc purchaseService.PurchaseJournalService
+	cashBankTxnUC      finUsecase.CashBankTransactionUsecase
 }
 
-func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine, settingsUC ...financesettings.SettingsService) PurchasePaymentUsecase {
-	uc := &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
-	if len(settingsUC) > 0 {
-		uc.settingsUC = settingsUC[0]
-	}
+func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine, settingsUC financesettings.SettingsService, cashBankTxnUC finUsecase.CashBankTransactionUsecase) PurchasePaymentUsecase {
+	uc := &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine, settingsUC: settingsUC, cashBankTxnUC: cashBankTxnUC}
+	uc.purchaseJournalSvc = purchaseService.NewPurchaseJournalService(db, journalUC, engine)
 	return uc
+}
+
+func normalizePurchasePaymentMethod(raw string) (models.PurchasePaymentMethod, error) {
+	method := strings.ToUpper(strings.TrimSpace(raw))
+	if method != string(models.PurchasePaymentMethodBank) && method != string(models.PurchasePaymentMethodCash) {
+		return "", ErrPurchasePaymentConflict
+	}
+
+	return models.PurchasePaymentMethod(method), nil
+}
+
+func dedupePaymentIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+
+	return result
+}
+
+func trimOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(*value)
+}
+
+func resolvePurchasePaymentBankAccountForCreate(
+	tx *gorm.DB,
+	bankAccountID string,
+	method models.PurchasePaymentMethod,
+	actorID string,
+	companyID string,
+) (*coreModels.BankAccount, error) {
+	if bankAccountID != "" {
+		return lockActivePurchasePaymentBankAccount(tx, bankAccountID)
+	}
+
+	if method != models.PurchasePaymentMethodCash {
+		return nil, errors.New("bank account is required for bank transfers")
+	}
+
+	resolvedCompanyID := strings.TrimSpace(companyID)
+	if resolvedCompanyID == "" {
+		derivedCompanyID, err := resolvePurchasePaymentActorCompanyID(tx, actorID)
+		if err != nil {
+			return nil, err
+		}
+		resolvedCompanyID = derivedCompanyID
+	}
+
+	return lockAnyActivePurchasePaymentBankAccountForCompany(tx, resolvedCompanyID)
+}
+
+func resolvePurchasePaymentActorCompanyID(tx *gorm.DB, actorID string) (string, error) {
+	trimmedActorID := strings.TrimSpace(actorID)
+	if trimmedActorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	type employeeCompanyRow struct {
+		CompanyID string
+	}
+
+	var row employeeCompanyRow
+	if err := tx.Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", trimmedActorID).
+		Limit(1).
+		Scan(&row).Error; err != nil {
+		return "", err
+	}
+
+	companyID := strings.TrimSpace(row.CompanyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
+func lockAnyActivePurchasePaymentBankAccountForCompany(tx *gorm.DB, companyID string) (*coreModels.BankAccount, error) {
+	var ba coreModels.BankAccount
+	if err := tx.Model(&coreModels.BankAccount{}).
+		Where("company_id = ?", companyID).
+		Where("is_active = ?", true).
+		Order("updated_at DESC").
+		Order("created_at DESC").
+		First(&ba).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("no active cash/bank account configured for this company")
+		}
+		return nil, err
+	}
+
+	return &ba, nil
+}
+
+func lockActivePurchasePaymentBankAccount(tx *gorm.DB, bankAccountID string) (*coreModels.BankAccount, error) {
+	var ba coreModels.BankAccount
+	if err := tx.First(&ba, "id = ?", bankAccountID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("bank account not found")
+		}
+		return nil, err
+	}
+
+	if !ba.IsActive {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	return &ba, nil
+}
+
+func isPayableSupplierInvoiceStatus(status models.SupplierInvoiceStatus) bool {
+	for _, allowed := range payableSupplierInvoiceStatuses {
+		if status == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isSamePendingPaymentRequest(
+	pending *models.PurchasePayment,
+	bankAccountID string,
+	paymentDate string,
+	method models.PurchasePaymentMethod,
+	amount float64,
+) bool {
+	if pending == nil {
+		return false
+	}
+
+	if strings.TrimSpace(pending.BankAccountID) != strings.TrimSpace(bankAccountID) {
+		return false
+	}
+	if strings.TrimSpace(pending.PaymentDate) != strings.TrimSpace(paymentDate) {
+		return false
+	}
+	if pending.Method != method {
+		return false
+	}
+
+	return math.Abs(pending.Amount-amount) <= 0.0001
 }
 
 func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePaymentAddResponse, error) {
@@ -74,7 +241,7 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	}
 
 	var bankAccounts []coreModels.BankAccount
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.BankAccount{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -89,10 +256,10 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 	}
 
 	var invoices []*models.SupplierInvoice
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
-		Where("status IN ?", []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusUnpaid, models.SupplierInvoiceStatusPartial}).
+		Where("status IN ?", payableSupplierInvoiceStatuses).
 		Order("created_at DESC").
 		Find(&invoices).Error; err != nil {
 		return nil, err
@@ -165,13 +332,13 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 		return nil, errors.New("db is nil")
 	}
 
-	method := strings.ToUpper(strings.TrimSpace(req.Method))
-	if method != string(models.PurchasePaymentMethodBank) && method != string(models.PurchasePaymentMethodCash) {
-		return nil, ErrPurchasePaymentConflict
+	method, err := normalizePurchasePaymentMethod(req.Method)
+	if err != nil {
+		return nil, err
 	}
 
 	var createdID string
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var inv models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", strings.TrimSpace(req.InvoiceID)).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
@@ -179,33 +346,44 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			}
 			return err
 		}
-		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial {
+		if !isPayableSupplierInvoiceStatus(inv.Status) {
 			return ErrPurchasePaymentConflict
 		}
 
-		// Prevent duplicate payment creation for the same invoice.
-		var pendingCount int64
-		if err := tx.Model(&models.PurchasePayment{}).
-			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
-			Count(&pendingCount).Error; err != nil {
+		companyID := ""
+		if inv.CompanyID != nil {
+			companyID = strings.TrimSpace(*inv.CompanyID)
+		}
+
+		ba, err := resolvePurchasePaymentBankAccountForCreate(
+			tx,
+			trimOptionalString(req.BankAccountID),
+			method,
+			actorID,
+			companyID,
+		)
+		if err != nil {
 			return err
 		}
-		if pendingCount > 0 {
+
+		// Idempotency for retried submit: if the same pending payment already exists, return it.
+		var existingPending models.PurchasePayment
+		err = tx.Session(&gorm.Session{NewDB: true}).Model(&models.PurchasePayment{}).
+			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
+			Order("created_at DESC").
+			Take(&existingPending).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
+			return err
+		}
+		if err == nil {
+			if isSamePendingPaymentRequest(&existingPending, ba.ID, req.PaymentDate, method, req.Amount) {
+				createdID = existingPending.ID
+				return nil
+			}
 			return ErrPurchasePaymentConflict
 		}
 
 		if req.Amount > inv.RemainingAmount+0.0001 {
-			return ErrPurchasePaymentConflict
-		}
-
-		var ba coreModels.BankAccount
-		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return errors.New("bank account not found")
-			}
-			return err
-		}
-		if !ba.IsActive {
 			return ErrPurchasePaymentConflict
 		}
 
@@ -216,16 +394,26 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 
 		p := &models.PurchasePayment{
 			SupplierInvoiceID: inv.ID,
-			BankAccountID:     ba.ID,
+			BankAccountID:     strings.TrimSpace(ba.ID),
 			PaymentDate:       strings.TrimSpace(req.PaymentDate),
 			Amount:            amount,
-			Method:            models.PurchasePaymentMethod(method),
+			Method:            method,
 			Status:            models.PurchasePaymentStatusPending,
 			ReferenceNumber:   req.ReferenceNumber,
 			Notes:             req.Notes,
 			CreatedBy:         actorID,
 		}
-		snapshotPurchasePayment(p, &ba)
+		p.CompanyID = inv.CompanyID
+		p.FiscalYearID = inv.FiscalYearID
+		if p.CompanyID == nil || p.FiscalYearID == nil {
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
+			if err != nil {
+				return err
+			}
+			p.CompanyID = &companyID
+			p.FiscalYearID = &fiscalYearID
+		}
+		snapshotPurchasePayment(p, ba)
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}
@@ -250,6 +438,262 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 	}
 
 	uc.auditService.Log(ctx, "purchase_payment.create", out.ID, map[string]interface{}{"after": out})
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.CreatePurchasePaymentBatchRequest) (*dto.PurchasePaymentBatchResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is nil")
+	}
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	method, err := normalizePurchasePaymentMethod(req.Method)
+	if err != nil {
+		return nil, err
+	}
+
+	paymentDate := strings.TrimSpace(req.PaymentDate)
+	if paymentDate == "" {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	normalizedItems := make([]dto.CreatePurchasePaymentBatchItemRequest, 0, len(req.Items))
+	seenInvoices := make(map[string]struct{}, len(req.Items))
+	for _, item := range req.Items {
+		invoiceID := strings.TrimSpace(item.InvoiceID)
+		if invoiceID == "" {
+			return nil, ErrPurchasePaymentConflict
+		}
+		if _, exists := seenInvoices[invoiceID]; exists {
+			return nil, ErrPurchasePaymentConflict
+		}
+		seenInvoices[invoiceID] = struct{}{}
+
+		amount := math.Max(0, item.Amount)
+		if amount <= 0 {
+			return nil, ErrPurchasePaymentConflict
+		}
+
+		normalizedItems = append(normalizedItems, dto.CreatePurchasePaymentBatchItemRequest{
+			InvoiceID: invoiceID,
+			Amount:    amount,
+		})
+	}
+
+	if len(normalizedItems) == 0 {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	createdIDs := make([]string, 0, len(normalizedItems))
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		ba, err := resolvePurchasePaymentBankAccountForCreate(
+			tx,
+			trimOptionalString(req.BankAccountID),
+			method,
+			actorID,
+			"",
+		)
+		if err != nil {
+			return err
+		}
+
+		for _, item := range normalizedItems {
+			var inv models.SupplierInvoice
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", item.InvoiceID).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					return ErrSupplierInvoiceNotFound
+				}
+				return err
+			}
+
+			if !isPayableSupplierInvoiceStatus(inv.Status) {
+				return ErrPurchasePaymentConflict
+			}
+
+			var pendingCount int64
+			if err := tx.Session(&gorm.Session{NewDB: true}).Model(&models.PurchasePayment{}).
+				Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
+				Count(&pendingCount).Error; err != nil {
+				return err
+			}
+			if pendingCount > 0 {
+				return ErrPurchasePaymentConflict
+			}
+
+			if item.Amount > inv.RemainingAmount+0.0001 {
+				return ErrPurchasePaymentConflict
+			}
+
+			pay := &models.PurchasePayment{
+				SupplierInvoiceID: inv.ID,
+				BankAccountID:     strings.TrimSpace(ba.ID),
+				PaymentDate:       paymentDate,
+				Amount:            item.Amount,
+				Method:            method,
+				Status:            models.PurchasePaymentStatusPending,
+				ReferenceNumber:   req.ReferenceNumber,
+				Notes:             req.Notes,
+				CreatedBy:         actorID,
+			}
+			pay.CompanyID = inv.CompanyID
+			pay.FiscalYearID = inv.FiscalYearID
+			if pay.CompanyID == nil || pay.FiscalYearID == nil {
+				companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
+				if err != nil {
+					return err
+				}
+				pay.CompanyID = &companyID
+				pay.FiscalYearID = &fiscalYearID
+			}
+			snapshotPurchasePayment(pay, ba)
+			if err := tx.Create(pay).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Model(&inv).Updates(map[string]interface{}{
+				"status":     models.SupplierInvoiceStatusWaitingPayment,
+				"updated_at": apptime.Now(),
+			}).Error; err != nil {
+				return err
+			}
+
+			createdIDs = append(createdIDs, pay.ID)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	payments := make([]*dto.PurchasePaymentDetailResponse, 0, len(createdIDs))
+	totalAmount := 0.0
+	for _, paymentID := range createdIDs {
+		row, err := uc.repo.GetByID(ctx, paymentID)
+		if err != nil {
+			return nil, err
+		}
+		mapped := uc.mapper.ToDetailResponse(row)
+		payments = append(payments, mapped)
+		totalAmount += mapped.Amount
+	}
+
+	auditTargetID := "batch"
+	if len(createdIDs) > 0 {
+		auditTargetID = createdIDs[0]
+	}
+	uc.auditService.Log(ctx, "purchase_payment.batch_create", auditTargetID, map[string]interface{}{
+		"payment_ids":   createdIDs,
+		"payment_count": len(createdIDs),
+		"total_amount":  totalAmount,
+	})
+
+	return &dto.PurchasePaymentBatchResponse{
+		Payments:    payments,
+		TotalAmount: totalAmount,
+		Count:       len(payments),
+	}, nil
+}
+
+func (uc *purchasePaymentUsecase) Update(ctx context.Context, id string, req *dto.UpdatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is nil")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	method := strings.ToUpper(strings.TrimSpace(req.Method))
+	if method != string(models.PurchasePaymentMethodBank) && method != string(models.PurchasePaymentMethodCash) {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	var updatedID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var pay models.PurchasePayment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrPurchasePaymentNotFound
+			}
+			return err
+		}
+		if pay.Status != models.PurchasePaymentStatusPending {
+			return ErrPurchasePaymentConflict
+		}
+
+		var inv models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrSupplierInvoiceNotFound
+			}
+			return err
+		}
+		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial && inv.Status != models.SupplierInvoiceStatusWaitingPayment {
+			return ErrPurchasePaymentConflict
+		}
+		available := inv.RemainingAmount + pay.Amount
+		if req.Amount > available+0.0001 {
+			return ErrPurchasePaymentConflict
+		}
+
+		var ba coreModels.BankAccount
+		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return errors.New("bank account not found")
+			}
+			return err
+		}
+		if !ba.IsActive {
+			return ErrPurchasePaymentConflict
+		}
+
+		amount := math.Max(0, req.Amount)
+		if amount <= 0 {
+			return ErrPurchasePaymentConflict
+		}
+
+		updates := map[string]interface{}{
+			"bank_account_id":                ba.ID,
+			"payment_date":                   strings.TrimSpace(req.PaymentDate),
+			"amount":                         amount,
+			"method":                         models.PurchasePaymentMethod(method),
+			"reference_number":               req.ReferenceNumber,
+			"notes":                          req.Notes,
+			"updated_at":                     apptime.Now(),
+			"bank_account_name_snapshot":     ba.Name,
+			"bank_account_number_snapshot":   ba.AccountNumber,
+			"bank_account_holder_snapshot":   ba.AccountHolder,
+			"bank_account_currency_snapshot": ba.Currency,
+		}
+		if err := tx.Model(&pay).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		updatedID = pay.ID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := uc.repo.GetByID(ctx, updatedID)
+	if err != nil {
+		return nil, err
+	}
+
+	uc.auditService.Log(ctx, "purchase_payment.update", out.ID, map[string]interface{}{"after": out})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -342,145 +786,11 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 		return nil, errors.New("db is nil")
 	}
 
-	var confirmedID string
+	confirmedID := ""
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var pay models.PurchasePayment
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if pay.Status != models.PurchasePaymentStatusPending {
-			return ErrPurchasePaymentConflict
-		}
-
-		var inv models.SupplierInvoice
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return ErrSupplierInvoiceNotFound
-			}
-			return err
-		}
-		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial && inv.Status != models.SupplierInvoiceStatusWaitingPayment {
-			return ErrPurchasePaymentConflict
-		}
-
-		// Sum already confirmed cash payments
-		type sumRow struct{ Total float64 }
-		var row sumRow
-		if err := tx.Model(&models.PurchasePayment{}).
-			Select("COALESCE(SUM(amount),0) as total").
-			Where("supplier_invoice_id = ?", inv.ID).
-			Where("status = ?", models.PurchasePaymentStatusConfirmed).
-			Scan(&row).Error; err != nil {
-			return err
-		}
-
-		// Total settled amount = Cash Payments + Down Payment
-		totalSettled := row.Total + pay.Amount + inv.DownPaymentAmount
-		if totalSettled > inv.Amount+0.0001 {
-			return ErrPurchasePaymentConflict
-		}
-
-		if err := tx.Model(&pay).Updates(map[string]interface{}{"status": models.PurchasePaymentStatusConfirmed, "updated_at": apptime.Now()}).Error; err != nil {
-			return err
-		}
-
-		newStatus := models.SupplierInvoiceStatusPartial
-		if totalSettled >= inv.Amount-0.0001 {
-			newStatus = models.SupplierInvoiceStatusPaid
-		}
-
-		updateData := map[string]interface{}{
-			"status":           newStatus,
-			"paid_amount":      row.Total + pay.Amount, // Track cash payments only (DP tracked separately in down_payment_amount)
-			"remaining_amount": math.Max(0, inv.Amount-totalSettled),
-			"updated_at":       apptime.Now(),
-		}
-		if newStatus == models.SupplierInvoiceStatusPaid {
-			now := apptime.Now()
-			updateData["payment_at"] = &now
-		}
-
-		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
-			return err
-		}
-
-		// If regular invoice is fully paid and it has a PurchaseOrder, close the PO
-		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeNormal && inv.PurchaseOrderID != "" {
-			var po models.PurchaseOrder
-			if err := tx.First(&po, "id = ?", inv.PurchaseOrderID).Error; err == nil {
-				_ = tx.Model(&po).Update("status", "closed").Error
-			}
-		}
-
-		// When a DP Invoice becomes paid, update existing Regular Invoices on the same PO
-		if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeDownPayment && inv.PurchaseOrderID != "" {
-			// Sum all paid DP amounts for this PO
-			type dpSumRow struct{ Total float64 }
-			var dpSum dpSumRow
-			if err := tx.Model(&models.SupplierInvoice{}).
-				Select("COALESCE(SUM(paid_amount),0) as total").
-				Where("purchase_order_id = ?", inv.PurchaseOrderID).
-				Where("type = ?", models.SupplierInvoiceTypeDownPayment).
-				Where("status = ?", models.SupplierInvoiceStatusPaid).
-				Where("deleted_at IS NULL").
-				Scan(&dpSum).Error; err != nil {
-				return err
-			}
-
-			// Find all Regular Invoices on the same PO and update them
-			var regularInvoices []models.SupplierInvoice
-			if err := tx.Where("purchase_order_id = ?", inv.PurchaseOrderID).
-				Where("type = ?", models.SupplierInvoiceTypeNormal).
-				Where("deleted_at IS NULL").
-				Find(&regularInvoices).Error; err != nil {
-				return err
-			}
-
-			for _, regInv := range regularInvoices {
-				// We keep regInv.Amount as Gross Amount
-				// Calculate total deductions: PaidAmount (cash) + dpSum.Total (DP)
-				totalDeductions := regInv.PaidAmount + dpSum.Total
-				newRemaining := math.Max(0, regInv.Amount-totalDeductions)
-
-				regStatus := models.SupplierInvoiceStatusUnpaid
-				if newRemaining <= 0.0001 && regInv.Amount > 0 {
-					regStatus = models.SupplierInvoiceStatusPaid
-				} else if totalDeductions > 0 {
-					regStatus = models.SupplierInvoiceStatusPartial
-				}
-
-				dpInvID := inv.ID
-				regUpdates := map[string]interface{}{
-					"status":                  regStatus,
-					"down_payment_invoice_id": &dpInvID,
-					"down_payment_amount":     dpSum.Total,
-					"remaining_amount":        newRemaining,
-					"updated_at":              apptime.Now(),
-				}
-				if regStatus == models.SupplierInvoiceStatusPaid && regInv.PaymentAt == nil {
-					now := apptime.Now()
-					regUpdates["payment_at"] = &now
-				}
-
-				if err := tx.Model(&models.SupplierInvoice{}).Where("id = ?", regInv.ID).Updates(regUpdates).Error; err != nil {
-					return err
-				}
-				fmt.Printf("✅ Updated Regular Invoice %s: Status %s, DP deducted %.2f, remaining %.2f\n", regInv.Code, regStatus, dpSum.Total, newRemaining)
-			}
-		}
-
-		// ✅ ATOMIC: Trigger journal INSIDE transaction — if journal fails, payment rolls back
-		txCtx := database.WithTx(ctx, tx)
-		loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
-		if loadErr != nil {
-			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
-		}
-		if err := uc.triggerJournalEntry(txCtx, loadedPay); err != nil {
-			return fmt.Errorf("failed to create journal for purchase payment: %w", err)
-		}
-
-		confirmedID = pay.ID
-		return nil
+		var err error
+		confirmedID, err = uc.confirmPaymentTx(ctx, tx, strings.TrimSpace(id))
+		return err
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -496,6 +806,207 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 
 	uc.auditService.Log(ctx, "purchase_payment.confirm", id, map[string]interface{}{"after": out})
 	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *purchasePaymentUsecase) ConfirmBatch(ctx context.Context, req *dto.ConfirmPurchasePaymentBatchRequest) (*dto.PurchasePaymentBatchResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is nil")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	paymentIDs := dedupePaymentIDs(req.PaymentIDs)
+	if len(paymentIDs) == 0 {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	confirmedIDs := make([]string, 0, len(paymentIDs))
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, paymentID := range paymentIDs {
+			confirmedID, err := uc.confirmPaymentTx(ctx, tx, paymentID)
+			if err != nil {
+				return err
+			}
+			confirmedIDs = append(confirmedIDs, confirmedID)
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrPurchasePaymentNotFound
+		}
+		return nil, err
+	}
+
+	payments := make([]*dto.PurchasePaymentDetailResponse, 0, len(confirmedIDs))
+	totalAmount := 0.0
+	for _, paymentID := range confirmedIDs {
+		row, err := uc.repo.GetByID(ctx, paymentID)
+		if err != nil {
+			return nil, err
+		}
+		mapped := uc.mapper.ToDetailResponse(row)
+		payments = append(payments, mapped)
+		totalAmount += mapped.Amount
+	}
+
+	auditTargetID := "batch"
+	if len(confirmedIDs) > 0 {
+		auditTargetID = confirmedIDs[0]
+	}
+	uc.auditService.Log(ctx, "purchase_payment.batch_confirm", auditTargetID, map[string]interface{}{
+		"payment_ids":   confirmedIDs,
+		"payment_count": len(confirmedIDs),
+		"total_amount":  totalAmount,
+	})
+
+	return &dto.PurchasePaymentBatchResponse{
+		Payments:    payments,
+		TotalAmount: totalAmount,
+		Count:       len(payments),
+	}, nil
+}
+
+func (uc *purchasePaymentUsecase) confirmPaymentTx(ctx context.Context, tx *gorm.DB, paymentID string) (string, error) {
+	var pay models.PurchasePayment
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", paymentID).Error; err != nil {
+		return "", err
+	}
+	if pay.Status != models.PurchasePaymentStatusPending {
+		return "", ErrPurchasePaymentConflict
+	}
+
+	var inv models.SupplierInvoice
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", ErrSupplierInvoiceNotFound
+		}
+		return "", err
+	}
+	if !isPayableSupplierInvoiceStatus(inv.Status) {
+		return "", ErrPurchasePaymentConflict
+	}
+
+	// Sum already confirmed cash payments.
+	type sumRow struct{ Total float64 }
+	var row sumRow
+	if err := tx.Model(&models.PurchasePayment{}).
+		Select("COALESCE(SUM(amount),0) as total").
+		Where("supplier_invoice_id = ?", inv.ID).
+		Where("status = ?", models.PurchasePaymentStatusConfirmed).
+		Scan(&row).Error; err != nil {
+		return "", err
+	}
+
+	// Total settled amount = cash payments + this payment + down payment.
+	totalSettled := row.Total + pay.Amount + inv.DownPaymentAmount
+	if totalSettled > inv.Amount+0.0001 {
+		return "", ErrPurchasePaymentConflict
+	}
+
+	if err := tx.Model(&pay).Updates(map[string]interface{}{"status": models.PurchasePaymentStatusConfirmed, "updated_at": apptime.Now()}).Error; err != nil {
+		return "", err
+	}
+
+	newStatus := models.SupplierInvoiceStatusPartial
+	if totalSettled >= inv.Amount-0.0001 {
+		newStatus = models.SupplierInvoiceStatusPaid
+	}
+
+	updateData := map[string]interface{}{
+		"status":           newStatus,
+		"paid_amount":      row.Total + pay.Amount,
+		"remaining_amount": math.Max(0, inv.Amount-totalSettled),
+		"updated_at":       apptime.Now(),
+	}
+	if newStatus == models.SupplierInvoiceStatusPaid {
+		now := apptime.Now()
+		updateData["payment_at"] = &now
+	}
+
+	if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
+		return "", err
+	}
+
+	if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeNormal && inv.PurchaseOrderID != "" {
+		var po models.PurchaseOrder
+		if err := tx.First(&po, "id = ?", inv.PurchaseOrderID).Error; err == nil {
+			_ = tx.Model(&po).Update("status", "closed").Error
+		}
+	}
+
+	if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeDownPayment && inv.PurchaseOrderID != "" {
+		type dpSumRow struct{ Total float64 }
+		var dpSum dpSumRow
+		if err := tx.Model(&models.SupplierInvoice{}).
+			Select("COALESCE(SUM(paid_amount),0) as total").
+			Where("purchase_order_id = ?", inv.PurchaseOrderID).
+			Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+			Where("status = ?", models.SupplierInvoiceStatusPaid).
+			Where("deleted_at IS NULL").
+			Scan(&dpSum).Error; err != nil {
+			return "", err
+		}
+
+		var regularInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ?", inv.PurchaseOrderID).
+			Where("type = ?", models.SupplierInvoiceTypeNormal).
+			Where("deleted_at IS NULL").
+			Find(&regularInvoices).Error; err != nil {
+			return "", err
+		}
+
+		for _, regInv := range regularInvoices {
+			totalDeductions := regInv.PaidAmount + dpSum.Total
+			newRemaining := math.Max(0, regInv.Amount-totalDeductions)
+
+			regStatus := models.SupplierInvoiceStatusUnpaid
+			if newRemaining <= 0.0001 && regInv.Amount > 0 {
+				regStatus = models.SupplierInvoiceStatusPaid
+			} else if totalDeductions > 0 {
+				regStatus = models.SupplierInvoiceStatusPartial
+			}
+
+			dpInvID := inv.ID
+			regUpdates := map[string]interface{}{
+				"status":                  regStatus,
+				"down_payment_invoice_id": &dpInvID,
+				"down_payment_amount":     dpSum.Total,
+				"remaining_amount":        newRemaining,
+				"updated_at":              apptime.Now(),
+			}
+			if regStatus == models.SupplierInvoiceStatusPaid && regInv.PaymentAt == nil {
+				now := apptime.Now()
+				regUpdates["payment_at"] = &now
+			}
+
+			if err := tx.Model(&models.SupplierInvoice{}).Where("id = ?", regInv.ID).Updates(regUpdates).Error; err != nil {
+				return "", err
+			}
+			fmt.Printf("✅ Updated Regular Invoice %s: Status %s, DP deducted %.2f, remaining %.2f\n", regInv.Code, regStatus, dpSum.Total, newRemaining)
+		}
+	}
+
+	// Journal posting is part of the same DB transaction.
+	txCtx := database.WithTx(ctx, tx)
+	loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
+	if loadErr != nil {
+		return "", fmt.Errorf("failed to load payment for journal: %w", loadErr)
+	}
+	if err := uc.postPaymentAccounting(txCtx, loadedPay); err != nil {
+		return "", fmt.Errorf("failed to post purchase payment accounting: %w", err)
+	}
+
+	return pay.ID, nil
 }
 
 func (uc *purchasePaymentUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error) {
@@ -592,6 +1103,18 @@ func (uc *purchasePaymentUsecase) triggerJournalReversed(ctx context.Context, pa
 		return nil
 	}
 
+	if uc.cashBankTxnUC != nil && pay.CashBankTransactionID != nil {
+		cbID := strings.TrimSpace(*pay.CashBankTransactionID)
+		if cbID != "" {
+			_, err := uc.cashBankTxnUC.Reverse(ctx, cbID, &financeDto.ReverseCashBankTransactionRequest{Reason: reason})
+			return err
+		}
+	}
+
+	if uc.purchaseJournalSvc != nil {
+		return uc.purchaseJournalSvc.ReversePurchaseJournal(ctx, reference.RefTypePurchasePayment, pay.ID, reason)
+	}
+
 	refType := reference.RefTypePurchasePayment
 	var existing financeModels.JournalEntry
 	err := database.GetDB(ctx, uc.db).
@@ -607,6 +1130,147 @@ func (uc *purchasePaymentUsecase) triggerJournalReversed(ctx context.Context, pa
 
 	_, err = uc.journalUC.ReverseWithReason(ctx, existing.ID, reason)
 	return err
+}
+
+func (uc *purchasePaymentUsecase) postPaymentAccounting(ctx context.Context, pay *models.PurchasePayment) error {
+	if pay == nil {
+		return nil
+	}
+
+	if uc.cashBankTxnUC != nil {
+		if err := uc.createCashBankTransactionForPayment(ctx, pay); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return uc.triggerJournalEntry(ctx, pay)
+}
+
+func (uc *purchasePaymentUsecase) createCashBankTransactionForPayment(ctx context.Context, pay *models.PurchasePayment) error {
+	if pay == nil || uc.cashBankTxnUC == nil {
+		return nil
+	}
+
+	if pay.CashBankTransactionID != nil && strings.TrimSpace(*pay.CashBankTransactionID) != "" {
+		return nil
+	}
+
+	var bankAccount coreModels.BankAccount
+	if pay.BankAccount != nil {
+		bankAccount = *pay.BankAccount
+	} else {
+		if err := database.GetDB(ctx, uc.db).First(&bankAccount, "id = ?", pay.BankAccountID).Error; err != nil {
+			return err
+		}
+	}
+
+	contraAccountID, err := uc.resolvePaymentContraAccountID(ctx, pay)
+	if err != nil {
+		return err
+	}
+
+	referenceValue := ""
+	if pay.ReferenceNumber != nil {
+		referenceValue = strings.TrimSpace(*pay.ReferenceNumber)
+	}
+
+	invoiceCode := ""
+	if pay.SupplierInvoice != nil {
+		invoiceCode = strings.TrimSpace(pay.SupplierInvoice.Code)
+	}
+	description := fmt.Sprintf("Supplier Payment %s", invoiceCode)
+	if referenceValue != "" {
+		description = fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, referenceValue)
+	}
+
+	autoPost := true
+	req := &financeDto.CreateCashBankTransactionRequest{
+		CompanyID:       strings.TrimSpace(bankAccount.CompanyID),
+		BankAccountID:   strings.TrimSpace(bankAccount.ID),
+		Type:            financeModels.CashBankTransactionTypePaymentOut,
+		Date:            strings.TrimSpace(pay.PaymentDate),
+		Amount:          pay.Amount,
+		Reference:       referenceValue,
+		Description:     description,
+		ContraAccountID: &contraAccountID,
+		AutoPost:        &autoPost,
+	}
+
+	cbTxn, err := uc.cashBankTxnUC.Create(ctx, req)
+	if err != nil {
+		return err
+	}
+	if cbTxn == nil || strings.TrimSpace(cbTxn.ID) == "" {
+		return errors.New("cash bank transaction response is empty")
+	}
+
+	cbTxnID := strings.TrimSpace(cbTxn.ID)
+	if err := database.GetDB(ctx, uc.db).Model(&models.PurchasePayment{}).
+		Where("id = ?", pay.ID).
+		Updates(map[string]interface{}{
+			"cash_bank_transaction_id": cbTxnID,
+			"updated_at":               apptime.Now(),
+		}).Error; err != nil {
+		return err
+	}
+
+	pay.CashBankTransactionID = &cbTxnID
+	return nil
+}
+
+func (uc *purchasePaymentUsecase) resolvePaymentContraAccountID(ctx context.Context, pay *models.PurchasePayment) (string, error) {
+	if uc.settingsUC == nil || uc.coaUC == nil {
+		return "", errors.New("finance settings/coA dependency is required")
+	}
+
+	settingKey := "coa.purchase_payable"
+	if pay.SupplierInvoice != nil && pay.SupplierInvoice.Type == models.SupplierInvoiceTypeDownPayment {
+		settingKey = "coa.purchase_advance"
+	}
+
+	keysToTry := purchasePaymentMappingKeys(settingKey)
+	keysToTry = append(keysToTry, settingKey)
+
+	var coaCode string
+	for _, key := range keysToTry {
+		resolvedKey := strings.TrimSpace(key)
+		if resolvedKey == "" {
+			continue
+		}
+
+		code, err := uc.settingsUC.GetCOAByKey(ctx, resolvedKey)
+		if err == nil && strings.TrimSpace(code) != "" {
+			coaCode = strings.TrimSpace(code)
+			break
+		}
+	}
+
+	if coaCode == "" {
+		legacyCode, err := uc.settingsUC.GetCOACode(ctx, settingKey)
+		if err != nil {
+			return "", err
+		}
+		coaCode = strings.TrimSpace(legacyCode)
+	}
+
+	coa, err := uc.coaUC.GetByCode(ctx, coaCode)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(coa.ID), nil
+}
+
+func purchasePaymentMappingKeys(settingKey string) []string {
+	switch strings.TrimSpace(settingKey) {
+	case "coa.purchase_payable", "coa.accounts_payable":
+		return []string{"purchase.accounts_payable"}
+	case "coa.purchase_advance", "coa.purchase_advances":
+		return []string{"purchase.advance", "purchase.purchase_advance"}
+	default:
+		return nil
+	}
 }
 
 func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
@@ -665,14 +1329,33 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		profile = accounting.ProfilePurchasePaymentDP
 	}
 
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, pay.CompanyID, pay.FiscalYearID, pay.PaymentDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve purchase payment journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
 		ReferenceType:    "PURCHASE_PAYMENT",
 		ReferenceID:      pay.ID,
+		CompanyID:        companyID,
+		FiscalYearID:     fiscalYearID,
 		EntryDate:        pay.PaymentDate,
 		Description:      fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, reqRefNum),
 		TotalAmount:      pay.Amount,
 		BankAccountCOAID: baCOAID,
 		DescriptionArgs:  []interface{}{invoiceCode, reqRefNum},
+	}
+
+	if uc.purchaseJournalSvc != nil {
+		if _, err := uc.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: profile,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post purchase payment journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success module=purchase_payment reference_id=%s", pay.ID)
+		return nil
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, profile, data)
@@ -701,6 +1384,16 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 }
 
 func (uc *purchasePaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error {
+	if pay == nil {
+		return nil
+	}
+
+	// When payment is already linked to a cash-bank transaction, accounting is handled
+	// through CASH_BANK reference. Re-triggering PURCHASE_PAYMENT journal would duplicate entries.
+	if pay.CashBankTransactionID != nil && strings.TrimSpace(*pay.CashBankTransactionID) != "" {
+		return nil
+	}
+
 	return uc.triggerJournalEntry(ctx, pay)
 }
 
@@ -716,6 +1409,10 @@ func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 	if perPage > 100 {
 		perPage = 100
+	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchasePayment{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchasePaymentNotFound
 	}
 
 	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).

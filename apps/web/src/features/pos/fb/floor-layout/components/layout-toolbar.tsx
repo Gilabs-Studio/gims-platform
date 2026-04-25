@@ -203,7 +203,7 @@ export function LayoutToolbar({
           size="sm"
           className="h-8 text-xs cursor-pointer"
           onClick={onPublish}
-          disabled={editor.isPublishing}
+          disabled={editor.isPublishing || status === "published"}
         >
           <UploadIcon className="h-3.5 w-3.5 mr-1" />
           {t("publish")}

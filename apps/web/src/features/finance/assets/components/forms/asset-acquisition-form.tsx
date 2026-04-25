@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -134,26 +134,31 @@ export function AssetAcquisitionForm({
     mode: "onChange",
   });
 
+  const acquisitionCost = useWatch({ control: form.control, name: "acquisition_cost" });
+  const shippingCost = useWatch({ control: form.control, name: "shipping_cost" });
+  const installationCost = useWatch({ control: form.control, name: "installation_cost" });
+  const taxAmount = useWatch({ control: form.control, name: "tax_amount" });
+  const otherCosts = useWatch({ control: form.control, name: "other_costs" });
+
   useEffect(() => {
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
   // Calculate total cost
   const totalCost = useMemo(() => {
-    const values = form.getValues();
     return (
-      (values.acquisition_cost || 0) +
-      (values.shipping_cost || 0) +
-      (values.installation_cost || 0) +
-      (values.tax_amount || 0) +
-      (values.other_costs || 0)
+      (acquisitionCost || 0) +
+      (shippingCost || 0) +
+      (installationCost || 0) +
+      (taxAmount || 0) +
+      (otherCosts || 0)
     );
   }, [
-    form.watch("acquisition_cost"),
-    form.watch("shipping_cost"),
-    form.watch("installation_cost"),
-    form.watch("tax_amount"),
-    form.watch("other_costs"),
+    acquisitionCost,
+    shippingCost,
+    installationCost,
+    taxAmount,
+    otherCosts,
   ]);
 
   // Fetch suppliers for async select

@@ -322,11 +322,11 @@ export function MovementDetailDialog({
                 <p className="text-xs text-muted-foreground uppercase font-semibold">{t("qtyIn")}</p>
                 <p
                   className={cn(
-                    "text-xl font-bold font-mono",
+                    "inline-flex items-baseline gap-1 text-xl font-bold font-mono",
                     item.qty_in > 0 ? "text-success" : "text-muted-foreground",
                   )}
                 >
-                  {item.qty_in > 0 ? `+${item.qty_in}` : "-"}{" "}
+                  <span>{item.qty_in > 0 ? `+${item.qty_in}` : "-"}</span>
                   <span className="text-xs text-muted-foreground font-normal">
                     {item.product?.unit_of_measure?.symbol}
                   </span>
@@ -336,11 +336,11 @@ export function MovementDetailDialog({
                 <p className="text-xs text-muted-foreground uppercase font-semibold">{t("qtyOut")}</p>
                 <p
                   className={cn(
-                    "text-xl font-bold font-mono",
+                    "inline-flex items-baseline gap-1 text-xl font-bold font-mono",
                     item.qty_out > 0 ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  {item.qty_out > 0 ? `-${item.qty_out}` : "-"}{" "}
+                  <span>{item.qty_out > 0 ? `-${item.qty_out}` : "-"}</span>
                   <span className="text-xs text-muted-foreground font-normal">
                     {item.product?.unit_of_measure?.symbol}
                   </span>
@@ -348,8 +348,8 @@ export function MovementDetailDialog({
               </div>
               <div className="p-4 text-center space-y-1 bg-muted/20">
                 <p className="text-xs text-muted-foreground uppercase font-semibold">{t("balanceAfter")}</p>
-                <p className="text-xl font-bold font-mono">
-                  {item.balance}{" "}
+                <p className="inline-flex items-baseline gap-1 text-xl font-bold font-mono">
+                  <span>{item.balance}</span>
                   <span className="text-xs text-muted-foreground font-normal">
                     {item.product?.unit_of_measure?.symbol}
                   </span>

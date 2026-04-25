@@ -45,6 +45,8 @@ services:
       - GIN_MODE=${GIN_MODE:-release}
       - PORT=8080
       - ENV=${ENV:-development}
+      - CGO_ENABLED=1
+      - DROP_ALL_TABLES=${DROP_ALL_TABLES:-false}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}
@@ -69,6 +71,9 @@ services:
       - SEED_ONCE=${SEED_ONCE:-true}
       - MIGRATE_ONCE=${MIGRATE_ONCE:-true}
       - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Jakarta}
+      - XENDIT_CREDENTIAL_ENCRYPTION_KEY=${XENDIT_CREDENTIAL_ENCRYPTION_KEY}
+      - XENDIT_WEBHOOK_TOKEN=${XENDIT_WEBHOOK_TOKEN}
+      - XENDIT_SECRET_KEY=${XENDIT_SECRET_KEY}
     volumes:
       - uploads_data:/app/uploads
     depends_on:

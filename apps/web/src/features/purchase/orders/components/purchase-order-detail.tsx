@@ -42,6 +42,7 @@ import {
   usePurchaseOrder,
   useDeletePurchaseOrder,
   useSubmitPurchaseOrder,
+  useConfirmPurchaseOrder,
   useApprovePurchaseOrder,
   useRejectPurchaseOrder,
   useClosePurchaseOrder,
@@ -100,6 +101,7 @@ export function PurchaseOrderDetail({
 
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
+  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
   const closeMutation = useClosePurchaseOrder();
@@ -107,6 +109,9 @@ export function PurchaseOrderDetail({
   if (!purchaseOrderId) return null;
 
   const status = (po?.status ?? "").toUpperCase();
+  const hasGoodsReceipt = (po?.items ?? []).some(
+    (item) => (item.quantity_received ?? 0) > 0,
+  );
 
   const handleDelete = async () => {
     if (!id) return;
@@ -241,6 +246,26 @@ export function PurchaseOrderDetail({
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
+                {status === "APPROVED" && canApprove && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={async () => {
+                      if (!id) return;
+                      try {
+                        await confirmMutation.mutateAsync(id);
+                        toast.success(t("toast.confirmed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
+                      }
+                    }}
+                    disabled={confirmMutation.isPending}
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
+                    title={t("actions.confirm")}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                )}
                 {status === "APPROVED" && canClose && (
                   <Button
                     variant="ghost"
@@ -253,7 +278,7 @@ export function PurchaseOrderDetail({
                     <Lock className="h-4 w-4" />
                   </Button>
                 )}
-                {status === "APPROVED" && canCreateSI && (
+                {status === "APPROVED" && canCreateSI && hasGoodsReceipt && (
                   <Button
                     variant="ghost"
                     size="icon"

@@ -121,9 +121,11 @@ export function BudgetsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [deletingItem, setDeletingItem] = useState<Budget | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenBudgetFromURL);
+  const initialDetailId = getInitialOpenBudgetFromURL();
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialDetailId));
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId);
 
   const { data, isLoading, isError } = useFinanceBudgets({
     page,
@@ -152,12 +154,6 @@ export function BudgetsList() {
   const approveMutation = useApproveFinanceBudget();
 
   useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -170,6 +166,7 @@ export function BudgetsList() {
   }, []);
 
   const handleOpenDetail = (id: string) => {
+    setFormOpen(false);
     setDetailId(id);
     setDetailOpen(true);
   };
@@ -192,6 +189,7 @@ export function BudgetsList() {
             onClick={() => {
               setFormMode("create");
               setSelectedId(null);
+              setSelectedBudget(null);
               setFormOpen(true);
             }}
             className="cursor-pointer"
@@ -305,7 +303,10 @@ export function BudgetsList() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
                                   className="cursor-pointer"
-                                  onClick={() => handleOpenDetail(item.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDetail(item.id);
+                                  }}
                                 >
                                   <Eye className="h-4 w-4 mr-2" />
                                   {t("actions.viewDetail")}
@@ -313,9 +314,13 @@ export function BudgetsList() {
                                 {canUpdate && item.status === "draft" && (
                                   <DropdownMenuItem
                                     className="cursor-pointer"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDetailOpen(false);
+                                      setDetailId(null);
                                       setFormMode("edit");
                                       setSelectedId(item.id);
+                                      setSelectedBudget(item);
                                       setFormOpen(true);
                                     }}
                                   >
@@ -373,7 +378,19 @@ export function BudgetsList() {
         </TabsContent>
       </Tabs>
 
-      <BudgetForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedId} />
+      <BudgetForm
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) {
+            setSelectedId(null);
+            setSelectedBudget(null);
+          }
+        }}
+        mode={formMode}
+        id={selectedId}
+        initialData={selectedBudget}
+      />
 
       <BudgetDetailModal
         open={detailOpen}

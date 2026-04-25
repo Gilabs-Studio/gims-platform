@@ -26,6 +26,14 @@ export interface AgingBuckets {
   days_31_60: number;
   days_61_90: number;
   over_90: number;
+  dynamic?: Record<string, number>;
+}
+
+export interface AgingBucketDefinition {
+  key: string;
+  label: string;
+  min_days?: number;
+  max_days?: number;
 }
 
 export interface AgingTotals {
@@ -34,10 +42,22 @@ export interface AgingTotals {
   buckets: AgingBuckets;
 }
 
-export interface ARAgingRow {
+export interface AgingSummary {
+  partner_count: number;
+  invoice_count: number;
+  total_outstanding: number;
+  total_overdue: number;
+  total_current: number;
+  buckets: AgingBuckets;
+}
+
+export interface ARAgingInvoiceRow {
   invoice_id: string;
+  source_type?: string;
   code: string;
   invoice_number?: string | null;
+  customer_id?: string;
+  customer_name?: string;
   invoice_date: string;
   due_date: string;
   days_past_due: number;
@@ -46,8 +66,9 @@ export interface ARAgingRow {
   buckets: AgingBuckets;
 }
 
-export interface APAgingRow {
+export interface APAgingInvoiceRow {
   invoice_id: string;
+  source_type?: string;
   code: string;
   invoice_number: string;
   invoice_date: string;
@@ -61,21 +82,47 @@ export interface APAgingRow {
   buckets: AgingBuckets;
 }
 
+export interface ARAgingCustomerGroup {
+  customer_id?: string;
+  customer_name: string;
+  invoice_count: number;
+  total_outstanding: number;
+  buckets: AgingBuckets;
+  invoices: ARAgingInvoiceRow[];
+}
+
+export interface APAgingSupplierGroup {
+  supplier_id?: string;
+  supplier_name: string;
+  invoice_count: number;
+  total_outstanding: number;
+  buckets: AgingBuckets;
+  invoices: APAgingInvoiceRow[];
+}
+
 export interface ARAgingReport {
   as_of_date: string;
-  rows: ARAgingRow[];
+  bucket_config?: AgingBucketDefinition[];
+  rows: ARAgingInvoiceRow[];
   totals: AgingTotals;
+  summary?: AgingSummary;
+  customers?: ARAgingCustomerGroup[];
 }
 
 export interface APAgingReport {
   as_of_date: string;
-  rows: APAgingRow[];
+  bucket_config?: AgingBucketDefinition[];
+  rows: APAgingInvoiceRow[];
   totals: AgingTotals;
+  summary?: AgingSummary;
+  suppliers?: APAgingSupplierGroup[];
 }
 
 export interface AgingQueryParams {
   as_of_date?: string;
   search?: string;
-  page?: number;
-  per_page?: number;
+  include_current?: boolean;
+  min_amount?: number;
+  customer_id?: string;
+  supplier_id?: string;
 }

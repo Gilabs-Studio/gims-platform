@@ -161,6 +161,7 @@ export const quotationId = {
       otherCostMin: "Biaya lainnya tidak boleh negatif",
       discountAmountMin: "Jumlah diskon tidak boleh negatif",
       itemsMin: "Minimal satu item diperlukan",
+      validUntilBeforeQuotationDate: "Tanggal berlaku tidak boleh lebih awal dari tanggal penawaran",
       invalidStatus: "Status tidak valid",
       invalidEmail: "Format email tidak valid",
     },

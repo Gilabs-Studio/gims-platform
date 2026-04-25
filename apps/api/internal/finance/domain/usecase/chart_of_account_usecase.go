@@ -3,7 +3,10 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
+	"unicode"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -49,8 +52,35 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 	}
 	req.Code = strings.TrimSpace(req.Code)
 	req.Name = strings.TrimSpace(req.Name)
-	if req.Code == "" || req.Name == "" {
-		return nil, errors.New("code and name are required")
+	if req.Name == "" {
+		return nil, errors.New("name is required")
+	}
+
+	var parentID *string
+	var parent *financeModels.ChartOfAccount
+	if req.ParentID != nil && strings.TrimSpace(*req.ParentID) != "" {
+		trimmedParentID := strings.TrimSpace(*req.ParentID)
+		p, err := uc.repo.FindByID(ctx, trimmedParentID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, ErrCOAInvalidParent
+			}
+			return nil, err
+		}
+		parentID = &trimmedParentID
+		parent = p
+	}
+
+	if parent != nil {
+		nextCode, err := uc.generateNextChildCode(ctx, parent)
+		if err != nil {
+			return nil, err
+		}
+		req.Code = nextCode
+	}
+
+	if req.Code == "" {
+		return nil, errors.New("code is required when parent is empty")
 	}
 
 	exists, err := uc.repo.ExistsByCode(ctx, req.Code, nil)
@@ -61,25 +91,13 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 		return nil, ErrCOACodeAlreadyExists
 	}
 
-	if req.ParentID != nil && strings.TrimSpace(*req.ParentID) != "" {
-		if _, err := uc.repo.FindByID(ctx, strings.TrimSpace(*req.ParentID)); err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return nil, ErrCOAInvalidParent
-			}
-			return nil, err
-		}
-	}
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
 	}
-
-	var parentID *string
-	if req.ParentID != nil {
-		p := strings.TrimSpace(*req.ParentID)
-		if p != "" {
-			parentID = &p
-		}
+	isPostable := true
+	if req.IsPostable != nil {
+		isPostable = *req.IsPostable
 	}
 
 	item := &financeModels.ChartOfAccount{
@@ -88,13 +106,18 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 		Type:       req.Type,
 		ParentID:   parentID,
 		IsActive:   isActive,
-		IsPostable: true,
+		IsPostable: isPostable,
 	}
 	if err := uc.repo.Create(ctx, item); err != nil {
 		return nil, err
 	}
 	if err := uc.repo.RecalculateAllIsPostable(ctx); err != nil {
 		return nil, err
+	}
+	if req.IsPostable != nil && !*req.IsPostable {
+		if err := uc.repo.UpdateIsPostable(ctx, item.ID, false); err != nil {
+			return nil, err
+		}
 	}
 	created, err := uc.repo.FindByID(ctx, item.ID)
 	if err != nil {
@@ -411,6 +434,101 @@ func (uc *chartOfAccountUsecase) validateNoCircularParent(ctx context.Context, a
 		current = strings.TrimSpace(*item.ParentID)
 	}
 	return nil
+}
+
+func (uc *chartOfAccountUsecase) generateNextChildCode(ctx context.Context, parent *financeModels.ChartOfAccount) (string, error) {
+	if parent == nil {
+		return "", fmt.Errorf("%w: parent account is required", ErrCOAInvalidParent)
+	}
+
+	prefix, width, baseValue, err := splitTrailingNumber(parent.Code)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate code for parent %s: %w", parent.Code, err)
+	}
+
+	maxValue := baseValue
+	items, err := uc.repo.FindAll(ctx, false)
+	if err != nil {
+		return "", err
+	}
+
+	for _, it := range items {
+		if it.ParentID == nil || strings.TrimSpace(*it.ParentID) != parent.ID {
+			continue
+		}
+		v, ok := parseCodeValueWithPrefix(it.Code, prefix, width)
+		if !ok {
+			continue
+		}
+		if v > maxValue {
+			maxValue = v
+		}
+	}
+
+	for attempts := 0; attempts < 1000; attempts++ {
+		candidateValue := maxValue + 1 + attempts
+		candidate := formatCodeWithPrefix(prefix, candidateValue, width)
+		exists, err := uc.repo.ExistsByCode(ctx, candidate, nil)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return candidate, nil
+		}
+	}
+
+	return "", errors.New("unable to generate a unique account code")
+}
+
+func splitTrailingNumber(code string) (string, int, int, error) {
+	trimmed := strings.TrimSpace(code)
+	if trimmed == "" {
+		return "", 0, 0, errors.New("parent code is empty")
+	}
+
+	end := len(trimmed) - 1
+	for end >= 0 && unicode.IsDigit(rune(trimmed[end])) {
+		end--
+	}
+	if end == len(trimmed)-1 {
+		return "", 0, 0, errors.New("parent code must end with numeric characters")
+	}
+
+	prefix := trimmed[:end+1]
+	numeric := trimmed[end+1:]
+	value, err := strconv.Atoi(numeric)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	return prefix, len(numeric), value, nil
+}
+
+func parseCodeValueWithPrefix(code, prefix string, width int) (int, bool) {
+	trimmed := strings.TrimSpace(code)
+	if !strings.HasPrefix(trimmed, prefix) {
+		return 0, false
+	}
+
+	numeric := strings.TrimPrefix(trimmed, prefix)
+	if len(numeric) != width {
+		return 0, false
+	}
+	for _, r := range numeric {
+		if !unicode.IsDigit(r) {
+			return 0, false
+		}
+	}
+
+	v, err := strconv.Atoi(numeric)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
+}
+
+func formatCodeWithPrefix(prefix string, value int, width int) string {
+	return prefix + fmt.Sprintf("%0*d", width, value)
 }
 
 func (uc *chartOfAccountUsecase) calculateLevel(ctx context.Context, item *financeModels.ChartOfAccount) int {

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FileText, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
@@ -16,13 +16,15 @@ import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDeliveryOrder, useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
-import { useCreateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
-import { salesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
+import { useCreateSalesReturn, useUpdateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
+import { getSalesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
 import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
+import type { SalesReturn } from "../types";
 
 interface SalesReturnFormProps {
   readonly defaultInvoiceId?: string;
   readonly defaultDeliveryId?: string;
+  readonly salesReturn?: SalesReturn;
   readonly onSuccess?: () => void;
 }
 
@@ -42,15 +44,41 @@ const formatQty = (value: number) =>
     maximumFractionDigits: 3,
   }).format(value);
 
-export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
+export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesReturn, onSuccess }: SalesReturnFormProps) {
   const t = useTranslations("salesReturns");
-  const isDeliveryLocked = !!defaultDeliveryId;
+  const isEdit = !!salesReturn;
+  const effectiveDeliveryId = salesReturn?.delivery_id ?? defaultDeliveryId;
+  const isDeliveryLocked = !!effectiveDeliveryId;
   const [shouldLoadDeliveryOptions, setShouldLoadDeliveryOptions] = useState(true);
-  const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!defaultDeliveryId);
+  const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!effectiveDeliveryId);
+  const hasInitializedEditRef = useRef(false);
+
+  const editDefaultValues: SalesReturnFormData | undefined = useMemo(() => {
+    if (!salesReturn) return undefined;
+    return {
+      invoice_id: salesReturn.invoice_id ?? "",
+      delivery_id: salesReturn.delivery_id ?? "",
+      warehouse_id: salesReturn.warehouse_id ?? "",
+      customer_id: salesReturn.customer_id ?? "",
+      reason: salesReturn.reason ?? "OTHER",
+      action: (salesReturn.action as SalesReturnFormData["action"]) ?? "CREDIT_NOTE",
+      notes: salesReturn.notes ?? "",
+      items:
+        salesReturn.items?.map((item) => ({
+          invoice_item_id: item.invoice_item_id ?? "",
+          product_id: item.product_id,
+          uom_id: item.uom_id ?? "",
+          condition: item.condition ?? "GOOD",
+          notes: item.notes ?? "",
+          qty: item.qty ?? 1,
+          unit_price: item.unit_price ?? 0,
+        })) ?? [],
+    };
+  }, [salesReturn]);
 
   const form = useForm<SalesReturnFormData>({
-    resolver: zodResolver(salesReturnSchema),
-    defaultValues: {
+    resolver: zodResolver(getSalesReturnSchema(t)),
+    defaultValues: editDefaultValues ?? {
       invoice_id: defaultInvoiceId ?? "",
       delivery_id: defaultDeliveryId ?? "",
       warehouse_id: "",
@@ -86,6 +114,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     { enabled: !isDeliveryLocked && shouldLoadDeliveryOptions },
   );
   const createMutation = useCreateSalesReturn();
+  const updateMutation = useUpdateSalesReturn();
 
   const { data: deliveryResponse, isLoading: isLoadingDelivery, isError: isDeliveryError } = useDeliveryOrder(
     selectedDeliveryId ?? "",
@@ -146,13 +175,25 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     return map;
   }, [returnHistory]);
 
+  const currentReturnQtyByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!isEdit || !salesReturn?.items) return map;
+    salesReturn.items.forEach((item) => {
+      if (!item.product_id) return;
+      const current = map.get(item.product_id) ?? 0;
+      map.set(item.product_id, current + (item.qty ?? 0));
+    });
+    return map;
+  }, [isEdit, salesReturn]);
+
   const eligibleItems = useMemo<EligibleItem[]>(() => {
     return deliveryItems
       .map((item) => {
         const productId = item.product_id ?? "";
         const deliveredQty = item.quantity ?? 0;
         const returnedQty = returnedQtyByProduct.get(productId) ?? 0;
-        const availableQty = Math.max(0, deliveredQty - returnedQty);
+        const ownReturnQty = currentReturnQtyByProduct.get(productId) ?? 0;
+        const availableQty = Math.max(0, deliveredQty - returnedQty + ownReturnQty);
         const dealPrice = dealPriceByProduct.get(productId) ?? item.price ?? 0;
 
         return {
@@ -166,7 +207,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
         };
       })
       .filter((item) => item.productId && item.availableQty > 0);
-  }, [deliveryItems, returnedQtyByProduct, dealPriceByProduct]);
+  }, [deliveryItems, returnedQtyByProduct, dealPriceByProduct, currentReturnQtyByProduct]);
 
   const eligibleItemMap = useMemo(() => {
     const map = new Map<string, EligibleItem>();
@@ -181,12 +222,21 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   const watchedItems = useWatch({ control, name: "items" });
 
   useEffect(() => {
+    if (isEdit) return;
     if (!selectedDeliveryId && defaultDeliveryId) {
       form.setValue("delivery_id", defaultDeliveryId);
     }
-  }, [selectedDeliveryId, defaultDeliveryId, form]);
+  }, [selectedDeliveryId, defaultDeliveryId, form, isEdit]);
 
   useEffect(() => {
+    if (isEdit) {
+      // In edit mode, pre-populate eligible items info but keep existing form values
+      if (!hasInitializedEditRef.current && editDefaultValues && delivery) {
+        hasInitializedEditRef.current = true;
+      }
+      return;
+    }
+
     if (!selectedDeliveryId) {
       return;
     }
@@ -221,6 +271,9 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     conditions,
     eligibleItems,
     form,
+    isEdit,
+    editDefaultValues,
+    delivery,
   ]);
 
   const handleAddItem = () => {
@@ -286,22 +339,38 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     }
 
     try {
-      await createMutation.mutateAsync({
-        ...values,
-        delivery_id: selectedDeliveryId,
-        warehouse_id: values.warehouse_id,
-        invoice_id: values.invoice_id || undefined,
-        customer_id: values.customer_id || undefined,
-        notes: values.notes || undefined,
-        items: values.items.map((item) => ({
-          ...item,
-          unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
-        })),
-      });
+      const itemsPayload = values.items.map((item) => ({
+        ...item,
+        unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
+      }));
+
+      if (isEdit && salesReturn) {
+        await updateMutation.mutateAsync({
+          id: salesReturn.id,
+          payload: {
+            ...values,
+            warehouse_id: values.warehouse_id,
+            invoice_id: values.invoice_id || undefined,
+            customer_id: values.customer_id || undefined,
+            notes: values.notes || undefined,
+            items: itemsPayload,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
+          ...values,
+          delivery_id: selectedDeliveryId,
+          warehouse_id: values.warehouse_id,
+          invoice_id: values.invoice_id || undefined,
+          customer_id: values.customer_id || undefined,
+          notes: values.notes || undefined,
+          items: itemsPayload,
+        });
+      }
 
       onSuccess?.();
     } catch (error) {
-      toast.error(getSalesErrorMessage(error, t("common.error") || "Failed to create sales return"));
+      toast.error(getSalesErrorMessage(error, t("common.error") || `Failed to ${isEdit ? "update" : "create"} sales return`));
     }
   };
 
@@ -671,8 +740,12 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Saving..." : t("add")}
+        <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending || updateMutation.isPending}>
+          {createMutation.isPending || updateMutation.isPending
+            ? "Saving..."
+            : isEdit
+              ? t("common.update") || "Update"
+              : t("add")}
         </Button>
       </div>
     </form>

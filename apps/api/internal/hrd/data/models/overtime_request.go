@@ -29,6 +29,7 @@ const (
 // OvertimeRequest represents an overtime request/record
 type OvertimeRequest struct {
 	ID         string    `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID string    `gorm:"type:uuid;not null;index" json:"employee_id"`
 	Date       time.Time `gorm:"type:date;not null;index" json:"date"`
 

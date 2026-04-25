@@ -13,16 +13,21 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	loyaltyDto "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
+	loyaltyUsecase "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
+	salesService "github.com/gilabs/gims/api/internal/sales/domain/service"
 	"gorm.io/gorm"
 )
 
@@ -31,10 +36,11 @@ const dateFormat = "2006-01-02"
 
 // Errors
 var (
-	ErrCustomerInvoiceNotFound = errors.New("customer invoice not found")
-	ErrInvalidInvoiceStatus    = errors.New("invalid invoice status for this operation")
-	ErrInvoiceExceedsRemaining = errors.New("invoice quantity exceeds remaining invoiceable quantity")
-	ErrInvoiceDOMismatch       = errors.New("delivery order does not belong to the same sales order")
+	ErrCustomerInvoiceNotFound   = errors.New("customer invoice not found")
+	ErrInvalidInvoiceStatus      = errors.New("invalid invoice status for this operation")
+	ErrInvoiceExceedsRemaining   = errors.New("invoice quantity exceeds remaining invoiceable quantity")
+	ErrInvoiceDOMismatch         = errors.New("delivery order does not belong to the same sales order")
+	ErrInvalidDownPaymentInvoice = errors.New("invalid down payment invoice")
 )
 
 // CustomerInvoiceUsecase defines the interface for customer invoice business logic
@@ -49,19 +55,29 @@ type CustomerInvoiceUsecase interface {
 	Reverse(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error)
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error)
 	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
+	PreviewJournal(ctx context.Context, req *dto.CreateCustomerInvoiceRequest) (*dto.CustomerInvoiceJournalPreviewResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
+	SetLoyaltyUsecase(luc loyaltyUsecase.LoyaltyUsecase)
 }
 
 type customerInvoiceUsecase struct {
-	db             *gorm.DB
-	invoiceRepo    repositories.CustomerInvoiceRepository
-	productRepo    productRepos.ProductRepository
-	salesOrderRepo repositories.SalesOrderRepository
-	journalUC      finUsecase.JournalEntryUsecase
-	coaUC          finUsecase.ChartOfAccountUsecase
-	mappingUC      finUsecase.SystemAccountMappingUsecase // Deprecated: use engine instead
-	engine         accounting.AccountingEngine
-	auditService   audit.AuditService
+	db              *gorm.DB
+	invoiceRepo     repositories.CustomerInvoiceRepository
+	productRepo     productRepos.ProductRepository
+	salesOrderRepo  repositories.SalesOrderRepository
+	journalUC       finUsecase.JournalEntryUsecase
+	coaUC           finUsecase.ChartOfAccountUsecase
+	mappingUC       finUsecase.SystemAccountMappingUsecase // Deprecated: use engine instead
+	engine          accounting.AccountingEngine
+	auditService    audit.AuditService
+	loyaltyUC       loyaltyUsecase.LoyaltyUsecase // Optional: awards loyalty points when invoice is PAID
+	salesJournalSvc salesService.SalesJournalService
+}
+
+// SetLoyaltyUsecase injects the loyalty usecase for awarding points on invoice payment.
+// It is called after construction to avoid circular import issues during wiring.
+func (uc *customerInvoiceUsecase) SetLoyaltyUsecase(luc loyaltyUsecase.LoyaltyUsecase) {
+	uc.loyaltyUC = luc
 }
 
 // NewCustomerInvoiceUsecase creates a new CustomerInvoiceUsecase
@@ -74,16 +90,22 @@ func NewCustomerInvoiceUsecase(
 	coaUC finUsecase.ChartOfAccountUsecase,
 	auditService audit.AuditService,
 	engine accounting.AccountingEngine,
+	salesJournalSvc salesService.SalesJournalService,
 ) CustomerInvoiceUsecase {
+	if salesJournalSvc == nil {
+		salesJournalSvc = salesService.NewSalesJournalService(db, journalUC, engine)
+	}
+
 	return &customerInvoiceUsecase{
-		db:             db,
-		invoiceRepo:    invoiceRepo,
-		productRepo:    productRepo,
-		salesOrderRepo: salesOrderRepo,
-		journalUC:      journalUC,
-		coaUC:          coaUC,
-		auditService:   auditService,
-		engine:         engine,
+		db:              db,
+		invoiceRepo:     invoiceRepo,
+		productRepo:     productRepo,
+		salesOrderRepo:  salesOrderRepo,
+		journalUC:       journalUC,
+		coaUC:           coaUC,
+		auditService:    auditService,
+		engine:          engine,
+		salesJournalSvc: salesJournalSvc,
 	}
 }
 
@@ -225,7 +247,9 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	invoice.TaxAmount = subtotal * (invoice.TaxRate / 100)
 	invoice.Amount = subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
 
-	uc.applyPaidDownPaymentsOnCreate(ctx, invoice, req.SalesOrderID, invoiceType)
+	if err := uc.applyPaidDownPaymentsOnCreate(ctx, invoice, req.SalesOrderID, invoiceType, req.DownPaymentInvoiceID); err != nil {
+		return nil, err
+	}
 	invoice.RemainingAmount = invoice.Amount
 
 	err = uc.createInvoiceWithSOItemUpdates(ctx, invoice)
@@ -284,7 +308,10 @@ func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(
 
 	salesOrder, err := uc.salesOrderRepo.FindByID(ctx, *req.SalesOrderID)
 	if err != nil {
-		return nil, fmt.Errorf("sales order not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSalesOrderNotFound
+		}
+		return nil, err
 	}
 
 	if req.DeliveryOrderID != nil {
@@ -316,9 +343,9 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 	subtotal := 0.0
 
 	for i, itemReq := range req.Items {
-		product, err := uc.productRepo.FindByID(ctx, itemReq.ProductID)
+		resolvedProductID, product, err := uc.resolveInvoiceItemProduct(ctx, itemReq, soItemMap, nil)
 		if err != nil {
-			return nil, 0, ErrProductNotFound
+			return nil, 0, err
 		}
 
 		if err := validateCreateInvoiceItemQuantity(itemReq.SalesOrderItemID, itemReq.Quantity, soItemMap, product.Name); err != nil {
@@ -329,7 +356,7 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 		subtotal += itemSubtotal
 
 		items[i] = models.CustomerInvoiceItem{
-			ProductID:           itemReq.ProductID,
+			ProductID:           resolvedProductID,
 			SalesOrderItemID:    itemReq.SalesOrderItemID,
 			DeliveryOrderItemID: itemReq.DeliveryOrderItemID,
 			Quantity:            itemReq.Quantity,
@@ -345,6 +372,43 @@ func (uc *customerInvoiceUsecase) buildCreateInvoiceItems(
 	}
 
 	return items, subtotal, nil
+}
+
+func (uc *customerInvoiceUsecase) resolveInvoiceItemProduct(
+	ctx context.Context,
+	itemReq dto.CreateCustomerInvoiceItemRequest,
+	soItemMap map[string]*models.SalesOrderItem,
+	existingItems []models.CustomerInvoiceItem,
+) (string, *productModels.Product, error) {
+	resolvedProductID := strings.TrimSpace(itemReq.ProductID)
+
+	if itemReq.SalesOrderItemID != nil {
+		if soItemMap != nil {
+			if soItem, ok := soItemMap[*itemReq.SalesOrderItemID]; ok && soItem != nil && strings.TrimSpace(soItem.ProductID) != "" {
+				resolvedProductID = soItem.ProductID
+			}
+		}
+
+		if resolvedProductID == "" && len(existingItems) > 0 {
+			for i := range existingItems {
+				if existingItems[i].SalesOrderItemID != nil && *existingItems[i].SalesOrderItemID == *itemReq.SalesOrderItemID && strings.TrimSpace(existingItems[i].ProductID) != "" {
+					resolvedProductID = existingItems[i].ProductID
+					break
+				}
+			}
+		}
+	}
+
+	if resolvedProductID == "" {
+		return "", nil, ErrProductNotFound
+	}
+
+	product, err := uc.productRepo.FindByID(ctx, resolvedProductID)
+	if err != nil {
+		return "", nil, ErrProductNotFound
+	}
+
+	return resolvedProductID, product, nil
 }
 
 func validateCreateInvoiceItemQuantity(
@@ -376,41 +440,166 @@ func (uc *customerInvoiceUsecase) applyPaidDownPaymentsOnCreate(
 	invoice *models.CustomerInvoice,
 	salesOrderID *string,
 	invoiceType models.CustomerInvoiceType,
-) {
+	downPaymentInvoiceID *string,
+) error {
 	if salesOrderID == nil || invoiceType != models.CustomerInvoiceTypeRegular {
-		return
+		return nil
 	}
 
-	dpReq := &dto.ListCustomerInvoicesRequest{
-		SalesOrderID: *salesOrderID,
-		Type:         string(models.CustomerInvoiceTypeDownPayment),
-		Status:       string(models.CustomerInvoiceStatusPaid),
-		PerPage:      100,
+	normalizedSalesOrderID := strings.TrimSpace(*salesOrderID)
+	if normalizedSalesOrderID == "" {
+		return nil
 	}
 
-	dps, _, err := uc.invoiceRepo.List(ctx, dpReq)
-	if err != nil {
-		return
+	dpID := ""
+	if downPaymentInvoiceID != nil {
+		dpID = strings.TrimSpace(*downPaymentInvoiceID)
 	}
 
-	totalDP := 0.0
-	for _, dp := range dps {
-		totalDP += dp.PaidAmount
-		if invoice.DownPaymentInvoiceID == nil {
-			dpIDStr := dp.ID
-			invoice.DownPaymentInvoiceID = &dpIDStr
+	if dpID == "" {
+		autoDPID, err := uc.findAutoApplicableDownPaymentInvoiceID(ctx, normalizedSalesOrderID)
+		if err != nil {
+			return err
 		}
+		dpID = autoDPID
 	}
 
-	invoice.DownPaymentAmount = totalDP
-	invoice.Amount -= totalDP
+	if dpID == "" {
+		return nil
+	}
+
+	dp, err := uc.invoiceRepo.FindByID(ctx, dpID)
+	if err != nil {
+		return ErrInvalidDownPaymentInvoice
+	}
+	if dp == nil || dp.Type != models.CustomerInvoiceTypeDownPayment || !isPaidOrPartialDownPaymentStatus(dp.Status) {
+		return ErrInvalidDownPaymentInvoice
+	}
+	if dp.SalesOrderID == nil || strings.TrimSpace(*dp.SalesOrderID) == "" || strings.TrimSpace(*dp.SalesOrderID) != normalizedSalesOrderID {
+		return ErrInvalidDownPaymentInvoice
+	}
+
+	paidDownPayment := resolvePaidDownPaymentAmount(dp)
+	if paidDownPayment <= 0 {
+		return ErrInvalidDownPaymentInvoice
+	}
+
+	invoice.DownPaymentInvoiceID = &dpID
+	invoice.DownPaymentAmount = paidDownPayment
+	invoice.Amount -= paidDownPayment
 	if invoice.Amount < 0 {
 		invoice.Amount = 0
 	}
+
+	return nil
+}
+
+func isPaidOrPartialDownPaymentStatus(status models.CustomerInvoiceStatus) bool {
+	return status == models.CustomerInvoiceStatusPaid || status == models.CustomerInvoiceStatusPartial
+}
+
+func resolvePaidDownPaymentAmount(dp *models.CustomerInvoice) float64 {
+	if dp == nil {
+		return 0
+	}
+
+	if dp.PaidAmount > 0 {
+		return dp.PaidAmount
+	}
+
+	if dp.Amount > 0 && dp.Amount >= dp.RemainingAmount {
+		return dp.Amount - dp.RemainingAmount
+	}
+
+	return 0
+}
+
+func (uc *customerInvoiceUsecase) findAutoApplicableDownPaymentInvoiceID(ctx context.Context, salesOrderID string) (string, error) {
+	normalizedSalesOrderID := strings.TrimSpace(salesOrderID)
+	if uc.db == nil || normalizedSalesOrderID == "" {
+		return "", nil
+	}
+
+	var candidates []models.CustomerInvoice
+	if err := database.GetDB(ctx, uc.db).
+		Where("type = ?", models.CustomerInvoiceTypeDownPayment).
+		Where("sales_order_id = ?", normalizedSalesOrderID).
+		Where("status IN ?", []models.CustomerInvoiceStatus{models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusPartial}).
+		Where("paid_amount > 0").
+		Order("invoice_date DESC").
+		Order("created_at DESC").
+		Find(&candidates).Error; err != nil {
+		return "", err
+	}
+
+	for _, candidate := range candidates {
+		candidateID := strings.TrimSpace(candidate.ID)
+		if candidateID == "" {
+			continue
+		}
+
+		var linkedRegularCount int64
+		if err := database.GetDB(ctx, uc.db).
+			Model(&models.CustomerInvoice{}).
+			Where("type = ?", models.CustomerInvoiceTypeRegular).
+			Where("down_payment_invoice_id = ?", candidateID).
+			Where("status NOT IN ?", []models.CustomerInvoiceStatus{models.CustomerInvoiceStatusCancelled, models.CustomerInvoiceStatusReversed}).
+			Count(&linkedRegularCount).Error; err != nil {
+			return "", err
+		}
+
+		if linkedRegularCount == 0 {
+			return candidateID, nil
+		}
+	}
+
+	return "", nil
+}
+
+func (uc *customerInvoiceUsecase) applyLinkedDownPaymentOnUpdate(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice == nil {
+		return nil
+	}
+
+	if invoice.Type != models.CustomerInvoiceTypeRegular || invoice.SalesOrderID == nil || invoice.DownPaymentInvoiceID == nil {
+		invoice.DownPaymentAmount = 0
+		return nil
+	}
+
+	dpID := strings.TrimSpace(*invoice.DownPaymentInvoiceID)
+	if dpID == "" {
+		invoice.DownPaymentAmount = 0
+		invoice.DownPaymentInvoiceID = nil
+		return nil
+	}
+
+	dp, err := uc.invoiceRepo.FindByID(ctx, dpID)
+	if err != nil {
+		return ErrInvalidDownPaymentInvoice
+	}
+	if dp == nil || dp.Type != models.CustomerInvoiceTypeDownPayment || !isPaidOrPartialDownPaymentStatus(dp.Status) {
+		return ErrInvalidDownPaymentInvoice
+	}
+	if dp.SalesOrderID == nil || invoice.SalesOrderID == nil || strings.TrimSpace(*dp.SalesOrderID) != strings.TrimSpace(*invoice.SalesOrderID) {
+		return ErrInvalidDownPaymentInvoice
+	}
+
+	paidDownPayment := resolvePaidDownPaymentAmount(dp)
+	if paidDownPayment <= 0 {
+		return ErrInvalidDownPaymentInvoice
+	}
+
+	invoice.DownPaymentAmount = paidDownPayment
+	invoice.Amount -= paidDownPayment
+	if invoice.Amount < 0 {
+		invoice.Amount = 0
+	}
+
+	return nil
 }
 
 func (uc *customerInvoiceUsecase) createInvoiceWithSOItemUpdates(ctx context.Context, invoice *models.CustomerInvoice) error {
-	return uc.db.Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		if err := uc.invoiceRepo.Create(txCtx, invoice); err != nil {
@@ -489,25 +678,34 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 
 	// Update items if provided
 	if req.Items != nil {
+		// Rollback old invoiced quantities on SO items before replacing
+		for _, item := range invoice.Items {
+			if item.SalesOrderItemID != nil {
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(ctx, *item.SalesOrderItemID, -item.Quantity); err != nil {
+					return nil, fmt.Errorf("failed to rollback invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
+
 		var subtotal float64
 		items := make([]models.CustomerInvoiceItem, len(*req.Items))
 		for i, itemReq := range *req.Items {
-			// Verify product exists
-			product, err := uc.productRepo.FindByID(ctx, itemReq.ProductID)
+			resolvedProductID, product, err := uc.resolveInvoiceItemProduct(ctx, itemReq, nil, invoice.Items)
 			if err != nil {
-				return nil, ErrProductNotFound
+				return nil, err
 			}
 
 			itemSubtotal := (itemReq.Price * itemReq.Quantity) - itemReq.Discount
 			subtotal += itemSubtotal
 
 			items[i] = models.CustomerInvoiceItem{
-				ProductID: itemReq.ProductID,
-				Quantity:  itemReq.Quantity,
-				Price:     itemReq.Price,
-				Discount:  itemReq.Discount,
-				Subtotal:  itemSubtotal,
-				HPPAmount: itemReq.HPPAmount,
+				ProductID:        resolvedProductID,
+				SalesOrderItemID: itemReq.SalesOrderItemID,
+				Quantity:         itemReq.Quantity,
+				Price:            itemReq.Price,
+				Discount:         itemReq.Discount,
+				Subtotal:         itemSubtotal,
+				HPPAmount:        itemReq.HPPAmount,
 			}
 
 			if items[i].HPPAmount == 0 && product.CurrentHpp > 0 {
@@ -523,30 +721,8 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 	invoice.TaxAmount = invoice.Subtotal * (invoice.TaxRate / 100)
 	invoice.Amount = invoice.Subtotal + invoice.TaxAmount + invoice.DeliveryCost + invoice.OtherCost
 
-	// Deduct paid Down Payments if this is a regular invoice with a sales order
-	if invoice.SalesOrderID != nil && invoice.Type == models.CustomerInvoiceTypeRegular {
-		dpReq := &dto.ListCustomerInvoicesRequest{
-			SalesOrderID: *invoice.SalesOrderID,
-			Type:         string(models.CustomerInvoiceTypeDownPayment),
-			Status:       string(models.CustomerInvoiceStatusPaid),
-			PerPage:      100,
-		}
-		if dps, _, err := uc.invoiceRepo.List(ctx, dpReq); err == nil {
-			var totalDP float64
-			for _, dp := range dps {
-				totalDP += dp.PaidAmount
-				// Link the first paid DP as the reference
-				if invoice.DownPaymentInvoiceID == nil {
-					dpIDStr := dp.ID
-					invoice.DownPaymentInvoiceID = &dpIDStr
-				}
-			}
-			invoice.DownPaymentAmount = totalDP
-			invoice.Amount = invoice.Amount - totalDP
-			if invoice.Amount < 0 {
-				invoice.Amount = 0
-			}
-		}
+	if err := uc.applyLinkedDownPaymentOnUpdate(ctx, invoice); err != nil {
+		return nil, err
 	}
 
 	invoice.RemainingAmount = invoice.Amount - invoice.PaidAmount
@@ -558,6 +734,17 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 	updatedInvoice, err := uc.invoiceRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply new invoiced quantities on SO items after successful update
+	if req.Items != nil {
+		for _, item := range updatedInvoice.Items {
+			if item.SalesOrderItemID != nil {
+				if err := uc.salesOrderRepo.UpdateItemInvoicedQty(ctx, *item.SalesOrderItemID, item.Quantity); err != nil {
+					return nil, fmt.Errorf("failed to update invoiced qty for SO item %s: %w", *item.SalesOrderItemID, err)
+				}
+			}
+		}
 	}
 
 	logSalesAudit(uc.auditService, ctx, "customer_invoice.update", id, map[string]interface{}{
@@ -582,7 +769,7 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	// Rollback InvoicedQuantity on SO items and delete in a transaction
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		for _, item := range invoice.Items {
@@ -631,7 +818,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 	}
 
 	var updatedInvoice *models.CustomerInvoice
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		if err := uc.invoiceRepo.UpdateStatus(txCtx, id, newStatus, req.PaidAmount, paymentAt, userID); err != nil {
@@ -648,6 +835,32 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 			triggerCtx := withActorContext(txCtx, userID, updatedInvoice.CreatedBy)
 			if err := uc.triggerSalesInvoiceJournal(triggerCtx, updatedInvoice); err != nil {
 				return fmt.Errorf("failed to trigger sales invoice journal: %w", err)
+			}
+
+			if updatedInvoice.JournalEntryID == nil || strings.TrimSpace(*updatedInvoice.JournalEntryID) == "" {
+				var journal financeModels.JournalEntry
+				if err := tx.WithContext(txCtx).
+					Where("reference_type = ? AND reference_id = ? AND status = ?", reference.RefTypeSalesInvoice, updatedInvoice.ID, financeModels.JournalStatusPosted).
+					Order("created_at DESC").First(&journal).Error; err == nil {
+					journalID := journal.ID
+					if err := tx.WithContext(txCtx).Model(&models.CustomerInvoice{}).
+						Where("id = ?", updatedInvoice.ID).
+						Updates(map[string]interface{}{
+							"journal_entry_id": journalID,
+							"is_posted":        true,
+						}).Error; err != nil {
+						return err
+					}
+					updatedInvoice.JournalEntryID = &journalID
+					updatedInvoice.IsPosted = true
+				}
+			}
+		}
+
+		if shouldTriggerSalesDPApplicationJournal(previousStatus, newStatus, updatedInvoice) {
+			triggerCtx := withActorContext(txCtx, userID, updatedInvoice.CreatedBy)
+			if err := uc.triggerSalesDPApplicationJournal(triggerCtx, updatedInvoice); err != nil {
+				return fmt.Errorf("failed to trigger sales DP application journal: %w", err)
 			}
 		}
 
@@ -669,6 +882,11 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		"paid_amount":   req.PaidAmount,
 		"payment_at":    req.PaymentAt,
 	})
+
+	// Award loyalty points when a non-POS invoice transitions to PAID.
+	if newStatus == models.CustomerInvoiceStatusPaid {
+		go uc.tryEarnLoyaltyPointsForInvoice(context.Background(), updatedInvoice)
+	}
 
 	if newStatus == models.CustomerInvoiceStatusSubmitted {
 		actorUserID, _ := ctx.Value("user_id").(string)
@@ -709,7 +927,7 @@ func (uc *customerInvoiceUsecase) reverse(ctx context.Context, id string, reason
 	}
 
 	var updatedInvoice *models.CustomerInvoice
-	err = uc.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		now := time.Now()
@@ -754,6 +972,9 @@ func (uc *customerInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	if uc.db == nil {
 		return nil, 0, errors.New("db is nil")
 	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, 0, ErrCustomerInvoiceNotFound
+	}
 
 	return listAuditTrailEntries(ctx, uc.db, id, "customer_invoice.", page, perPage)
 }
@@ -776,6 +997,50 @@ func shouldTriggerSalesInvoiceJournal(previousStatus, currentStatus models.Custo
 		previousStatus == models.CustomerInvoiceStatusPaid
 
 	return isCurrentPostApproved && !isPreviousPostApproved
+}
+
+func shouldTriggerSalesDPApplicationJournal(previousStatus, currentStatus models.CustomerInvoiceStatus, invoice *models.CustomerInvoice) bool {
+	if invoice == nil || invoice.Type != models.CustomerInvoiceTypeRegular {
+		return false
+	}
+
+	if invoice.DownPaymentAmount <= 0 {
+		return false
+	}
+
+	if !hasLinkedDeliverySalesJournal(invoice) {
+		return false
+	}
+
+	isCurrentPostApproved := currentStatus == models.CustomerInvoiceStatusApproved ||
+		currentStatus == models.CustomerInvoiceStatusUnpaid ||
+		currentStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		currentStatus == models.CustomerInvoiceStatusPartial ||
+		currentStatus == models.CustomerInvoiceStatusPaid
+
+	isPreviousPostApproved := previousStatus == models.CustomerInvoiceStatusApproved ||
+		previousStatus == models.CustomerInvoiceStatusUnpaid ||
+		previousStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		previousStatus == models.CustomerInvoiceStatusPartial ||
+		previousStatus == models.CustomerInvoiceStatusPaid
+
+	return isCurrentPostApproved && !isPreviousPostApproved
+}
+
+func hasLinkedDeliverySalesJournal(invoice *models.CustomerInvoice) bool {
+	if invoice == nil || invoice.DeliveryOrderID == nil {
+		return false
+	}
+
+	if invoice.DeliveryOrder == nil {
+		return false
+	}
+
+	if invoice.DeliveryOrder.JournalEntryID == nil {
+		return false
+	}
+
+	return strings.TrimSpace(*invoice.DeliveryOrder.JournalEntryID) != ""
 }
 
 func customerInvoiceAuditSnapshot(invoice *models.CustomerInvoice) map[string]interface{} {
@@ -868,24 +1133,137 @@ func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, 
 	return uc.triggerSalesInvoiceJournal(ctx, invoice)
 }
 
+func (uc *customerInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.CreateCustomerInvoiceRequest) (*dto.CustomerInvoiceJournalPreviewResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+	if uc.engine == nil {
+		return nil, errors.New("accounting engine is not configured")
+	}
+
+	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items, subtotal, err := uc.buildCreateInvoiceItems(ctx, req, soItemMap)
+	if err != nil {
+		return nil, err
+	}
+
+	taxRate := req.TaxRate
+	if taxRate <= 0 {
+		taxRate = 11
+	}
+	taxAmount := subtotal * (taxRate / 100)
+	totalAmount := subtotal + taxAmount + req.DeliveryCost + req.OtherCost
+
+	tempInvoice := &models.CustomerInvoice{
+		Code:             "PREVIEW",
+		InvoiceDate:      parsePreviewInvoiceDate(req.InvoiceDate),
+		Type:             models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
+		SalesOrderID:     req.SalesOrderID,
+		DeliveryOrderID:   req.DeliveryOrderID,
+		TaxRate:          taxRate,
+		TaxAmount:        taxAmount,
+		DeliveryCost:     req.DeliveryCost,
+		OtherCost:        req.OtherCost,
+		Subtotal:         subtotal,
+		Amount:           totalAmount,
+		RemainingAmount:  totalAmount,
+		DownPaymentAmount: 0,
+		Items:            items,
+	}
+	if tempInvoice.Type == "" {
+		tempInvoice.Type = models.CustomerInvoiceTypeRegular
+	}
+	if err := uc.applyPaidDownPaymentsOnCreate(ctx, tempInvoice, req.SalesOrderID, tempInvoice.Type, req.DownPaymentInvoiceID); err != nil {
+		return nil, err
+	}
+
+	data := accounting.TransactionData{
+		ReferenceType:   reference.RefTypeSalesInvoice,
+		ReferenceID:     "preview",
+		EntryDate:       tempInvoice.InvoiceDate.Format(dateFormat),
+		Description:     fmt.Sprintf("Sales Invoice Preview %s", tempInvoice.Code),
+		TotalAmount:     tempInvoice.Amount,
+		SubTotal:        tempInvoice.Subtotal,
+		TaxTotal:        tempInvoice.TaxAmount,
+		DepositTotal:    tempInvoice.DownPaymentAmount,
+		DescriptionArgs: []interface{}{tempInvoice.Code, safeInvoiceNumber(tempInvoice.InvoiceNumber)},
+	}
+
+	reqJournal, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoice, data)
+	if err != nil {
+		return nil, err
+	}
+
+	preview := &dto.CustomerInvoiceJournalPreviewResponse{
+		ReferenceType: reference.RefTypeSalesInvoice,
+		ReferenceID:   "preview",
+		InvoiceDate:   tempInvoice.InvoiceDate.Format(dateFormat),
+		Subtotal:      tempInvoice.Subtotal,
+		TaxAmount:     tempInvoice.TaxAmount,
+		DownPayment:   tempInvoice.DownPaymentAmount,
+		TotalAmount:   tempInvoice.Amount,
+		IsBalanced:    isPreviewJournalBalanced(reqJournal),
+		Lines:         make([]dto.CustomerInvoiceJournalPreviewLine, 0, len(reqJournal.Lines)),
+	}
+	for _, line := range reqJournal.Lines {
+		preview.Lines = append(preview.Lines, dto.CustomerInvoiceJournalPreviewLine{
+			ChartOfAccountID: line.ChartOfAccountID,
+			Debit:            line.Debit,
+			Credit:           line.Credit,
+			Memo:             line.Memo,
+		})
+	}
+
+	return preview, nil
+}
+
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice != nil && invoice.DeliveryOrderID != nil && invoice.DeliveryOrder == nil && uc.invoiceRepo != nil {
+		if hydrated, err := uc.invoiceRepo.FindByID(ctx, invoice.ID); err == nil && hydrated != nil {
+			invoice = hydrated
+		}
+	}
+
+	if hasLinkedDeliverySalesJournal(invoice) {
+		log.Printf("journal_observability event=trigger.skipped reason=delivery_order_already_posted reference_id=%s", invoice.ID)
+		return nil
+	}
+
 	if invoice == nil || uc.journalUC == nil || uc.engine == nil {
 		return nil
 	}
 
-	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
+	companyID, err := uc.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve company for sales invoice journal: %w", err)
+	}
+
 	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
+	totalInvoiceAmount := revenueBase + invoice.TaxAmount
+	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
+	journalAmount := totalInvoiceAmount
+	if journalAmount <= 0 {
+		journalAmount = invoice.Amount
+	}
+	if journalAmount <= 0 {
+		journalAmount = revenueBase + invoice.TaxAmount
+	}
 
 	data := accounting.TransactionData{
-		ReferenceType: reference.RefTypeSalesInvoice,
-		ReferenceID:   invoice.ID,
-		EntryDate:     invoice.InvoiceDate.Format(dateFormat),
-		Description:   fmt.Sprintf("Sales Invoice %s", invoice.Code),
-		TotalAmount:   invoice.Amount,
-		SubTotal:      revenueBase,
-		TaxTotal:      invoice.TaxAmount,
-		DepositTotal:  invoice.DownPaymentAmount,
-		COGSTotal:     cogsTotal,
+		ReferenceType:   reference.RefTypeSalesInvoice,
+		ReferenceID:     invoice.ID,
+		CompanyID:       companyID,
+		EntryDate:       invoice.InvoiceDate.Format(dateFormat),
+		Description:     fmt.Sprintf("Sales Invoice %s", invoice.Code),
+		TotalAmount:     journalAmount,
+		SubTotal:        revenueBase,
+		TaxTotal:        invoice.TaxAmount,
+		DepositTotal:    invoice.DownPaymentAmount,
+		COGSTotal:       cogsTotal,
 		DescriptionArgs: []interface{}{invoice.Code, safeInvoiceNumber(invoice.InvoiceNumber)},
 	}
 
@@ -894,22 +1272,91 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 		return fmt.Errorf("failed to generate sales invoice journal: %w", err)
 	}
 
-	// Double-check balance (redundant but safe)
-	var debitTotal, creditTotal float64
-	for _, l := range req.Lines {
-		debitTotal += l.Debit
-		creditTotal += l.Credit
-	}
-	if math.Abs(debitTotal-creditTotal) > 0.001 {
-		return fmt.Errorf("generated journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
-	}
-
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	postedJournal, err := uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to post sales invoice journal: %w", err)
 	}
 
+	if postedJournal != nil && strings.TrimSpace(postedJournal.ID) != "" && uc.db != nil {
+		if err := database.GetDB(ctx, uc.db).
+			Model(&models.CustomerInvoice{}).
+			Where("id = ?", invoice.ID).
+			Updates(map[string]interface{}{
+				"journal_entry_id": postedJournal.ID,
+				"is_posted":        true,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to link sales invoice journal: %w", err)
+		}
+		invoice.JournalEntryID = &postedJournal.ID
+		invoice.IsPosted = true
+	}
+
 	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSalesInvoice, invoice.ID)
+	return nil
+}
+
+func parsePreviewInvoiceDate(value string) time.Time {
+	parsed, err := time.Parse(dateFormat, value)
+	if err != nil {
+		return time.Now()
+	}
+	return parsed
+}
+
+func isPreviewJournalBalanced(req *finDto.CreateJournalEntryRequest) bool {
+	if req == nil {
+		return false
+	}
+	var debitTotal float64
+	var creditTotal float64
+	for _, line := range req.Lines {
+		debitTotal += line.Debit
+		creditTotal += line.Credit
+	}
+	return math.Abs(debitTotal-creditTotal) <= 0.001
+}
+
+func (uc *customerInvoiceUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {
+	if uc == nil || uc.db == nil {
+		return "", errors.New("db is not configured")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	var companyID string
+	if err := database.GetDB(ctx, uc.db).
+		WithContext(ctx).
+		Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", actorID).
+		Limit(1).
+		Scan(&companyID).Error; err != nil {
+		return "", err
+	}
+
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
+func (uc *customerInvoiceUsecase) triggerSalesDPApplicationJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice == nil || uc.salesJournalSvc == nil {
+		return nil
+	}
+
+	_, err := uc.salesJournalSvc.GenerateDPApplicationJournal(ctx, invoice.ID)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success reference_type=SALES_DP_APPLICATION reference_id=%s", invoice.ID)
 	return nil
 }
 
@@ -926,6 +1373,16 @@ func calculateInvoiceCOGSTotal(items []models.CustomerInvoiceItem) float64 {
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversed(ctx context.Context, invoice *models.CustomerInvoice, reason string) error {
+	if invoice != nil && uc.salesJournalSvc != nil {
+		if err := uc.salesJournalSvc.ReverseSalesJournal(ctx, "SALES_DP_APPLICATION", invoice.ID, reason); err != nil {
+			return err
+		}
+	}
+
+	if hasLinkedDeliverySalesJournal(invoice) {
+		return nil
+	}
+
 	if invoice == nil || uc.journalUC == nil {
 		return nil
 	}
@@ -949,6 +1406,51 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversed(ctx context
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
 	return uc.triggerSalesInvoiceJournalReversed(ctx, invoice, "Manual reversal via status change")
+}
+
+// tryEarnLoyaltyPointsForInvoice awards loyalty points for a fully-paid non-POS customer invoice.
+// It runs in a background goroutine — errors are logged and never surface to the caller.
+func (uc *customerInvoiceUsecase) tryEarnLoyaltyPointsForInvoice(ctx context.Context, invoice *models.CustomerInvoice) {
+	if uc.loyaltyUC == nil || invoice == nil {
+		return
+	}
+
+	// Only process invoices that are linked to a Sales Order.
+	if invoice.SalesOrderID == nil {
+		return
+	}
+
+	// Fetch the linked Sales Order to check its source type and customer.
+	so, err := uc.salesOrderRepo.FindByID(ctx, *invoice.SalesOrderID)
+	if err != nil || so == nil {
+		return
+	}
+
+	// Skip POS-sourced orders — loyalty points are already awarded by the POS payment flow.
+	if so.SourceType == "POS" {
+		return
+	}
+
+	if so.CustomerID == nil {
+		return
+	}
+
+	// Lookup the loyalty member for this customer.
+	memberResp, err := uc.loyaltyUC.GetMemberByCustomerID(ctx, *so.CustomerID)
+	if err != nil || memberResp == nil {
+		// Customer is not a loyalty member — nothing to do.
+		return
+	}
+
+	_, err = uc.loyaltyUC.EarnPoints(ctx, &loyaltyDto.EarnPointsRequest{
+		MemberID:        memberResp.ID,
+		TransactionID:   invoice.ID,
+		TransactionType: "sales_order",
+		TotalAmount:     invoice.Amount,
+	})
+	if err != nil {
+		log.Printf("[loyalty] failed to earn points for invoice %s (member %s): %v", invoice.ID, memberResp.ID, err)
+	}
 }
 
 // isValidStatusTransition checks if the status transition is valid

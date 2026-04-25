@@ -24,7 +24,7 @@ func SeedPOSFloorLayouts() error {
 	log.Println("Seeding POS floor layouts...")
 	db := database.DB
 	now := apptime.Now()
-	adminID := AdminEmployeeID
+	adminID := AdminUserID
 	mieGacoanID := MieGacoanCompanyID
 
 	layoutSudirman := `[
@@ -82,10 +82,12 @@ func SeedPOSFloorLayouts() error {
 	}
 
 	for i := range plans {
+		plans[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"outlet_id", "company_id", "name", "floor_number", "status", "grid_size", "snap_to_grid",
+				"tenant_id", "outlet_id", "company_id", "name", "floor_number", "status", "grid_size", "snap_to_grid",
 				"width", "height", "layout_data", "version", "published_at", "published_by", "updated_at",
 			}),
 		}).Create(&plans[i]).Error; err != nil {
@@ -113,9 +115,11 @@ func SeedPOSFloorLayouts() error {
 	}
 
 	for i := range versions {
+		versions[i].TenantID = DefaultTenantID
+
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"floor_plan_id", "version", "layout_data", "published_at", "published_by"}),
+			DoUpdates: clause.AssignmentColumns([]string{"tenant_id", "floor_plan_id", "version", "layout_data", "published_at", "published_by"}),
 		}).Create(&versions[i]).Error; err != nil {
 			log.Printf("Warning: Failed to seed POS layout version %s: %v", versions[i].ID, err)
 		}

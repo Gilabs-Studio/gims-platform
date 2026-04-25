@@ -266,6 +266,14 @@ export function PurchaseOrderForm({
   }, [open, isEdit, po, reset]);
 
   const selectedSupplierId = useWatch<PurchaseOrderFormData, "supplier_id">({ control, name: "supplier_id" });
+  const selectedPurchaseRequisitionId = useWatch<PurchaseOrderFormData, "purchase_requisitions_id">({
+    control,
+    name: "purchase_requisitions_id",
+  });
+  const selectedSalesOrderId = useWatch<PurchaseOrderFormData, "sales_order_id">({
+    control,
+    name: "sales_order_id",
+  });
   const watchedItems = useWatch<PurchaseOrderFormData, "items">({ control, name: "items" });
 
   const selectedSupplier = useMemo(() => {
@@ -294,14 +302,22 @@ export function PurchaseOrderForm({
 
     if (!selectedSupplierWithDetail) return;
 
-    setValue("payment_terms_id", selectedSupplierWithDetail.payment_terms_id ?? null, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-    setValue("business_unit_id", selectedSupplierWithDetail.business_unit_id ?? null, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+    // Keep source-derived values when PO is loaded from PR/SO.
+    // This prevents supplier defaults from overriding PR/SO payment terms or business unit.
+    const keepSourceDerivedValues =
+      (source === "pr" && !!selectedPurchaseRequisitionId) ||
+      (source === "so" && !!selectedSalesOrderId);
+
+    if (!keepSourceDerivedValues) {
+      setValue("payment_terms_id", selectedSupplierWithDetail.payment_terms_id ?? null, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+      setValue("business_unit_id", selectedSupplierWithDetail.business_unit_id ?? null, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
 
     const contacts = (selectedSupplierWithDetail.contacts ?? []) as PurchaseOrderAddSupplierContact[];
     const defaultContact = contacts.find((ct) => ct.is_primary) ?? contacts[0];
@@ -309,7 +325,14 @@ export function PurchaseOrderForm({
       shouldValidate: true,
       shouldDirty: true,
     });
-  }, [selectedSupplierId, selectedSupplierWithDetail, setValue]);
+  }, [
+    selectedSupplierId,
+    selectedSupplierWithDetail,
+    selectedPurchaseRequisitionId,
+    selectedSalesOrderId,
+    setValue,
+    source,
+  ]);
 
   const [sourceProducts, setSourceProducts] = useState<ProductOption[]>([]);
   const allProducts = useMemo(() => suppliers.flatMap((s) => s.products ?? []), [suppliers]);
@@ -434,6 +457,7 @@ export function PurchaseOrderForm({
 
   const handleNext = async () => {
     const fieldsToValidate: (keyof PurchaseOrderFormData)[] = ["order_date"];
+    if (source === "manual") fieldsToValidate.push("supplier_id");
     if (source === "pr") fieldsToValidate.push("purchase_requisitions_id");
     if (source === "so") fieldsToValidate.push("sales_order_id");
 

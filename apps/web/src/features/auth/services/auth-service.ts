@@ -5,6 +5,33 @@ import apiClient, {
 } from "@/lib/api-client";
 import type { LoginRequest, LoginResponse } from "../types";
 
+export interface SubscriptionPlanConfig {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  description?: string;
+  billing_type: "per_user" | "flat";
+  price_monthly_idr: number;
+  price_yearly_idr: number;
+  min_users: number;
+  max_users: number;
+  is_highlighted: boolean;
+  sort_order: number;
+  features?: string[];
+  module_slugs?: string[];
+}
+
+export interface ComputePriceResult {
+  plan_slug: string;
+  billing_period: string;
+  user_count: number;
+  base_amount_idr: number;
+  discount_amount_idr: number;
+  final_amount_idr: number;
+  coupon_applied?: boolean;
+}
+
 function isCSRFInvalidError(error: unknown): boolean {
   const axiosError = error as {
     response?: { status?: number; data?: { error?: { code?: string } } };
@@ -153,5 +180,117 @@ export const authService = {
 
   async logout(): Promise<void> {
     await apiClient.post("/auth/logout");
+  },
+
+  /**
+   * Self-service tenant registration.
+   * - Coupon flow: returns LoginResponse (user is provisioned immediately).
+   * - Paid plan flow: returns { invoice_url, invoice_id, expires_at } — caller must
+   *   redirect the browser to invoice_url to complete Xendit payment.
+   */
+  async register(
+    payload: {
+      name: string;
+      email: string;
+      password: string;
+      company_name?: string;
+      coupon?: string;
+      plan?: string;
+      billing_period?: string;
+      user_count?: number;
+    },
+    csrfToken?: string | null,
+  ): Promise<{ success: boolean; data: unknown }> {
+    const response = await apiClient.post(
+      "/auth/register",
+      payload,
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+    );
+    return response.data;
+  },
+
+  /**
+   * Confirms a paid registration token after payment redirect.
+   * Backend finalizes tenant provisioning (if pending) and sets auth cookies.
+   */
+  async confirmPaidRegistration(
+    token: string,
+    csrfToken?: string | null,
+  ): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>(
+      "/auth/register/confirm",
+      { token },
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+    );
+    return response.data;
+  },
+
+  /**
+   * Checks if email and/or company name are available for registration.
+   */
+  async checkAvailability(params: {
+    email?: string;
+    company_name?: string;
+  }): Promise<{ email: boolean; company_name: boolean }> {
+    const query = new URLSearchParams();
+    if (params.email) query.set("email", params.email);
+    if (params.company_name) query.set("company_name", params.company_name);
+
+    const response = await apiClient.get(`/auth/check-availability?${query.toString()}`);
+    return response.data?.data;
+  },
+
+  /**
+   * Validates a coupon code without consuming it.
+   * Used by the registration form to preview coupon details before submission.
+   */
+  async validateCoupon(
+    code: string,
+    email?: string,
+  ): Promise<{
+    data?: {
+      valid: boolean;
+      reason?: string;
+      coupon_type?: string;
+      discount_type?: string;
+      discount_value?: number;
+      max_user_count?: number;
+      lock_user_count?: boolean;
+      package_price_monthly_idr?: number;
+      package_price_yearly_idr?: number;
+      duration_days?: number;
+      description?: string;
+      scope?: string;
+      target_plan_slug?: string;
+    };
+  }> {
+    let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
+    if (email) {
+      url += `&email=${encodeURIComponent(email)}`;
+    }
+    const response = await apiClient.get(url);
+    return response.data;
+  },
+
+  /**
+   * Returns all active subscription plan configs for the registration form.
+   */
+  async getSubscriptionPlans(): Promise<SubscriptionPlanConfig[]> {
+    const response = await apiClient.get("/auth/plans");
+    return response.data?.data ?? [];
+  },
+
+  /**
+   * Computes the final invoice amount for a plan + billing + user count, optionally
+   * applying a coupon discount.
+   */
+  async computePrice(params: {
+    plan_slug: string;
+    billing_period: "monthly" | "yearly";
+    user_count: number;
+    coupon_code?: string;
+  }): Promise<ComputePriceResult> {
+    const response = await apiClient.post("/auth/plans/compute-price", params);
+    return response.data?.data;
   },
 };

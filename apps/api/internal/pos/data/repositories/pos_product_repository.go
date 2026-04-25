@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"gorm.io/gorm"
@@ -40,7 +41,7 @@ func NewPOSProductRepository(db *gorm.DB) POSProductRepository {
 
 func (r *posProductRepository) FindByID(ctx context.Context, id string) (*productModels.Product, error) {
 	var product productModels.Product
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("id = ? AND deleted_at IS NULL", id).
 		First(&product).Error
 	if err != nil {
@@ -51,7 +52,7 @@ func (r *posProductRepository) FindByID(ctx context.Context, id string) (*produc
 
 func (r *posProductRepository) FindByIDWithRecipe(ctx context.Context, id string) (*productModels.Product, error) {
 	var product productModels.Product
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("RecipeItems").
 		Where("id = ? AND deleted_at IS NULL", id).
 		First(&product).Error
@@ -65,7 +66,7 @@ func (r *posProductRepository) FindByIDWithRecipe(ctx context.Context, id string
 // When warehouseID is empty, stock values are 0 (catalog only, no stock info).
 func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID string) ([]POSCatalogProduct, error) {
 	var products []productModels.Product
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Category").
 		Where("is_pos_available = ? AND deleted_at IS NULL AND status = ? AND is_approved = ? AND is_active = ?", true, productModels.ProductStatusApproved, true, true).
 		Order("name ASC").
@@ -78,7 +79,7 @@ func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID
 	stockMap := make(map[string]float64)
 	if warehouseID != "" {
 		var batches []inventoryModels.InventoryBatch
-		batchErr := r.db.WithContext(ctx).
+		batchErr := database.GetDB(ctx, r.db).
 			Select("product_id, current_quantity, reserved_quantity").
 			Where("warehouse_id = ? AND deleted_at IS NULL AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)", warehouseID).
 			Find(&batches).Error

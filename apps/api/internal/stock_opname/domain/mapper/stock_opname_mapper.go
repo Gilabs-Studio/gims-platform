@@ -15,8 +15,9 @@ func ToStockOpnameResponse(m *models.StockOpname) dto.StockOpnameResponse {
 		OpnameNumber:             m.OpnameNumber,
 		WarehouseID:              m.WarehouseID,
 		WarehouseName:            getWarehouseName(m),
+		JournalID:                m.JournalID,
 		Date:                     m.Date,
-		Status:                   dto.StockOpnameStatus(m.Status),
+		Status:                   mapStatusForResponse(m.Status),
 		Description:              m.Description,
 		TotalItems:               m.TotalItems,
 		TotalVarianceQty:         m.TotalVarianceQty,
@@ -25,6 +26,17 @@ func ToStockOpnameResponse(m *models.StockOpname) dto.StockOpnameResponse {
 		CreatedBy:                m.CreatedBy,
 		CreatedAt:                m.CreatedAt,
 		UpdatedAt:                m.UpdatedAt,
+	}
+}
+
+func mapStatusForResponse(status models.StockOpnameStatus) dto.StockOpnameStatus {
+	switch status {
+	case models.StockOpnameStatusPending:
+		return dto.StockOpnameStatusPendingApproval
+	case models.StockOpnameStatusPosted:
+		return dto.StockOpnameStatusCompleted
+	default:
+		return dto.StockOpnameStatus(status)
 	}
 }
 

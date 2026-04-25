@@ -38,7 +38,7 @@ export function BankReconciliationWizard() {
   const [companyId, setCompanyId] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [statementDate, setStatementDate] = useState(new Date().toISOString().slice(0, 10));
-  const [statementBalance, setStatementBalance] = useState<number>(0);
+  const [statementBalanceInput, setStatementBalanceInput] = useState<string>("");
   const [fileFormat, setFileFormat] = useState<"csv" | "mt940" | "ofx">("csv");
   const [statementFile, setStatementFile] = useState<File | null>(null);
   const [reconciliationId, setReconciliationId] = useState("");
@@ -100,6 +100,17 @@ export function BankReconciliationWizard() {
     if (!companyId || !bankAccountId || !statementDate || !statementFile) {
       toast.error(t("toast.failed"));
       return;
+    }
+
+    const statementBalanceTrimmed = statementBalanceInput.trim();
+    let statementBalance: number | undefined;
+    if (statementBalanceTrimmed !== "") {
+      const parsedStatementBalance = Number(statementBalanceTrimmed);
+      if (!Number.isFinite(parsedStatementBalance)) {
+        toast.error(t("toast.failed"));
+        return;
+      }
+      statementBalance = parsedStatementBalance;
     }
 
     try {
@@ -189,7 +200,7 @@ export function BankReconciliationWizard() {
     setCompanyId("");
     setBankAccountId("");
     setStatementDate(new Date().toISOString().slice(0, 10));
-    setStatementBalance(0);
+    setStatementBalanceInput("");
     setFileFormat("csv");
     setStatementFile(null);
     setReconciliationId("");
@@ -274,8 +285,8 @@ export function BankReconciliationWizard() {
                 <Label>{t("fields.statementBalance")}</Label>
                 <Input
                   type="number"
-                  value={statementBalance || ""}
-                  onChange={(event) => setStatementBalance(Number(event.target.value) || 0)}
+                  value={statementBalanceInput}
+                  onChange={(event) => setStatementBalanceInput(event.target.value)}
                 />
               </div>
 

@@ -10,10 +10,13 @@ export const loyaltyEn = {
       edit: "Edit",
       delete: "Delete",
       toggle: "Toggle Active",
+      viewDetails: "View Details",
       active: "Active",
       inactive: "Inactive",
       global: "Global (All Outlets)",
       outletSpecific: "Outlet Specific",
+      scopeGlobal: "Global",
+      scopeOutlet: "Outlet",
       tab: {
         basic: "Basic",
         config: "Config",
@@ -49,8 +52,17 @@ export const loyaltyEn = {
       reward: {
         id: "Reward ID",
         name: "Reward Name",
-        pointsCost: "Points Required",
-        description: "Description",
+        type: "Type",
+        typeDiscountFixed: "Fixed Discount",
+        typeDiscountPercent: "Percent Discount",
+        typeMerch: "Merchandise",
+        value: "Value (Merch = 0)",
+        valueFixed: "Discount Amount (Rp)",
+        valuePercent: "Discount (%)",
+        pointsRequired: "Points Required",
+        isActive: "Active",
+        merchDescription: "Item Description",
+        merchDescriptionPlaceholder: "e.g. T-shirt size L",
       },
     },
 
@@ -66,6 +78,7 @@ export const loyaltyEn = {
       lifetimePoints: "Lifetime Points",
       totalTransactions: "Transactions",
       joinedAt: "Member Since",
+      outletColumn: "Enrolled Outlet",
       enroll: "Enroll Member",
       enrolled: "Member enrolled successfully",
       enrollError: "Failed to enroll member. Please try again.",
@@ -114,6 +127,12 @@ export const loyaltyEn = {
         expired: "Expired",
         adjusted: "Adjusted",
       },
+      transactionType: {
+        pos_order: "POS Order",
+        pos_payment: "POS Payment",
+        sales_order: "Sales Order",
+        manual: "Manual",
+      },
     },
 
     pos: {
@@ -140,6 +159,10 @@ export const loyaltyEn = {
       redeemError: "Failed to redeem points. Please try again.",
       noRewards: "No rewards available for this program",
       insufficientPoints: "Insufficient points for any reward",
+      clearSelection: "Clear selection",
+      rewardTypeDiscountFixed: "Discount",
+      rewardTypeDiscountPct: "Discount %",
+      rewardTypeMerch: "Merch",
     },
 
     public: {

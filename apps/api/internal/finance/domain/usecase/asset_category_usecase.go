@@ -56,6 +56,16 @@ func (uc *assetCategoryUsecase) Create(ctx context.Context, req *dto.CreateAsset
 	if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
 		return nil, err
 	}
+	if req.DisposalGainAccountID != nil && strings.TrimSpace(*req.DisposalGainAccountID) != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalGainAccountID)); err != nil {
+			return nil, err
+		}
+	}
+	if req.DisposalLossAccountID != nil && strings.TrimSpace(*req.DisposalLossAccountID) != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalLossAccountID)); err != nil {
+			return nil, err
+		}
+	}
 
 	isActive := true
 	if req.IsActive != nil {
@@ -64,12 +74,15 @@ func (uc *assetCategoryUsecase) Create(ctx context.Context, req *dto.CreateAsset
 
 	item := &financeModels.AssetCategory{
 		Name:                             strings.TrimSpace(req.Name),
+		Type:                             req.Type,
 		DepreciationMethod:               req.DepreciationMethod,
 		UsefulLifeMonths:                 req.UsefulLifeMonths,
 		DepreciationRate:                 req.DepreciationRate,
 		AssetAccountID:                   strings.TrimSpace(req.AssetAccountID),
 		AccumulatedDepreciationAccountID: strings.TrimSpace(req.AccumulatedDepreciationAccountID),
 		DepreciationExpenseAccountID:     strings.TrimSpace(req.DepreciationExpenseAccountID),
+		DisposalGainAccountID:            req.DisposalGainAccountID,
+		DisposalLossAccountID:            req.DisposalLossAccountID,
 		IsActive:                         isActive,
 	}
 	if err := uc.db.WithContext(ctx).Create(item).Error; err != nil {
@@ -105,15 +118,28 @@ func (uc *assetCategoryUsecase) Update(ctx context.Context, id string, req *dto.
 	if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
 		return nil, err
 	}
+	if req.DisposalGainAccountID != nil && strings.TrimSpace(*req.DisposalGainAccountID) != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalGainAccountID)); err != nil {
+			return nil, err
+		}
+	}
+	if req.DisposalLossAccountID != nil && strings.TrimSpace(*req.DisposalLossAccountID) != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalLossAccountID)); err != nil {
+			return nil, err
+		}
+	}
 
 	updates := map[string]interface{}{
 		"name":                                strings.TrimSpace(req.Name),
+		"type":                                req.Type,
 		"depreciation_method":                 req.DepreciationMethod,
 		"useful_life_months":                  req.UsefulLifeMonths,
 		"depreciation_rate":                   req.DepreciationRate,
 		"asset_account_id":                    strings.TrimSpace(req.AssetAccountID),
 		"accumulated_depreciation_account_id": strings.TrimSpace(req.AccumulatedDepreciationAccountID),
 		"depreciation_expense_account_id":     strings.TrimSpace(req.DepreciationExpenseAccountID),
+		"disposal_gain_account_id":            req.DisposalGainAccountID,
+		"disposal_loss_account_id":            req.DisposalLossAccountID,
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive

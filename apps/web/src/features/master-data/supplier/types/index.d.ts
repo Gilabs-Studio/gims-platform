@@ -93,7 +93,7 @@ export interface CreateContactData {
   is_active?: boolean;
 }
 
-export interface UpdateContactData extends Partial<CreateContactData> {}
+export type UpdateContactData = Partial<CreateContactData>;
 
 // Backward-compat aliases for old naming
 export type SupplierPhoneNumber = SupplierContact;

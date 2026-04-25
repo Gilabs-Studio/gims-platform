@@ -26,8 +26,9 @@ const (
 
 type AssetCategory struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
-	Name string `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
+	Name string            `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
 	Type AssetCategoryType `gorm:"type:varchar(20);not null;default:'FIXED'" json:"type"`
 
 	DepreciationMethod DepreciationMethod `gorm:"type:varchar(10);not null" json:"depreciation_method"`
@@ -35,9 +36,11 @@ type AssetCategory struct {
 	DepreciationRate   float64            `gorm:"type:numeric(8,4);default:0" json:"depreciation_rate"`
 	IsDepreciable      bool               `gorm:"default:true" json:"is_depreciable"`
 
-	AssetAccountID                   string `gorm:"type:uuid;not null;index" json:"asset_account_id"`
-	AccumulatedDepreciationAccountID string `gorm:"type:uuid;not null;index" json:"accumulated_depreciation_account_id"`
-	DepreciationExpenseAccountID     string `gorm:"type:uuid;not null;index" json:"depreciation_expense_account_id"`
+	AssetAccountID                   string  `gorm:"type:uuid;not null;index" json:"asset_account_id"`
+	AccumulatedDepreciationAccountID string  `gorm:"type:uuid;not null;index" json:"accumulated_depreciation_account_id"`
+	DepreciationExpenseAccountID     string  `gorm:"type:uuid;not null;index" json:"depreciation_expense_account_id"`
+	DisposalGainAccountID            *string `gorm:"type:uuid;index" json:"disposal_gain_account_id,omitempty"`
+	DisposalLossAccountID            *string `gorm:"type:uuid;index" json:"disposal_loss_account_id,omitempty"`
 
 	IsActive bool `gorm:"default:true" json:"is_active"`
 

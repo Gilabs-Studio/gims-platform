@@ -3,7 +3,11 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"sort"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/role/data/models"
 	"gorm.io/gorm"
 )
@@ -33,9 +37,13 @@ func NewRoleRepository(db *gorm.DB) RoleRepository {
 	return &roleRepository{db: db}
 }
 
+func (r *roleRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 func (r *roleRepository) FindByID(ctx context.Context, id string) (*models.Role, error) {
 	var ro models.Role
-	err := r.db.WithContext(ctx).
+	err := r.getDB(ctx).
 		Preload("Permissions").
 		Preload("RolePermissions").
 		Preload("RolePermissions.Permission").
@@ -50,7 +58,7 @@ func (r *roleRepository) FindByID(ctx context.Context, id string) (*models.Role,
 
 func (r *roleRepository) FindByCode(ctx context.Context, code string) (*models.Role, error) {
 	var ro models.Role
-	err := r.db.WithContext(ctx).
+	err := r.getDB(ctx).
 		Preload("Permissions").
 		Preload("RolePermissions").
 		Preload("RolePermissions.Permission").
@@ -65,7 +73,7 @@ func (r *roleRepository) List(ctx context.Context, page, limit int) ([]models.Ro
 	var roles []models.Role
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Role{})
+	query := r.getDB(ctx).Model(&models.Role{})
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -90,23 +98,24 @@ func (r *roleRepository) List(ctx context.Context, page, limit int) ([]models.Ro
 }
 
 func (r *roleRepository) Create(ctx context.Context, ro *models.Role) error {
-	return r.db.WithContext(ctx).Create(ro).Error
+	return r.getDB(ctx).Create(ro).Error
 }
 
 func (r *roleRepository) Update(ctx context.Context, ro *models.Role) error {
-	return r.db.WithContext(ctx).Save(ro).Error
+	return r.getDB(ctx).Save(ro).Error
 }
 
 func (r *roleRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Role{}).Error
+	return r.getDB(ctx).Where("id = ?", id).Delete(&models.Role{}).Error
 }
 
 func (r *roleRepository) AssignPermissions(ctx context.Context, roleID string, permissionIDs []string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		// Validate all permission IDs exist before making changes
 		if len(permissionIDs) > 0 {
 			var validCount int64
-			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permissionIDs).Count(&validCount).Error; err != nil {
+			// permissions is a global table; avoid tenant-scoped DB here.
+			if err := r.db.WithContext(ctx).Table("permissions").Where("id IN ? AND deleted_at IS NULL", permissionIDs).Count(&validCount).Error; err != nil {
 				return err
 			}
 			if int(validCount) != len(permissionIDs) {
@@ -133,19 +142,39 @@ func (r *roleRepository) AssignPermissions(ctx context.Context, roleID string, p
 }
 
 func (r *roleRepository) AssignPermissionsWithScope(ctx context.Context, roleID string, assignments []models.RolePermission) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		// Validate all permission IDs exist before making changes
 		if len(assignments) > 0 {
 			permIDs := make([]string, 0, len(assignments))
 			for _, a := range assignments {
 				permIDs = append(permIDs, a.PermissionID)
 			}
-			var validCount int64
-			if err := tx.Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Count(&validCount).Error; err != nil {
+
+			var existingIDs []string
+			// permissions is a global table; avoid tenant-scoped DB here.
+			if err := r.db.WithContext(ctx).Table("permissions").Where("id IN ? AND deleted_at IS NULL", permIDs).Pluck("id", &existingIDs).Error; err != nil {
 				return err
 			}
-			if int(validCount) != len(permIDs) {
-				return ErrInvalidPermissionIDs
+
+			existingSet := make(map[string]bool, len(existingIDs))
+			for _, id := range existingIDs {
+				existingSet[id] = true
+			}
+
+			missingIDs := make([]string, 0)
+			for _, id := range permIDs {
+				if !existingSet[id] {
+					missingIDs = append(missingIDs, id)
+				}
+			}
+			if len(missingIDs) > 0 {
+				tenantID := ""
+				if v, ok := ctx.Value("tenant_id").(string); ok {
+					tenantID = v
+				}
+				sort.Strings(missingIDs)
+				log.Printf("[RoleRepository] AssignPermissionsWithScope invalid_permission_ids tenant_id=%s role_id=%s permission_ids=%v", tenantID, roleID, missingIDs)
+				return fmt.Errorf("%w: %v", ErrInvalidPermissionIDs, missingIDs)
 			}
 		}
 
@@ -173,7 +202,7 @@ func (r *roleRepository) AssignPermissionsWithScope(ctx context.Context, roleID 
 
 func (r *roleRepository) GetPermissions(ctx context.Context, roleID string) ([]string, error) {
 	var permissionIDs []string
-	err := r.db.WithContext(ctx).Table("role_permissions").
+	err := r.getDB(ctx).Table("role_permissions").
 		Where("role_id = ?", roleID).
 		Pluck("permission_id", &permissionIDs).Error
 	if err != nil {
@@ -184,7 +213,7 @@ func (r *roleRepository) GetPermissions(ctx context.Context, roleID string) ([]s
 
 func (r *roleRepository) CountUsersByRoleID(ctx context.Context, roleID string) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Table("users").Where("role_id = ? AND deleted_at IS NULL", roleID).Count(&count).Error
+	err := r.getDB(ctx).Table("users").Where("role_id = ? AND deleted_at IS NULL", roleID).Count(&count).Error
 	if err != nil {
 		return 0, err
 	}
@@ -194,7 +223,7 @@ func (r *roleRepository) CountUsersByRoleID(ctx context.Context, roleID string) 
 func (r *roleRepository) CountAdmins(ctx context.Context) (int64, error) {
 	var count int64
 	// Count users with admin role (code = "admin")
-	err := r.db.WithContext(ctx).Table("users").
+	err := r.getDB(ctx).Table("users").
 		Joins("JOIN roles ON users.role_id = roles.id").
 		Where("roles.code = ? AND users.deleted_at IS NULL AND roles.deleted_at IS NULL", "admin").
 		Count(&count).Error

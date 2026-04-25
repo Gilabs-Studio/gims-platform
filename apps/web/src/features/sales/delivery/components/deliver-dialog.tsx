@@ -33,15 +33,12 @@ export function DeliverDialog({
   const [signatureUrl, setSignatureUrl] = useState("");
   const [receiverName, setReceiverName] = useState(initialReceiverName);
 
-  // Update state when initialReceiverName changes or dialog opens
-  if (open && receiverName === "" && initialReceiverName !== "" && receiverName !== initialReceiverName) {
-     setReceiverName(initialReceiverName);
-  }
-
   useEffect(() => {
     if (open) {
-      setSignatureUrl("");
-      setReceiverName(initialReceiverName || "");
+      queueMicrotask(() => {
+        setSignatureUrl("");
+        setReceiverName(initialReceiverName || "");
+      });
     }
   }, [open, initialReceiverName]);
 

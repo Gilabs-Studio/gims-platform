@@ -7,14 +7,18 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	roleRepositories "github.com/gilabs/gims/api/internal/role/data/repositories"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
+	tenantRepositories "github.com/gilabs/gims/api/internal/tenant/data/repositories"
 	"github.com/gilabs/gims/api/internal/user/data/models"
 	"github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/gilabs/gims/api/internal/user/domain/dto"
@@ -28,13 +32,26 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserAlreadyExists = errors.New("user already exists")
 	ErrRoleNotFound      = errors.New("role not found")
+	ErrUserLimitReached  = errors.New("user limit reached")
 )
+
+// UserLimitResponse carries the current and maximum allowed user count for a tenant.
+type UserLimitResponse struct {
+	Current int `json:"current"`
+	Max     int `json:"max"`
+}
+
+type subscriptionFinder interface {
+	FindActiveByTenantID(ctx context.Context, tenantID string) (*tenantModels.TenantSubscription, error)
+}
 
 type UserUsecase interface {
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.UserResponse, error)
 	// GetAvailable returns active users not yet linked to an employee.
 	GetAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]dto.AvailableUserResponse, error)
+	// GetLimit returns the current user count and active subscription seat limit for the tenant.
+	GetLimit(ctx context.Context) (*UserLimitResponse, error)
 	Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error)
 	UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error)
@@ -44,33 +61,59 @@ type UserUsecase interface {
 }
 
 type userUsecase struct {
-	userRepo       repositories.UserRepository
-	roleRepo       roleRepositories.RoleRepository
-	auditService   audit.AuditService
-	eventPublisher infraEvents.EventPublisher
-	redis          *redis.Client
+	userRepo         repositories.UserRepository
+	roleRepo         roleRepositories.RoleRepository
+	tenantRepo       tenantRepositories.TenantRepository
+	subscriptionRepo subscriptionFinder
+	auditService     audit.AuditService
+	eventPublisher   infraEvents.EventPublisher
+	redis            *redis.Client
+}
+
+func userCacheScope(ctx context.Context) string {
+	if middleware.IsSystemAdmin(ctx) {
+		return "system_admin"
+	}
+	if tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx)); tenantID != "" {
+		return tenantID
+	}
+	return "public"
+}
+
+func userListCacheKey(ctx context.Context, req *dto.ListUsersRequest) string {
+	scope := userCacheScope(ctx)
+	return fmt.Sprintf("users:list:scope:%s:page:%d:perPage:%d:search:%s:status:%s:roleID:%s",
+		scope, req.Page, req.PerPage, req.Search, req.Status, req.RoleID)
+}
+
+func userByIDCacheKey(ctx context.Context, id string) string {
+	scope := userCacheScope(ctx)
+	return fmt.Sprintf("users:id:scope:%s:id:%s", scope, id)
 }
 
 func NewUserUsecase(
 	userRepo repositories.UserRepository,
 	roleRepo roleRepositories.RoleRepository,
+	tenantRepo tenantRepositories.TenantRepository,
+	subscriptionRepo subscriptionFinder,
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
 	redis *redis.Client,
 ) UserUsecase {
 	return &userUsecase{
-		userRepo:       userRepo,
-		roleRepo:       roleRepo,
-		auditService:   auditService,
-		eventPublisher: eventPublisher,
-		redis:          redis,
+		userRepo:         userRepo,
+		roleRepo:         roleRepo,
+		tenantRepo:       tenantRepo,
+		subscriptionRepo: subscriptionRepo,
+		auditService:     auditService,
+		eventPublisher:   eventPublisher,
+		redis:            redis,
 	}
 }
 
 func (u *userUsecase) List(ctx context.Context, req *dto.ListUsersRequest) ([]dto.UserResponse, *utils.PaginationResult, error) {
-	// Generate cache key
-	cacheKey := fmt.Sprintf("users:list:page:%d:perPage:%d:search:%s:status:%s:roleID:%s",
-		req.Page, req.PerPage, req.Search, req.Status, req.RoleID)
+	// Generate tenant-scoped cache key to prevent cross-tenant data leakage.
+	cacheKey := userListCacheKey(ctx, req)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -131,7 +174,7 @@ func (u *userUsecase) List(ctx context.Context, req *dto.ListUsersRequest) ([]dt
 }
 
 func (u *userUsecase) GetByID(ctx context.Context, id string) (*dto.UserResponse, error) {
-	cacheKey := fmt.Sprintf("users:id:%s", id)
+	cacheKey := userByIDCacheKey(ctx, id)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -173,7 +216,57 @@ func (u *userUsecase) GetAvailable(ctx context.Context, search string, excludeEm
 	return responses, nil
 }
 
+// GetLimit resolves the active tenant's seat limit from the active subscription and the current user count.
+// System admins bypass tenant lookup and receive max=0 (unlimited).
+func (u *userUsecase) GetLimit(ctx context.Context) (*UserLimitResponse, error) {
+	current, err := u.userRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if middleware.IsSystemAdmin(ctx) {
+		return &UserLimitResponse{Current: int(current), Max: 0}, nil
+	}
+
+	tenantID := middleware.TenantFromContext(ctx)
+	max := 0
+	if u.subscriptionRepo != nil {
+		if sub, err := u.subscriptionRepo.FindActiveByTenantID(ctx, tenantID); err == nil && sub != nil {
+			max = sub.SeatLimit
+			if sub.UserCount > max {
+				max = sub.UserCount
+			}
+		}
+	}
+
+	if max <= 0 {
+		tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		max = tenant.MaxUsers
+	}
+
+	if max <= 0 {
+		max = 1
+	}
+
+	return &UserLimitResponse{Current: int(current), Max: max}, nil
+}
+
 func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*dto.UserResponse, error) {
+	// Enforce per-tenant user limit (skip for system admins).
+	// Fail-safe: if the limit cannot be determined, deny the create to prevent limit bypass.
+	if !middleware.IsSystemAdmin(ctx) {
+		limit, err := u.GetLimit(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if limit.Max > 0 && limit.Current >= limit.Max {
+			return nil, ErrUserLimitReached
+		}
+	}
+
 	// Check if role exists
 	_, err := u.roleRepo.FindByID(ctx, req.RoleID)
 	if err != nil {
@@ -301,8 +394,8 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 		return nil, err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -349,8 +442,8 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -408,8 +501,8 @@ func (u *userUsecase) UpdateProfile(ctx context.Context, id string, req *dto.Upd
 		return nil, err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -491,8 +584,8 @@ func (u *userUsecase) UpdateAvatar(ctx context.Context, id string, avatarURL str
 		return err
 	}
 
-	// Invalidate cache
-	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", id))
+	// Invalidate cache (new tenant-scoped key + legacy key for safety)
+	u.redis.Del(ctx, userByIDCacheKey(ctx, id), fmt.Sprintf("users:id:%s", id))
 
 	// Invalidate list cache
 	pattern := "users:list:*"
@@ -508,4 +601,3 @@ func (u *userUsecase) UpdateAvatar(ctx context.Context, id string, avatarURL str
 
 	return nil
 }
-

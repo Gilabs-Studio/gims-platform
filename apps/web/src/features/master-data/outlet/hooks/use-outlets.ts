@@ -53,6 +53,8 @@ export function useCreateOutlet() {
       queryClient.invalidateQueries({ queryKey: outletKeys.lists() });
       // Also invalidate warehouse list since a warehouse may have been created
       queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      // Invalidate floor layout form data so new outlets appear in the outlet selector.
+      queryClient.invalidateQueries({ queryKey: ["floor-layouts", "form-data"] });
     },
   });
 }

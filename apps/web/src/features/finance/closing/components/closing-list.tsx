@@ -16,11 +16,13 @@ import { Label } from "@/components/ui/label";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import type { FinancialClosing } from "../types";
 import { useApproveFinanceClosing, useDeleteFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
 import { ClosingForm } from "./closing-form";
 import { ClosingDetail } from "./closing-detail";
+import { ClosingWizard } from "./closing-wizard";
 
 function getInitialOpenFinancialClosingFromURL(): string | null {
   if (typeof window === "undefined") {
@@ -78,12 +80,15 @@ export function ClosingList() {
   const [pageSize, setPageSize] = useState(20);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenFinancialClosingFromURL);
+  const initialDetailId = getInitialOpenFinancialClosingFromURL();
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialDetailId));
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
   const [reopening, setReopening] = useState<FinancialClosing | null>(null);
   const [deleting, setDeleting] = useState<FinancialClosing | null>(null);
   const [yearEndOpen, setYearEndOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardClosing, setWizardClosing] = useState<FinancialClosing | undefined>();
 
   const { data, isLoading, isError } = useFinanceClosings({
     page,
@@ -99,12 +104,6 @@ export function ClosingList() {
   const reopenMutation = useReopenFinanceClosing();
   const deleteMutation = useDeleteFinanceClosing();
   const yearEndMutation = useYearEndClose();
-
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -201,10 +200,13 @@ export function ClosingList() {
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
                             className="cursor-pointer text-success focus:text-success"
-                            onClick={() => setApproving(item)}
+                            onClick={() => {
+                              setWizardClosing(item);
+                              setWizardOpen(true);
+                            }}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {t("actions.approve")}
+                            {t("actions.runWizard") || "Run Closing Wizard"}
                           </DropdownMenuItem>
                         )}
                         {canReopen && item.status === "approved" && (
@@ -268,8 +270,8 @@ export function ClosingList() {
             await approveMutation.mutateAsync(id);
             toast.success(t("toast.approved"));
             setApproving(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={approveMutation.isPending}
@@ -288,8 +290,8 @@ export function ClosingList() {
             await reopenMutation.mutateAsync(id);
             toast.success(t("toast.reopened"));
             setReopening(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={reopenMutation.isPending}
@@ -308,8 +310,8 @@ export function ClosingList() {
             await deleteMutation.mutateAsync(id);
             toast.success(t("toast.deleted"));
             setDeleting(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={deleteMutation.isPending}
@@ -323,11 +325,24 @@ export function ClosingList() {
             await yearEndMutation.mutateAsync(fiscalYear);
             toast.success(t("toast.yearEndClosed"));
             setYearEndOpen(false);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={yearEndMutation.isPending}
+      />
+
+      <ClosingWizard
+        open={wizardOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setWizardOpen(false);
+            setWizardClosing(undefined);
+          } else {
+            setWizardOpen(true);
+          }
+        }}
+        closing={wizardClosing}
       />
     </div>
   );

@@ -12,6 +12,7 @@ import (
 // CustomerBank represents a bank account associated with a customer
 type CustomerBank struct {
 	ID            string               `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CustomerID    string               `gorm:"type:uuid;not null;index" json:"customer_id"`
 	BankID        string               `gorm:"type:uuid;not null;index" json:"bank_id"`
 	Bank          *supplierModels.Bank `gorm:"foreignKey:BankID" json:"bank,omitempty"`

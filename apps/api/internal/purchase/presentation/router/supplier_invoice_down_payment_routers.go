@@ -7,17 +7,17 @@ import (
 )
 
 const (
-	supplierInvoiceDPRead       = "supplier_invoice_dp.read"
-	supplierInvoiceDPCreate     = "supplier_invoice_dp.create"
-	supplierInvoiceDPUpdate     = "supplier_invoice_dp.update"
-	supplierInvoiceDPDelete     = "supplier_invoice_dp.delete"
-	supplierInvoiceDPPending    = "supplier_invoice_dp.pending"
-	supplierInvoiceDPSubmit     = "supplier_invoice_dp.submit"
-	supplierInvoiceDPApprove    = "supplier_invoice_dp.approve"
-	supplierInvoiceDPReject     = "supplier_invoice_dp.reject"
-	supplierInvoiceDPCancel     = "supplier_invoice_dp.cancel"
-	supplierInvoiceDPExport     = "supplier_invoice_dp.export"
-	supplierInvoiceDPPrint      = "supplier_invoice_dp.print"
+	supplierInvoiceDPRead    = "supplier_invoice_dp.read"
+	supplierInvoiceDPCreate  = "supplier_invoice_dp.create"
+	supplierInvoiceDPUpdate  = "supplier_invoice_dp.update"
+	supplierInvoiceDPDelete  = "supplier_invoice_dp.delete"
+	supplierInvoiceDPPending = "supplier_invoice_dp.pending"
+	supplierInvoiceDPSubmit  = "supplier_invoice_dp.submit"
+	supplierInvoiceDPApprove = "supplier_invoice_dp.approve"
+	supplierInvoiceDPReject  = "supplier_invoice_dp.reject"
+	supplierInvoiceDPCancel  = "supplier_invoice_dp.cancel"
+	supplierInvoiceDPExport  = "supplier_invoice_dp.export"
+	supplierInvoiceDPPrint   = "supplier_invoice_dp.print"
 )
 
 func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.SupplierInvoiceDownPaymentHandler, printH *handler.SupplierInvoiceDPPrintHandler) {
@@ -36,4 +36,10 @@ func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.Sup
 	g.POST("/:id/approve", middleware.RequirePermission(supplierInvoiceDPApprove), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(supplierInvoiceDPReject), h.Reject)
 	g.POST("/:id/cancel", middleware.RequirePermission(supplierInvoiceDPCancel), h.Cancel)
+	g.PATCH("/:id/pending", middleware.RequirePermission(supplierInvoiceDPPending), h.Pending)
+	g.PATCH("/:id/post", middleware.RequirePermission(supplierInvoiceDPPending), h.Pending)
+	g.PATCH("/:id/submit", middleware.RequirePermission(supplierInvoiceDPSubmit), h.Submit)
+	g.PATCH("/:id/approve", middleware.RequirePermission(supplierInvoiceDPApprove), h.Approve)
+	g.PATCH("/:id/reject", middleware.RequirePermission(supplierInvoiceDPReject), h.Reject)
+	g.PATCH("/:id/cancel", middleware.RequirePermission(supplierInvoiceDPCancel), h.Cancel)
 }

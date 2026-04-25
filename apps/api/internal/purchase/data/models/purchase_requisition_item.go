@@ -11,6 +11,7 @@ import (
 // PurchaseRequisitionItem represents an item inside a PR
 type PurchaseRequisitionItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	PurchaseRequisitionID string               `gorm:"type:uuid;not null;index" json:"purchase_requisition_id"`
 	PurchaseRequisition   *PurchaseRequisition `gorm:"foreignKey:PurchaseRequisitionID" json:"purchase_requisition,omitempty"`

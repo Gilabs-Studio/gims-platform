@@ -1,10 +1,13 @@
 package repositories
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"gorm.io/gorm"
 )
 
@@ -37,11 +40,12 @@ type ReceivablesSummary struct {
 }
 
 type ReceivablesRecapListParams struct {
-	Search  string
-	SortBy  string
-	SortDir string
-	Limit   int
-	Offset  int
+	TenantID string
+	Search   string
+	SortBy   string
+	SortDir  string
+	Limit    int
+	Offset   int
 }
 
 type ReceivablesRecapRepository struct {
@@ -52,9 +56,10 @@ func NewReceivablesRecapRepository(db *gorm.DB) *ReceivablesRecapRepository {
 	return &ReceivablesRecapRepository{db: db}
 }
 
-// baseCTE is the core CTE used by all methods.
-// It adapts to our schema: sales_payments.customer_invoice_id / sales_payments.status
-const baseCTE = `
+// baseCTETemplate is the core CTE used by all methods.
+// It adapts to our schema: sales_payments.customer_invoice_id / sales_payments.status.
+// Tenant clauses are injected per source table to prevent cross-tenant aggregates.
+const baseCTETemplate = `
 WITH return_totals AS (
 	SELECT
 		sr.customer_id AS customer_id,
@@ -62,7 +67,7 @@ WITH return_totals AS (
 		MAX(sr.created_at) AS last_return_at
 	FROM sales_returns sr
 	WHERE sr.deleted_at IS NULL
-	  AND sr.status IN ('SUBMITTED', 'PROCESSED', 'COMPLETED')
+	  AND sr.status IN ('SUBMITTED', 'PROCESSED', 'COMPLETED')%s
 	GROUP BY sr.customer_id
 ),
 customer_receivables AS (
@@ -98,15 +103,15 @@ customer_receivables AS (
                 ELSE 0
             END,
         0) AS aging_days
-    FROM customers c
-    LEFT JOIN sales_orders so ON c.id = so.customer_id AND so.deleted_at IS NULL
+	FROM customers c
+	LEFT JOIN sales_orders so ON c.id = so.customer_id AND so.deleted_at IS NULL%s
     LEFT JOIN customer_invoices ci ON so.id = ci.sales_order_id
         AND ci.status NOT IN ('DRAFT','NOT_CREATED')
-        AND ci.deleted_at IS NULL
+		AND ci.deleted_at IS NULL%s
     LEFT JOIN sales_payments sp ON ci.id = sp.customer_invoice_id
-        AND sp.deleted_at IS NULL
+		AND sp.deleted_at IS NULL%s
 	LEFT JOIN return_totals rt ON c.id = rt.customer_id
-    WHERE c.deleted_at IS NULL
+	WHERE c.deleted_at IS NULL%s
 	GROUP BY c.id, c.name, rt.total_return
 	HAVING COALESCE(SUM(DISTINCT ci.amount), 0) > 0 OR COALESCE(rt.total_return, 0) > 0
 )
@@ -142,19 +147,45 @@ var allowedSortCols = map[string]bool{
 	"last_transaction":   true,
 }
 
-func (r *ReceivablesRecapRepository) FindAll(params ReceivablesRecapListParams) ([]ReceivablesRecapRow, int64, error) {
-	where := ""
-	var args []interface{}
+func buildReceivablesRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
+	if middleware.IsSystemAdmin(ctx) {
+		query := fmt.Sprintf(baseCTETemplate, "", "", "", "", "")
+		return query, map[string]interface{}{}, nil
+	}
 
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID == "" {
+		return "", nil, fmt.Errorf("tenant context is required")
+	}
+
+	query := fmt.Sprintf(
+		baseCTETemplate,
+		" AND sr.tenant_id = @tenantID",
+		" AND so.tenant_id = @tenantID",
+		" AND ci.tenant_id = @tenantID",
+		" AND sp.tenant_id = @tenantID",
+		" AND c.tenant_id = @tenantID",
+	)
+
+	return query, map[string]interface{}{"tenantID": tenantID}, nil
+}
+
+func (r *ReceivablesRecapRepository) FindAll(ctx context.Context, params ReceivablesRecapListParams) ([]ReceivablesRecapRow, int64, error) {
+	baseQuery, queryParams, err := buildReceivablesRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	where := ""
 	if search := strings.TrimSpace(params.Search); search != "" {
-		where = " WHERE customer_name ILIKE $1"
-		args = append(args, "%"+search+"%")
+		where = " WHERE customer_name ILIKE @search"
+		queryParams["search"] = "%" + search + "%"
 	}
 
 	// Count
-	countQ := fmt.Sprintf("SELECT COUNT(*) FROM (%s%s) AS cnt", baseCTE, where)
+	countQ := fmt.Sprintf("SELECT COUNT(*) FROM (%s%s) AS cnt", baseQuery, where)
 	var total int64
-	if err := r.db.Raw(countQ, args...).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countQ, queryParams).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -168,16 +199,23 @@ func (r *ReceivablesRecapRepository) FindAll(params ReceivablesRecapListParams) 
 		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
 	}
 
-	finalQ := fmt.Sprintf("%s%s%s LIMIT %d OFFSET %d", baseCTE, where, orderBy, params.Limit, params.Offset)
+	queryParams["limit"] = params.Limit
+	queryParams["offset"] = params.Offset
+	finalQ := fmt.Sprintf("%s%s%s LIMIT @limit OFFSET @offset", baseQuery, where, orderBy)
 
 	var rows []ReceivablesRecapRow
-	if err := r.db.Raw(finalQ, args...).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(finalQ, queryParams).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 	return rows, total, nil
 }
 
-func (r *ReceivablesRecapRepository) GetSummary() (*ReceivablesSummary, error) {
+func (r *ReceivablesRecapRepository) GetSummary(ctx context.Context) (*ReceivablesSummary, error) {
+	baseQuery, queryParams, err := buildReceivablesRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	summaryQ := fmt.Sprintf(`
 		SELECT
 			COUNT(*)                                                           AS total_customers,
@@ -191,22 +229,25 @@ func (r *ReceivablesRecapRepository) GetSummary() (*ReceivablesSummary, error) {
 			COUNT(*) FILTER (WHERE aging_days BETWEEN 91 AND 120 AND outstanding_amount > 0) AS overdue_61_90_count,
 			COUNT(*) FILTER (WHERE aging_days > 120 AND outstanding_amount > 0) AS bad_debt_count
 		FROM (%s) AS recap
-	`, baseCTE)
+	`, baseQuery)
 
 	var s ReceivablesSummary
-	if err := r.db.Raw(summaryQ).Scan(&s).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(summaryQ, queryParams).Scan(&s).Error; err != nil {
 		return nil, err
 	}
 	return &s, nil
 }
 
-func (r *ReceivablesRecapRepository) FindAllForExport(params ReceivablesRecapListParams) ([]ReceivablesRecapRow, error) {
-	where := ""
-	var args []interface{}
+func (r *ReceivablesRecapRepository) FindAllForExport(ctx context.Context, params ReceivablesRecapListParams) ([]ReceivablesRecapRow, error) {
+	baseQuery, queryParams, err := buildReceivablesRecapBaseQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	where := ""
 	if search := strings.TrimSpace(params.Search); search != "" {
-		where = " WHERE customer_name ILIKE $1"
-		args = append(args, "%"+search+"%")
+		where = " WHERE customer_name ILIKE @search"
+		queryParams["search"] = "%" + search + "%"
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
@@ -222,10 +263,11 @@ func (r *ReceivablesRecapRepository) FindAllForExport(params ReceivablesRecapLis
 	if limit <= 0 || limit > 10000 {
 		limit = 10000
 	}
-	finalQ := fmt.Sprintf("%s%s%s LIMIT %d", baseCTE, where, orderBy, limit)
+	queryParams["limit"] = limit
+	finalQ := fmt.Sprintf("%s%s%s LIMIT @limit", baseQuery, where, orderBy)
 
 	var rows []ReceivablesRecapRow
-	if err := r.db.Raw(finalQ, args...).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(finalQ, queryParams).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

@@ -1,11 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { salesPaymentsService } from "../services/sales-payments-service";
 import { customerInvoiceDPKeys } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { invoiceKeys } from "@/features/sales/invoice/hooks/use-invoices";
 import { orderKeys } from "@/features/sales/order/hooks/use-orders";
+import { getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 import type { CreateSalesPaymentInput, SalesPaymentListParams } from "../types";
 
 export const salesPaymentKeys = {
@@ -51,9 +53,13 @@ export function useCreateSalesPayment() {
     mutationFn: (data: CreateSalesPaymentInput) => salesPaymentsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create payment"));
     },
   });
 }
@@ -65,9 +71,13 @@ export function useDeleteSalesPayment() {
     mutationFn: (id: string) => salesPaymentsService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete payment"));
     },
   });
 }
@@ -80,9 +90,31 @@ export function useConfirmSalesPayment() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
       queryClient.invalidateQueries({ queryKey: salesPaymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.addData() });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to confirm payment"));
+    },
+  });
+}
+
+export function useReverseSalesPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => salesPaymentsService.reverse(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to reverse payment"));
     },
   });
 }

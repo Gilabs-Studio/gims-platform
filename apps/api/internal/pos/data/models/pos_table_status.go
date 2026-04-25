@@ -20,6 +20,7 @@ const (
 // PosTableStatusRecord tracks real-time table occupancy within an active POS session
 type PosTableStatusRecord struct {
 	ID             string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	SessionID      string         `gorm:"type:uuid;not null;index" json:"session_id"`
 	FloorPlanID    string         `gorm:"type:uuid;not null;index" json:"floor_plan_id"`
 	TableObjectID  string         `gorm:"type:varchar(100);not null;index" json:"table_object_id"`

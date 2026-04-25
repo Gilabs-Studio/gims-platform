@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -20,25 +21,21 @@ func NewStockMovementRepository(db *gorm.DB) repository.StockMovementRepository 
 }
 
 func (r *stockMovementRepository) Create(ctx context.Context, movement *models.StockMovement) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 1. Get current balance for this product + warehouse
 		var lastBalance float64
-		
+
 		var lastMovement models.StockMovement
 		err := tx.Where("warehouse_id = ? AND product_id = ?", movement.WarehouseID, movement.ProductID).
 			Order("created_at desc").
 			First(&lastMovement).Error
-			
+
 		if err == nil {
 			lastBalance = lastMovement.Balance
 		}
 
-		// 2. Calculate new balance
-		if movement.MovementType == models.MovementTypeIn || movement.MovementType == models.MovementTypeAdjust {
-			movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
-		} else {
-			movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
-		}
+		// 2. Calculate new balance using directional quantities.
+		movement.Balance = lastBalance + movement.QtyIn - movement.QtyOut
 
 		// 3. Create record
 		if err := tx.Create(movement).Error; err != nil {
@@ -53,7 +50,7 @@ func (r *stockMovementRepository) FindAll(ctx context.Context, req *dto.GetStock
 	var movements []models.StockMovement
 	var total int64
 
-	query := r.db.Model(&models.StockMovement{}).
+	query := database.GetDB(ctx, r.db).Model(&models.StockMovement{}).
 		Preload("Product").
 		Preload("Warehouse").
 		Preload("Creator").
@@ -104,17 +101,17 @@ func (r *stockMovementRepository) FindAll(ctx context.Context, req *dto.GetStock
 
 func (r *stockMovementRepository) GetLastBalance(ctx context.Context, warehouseID, productID string) (float64, error) {
 	var lastMovement models.StockMovement
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("warehouse_id = ? AND product_id = ?", warehouseID, productID).
 		Order("created_at desc").
 		First(&lastMovement).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return 0, nil
 		}
 		return 0, err
 	}
-	
+
 	return lastMovement.Balance, nil
 }

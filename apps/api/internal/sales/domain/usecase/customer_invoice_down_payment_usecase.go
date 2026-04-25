@@ -44,6 +44,7 @@ type CustomerInvoiceDownPaymentUsecase interface {
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 	TriggerJournalForInvoiceDP(ctx context.Context, invoice *models.CustomerInvoice) error
 }
@@ -120,7 +121,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 	}
 	var relatedCode *string
 	var regularInvoice models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+	if err := database.GetDB(ctx, uc.db).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
 		relatedCode = &regularInvoice.Code
 	}
 
@@ -167,7 +168,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 	}
 	var relatedCode *string
 	var regularInvoice models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
+	if err := database.GetDB(ctx, uc.db).Where("down_payment_invoice_id = ?", ci.ID).Select("code").First(&regularInvoice).Error; err == nil {
 		relatedCode = &regularInvoice.Code
 	}
 
@@ -228,7 +229,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 	}
 
 	var out *models.CustomerInvoice
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		created, createErr := uc.createDraftDownPaymentInTx(ctx, tx, req, invDate, dueDate)
 		if createErr != nil {
 			return createErr
@@ -269,7 +270,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 	}
 
 	var out *models.CustomerInvoice
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		updated, updateErr := uc.updateDraftDownPaymentInTx(ctx, tx, id, req, invDate, dueDate)
 		if updateErr != nil {
 			return updateErr
@@ -313,7 +314,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
 	var out *models.CustomerInvoice
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		var ci models.CustomerInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
 			return err
@@ -360,7 +361,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if uc.db == nil {
 		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		return uc.approveDownPaymentInTx(ctx, tx, id)
 	})
 	if err != nil {
@@ -374,6 +375,43 @@ func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.approve", id, nil)
+	return uc.mapToDetail(ctx, out), nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New(errCustomerInvoiceDPDBNil)
+	}
+	var out *models.CustomerInvoice
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+		var ci models.CustomerInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
+			return err
+		}
+		if ci.Type != models.CustomerInvoiceTypeDownPayment {
+			return ErrCustomerInvoiceNotFound
+		}
+		if ci.Status != models.CustomerInvoiceStatusDraft && ci.Status != models.CustomerInvoiceStatusSubmitted {
+			return ErrCustomerInvoiceConflict
+		}
+		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusCancelled).Error; err != nil {
+			return err
+		}
+
+		loaded, err := uc.repo.FindByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		out = loaded
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrCustomerInvoiceNotFound
+		}
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.cancel", id, map[string]interface{}{"after": out})
 	return uc.mapToDetail(ctx, out), nil
 }
 
@@ -446,6 +484,9 @@ func safeInvoiceNumber(invoiceNumber *string) string {
 func (uc *customerInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New(errCustomerInvoiceDPDBNil)
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrCustomerInvoiceNotFound
 	}
 
 	return listAuditTrailEntries(ctx, uc.db, id, "customer_invoice_dp.", page, perPage)
@@ -579,20 +620,24 @@ func (uc *customerInvoiceDownPaymentUsecase) approveDownPaymentInTx(ctx context.
 	}
 
 	previousStatus := ci.Status
+	newStatus := models.CustomerInvoiceStatusUnpaid
+
 	now := apptime.Now()
 	if err := tx.Model(&ci).Updates(map[string]interface{}{
-		"status":           models.CustomerInvoiceStatusUnpaid,
+		"status":           newStatus,
 		"approved_at":      &now,
 		"remaining_amount": ci.Amount,
 	}).Error; err != nil {
 		return err
 	}
 
-	if shouldTriggerSalesInvoiceDPJournal(previousStatus, models.CustomerInvoiceStatusUnpaid, ci.Type) {
-		txCtx := database.WithTx(ctx, tx)
-		triggerCtx := withActorContext(txCtx, nil, ci.CreatedBy)
+	ci.Status = newStatus
+	ci.RemainingAmount = ci.Amount
+
+	if shouldTriggerSalesInvoiceDPJournal(previousStatus, newStatus, ci.Type) {
+		triggerCtx := withActorContext(database.WithTx(ctx, tx), ci.CreatedBy, ci.CreatedBy)
 		if err := uc.triggerSalesInvoiceDPJournal(triggerCtx, &ci); err != nil {
-			return fmt.Errorf("failed to trigger customer invoice DP journal: %w", err)
+			return fmt.Errorf("failed to trigger customer invoice down payment journal: %w", err)
 		}
 	}
 

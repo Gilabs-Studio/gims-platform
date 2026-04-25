@@ -28,6 +28,7 @@ export interface ProductCategoryDialogProps {
   onOpenChange: (open: boolean) => void;
   editingItem: ProductCategory | null;
   onCreated?: (id: string) => void;
+  initialName?: string;
 }
 
 export function ProductCategoryDialog({
@@ -35,6 +36,7 @@ export function ProductCategoryDialog({
   onOpenChange,
   editingItem,
   onCreated,
+  initialName,
 }: ProductCategoryDialogProps) {
   const {
     form,
@@ -43,7 +45,13 @@ export function ProductCategoryDialog({
     isSubmitting,
     parentOptions,
     onSubmit,
-  } = useProductCategoryForm({ open, onOpenChange, editingItem, onCreated });
+  } = useProductCategoryForm({
+    open,
+    onOpenChange,
+    editingItem,
+    onCreated,
+    initialName,
+  });
 
   const {
     register,

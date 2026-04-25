@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 import type {
   ApiResponse,
   CreateSalesReturnInput,
+  UpdateSalesReturnInput,
   SalesReturnAuditTrailEntry,
   SalesReturn,
   SalesReturnFormData,
@@ -53,6 +54,24 @@ export const salesReturnsService = {
     };
 
     const response = await apiClient.post<ApiResponse<SalesReturn>>(BASE_PATH, payload);
+    return response.data;
+  },
+
+  async update(id: string, data: UpdateSalesReturnInput): Promise<ApiResponse<SalesReturn>> {
+    const payload: UpdateSalesReturnInput = {
+      ...data,
+      invoice_id: toOptionalString(data.invoice_id),
+      customer_id: toOptionalString(data.customer_id),
+      notes: toOptionalString(data.notes),
+      items: data.items.map((item) => ({
+        ...item,
+        invoice_item_id: toOptionalString(item.invoice_item_id),
+        uom_id: toOptionalString(item.uom_id),
+        notes: toOptionalString(item.notes),
+      })),
+    };
+
+    const response = await apiClient.put<ApiResponse<SalesReturn>>(`${BASE_PATH}/${id}`, payload);
     return response.data;
   },
 

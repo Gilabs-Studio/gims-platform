@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"gorm.io/gorm"
 )
@@ -27,7 +26,7 @@ func NewMapDataRepository(db *gorm.DB) MapDataRepository {
 }
 
 func (r *mapDataRepository) getDB(ctx context.Context) *gorm.DB {
-	return database.GetDB(ctx, r.db)
+	return r.db.WithContext(ctx)
 }
 
 // FindProvincesWithGeometry returns all active provinces with their geometry data

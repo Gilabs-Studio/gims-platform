@@ -9,8 +9,12 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
+  TrialBalanceParams,
   UpdateJournalEntryInput,
   ListCashBankSubLedgerParams,
+  AdjustmentApprovalActionInput,
+  ListJournalTemplateParams,
+  CreateJournalTemplateInput,
 } from "../types";
 
 export const financeJournalKeys = {
@@ -32,19 +36,32 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "cash-bank-subledger", params] as const,
   details: () => [...financeJournalKeys.all, "detail"] as const,
   detail: (id: string) => [...financeJournalKeys.details(), id] as const,
-  trialBalance: (params?: { start_date?: string; end_date?: string }) =>
+  trialBalance: (params?: TrialBalanceParams) =>
     [...financeJournalKeys.all, "trial-balance", params] as const,
   valuationRuns: () => [...financeJournalKeys.all, "valuation-runs"] as const,
   valuationRunList: (params?: ListValuationRunsParams) =>
     [...financeJournalKeys.valuationRuns(), "list", params] as const,
   valuationRunDetail: (id: string) =>
     [...financeJournalKeys.valuationRuns(), "detail", id] as const,
+  adjustmentApprovalHistory: (id: string) =>
+    [...financeJournalKeys.all, "adjustment-approval-history", id] as const,
+  journalTemplates: () => [...financeJournalKeys.all, "journal-templates"] as const,
+  journalTemplateList: (params?: ListJournalTemplateParams) =>
+    [...financeJournalKeys.journalTemplates(), "list", params] as const,
+  formData: () => [...financeJournalKeys.all, "form-data"] as const,
 };
 
 export function useFinanceJournals(params?: ListJournalEntriesParams) {
   return useQuery({
     queryKey: financeJournalKeys.list(params),
     queryFn: () => financeJournalsService.list(params),
+  });
+}
+
+export function useFinanceJournalFormData() {
+  return useQuery({
+    queryKey: financeJournalKeys.formData(),
+    queryFn: () => financeJournalsService.getFormData(),
   });
 }
 
@@ -237,6 +254,86 @@ export function useReverseFinanceAdjustmentJournal() {
   });
 }
 
+export function useSubmitFinanceAdjustmentApproval() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.submitAdjustmentApproval(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useApproveFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.approveAdjustment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useRejectFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.rejectAdjustment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useFinanceAdjustmentApprovalHistory(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: financeJournalKeys.adjustmentApprovalHistory(id),
+    queryFn: () => financeJournalsService.getAdjustmentApprovalHistory(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useFinanceJournalTemplates(params?: ListJournalTemplateParams) {
+  return useQuery({
+    queryKey: financeJournalKeys.journalTemplateList(params),
+    queryFn: () => financeJournalsService.listJournalTemplates(params),
+  });
+}
+
+export function useCreateFinanceJournalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateJournalTemplateInput) =>
+      financeJournalsService.createJournalTemplate(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.journalTemplates() });
+    },
+  });
+}
+
+export function useUseFinanceJournalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.useJournalTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.journalTemplates() });
+    },
+  });
+}
+
 export function useRunFinanceValuationJournal() {
   const queryClient = useQueryClient();
 
@@ -291,7 +388,7 @@ export function useValuationRunDetail(id: string) {
 }
 
 export function useTrialBalance(
-  params?: { start_date?: string; end_date?: string },
+  params?: TrialBalanceParams,
   options?: { enabled?: boolean },
 ) {
   return useQuery({

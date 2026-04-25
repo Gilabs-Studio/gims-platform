@@ -16,9 +16,36 @@ type CreateCustomerInvoiceRequest struct {
 	Items                []CreateCustomerInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
+// CustomerInvoiceJournalPreviewRequest reuses the create payload to simulate posting before submit.
+type CustomerInvoiceJournalPreviewRequest = CreateCustomerInvoiceRequest
+
+// CustomerInvoiceJournalPreviewLine represents a simulated journal line.
+type CustomerInvoiceJournalPreviewLine struct {
+	ChartOfAccountID   string  `json:"chart_of_account_id"`
+	ChartOfAccountCode string  `json:"chart_of_account_code,omitempty"`
+	ChartOfAccountName string  `json:"chart_of_account_name,omitempty"`
+	Debit              float64 `json:"debit"`
+	Credit             float64 `json:"credit"`
+	Memo               string  `json:"memo"`
+}
+
+// CustomerInvoiceJournalPreviewResponse represents the accounting preview for a customer invoice.
+type CustomerInvoiceJournalPreviewResponse struct {
+	ReferenceType string                           `json:"reference_type"`
+	ReferenceID   string                           `json:"reference_id"`
+	InvoiceDate   string                           `json:"invoice_date"`
+	InvoiceNumber string                           `json:"invoice_number,omitempty"`
+	Subtotal      float64                          `json:"subtotal"`
+	TaxAmount     float64                          `json:"tax_amount"`
+	DownPayment   float64                          `json:"down_payment"`
+	TotalAmount   float64                          `json:"total_amount"`
+	IsBalanced    bool                             `json:"is_balanced"`
+	Lines         []CustomerInvoiceJournalPreviewLine `json:"lines"`
+}
+
 // CreateCustomerInvoiceItemRequest represents an item in the invoice
 type CreateCustomerInvoiceItemRequest struct {
-	ProductID           string  `json:"product_id" binding:"required,uuid"`
+	ProductID           string  `json:"product_id" binding:"required"`
 	SalesOrderItemID    *string `json:"sales_order_item_id" binding:"omitempty,uuid"`
 	DeliveryOrderItemID *string `json:"delivery_order_item_id" binding:"omitempty,uuid"`
 	Quantity            float64 `json:"quantity" binding:"required,gt=0"`
@@ -96,6 +123,8 @@ type CustomerInvoiceResponse struct {
 	RemainingAmount        float64                       `json:"remaining_amount"`
 	Status                 string                        `json:"status"`
 	Notes                  string                        `json:"notes"`
+	IsPosted               bool                          `json:"is_posted"`
+	JournalEntryID         *string                       `json:"journal_entry_id,omitempty"`
 	PaymentAt              *string                       `json:"payment_at"`
 	CreatedBy              *string                       `json:"created_by"`
 	CancelledBy            *string                       `json:"cancelled_by"`

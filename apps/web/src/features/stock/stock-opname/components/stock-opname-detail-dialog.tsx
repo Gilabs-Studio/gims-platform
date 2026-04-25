@@ -22,6 +22,8 @@ import { StockOpnameItem, StockOpnameItemRequest, StockOpnameStatus } from "../t
 import { 
     useStockOpname, 
     useStockOpnameItems, 
+    useGenerateStockOpnameJournal,
+    useSubmitStockOpnameApproval,
     useUpdateStockOpnameStatus,
         useSaveStockOpnameItems,
         useProductStockLedgers,
@@ -71,11 +73,14 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   // Queries & Mutations
   const opnameQuery = useStockOpname(opnameId);
   const itemsQuery = useStockOpnameItems(opnameId);
+    const generateJournalMutation = useGenerateStockOpnameJournal();
+    const submitApprovalMutation = useSubmitStockOpnameApproval();
   const statusMutation = useUpdateStockOpnameStatus();
   const saveItemsMutation = useSaveStockOpnameItems();
   
   const isLoading = opnameQuery.isLoading || itemsQuery.isLoading;
   const opname = opnameQuery.data?.data;
+  const opnameNumber = opname?.opname_number ?? "";
   const items = itemsQuery.data?.data ?? [];
   const totalNegativeVariance = opname?.total_negative_variance_qty ?? 0;
   const totalPositiveVariance = opname?.total_positive_variance_qty ?? 0;
@@ -93,21 +98,11 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const totalItems = items.length;
   const totalImpact = items.reduce((sum, item) => sum + (item.variance_qty * (item.unit_cost || 0)), 0);
 
-    const [ledgerProductId, setLedgerProductId] = useState<string | null>(null);
     const [ledgerPage, setLedgerPage] = useState(1);
+    const [ledgerProductId, setLedgerProductId] = useState<string | null>(null);
+    const activeLedgerProductId = ledgerProductId ?? items[0]?.product_id ?? null;
 
-    useEffect(() => {
-        if (items.length === 0) {
-            setLedgerProductId(null);
-            return;
-        }
-
-        if (!ledgerProductId || !items.some((item) => item.product_id === ledgerProductId)) {
-            setLedgerProductId(items[0]?.product_id ?? null);
-        }
-    }, [items, ledgerProductId]);
-
-    const ledgersQuery = useProductStockLedgers(ledgerProductId, {
+    const ledgersQuery = useProductStockLedgers(activeLedgerProductId, {
         page: ledgerPage,
         limit: 10,
     });
@@ -155,6 +150,13 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const handleStatusChange = async (newStatus: StockOpnameStatus) => {
       if (!opnameId) return;
       try {
+          if (newStatus === "pending_approval") {
+              await generateJournalMutation.mutateAsync(opnameId);
+              await submitApprovalMutation.mutateAsync(opnameId);
+              toast.success(tCommon("saved"));
+              return;
+          }
+
           await statusMutation.mutateAsync({
               id: opnameId,
               data: { status: newStatus }
@@ -249,7 +251,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
         <DialogHeader className="sr-only">
-             <DialogTitle>{t("dialog.createTitle")}</DialogTitle>
+             <DialogTitle>{opnameNumber || t("dialog.createTitle")}</DialogTitle>
         </DialogHeader>
         {isLoading || !opname ? (
             <div className="p-6 space-y-4">
@@ -264,7 +266,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <DialogTitle className="text-2xl font-bold">
-                                {opname.opname_number} 
+                                {opnameNumber}
                             </DialogTitle>
                             <StockOpnameStatusBadge status={opname.status} />
                         </div>
@@ -285,7 +287,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                     <Button 
                                         size="sm" 
                                         className="cursor-pointer"
-                                        onClick={() => handleStatusChange('pending')}
+                                        onClick={() => handleStatusChange('pending_approval')}
                                     >
                                         <Send className="h-4 w-4 mr-2" />
                                         {t("actions.submit")}
@@ -293,7 +295,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                 </>
                              )}
                              
-                             {opname.status === 'pending' && canApprove && (
+                             {(opname.status === 'pending' || opname.status === 'pending_approval') && canApprove && (
                                  <>
                                      <Button 
                                         variant="outline"
@@ -319,7 +321,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                   <Button 
                                         size="sm" 
                                         className="cursor-pointer"
-                                        onClick={() => handleStatusChange('posted')}
+                                        onClick={() => handleStatusChange('completed')}
                                     >
                                         <Archive className="h-4 w-4 mr-2" />
                                         {t("actions.post")}
@@ -579,7 +581,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                         <div className="md:col-span-2 space-y-1.5">
                                             <p className="text-sm font-medium">{t("dialog.ledger.product")}</p>
                                             <Select
-                                                value={ledgerProductId ?? ""}
+                                                value={activeLedgerProductId ?? ""}
                                                 onValueChange={(value) => {
                                                     setLedgerProductId(value);
                                                     setLedgerPage(1);
@@ -682,6 +684,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                     onOpenChange={setItemDialogOpen}
                     item={editingItem}
                     onSave={handleSaveItem}
+                    warehouseId={opname.warehouse_id}
                 />
 
                 <DeleteDialog

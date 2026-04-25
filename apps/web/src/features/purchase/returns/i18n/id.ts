@@ -3,6 +3,8 @@ export const purchaseReturnsId = {
     title: "Retur Pembelian",
     subtitle: "Kelola pengembalian barang ke supplier",
     add: "Buat Retur",
+    edit: "Ubah Retur",
+    save: "Simpan",
     search: "Cari nomor retur atau alasan",
     empty: "Belum ada data retur pembelian",
     columns: {
@@ -46,6 +48,7 @@ export const purchaseReturnsId = {
     },
     actions: {
       view: "Lihat",
+      edit: "Ubah",
       submit: "Ajukan",
       approve: "Setujui",
       reject: "Tolak",

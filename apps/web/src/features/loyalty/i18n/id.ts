@@ -10,10 +10,13 @@ export const loyaltyId = {
       edit: "Edit",
       delete: "Hapus",
       toggle: "Toggle Aktif",
+      viewDetails: "Lihat Detail",
       active: "Aktif",
       inactive: "Tidak Aktif",
       global: "Global (Semua Outlet)",
       outletSpecific: "Spesifik Outlet",
+      scopeGlobal: "Global",
+      scopeOutlet: "Outlet",
       tab: {
         basic: "Dasar",
         config: "Konfigurasi",
@@ -49,8 +52,17 @@ export const loyaltyId = {
       reward: {
         id: "ID Hadiah",
         name: "Nama Hadiah",
-        pointsCost: "Poin Diperlukan",
-        description: "Deskripsi",
+        type: "Tipe",
+        typeDiscountFixed: "Diskon Tetap",
+        typeDiscountPercent: "Diskon Persen",
+        typeMerch: "Merchandise",
+        value: "Nilai (Merch = 0)",
+        valueFixed: "Nilai Diskon (Rp)",
+        valuePercent: "Diskon (%)",
+        pointsRequired: "Poin Diperlukan",
+        isActive: "Aktif",
+        merchDescription: "Deskripsi Item",
+        merchDescriptionPlaceholder: "Contoh: Kaos ukuran L",
       },
     },
 
@@ -66,6 +78,7 @@ export const loyaltyId = {
       lifetimePoints: "Poin Seumur Hidup",
       totalTransactions: "Transaksi",
       joinedAt: "Bergabung Sejak",
+      outletColumn: "Outlet Pendaftaran",
       enroll: "Daftarkan Anggota",
       enrolled: "Anggota berhasil didaftarkan",
       enrollError: "Gagal mendaftarkan anggota. Silakan coba lagi.",
@@ -114,6 +127,12 @@ export const loyaltyId = {
         expired: "Kadaluarsa",
         adjusted: "Disesuaikan",
       },
+      transactionType: {
+        pos_order: "Pesanan POS",
+        pos_payment: "Pembayaran POS",
+        sales_order: "Pesanan Penjualan",
+        manual: "Manual",
+      },
     },
 
     pos: {
@@ -140,6 +159,10 @@ export const loyaltyId = {
       redeemError: "Gagal menukar poin. Silakan coba lagi.",
       noRewards: "Tidak ada hadiah untuk program ini",
       insufficientPoints: "Poin tidak cukup untuk hadiah apapun",
+      clearSelection: "Hapus pilihan",
+      rewardTypeDiscountFixed: "Diskon",
+      rewardTypeDiscountPct: "Diskon %",
+      rewardTypeMerch: "Merch",
     },
 
     public: {

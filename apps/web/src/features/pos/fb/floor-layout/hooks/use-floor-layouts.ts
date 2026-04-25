@@ -46,6 +46,17 @@ export function useFloorLayoutFormData() {
   });
 }
 
+export function useFloorLayoutFormDataWithCompany(
+  companyId?: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [...floorLayoutKeys.formData(), companyId],
+    queryFn: () => floorLayoutService.getFormData(companyId),
+    enabled: options?.enabled !== false,
+  });
+}
+
 export function useFloorLayoutVersions(
   id: string,
   options?: { enabled?: boolean }

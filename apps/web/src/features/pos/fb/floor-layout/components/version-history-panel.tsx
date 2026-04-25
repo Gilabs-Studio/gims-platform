@@ -77,7 +77,8 @@ export function VersionHistoryPanel({
                   </p>
                   {version.published_by && (
                     <p className="text-[11px] text-muted-foreground">
-                      {t("publishedBy")}: {version.published_by}
+                      {t("publishedBy")}:{" "}
+                      {version.published_by_name || version.published_by}
                     </p>
                   )}
                 </div>

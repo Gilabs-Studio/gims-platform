@@ -8,7 +8,11 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
@@ -20,18 +24,27 @@ import type { AttendanceDrawerTab } from "@/features/hrd/attendance-records/comp
 
 interface DashboardHeaderProps {
   userName: string;
+  tenantName?: string;
+  subscriptionPlan?: string;
   avatarUrl?: string;
   fallbackAvatarUrl: string;
   onMobileMenuClick: () => void;
+  onSearchClick: () => void;
   showAttendanceIndicator?: boolean;
-  onOpenAttendanceDrawer: (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => void;
+  onOpenAttendanceDrawer: (
+    tab: AttendanceDrawerTab,
+    openCreateLeave?: boolean,
+  ) => void;
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
   userName,
+  tenantName,
+  subscriptionPlan,
   avatarUrl,
   fallbackAvatarUrl,
   onMobileMenuClick,
+  onSearchClick,
   showAttendanceIndicator = false,
   onOpenAttendanceDrawer,
 }: DashboardHeaderProps) {
@@ -41,11 +54,14 @@ export const DashboardHeader = memo(function DashboardHeader({
   const pathname = usePathname();
   const isMobile = useIsMobile();
 
-  const normalizedAvatarUrl = avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : undefined;
+  const normalizedAvatarUrl =
+    avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : undefined;
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
-  const currentSrc = avatarLoadFailed ? fallbackAvatarUrl : normalizedAvatarUrl ?? fallbackAvatarUrl;
+  const currentSrc = avatarLoadFailed
+    ? fallbackAvatarUrl
+    : (normalizedAvatarUrl ?? fallbackAvatarUrl);
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background px-4 md:rounded-tl-3xl">
@@ -55,7 +71,7 @@ export const DashboardHeader = memo(function DashboardHeader({
           size="icon"
           className="h-9 w-9 md:hidden"
           onClick={onMobileMenuClick}
-          aria-label="Open menu"
+          aria-label={t("openMenu")}
         >
           <MenuIcon className="h-5 w-5" />
         </Button>
@@ -74,6 +90,7 @@ export const DashboardHeader = memo(function DashboardHeader({
             onClick={(event) => {
               event.preventDefault();
               event.currentTarget.blur();
+              onSearchClick();
             }}
             readOnly
           />
@@ -83,9 +100,15 @@ export const DashboardHeader = memo(function DashboardHeader({
         </div>
 
         <div className="block lg:hidden">
-          <Button variant="ghost" size="icon" className="size-9" type="button">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9"
+            type="button"
+            onClick={onSearchClick}
+          >
             <Search className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only">Open search</span>
+            <span className="sr-only">{t("openSearch")}</span>
           </Button>
         </div>
       </div>
@@ -95,7 +118,11 @@ export const DashboardHeader = memo(function DashboardHeader({
         <NotificationBadge />
         <ThemeToggle />
 
-        <Link href={pathname || "/dashboard"} locale={locale === "en" ? "id" : "en"} scroll={false}>
+        <Link
+          href={pathname || "/dashboard"}
+          locale={locale === "en" ? "id" : "en"}
+          scroll={false}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -134,9 +161,16 @@ export const DashboardHeader = memo(function DashboardHeader({
                     <motion.div
                       className="absolute -inset-1 rounded-full border-2 border-amber-500/60"
                       initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: [0.4, 0.8, 0.4], scale: [1, 1.15, 1] }}
+                      animate={{
+                        opacity: [0.4, 0.8, 0.4],
+                        scale: [1, 1.15, 1],
+                      }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     />
                   )}
                 </AnimatePresence>
@@ -146,6 +180,14 @@ export const DashboardHeader = memo(function DashboardHeader({
           <PopoverContent className="w-56 p-2" align="end">
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
               <div className="text-sm font-medium text-foreground">{userName}</div>
+              {tenantName && (
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">{tenantName}</div>
+              )}
+              {subscriptionPlan && (
+                <div className="mt-1 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-primary">
+                  {subscriptionPlan.replace(/_/g, " ")}
+                </div>
+              )}
             </div>
             <Separator className="my-1" />
             <div className="flex flex-col gap-1">
@@ -162,11 +204,12 @@ export const DashboardHeader = memo(function DashboardHeader({
               </button>
               <Link
                 href="/profile"
+                locale={locale}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
                 onClick={() => setUserPopoverOpen(false)}
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                {t("settings")}
               </Link>
               <button
                 type="button"
@@ -176,14 +219,17 @@ export const DashboardHeader = memo(function DashboardHeader({
                 }}
                 className="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
-                Logout
+                {t("logout")}
               </button>
             </div>
           </PopoverContent>
         </Popover>
       </div>
 
-      <ActivityFeedDialog open={activityFeedOpen} onOpenChange={setActivityFeedOpen} />
+      <ActivityFeedDialog
+        open={activityFeedOpen}
+        onOpenChange={setActivityFeedOpen}
+      />
     </header>
   );
 });

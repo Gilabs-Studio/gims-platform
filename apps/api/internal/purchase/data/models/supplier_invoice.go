@@ -4,6 +4,8 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	"github.com/google/uuid"
@@ -34,11 +36,17 @@ const (
 
 type SupplierInvoice struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Type SupplierInvoiceType `gorm:"type:varchar(20);not null;index" json:"type"`
 
 	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
+
+	CompanyID *string              `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company   *orgModels.Company   `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID *string                 `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	FiscalYear   *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 
 	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
 	Supplier             *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
@@ -73,6 +81,8 @@ type SupplierInvoice struct {
 	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
 	Status      SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	IsPosted    bool                  `gorm:"default:false;index" json:"is_posted"`
+	JournalEntryID *string            `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
 	PaymentAt   *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
 	SubmittedAt *time.Time            `gorm:"type:timestamp" json:"submitted_at,omitempty"`
 	ApprovedAt  *time.Time            `gorm:"type:timestamp" json:"approved_at,omitempty"`

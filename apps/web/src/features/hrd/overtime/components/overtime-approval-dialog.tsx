@@ -59,12 +59,16 @@ export function OvertimeApprovalDialog({
       // Set default approved minutes to planned_minutes (or actual_minutes if planned is 0)
       const defaultMinutes =
         item.planned_minutes > 0 ? item.planned_minutes : item.actual_minutes;
-      setApprovedMinutes(defaultMinutes);
-      setRejectionReason("");
+      queueMicrotask(() => {
+        setApprovedMinutes(defaultMinutes);
+        setRejectionReason("");
+      });
     } else if (!open) {
       // Clear state when dialog closes
-      setApprovedMinutes(0);
-      setRejectionReason("");
+      queueMicrotask(() => {
+        setApprovedMinutes(0);
+        setRejectionReason("");
+      });
     }
   }, [open, item]);
 
@@ -77,8 +81,10 @@ export function OvertimeApprovalDialog({
       });
       toast.success(t("messages.approveSuccess"));
       // Reset state after successful action
-      setApprovedMinutes(0);
-      setRejectionReason("");
+      queueMicrotask(() => {
+        setApprovedMinutes(0);
+        setRejectionReason("");
+      });
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -99,8 +105,10 @@ export function OvertimeApprovalDialog({
       });
       toast.success(t("messages.rejectSuccess"));
       // Reset state after successful action
-      setApprovedMinutes(0);
-      setRejectionReason("");
+      queueMicrotask(() => {
+        setApprovedMinutes(0);
+        setRejectionReason("");
+      });
       onOpenChange(false);
       onSuccess?.();
     } catch {

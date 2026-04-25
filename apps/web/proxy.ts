@@ -27,6 +27,27 @@ export function proxy(request: NextRequest) {
     ? pathSegments[0] 
     : "en";
 
+  // Normalize public auth routes to locale-prefixed paths.
+  // This keeps links like /register/success?token=... working in Next.js proxy mode
+  // without requiring middleware.ts locale rewriting.
+  const hasLocalePrefix = pathSegments[0] === "en" || pathSegments[0] === "id";
+  const isLegacySettingsPath = pathname === "/settings";
+  const isLocaleAgnosticAuthPath =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/register/success" ||
+    pathname === "/profile" ||
+    isLegacySettingsPath;
+  if (!hasLocalePrefix && isLocaleAgnosticAuthPath) {
+    const normalizedPath = isLegacySettingsPath ? "/profile" : pathname;
+    const targetURL = new URL(`/${locale}${normalizedPath}`, request.url);
+    targetURL.search = request.nextUrl.search;
+    if (isLegacySettingsPath && !targetURL.searchParams.has("tab")) {
+      targetURL.searchParams.set("tab", "billing");
+    }
+    return NextResponse.redirect(targetURL);
+  }
+
   // If accessing root and cookie exists, redirect to dashboard
   // NOTE: Client-side AuthGuard will verify the session and redirect to login if invalid
   if (pathname === "/" && accessToken) {

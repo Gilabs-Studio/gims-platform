@@ -37,6 +37,7 @@ const (
 // CustomerInvoice represents a customer invoice document
 type CustomerInvoice struct {
 	ID            string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code          string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	InvoiceNumber *string             `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
 	Type          CustomerInvoiceType `gorm:"type:varchar(20);default:'regular'" json:"type"`
@@ -73,6 +74,10 @@ type CustomerInvoice struct {
 	// Status and workflow
 	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
 	Notes  string                `gorm:"type:text" json:"notes"`
+	IsPosted bool                `gorm:"default:false;index" json:"is_posted"`
+
+	// Accounting linkage
+	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
 
 	// Payment timestamp
 	PaymentAt *time.Time `json:"payment_at"`
@@ -115,6 +120,7 @@ func (ci *CustomerInvoice) BeforeCreate(tx *gorm.DB) error {
 // CustomerInvoiceItem represents an item in a customer invoice
 type CustomerInvoiceItem struct {
 	ID                string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID          string           `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	CustomerInvoiceID string           `gorm:"type:uuid;not null;index" json:"customer_invoice_id"`
 	CustomerInvoice   *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"customer_invoice,omitempty"`
 

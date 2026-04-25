@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"gorm.io/gorm"
@@ -23,7 +25,7 @@ func (r *recruitmentRequestRepositoryImpl) Create(ctx context.Context, req *mode
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Create(req).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Create(req).Error; err != nil {
 		return fmt.Errorf("failed to create recruitment request: %w", err)
 	}
 	return nil
@@ -34,7 +36,7 @@ func (r *recruitmentRequestRepositoryImpl) FindByID(ctx context.Context, id stri
 	defer cancel()
 
 	var req models.RecruitmentRequest
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&req).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&req).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -47,7 +49,7 @@ func (r *recruitmentRequestRepositoryImpl) Update(ctx context.Context, req *mode
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := r.db.WithContext(ctx).Save(req).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Save(req).Error; err != nil {
 		return fmt.Errorf("failed to update recruitment request: %w", err)
 	}
 	return nil
@@ -57,7 +59,7 @@ func (r *recruitmentRequestRepositoryImpl) Delete(ctx context.Context, id string
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.RecruitmentRequest{})
+	result := database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.RecruitmentRequest{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete recruitment request: %w", result.Error)
 	}
@@ -74,6 +76,8 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 	var requests []models.RecruitmentRequest
 	var total int64
 
+	// Use WithContext (not GetDB) because a conditional JOIN on employees is added when
+	// searching — both tables have tenant_id and GetDB's unqualified WHERE causes PG ambiguity.
 	query := r.db.WithContext(ctx).Model(&models.RecruitmentRequest{})
 
 	// Apply filters
@@ -135,7 +139,7 @@ func (r *recruitmentRequestRepositoryImpl) GenerateRequestCode(ctx context.Conte
 	prefix := fmt.Sprintf("RR-%s", now.Format("200601"))
 
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Model(&models.RecruitmentRequest{}).
 		Where("request_code LIKE ?", prefix+"%").
 		Count(&count).Error; err != nil {

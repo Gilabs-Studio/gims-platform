@@ -34,11 +34,12 @@ func ToMenuResponse(m *models.Menu) *dto.MenuResponse {
 		Name:     m.Name,
 		Icon:     m.Icon,
 		URL:      m.URL,
+		Access:   m.Access,
 		ParentID: m.ParentID,
 		Order:    m.Order,
 		Status:   m.Status,
 	}
-	
+
 	// Include parent info
 	if m.Parent != nil {
 		resp.Parent = &dto.MenuResponse{
@@ -46,12 +47,13 @@ func ToMenuResponse(m *models.Menu) *dto.MenuResponse {
 			Name:     m.Parent.Name,
 			Icon:     m.Parent.Icon,
 			URL:      m.Parent.URL,
+			Access:   m.Parent.Access,
 			ParentID: m.Parent.ParentID,
 			Order:    m.Parent.Order,
 			Status:   m.Parent.Status,
 		}
 	}
-	
+
 	// Include children
 	if len(m.Children) > 0 {
 		resp.Children = make([]dto.MenuResponse, len(m.Children))
@@ -70,7 +72,7 @@ func ToMenuCategoryResponse(m *models.Menu) *dto.MenuCategoryResponse {
 		Icon:  m.Icon,
 		Order: m.Order,
 	}
-	
+
 	if len(m.Children) > 0 {
 		resp.Children = make([]dto.MenuCategoryResponse, len(m.Children))
 		for i, child := range m.Children {

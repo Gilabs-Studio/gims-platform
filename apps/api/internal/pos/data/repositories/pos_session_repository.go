@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"time"
@@ -39,7 +40,7 @@ func NewPosSessionRepository(db *gorm.DB) PosSessionRepository {
 }
 
 func (r *posSessionRepository) getDB(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx)
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *posSessionRepository) Create(ctx context.Context, session *models.PosSession) error {

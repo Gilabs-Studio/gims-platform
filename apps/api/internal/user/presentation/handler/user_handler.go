@@ -1,6 +1,8 @@
 package handler
 
 import (
+	stderrors "errors"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -146,7 +148,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 	createdUser, err := h.userUC.Create(c.Request.Context(), &req)
 	if err != nil {
-		if err == usecase.ErrUserAlreadyExists {
+		if stderrors.Is(err, usecase.ErrUserAlreadyExists) {
 			errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
 				"resource": "user",
 				"field":    "email",
@@ -154,10 +156,16 @@ func (h *UserHandler) Create(c *gin.Context) {
 			}, nil)
 			return
 		}
-		if err == usecase.ErrRoleNotFound {
+		if stderrors.Is(err, usecase.ErrRoleNotFound) {
 			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
 				"resource": "role",
 				"role_id":  req.RoleID,
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrUserLimitReached) {
+			errors.ErrorResponse(c, "USER_LIMIT_REACHED", map[string]interface{}{
+				"reason": "user limit for this tenant has been reached; upgrade your plan to add more users",
 			}, nil)
 			return
 		}
@@ -204,20 +212,20 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	updatedUser, err := h.userUC.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		if err == usecase.ErrUserNotFound {
+		if stderrors.Is(err, usecase.ErrUserNotFound) {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
 				"user_id": id,
 			}, nil)
 			return
 		}
-		if err == usecase.ErrUserAlreadyExists {
+		if stderrors.Is(err, usecase.ErrUserAlreadyExists) {
 			errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
 				"resource": "user",
 				"field":    "email",
 			}, nil)
 			return
 		}
-		if err == usecase.ErrRoleNotFound {
+		if stderrors.Is(err, usecase.ErrRoleNotFound) {
 			errors.ErrorResponse(c, "NOT_FOUND", map[string]interface{}{
 				"resource": "role",
 			}, nil)
@@ -480,3 +488,13 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}, meta)
 }
 
+// GetLimit returns the current user count and the maximum allowed for the active tenant.
+func (h *UserHandler) GetLimit(c *gin.Context) {
+	limit, err := h.userUC.GetLimit(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, limit, nil)
+}

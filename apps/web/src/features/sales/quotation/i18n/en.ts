@@ -161,6 +161,7 @@ export const quotationEn = {
       otherCostMin: "Other cost cannot be negative",
       discountAmountMin: "Discount amount cannot be negative",
       itemsMin: "At least one item is required",
+      validUntilBeforeQuotationDate: "Valid until date must not be earlier than quotation date",
       invalidStatus: "Invalid status",
       invalidEmail: "Invalid email format",
     },

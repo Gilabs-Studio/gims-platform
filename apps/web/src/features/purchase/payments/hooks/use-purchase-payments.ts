@@ -6,7 +6,7 @@ import { purchasePaymentsService } from "../services/purchase-payments-service";
 import { supplierInvoiceKeys } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 import { supplierInvoiceDPKeys } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { purchaseOrderKeys } from "@/features/purchase/orders/hooks/use-purchase-orders";
-import type { CreatePurchasePaymentInput, PurchasePaymentListParams } from "../types";
+import type { CreatePurchasePaymentInput, UpdatePurchasePaymentInput, PurchasePaymentListParams } from "../types";
 
 export const purchasePaymentKeys = {
   all: ["purchase-payments"] as const,
@@ -55,6 +55,22 @@ export function useCreatePurchasePayment() {
     mutationFn: (data: CreatePurchasePaymentInput) => purchasePaymentsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
+    },
+  });
+}
+
+export function useUpdatePurchasePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdatePurchasePaymentInput }) =>
+      purchasePaymentsService.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchasePaymentKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.all });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });

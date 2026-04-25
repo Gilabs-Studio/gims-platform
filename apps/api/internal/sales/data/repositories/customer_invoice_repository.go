@@ -74,20 +74,34 @@ func (r *customerInvoiceRepository) FindByCode(ctx context.Context, code string)
 func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCustomerInvoicesRequest) ([]models.CustomerInvoice, int64, error) {
 	var invoices []models.CustomerInvoice
 	var total int64
-
-	query := r.getDB(ctx).Model(&models.CustomerInvoice{})
-
-	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	var query *gorm.DB
 
 	// Apply search filter
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
-		query = query.
+		query = r.db.WithContext(ctx).Model(&models.CustomerInvoice{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		
+		// Apply tenant filter manually since we are using joins
+		var err error
+		query, err = applyTenantFilter(ctx, query, "customer_invoices.tenant_id", "sales_orders.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
+
 		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR customer_invoices.invoice_number ILIKE ? OR customer_invoices.code ILIKE ? OR customer_invoices.notes ILIKE ?", search, search, search, search, search)
+	} else {
+		query = r.db.WithContext(ctx).Model(&models.CustomerInvoice{})
+		var err error
+		query, err = applyTenantFilter(ctx, query, "customer_invoices.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 	}
+
+	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply status filter
 	if req.Status != "" {

@@ -222,6 +222,37 @@ func (h *SalesPaymentHandler) Confirm(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Reverse handles POST /sales/payments/:id/reverse
+func (h *SalesPaymentHandler) Reverse(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reverse(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSalesPaymentNotFound {
+			errors.NotFoundResponse(c, "sales_payment", id)
+			return
+		}
+		if err == usecase.ErrSalesPaymentConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err.Error() == "user not authenticated" {
+			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /sales/payments/:id/audit-trail
 func (h *SalesPaymentHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

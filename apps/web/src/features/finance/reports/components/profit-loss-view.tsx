@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronRight, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -36,13 +36,10 @@ export function ProfitLossView() {
   });
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const dateRange = useMemo(
-    () => ({
-      start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
-      end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
-    }),
-    [pickerRange, now]
-  );
+  const dateRange = {
+    start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
+    end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
+  };
 
   const { data, isLoading, isError } = useProfitAndLoss(dateRange);
   const report = data?.data;
@@ -66,32 +63,30 @@ export function ProfitLossView() {
       start_date: dateRange.start_date,
       end_date: dateRange.end_date,
     });
-    window.location.href = `/finance/reports/general-ledger?${params.toString()}`;
+    window.location.assign(`/finance/reports/general-ledger?${params.toString()}`);
   };
 
-  const flattenRows = (rows: PLReportRow[], parentVisible = true): Array<{ row: PLReportRow; hasChildren: boolean; visible: boolean }> => {
-    const out: Array<{ row: PLReportRow; hasChildren: boolean; visible: boolean }> = [];
-    for (const row of rows) {
+  const flattenRows = (
+    rows: PLReportRow[],
+    parentVisible = true,
+  ): Array<{ row: PLReportRow; hasChildren: boolean; visible: boolean }> =>
+    rows.reduce<Array<{ row: PLReportRow; hasChildren: boolean; visible: boolean }>>((accumulator, row) => {
       const children = row.children ?? [];
       const hasChildren = children.length > 0;
       const rowVisible = parentVisible;
-      out.push({ row, hasChildren, visible: rowVisible });
       const isOpen = row.account_id ? expanded[row.account_id] ?? true : true;
       const childVisible = rowVisible && (!hasChildren || isOpen);
-      out.push(...flattenRows(children, childVisible));
-    }
-    return out;
-  };
 
-  const revenueRows = useMemo(() => flattenRows(report?.revenues ?? []), [report?.revenues, expanded]);
-  const cogsRows = useMemo(() => flattenRows(report?.cogs ?? []), [report?.cogs, expanded]);
-  const expenseRows = useMemo(() => flattenRows(report?.expenses ?? []), [report?.expenses, expanded]);
+      accumulator.push({ row, hasChildren, visible: rowVisible });
+      accumulator.push(...flattenRows(children, childVisible));
+      return accumulator;
+    }, []);
+
+  const revenueRows = flattenRows(report?.revenues ?? []);
+  const cogsRows = flattenRows(report?.cogs ?? []);
+  const expenseRows = flattenRows(report?.expenses ?? []);
 
   const netProfit = report?.net_profit ?? 0;
-
-  const prevNetProfit = report?.previous_period?.net_profit;
-  const netProfitDelta = prevNetProfit !== undefined ? netProfit - prevNetProfit : undefined;
-  const netProfitDeltaPct = prevNetProfit !== undefined && prevNetProfit !== 0 ? (netProfitDelta! / Math.abs(prevNetProfit)) * 100 : undefined;
 
   const handleExport = async () => {
     try {
@@ -132,7 +127,7 @@ export function ProfitLossView() {
 
       {/* Summary metrics */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-        {metrics.map(({ label, value, Icon, desc, valueClass }, i) => (
+        {metrics.map(({ label, value, Icon, desc, valueClass }) => (
           <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-primary/10 rounded-full text-primary">
@@ -150,8 +145,8 @@ export function ProfitLossView() {
 
       {isLoading && (
         <div className="space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-8 w-full" />
           ))}
         </div>
       )}

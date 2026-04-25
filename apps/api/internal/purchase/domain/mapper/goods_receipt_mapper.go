@@ -32,6 +32,8 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 	resp := &dto.GoodsReceiptListResponse{
 		ID:                 gr.ID,
 		Code:               gr.Code,
+		CompanyID:          gr.CompanyID,
+		FiscalYearID:       gr.FiscalYearID,
 		ReceiptDate:        receiptDate,
 		WarehouseID:        gr.WarehouseID,
 		Notes:              gr.Notes,
@@ -85,6 +87,8 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	resp := &dto.GoodsReceiptDetailResponse{
 		ID:            gr.ID,
 		Code:          gr.Code,
+		CompanyID:     gr.CompanyID,
+		FiscalYearID:  gr.FiscalYearID,
 		ReceiptDate:   receiptDate,
 		WarehouseID:   gr.WarehouseID,
 		Notes:         gr.Notes,

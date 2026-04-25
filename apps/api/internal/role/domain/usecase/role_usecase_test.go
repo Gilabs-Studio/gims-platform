@@ -92,7 +92,7 @@ func TestRoleUsecase_GetByID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewRoleUsecase(tt.fields.roleRepo, tt.fields.eventPublisher, tt.fields.redis, nil)
+			u := usecase.NewRoleUsecase(tt.fields.roleRepo, tt.fields.eventPublisher, tt.fields.redis, nil, nil, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)
@@ -180,7 +180,7 @@ func TestRoleUsecase_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewRoleUsecase(tt.fields.roleRepo, tt.fields.eventPublisher, tt.fields.redis, nil)
+			u := usecase.NewRoleUsecase(tt.fields.roleRepo, tt.fields.eventPublisher, tt.fields.redis, nil, nil, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

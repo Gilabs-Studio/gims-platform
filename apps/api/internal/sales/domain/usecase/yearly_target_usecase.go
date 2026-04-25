@@ -160,6 +160,10 @@ func (u *yearlyTargetUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (u *yearlyTargetUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesTargetAuditTrailEntry, int64, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.YearlyTarget{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, 0, ErrYearlyTargetNotFound
+	}
+
 	if page < 1 {
 		page = 1
 	}

@@ -28,6 +28,9 @@ type SupplierInvoicePaymentTermsMini struct {
 type SupplierInvoiceListResponse struct {
 	ID string `json:"id"`
 
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
+
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`
 	PaymentTerms  *SupplierInvoicePaymentTermsMini  `json:"payment_terms,omitempty"`
@@ -52,6 +55,8 @@ type SupplierInvoiceListResponse struct {
 	DownPaymentAmount float64 `json:"down_payment_amount"`
 
 	DownPaymentInvoice *SupplierInvoiceAddDownPaymentMini `json:"down_payment_invoice,omitempty"`
+	IsPosted           bool                               `json:"is_posted"`
+	JournalEntryID     *string                            `json:"journal_entry_id,omitempty"`
 
 	Status string  `json:"status"`
 	Notes  *string `json:"notes"`
@@ -80,6 +85,9 @@ type SupplierInvoiceItemResponse struct {
 type SupplierInvoiceDetailResponse struct {
 	ID string `json:"id"`
 
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
+
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 	GoodsReceipt  *SupplierInvoiceGoodsReceiptMini  `json:"goods_receipt,omitempty"`
 	PaymentTerms  *SupplierInvoicePaymentTermsMini  `json:"payment_terms,omitempty"`
@@ -104,6 +112,8 @@ type SupplierInvoiceDetailResponse struct {
 	DownPaymentAmount float64 `json:"down_payment_amount"`
 
 	DownPaymentInvoice *SupplierInvoiceAddDownPaymentMini `json:"down_payment_invoice,omitempty"`
+	IsPosted           bool                               `json:"is_posted"`
+	JournalEntryID     *string                            `json:"journal_entry_id,omitempty"`
 
 	Status string  `json:"status"`
 	Notes  *string `json:"notes"`
@@ -150,6 +160,44 @@ type UpdateSupplierInvoiceRequest struct {
 	Items          []CreateSupplierInvoiceItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
+// SupplierInvoiceJournalPreviewRequest reuses create payload for simulation.
+type SupplierInvoiceJournalPreviewRequest = CreateSupplierInvoiceRequest
+
+type SupplierInvoiceThreeWayMatchingLine struct {
+	ProductID             string  `json:"product_id"`
+	ProductCode           string  `json:"product_code,omitempty"`
+	ProductName           string  `json:"product_name,omitempty"`
+	QuantityPO            float64 `json:"quantity_po"`
+	QuantityGR            float64 `json:"quantity_gr"`
+	QuantityAlreadyBilled float64 `json:"quantity_already_billed"`
+	QuantityBill          float64 `json:"quantity_bill"`
+	QuantityRemaining     float64 `json:"quantity_remaining"`
+	IsValid               bool    `json:"is_valid"`
+}
+
+type SupplierInvoiceJournalPreviewLine struct {
+	ChartOfAccountID   string  `json:"chart_of_account_id"`
+	ChartOfAccountCode string  `json:"chart_of_account_code,omitempty"`
+	ChartOfAccountName string  `json:"chart_of_account_name,omitempty"`
+	Debit              float64 `json:"debit"`
+	Credit             float64 `json:"credit"`
+	Memo               string  `json:"memo"`
+}
+
+type SupplierInvoiceJournalPreviewResponse struct {
+	ReferenceType      string                               `json:"reference_type"`
+	ReferenceID        string                               `json:"reference_id"`
+	InvoiceDate        string                               `json:"invoice_date"`
+	InvoiceNumber      string                               `json:"invoice_number,omitempty"`
+	Subtotal           float64                              `json:"subtotal"`
+	TaxAmount          float64                              `json:"tax_amount"`
+	DownPayment        float64                              `json:"down_payment"`
+	TotalAmount        float64                              `json:"total_amount"`
+	IsBalanced         bool                                 `json:"is_balanced"`
+	ThreeWayMatching   []SupplierInvoiceThreeWayMatchingLine `json:"three_way_matching"`
+	Lines              []SupplierInvoiceJournalPreviewLine  `json:"lines"`
+}
+
 // Add data DTOs
 
 type SupplierInvoiceAddPaymentTerms struct {
@@ -168,6 +216,7 @@ type SupplierInvoiceAddGoodsReceiptItem struct {
 	ID                  string                         `json:"id"`
 	PurchaseOrderItemID string                         `json:"purchase_order_item_id"`
 	Product             *SupplierInvoiceAddProductMini `json:"product,omitempty"`
+	QuantityPO          float64                        `json:"quantity_po"`
 	QuantityReceived    float64                        `json:"quantity_received"`
 	QuantityInvoiced    float64                        `json:"quantity_invoiced"`
 	QuantityRemaining   float64                        `json:"quantity_remaining"`

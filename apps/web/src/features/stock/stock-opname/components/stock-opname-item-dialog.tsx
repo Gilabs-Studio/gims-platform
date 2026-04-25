@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,10 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { StockOpnameItem, StockOpnameItemRequest } from "../types";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useProductStockLevel } from "../hooks/use-stock-opnames";
 import {
     Command,
     CommandEmpty,
-    CommandGroup,
     CommandInput,
     CommandItem,
     CommandList,
@@ -43,16 +43,18 @@ const itemSchema = z.object({
     notes: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof itemSchema>;
+type FormInput = z.input<typeof itemSchema>;
+type FormOutput = z.output<typeof itemSchema>;
 
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     item?: StockOpnameItem | null; // If provided, edit mode
     onSave: (item: StockOpnameItemRequest & { id?: string }) => void;
+    warehouseId: string;
 }
 
-export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Props) {
+export function StockOpnameItemDialog({ open, onOpenChange, item, onSave, warehouseId }: Props) {
     const t = useTranslations("stock_opname");
     const tCommon = useTranslations("common");
     
@@ -60,6 +62,7 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
     const [productOpen, setProductOpen] = useState(false);
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     
     // Fetch products
     const { data: productsData, isLoading: isLoadingProducts } = useProducts({
@@ -69,15 +72,20 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
     });
     const products = productsData?.data ?? [];
 
+    // Fetch current stock level for selected product in this warehouse (add mode only)
+    const { data: stockLevelData, isFetching: isFetchingStock } = useProductStockLevel(
+        !item ? selectedProductId : null,
+        !item ? warehouseId : null,
+    );
+
     const {
         control,
         handleSubmit,
         reset,
         setValue,
-        watch,
         formState: { errors }
-    } = useForm<FormValues>({
-        resolver: zodResolver(itemSchema) as any,
+    } = useForm<FormInput, unknown, FormOutput>({
+        resolver: zodResolver(itemSchema),
         defaultValues: {
             product_id: "",
             system_qty: 0,
@@ -85,12 +93,12 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
             notes: "",
         },
     });
-
-    const selectedProductId = watch("product_id");
+    const systemQty = useWatch({ control, name: "system_qty" });
 
     useEffect(() => {
         if (open) {
             if (item) {
+                queueMicrotask(() => setSelectedProductId(null));
                 reset({
                     product_id: item.product_id,
                     system_qty: item.system_qty,
@@ -100,6 +108,7 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
                 // We might need to fetch the specific product details if not in list, 
                 // but for now we rely on search or pre-loaded data if we add product fetching by ID logic later.
             } else {
+                queueMicrotask(() => setSelectedProductId(null));
                 reset({
                     product_id: "",
                     system_qty: 0,
@@ -110,7 +119,15 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
         }
     }, [open, item, reset]);
 
-    const onSubmit = (data: FormValues) => {
+    // Auto-populate system_qty when stock level data is fetched
+    useEffect(() => {
+        if (!item && stockLevelData) {
+            const onHand = stockLevelData.data.data[0]?.on_hand ?? 0;
+            setValue("system_qty", onHand);
+        }
+    }, [stockLevelData, item, setValue]);
+
+    const onSubmit = (data: FormOutput) => {
         onSave({
             ...data,
             id: item?.id
@@ -158,13 +175,13 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
                                                 {isLoadingProducts && <CommandEmpty>Loading...</CommandEmpty>}
                                                 {!isLoadingProducts && products.length === 0 && <CommandEmpty>No product found.</CommandEmpty>}
                                                 {products.map((product) => (
-                                                    <CommandItem
+                                                     <CommandItem
                                                         key={product.id}
                                                         value={product.id}
                                                         onSelect={(currentValue) => {
                                                             setValue("product_id", currentValue);
-                                                            // For new items, we might want to default system qty? 
-                                                            // Currently backend determines usage/stock, but here we allow manual entry.
+                                                            setSelectedProductId(currentValue);
+                                                            setValue("system_qty", 0); // reset until fetch completes
                                                             setProductOpen(false);
                                                         }}
                                                         className="cursor-pointer"
@@ -201,12 +218,20 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
                                     <Input 
                                         type="number" 
                                         {...field} 
-                                        disabled // System Qty should typically be readonly or from backend
-                                        className="bg-muted"
+                                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : 0}
+                                        disabled // System Qty is readonly — auto-populated from inventory
+                                        className={cn("bg-muted", isFetchingStock && "opacity-50")}
                                     />
                                 )}
                             />
                             {errors.system_qty && <FieldError>{errors.system_qty.message}</FieldError>}
+                            {!item && selectedProductId && (
+                                isFetchingStock
+                                    ? <p className="text-xs text-muted-foreground mt-1">{t("form.systemQtyFetching")}</p>
+                                    : systemQty === 0
+                                        ? <p className="text-xs text-amber-500 mt-1">{t("form.systemQtyNoStock")}</p>
+                                        : null
+                            )}
                         </Field>
 
                         <Field>
@@ -215,7 +240,11 @@ export function StockOpnameItemDialog({ open, onOpenChange, item, onSave }: Prop
                                 control={control}
                                 name="physical_qty"
                                 render={({ field }) => (
-                                    <Input type="number" {...field} />
+                                    <Input
+                                        type="number"
+                                        {...field}
+                                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : 0}
+                                    />
                                 )}
                             />
                             {errors.physical_qty && <FieldError>{errors.physical_qty.message}</FieldError>}

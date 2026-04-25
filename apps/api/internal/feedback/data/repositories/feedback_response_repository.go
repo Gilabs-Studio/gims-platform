@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/feedback/data/models"
@@ -14,6 +15,7 @@ type FeedbackResponseFilter struct {
 	FormID    string
 	StartDate string // YYYY-MM-DD
 	EndDate   string // YYYY-MM-DD
+	Search    string
 	Page      int
 	PerPage   int
 }
@@ -35,7 +37,7 @@ func NewFeedbackResponseRepository(db *gorm.DB) FeedbackResponseRepository {
 
 func (r *feedbackResponseRepository) FindByID(ctx context.Context, id string) (*models.FeedbackResponse, error) {
 	var resp models.FeedbackResponse
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Preload("Form").
 		Preload("Token").
 		Where("id = ?", id).First(&resp).Error; err != nil {
@@ -45,7 +47,7 @@ func (r *feedbackResponseRepository) FindByID(ctx context.Context, id string) (*
 }
 
 func (r *feedbackResponseRepository) Create(ctx context.Context, resp *models.FeedbackResponse) error {
-	return r.db.WithContext(ctx).Create(resp).Error
+	return database.GetDB(ctx, r.db).Create(resp).Error
 }
 
 func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackResponseFilter) ([]models.FeedbackResponse, int64, error) {
@@ -60,7 +62,7 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 	}
 	offset := (f.Page - 1) * f.PerPage
 
-	q := r.db.WithContext(ctx).Model(&models.FeedbackResponse{})
+	q := database.GetDB(ctx, r.db).Model(&models.FeedbackResponse{})
 
 	if len(f.OutletIDs) > 0 {
 		q = q.Where("outlet_id IN ?", f.OutletIDs)
@@ -69,6 +71,9 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 	}
 	if f.FormID != "" {
 		q = q.Where("form_id = ?", f.FormID)
+	}
+	if f.Search != "" {
+		q = q.Where("customer_name ILIKE ?", "%"+f.Search+"%")
 	}
 	if f.StartDate != "" {
 		q = q.Where("submitted_at >= ?", f.StartDate+" 00:00:00")
@@ -91,7 +96,7 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 
 func (r *feedbackResponseRepository) ExistsByTokenID(ctx context.Context, tokenID string) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&models.FeedbackResponse{}).
+	if err := database.GetDB(ctx, r.db).Model(&models.FeedbackResponse{}).
 		Where("token_id = ?", tokenID).Count(&count).Error; err != nil {
 		return false, err
 	}

@@ -14,18 +14,19 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
-	"gorm.io/gorm"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type FinanceReportUsecase interface {
-	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error)
-	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) (*dto.BalanceSheetResponse, error)
-	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error)
-	GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.TrialBalanceResponse, error)
-	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
-	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) ([]byte, error)
-	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
+	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) (*dto.GeneralLedgerResponse, error)
+	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) (*dto.BalanceSheetResponse, error)
+	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitAndLossResponse, error)
+	GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.TrialBalanceResponse, error)
+	GetCashFlow(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowReport, error)
+	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error)
+	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) ([]byte, error)
+	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error)
 }
 
 type balanceSheetCacheEntry struct {
@@ -63,6 +64,67 @@ const balanceTolerance = 0.01
 
 func roundMoney(v float64) float64 {
 	return math.Round(v*100) / 100
+}
+
+func normalizeReportScopeID(id *string) *string {
+	if id == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*id)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func classifyCashFlowSection(accountType financeModels.AccountType) string {
+	switch accountType {
+	case financeModels.AccountTypeFixedAsset:
+		return "investing"
+	case financeModels.AccountTypeLiability, financeModels.AccountTypeEquity, financeModels.AccountTypeTradePayable:
+		return "financing"
+	default:
+		return "operating"
+	}
+}
+
+func buildGLDrilldownURL(startDate, endDate time.Time, accountID string) string {
+	return fmt.Sprintf(
+		"/finance/reports/general-ledger?start_date=%s&end_date=%s&account_id=%s",
+		startDate.Format("2006-01-02"),
+		endDate.Format("2006-01-02"),
+		strings.TrimSpace(accountID),
+	)
+}
+
+func isCashFlowExcludedEntry(entry *financeModels.JournalEntry) bool {
+	if entry == nil {
+		return true
+	}
+	switch entry.JournalType {
+	case financeModels.JournalTypeOpeningBalance, financeModels.JournalTypeClosing:
+		return true
+	}
+	if entry.ReferenceType == nil {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimSpace(*entry.ReferenceType)) {
+	case "OPENING_BALANCE", "OPENING_BALANCE_REV", "PERIOD_CLOSING", "YEAR_END_CLOSING":
+		return true
+	default:
+		return false
+	}
+}
+
+func (uc *financeReportUsecase) loadBalancesByAccounts(ctx context.Context, accountIDs []financeModels.ChartOfAccount, startDate, endDate time.Time, companyID, fiscalYearID *string) (map[string]repositories.GLAccountBalance, error) {
+	accountRefs := make([]string, 0, len(accountIDs))
+	for _, coa := range accountIDs {
+		accountRefs = append(accountRefs, coa.ID)
+	}
+
+	companyID = normalizeReportScopeID(companyID)
+	fiscalYearID = normalizeReportScopeID(fiscalYearID)
+	return uc.reportRepo.GetAccountBalancesByAccounts(ctx, accountRefs, startDate, endDate, companyID, fiscalYearID)
 }
 
 func (uc *financeReportUsecase) balanceSheetCacheKey(startDate, endDate time.Time, companyID *string, includeZero bool) string {
@@ -105,31 +167,45 @@ func (uc *financeReportUsecase) setCachedBalanceSheet(key string, res *dto.Balan
 	uc.cacheMu.Unlock()
 }
 
-func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error) {
+func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) (*dto.GeneralLedgerResponse, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
+
+	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
+	accountID = normalizeReportScopeID(accountID)
+	if accountID != nil {
+		filtered := make([]financeModels.ChartOfAccount, 0, 1)
+		for _, coa := range allCoas {
+			if coa.ID == *accountID {
+				filtered = append(filtered, coa)
+				break
+			}
+		}
+		allCoas = filtered
+	}
+	balances, err := uc.loadBalancesByAccounts(ctx, allCoas, startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
 		return nil, err
 	}
-
-	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
 	coaMap := make(map[string]financeModels.ChartOfAccount)
 	for _, c := range allCoas {
 		coaMap[c.ID] = c
 	}
 
 	accounts := make([]dto.GeneralLedgerAccount, 0, len(balances))
-	for _, b := range balances {
+	for _, coa := range allCoas {
+		b, ok := balances[coa.ID]
+		if !ok {
+			continue
+		}
 		// Only include accounts with posted activity or non-zero opening balance.
 		if b.OpeningBalance == 0 && b.DebitTotal == 0 && b.CreditTotal == 0 {
 			continue
 		}
 
-		coa := coaMap[b.ChartOfAccountID]
+		coa := coaMap[coa.ID]
 
-		lines, err := uc.reportRepo.GetGLAccountTransactions(ctx, b.ChartOfAccountID, startDate, endDate, companyID)
+		lines, err := uc.reportRepo.GetGLAccountTransactions(ctx, b.ChartOfAccountID, startDate, endDate, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
 		if err != nil {
 			return nil, err
 		}
@@ -210,21 +286,20 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 	}, nil
 }
 
-func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) (*dto.BalanceSheetResponse, error) {
+func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) (*dto.BalanceSheetResponse, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
+
 	cacheKey := uc.balanceSheetCacheKey(startDate, endDate, companyID, includeZero)
 	if cached, ok := uc.getCachedBalanceSheet(cacheKey); ok {
 		return cached, nil
 	}
 
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
+	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
+	balances, err := uc.loadBalancesByAccounts(ctx, allCoas, startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
 		return nil, err
 	}
-
-	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
 	coaMap := make(map[string]financeModels.ChartOfAccount)
 	for _, c := range allCoas {
 		coaMap[c.ID] = c
@@ -267,8 +342,12 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 		}
 	}
 
-	for _, b := range balances {
-		coa, ok := coaMap[b.ChartOfAccountID]
+	for _, coa := range allCoas {
+		b, ok := balances[coa.ID]
+		if !ok {
+			continue
+		}
+		coa, ok := coaMap[coa.ID]
 		if !ok {
 			continue
 		}
@@ -373,7 +452,7 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 	res.EquityTotal = sumSubtotals(res.Equities)
 
 	yearStart := time.Date(endDate.Year(), time.January, 1, 0, 0, 0, 0, endDate.Location())
-	currentYearProfit, err := uc.reportRepo.GetNetProfit(ctx, yearStart, endDate, companyID)
+	currentYearProfit, err := uc.reportRepo.GetNetProfit(ctx, yearStart, endDate, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +460,7 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 	retainedEarnings := 0.0
 	if yearStart.After(time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location())) {
 		retainedEnd := yearStart.AddDate(0, 0, -1)
-		retainedEarnings, err = uc.reportRepo.GetNetProfit(ctx, time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location()), retainedEnd, companyID)
+		retainedEarnings, err = uc.reportRepo.GetNetProfit(ctx, time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location()), retainedEnd, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +478,7 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 	return res, nil
 }
 
-func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error) {
+func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitAndLossResponse, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
 	// Helper to compute movement per account type.
@@ -476,12 +555,11 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 
 	// Build totals for a given period.
 	calculate := func(start, end time.Time) (*dto.ProfitAndLossResponse, error) {
-		balances, err := uc.reportRepo.GetAccountBalances(ctx, start, end, companyID)
+		allCoas, _ := uc.coaRepo.FindAll(ctx, false)
+		balances, err := uc.loadBalancesByAccounts(ctx, allCoas, start, end, companyID, fiscalYearID)
 		if err != nil {
 			return nil, err
 		}
-
-		allCoas, _ := uc.coaRepo.FindAll(ctx, false)
 		coaMap := make(map[string]financeModels.ChartOfAccount)
 		for _, c := range allCoas {
 			coaMap[c.ID] = c
@@ -489,8 +567,12 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 
 		res := &dto.ProfitAndLossResponse{StartDate: start, EndDate: end}
 
-		for _, b := range balances {
-			coa, ok := coaMap[b.ChartOfAccountID]
+		for _, coa := range allCoas {
+			b, ok := balances[coa.ID]
+			if !ok {
+				continue
+			}
+			coa, ok := coaMap[coa.ID]
 			if !ok {
 				continue
 			}
@@ -547,7 +629,7 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 	if !startDate.IsZero() {
 		retEnd := startDate.AddDate(0, 0, -1)
 		if !retEnd.Before(time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location())) {
-			retainedEarnings, err = uc.reportRepo.GetNetProfit(ctx, time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location()), retEnd, companyID)
+			retainedEarnings, err = uc.reportRepo.GetNetProfit(ctx, time.Date(1970, time.January, 1, 0, 0, 0, 0, endDate.Location()), retEnd, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
 			if err != nil {
 				return nil, err
 			}
@@ -597,24 +679,25 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 	return current, nil
 }
 
-func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.TrialBalanceResponse, error) {
+func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.TrialBalanceResponse, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
+
+	allCoas, _ := uc.coaRepo.FindAll(ctx, false)
+	balances, err := uc.loadBalancesByAccounts(ctx, allCoas, startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
 		return nil, err
 	}
 
 	rows := make([]dto.TrialBalanceRow, 0, len(balances))
-	for _, b := range balances {
-		coa, err := uc.coaRepo.FindByID(ctx, b.ChartOfAccountID)
-		if err != nil {
+	for _, coa := range allCoas {
+		b, ok := balances[coa.ID]
+		if !ok {
 			continue
 		}
 
 		rows = append(rows, dto.TrialBalanceRow{
-			ChartOfAccountID: b.ChartOfAccountID,
+			ChartOfAccountID: coa.ID,
 			Code:             coa.Code,
 			Name:             coa.Name,
 			Type:             coa.Type,
@@ -632,11 +715,179 @@ func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, 
 	}, nil
 }
 
-func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+func (uc *financeReportUsecase) GetCashFlow(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowReport, error) {
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	companyID = normalizeReportScopeID(companyID)
+	fiscalYearID = normalizeReportScopeID(fiscalYearID)
+
+	allCoas, err := uc.coaRepo.FindAll(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+
+	cashAccountIDs := make([]string, 0)
+	for _, coa := range allCoas {
+		if coa.Type == financeModels.AccountTypeCashBank {
+			cashAccountIDs = append(cashAccountIDs, coa.ID)
+		}
+	}
+
+	openingCash := 0.0
+	endingCash := 0.0
+	if len(cashAccountIDs) > 0 {
+		balances, err := uc.reportRepo.GetAccountBalancesByAccounts(ctx, cashAccountIDs, startDate, endDate, companyID, fiscalYearID)
+		if err != nil {
+			return nil, err
+		}
+		for _, coaID := range cashAccountIDs {
+			balance := balances[coaID]
+			openingCash += balance.OpeningBalance
+			endingCash += balance.ClosingBalance
+		}
+	}
+
+	type entryGroup struct {
+		entry *financeModels.JournalEntry
+		lines []financeModels.JournalLine
+	}
+
+	groups := make(map[string]*entryGroup)
+	query := uc.db.WithContext(ctx).
+		Preload("JournalEntry").
+		Preload("ChartOfAccount").
+		Joins("JOIN journal_entries je ON je.id = journal_lines.journal_entry_id").
+		Where("je.status = ?", financeModels.JournalStatusPosted).
+		Where("je.entry_date >= ?", startDate).
+		Where("je.entry_date <= ?", endDate).
+		Where("je.deleted_at IS NULL").
+		Where("journal_lines.deleted_at IS NULL").
+		Where("je.source = ? OR je.source = ?", financeModels.JournalSourceOperational, financeModels.JournalSourceValuation)
+	if companyID != nil {
+		query = query.Where("je.company_id = ?", *companyID)
+	}
+	if fiscalYearID != nil {
+		query = query.Where("je.fiscal_year_id = ?", *fiscalYearID)
+	}
+
+	var lines []financeModels.JournalLine
+	if err := query.Order("je.entry_date asc, je.id asc, journal_lines.id asc").Find(&lines).Error; err != nil {
+		return nil, err
+	}
+
+	for _, line := range lines {
+		group := groups[line.JournalEntryID]
+		if group == nil {
+			group = &entryGroup{entry: line.JournalEntry}
+			groups[line.JournalEntryID] = group
+		}
+		group.lines = append(group.lines, line)
+	}
+
+	sectionRows := map[string]map[string]*dto.ReportRow{
+		"operating": {},
+		"investing": {},
+		"financing": {},
+	}
+	sectionTotals := map[string]float64{
+		"operating": 0,
+		"investing": 0,
+		"financing": 0,
+	}
+
+	for _, group := range groups {
+		if isCashFlowExcludedEntry(group.entry) {
+			continue
+		}
+
+		hasCashLine := false
+		for _, line := range group.lines {
+			if line.ChartOfAccount != nil && line.ChartOfAccount.Type == financeModels.AccountTypeCashBank {
+				hasCashLine = true
+				break
+			}
+		}
+		if !hasCashLine {
+			continue
+		}
+
+		for _, line := range group.lines {
+			if line.ChartOfAccount == nil || line.ChartOfAccount.Type == financeModels.AccountTypeCashBank {
+				continue
+			}
+
+			movement := line.Credit - line.Debit
+			if math.Abs(movement) < balanceTolerance {
+				continue
+			}
+
+			section := classifyCashFlowSection(line.ChartOfAccount.Type)
+			rows := sectionRows[section]
+			if rows == nil {
+				rows = make(map[string]*dto.ReportRow)
+				sectionRows[section] = rows
+			}
+
+			row := rows[line.ChartOfAccountID]
+			if row == nil {
+				row = &dto.ReportRow{
+					AccountID:   line.ChartOfAccountID,
+					Code:        line.ChartOfAccount.Code,
+					Name:        line.ChartOfAccount.Name,
+					AccountType: string(line.ChartOfAccount.Type),
+					Drilldown: &dto.Drilldown{
+						GeneralLedgerURL: buildGLDrilldownURL(startDate, endDate, line.ChartOfAccountID),
+					},
+					IsTotal: false,
+				}
+				rows[line.ChartOfAccountID] = row
+			}
+
+			row.Amount += movement
+			sectionTotals[section] += movement
+		}
+	}
+
+	buildSection := func(name, key string) dto.CashFlowSection {
+		items := make([]dto.ReportRow, 0, len(sectionRows[key]))
+		for _, row := range sectionRows[key] {
+			if math.Abs(row.Amount) < balanceTolerance {
+				continue
+			}
+			items = append(items, *row)
+		}
+		sort.Slice(items, func(i, j int) bool { return items[i].Code < items[j].Code })
+		return dto.CashFlowSection{Name: name, Items: items, Amount: roundMoney(sectionTotals[key])}
+	}
+
+	netChange := roundMoney(sectionTotals["operating"] + sectionTotals["investing"] + sectionTotals["financing"])
+	reconciliationGap := roundMoney((openingCash + netChange) - endingCash)
+	isReconciled := math.Abs(reconciliationGap) <= balanceTolerance
+	if !isReconciled {
+		netChange = roundMoney(endingCash - openingCash)
+		reconciliationGap = roundMoney((openingCash + netChange) - endingCash)
+		isReconciled = math.Abs(reconciliationGap) <= balanceTolerance
+	}
+
+	return &dto.CashFlowReport{
+		FromDate:          startDate,
+		ToDate:            endDate,
+		Method:            "indirect",
+		Operating:         buildSection("Operating Activities", "operating"),
+		Investing:         buildSection("Investing Activities", "investing"),
+		Financing:         buildSection("Financing Activities", "financing"),
+		NetChange:         netChange,
+		BeginningCash:     roundMoney(openingCash),
+		EndingCash:        roundMoney(endingCash),
+		IsReconciled:      isReconciled,
+		ReconciliationGap: reconciliationGap,
+	}, nil
+}
+
+func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
-	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID)
+
+	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -691,11 +942,11 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 	return buf.Bytes(), nil
 }
 
-func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) ([]byte, error) {
+func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) ([]byte, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
-	data, err := uc.GetBalanceSheet(ctx, startDate, endDate, companyID, includeZero)
+
+	data, err := uc.GetBalanceSheet(ctx, startDate, endDate, companyID, fiscalYearID, includeZero)
 	if err != nil {
 		return nil, err
 	}
@@ -762,11 +1013,11 @@ func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDat
 	return buf.Bytes(), nil
 }
 
-func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error) {
 	// Normalize endDate to end of day
 	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
-	
-	data, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID)
+
+	data, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
 		return nil, err
 	}

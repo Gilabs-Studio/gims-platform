@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 )
@@ -50,13 +52,13 @@ func NewWarehouseRepository(db *gorm.DB) WarehouseRepository {
 
 // Create creates a new warehouse
 func (r *warehouseRepository) Create(ctx context.Context, warehouse *models.Warehouse) error {
-	return r.db.WithContext(ctx).Create(warehouse).Error
+	return database.GetDB(ctx, r.db).Create(warehouse).Error
 }
 
 // GetByID retrieves a warehouse by ID with preloaded relations
 func (r *warehouseRepository) GetByID(ctx context.Context, id string) (*models.Warehouse, error) {
 	var warehouse models.Warehouse
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Select("warehouses.*, EXISTS(SELECT 1 FROM inventory_batches WHERE warehouse_id = warehouses.id AND current_quantity > 0 AND deleted_at IS NULL) AS has_stock").
 		Preload("Province").
 		Preload("City").
@@ -72,8 +74,10 @@ func (r *warehouseRepository) GetByID(ctx context.Context, id string) (*models.W
 // GetNextCode generates the next sequential warehouse code in WH-XXXXX format.
 // It counts all warehouses (including soft-deleted) to guarantee uniqueness.
 func (r *warehouseRepository) GetNextCode(ctx context.Context) (string, error) {
+	globalCtx := context.WithValue(ctx, middleware.IsSystemAdminKey, true)
+
 	var count int64
-	if err := r.db.WithContext(ctx).Unscoped().Model(&models.Warehouse{}).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(globalCtx).Unscoped().Model(&models.Warehouse{}).Count(&count).Error; err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("WH-%05d", count+1), nil
@@ -82,7 +86,7 @@ func (r *warehouseRepository) GetNextCode(ctx context.Context) (string, error) {
 // GetByCode retrieves a warehouse by code
 func (r *warehouseRepository) GetByCode(ctx context.Context, code string) (*models.Warehouse, error) {
 	var warehouse models.Warehouse
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		First(&warehouse, "code = ?", code).Error
 	if err != nil {
 		return nil, err
@@ -95,7 +99,7 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 	var warehouses []*models.Warehouse
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Warehouse{}).
+	query := database.GetDB(ctx, r.db).Model(&models.Warehouse{}).
 		Select("warehouses.*, EXISTS(SELECT 1 FROM inventory_batches WHERE warehouse_id = warehouses.id AND current_quantity > 0 AND deleted_at IS NULL) AS has_stock")
 
 	// Apply filters
@@ -142,18 +146,18 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 
 // Update updates an existing warehouse
 func (r *warehouseRepository) Update(ctx context.Context, warehouse *models.Warehouse) error {
-	return r.db.WithContext(ctx).Save(warehouse).Error
+	return database.GetDB(ctx, r.db).Save(warehouse).Error
 }
 
 // Delete soft deletes a warehouse
 func (r *warehouseRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Warehouse{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Warehouse{}, "id = ?", id).Error
 }
 
 // HasActiveStock checks whether any active inventory batches exist for the given warehouse.
 func (r *warehouseRepository) HasActiveStock(ctx context.Context, warehouseID string) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Table("inventory_batches").
 		Where("warehouse_id = ? AND current_quantity > 0 AND deleted_at IS NULL", warehouseID).
 		Count(&count).Error
@@ -166,7 +170,7 @@ func (r *warehouseRepository) HasActiveStock(ctx context.Context, warehouseID st
 // FindByOutletIDs retrieves all warehouses linked to the specified outlet IDs
 func (r *warehouseRepository) FindByOutletIDs(ctx context.Context, outletIDs []string) ([]*models.Warehouse, error) {
 	var warehouses []*models.Warehouse
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("outlet_id IN ?", outletIDs).
 		Find(&warehouses).Error
 	if err != nil {
@@ -177,7 +181,7 @@ func (r *warehouseRepository) FindByOutletIDs(ctx context.Context, outletIDs []s
 
 // UpdateIsActiveByOutletIDs updates is_active status for all warehouses linked to specified outlet IDs
 func (r *warehouseRepository) UpdateIsActiveByOutletIDs(ctx context.Context, outletIDs []string, isActive bool) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&models.Warehouse{}).
 		Where("outlet_id IN ?", outletIDs).
 		Update("is_active", isActive).Error

@@ -6,6 +6,9 @@ type DashboardRequest struct {
 	EndDate   string                 `form:"end_date"`
 	Year      int                    `form:"year"`
 	Scope     DashboardOverviewScope `form:"scope"`
+	OutletID  string                 `form:"outlet_id"`
+	// Populated by handler from auth context for RBAC filtering
+	UserID    string `form:"-"`
 }
 
 // DashboardOverviewScope controls which section of overview data should be returned.
@@ -23,6 +26,9 @@ const (
 	DashboardOverviewScopeGeo              DashboardOverviewScope = "geo"
 	DashboardOverviewScopeWarehouse        DashboardOverviewScope = "warehouse"
 	DashboardOverviewScopeOwnerKPI         DashboardOverviewScope = "owner-kpi"
+	DashboardOverviewScopePOS              DashboardOverviewScope = "pos"
+	DashboardOverviewScopeHR               DashboardOverviewScope = "hr"
+	DashboardOverviewScopeCRM              DashboardOverviewScope = "crm"
 )
 
 // IsValid returns true when the scope value is one of the supported scope constants.
@@ -38,7 +44,10 @@ func (s DashboardOverviewScope) IsValid() bool {
 		DashboardOverviewScopeDelivery,
 		DashboardOverviewScopeGeo,
 		DashboardOverviewScopeWarehouse,
-		DashboardOverviewScopeOwnerKPI:
+		DashboardOverviewScopeOwnerKPI,
+		DashboardOverviewScopePOS,
+		DashboardOverviewScopeHR,
+		DashboardOverviewScopeCRM:
 		return true
 	default:
 		return false
@@ -79,6 +88,9 @@ type DashboardScopedOverviewResponse struct {
 	DeliveryStatus     *DeliveryStatusData    `json:"delivery_status,omitempty"`
 	GeographicOverview *GeoOverviewData       `json:"geographic_overview,omitempty"`
 	WarehouseOverview  *WarehouseOverviewData `json:"warehouse_overview,omitempty"`
+	POSSummary         *POSSummaryData        `json:"pos_summary,omitempty"`
+	HRSummary          *HRSummaryData         `json:"hr_summary,omitempty"`
+	CRMSummary         *CRMSummaryData        `json:"crm_summary,omitempty"`
 }
 
 // KPIData contains the five main KPI summary cards.
@@ -254,4 +266,48 @@ type DashboardLayoutSaveRequest struct {
 type DashboardLayoutResponse struct {
 	DashboardType string `json:"dashboard_type"`
 	LayoutJSON    string `json:"layout_json"`
+}
+
+// ---- POS Summary DTOs ----
+
+// POSOutletItem represents a single outlet's sales data.
+type POSOutletItem struct {
+	OutletID              string  `json:"outlet_id"`
+	OutletName            string  `json:"outlet_name"`
+	TodayRevenue          float64 `json:"today_revenue"`
+	TodayRevenueFormatted string  `json:"today_revenue_formatted"`
+	OrderCount            int     `json:"order_count"`
+	TablesTotal           int     `json:"tables_total"`
+	TablesOccupied        int     `json:"tables_occupied"`
+}
+
+// POSSummaryData is the aggregated POS dashboard data.
+type POSSummaryData struct {
+	Outlets                   []POSOutletItem `json:"outlets"`
+	TodayTotalRevenue         float64         `json:"today_total_revenue"`
+	TodayTotalRevenueFormatted string         `json:"today_total_revenue_formatted"`
+	TodayTotalOrders          int             `json:"today_total_orders"`
+}
+
+// ---- HR Summary DTOs ----
+
+// HRSummaryData is the aggregated HR dashboard data.
+type HRSummaryData struct {
+	PresentToday   int     `json:"present_today"`
+	LateToday      int     `json:"late_today"`
+	AbsentToday    int     `json:"absent_today"`
+	AttendanceRate float64 `json:"attendance_rate"`
+	PendingLeaves  int     `json:"pending_leaves"`
+}
+
+// ---- CRM Summary DTOs ----
+
+// CRMSummaryData is the aggregated CRM dashboard data.
+type CRMSummaryData struct {
+	TotalContacts    int `json:"total_contacts"`
+	ActiveLeads      int `json:"active_leads"`
+	LeadsThisMonth   int `json:"leads_this_month"`
+	DealsInProgress  int `json:"deals_in_progress"`
+	DealsWonThisMonth int `json:"deals_won_this_month"`
+	ActivitiesToday  int `json:"activities_today"`
 }

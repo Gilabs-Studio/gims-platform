@@ -13,25 +13,89 @@
     "compareLastMonth": "Compare from last month",
     "formula": "Formula",
     "purpose": "Purpose",
+    "templatePicker": {
+      "title": "Choose your dashboard layout",
+      "description": "Pick a template to get started. You can customize it anytime.",
+      "useTemplate": "Use this template",
+      "templates": {
+        "erp": {
+          "name": "ERP",
+          "description": "Orders, revenue, inventory, and operational overview"
+        },
+        "crm": {
+          "name": "CRM",
+          "description": "Contacts, leads, deals, and activity tracking"
+        },
+        "pos": {
+          "name": "POS",
+          "description": "Outlet sales, live table, and best selling products"
+        },
+        "hr": {
+          "name": "HR",
+          "description": "Employee count, attendance, and leave management"
+        }
+      }
+    },
+    "onboarding": {
+      "welcome": "Welcome to GIMS!",
+      "chooseTypePrompt": "Let's get you set up. What type of business are you running?",
+      "setupChecklist": "Setup Checklist",
+      "checklistPrompt": "Complete these steps to get your workspace ready ({done}/{total} done)",
+      "dismiss": "Skip for now",
+      "markDone": "Complete setup",
+      "types": {
+        "fnb": {
+          "label": "Food & Beverage",
+          "description": "Restaurant, café, catering, or any F&B operation"
+        },
+        "other": {
+          "label": "Other Business",
+          "description": "Retail, distribution, manufacturing, or services"
+        }
+      },
+      "steps": {
+        "company": {
+          "label": "Set up your company",
+          "description": "Add your company name, address, and basic info"
+        },
+        "fiscalYear": {
+          "label": "Setup Fiscal Years",
+          "description": "Set up at least one active fiscal year before you can record sales or purchase transactions."
+        },
+        "outlet": {
+          "label": "Create your first outlet",
+          "description": "Add the branch or location where you operate"
+        },
+        "floorLayout": {
+          "label": "Design your floor layout",
+          "description": "Arrange tables and sections for your venue"
+        },
+        "products": {
+          "label": "Add your products / menu",
+          "description": "Set up the items you sell or serve"
+        },
+        "warehouse": {
+          "label": "Create a warehouse",
+          "description": "Set up your main stock storage location"
+        },
+        "users": {
+          "label": "Invite team members",
+          "description": "Add staff accounts and assign roles"
+        }
+      }
+    },
     "status": {
       "good": "Healthy",
       "warning": "Watch",
       "danger": "Critical"
     },
     "categories": {
-      "overview": "Overview",
-      "finance": "Finance",
-      "sales": "Sales",
-      "purchase": "Purchase",
-      "inventory": "Inventory",
-      "geographic": "Geographic",
+      "erp": "ERP",
+      "crm": "CRM",
+      "pos": "POS",
       "hr": "HR",
-      "profitability": "Profitability",
-      "cashflow": "Cashflow",
-      "logistics": "Logistics",
-      "asset": "Asset",
-      "cost": "Cost",
-      "intelligence": "Intelligence"
+      "finance": "Finance",
+      "other": "Other"
     },
     "revenueChart": {
       "title": "Revenue Chart",
@@ -266,6 +330,56 @@
       "owner_intelligence": {
         "title": "Owner Intelligence",
         "description": "Auto-generated business health analysis, bottleneck detection, and actionable insights"
+      },
+      "crm_total_contacts": {
+        "title": "Total Contacts",
+        "description": "Total CRM contacts"
+      },
+      "crm_active_leads": {
+        "title": "Active Leads",
+        "description": "Active leads in the pipeline",
+        "thisMonth": "new this month"
+      },
+      "crm_deals_overview": {
+        "title": "Deals Overview",
+        "description": "Deals in progress and won this month",
+        "inProgress": "In Progress",
+        "wonThisMonth": "Won This Month"
+      },
+      "crm_activity_summary": {
+        "title": "Activity Summary",
+        "description": "CRM activities scheduled today",
+        "activitiesToday": "activities today"
+      },
+      "pos_outlet_sales": {
+        "title": "Outlet Sales",
+        "description": "Today's revenue and orders per outlet",
+        "allOutlets": "All Outlets",
+        "todayRevenue": "Today Revenue",
+        "todayOrders": "Today Orders",
+        "outlet": "Outlet",
+        "revenue": "Revenue",
+        "orders": "Orders",
+        "tables": "Tables"
+      },
+      "pos_live_table_overview": {
+        "title": "Live Table Overview",
+        "description": "Real-time table occupancy across outlets",
+        "allOutlets": "All Outlets",
+        "occupancy": "Table Occupancy"
+      },
+      "hr_attendance_today": {
+        "title": "Attendance Today",
+        "description": "Today's employee attendance summary",
+        "present": "Present",
+        "late": "Late",
+        "absent": "Absent",
+        "attendanceRate": "Attendance Rate"
+      },
+      "hr_pending_leaves": {
+        "title": "Pending Leaves",
+        "description": "Leave requests awaiting approval",
+        "pendingRequests": "pending requests"
       }
     },
     "ownerKpi": {

@@ -57,7 +57,12 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	var targets []models.YearlyTarget
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.YearlyTarget{})
+	query := r.db.WithContext(ctx).Model(&models.YearlyTarget{})
+	var err error
+	query, err = applyTenantFilter(ctx, query, "yearly_targets.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
@@ -66,6 +71,10 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
 		query = query.Joins("LEFT JOIN areas ON areas.id = yearly_targets.area_id")
+		query, err = applyTenantFilter(ctx, query, "areas.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		query = query.Where("areas.name ILIKE ? OR yearly_targets.code ILIKE ? OR yearly_targets.notes ILIKE ?", search, search, search)
 	}
 
@@ -110,7 +119,7 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	query = query.Order(sortBy + " " + sortDir)
 
 	// Execute query with preloads
-	err := query.
+	err = query.
 		Preload("Area").
 		Preload("MonthlyTargets").
 		Limit(perPage).
@@ -265,4 +274,3 @@ func (r *yearlyTargetRepository) GetNextTargetNumber(ctx context.Context, prefix
 
 	return code, nil
 }
-

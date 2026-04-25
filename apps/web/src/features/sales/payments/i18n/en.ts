@@ -5,6 +5,7 @@ export const salesPaymentEn = {
   toast: {
     created: "Payment created",
     confirmed: "Payment confirmed",
+    reversed: "Payment reversed",
     deleted: "Payment deleted",
     failed: "Something went wrong",
   },
@@ -14,6 +15,7 @@ export const salesPaymentEn = {
     change: "Change",
     export: "Export",
     confirm: "Confirm",
+    reverse: "Reverse",
     view: "View",
     auditTrail: "Audit Trail",
     delete: "Delete",
@@ -106,6 +108,11 @@ export const salesPaymentEn = {
   common: {
     cancel: "Cancel",
     error: "Something went wrong",
+  },
+  confirm: {
+    reverseTitle: "Reverse Payment",
+    reverseDescription: "Are you sure you want to reverse this payment? This action cannot be undone.",
+    reversing: "Reversing...",
   },
   errors: {
     mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before continuing.",

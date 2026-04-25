@@ -2,19 +2,12 @@
 
 /** Available widget categories for the widget picker */
 export type WidgetCategory =
-  | "overview"
-  | "finance"
-  | "sales"
-  | "purchase"
-  | "inventory"
-  | "geographic"
+  | "erp"
+  | "crm"
+  | "pos"
   | "hr"
-  | "profitability"
-  | "cashflow"
-  | "logistics"
-  | "asset"
-  | "cost"
-  | "intelligence";
+  | "finance"
+  | "other";
 
 /** Widget size presets for the grid */
 export type WidgetSize = "sm" | "md" | "lg" | "xl";
@@ -90,7 +83,18 @@ export type WidgetType =
   // --- Owner KPI: Cost Structure ---
   | "kpi_opex_vs_capex"
   // --- Owner Intelligence ---
-  | "owner_intelligence";
+  | "owner_intelligence"
+  // --- CRM ---
+  | "crm_total_contacts"
+  | "crm_active_leads"
+  | "crm_deals_overview"
+  | "crm_activity_summary"
+  // --- POS ---
+  | "pos_outlet_sales"
+  | "pos_live_table_overview"
+  // --- HR ---
+  | "hr_attendance_today"
+  | "hr_pending_leaves";
 
 /** Widget registry entry - metadata describing a widget */
 export interface WidgetRegistryEntry {
@@ -146,7 +150,10 @@ export type DashboardOverviewScope =
   | "delivery"
   | "geo"
   | "warehouse"
-  | "owner-kpi";
+  | "owner-kpi"
+  | "pos"
+  | "hr"
+  | "crm";
 
 // ---- API Response Types ----
 
@@ -418,4 +425,52 @@ export interface DashboardOverviewData {
   warehouse_overview: WarehouseOverviewData;
   /** Owner KPI data — returned when scope=owner-kpi */
   owner_kpi?: OwnerKpiData;
+  /** POS summary — returned when scope=pos */
+  pos_summary?: POSSummaryData;
+  /** HR summary — returned when scope=hr */
+  hr_summary?: HRSummaryData;
+  /** CRM summary — returned when scope=crm */
+  crm_summary?: CRMSummaryData;
+}
+
+// ─── POS Summary Types ──────────────────────────────────────────────────────
+
+export interface POSOutletItem {
+  outlet_id: string;
+  outlet_name: string;
+  today_revenue: number;
+  today_revenue_formatted: string;
+  order_count: number;
+  tables_occupied: number;
+  tables_total: number;
+}
+
+export interface POSSummaryData {
+  today_total_revenue: number;
+  today_total_revenue_formatted: string;
+  today_total_orders: number;
+  outlets: POSOutletItem[];
+}
+
+// ─── HR Summary Types ────────────────────────────────────────────────────────
+
+export interface HRSummaryData {
+  total_employees: number;
+  present_today: number;
+  absent_today: number;
+  late_today: number;
+  pending_leaves: number;
+  pending_overtime: number;
+  attendance_rate: number;
+}
+
+// ─── CRM Summary Types ───────────────────────────────────────────────────────
+
+export interface CRMSummaryData {
+  total_contacts: number;
+  active_leads: number;
+  leads_this_month: number;
+  deals_in_progress: number;
+  deals_won_this_month: number;
+  activities_today: number;
 }

@@ -44,6 +44,7 @@ export interface PurchasePaymentInvoiceSummary {
   tax_rate: number;
   tax_amount: number;
   amount: number;
+  remaining_amount?: number;
   status: string;
   notes?: string | null;
 }
@@ -78,6 +79,7 @@ export interface PurchasePaymentAddInvoiceItem {
   purchase_order?: { id: string; code: string } | null;
   code: string;
   invoice_number?: string | null;
+  type?: string;
   invoice_date: string;
   due_date: string;
   amount: number;
@@ -94,6 +96,15 @@ export interface PurchasePaymentAddResponse {
 export interface CreatePurchasePaymentInput {
   invoice_id?: string | null;
   dp_id?: string | null;
+  bank_account_id?: string | null;
+  payment_date: string;
+  amount?: number;
+  method: PurchasePaymentMethod;
+  reference_number?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdatePurchasePaymentInput {
   bank_account_id?: string | null;
   payment_date: string;
   amount?: number;

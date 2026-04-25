@@ -4,6 +4,10 @@ import "os"
 
 // SeedAll runs all seeders
 func SeedAll() error {
+	if err := ensureSeederTenantIDGuard(); err != nil {
+		return err
+	}
+
 	// Check for cleanup flag
 	if os.Getenv("SEED_CLEANUP_DATABASE") == "true" {
 		if err := CleanupDatabase(); err != nil {
@@ -20,7 +24,37 @@ func SeedAll() error {
 		return seedMasterData()
 	}
 
-	// Seed in order: roles -> menus -> permissions -> users -> geographic
+	// Seed in order: SaaS tenant -> roles -> menus -> permissions -> users -> geographic
+	// SaaS: Create default tenant (must be first so tenant_id FK is available)
+	if err := SeedTenant(); err != nil {
+		return err
+	}
+
+	// SaaS: Create system admin (separate from tenant users)
+	if err := SeedSystemAdmin(); err != nil {
+		return err
+	}
+
+	// SaaS: Create Tenant 2 (empty tenant for multi-tenancy testing)
+	if err := SeedTenant2(); err != nil {
+		return err
+	}
+
+	// SaaS: Seed subscription plan configs (must come before coupons)
+	if err := SeedSubscriptionPlans(); err != nil {
+		return err
+	}
+
+	// SaaS: Seed coupons (must come before subscriptions)
+	if err := SeedCoupons(); err != nil {
+		return err
+	}
+
+	// SaaS: Seed tenant subscriptions (Tenant 1 = lifetime, Tenant 2 = monthly trial)
+	if err := SeedSubscriptions(); err != nil {
+		return err
+	}
+
 	if err := SeedRoles(); err != nil {
 		return err
 	}
@@ -114,6 +148,11 @@ func SeedAll() error {
 
 	// POS F&B recipe menu items, service products, and BOM recipe items
 	if err := SeedPosRecipeProducts(); err != nil {
+		return err
+	}
+
+	// Ensure product aggregate stock/HPP always matches seeded inventory batches.
+	if err := ReconcileProductInventoryAggregates(); err != nil {
 		return err
 	}
 
@@ -395,6 +434,13 @@ func SeedAll() error {
 		return err
 	}
 
+	// SaaS: Backfill tenant_id for all seeder data.
+	// Must run LAST — ensures all rows created above get tenant_id = Tenant1,
+	// and Tenant 2 admin gets tenant_id = Tenant2.
+	if err := BackfillSeedTenantIDs(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -458,6 +504,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedPosGoodsProducts(); err != nil {
+		return err
+	}
+
+	if err := ReconcileProductInventoryAggregates(); err != nil {
 		return err
 	}
 

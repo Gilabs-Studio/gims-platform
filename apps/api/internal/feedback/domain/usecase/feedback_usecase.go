@@ -55,7 +55,7 @@ type FeedbackUsecase interface {
 	UpdateForm(ctx context.Context, id, updatedBy string, req *dto.UpdateFeedbackFormRequest) (*dto.FeedbackFormResponse, error)
 	DeleteForm(ctx context.Context, id string) error
 	GetForm(ctx context.Context, id string) (*dto.FeedbackFormResponse, error)
-	ListForms(ctx context.Context, page, perPage int) ([]dto.FeedbackFormResponse, *utils.PaginationResult, error)
+	ListForms(ctx context.Context, page, perPage int, outletID string) ([]dto.FeedbackFormResponse, *utils.PaginationResult, error)
 	GetFormsByOutlet(ctx context.Context, outletID string) ([]dto.FeedbackFormResponse, error)
 	CopyForm(ctx context.Context, sourceFormID, createdBy string, req *dto.CopyFeedbackFormRequest) (*dto.CopyFeedbackFormResponse, error)
 
@@ -103,11 +103,14 @@ func (u *feedbackUsecase) CreateForm(ctx context.Context, createdBy string, req 
 		return nil, fmt.Errorf("%w: %v", ErrInvalidFormSchema, err)
 	}
 
-	// When creating a new active form deactivate existing forms for this outlet.
-	if req.IsActive {
-		if err := u.formRepo.DeactivateAllForOutlet(ctx, req.OutletID); err != nil {
-			return nil, err
-		}
+	// Latest version is always auto-applied for an outlet.
+	if err := u.formRepo.DeactivateAllForOutlet(ctx, req.OutletID); err != nil {
+		return nil, err
+	}
+
+	version, err := u.formRepo.NextVersionForOutlet(ctx, req.OutletID)
+	if err != nil {
+		return nil, err
 	}
 
 	form := &models.FeedbackForm{
@@ -116,8 +119,8 @@ func (u *feedbackUsecase) CreateForm(ctx context.Context, createdBy string, req 
 		Title:       req.Title,
 		Description: req.Description,
 		SchemaJSON:  datatypes.JSON(sanitized),
-		Version:     1,
-		IsActive:    req.IsActive,
+		Version:     version,
+		IsActive:    true,
 		CreatedBy:   &createdBy,
 		UpdatedBy:   &createdBy,
 	}
@@ -157,15 +160,8 @@ func (u *feedbackUsecase) UpdateForm(ctx context.Context, id, updatedBy string, 
 		form.SchemaJSON = datatypes.JSON(sanitized)
 		form.Version++
 	}
-	if req.IsActive != nil {
-		// When activating this form deactivate all others for the same outlet.
-		if *req.IsActive && !form.IsActive {
-			if err := u.formRepo.DeactivateAllForOutlet(ctx, form.OutletID); err != nil {
-				return nil, err
-			}
-		}
-		form.IsActive = *req.IsActive
-	}
+	// Form status is system-managed: latest edited version remains active.
+	form.IsActive = true
 	form.UpdatedBy = &updatedBy
 
 	if err := u.formRepo.Update(ctx, form); err != nil {
@@ -208,7 +204,7 @@ func (u *feedbackUsecase) GetForm(ctx context.Context, id string) (*dto.Feedback
 	return &resp, nil
 }
 
-func (u *feedbackUsecase) ListForms(ctx context.Context, page, perPage int) ([]dto.FeedbackFormResponse, *utils.PaginationResult, error) {
+func (u *feedbackUsecase) ListForms(ctx context.Context, page, perPage int, outletID string) ([]dto.FeedbackFormResponse, *utils.PaginationResult, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -216,9 +212,19 @@ func (u *feedbackUsecase) ListForms(ctx context.Context, page, perPage int) ([]d
 		perPage = 20
 	}
 
+	if outletID != "" {
+		if err := u.ensureOutletAccess(ctx, outletID); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	outletIDs, err := u.resolveScopedOutletIDs(ctx)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if outletID != "" {
+		outletIDs = []string{outletID}
 	}
 
 	forms, total, err := u.formRepo.List(ctx, page, perPage, outletIDs)
@@ -300,10 +306,13 @@ func (u *feedbackUsecase) CopyForm(ctx context.Context, sourceFormID, createdBy 
 			return nil, err
 		}
 
-		if req.IsActive {
-			if err := u.formRepo.DeactivateAllForOutlet(ctx, outletID); err != nil {
-				return nil, err
-			}
+		if err := u.formRepo.DeactivateAllForOutlet(ctx, outletID); err != nil {
+			return nil, err
+		}
+
+		version, err := u.formRepo.NextVersionForOutlet(ctx, outletID)
+		if err != nil {
+			return nil, err
 		}
 
 		title := sourceForm.Title
@@ -317,8 +326,8 @@ func (u *feedbackUsecase) CopyForm(ctx context.Context, sourceFormID, createdBy 
 			Title:       title,
 			Description: sourceForm.Description,
 			SchemaJSON:  sourceForm.SchemaJSON,
-			Version:     1,
-			IsActive:    req.IsActive,
+			Version:     version,
+			IsActive:    true,
 			CreatedBy:   &createdBy,
 			UpdatedBy:   &createdBy,
 		}
@@ -423,12 +432,17 @@ func (u *feedbackUsecase) ensureActiveFormForOutlet(ctx context.Context, outletI
 		return nil, marshalErr
 	}
 
+	version, versionErr := u.formRepo.NextVersionForOutlet(ctx, outletID)
+	if versionErr != nil {
+		return nil, versionErr
+	}
+
 	newForm := &models.FeedbackForm{
 		ID:         uuid.New().String(),
 		OutletID:   outletID,
 		Title:      "Form Umpan Balik",
 		SchemaJSON: datatypes.JSON(schemaBytes),
-		Version:    1,
+		Version:    version,
 		IsActive:   true,
 	}
 
@@ -540,6 +554,7 @@ func (u *feedbackUsecase) ListResponses(ctx context.Context, req *dto.ListFeedba
 		FormID:    req.FormID,
 		StartDate: req.StartDate,
 		EndDate:   req.EndDate,
+		Search:    req.Search,
 		Page:      req.Page,
 		PerPage:   req.PerPage,
 	}

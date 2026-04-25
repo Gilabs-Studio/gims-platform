@@ -448,7 +448,7 @@ export function AssetComponentsTab({
                       <TableCell>{component.category?.name || "—"}</TableCell>
                       <TableCell className="text-right">
                         {/* Note: book_value not in AssetLite, would need to fetch or extend type */}
-                        "—"
+                        &mdash;
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -557,7 +557,7 @@ export function AssetComponentsTab({
 
               {/* Child Components Tree */}
               <div className="mt-1">
-                {childComponents.map((component, index) => (
+                {childComponents.map((component) => (
                   <ComponentTreeNode
                     key={component.id}
                     asset={component}

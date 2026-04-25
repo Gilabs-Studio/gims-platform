@@ -6,6 +6,8 @@ export const customerInvoiceDPEn = {
     created: "Down payment invoice created",
     updated: "Down payment invoice updated",
     submitted: "Down payment invoice submitted",
+    approved: "Down payment invoice approved",
+    cancelled: "Down payment invoice cancelled",
     deleted: "Down payment invoice deleted",
     failed: "Something went wrong",
   },
@@ -105,5 +107,10 @@ export const customerInvoiceDPEn = {
   common: {
     cancel: "Cancel",
     error: "Something went wrong",
+  },
+  validation: {
+    required: "This field is required",
+    invalidId: "Invalid ID",
+    amountPositive: "Amount must be greater than 0",
   },
 };

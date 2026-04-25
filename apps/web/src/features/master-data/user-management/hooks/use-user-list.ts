@@ -8,6 +8,23 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useHasPermission } from "./use-has-permission";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 
+/** Extracts the API error code from an Axios error response. */
+function extractApiErrorCode(err: unknown): string | null {
+  const axiosErr = err as {
+    response?: { data?: { error?: { code?: string } } };
+  };
+  return axiosErr?.response?.data?.error?.code ?? null;
+}
+
+/** Extracts a human-readable message from an API error response. */
+function extractApiErrorMessage(err: unknown): string | null {
+  const axiosErr = err as {
+    response?: { data?: { error?: { message?: string; details?: { reason?: string } } } };
+  };
+  const e = axiosErr?.response?.data?.error;
+  return e?.details?.reason ?? e?.message ?? null;
+}
+
 export function useUserList() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -33,15 +50,22 @@ export function useUserList() {
 
   const users = data?.data || [];
   const pagination = data?.meta?.pagination;
-  const roles = rolesData?.data || [];
+  const roles = [...(rolesData?.data || [])].sort((left, right) => left.name.localeCompare(right.name));
 
   const handleCreate = async (formData: CreateUserFormData) => {
     try {
       await createUser.mutateAsync(formData);
       setIsCreateDialogOpen(false);
       toast.success("User created successfully");
-    } catch {
-      // Error already handled in api-client interceptor
+    } catch (err) {
+      const code = extractApiErrorCode(err);
+      if (code === "USER_LIMIT_REACHED") {
+        toast.error("User limit reached", {
+          description:
+            extractApiErrorMessage(err) ??
+            "Upgrade your plan to add more users.",
+        });
+      }
     }
   };
 
@@ -51,8 +75,13 @@ export function useUserList() {
         await updateUser.mutateAsync({ id: editingUser, data: formData });
         setEditingUser(null);
         toast.success("User updated successfully");
-      } catch {
-        // Error already handled in api-client interceptor
+      } catch (err) {
+        const code = extractApiErrorCode(err);
+        if (code === "DUPLICATE_EMAIL") {
+          toast.error("Email already in use", {
+            description: "Another user is already registered with this email address.",
+          });
+        }
       }
     }
   };

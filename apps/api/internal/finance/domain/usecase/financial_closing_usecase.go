@@ -254,7 +254,8 @@ func (uc *financialClosingUsecase) createPeriodClosingJournal(ctx context.Contex
 	}
 
 	if len(lines) == 0 {
-		return 0, errors.New("no revenue or expense balances found for the period")
+		// Non-fatal: closing can continue even when there is no P&L movement in period.
+		return 0, nil
 	}
 
 	// Create or update a single closing journal entry for this period.
@@ -843,49 +844,46 @@ func (uc *financialClosingUsecase) YearEndClose(ctx context.Context, req *dto.Ye
 		}
 	}
 
-	if len(lines) == 0 {
-		return nil, errors.New("no revenue or expense balances found for the fiscal year")
-	}
-
-	// Net income = Revenue - Expense → transferred to Retained Earnings
 	netIncome := totalRevenue - totalExpense
-	if netIncome > 0 {
-		// Profit → Credit Retained Earnings
-		lines = append(lines, dto.JournalLineRequest{
-			ChartOfAccountID: retainedCoA.ID,
-			Debit:            0,
-			Credit:           netIncome,
-			Memo:             fmt.Sprintf("Year-end closing FY%d — net income to retained earnings", year),
-		})
-	} else if netIncome < 0 {
-		// Loss → Debit Retained Earnings
-		lines = append(lines, dto.JournalLineRequest{
-			ChartOfAccountID: retainedCoA.ID,
-			Debit:            -netIncome,
-			Credit:           0,
-			Memo:             fmt.Sprintf("Year-end closing FY%d — net loss to retained earnings", year),
-		})
-	}
+	if len(lines) > 0 {
+		if netIncome > 0 {
+			// Profit → Credit Retained Earnings
+			lines = append(lines, dto.JournalLineRequest{
+				ChartOfAccountID: retainedCoA.ID,
+				Debit:            0,
+				Credit:           netIncome,
+				Memo:             fmt.Sprintf("Year-end closing FY%d — net income to retained earnings", year),
+			})
+		} else if netIncome < 0 {
+			// Loss → Debit Retained Earnings
+			lines = append(lines, dto.JournalLineRequest{
+				ChartOfAccountID: retainedCoA.ID,
+				Debit:            -netIncome,
+				Credit:           0,
+				Memo:             fmt.Sprintf("Year-end closing FY%d — net loss to retained earnings", year),
+			})
+		}
 
-	// Create the closing journal entry via PostOrUpdateJournal (auto-posts).
-	// reference_id must be a UUID — use a deterministic UUID v5 derived from the
-	// fiscal year so that re-running year-end close for the same year performs an
-	// upsert rather than creating a duplicate.
-	var yearEndClosingNS = uuid.MustParse("23d6b1a2-0000-0000-0000-000000000000")
-	refType := "year_end_closing"
-	refIDStr := uuid.NewSHA1(yearEndClosingNS, []byte(fmt.Sprintf("%d", year))).String()
-	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:         endOfYear.Format("2006-01-02"),
-		Description:       fmt.Sprintf("Year-End Closing Journal FY%d", year),
-		ReferenceType:     &refType,
-		ReferenceID:       &refIDStr,
-		Lines:             lines,
-		IsSystemGenerated: true,
-	}
+		// Create the closing journal entry via PostOrUpdateJournal (auto-posts).
+		// reference_id must be a UUID — use a deterministic UUID v5 derived from the
+		// fiscal year so that re-running year-end close for the same year performs an
+		// upsert rather than creating a duplicate.
+		var yearEndClosingNS = uuid.MustParse("23d6b1a2-0000-0000-0000-000000000000")
+		refType := "year_end_closing"
+		refIDStr := uuid.NewSHA1(yearEndClosingNS, []byte(fmt.Sprintf("%d", year))).String()
+		journalReq := &dto.CreateJournalEntryRequest{
+			EntryDate:         endOfYear.Format("2006-01-02"),
+			Description:       fmt.Sprintf("Year-End Closing Journal FY%d", year),
+			ReferenceType:     &refType,
+			ReferenceID:       &refIDStr,
+			Lines:             lines,
+			IsSystemGenerated: true,
+		}
 
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create year-end closing journal: %w", err)
+		_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create year-end closing journal: %w", err)
+		}
 	}
 
 	// Create and auto-approve a financial closing record for Dec 31

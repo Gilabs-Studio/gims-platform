@@ -88,6 +88,13 @@ import (
 
 	aiPresentation "github.com/gilabs/gims/api/internal/ai/presentation"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
+
+	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
+	tenantHandler "github.com/gilabs/gims/api/internal/tenant/presentation/handler"
+	tenantRouter "github.com/gilabs/gims/api/internal/tenant/presentation/router"
+
+	tenantScope "github.com/gilabs/gims/api/internal/core/infrastructure/tenant"
 )
 
 func initInfrastructure() {
@@ -242,6 +249,13 @@ func main() {
 	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
 
+	// SaaS: System admin & tenant repositories
+	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
+	tenantRepository := tenantRepos.NewTenantRepository(database.DB)
+	couponRepository := tenantRepos.NewCouponRepository(database.DB)
+	subscriptionRepository := tenantRepos.NewSubscriptionRepository(database.DB)
+	subscriptionPlanRepository := tenantRepos.NewSubscriptionPlanRepository(database.DB)
+
 	// Setup Services
 	permissionService := security.NewPermissionService(database.DB)
 	auditService := audit.NewAuditService(database.DB)
@@ -251,18 +265,33 @@ func main() {
 	eventPublisher := events.NewNoOpEventPublisher(true) // Enable logging for development
 
 	// Setup Usecases
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher)
-	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
-	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
+	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
+	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
+	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository)
+	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
+	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
-	authH := authHandler.NewAuthHandler(authUC)
+	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
+	xenditH := authHandler.NewXenditHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
 	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
+
+	// SaaS: System admin usecases & handler
+	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
+	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC)
+
+	// Payment transaction usecase
+	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)
+	paymentTxnUC := tenantUsecase.NewPaymentTransactionUsecase(paymentTxnRepository, subscriptionRepository)
+
+	billingH := tenantHandler.NewBillingHandler(subUC, paymentTxnUC, subscriptionPlanRepository, authUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -324,9 +353,19 @@ func main() {
 	// Serve static files from uploads directory
 	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
+	// SaaS: Register system admin routes (completely separate from tenant API)
+	tenantRouter.RegisterSystemAdminRoutes(r, sysAdminH, jwtManager, sysAdminRepository)
+
+	// SaaS: Register tenant auto-inject callback on Create
+	tenantScope.SetTenantCallback(database.DB)
+
 	// API v1 routes
 	var autoAbsentWorker *hrdWorker.AutoAbsentWorker
 	v1 := r.Group("/api/v1")
+	// TenantResolverMiddleware is intentionally NOT registered here.
+	// Tenant isolation is now handled by AuthMiddleware, which reads tenant_id
+	// directly from the JWT claim and sets it in context before any handler runs.
+	// This eliminates the middleware ordering bug where TenantResolver ran before Auth.
 	{
 		v1.GET("/", func(c *gin.Context) {
 			response.SuccessResponse(c, gin.H{
@@ -336,6 +375,18 @@ func main() {
 		})
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
+		authRouter.RegisterWebhookRoutes(v1, xenditH)
+
+		// Tenant billing: authenticated users can query their subscription + entitlements.
+		billing := v1.Group("/billing")
+		billing.Use(middleware.AuthMiddleware(jwtManager, permissionService))
+		{
+			billing.GET("/subscription", billingH.GetMySubscription)
+			billing.GET("/entitlements", billingH.GetMyEntitlements)
+			billing.GET("/payment-history", billingH.GetMyPaymentHistory)
+			billing.POST("/change", billingH.ChangeSubscription)
+			billing.POST("/change/confirm", billingH.ConfirmSubscriptionChange)
+		}
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
@@ -418,7 +469,7 @@ func main() {
 		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC, financeDeps.CashBankTransactionUC)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)

@@ -35,6 +35,7 @@ export const feedbackEn = {
       empty: "No forms found",
       active: "Active",
       inactive: "Inactive",
+      latest: "Latest",
       version: "Version",
       questions: "Questions",
       create: "Add Form",
@@ -81,6 +82,7 @@ export const feedbackEn = {
         choicePlaceholder: "Option text",
         textMaxLength: "Max Length",
         textPlaceholder: "Placeholder text",
+        titleRequired: "Form title is required (min. 2 characters)",
         types: {
           rating: "Rating",
           multiple_choice: "Multiple Choice",

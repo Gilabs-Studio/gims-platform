@@ -11,12 +11,14 @@ import (
 
 type Config struct {
 	Server        ServerConfig
+	Subscription  SubscriptionLifecycleConfig
 	Startup       StartupConfig
 	Security      SecurityConfig
 	Database      DatabaseConfig
 	Observability ObservabilityConfig
 	JWT           JWTConfig
 	Cerebras      CerebrasConfig
+	Xendit        XenditConfig
 	Storage       StorageConfig
 	RateLimit     RateLimitConfig
 	HSTS          HSTSConfig
@@ -64,6 +66,10 @@ type ServerConfig struct {
 	MaxMultipartMemoryBytes int64
 }
 
+type SubscriptionLifecycleConfig struct {
+	GracePeriodDays int
+}
+
 type DatabaseConfig struct {
 	Host                   string
 	Port                   string
@@ -103,6 +109,13 @@ type CerebrasConfig struct {
 	BaseURL string
 	APIKey  string
 	Model   string // Default model name
+}
+
+// XenditConfig holds Xendit payment gateway credentials.
+type XenditConfig struct {
+	SecretKey    string // Server-side Xendit secret key (sk_live_... / sk_test_...)
+	WebhookToken string // Xendit callback verification token
+	BaseURL      string // Xendit API base URL (overridable for sandbox)
 }
 
 type StorageConfig struct {
@@ -168,6 +181,9 @@ func Load() error {
 			MaxMultipartBodyBytes:   getEnvAsInt64("SERVER_MAX_MULTIPART_BODY_BYTES", 50<<20),  // 50MB
 			MaxMultipartMemoryBytes: getEnvAsInt64("SERVER_MAX_MULTIPART_MEMORY_BYTES", 8<<20), // 8MB
 		},
+		Subscription: SubscriptionLifecycleConfig{
+			GracePeriodDays: getEnvAsInt("SUBSCRIPTION_GRACE_PERIOD_DAYS", 7),
+		},
 		Startup: StartupConfig{
 			RunMigrations: getEnvAsBool("RUN_MIGRATIONS", envValue != "production"),
 			RunSeeders:    getEnvAsBool("RUN_SEEDERS", envValue != "production"),
@@ -214,6 +230,11 @@ func Load() error {
 			BaseURL: getEnv("CEREBRAS_BASE_URL", "https://api.cerebras.ai"),
 			APIKey:  getEnv("CEREBRAS_API_KEY", ""),
 			Model:   getEnv("CEREBRAS_MODEL", "llama-3.1-8b"), // Default model
+		},
+		Xendit: XenditConfig{
+			SecretKey:    getEnv("XENDIT_SECRET_KEY", ""),
+			WebhookToken: getEnv("XENDIT_WEBHOOK_TOKEN", ""),
+			BaseURL:      getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
 		},
 		Storage: StorageConfig{
 			UploadDir:     getEnv("STORAGE_UPLOAD_DIR", "./uploads"),
@@ -269,6 +290,10 @@ func Load() error {
 			PoolSize:        getEnvAsInt("REDIS_POOL_SIZE", 10),
 			MinIdleConns:    getEnvAsInt("REDIS_MIN_IDLE_CONNS", 5),
 		},
+	}
+
+	if AppConfig.Subscription.GracePeriodDays < 1 {
+		AppConfig.Subscription.GracePeriodDays = 7
 	}
 
 	// SECURITY: Enforce JWT_SECRET in production

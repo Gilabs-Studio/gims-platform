@@ -53,7 +53,12 @@ import {
 import {
   useRecruitmentRequests,
   useDeleteRecruitmentRequest,
-  useUpdateRecruitmentStatus,
+  useSubmitRecruitmentRequest,
+  useApproveRecruitmentRequest,
+  useRejectRecruitmentRequest,
+  useOpenRecruitmentRequest,
+  useCloseRecruitmentRequest,
+  useCancelRecruitmentRequest,
 } from "../hooks/use-recruitment";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -94,7 +99,12 @@ export function RecruitmentList() {
   const canApprove = useUserPermission("recruitment.approve");
 
   const deleteRequest = useDeleteRecruitmentRequest();
-  const updateStatus = useUpdateRecruitmentStatus();
+  const submitRequest = useSubmitRecruitmentRequest();
+  const approveRequest = useApproveRecruitmentRequest();
+  const rejectRequest = useRejectRecruitmentRequest();
+  const openRequest = useOpenRecruitmentRequest();
+  const closeRequest = useCloseRecruitmentRequest();
+  const cancelRequest = useCancelRecruitmentRequest();
   const requests = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -134,10 +144,28 @@ export function RecruitmentList() {
     notes?: string
   ) => {
     try {
-      await updateStatus.mutateAsync({
-        id,
-        data: { status, notes },
-      });
+      switch (status) {
+        case "PENDING":
+          await submitRequest.mutateAsync(id);
+          break;
+        case "APPROVED":
+          await approveRequest.mutateAsync(id);
+          break;
+        case "REJECTED":
+          await rejectRequest.mutateAsync({ id, notes });
+          break;
+        case "OPEN":
+          await openRequest.mutateAsync(id);
+          break;
+        case "CLOSED":
+          await closeRequest.mutateAsync(id);
+          break;
+        case "CANCELLED":
+          await cancelRequest.mutateAsync(id);
+          break;
+        default:
+          return;
+      }
       toast.success(t("statusUpdated"));
     } catch {
       toast.error(t("common.error"));

@@ -108,6 +108,8 @@ type PurchaseOrderItemResponse struct {
 type PurchaseOrderListResponse struct {
 	ID                  string                       `json:"id"`
 	Code                string                       `json:"code"`
+	CompanyID           *string                      `json:"company_id,omitempty"`
+	FiscalYearID        *string                      `json:"fiscal_year_id,omitempty"`
 	OrderDate           string                       `json:"order_date"`
 	DueDate             *string                      `json:"due_date"`
 	Status              string                       `json:"status"`
@@ -122,6 +124,8 @@ type PurchaseOrderListResponse struct {
 type PurchaseOrderDetailResponse struct {
 	ID         string      `json:"id"`
 	Code       string      `json:"code"`
+	CompanyID   *string    `json:"company_id,omitempty"`
+	FiscalYearID *string   `json:"fiscal_year_id,omitempty"`
 	SupplierID *string     `json:"supplier_id"`
 	PaymentTermsID *string `json:"payment_terms_id"`
 	BusinessUnitID *string `json:"business_unit_id"`

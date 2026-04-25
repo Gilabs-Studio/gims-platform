@@ -62,7 +62,6 @@ interface MapInnerProps<T> {
   readonly defaultZoom?: number;
   readonly children?: React.ReactNode;
   readonly showLayerControl?: boolean;
-  readonly selectedMarkerId?: number | string | null;
   readonly mapProfile?: MapProfile;
   readonly flyToPosition?: { lat: number; lng: number } | null;
 }
@@ -70,14 +69,10 @@ interface MapInnerProps<T> {
 // Component to handle map movement and bounds
 function MapController<T>({
   markers,
-  selectedMarkerId,
-  defaultCenter,
   defaultZoom,
   flyToPosition,
 }: {
   markers: MapMarker<T>[];
-  selectedMarkerId?: number | string | null;
-  defaultCenter: [number, number];
   defaultZoom: number;
   flyToPosition?: { lat: number; lng: number } | null;
 }) {
@@ -90,8 +85,6 @@ function MapController<T>({
       duration: 0.8,
       easeLinearity: 0.4,
     });
-  // flyToPosition is always a fresh object reference on every call — no extra dep needed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, flyToPosition]);
 
   const hasFitInitialRef = useRef(false);
@@ -112,7 +105,6 @@ function MapController<T>({
           easeLinearity: 0.4,
         });
       } else {
-        // @ts-ignore – Leaflet accepts [number, number][] as LatLngBoundsExpression
         map.fitBounds(bounds, {
           padding: [60, 60],
           maxZoom: 14,
@@ -138,7 +130,6 @@ export default function MapInner<T>({
   defaultZoom = 13,
   children,
   showLayerControl = true,
-  selectedMarkerId,
   mapProfile = "balanced",
   flyToPosition,
 }: MapInnerProps<T>) {
@@ -241,8 +232,6 @@ export default function MapInner<T>({
         />
         <MapController 
           markers={validMarkers}
-          selectedMarkerId={selectedMarkerId}
-          defaultCenter={defaultCenter}
           defaultZoom={defaultZoom}
           flyToPosition={flyToPosition}
         />

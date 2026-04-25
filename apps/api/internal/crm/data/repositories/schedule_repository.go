@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -44,12 +45,12 @@ func NewScheduleRepository(db *gorm.DB) ScheduleRepository {
 }
 
 func (r *scheduleRepository) Create(ctx context.Context, schedule *models.Schedule) error {
-	return r.db.WithContext(ctx).Create(schedule).Error
+	return database.GetDB(ctx, r.db).Create(schedule).Error
 }
 
 func (r *scheduleRepository) FindByID(ctx context.Context, id string) (*models.Schedule, error) {
 	var schedule models.Schedule
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Task").
 		Preload("Employee").
 		First(&schedule, "id = ?", id).Error
@@ -60,7 +61,7 @@ func (r *scheduleRepository) FindByID(ctx context.Context, id string) (*models.S
 }
 
 func (r *scheduleRepository) List(ctx context.Context, params ScheduleListParams) ([]models.Schedule, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.Schedule{})
+	query := database.GetDB(ctx, r.db).Model(&models.Schedule{})
 
 	if params.Search != "" {
 		searchTerm := "%" + params.Search + "%"
@@ -110,16 +111,16 @@ func (r *scheduleRepository) List(ctx context.Context, params ScheduleListParams
 }
 
 func (r *scheduleRepository) Update(ctx context.Context, schedule *models.Schedule) error {
-	return r.db.WithContext(ctx).Save(schedule).Error
+	return database.GetDB(ctx, r.db).Save(schedule).Error
 }
 
 func (r *scheduleRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Schedule{}).Error
+	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Schedule{}).Error
 }
 
 func (r *scheduleRepository) FindByTaskID(ctx context.Context, taskID string) (*models.Schedule, error) {
 	var schedule models.Schedule
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Task").
 		Preload("Employee").
 		First(&schedule, "task_id = ?", taskID).Error
@@ -130,5 +131,5 @@ func (r *scheduleRepository) FindByTaskID(ctx context.Context, taskID string) (*
 }
 
 func (r *scheduleRepository) DeleteByTaskID(ctx context.Context, taskID string) error {
-	return r.db.WithContext(ctx).Where("task_id = ?", taskID).Delete(&models.Schedule{}).Error
+	return database.GetDB(ctx, r.db).Where("task_id = ?", taskID).Delete(&models.Schedule{}).Error
 }

@@ -61,7 +61,11 @@ export const posTerminalEn = {
       customerMasterSelected: "Selected customer",
       customerMasterClear: "Clear selection",
       nextToPayment: "Next to Payment",
+      nextToReward: "Next to Reward",
       backToCustomer: "← Back to Customer",
+      rewardStep: {
+        proceed: "Proceed to Payment",
+      },
       loyaltyMember: "Loyalty Member",
       loyaltyProgram: "Program",
       loyaltyCode: "Member Code",

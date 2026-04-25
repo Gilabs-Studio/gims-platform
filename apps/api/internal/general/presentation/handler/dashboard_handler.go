@@ -26,6 +26,11 @@ func (h *DashboardHandler) GetOverview(c *gin.Context) {
 		return
 	}
 
+	// Populate RBAC context for scope-based filtering
+	if uid, ok := c.Get("user_id"); ok {
+		req.UserID, _ = uid.(string)
+	}
+
 	if req.Scope != "" {
 		if !req.Scope.IsValid() {
 			errors.InvalidQueryParamResponse(c)
@@ -73,7 +78,7 @@ func (h *DashboardHandler) GetLayout(c *gin.Context) {
 	}
 	if result == nil {
 		// No saved layout yet — frontend should use the default
-		errors.NotFoundResponse(c, "DASHBOARD_LAYOUT", userID)
+		response.SuccessResponse(c, nil, nil)
 		return
 	}
 

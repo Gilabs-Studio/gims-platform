@@ -22,12 +22,31 @@ export interface User {
   employee_id?: string;
   role: Role;
   permissions: Record<string, string>; // code -> scope (OWN|DIVISION|AREA|ALL)
+  tenant_id?: string;
+  tenant_name?: string;
+  subscription_plan?: string;
+  subscription_access?: SubscriptionAccess;
+}
+
+export interface SubscriptionAccess {
+  state: "active" | "grace_period" | "suspended";
+  enforcement: "full_access" | "hard_lock";
+  days_overdue: number;
+  grace_period_days: number;
+  force_billing_redirect: boolean;
+  allow_read: boolean;
+  allow_write: boolean;
+  message?: string;
+  billing_path?: string;
 }
 
 export interface Role {
   code: string;
   name: string;
   data_scope: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+  /** True when this is the unique, protected tenant-owner role created at registration.
+   *  Use this flag to gate owner-only UI (Billing, Payment) instead of string-matching on code. */
+  is_owner?: boolean;
 }
 
 export interface Menu {

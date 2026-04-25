@@ -60,6 +60,32 @@ func extractUserContext(c *gin.Context) (*userContext, bool) {
 			c.Set("user_company_id", companyIDStr)
 		}
 	}
+
+	if strings.TrimSpace(companyIDStr) == "" {
+		tenantID, _ := c.Get("tenant_id")
+		tenantIDStr, _ := tenantID.(string)
+		tenantIDStr = strings.TrimSpace(tenantIDStr)
+
+		if tenantIDStr != "" {
+			var companyIDs []string
+			err := database.DB.
+				Model(&orgModels.Company{}).
+				Select("id").
+				Where("tenant_id = ?", tenantIDStr).
+				Where("deleted_at IS NULL").
+				Limit(2).
+				Find(&companyIDs).Error
+			if err == nil {
+				if len(companyIDs) == 1 {
+					companyIDStr = strings.TrimSpace(companyIDs[0])
+					if companyIDStr != "" {
+						c.Set("user_company_id", companyIDStr)
+					}
+				}
+			}
+		}
+	}
+
 	if strings.TrimSpace(companyIDStr) == "" {
 		coreErrors.ForbiddenResponse(c, "missing company context", nil)
 		return nil, false
@@ -80,6 +106,11 @@ func handleFloorPlanError(c *gin.Context, err error) {
 		coreErrors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
 			"resource": "floor_plan",
 			"field":    "outlet_id",
+		}, nil)
+	case usecase.ErrFloorPlanAlreadyPublished:
+		coreErrors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
+			"resource": "floor_plan",
+			"field":    "status",
 		}, nil)
 	case usecase.ErrFloorPlanForbidden:
 		coreErrors.ForbiddenResponse(c, "pos.layout.manage", nil)

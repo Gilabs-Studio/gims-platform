@@ -30,11 +30,13 @@ import {
   useSupplierInvoiceAddData,
   useUpdateSupplierInvoice,
 } from "../hooks/use-supplier-invoices";
+import { supplierInvoicesService } from "../services/supplier-invoices-service";
 import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import {
   supplierInvoiceSchema,
   type SupplierInvoiceFormData,
 } from "../schemas/supplier-invoice.schema";
+import type { SupplierInvoiceJournalPreview } from "../types";
 
 // Local narrow types to avoid `any` casts
 type PaymentTermOption = { id: string; name: string; code?: string };
@@ -57,6 +59,11 @@ const NONE_VALUE = "__none__";
 const LOADING_VALUE = "__loading__";
 const EMPTY_VALUE = "__empty__";
 
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function SupplierInvoiceFormDialog({
   open,
   onOpenChange,
@@ -78,6 +85,8 @@ export function SupplierInvoiceFormDialog({
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const [shouldLoadSelectData, setShouldLoadSelectData] = useState(true);
+  const [journalPreview, setJournalPreview] = useState<SupplierInvoiceJournalPreview | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
@@ -119,6 +128,7 @@ export function SupplierInvoiceFormDialog({
 
   useEffect(() => {
     if (!open) {
+      setJournalPreview(null);
       return;
     }
     setShouldLoadSelectData(true);
@@ -154,30 +164,33 @@ export function SupplierInvoiceFormDialog({
         items: [] as InvoiceItem[],
       };
 
-      // If opened from a PO without a preselected GR, try to auto-fill from PO
+      // If opened from a PO, prefill PO-derived defaults even before/without GR selection.
       if (defaultPurchaseOrderId && !defaultGoodsReceiptId) {
-        // If there's exactly one GR for that PO, select it so the GR-based autofill runs
+        const po = poQuery.data?.success ? poQuery.data.data : null;
+        if (po) {
+          const paymentTermID = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
+          initial.payment_terms_id = paymentTermID;
+          initial.tax_rate = po.tax_rate ?? 0;
+          initial.delivery_cost = po.delivery_cost ?? 0;
+          initial.other_cost = po.other_cost ?? 0;
+          initial.invoice_date = todayISO();
+          initial.due_date = po.due_date ?? initial.invoice_date;
+          initial.items = (po.items ?? []).map((it) => {
+            const prod = it.product as ProductRef | undefined;
+            return {
+              product_id: it.product_id,
+              product_name: prod?.name ?? "",
+              product_code: prod?.code ?? "",
+              quantity: it.quantity,
+              price: it.price,
+              discount: it.discount ?? 0,
+            };
+          });
+        }
+
+        // If there's exactly one GR for that PO, select it so the GR-based autofill runs.
         if (filteredGRs.length === 1) {
           initial.goods_receipt_id = filteredGRs[0].id;
-        } else {
-          const po = poQuery.data?.success ? poQuery.data.data : null;
-          if (po) {
-            initial.payment_terms_id = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
-            initial.tax_rate = po.tax_rate ?? 0;
-            initial.delivery_cost = po.delivery_cost ?? 0;
-            initial.other_cost = po.other_cost ?? 0;
-            initial.items = (po.items ?? []).map((it) => {
-              const prod = it.product as ProductRef | undefined;
-              return {
-                product_id: it.product_id,
-                product_name: prod?.name ?? "",
-                product_code: prod?.code ?? "",
-                quantity: it.quantity,
-                price: it.price,
-                discount: it.discount ?? 0,
-              };
-            });
-          }
         }
       }
 
@@ -211,6 +224,8 @@ export function SupplierInvoiceFormDialog({
 
   useEffect(() => {
     if (!open || isEdit || !selectedGR) return;
+    const linkedPO = poQuery.data?.success ? poQuery.data.data : null;
+
     setFormValue(
       "items",
       selectedGR.items.map((it) => ({
@@ -228,7 +243,36 @@ export function SupplierInvoiceFormDialog({
     if (!currentPT && selectedGR.default_payment_terms_id) {
       setFormValue("payment_terms_id", selectedGR.default_payment_terms_id, { shouldValidate: true });
     }
-  }, [open, isEdit, selectedGR, setFormValue, form]);
+
+    // Keep PO-derived financial defaults in sync when creating SI from PO shortcuts.
+    if (linkedPO) {
+      const currentInvoiceDate = form.getValues("invoice_date");
+      if (!currentInvoiceDate) {
+        const nextInvoiceDate = todayISO();
+        setFormValue("invoice_date", nextInvoiceDate, { shouldValidate: true });
+      }
+
+      const currentDueDate = form.getValues("due_date");
+      if (!currentDueDate) {
+        setFormValue("due_date", linkedPO.due_date ?? todayISO(), { shouldValidate: true });
+      }
+
+      const currentTaxRate = form.getValues("tax_rate") ?? 0;
+      if (currentTaxRate === 0 && (linkedPO.tax_rate ?? 0) !== 0) {
+        setFormValue("tax_rate", linkedPO.tax_rate ?? 0, { shouldValidate: true });
+      }
+
+      const currentDeliveryCost = form.getValues("delivery_cost") ?? 0;
+      if (currentDeliveryCost === 0 && (linkedPO.delivery_cost ?? 0) !== 0) {
+        setFormValue("delivery_cost", linkedPO.delivery_cost ?? 0, { shouldValidate: true });
+      }
+
+      const currentOtherCost = form.getValues("other_cost") ?? 0;
+      if (currentOtherCost === 0 && (linkedPO.other_cost ?? 0) !== 0) {
+        setFormValue("other_cost", linkedPO.other_cost ?? 0, { shouldValidate: true });
+      }
+    }
+  }, [open, isEdit, selectedGR, setFormValue, form, poQuery.data]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
     form.setValue("payment_terms_id", item.id, { shouldValidate: true });
@@ -273,6 +317,13 @@ export function SupplierInvoiceFormDialog({
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
 
+  const handleNext = async () => {
+    const isValid = await form.trigger(["goods_receipt_id", "payment_terms_id", "invoice_number", "invoice_date", "due_date"]);
+    if (isValid) {
+      setActiveTab("items");
+    }
+  };
+
   async function onSubmit(values: SupplierInvoiceFormData) {
     const cleaned = { ...values, items: values.items.filter((it) => it.product_id.length > 0) };
     try {
@@ -294,6 +345,33 @@ export function SupplierInvoiceFormDialog({
       toast.error(t("toast.failed"));
     }
   }
+
+  const handlePreviewJournal = async () => {
+    if (isEdit) {
+      toast.error("Journal preview is available for new vendor bill only.");
+      return;
+    }
+
+    const isValid = await form.trigger();
+    if (!isValid) {
+      toast.error(t("toast.failed"));
+      return;
+    }
+
+    const values = form.getValues();
+    const payload = { ...values, items: values.items.filter((it) => it.product_id.length > 0) };
+    try {
+      setIsPreviewing(true);
+      const response = await supplierInvoicesService.preview(payload);
+      if (!response.success) throw new Error(response.error ?? "preview_failed");
+      setJournalPreview(response.data);
+      toast.success("Journal preview generated.");
+    } catch {
+      toast.error(t("toast.failed"));
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -581,7 +659,7 @@ export function SupplierInvoiceFormDialog({
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
                   {t("actions.cancel")}
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+                <Button type="button" onClick={handleNext} className="cursor-pointer">
                   {t("actions.next") || "Next"}
                 </Button>
               </div>
@@ -668,6 +746,47 @@ export function SupplierInvoiceFormDialog({
                                     </div>
                                 );
                             })}
+
+                            {journalPreview?.three_way_matching && journalPreview.three_way_matching.length > 0 && (
+                              <div className="rounded-lg border bg-muted/20 p-3">
+                                <h4 className="text-sm font-semibold mb-2">3-Way Matching (PO vs GR vs Bill)</h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b text-muted-foreground">
+                                        <th className="py-1.5 text-left">Product</th>
+                                        <th className="py-1.5 text-right">PO</th>
+                                        <th className="py-1.5 text-right">GR</th>
+                                        <th className="py-1.5 text-right">Billed</th>
+                                        <th className="py-1.5 text-right">This Bill</th>
+                                        <th className="py-1.5 text-right">Remaining</th>
+                                        <th className="py-1.5 text-right">Valid</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {journalPreview.three_way_matching.map((line) => (
+                                        <tr key={line.product_id} className="border-b last:border-0">
+                                          <td className="py-1.5 text-left">
+                                            <div className="font-medium">{line.product_name || line.product_id}</div>
+                                            <div className="text-muted-foreground">{line.product_code || "-"}</div>
+                                          </td>
+                                          <td className="py-1.5 text-right">{line.quantity_po.toFixed(2)}</td>
+                                          <td className="py-1.5 text-right">{line.quantity_gr.toFixed(2)}</td>
+                                          <td className="py-1.5 text-right">{line.quantity_already_billed.toFixed(2)}</td>
+                                          <td className="py-1.5 text-right">{line.quantity_bill.toFixed(2)}</td>
+                                          <td className="py-1.5 text-right">{line.quantity_remaining.toFixed(2)}</td>
+                                          <td className="py-1.5 text-right">
+                                            <span className={line.is_valid ? "text-success font-medium" : "text-destructive font-medium"}>
+                                              {line.is_valid ? "OK" : "Over"}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                         </div>
                     </div>
 
@@ -710,6 +829,65 @@ export function SupplierInvoiceFormDialog({
                                     <span className="text-primary">{formatMoney(amountDue)}</span>
                                   </div>
                                 </div>
+
+                                {!isEdit && (
+                                  <div className="border-t pt-3 mt-2 space-y-3 bg-card p-3 rounded-lg">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div>
+                                        <h4 className="text-sm font-semibold">Journal Preview</h4>
+                                        <p className="text-xs text-muted-foreground">Simulate GRNI, VAT In, AP, and DP offset before posting.</p>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handlePreviewJournal}
+                                        disabled={isPreviewing || isBusy}
+                                        className="cursor-pointer"
+                                      >
+                                        <ButtonLoading loading={isPreviewing} loadingText="Previewing...">
+                                          Preview
+                                        </ButtonLoading>
+                                      </Button>
+                                    </div>
+
+                                    {journalPreview ? (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-2 text-xs">
+                                          <span className="text-muted-foreground">Balanced</span>
+                                          <span className={journalPreview.is_balanced ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                                            {journalPreview.is_balanced ? "Yes" : "No"}
+                                          </span>
+                                        </div>
+                                        <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                                          {journalPreview.lines.map((line, index) => (
+                                            <div key={`${line.chart_of_account_id}-${index}`} className="rounded-md border bg-background p-2 text-xs">
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <div className="font-medium truncate">
+                                                    {line.chart_of_account_code ? `${line.chart_of_account_code} ` : ""}
+                                                    {line.chart_of_account_name || line.memo}
+                                                  </div>
+                                                  <div className="text-muted-foreground truncate">{line.memo}</div>
+                                                </div>
+                                                <div className="shrink-0 text-right font-mono">
+                                                  <div className={line.debit > 0 ? "text-success" : "text-muted-foreground"}>
+                                                    DR {formatMoney(line.debit)}
+                                                  </div>
+                                                  <div className={line.credit > 0 ? "text-destructive" : "text-muted-foreground"}>
+                                                    CR {formatMoney(line.credit)}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">Generate a preview to see journal lines.</p>
+                                    )}
+                                  </div>
+                                )}
                             </div>
                         </div>
                     </div>

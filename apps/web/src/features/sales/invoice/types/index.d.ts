@@ -65,6 +65,8 @@ export interface CustomerInvoice {
   payment_at?: string;
   tax_invoice_id?: string;
   notes?: string;
+  is_posted?: boolean;
+  journal_entry_id?: string;
   created_by?: string;
   items?: CustomerInvoiceItem[];
   created_at: string;
@@ -123,6 +125,33 @@ export interface CustomerInvoiceSingleResponse {
   request_id: string;
 }
 
+export interface CustomerInvoiceJournalPreviewLine {
+  chart_of_account_id: string;
+  chart_of_account_code?: string;
+  chart_of_account_name?: string;
+  debit: number;
+  credit: number;
+  memo: string;
+}
+
+export interface CustomerInvoiceJournalPreviewResponse {
+  success: boolean;
+  data: {
+    reference_type: string;
+    reference_id: string;
+    invoice_date: string;
+    invoice_number?: string;
+    subtotal: number;
+    tax_amount: number;
+    down_payment: number;
+    total_amount: number;
+    is_balanced: boolean;
+    lines: CustomerInvoiceJournalPreviewLine[];
+  };
+  timestamp: string;
+  request_id: string;
+}
+
 // Items list response with pagination
 export interface CustomerInvoiceItemsListResponse {
   success: boolean;
@@ -149,6 +178,7 @@ export interface CreateCustomerInvoiceData {
   sales_order_id?: string;
   delivery_order_id?: string;
   payment_terms_id?: string;
+  down_payment_invoice_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;

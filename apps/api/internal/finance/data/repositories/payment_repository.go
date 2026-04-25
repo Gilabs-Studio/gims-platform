@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func NewPaymentRepository(db *gorm.DB) PaymentRepository {
 
 func (r *paymentRepository) FindByID(ctx context.Context, id string, withAllocations bool) (*financeModels.Payment, error) {
 	var item financeModels.Payment
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	if withAllocations {
 		q = q.Preload("Allocations").Preload("Allocations.ChartOfAccount")
 	}
@@ -69,7 +70,7 @@ func (r *paymentRepository) List(ctx context.Context, params PaymentListParams) 
 	var items []financeModels.Payment
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.Payment{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.Payment{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())

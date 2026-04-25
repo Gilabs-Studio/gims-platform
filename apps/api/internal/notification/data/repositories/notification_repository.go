@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ func NewNotificationRepository(db *gorm.DB) NotificationRepository {
 }
 
 func (r *notificationRepository) List(ctx context.Context, params ListParams) ([]models.Notification, int64, error) {
-	query := r.db.WithContext(ctx).
+	query := database.GetDB(ctx, r.db).
 		Model(&models.Notification{}).
 		Where("user_id = ?", params.UserID)
 
@@ -79,7 +80,7 @@ func (r *notificationRepository) List(ctx context.Context, params ListParams) ([
 
 func (r *notificationRepository) CountUnread(ctx context.Context, userID string) (int64, error) {
 	var total int64
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Model(&models.Notification{}).
 		Where("user_id = ? AND is_read = ?", userID, false).
 		Count(&total).Error
@@ -94,7 +95,7 @@ func (r *notificationRepository) CountUnread(ctx context.Context, userID string)
 
 func (r *notificationRepository) MarkAsRead(ctx context.Context, userID, id string, readAt time.Time) (*models.Notification, error) {
 	var item models.Notification
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ? AND user_id = ?", id, userID).First(&item).Error; err != nil {
 			if isMissingNotificationsTableError(err) {
 				return gorm.ErrRecordNotFound
@@ -116,7 +117,7 @@ func (r *notificationRepository) MarkAsRead(ctx context.Context, userID, id stri
 }
 
 func (r *notificationRepository) MarkAllAsRead(ctx context.Context, userID string, readAt time.Time) (int64, error) {
-	result := r.db.WithContext(ctx).
+	result := database.GetDB(ctx, r.db).
 		Model(&models.Notification{}).
 		Where("user_id = ? AND is_read = ?", userID, false).
 		Updates(map[string]interface{}{
@@ -138,7 +139,7 @@ func (r *notificationRepository) CreateBulk(ctx context.Context, notifications [
 	if len(notifications) == 0 {
 		return nil
 	}
-	err := r.db.WithContext(ctx).Create(&notifications).Error
+	err := database.GetDB(ctx, r.db).Create(&notifications).Error
 	if isMissingNotificationsTableError(err) {
 		return nil
 	}

@@ -17,6 +17,10 @@ export const inventoryId = {
       showLowStockOnly: "Tampilkan Stok Rendah",
       showAll: "Tampilkan Semua"
     },
+    actions: {
+      openLedger: "Buka Buku Besar Persediaan",
+      ledgerHint: "Langsung buka buku besar persediaan produk dari sini.",
+    },
     table: {
       product: "Produk",
       warehouse: "Gudang",

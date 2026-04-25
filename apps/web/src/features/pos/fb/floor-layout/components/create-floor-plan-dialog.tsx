@@ -1,6 +1,7 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -26,14 +27,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 
 import type { CreateFloorPlanData } from "../types";
-import { getCreateFloorPlanSchema } from "../schemas/floor-layout.schema";
-import { useCreateFloorLayout, useFloorLayoutFormData } from "../hooks/use-floor-layouts";
+import { getCreateFloorPlanSchema, type CreateFloorPlanFormData } from "../schemas/floor-layout.schema";
+import { useCreateFloorLayout, useFloorLayoutFormDataWithCompany } from "../hooks/use-floor-layouts";
 
 interface CreateFloorPlanDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSuccess: (id: string) => void;
   readonly preSelectedOutletId?: string; // For single outlet auto-select
+  readonly companyId?: string;
 }
 
 export function CreateFloorPlanDialog({
@@ -41,16 +43,20 @@ export function CreateFloorPlanDialog({
   onOpenChange,
   onSuccess,
   preSelectedOutletId,
+  companyId,
 }: CreateFloorPlanDialogProps) {
   const t = useTranslations("floorLayout");
   const schema = getCreateFloorPlanSchema(t);
-  const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormData();
+  const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormDataWithCompany(
+    companyId,
+    { enabled: open }
+  );
   const createMutation = useCreateFloorLayout();
 
   const outlets = formData?.data?.outlets ?? [];
   const availableOutlets = outlets.filter((outlet) => !outlet.has_floor_plan);
 
-  const form = useForm<CreateFloorPlanData>({
+  const form = useForm<CreateFloorPlanFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
@@ -63,11 +69,49 @@ export function CreateFloorPlanDialog({
     },
   });
 
-  const selectedOutletId = form.watch("outlet_id");
+  const selectedOutletId = useWatch({
+    control: form.control,
+    name: "outlet_id",
+  });
   const selectedOutlet = outlets.find((outlet) => outlet.id === selectedOutletId);
 
+  useEffect(() => {
+    if (!open) return;
+
+    if (preSelectedOutletId) {
+      form.setValue("outlet_id", preSelectedOutletId, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+      return;
+    }
+
+    if (selectedOutletId && availableOutlets.some((o) => o.id === selectedOutletId)) {
+      return;
+    }
+
+    if (availableOutlets.length > 0) {
+      // Default to first selectable outlet to avoid false "required" validation.
+      form.setValue("outlet_id", availableOutlets[0].id, {
+        shouldDirty: false,
+        shouldValidate: false,
+      });
+    }
+  }, [open, preSelectedOutletId, selectedOutletId, availableOutlets, form]);
+
   const handleSubmit = form.handleSubmit(async (data) => {
-    const targetOutlet = outlets.find((outlet) => outlet.id === data.outlet_id);
+    if (availableOutlets.length === 0) {
+      toast.error(t("noAvailableOutletsHint"));
+      return;
+    }
+
+    const resolvedOutletId = data.outlet_id || availableOutlets[0]?.id;
+    if (!resolvedOutletId) {
+      toast.error(t("noAvailableOutletsHint"));
+      return;
+    }
+
+    const targetOutlet = outlets.find((outlet) => outlet.id === resolvedOutletId);
     if (targetOutlet?.has_floor_plan) {
       form.setError("outlet_id", {
         type: "validate",
@@ -77,7 +121,16 @@ export function CreateFloorPlanDialog({
     }
 
     try {
-      const result = await createMutation.mutateAsync(data);
+      const result = await createMutation.mutateAsync({
+        name: data.name,
+        floor_number: data.floor_number,
+        outlet_id: resolvedOutletId,
+        company_id: companyId,
+        grid_size: data.grid_size,
+        snap_to_grid: data.snap_to_grid,
+        width: data.width,
+        height: data.height,
+      } as CreateFloorPlanData);
       toast.success(t("messages.createSuccess"));
       form.reset();
       onOpenChange(false);
@@ -104,7 +157,7 @@ export function CreateFloorPlanDialog({
               <Skeleton className="h-9 w-full" />
             ) : (
               <Select
-                value={form.watch("outlet_id")}
+                value={selectedOutletId ?? ""}
                 onValueChange={(v) => form.setValue("outlet_id", v, { shouldValidate: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -174,7 +227,7 @@ export function CreateFloorPlanDialog({
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || isLoadingFormData || availableOutlets.length === 0}
               className="cursor-pointer"
             >
               {createMutation.isPending ? "Creating..." : t("create")}

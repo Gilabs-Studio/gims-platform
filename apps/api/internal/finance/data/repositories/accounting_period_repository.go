@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -25,7 +26,7 @@ func NewAccountingPeriodRepository(db *gorm.DB) AccountingPeriodRepository {
 
 func (r *accountingPeriodRepository) FindByDate(ctx context.Context, date time.Time) (*financeModels.AccountingPeriod, error) {
 	var period financeModels.AccountingPeriod
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("start_date <= ? AND end_date >= ?", date, date).
 		First(&period).Error; err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func (r *accountingPeriodRepository) FindByDate(ctx context.Context, date time.T
 }
 
 func (r *accountingPeriodRepository) Create(ctx context.Context, period *financeModels.AccountingPeriod) error {
-	return r.db.WithContext(ctx).Create(period).Error
+	return database.GetDB(ctx, r.db).Create(period).Error
 }
 
 func (r *accountingPeriodRepository) UpdateStatus(ctx context.Context, id string, status financeModels.AccountingPeriodStatus, lockedAt *time.Time, lockedBy *string) error {
@@ -45,12 +46,12 @@ func (r *accountingPeriodRepository) UpdateStatus(ctx context.Context, id string
 	if lockedBy != nil {
 		updates["locked_by"] = lockedBy
 	}
-	return r.db.WithContext(ctx).Model(&financeModels.AccountingPeriod{}).Where("id = ?", id).Updates(updates).Error
+	return database.GetDB(ctx, r.db).Model(&financeModels.AccountingPeriod{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *accountingPeriodRepository) FindLatestClosed(ctx context.Context) (*financeModels.AccountingPeriod, error) {
 	var period financeModels.AccountingPeriod
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("status = ?", financeModels.AccountingPeriodStatusClosed).
 		Order("end_date desc").
 		First(&period).Error; err != nil {

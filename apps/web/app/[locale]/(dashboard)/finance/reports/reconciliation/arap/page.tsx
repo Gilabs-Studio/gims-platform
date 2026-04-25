@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function CanonicalFinanceRouteRedirectPage() {
-  redirect("/finance/reconciliation/arap");
+  redirect("/finance/bank-reconciliation");
 }

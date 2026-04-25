@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo, startTransition } from "react";
+import { useState, useMemo, useCallback, useEffect, memo, startTransition } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer } from "@/components/ui/drawer";
@@ -11,7 +12,7 @@ import { useRole, useAssignPermissionsToRole } from "../hooks/use-roles";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Search, X, Info } from "lucide-react";
+import { ChevronRight, Search, X, Info, Lock, Zap } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
@@ -19,6 +20,7 @@ import { isValidRoute } from "@/lib/route-validator";
 import { ButtonLoading } from "@/components/loading";
 import type { Permission, PermissionScope } from "../types";
 import { Input } from "@/components/ui/input";
+import { billingService } from "@/features/settings/services/billing-service";
 import {
   Select,
   SelectContent,
@@ -62,6 +64,187 @@ const ACTION_ORDER: Record<string, number> = {
   delete: 5, approve: 6, reject: 7, assign_permissions: 8,
   export: 9, import: 10,
 };
+
+/**
+ * Maps normalized section names (lowercase) to the module slug returned by
+ * /billing/entitlements. Used to determine whether a permission section is
+ * available on the tenant's current plan.
+ */
+const SECTION_TO_MODULE: Record<string, string> = {
+  pos: "pos",
+  "point of sale": "pos",
+  hrd: "hr",
+  hr: "hr",
+  hrm: "hr",
+  "human resources": "hr",
+  crm: "crm",
+  finance: "finance",
+  sales: "sales",
+  purchase: "purchase",
+  inventory: "inventory",
+  "master data": "core",
+};
+
+const MODULE_LABELS: Record<string, string> = {
+  pos: "POS",
+  sales: "Sales",
+  purchase: "Purchase",
+  inventory: "Stock",
+  finance: "Finance",
+  crm: "CRM",
+  hr: "HR",
+  core: "Master Data",
+};
+
+const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
+  "dashboard.",
+  "profile.",
+  "setting",
+  "billing.",
+  "user.",
+  "role.",
+  "permission.",
+  "company.",
+  "warehouse.",
+  "product.",
+  "customer.",
+  "supplier.",
+  "employee.",
+] as const;
+
+function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
+  if (entitledMenuURLSet.has(menuURL)) {
+    return true;
+  }
+
+  if (entitledMenuURLSet.has("/master-data") && menuURL.startsWith("/master-data/")) {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeModuleSlug(module?: string): string {
+  const value = (module ?? "").trim().toLowerCase();
+  if (!value) {
+    return "";
+  }
+  if (value === "hrd") {
+    return "hr";
+  }
+  if (value === "master_data" || value === "master-data") {
+    return "core";
+  }
+  if (value === "stock") {
+    return "inventory";
+  }
+  return value;
+}
+
+function isAlwaysAllowedPermission(permissionCode: string): boolean {
+  const code = permissionCode.trim().toLowerCase();
+  if (!code) {
+    return true;
+  }
+  if (code === "pos.payment.manage") {
+    return true;
+  }
+  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => code.startsWith(prefix));
+}
+
+function normalizePath(path?: string): string {
+  if (!path) return "";
+  const trimmed = path.trim().toLowerCase();
+  if (trimmed === "") return "";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function detectNodeModule(node: PermissionTreeNode): string | undefined {
+  const url = normalizePath(node.url);
+  if (!url) {
+    return SECTION_TO_MODULE[node.name.toLowerCase()];
+  }
+
+  if (url.startsWith("/hrd")) return "hr";
+  if (url.startsWith("/stock")) return "inventory";
+  if (url.startsWith("/pos")) return "pos";
+  if (url.startsWith("/crm")) return "crm";
+  if (url.startsWith("/finance")) return "finance";
+  if (url.startsWith("/sales")) return "sales";
+  if (url.startsWith("/purchase")) return "purchase";
+  if (url.startsWith("/master-data")) return "core";
+
+  return SECTION_TO_MODULE[node.name.toLowerCase()];
+}
+
+function getNodeLockMetaForPlan(
+  node: PermissionTreeNode,
+  options: {
+    entitledModuleSet: Set<string>;
+    hasEntitlementRestriction: boolean;
+    hasModuleEntitlements: boolean;
+    isPermissionAllowedByPlan: (permission: Permission) => boolean;
+  },
+): { locked: boolean; moduleLabel?: string } {
+  const moduleSlug = normalizeModuleSlug(detectNodeModule(node));
+  const moduleLabel = moduleSlug ? MODULE_LABELS[moduleSlug] : undefined;
+
+  if (node.type === "resource") {
+    const perms = node.permissions ?? [];
+    if (perms.length === 0) {
+      return { locked: false, moduleLabel };
+    }
+    const allowedCount = perms.filter((permission) => options.isPermissionAllowedByPlan(permission)).length;
+    return { locked: allowedCount === 0, moduleLabel };
+  }
+
+  if (!options.hasEntitlementRestriction) {
+    return { locked: false, moduleLabel };
+  }
+
+  if (options.hasModuleEntitlements && moduleSlug && !options.entitledModuleSet.has(moduleSlug)) {
+    return { locked: true, moduleLabel };
+  }
+
+  const childNodes = node.children ?? [];
+  if (childNodes.length === 0) {
+    return { locked: false, moduleLabel };
+  }
+
+  const allChildrenLocked = childNodes.every((child) =>
+    getNodeLockMetaForPlan(child, options).locked,
+  );
+  return { locked: allChildrenLocked, moduleLabel };
+}
+
+function detectPermissionModule(permission: Permission): string | undefined {
+  const menuUrl = normalizePath(permission.menu?.url);
+  if (menuUrl.startsWith("/hrd")) return "hr";
+  if (menuUrl.startsWith("/stock")) return "inventory";
+  if (menuUrl.startsWith("/pos")) return "pos";
+  if (menuUrl.startsWith("/crm")) return "crm";
+  if (menuUrl.startsWith("/finance")) return "finance";
+  if (menuUrl.startsWith("/sales")) return "sales";
+  if (menuUrl.startsWith("/purchase")) return "purchase";
+  if (menuUrl.startsWith("/master-data")) return "core";
+
+  const menuName = permission.menu?.name?.toLowerCase();
+  if (menuName && SECTION_TO_MODULE[menuName]) {
+    return SECTION_TO_MODULE[menuName];
+  }
+
+  const [resource] = permission.code.toLowerCase().split(".");
+  if (resource.startsWith("crm")) return "crm";
+  if (resource.startsWith("pos")) return "pos";
+  if (resource.startsWith("sales")) return "sales";
+  if (resource.startsWith("purchase")) return "purchase";
+  if (resource.startsWith("finance")) return "finance";
+  if (resource.startsWith("inventory") || resource.startsWith("stock")) return "inventory";
+  if (resource.startsWith("hr") || resource.startsWith("hrd")) return "hr";
+
+  return undefined;
+}
+
 
 function actionSortKey(perm: Permission): number {
   const [, action] = perm.code.split(".");
@@ -405,6 +588,7 @@ const TreeResourceRow = memo(function TreeResourceRow({
   onToggleAll,
   onUpdateScope,
   t,
+  isLocked = false,
 }: {
   node: PermissionTreeNode;
   depth: number;
@@ -413,6 +597,7 @@ const TreeResourceRow = memo(function TreeResourceRow({
   onToggleAll: (ids: string[], select: boolean) => void;
   onUpdateScope: (id: string, scope: PermissionScope) => void;
   t: ReturnType<typeof useTranslations>;
+  isLocked?: boolean;
 }) {
   const perms = useMemo(() => node.permissions ?? [], [node.permissions]);
   const permIds = useMemo(() => perms.map((p) => p.id), [perms]);
@@ -454,19 +639,26 @@ const TreeResourceRow = memo(function TreeResourceRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 py-2 pr-4 border-b border-border/40 transition-colors hover:bg-muted/40",
-        someSelected && "bg-primary/2",
-        allSelected && "bg-primary/5",
+        "flex items-center gap-3 py-2 pr-4 border-b border-border/40 transition-colors",
+        isLocked
+          ? "opacity-50 pointer-events-none select-none bg-muted/10"
+          : "hover:bg-muted/40",
+        !isLocked && someSelected && "bg-primary/2",
+        !isLocked && allSelected && "bg-primary/5",
       )}
       style={{ paddingLeft }}
     >
       {/* Resource master checkbox */}
-      <Checkbox
-        checked={allSelected ? true : someSelected ? "indeterminate" : false}
-        onCheckedChange={handleMasterToggle}
-        className="cursor-pointer"
-        aria-label={`Toggle all permissions for ${node.name}`}
-      />
+      {isLocked ? (
+        <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      ) : (
+        <Checkbox
+          checked={allSelected ? true : someSelected ? "indeterminate" : false}
+          onCheckedChange={handleMasterToggle}
+          className="cursor-pointer"
+          aria-label={`Toggle all permissions for ${node.name}`}
+        />
+      )}
 
       {/* Resource icon + name */}
       <span className="shrink-0 text-muted-foreground">{getMenuIcon(node.icon)}</span>
@@ -499,7 +691,7 @@ const TreeResourceRow = memo(function TreeResourceRow({
       </div>
 
       {/* Scope dropdown - visible when at least one scope-applicable perm is selected */}
-      {scopeApplicablePerms.length > 0 ? (
+      {!isLocked && scopeApplicablePerms.length > 0 ? (
         <Select value={displayScope} onValueChange={handleScopeChange}>
           <SelectTrigger
             className={cn(
@@ -537,6 +729,9 @@ const TreeBranchNode = memo(function TreeBranchNode({
   onUpdateScope,
   t,
   searchActive,
+  isLocked,
+  lockedModuleLabel,
+  getNodeLockMeta,
 }: {
   node: PermissionTreeNode;
   depth: number;
@@ -549,6 +744,9 @@ const TreeBranchNode = memo(function TreeBranchNode({
   onUpdateScope: (id: string, scope: PermissionScope) => void;
   t: ReturnType<typeof useTranslations>;
   searchActive: boolean;
+  isLocked?: boolean;
+  lockedModuleLabel?: string;
+  getNodeLockMeta: (node: PermissionTreeNode) => { locked: boolean; moduleLabel?: string };
 }) {
   const isExpanded = searchActive || expanded.has(node.id);
   const count = counts.get(node.id) ?? { total: 0, selected: 0 };
@@ -570,7 +768,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
   const paddingLeft = 8 + depth * 24;
 
   return (
-    <div>
+    <div className="relative">
       {/* Header row */}
       <div
         className={cn(
@@ -578,11 +776,12 @@ const TreeBranchNode = memo(function TreeBranchNode({
           isSection
             ? "bg-muted/50 hover:bg-muted/70 py-2.5"
             : "bg-muted/20 hover:bg-muted/40 py-2",
+          isLocked && "opacity-50 pointer-events-none",
         )}
         style={{ paddingLeft }}
         onClick={handleToggleExpand}
         role="button"
-        tabIndex={0}
+        tabIndex={isLocked ? -1 : 0}
         aria-expanded={isExpanded}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -591,34 +790,40 @@ const TreeBranchNode = memo(function TreeBranchNode({
           }
         }}
       >
-        <ChevronRight
-          className={cn(
-            "size-4 text-muted-foreground transition-transform shrink-0",
-            isExpanded && "rotate-90",
-          )}
-        />
-        <span
-          className="shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleMasterToggle();
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={`Toggle all in ${node.name}`}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handleMasterToggle();
-            }
-          }}
-        >
-          <Checkbox
-            checked={allSelected ? true : someSelected ? "indeterminate" : false}
-            className="cursor-pointer"
-            tabIndex={-1}
+        {isLocked ? (
+          <Lock className="size-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight
+            className={cn(
+              "size-4 text-muted-foreground transition-transform shrink-0",
+              isExpanded && "rotate-90",
+            )}
           />
-        </span>
+        )}
+        {!isLocked && (
+          <span
+            className="shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMasterToggle();
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Toggle all in ${node.name}`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleMasterToggle();
+              }
+            }}
+          >
+            <Checkbox
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              className="cursor-pointer"
+              tabIndex={-1}
+            />
+          </span>
+        )}
         <span className={cn("shrink-0", isSection ? "text-primary" : "text-muted-foreground")}>
           {getMenuIcon(node.icon)}
         </span>
@@ -630,13 +835,25 @@ const TreeBranchNode = memo(function TreeBranchNode({
         >
           {node.name}
         </span>
-        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-          {count.selected}/{count.total}
-        </span>
+        {isLocked && (
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+            {t("moduleLocked")}
+          </span>
+        )}
+        {isLocked && lockedModuleLabel && (
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+            {lockedModuleLabel}
+          </span>
+        )}
+        {!isLocked && (
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+            {count.selected}/{count.total}
+          </span>
+        )}
       </div>
 
       {/* Children - only rendered when expanded (progressive loading) */}
-      {isExpanded && node.children && (
+      {isExpanded && node.children && !isLocked && (
         <div>
           {node.children.map((child) =>
             child.type === "resource" ? (
@@ -649,6 +866,7 @@ const TreeBranchNode = memo(function TreeBranchNode({
                 onToggleAll={onToggleAll}
                 onUpdateScope={onUpdateScope}
                 t={t}
+                isLocked={getNodeLockMeta(child).locked}
               />
             ) : (
               <TreeBranchNode
@@ -664,6 +882,9 @@ const TreeBranchNode = memo(function TreeBranchNode({
                 onUpdateScope={onUpdateScope}
                 t={t}
                 searchActive={searchActive}
+                isLocked={getNodeLockMeta(child).locked}
+                lockedModuleLabel={getNodeLockMeta(child).moduleLabel}
+                getNodeLockMeta={getNodeLockMeta}
               />
             ),
           )}
@@ -691,15 +912,118 @@ function PermissionsSelector({
   const assignPermissions = useAssignPermissionsToRole();
   const t = useTranslations("userManagement.assignPermissions");
   const tNav = useTranslations("navigation");
+  const locale = useLocale();
+  const upgradeHref = `/${locale}/profile?tab=billing`;
 
   // Provide a stable, typed translator function for buildPermissionTree
   const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
+
+  // Fetch tenant entitlements to determine which module sections are locked.
+  const { data: entitlementData } = useQuery({
+    queryKey: ["my-entitlements"],
+    queryFn: () => billingService.getMyEntitlements(),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const permissionByID = useMemo(
+    () => new Map(permissions.map((permission) => [permission.id, permission])),
+    [permissions],
+  );
+
+  const effectiveEntitledModules = useMemo(
+    () =>
+      (entitlementData?.modules ?? [])
+      .map((moduleSlug) => normalizeModuleSlug(moduleSlug))
+      .filter(Boolean),
+    [entitlementData?.modules],
+  );
+
+  const entitledMenuURLSet = useMemo(
+    () =>
+      new Set(
+        (entitlementData?.menu_urls ?? [])
+          .map((menuURL) => normalizePath(menuURL))
+          .filter(Boolean),
+      ),
+    [entitlementData?.menu_urls],
+  );
+
+  const entitledPermissionCodeSet = useMemo(
+    () =>
+      new Set(
+        (entitlementData?.permission_codes ?? [])
+          .map((code) => code.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    [entitlementData?.permission_codes],
+  );
+
+  const entitledModuleSet = useMemo(() => new Set(effectiveEntitledModules), [effectiveEntitledModules]);
+  const hasGranularPolicy = entitledMenuURLSet.size > 0 || entitledPermissionCodeSet.size > 0;
+  const hasModuleEntitlements = entitledModuleSet.size > 0;
+  const hasEntitlementRestriction = hasModuleEntitlements || hasGranularPolicy;
+
+  const isPermissionAllowedByPlanPolicy = useCallback(
+    (permission: Permission): boolean => {
+      if (!hasGranularPolicy) {
+        return true;
+      }
+
+      const code = permission.code.trim().toLowerCase();
+      if (code && entitledPermissionCodeSet.has(code)) {
+        return true;
+      }
+
+      const menuURL = normalizePath(permission.menu?.url);
+      if (!menuURL) {
+        return true;
+      }
+
+      return matchesEntitledMenuPath(menuURL, entitledMenuURLSet);
+    },
+    [entitledMenuURLSet, entitledPermissionCodeSet, hasGranularPolicy],
+  );
+
+  const isPermissionAllowedByPlan = useCallback(
+    (permission: Permission): boolean => {
+      if (isAlwaysAllowedPermission(permission.code)) {
+        return true;
+      }
+      if (!hasEntitlementRestriction) {
+        return true;
+      }
+      const permissionModule = normalizeModuleSlug(detectPermissionModule(permission));
+      if (!permissionModule) {
+        return isPermissionAllowedByPlanPolicy(permission);
+      }
+      if (hasModuleEntitlements && !entitledModuleSet.has(permissionModule)) {
+        return false;
+      }
+      return isPermissionAllowedByPlanPolicy(permission);
+    },
+    [entitledModuleSet, hasEntitlementRestriction, hasModuleEntitlements, isPermissionAllowedByPlanPolicy],
+  );
+
+  const getNodeLockMeta = useMemo(
+    () => (node: PermissionTreeNode) =>
+      getNodeLockMetaForPlan(node, {
+        entitledModuleSet,
+        hasEntitlementRestriction,
+        hasModuleEntitlements,
+        isPermissionAllowedByPlan,
+      }),
+    [entitledModuleSet, hasEntitlementRestriction, hasModuleEntitlements, isPermissionAllowedByPlan],
+  );
 
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
     () => buildPermissionTree(navigationConfig, permissions, tNavFn),
     [permissions, tNavFn],
   );
+
+  // No hardcoded tree alteration needed, relies on API returned module entitlements
+  const planScopedTree = tree;
 
   // Valid permission ID set for filtering stale IDs from the role
   const validPermIds = useMemo(() => new Set(permissions.map((p) => p.id)), [permissions]);
@@ -709,29 +1033,40 @@ function PermissionsSelector({
     const map: Record<string, string> = {};
     if (role?.permissions?.length) {
       for (const p of role.permissions) {
+        if (!validPermIds.has(p.id)) {
+          continue;
+        }
+        const permission = permissionByID.get(p.id);
+        if (!permission || !isPermissionAllowedByPlan(permission)) {
+          continue;
+        }
+
         if (validPermIds.has(p.id)) {
           map[p.id] = p.scope ?? "ALL";
         }
       }
     }
     return map;
-  }, [role, validPermIds]);
+  }, [role, validPermIds, permissionByID, isPermissionAllowedByPlan]);
 
   const [selectedPermissions, setSelectedPermissions] =
     useState<Record<string, string>>(initialPermissions);
   const [searchQuery, setSearchQuery] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    // Start with top-level sections expanded
-    return new Set(tree.filter((n) => n.type === "section").map((n) => n.id));
-  });
+  const defaultExpandedIds = useMemo(() => new Set<string>(), [role?.id]);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setExpanded(defaultExpandedIds);
+  }, [defaultExpandedIds]);
 
   const searchActive = searchQuery.trim().length > 0;
 
   // Filtered tree for search
   const displayTree = useMemo(() => {
-    if (!searchActive) return tree;
-    return filterTree(tree, searchQuery.trim());
-  }, [tree, searchQuery, searchActive]);
+    if (!searchActive) return planScopedTree;
+    return filterTree(planScopedTree, searchQuery.trim());
+  }, [planScopedTree, searchQuery, searchActive]);
 
   // Counts map
   const countsMap = useMemo(
@@ -752,6 +1087,11 @@ function PermissionsSelector({
     }
     return { total, selected };
   }, [displayTree, countsMap]);
+
+  const hasLockedNode = useMemo(
+    () => displayTree.some((node) => getNodeLockMeta(node).locked),
+    [displayTree, getNodeLockMeta],
+  );
 
   // Toggle expand/collapse
   const handleToggleExpand = useCallback((id: string) => {
@@ -810,6 +1150,10 @@ function PermissionsSelector({
         const next = { ...prev };
         if (select) {
           for (const id of ids) {
+            const permission = permissionByID.get(id);
+            if (!permission || !isPermissionAllowedByPlan(permission)) {
+              continue;
+            }
             if (!(id in next)) next[id] = "ALL";
           }
         } else {
@@ -818,7 +1162,7 @@ function PermissionsSelector({
         return next;
       });
     },
-    [],
+    [permissionByID, isPermissionAllowedByPlan],
   );
 
   // Update scope for a single permission
@@ -831,9 +1175,28 @@ function PermissionsSelector({
 
   // Select/unselect all visible
   const handleSelectAllVisible = useCallback(() => {
-    const ids = displayTree.flatMap(collectPermissionIds);
+    const ids: string[] = [];
+    const walk = (node: PermissionTreeNode): void => {
+      if (getNodeLockMeta(node).locked) {
+        return;
+      }
+      if (node.type === "resource") {
+        for (const permission of node.permissions ?? []) {
+          if (isPermissionAllowedByPlan(permission)) {
+            ids.push(permission.id);
+          }
+        }
+        return;
+      }
+      for (const child of node.children ?? []) {
+        walk(child);
+      }
+    };
+    for (const node of displayTree) {
+      walk(node);
+    }
     handleToggleAll(ids, true);
-  }, [displayTree, handleToggleAll]);
+  }, [displayTree, handleToggleAll, getNodeLockMeta, isPermissionAllowedByPlan]);
 
   const handleUnselectAllVisible = useCallback(() => {
     const ids = displayTree.flatMap(collectPermissionIds);
@@ -862,23 +1225,87 @@ function PermissionsSelector({
   // Submit
   const handleSubmit = useCallback(async () => {
     try {
-      const assignments = Object.entries(selectedPermissions).map(
-        ([permId, scope]) => ({
+      const nextSelected = { ...selectedPermissions };
+      for (const existingPermission of role.permissions ?? []) {
+        if (isAlwaysAllowedPermission(existingPermission.code)) {
+          if (!(existingPermission.id in nextSelected)) {
+            nextSelected[existingPermission.id] = existingPermission.scope ?? "ALL";
+          }
+        }
+      }
+
+      // Compute DIFF: only send what changed, not the full state
+      const currentPermSet = new Set((role.permissions ?? []).map(p => p.id));
+      const nextPermSet = new Set(Object.keys(nextSelected));
+
+      const added: string[] = [];
+      const removed: string[] = [];
+
+      // Find added permissions (in nextSelected but not in current)
+      for (const permId of nextPermSet) {
+        if (!currentPermSet.has(permId)) {
+          added.push(permId);
+        }
+      }
+
+      // Find removed permissions (in current but not in nextSelected)
+      for (const permId of currentPermSet) {
+        if (!nextPermSet.has(permId)) {
+          removed.push(permId);
+        }
+      }
+
+      // If no changes, just close the dialog
+      if (added.length === 0 && removed.length === 0) {
+        toast.success(t("save") || "No changes to save");
+        onClose();
+        return;
+      }
+
+      // Build scope-aware assignments for added permissions
+      const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
+      for (const permId of added) {
+        const scope = nextSelected[permId] ?? "ALL";
+        if (!permissionByID.has(permId)) {
+          console.error("AssignPermissions Debug: building addedWithScope but permission not found in permissionByID:", permId);
+        }
+        addedWithScope.push({
           permission_id: permId,
           scope,
-        }),
-      );
+        });
+      }
+
+      try {
+        console.groupCollapsed("AssignPermissions Debug: payload");
+        const payload = {
+          roleId,
+          permissionIds: [...added, ...removed],
+          diff: {
+            added,
+            added_with_scope: addedWithScope,
+            removed,
+          },
+        };
+        console.log(payload);
+        console.groupEnd();
+      } catch (e) { /* noop */ }
+
       await assignPermissions.mutateAsync({
         roleId,
-        permissionIds: Object.keys(selectedPermissions),
-        assignments,
+        permissionIds: [...added, ...removed],
+        diff: {
+          added,
+          added_with_scope: addedWithScope,
+          removed,
+        },
       });
+      setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");
       onClose();
     } catch {
       // Error handled by api-client interceptor
     }
-  }, [selectedPermissions, assignPermissions, roleId, t, onClose]);
+  }, [selectedPermissions, role.permissions, permissionByID, isPermissionAllowedByPlan, assignPermissions, roleId, t, onClose]);
 
   return (
     <div className="flex flex-col h-full">
@@ -889,7 +1316,7 @@ function PermissionsSelector({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search permissions..."
+            placeholder={t("searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-9 h-9 text-sm"
@@ -899,7 +1326,7 @@ function PermissionsSelector({
               type="button"
               onClick={() => setSearchQuery("")}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-sm transition-colors cursor-pointer"
-              aria-label="Clear search"
+              aria-label={t("clearSearch")}
             >
               <X className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -908,18 +1335,27 @@ function PermissionsSelector({
 
         {/* Counts */}
         <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-          {totalCounts.selected}/{totalCounts.total} selected
+          {t("selectedCount", { selected: totalCounts.selected, total: totalCounts.total })}
         </span>
 
         {/* Actions */}
         <div className="flex items-center gap-1 ml-auto">
+          {hasLockedNode && (
+            <a
+              href={upgradeHref}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 mr-1"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              {t("upgradePlan")}
+            </a>
+          )}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleUnselectAllVisible}
             className="text-xs h-7 cursor-pointer"
           >
-            Unselect all
+            {t("unselectAll")}
           </Button>
           <Button
             variant="ghost"
@@ -927,7 +1363,7 @@ function PermissionsSelector({
             onClick={handleSelectAllVisible}
             className="text-xs h-7 cursor-pointer"
           >
-            Select all
+            {t("selectAll")}
           </Button>
           <span className="w-px h-4 bg-border mx-1" />
           <Button
@@ -936,7 +1372,7 @@ function PermissionsSelector({
             onClick={handleExpandAll}
             className="text-xs h-7 cursor-pointer"
           >
-            Expand
+            {t("expand")}
           </Button>
           <Button
             variant="ghost"
@@ -944,7 +1380,7 @@ function PermissionsSelector({
             onClick={handleCollapseAll}
             className="text-xs h-7 cursor-pointer"
           >
-            Collapse
+            {t("collapse")}
           </Button>
         </div>
       </div>
@@ -954,8 +1390,8 @@ function PermissionsSelector({
         {displayTree.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             {searchActive
-              ? "No permissions matching your search"
-              : "No permissions available"}
+              ? t("noSearchResults")
+              : t("noPermissions")}
           </div>
         ) : (
           displayTree.map((node) =>
@@ -969,6 +1405,7 @@ function PermissionsSelector({
                 onToggleAll={handleToggleAll}
                 onUpdateScope={handleUpdateScope}
                 t={t}
+                isLocked={getNodeLockMeta(node).locked}
               />
             ) : (
               <TreeBranchNode
@@ -984,6 +1421,9 @@ function PermissionsSelector({
                 onUpdateScope={handleUpdateScope}
                 t={t}
                 searchActive={searchActive}
+                isLocked={getNodeLockMeta(node).locked}
+                lockedModuleLabel={getNodeLockMeta(node).moduleLabel}
+                getNodeLockMeta={getNodeLockMeta}
               />
             ),
           )

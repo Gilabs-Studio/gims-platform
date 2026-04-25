@@ -3,6 +3,8 @@ export const financeBankAccountsEn = {
   description: "Manage company, customer, and supplier bank accounts in one place.",
   search: "Search bank accounts...",
   fields: {
+    company: "Company",
+    code: "Code",
     name: "Name",
     accountNumber: "Account Number",
     accountHolder: "Account Holder",
@@ -52,6 +54,7 @@ export const financeBankAccountsEn = {
   placeholders: {
     select: "Select...",
     selectCurrency: "Select currency...",
+    selectCompany: "Select company...",
   },
   toast: {
     created: "Bank account created",

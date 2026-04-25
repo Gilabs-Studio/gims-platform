@@ -8,8 +8,12 @@ export interface TierConfig {
 export interface RewardConfig {
   id: string;
   name: string;
-  points_cost: number;
-  description: string;
+  /** discount_fixed | discount_percent | merch */
+  type: "discount_fixed" | "discount_percent" | "merch";
+  value: number;
+  points_required: number;
+  is_active: boolean;
+  merch_description?: string;
 }
 
 export interface PointRules {
@@ -50,22 +54,29 @@ export interface LoyaltyMember {
   point_balance: number;
   lifetime_points: number;
   total_transactions: number;
+  enrolled_outlet_id?: string;
+  enrolled_outlet_name?: string;
   joined_at: string;
 }
 
 export interface LoyaltyMemberLookup {
   found: boolean;
-  member?: LoyaltyMember;
+  member_id?: string;
+  member_code?: string;
+  customer_id?: string;
+  customer_name?: string;
+  current_tier?: string;
+  tier_badge_color?: string;
+  point_balance?: number;
   available_rewards?: RewardConfig[];
-  already_member: boolean;
-  point_balance: number;
 }
 
 export interface PointLedgerEntry {
   id: string;
   member_id: string;
   entry_type: "earned" | "redeemed" | "expired" | "adjusted";
-  transaction_type?: string;
+  /** The source of this transaction, e.g. pos_order, sales_order, manual, etc. */
+  transaction_type?: "pos_order" | "sales_order" | "manual" | string;
   transaction_id?: string;
   points: number;
   balance_after: number;
@@ -107,14 +118,17 @@ export interface EnrollMemberRequest {
 export interface RedeemPointsRequest {
   member_id: string;
   reward_id: string;
+  transaction_id: string;
+  transaction_type: string;
 }
 
 export interface RedeemPointsResponse {
-  member_id: string;
-  reward_id: string;
+  points_deducted: number;
+  new_balance: number;
+  discount_amount: number;
+  discount_type: string;
   reward_name: string;
-  points_redeemed: number;
-  point_balance: number;
+  merch_description?: string;
 }
 
 export interface AdjustPointsRequest {
@@ -142,6 +156,7 @@ export interface PublicSelfRegisterResponse {
 export interface LoyaltyProgramListParams {
   page?: number;
   per_page?: number;
+  search?: string;
 }
 
 export interface LoyaltyMemberListParams {
@@ -149,6 +164,7 @@ export interface LoyaltyMemberListParams {
   per_page?: number;
   tier?: string;
   outlet_id?: string;
+  search?: string;
 }
 
 export interface LedgerListParams {

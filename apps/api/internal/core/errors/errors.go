@@ -107,11 +107,47 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusForbidden,
 		Message:    "You do not have permission to access this resource",
 	},
+	"PAYMENT_REQUIRED": {
+		HTTPStatus: http.StatusPaymentRequired,
+		Message:    "Subscription payment is required to continue",
+	},
+	"ACCOUNT_SUSPENDED": {
+		HTTPStatus: http.StatusForbidden,
+		Message:    "Account access is suspended due to subscription billing status",
+	},
+	"MODULE_NOT_ENTITLED": {
+		HTTPStatus: http.StatusForbidden,
+		Message:    "Your subscription plan does not include access to this module",
+	},
 
 	// Resource Errors
 	"NOT_FOUND": {
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Resource not found",
+	},
+	"RESOURCE_ALREADY_EXISTS": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Resource already exists",
+	},
+	"EMAIL_ALREADY_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Email is already registered",
+	},
+	"SLUG_ALREADY_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Organization slug already in use",
+	},
+	"PENDING_REGISTRATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Pending registration not found or already finalized",
+	},
+	"INVALID_PAYLOAD": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid payload",
+	},
+	"COMPANY_NAME_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Company name already in use",
 	},
 	"PRODUCT_NOT_FOUND": {
 		HTTPStatus: http.StatusNotFound,
@@ -271,6 +307,12 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Close reason is required for lost deals",
 	},
 
+	// Plan / Quota Errors
+	"USER_LIMIT_REACHED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "User limit for this tenant has been reached. Upgrade your plan to add more users.",
+	},
+
 	// Sales Errors
 	"CREDIT_LIMIT_EXCEEDED": {
 		HTTPStatus: http.StatusUnprocessableEntity,
@@ -312,9 +354,17 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave request status for this operation",
 	},
+	"INVALID_DATE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid date for this operation",
+	},
 	"INVALID_DURATION": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid leave duration type",
+	},
+	"INSUFFICIENT_STOCK": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Insufficient stock for this operation",
 	},
 
 	// System Errors
@@ -399,6 +449,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"XENDIT_INVOICE_FAILED": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Failed to create digital payment invoice",
+	},
+	"BUDGET_CONTROL_FAILED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Budget control validation failed",
 	},
 }
 

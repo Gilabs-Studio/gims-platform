@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -100,13 +101,29 @@ func (h *SalesQuotationPrintHandler) PrintQuotation(c *gin.Context) {
 	// Resolve company: prefer explicit company_id, fallback to first active
 	var company orgModels.Company
 	if companyID := c.Query("company_id"); companyID != "" {
-		if err := h.db.Where("id = ?", companyID).First(&company).Error; err != nil {
-			company = orgModels.Company{Name: "Gilabs"}
+		err := database.GetDB(c.Request.Context(), h.db).
+			Where("id = ?", strings.TrimSpace(companyID)).
+			First(&company).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.String(http.StatusNotFound, "Company not found")
+				return
+			}
+			c.String(http.StatusInternalServerError, "Failed to load company")
+			return
 		}
 	} else {
-		if err := h.db.Where("is_active = ?", true).Order("created_at ASC").First(&company).Error; err != nil {
-			company = orgModels.Company{Name: "Gilabs"}
+		err := database.GetDB(c.Request.Context(), h.db).
+			Where("is_active = ?", true).
+			Order("created_at ASC").
+			First(&company).Error
+		if err != nil && err != gorm.ErrRecordNotFound {
+			c.String(http.StatusInternalServerError, "Failed to load company")
+			return
 		}
+	}
+	if company.Name == "" {
+		company.Name = "Gilabs"
 	}
 
 	// Map line items
@@ -391,9 +408,9 @@ func pdfDrawItems(pdf *fpdf.Fpdf, d *quotationPDFData) {
 
 func pdfDrawTotals(pdf *fpdf.Fpdf, d *quotationPDFData) {
 	tx := pdfRE - 80 // totals block starts 80mm from right edge
-	lw := 45.0        // label width
-	vw := 35.0        // value width
-	tw := lw + vw     // total block width
+	lw := 45.0       // label width
+	vw := 35.0       // value width
+	tw := lw + vw    // total block width
 
 	row := func(label, value string, bold, red bool) {
 		pdf.SetX(tx)

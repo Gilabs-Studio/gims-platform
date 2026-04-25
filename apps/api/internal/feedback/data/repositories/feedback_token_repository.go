@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"time"
 
@@ -25,7 +26,7 @@ func NewFeedbackTokenRepository(db *gorm.DB) FeedbackTokenRepository {
 
 func (r *feedbackTokenRepository) FindByToken(ctx context.Context, token string) (*models.FeedbackToken, error) {
 	var t models.FeedbackToken
-	if err := r.db.WithContext(ctx).Where("token = ?", token).First(&t).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("token = ?", token).First(&t).Error; err != nil {
 		return nil, err
 	}
 	return &t, nil
@@ -33,18 +34,18 @@ func (r *feedbackTokenRepository) FindByToken(ctx context.Context, token string)
 
 func (r *feedbackTokenRepository) FindByID(ctx context.Context, id string) (*models.FeedbackToken, error) {
 	var t models.FeedbackToken
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&t).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&t).Error; err != nil {
 		return nil, err
 	}
 	return &t, nil
 }
 
 func (r *feedbackTokenRepository) Create(ctx context.Context, t *models.FeedbackToken) error {
-	return r.db.WithContext(ctx).Create(t).Error
+	return database.GetDB(ctx, r.db).Create(t).Error
 }
 
 func (r *feedbackTokenRepository) MarkUsed(ctx context.Context, id string, usedAt time.Time) error {
-	return r.db.WithContext(ctx).Model(&models.FeedbackToken{}).
+	return database.GetDB(ctx, r.db).Model(&models.FeedbackToken{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"status":  models.FeedbackTokenStatusUsed,

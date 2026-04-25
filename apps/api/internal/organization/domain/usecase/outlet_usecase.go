@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
@@ -73,55 +75,72 @@ func NewOutletUsecase(
 
 // Create creates a new outlet and optionally a linked warehouse
 func (uc *outletUsecase) Create(ctx context.Context, req dto.CreateOutletRequest) (*dto.OutletResponse, error) {
-	code, err := uc.repo.GetNextCode(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate outlet code: %w", err)
-	}
+	const maxCodeRetry = 3
 
-	outlet := uc.mapper.FromCreateRequest(req)
-	outlet.Code = code
+	var (
+		outlet  *orgModels.Outlet
+		err     error
+	)
 
-	// Use transaction so outlet + warehouse are atomic
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(outlet).Error; err != nil {
-			return err
+	for attempt := 0; attempt < maxCodeRetry; attempt++ {
+		code, codeErr := uc.repo.GetNextCode(ctx)
+		if codeErr != nil {
+			return nil, fmt.Errorf("failed to generate outlet code: %w", codeErr)
 		}
 
-		// Optionally create a linked warehouse
-		if req.CreateWarehouse {
-			whCode, err := uc.warehouseRepo.GetNextCode(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to generate warehouse code: %w", err)
-			}
+		outlet = uc.mapper.FromCreateRequest(req)
+		outlet.Code = code
 
-			warehouse := &warehouseModels.Warehouse{
-				Code:        whCode,
-				Name:        fmt.Sprintf("%s Warehouse", outlet.Name),
-				Address:     outlet.Address,
-				ProvinceID:  outlet.ProvinceID,
-				CityID:      outlet.CityID,
-				DistrictID:  outlet.DistrictID,
-				VillageID:   outlet.VillageID,
-				Latitude:    outlet.Latitude,
-				Longitude:   outlet.Longitude,
-				IsPosOutlet: true,
-				OutletID:    &outlet.ID,
-				IsActive:    true,
-			}
-
-			if err := tx.Create(warehouse).Error; err != nil {
-				return fmt.Errorf("failed to create linked warehouse: %w", err)
-			}
-
-			// Store warehouse reference on outlet
-			outlet.WarehouseID = &warehouse.ID
-			if err := tx.Model(outlet).Update("warehouse_id", warehouse.ID).Error; err != nil {
+		// Use transaction so outlet + warehouse are atomic
+		err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(outlet).Error; err != nil {
 				return err
 			}
+
+			// Optionally create a linked warehouse
+			if req.CreateWarehouse {
+				whCode, err := uc.warehouseRepo.GetNextCode(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to generate warehouse code: %w", err)
+				}
+
+				warehouse := &warehouseModels.Warehouse{
+					Code:        whCode,
+					Name:        fmt.Sprintf("%s Warehouse", outlet.Name),
+					Address:     outlet.Address,
+					ProvinceID:  outlet.ProvinceID,
+					CityID:      outlet.CityID,
+					DistrictID:  outlet.DistrictID,
+					VillageID:   outlet.VillageID,
+					Latitude:    outlet.Latitude,
+					Longitude:   outlet.Longitude,
+					IsPosOutlet: true,
+					OutletID:    &outlet.ID,
+					IsActive:    true,
+				}
+
+				if err := tx.Create(warehouse).Error; err != nil {
+					return fmt.Errorf("failed to create linked warehouse: %w", err)
+				}
+
+				// Store warehouse reference on outlet
+				outlet.WarehouseID = &warehouse.ID
+				if err := tx.Model(outlet).Update("warehouse_id", warehouse.ID).Error; err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+
+		if err == nil {
+			break
 		}
 
-		return nil
-	})
+		if !isOutletCodeDuplicateError(err) || attempt == maxCodeRetry-1 {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +152,17 @@ func (uc *outletUsecase) Create(ctx context.Context, req dto.CreateOutletRequest
 	}
 
 	return uc.mapper.ToResponse(outlet), nil
+}
+
+func isOutletCodeDuplicateError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "duplicate key value") &&
+		strings.Contains(errMsg, "idx_outlets_code") &&
+		strings.Contains(errMsg, "23505")
 }
 
 // GetByID retrieves an outlet by ID
@@ -209,9 +239,12 @@ func (uc *outletUsecase) Delete(ctx context.Context, id string) error {
 }
 
 // GetFormData returns form data (managers and companies) for outlet create/edit forms.
-// Managers are filtered to only include employees whose role has OUTLET data scope.
+// Managers are filtered to include employees with management-level roles:
+// - Roles with "manager" in the name (case-insensitive)
+// - Roles with OUTLET, DIVISION, or AREA data scope (management scopes)
+// This ensures outlet managers, team managers, and supervisors are all eligible.
 func (uc *outletUsecase) GetFormData(ctx context.Context) (*dto.OutletFormDataResponse, error) {
-	// Fetch only employees whose role has OUTLET data scope for the manager dropdown
+	// Fetch employees with management-level roles for the manager dropdown
 	employees, err := uc.employeeRepo.FindByRoleDataScope(ctx, roleModels.DataScopeOutlet)
 	if err != nil {
 		return nil, err

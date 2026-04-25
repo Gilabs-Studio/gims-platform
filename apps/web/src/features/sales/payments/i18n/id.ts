@@ -5,6 +5,7 @@ export const salesPaymentId = {
   toast: {
     created: "Pembayaran dibuat",
     confirmed: "Pembayaran dikonfirmasi",
+    reversed: "Pembayaran dibatalkan",
     deleted: "Pembayaran dihapus",
     failed: "Terjadi kesalahan",
   },
@@ -14,6 +15,7 @@ export const salesPaymentId = {
     change: "Ubah",
     export: "Ekspor",
     confirm: "Konfirmasi",
+    reverse: "Batalkan",
     view: "Lihat",
     auditTrail: "Audit Trail",
     delete: "Hapus",
@@ -106,6 +108,11 @@ export const salesPaymentId = {
   common: {
     cancel: "Batal",
     error: "Terjadi kesalahan",
+  },
+  confirm: {
+    reverseTitle: "Batalkan Pembayaran",
+    reverseDescription: "Apakah Anda yakin ingin membatalkan pembayaran ini? Tindakan ini tidak dapat dibatalkan.",
+    reversing: "Membatalkan...",
   },
   errors: {
     mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum melanjutkan.",

@@ -52,19 +52,30 @@ func (s *cachedPermissionService) redisContext() (context.Context, context.Cance
 }
 
 func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, error) {
+	return s.GetPermissionsForTenant(roleCode, "")
+}
+
+// GetPermissionsForTenant loads permission codes for a role code within a tenant boundary.
+// When tenantID is empty, it falls back to role-code-only behavior for system/global contexts.
+func (s *cachedPermissionService) GetPermissionsForTenant(roleCode string, tenantID string) ([]string, error) {
+	scopeKey := roleCode
+	cacheKey := fmt.Sprintf("permissions:%s", roleCode)
+	if tenantID != "" {
+		scopeKey = fmt.Sprintf("%s::%s", tenantID, roleCode)
+		cacheKey = fmt.Sprintf("permissions:%s:%s", tenantID, roleCode)
+	}
+
 	// 1. Check L1 Cache (Memory)
-	if item, ok := s.l1Cache.Load(roleCode); ok {
+	if item, ok := s.l1Cache.Load(scopeKey); ok {
 		cached := item.(l1CacheItem)
 		if apptime.Now().Before(cached.expiresAt) {
 			return cached.permissions, nil
 		}
-		s.l1Cache.Delete(roleCode)
+		s.l1Cache.Delete(scopeKey)
 	}
 
 	// 2. Check L2 Cache (Redis)
 	redisClient := redis.GetClient()
-	cacheKey := fmt.Sprintf("permissions:%s", roleCode)
-	
 	if redisClient != nil {
 		ctx, cancel := s.redisContext()
 		val, err := redisClient.Get(ctx, cacheKey).Result()
@@ -72,8 +83,7 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 		if err == nil {
 			var perms []string
 			if err := json.Unmarshal([]byte(val), &perms); err == nil {
-				// Populate L1
-				s.l1Cache.Store(roleCode, l1CacheItem{
+				s.l1Cache.Store(scopeKey, l1CacheItem{
 					permissions: perms,
 					expiresAt:   apptime.Now().Add(s.l1TTL),
 				})
@@ -85,18 +95,22 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 	// 3. Fetch from DB
 	var perms []string
 	query := `
-		SELECT p.code 
-		FROM permissions p 
-		JOIN role_permissions rp ON rp.permission_id = p.id 
-		JOIN roles r ON r.id = rp.role_id 
+		SELECT p.code
+		FROM permissions p
+		JOIN role_permissions rp ON rp.permission_id = p.id
+		JOIN roles r ON r.id = rp.role_id
 		WHERE r.code = ? AND p.deleted_at IS NULL AND r.deleted_at IS NULL
 	`
-	if err := s.db.Raw(query, roleCode).Scan(&perms).Error; err != nil {
+	args := []interface{}{roleCode}
+	if tenantID != "" {
+		query += " AND r.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+	if err := s.db.Raw(query, args...).Scan(&perms).Error; err != nil {
 		return nil, err
 	}
 
 	// 4. Update Caches
-	// Update L2
 	if redisClient != nil {
 		data, _ := json.Marshal(perms)
 		ctx, cancel := s.redisContext()
@@ -104,8 +118,7 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 		cancel()
 	}
 
-	// Update L1
-	s.l1Cache.Store(roleCode, l1CacheItem{
+	s.l1Cache.Store(scopeKey, l1CacheItem{
 		permissions: perms,
 		expiresAt:   apptime.Now().Add(s.l1TTL),
 	})
@@ -115,19 +128,29 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 
 // GetPermissionsWithScope returns permission codes mapped to their scope for a role
 func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[string]string, error) {
+	return s.GetPermissionsWithScopeForTenant(roleCode, "")
+}
+
+// GetPermissionsWithScopeForTenant loads scoped permissions for a role code within tenant boundary.
+func (s *cachedPermissionService) GetPermissionsWithScopeForTenant(roleCode string, tenantID string) (map[string]string, error) {
+	scopeKey := roleCode
+	scopeCacheKey := fmt.Sprintf("permissions_scope:%s", roleCode)
+	if tenantID != "" {
+		scopeKey = fmt.Sprintf("%s::%s", tenantID, roleCode)
+		scopeCacheKey = fmt.Sprintf("permissions_scope:%s:%s", tenantID, roleCode)
+	}
+
 	// 1. Check L1 Scope Cache (Memory)
-	if item, ok := s.l1ScopeCache.Load(roleCode); ok {
+	if item, ok := s.l1ScopeCache.Load(scopeKey); ok {
 		cached := item.(l1ScopeCacheItem)
 		if apptime.Now().Before(cached.expiresAt) {
 			return cached.permissions, nil
 		}
-		s.l1ScopeCache.Delete(roleCode)
+		s.l1ScopeCache.Delete(scopeKey)
 	}
 
 	// 2. Check L2 Cache (Redis)
 	redisClient := redis.GetClient()
-	scopeCacheKey := fmt.Sprintf("permissions_scope:%s", roleCode)
-
 	if redisClient != nil {
 		ctx, cancel := s.redisContext()
 		val, err := redisClient.Get(ctx, scopeCacheKey).Result()
@@ -135,8 +158,7 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 		if err == nil {
 			var perms map[string]string
 			if err := json.Unmarshal([]byte(val), &perms); err == nil {
-				// Populate L1
-				s.l1ScopeCache.Store(roleCode, l1ScopeCacheItem{
+				s.l1ScopeCache.Store(scopeKey, l1ScopeCacheItem{
 					permissions: perms,
 					expiresAt:   apptime.Now().Add(s.l1TTL),
 				})
@@ -158,17 +180,20 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 		JOIN roles r ON r.id = rp.role_id
 		WHERE r.code = ? AND p.deleted_at IS NULL AND r.deleted_at IS NULL
 	`
-	if err := s.db.Raw(query, roleCode).Scan(&rows).Error; err != nil {
-		log.Printf("[PermissionService] GetPermissionsWithScope DB error for role '%s': %v", roleCode, err)
+	args := []interface{}{roleCode}
+	if tenantID != "" {
+		query += " AND r.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+	if err := s.db.Raw(query, args...).Scan(&rows).Error; err != nil {
+		log.Printf("[PermissionService] GetPermissionsWithScope DB error for role '%s' tenant '%s': %v", roleCode, tenantID, err)
 
-		// Fallback: load permissions without scope, default all to ALL
-		fallbackPerms, fallbackErr := s.GetPermissions(roleCode)
+		fallbackPerms, fallbackErr := s.GetPermissionsForTenant(roleCode, tenantID)
 		if fallbackErr != nil {
-			log.Printf("[PermissionService] Fallback GetPermissions also failed for role '%s': %v", roleCode, fallbackErr)
+			log.Printf("[PermissionService] Fallback GetPermissions also failed for role '%s' tenant '%s': %v", roleCode, tenantID, fallbackErr)
 			return nil, err
 		}
 
-		log.Printf("[PermissionService] Fallback succeeded: loaded %d permissions with default scope ALL for role '%s'", len(fallbackPerms), roleCode)
 		perms := make(map[string]string, len(fallbackPerms))
 		for _, code := range fallbackPerms {
 			perms[code] = "ALL"
@@ -178,7 +203,6 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 
 	perms := make(map[string]string, len(rows))
 	for _, row := range rows {
-		// Default scope to ALL if empty or not set
 		scope := row.Scope
 		if scope == "" {
 			scope = "ALL"
@@ -194,7 +218,7 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 		cancel()
 	}
 
-	s.l1ScopeCache.Store(roleCode, l1ScopeCacheItem{
+	s.l1ScopeCache.Store(scopeKey, l1ScopeCacheItem{
 		permissions: perms,
 		expiresAt:   apptime.Now().Add(s.l1TTL),
 	})

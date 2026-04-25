@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserList } from "../hooks/use-user-list";
+import { useUserLimit } from "../hooks/use-user-limit";
 import type { User } from "../types";
 import { UserDetailModal } from "./user-detail-modal";
 import { UserForm } from "./user-form";
@@ -96,6 +97,9 @@ export function UserList() {
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
   const queryClient = useQueryClient();
+
+  const { data: userLimit } = useUserLimit();
+  const isAtLimit = userLimit != null && userLimit.current >= userLimit.max;
 
   // Check if any filters are active
   const hasActiveFilters = status !== "" || roleId !== "";
@@ -316,13 +320,25 @@ export function UserList() {
               )}
             </Button>
             {permissions.canCreate && (
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                size="sm"
-                className="h-9 px-3 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {userLimit && (
+                  <Badge
+                    variant={isAtLimit ? "destructive" : "outline"}
+                    className="h-8 shrink-0 px-2 text-xs font-semibold tabular-nums"
+                  >
+                    {userLimit.current}/{userLimit.max}
+                  </Badge>
+                )}
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  size="sm"
+                  className="h-9 px-3 cursor-pointer"
+                  disabled={isAtLimit}
+                  title={isAtLimit ? t("limitReached") : undefined}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -369,10 +385,26 @@ export function UserList() {
             </Select>
           </div>
           {permissions.canCreate && (
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="cursor-pointer" size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              {t("addUser")}
-            </Button>
+            <div className="flex items-center gap-3">
+              {userLimit && (
+                <Badge
+                  variant={isAtLimit ? "destructive" : "outline"}
+                  className="h-8 shrink-0 px-2 text-xs font-semibold tabular-nums"
+                >
+                  {userLimit.current}/{userLimit.max}
+                </Badge>
+              )}
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="cursor-pointer"
+                size="sm"
+                disabled={isAtLimit}
+                title={isAtLimit ? t("limitReached") : undefined}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {t("addUser")}
+              </Button>
+            </div>
           )}
         </div>
       )}

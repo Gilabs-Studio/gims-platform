@@ -17,6 +17,8 @@ type UserRepository interface {
 	List(ctx context.Context, req *dto.ListUsersRequest) ([]models.User, int64, error)
 	// FindAvailable returns users not yet linked to any employee (excluding the given employeeID if non-empty).
 	FindAvailable(ctx context.Context, search string, excludeEmployeeID string) ([]models.User, error)
+	// Count returns the total number of users belonging to the current tenant.
+	Count(ctx context.Context) (int64, error)
 	Create(ctx context.Context, u *models.User) error
 	Update(ctx context.Context, u *models.User) error
 	Delete(ctx context.Context, id string) error
@@ -66,6 +68,7 @@ func (r *userRepository) List(ctx context.Context, req *dto.ListUsersRequest) ([
 	var users []models.User
 	var total int64
 
+	// Scope to current tenant so users only see members of their own organisation
 	query := r.getDB(ctx).Model(&models.User{}).Preload("Role").Preload("Role.Permissions")
 
 	// Apply filters
@@ -118,23 +121,41 @@ func (r *userRepository) List(ctx context.Context, req *dto.ListUsersRequest) ([
 func (r *userRepository) Create(ctx context.Context, u *models.User) error {
 	err := r.getDB(ctx).Create(u).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && strings.Contains(err.Error(), "users_email_key") {
-			return errors.New("user already exists") 
+		if isDuplicateEmailError(err) {
+			return errors.New("user already exists")
 		}
 		return err
 	}
 	return nil
 }
 
+// isDuplicateEmailError detects PostgreSQL unique-constraint violations on the users email column.
+// Covers both the legacy constraint name and the index name used by newer migrations.
+func isDuplicateEmailError(err error) bool {
+	msg := err.Error()
+	if !strings.Contains(msg, "duplicate key value violates unique constraint") {
+		return false
+	}
+	return strings.Contains(msg, "idx_users_email") ||
+		strings.Contains(msg, "users_email_key") ||
+		strings.Contains(msg, "23505")
+}
+
 func (r *userRepository) Update(ctx context.Context, u *models.User) error {
 	err := r.getDB(ctx).Save(u).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && strings.Contains(err.Error(), "users_email_key") {
-			return errors.New("user already exists") 
+		if isDuplicateEmailError(err) {
+			return errors.New("user already exists")
 		}
 		return err
 	}
 	return nil
+}
+
+func (r *userRepository) Count(ctx context.Context) (int64, error) {
+	var total int64
+	err := r.getDB(ctx).Model(&models.User{}).Count(&total).Error
+	return total, err
 }
 
 func (r *userRepository) Delete(ctx context.Context, id string) error {

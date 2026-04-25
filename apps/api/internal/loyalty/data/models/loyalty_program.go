@@ -12,6 +12,7 @@ import (
 // OutletID = NULL means the program is global (applies to all outlets of a company).
 type LoyaltyProgram struct {
 	ID          string         `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OutletID    *string        `gorm:"type:uuid;index" json:"outlet_id,omitempty"`
 	Name        string         `gorm:"type:varchar(255);not null" json:"name"`
 	Description *string        `gorm:"type:text" json:"description,omitempty"`

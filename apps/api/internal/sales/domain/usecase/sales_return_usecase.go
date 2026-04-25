@@ -10,6 +10,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -44,6 +45,7 @@ type SalesReturnUsecase interface {
 	List(ctx context.Context, params repositories.SalesReturnListParams) ([]*dto.SalesReturnResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.SalesReturnResponse, error)
 	Create(ctx context.Context, req *dto.CreateSalesReturnRequest) (*dto.SalesReturnResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdateSalesReturnRequest) (*dto.SalesReturnResponse, error)
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error)
 	Delete(ctx context.Context, id string) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
@@ -86,7 +88,7 @@ func (u *salesReturnUsecase) GetFormData(ctx context.Context) (*dto.SalesReturnF
 	}
 
 	var warehouses []warehouseModels.Warehouse
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&warehouseModels.Warehouse{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -237,6 +239,110 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 	return mapSalesReturnRow(created), nil
 }
 
+func (u *salesReturnUsecase) Update(ctx context.Context, id string, req *dto.UpdateSalesReturnRequest) (*dto.SalesReturnResponse, error) {
+	if req == nil || len(req.Items) == 0 {
+		return nil, ErrSalesReturnInvalid
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	existing, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSalesReturnNotFound
+		}
+		return nil, err
+	}
+
+	if existing.Status != models.SalesReturnStatusDraft {
+		return nil, ErrSalesReturnInvalid
+	}
+
+	action, err := normalizeSalesReturnAction(req.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	deliveryID := existing.DeliveryID
+	if deliveryID == nil || strings.TrimSpace(*deliveryID) == "" {
+		return nil, errors.New("delivery_id is required")
+	}
+
+	delivery, err := u.getDeliveryOrder(ctx, *deliveryID)
+	if err != nil {
+		return nil, err
+	}
+
+	warehouseID, err := u.resolveWarehouseForCreate(ctx, delivery, req.WarehouseID, *deliveryID)
+	if err != nil {
+		return nil, err
+	}
+
+	customerID := strings.TrimSpace(req.CustomerID)
+	if customerID == "" {
+		customerID = existing.CustomerID
+	}
+
+	if err := u.validateRequestedQtyForUpdate(ctx, *deliveryID, req.Items, existing.Items); err != nil {
+		return nil, err
+	}
+
+	items := make([]models.SalesReturnItem, 0, len(req.Items))
+	totalAmount := 0.0
+	for _, item := range req.Items {
+		subtotal := item.Qty * item.UnitPrice
+		totalAmount += subtotal
+
+		items = append(items, models.SalesReturnItem{
+			InvoiceItemID: normalizeOptionalString(item.InvoiceItemID),
+			ProductID:     strings.TrimSpace(item.ProductID),
+			UOMID:         normalizeOptionalString(item.UOMID),
+			Condition:     strings.ToUpper(strings.TrimSpace(item.Condition)),
+			Notes:         normalizeOptionalString(item.Notes),
+			Quantity:      item.Qty,
+			UnitPrice:     item.UnitPrice,
+			Subtotal:      subtotal,
+		})
+	}
+
+	row := &models.SalesReturn{
+		InvoiceID:   existing.InvoiceID,
+		DeliveryID:  existing.DeliveryID,
+		WarehouseID: warehouseID,
+		CustomerID:  customerID,
+		Reason:      strings.TrimSpace(req.Reason),
+		Action:      action,
+		Notes:       req.Notes,
+		TotalAmount: totalAmount,
+		Items:       items,
+	}
+
+	if err := u.repo.Update(ctx, id, row); err != nil {
+		return nil, err
+	}
+
+	updated, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	logSalesAudit(u.auditService, ctx, "sales_return.update", updated.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":         updated.Code,
+			"status":       updated.Status,
+			"action":       updated.Action,
+			"total_amount": updated.TotalAmount,
+			"warehouse_id": updated.WarehouseID,
+		},
+	})
+
+	return mapSalesReturnRow(updated), nil
+}
+
 func (u *salesReturnUsecase) UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error) {
 	row, err := u.repo.GetByID(ctx, id)
 	if err != nil {
@@ -318,6 +424,9 @@ func (u *salesReturnUsecase) Delete(ctx context.Context, id string) error {
 func (u *salesReturnUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if u.db == nil {
 		return nil, 0, errors.New(errDBNil)
+	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesReturn{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesReturnNotFound
 	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "sales_return.", page, perPage)
@@ -549,6 +658,39 @@ func (u *salesReturnUsecase) validateRequestedQty(
 	return nil
 }
 
+func (u *salesReturnUsecase) validateRequestedQtyForUpdate(
+	ctx context.Context,
+	deliveryID string,
+	requestedItems []dto.UpdateSalesReturnItemRequest,
+	existingItems []models.SalesReturnItem,
+) error {
+	availableQtyByProduct, err := u.getAvailableDeliveryQtyByProduct(ctx, deliveryID)
+	if err != nil {
+		return err
+	}
+
+	// Add back existing return quantities to the available pool
+	for _, item := range existingItems {
+		productID := strings.TrimSpace(item.ProductID)
+		availableQtyByProduct[productID] += item.Quantity
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	for _, item := range requestedItems {
+		productID := strings.TrimSpace(item.ProductID)
+		requestedQtyByProduct[productID] += item.Qty
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
+			return errors.New("return quantity exceeds available quantity from delivery order")
+		}
+	}
+
+	return nil
+}
+
 func (u *salesReturnUsecase) createStockMovements(
 	ctx context.Context,
 	items []dto.CreateSalesReturnItemRequest,
@@ -613,7 +755,7 @@ func (u *salesReturnUsecase) getDeliveryOrder(ctx context.Context, deliveryID st
 	}
 
 	var delivery models.DeliveryOrder
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Preload("SalesOrder").
 		Preload("Items").
 		First(&delivery, "id = ?", deliveryID).Error; err != nil {
@@ -640,7 +782,7 @@ func (u *salesReturnUsecase) resolveInvoiceIDForDelivery(ctx context.Context, de
 	}
 
 	var invoice models.CustomerInvoice
-	err := u.db.WithContext(ctx).
+	err := database.GetDB(ctx, u.db).
 		Model(&models.CustomerInvoice{}).
 		Where("delivery_order_id = ?", deliveryID).
 		Order("created_at DESC").
@@ -671,7 +813,7 @@ func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Contex
 	}
 
 	sourceRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
+	if err := database.GetDB(ctx, u.db).
 		Model(&models.DeliveryOrderItem{}).
 		Select("product_id, COALESCE(SUM(quantity), 0) AS qty").
 		Where("delivery_order_id = ?", deliveryID).
@@ -681,8 +823,14 @@ func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Contex
 	}
 
 	returnedRows := make([]productQtyRow, 0)
-	if err := u.db.WithContext(ctx).
-		Model(&models.SalesReturnItem{}).
+	returnedQuery := u.db.WithContext(ctx).
+		Model(&models.SalesReturnItem{})
+	returnedQuery, err := applyTenantJoinScope(ctx, returnedQuery, "sales_return_items.tenant_id", "sales_returns.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := returnedQuery.
 		Select("sales_return_items.product_id, COALESCE(SUM(sales_return_items.quantity), 0) AS qty").
 		Joins("JOIN sales_returns ON sales_returns.id = sales_return_items.sales_return_id").
 		Where("sales_returns.delivery_id = ?", deliveryID).

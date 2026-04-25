@@ -126,6 +126,8 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 	return &dto.PurchaseOrderListResponse{
 		ID:                  po.ID,
 		Code:                po.Code,
+		CompanyID:           po.CompanyID,
+		FiscalYearID:        po.FiscalYearID,
 		OrderDate:           po.OrderDate,
 		DueDate:             po.DueDate,
 		Status:              string(po.Status),
@@ -228,6 +230,8 @@ func (m *PurchaseOrderMapper) ToDetailResponse(po *models.PurchaseOrder) *dto.Pu
 	return &dto.PurchaseOrderDetailResponse{
 		ID:                    po.ID,
 		Code:                  po.Code,
+		CompanyID:             po.CompanyID,
+		FiscalYearID:          po.FiscalYearID,
 		SupplierID:            po.SupplierID,
 		PaymentTermsID:        po.PaymentTermsID,
 		BusinessUnitID:        po.BusinessUnitID,

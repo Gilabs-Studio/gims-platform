@@ -11,7 +11,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -48,20 +50,22 @@ type PurchaseOrderUsecase interface {
 }
 
 type purchaseOrderUsecase struct {
-	db           *gorm.DB
-	repo         repositories.PurchaseOrderRepository
-	prRepo       repositories.PurchaseRequisitionRepository
-	mapper       *mapper.PurchaseOrderMapper
-	auditService audit.AuditService
+	db                 *gorm.DB
+	repo               repositories.PurchaseOrderRepository
+	prRepo             repositories.PurchaseRequisitionRepository
+	fiscalYearResolver *purchaseFiscalYearResolver
+	mapper             *mapper.PurchaseOrderMapper
+	auditService       audit.AuditService
 }
 
-func NewPurchaseOrderUsecase(db *gorm.DB, repo repositories.PurchaseOrderRepository, prRepo repositories.PurchaseRequisitionRepository, auditService audit.AuditService) PurchaseOrderUsecase {
+func NewPurchaseOrderUsecase(db *gorm.DB, repo repositories.PurchaseOrderRepository, prRepo repositories.PurchaseRequisitionRepository, auditService audit.AuditService, fiscalYearRepo financeRepositories.FiscalYearRepository) PurchaseOrderUsecase {
 	return &purchaseOrderUsecase{
-		db:           db,
-		repo:         repo,
-		prRepo:       prRepo,
-		mapper:       mapper.NewPurchaseOrderMapper(),
-		auditService: auditService,
+		db:                 db,
+		repo:               repo,
+		prRepo:             prRepo,
+		fiscalYearResolver: newPurchaseFiscalYearResolver(db, fiscalYearRepo),
+		mapper:             mapper.NewPurchaseOrderMapper(),
+		auditService:       auditService,
 	}
 }
 
@@ -87,32 +91,65 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 	}
 	res := uc.mapper.ToDetailResponse(po)
 
-	// Compute per-item received quantity from all active GRs (excludes REJECTED only).
-	// Using NOT IN so that DRAFT/SUBMITTED/APPROVED GRs also reduce the remaining
-	// quantity, preventing duplicate entries across concurrent GRs for the same PO.
+	// Compute per-item confirmed received quantity for UI and accounting visibility.
+	// Only APPROVED/PARTIAL/CLOSED/CONFIRMED GRs are considered as physically received.
 	type receivedRow struct {
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
 		TotalReceived       float64 `gorm:"column:total_received"`
 	}
-	var receivedRows []receivedRow
-	if err := uc.db.WithContext(ctx).
-		Table("goods_receipt_items").
+	var confirmedRows []receivedRow
+	confirmedQuery := uc.db.WithContext(ctx).
+		Table("goods_receipt_items")
+	confirmedQuery, err = applyTenantJoinScope(ctx, confirmedQuery, "goods_receipt_items.tenant_id", "gr.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := confirmedQuery.
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status NOT IN ?", []string{"REJECTED"}).
+		Where("gr.status IN ?", []string{
+			string(models.GoodsReceiptStatusApproved),
+			string(models.GoodsReceiptStatusPartial),
+			string(models.GoodsReceiptStatusClosed),
+			string(models.GoodsReceiptStatusConfirmed),
+		}).
 		Group("goods_receipt_items.purchase_order_item_id").
-		Scan(&receivedRows).Error; err != nil {
+		Scan(&confirmedRows).Error; err != nil {
 		return nil, err
 	}
-	receivedByItemID := make(map[string]float64, len(receivedRows))
-	for _, r := range receivedRows {
-		receivedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
+	confirmedByItemID := make(map[string]float64, len(confirmedRows))
+	for _, r := range confirmedRows {
+		confirmedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
+	}
+
+	// Compute reservation from all active GRs (exclude REJECTED only) so draft/submitted
+	// GRs still reserve quantity and prevent duplicate receiving.
+	var reservedRows []receivedRow
+	reservedQuery := uc.db.WithContext(ctx).
+		Table("goods_receipt_items")
+	reservedQuery, err = applyTenantJoinScope(ctx, reservedQuery, "goods_receipt_items.tenant_id", "gr.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := reservedQuery.
+		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
+		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
+		Where("gr.purchase_order_id = ?", id).
+		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+		Group("goods_receipt_items.purchase_order_item_id").
+		Scan(&reservedRows).Error; err != nil {
+		return nil, err
+	}
+	reservedByItemID := make(map[string]float64, len(reservedRows))
+	for _, r := range reservedRows {
+		reservedByItemID[r.PurchaseOrderItemID] = r.TotalReceived
 	}
 	for i := range res.Items {
-		received := receivedByItemID[res.Items[i].ID]
-		res.Items[i].QuantityReceived = received
-		remaining := res.Items[i].Quantity - received
+		res.Items[i].QuantityReceived = confirmedByItemID[res.Items[i].ID]
+		remaining := res.Items[i].Quantity - reservedByItemID[res.Items[i].ID]
 		if remaining < 0 {
 			remaining = 0
 		}
@@ -154,6 +191,12 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
 	}
+	companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, req.OrderDate)
+	if err != nil {
+		return nil, err
+	}
+	po.CompanyID = &companyID
+	po.FiscalYearID = &fiscalYearID
 
 	for _, it := range req.Items {
 		discount := clampPO(it.Discount, 0, 100)
@@ -175,13 +218,6 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	po.TaxAmount = tax
 	po.TotalAmount = total
 
-	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, nil); err != nil {
-		return nil, err
-	}
-	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, nil); err != nil {
-		return nil, err
-	}
-
 	// If create from PR: validate PR approved and not already converted to PO
 	if po.PurchaseRequisitionID != nil && strings.TrimSpace(*po.PurchaseRequisitionID) != "" {
 		existingPR, err := uc.prRepo.GetByID(ctx, *po.PurchaseRequisitionID)
@@ -201,12 +237,23 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		if exists {
 			return nil, ErrPurchaseOrderConflict
 		}
+
+		// Ensure PR -> PO integration keeps core procurement references even when frontend omits them.
+		if po.SupplierID == nil || strings.TrimSpace(*po.SupplierID) == "" {
+			po.SupplierID = existingPR.SupplierID
+		}
+		if po.PaymentTermsID == nil || strings.TrimSpace(*po.PaymentTermsID) == "" {
+			po.PaymentTermsID = existingPR.PaymentTermsID
+		}
+		if po.BusinessUnitID == nil || strings.TrimSpace(*po.BusinessUnitID) == "" {
+			po.BusinessUnitID = existingPR.BusinessUnitID
+		}
 	}
 
 	// If create from Sales Order: validate SO exists and not already converted to PO
 	if po.SalesOrderID != nil && strings.TrimSpace(*po.SalesOrderID) != "" {
 		var soCount int64
-		if err := uc.db.WithContext(ctx).
+		if err := database.GetDB(ctx, uc.db).
 			Model(&salesModels.SalesOrder{}).
 			Where("id = ?", *po.SalesOrderID).
 			Count(&soCount).Error; err != nil {
@@ -222,6 +269,13 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		if exists {
 			return nil, ErrPurchaseOrderConflict
 		}
+	}
+
+	if err := snapshotPurchaseOrderHeader(ctx, uc.db, po, nil); err != nil {
+		return nil, err
+	}
+	if err := snapshotPurchaseOrderItems(ctx, uc.db, po, nil); err != nil {
+		return nil, err
 	}
 
 	created, err := uc.repo.Create(ctx, po)
@@ -266,9 +320,9 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 
 	var createdID string
 
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		var pr models.PurchaseRequisition
-		if err := tx.
+		if err := database.GetDB(ctx, tx).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Preload("Items").
 			First(&pr, "id = ?", purchaseRequisitionID).Error; err != nil {
@@ -283,7 +337,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		}
 
 		var count int64
-		if err := tx.Model(&models.PurchaseOrder{}).
+		if err := database.GetDB(ctx, tx).Model(&models.PurchaseOrder{}).
 			Where("purchase_requisition_id = ?", pr.ID).
 			Count(&count).Error; err != nil {
 			return err
@@ -309,6 +363,12 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 			OtherCost:             math.Max(0, pr.OtherCost),
 			Items:                 make([]models.PurchaseOrderItem, 0, len(pr.Items)),
 		}
+		companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, po.OrderDate)
+		if err != nil {
+			return err
+		}
+		po.CompanyID = &companyID
+		po.FiscalYearID = &fiscalYearID
 
 		for _, it := range pr.Items {
 			discount := clampPO(it.Discount, 0, 100)
@@ -605,10 +665,12 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 	}
 	before := poAuditSnapshot(existing)
 	var updated *models.PurchaseOrder
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+		txScoped := database.GetDB(ctx, tx)
+
 		// 1. Lock and check
 		var po models.PurchaseOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
+		if err := txScoped.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if po.Status != models.PurchaseOrderStatusDraft {
@@ -630,7 +692,7 @@ func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.Pu
 		*/
 
 		// 3. Update Status
-		if err := tx.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
+		if err := txScoped.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
 			return err
 		}
 
@@ -658,7 +720,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	}
 
 	var suppliers []supplierModels.Supplier
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&supplierModels.Supplier{}).
 		Preload("Contacts").
 		Where("is_active = ?", true).
@@ -674,7 +736,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	var products []productModels.Product
 	if len(supplierIDs) > 0 {
-		if err := uc.db.WithContext(ctx).
+		if err := database.GetDB(ctx, uc.db).
 			Model(&productModels.Product{}).
 			Where("supplier_id IN ?", supplierIDs).
 			Where("supplier_id IS NOT NULL").
@@ -696,7 +758,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Payment terms
 	var paymentTerms []coreModels.PaymentTerms
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.PaymentTerms{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -706,7 +768,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 
 	// Business units
 	var businessUnits []orgModels.BusinessUnit
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&orgModels.BusinessUnit{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -790,7 +852,11 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 		perPage = 100
 	}
 
-	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseOrder{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, 0, ErrPurchaseOrderNotFound
+	}
+
+	tx := database.GetDB(ctx, uc.db).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "purchase_order.%")
 

@@ -7,9 +7,14 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
   return t ? t(key) : defaultMsg;
 };
 
+// Accept canonical Postgres UUID format (8-4-4-4-12 hex), including fixed seed IDs.
+const UUID_HEX_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidHexSchema = (t?: TranslationFn, messageKey = "validation.invalidId", defaultMsg = "Invalid ID") =>
+  z.string().regex(UUID_HEX_PATTERN, getMsg(t, messageKey, defaultMsg));
+
 // Customer Invoice Item Schema
 export const getInvoiceItemSchema = (t?: TranslationFn) => z.object({
-  product_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
+  product_id: uuidHexSchema(t, "validation.invalidId", "Invalid product ID"),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
@@ -30,11 +35,9 @@ export const getInvoiceSchema = (t?: TranslationFn) => z.object({
     .min(1, getMsg(t, "validation.required", "Invoice date is required")),
   due_date: z.string().optional(),
   type: z.enum(["regular", "proforma"] as const).default("regular"),
-  sales_order_id: z.string().uuid().optional(),
-  delivery_order_id: z.string().uuid().optional(),
-  payment_terms_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID"))
-    .optional(),
+  sales_order_id: uuidHexSchema(t).optional(),
+  delivery_order_id: uuidHexSchema(t).optional(),
+  payment_terms_id: uuidHexSchema(t, "validation.invalidId", "Invalid payment terms ID").optional(),
   tax_rate: z.number()
     .min(0, getMsg(t, "validation.taxRateMin", "Tax rate cannot be negative"))
     .max(100, getMsg(t, "validation.taxRateMax", "Tax rate cannot exceed 100%"))

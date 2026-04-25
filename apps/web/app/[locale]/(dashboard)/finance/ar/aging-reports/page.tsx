@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function FinanceARAgingReportsRedirectPage() {
-  redirect("/finance/reports/aging");
+  redirect("/finance/aging-reports?tab=ar");
 }

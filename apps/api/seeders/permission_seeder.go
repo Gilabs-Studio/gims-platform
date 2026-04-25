@@ -30,6 +30,14 @@ func SeedPermissions() error {
 		// Dashboard
 		{"/dashboard", "dashboard.view", "View Dashboard", "VIEW", "dashboard"},
 
+		// User Profile & Settings - available to all users
+		{"/profile", "profile.read", "View Profile", "VIEW", "profile"},
+		{"/profile", "profile.update", "Edit Profile", "EDIT", "profile"},
+		{"/settings", "settings.read", "View Settings", "VIEW", "settings"},
+		{"/settings", "settings.update", "Edit Settings", "EDIT", "settings"},
+		{"/settings/billing", "billing.read", "View Billing", "VIEW", "billing"},
+		{"/settings/billing", "billing.update", "Edit Billing", "EDIT", "billing"},
+
 		// Master Data - Geographic (read-only map page)
 		{"/master-data/geographic", "geographic.read", "View Geographic Map", "VIEW", "geographic"},
 
@@ -279,6 +287,7 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
 		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
 		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
+		{"/sales/payments", "sales_payment.reverse", "Reverse Sales Payments", "REVERSE", "sales_payment"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -350,6 +359,7 @@ func SeedPermissions() error {
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.update", "Edit Purchase Payments", "EDIT", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
@@ -395,9 +405,17 @@ func SeedPermissions() error {
 		// Adjustment Journal — operational Finance correction journal
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.submit", "Submit Adjustment Journal", "SUBMIT", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.approve", "Approve Adjustment Journal", "APPROVE", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reject", "Reject Adjustment Journal", "REJECT", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
+
+		// Journal Template for Adjustment Journal
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.read", "View Journal Templates", "VIEW", "journal_template"},
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.create", "Create Journal Templates", "CREATE", "journal_template"},
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.use", "Use Journal Templates", "USE", "journal_template"},
 
 		// Cash & Bank journal/transactions
 		{ "/finance/journals/cash-bank", "cash_bank_transaction.read", "View Cash-Bank Transactions", "VIEW", "cash_bank_transaction"},
@@ -419,6 +437,8 @@ func SeedPermissions() error {
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+		{"/finance/settings/fiscal-years", "fiscal_year.read", "View Fiscal Years", "VIEW", "fiscal_year"},
+		{"/finance/settings/fiscal-years", "fiscal_year.write", "Manage Fiscal Years", "EDIT", "fiscal_year"},
 		{"/finance/settings/accounting-mapping", "account_mappings.read", "View Account Mappings", "VIEW", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},
@@ -526,8 +546,17 @@ func SeedPermissions() error {
 		{"/finance/fixed-assets/budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
 		{"/finance/fixed-assets/budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
 
-		// Asset Disposal (placeholder)
-		{"/finance/fixed-assets/disposal", "asset_disposal.read", "View Asset Disposal", "VIEW", "asset_disposal"},
+		// Asset Batch Depreciation (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Preview Batch Depreciation", "DEPRECIATE", "asset"},
+		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Run Batch Depreciation", "DEPRECIATE", "asset"},
+
+		// Asset Disposal (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/disposal", "asset.update", "Preview Asset Disposal", "EDIT", "asset"},
+		{"/finance/fixed-assets/disposal", "asset.update", "Confirm Asset Disposal", "EDIT", "asset"},
+
+		// Asset Revaluation (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/revaluation", "asset.revalue", "Preview Asset Revaluation", "EDIT", "asset"},
+		{"/finance/fixed-assets/revaluation", "asset.revalue", "Approve Asset Revaluation", "APPROVE", "asset"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -607,6 +636,11 @@ func SeedPermissions() error {
 		// POS
 		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
 		{"/pos/fb/floor-layout", "pos.layout.manage", "Manage POS Floor Layout", "MANAGE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.read", "View POS Floor Layout", "VIEW", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.create", "Create POS Floor Layout", "CREATE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.update", "Edit POS Floor Layout", "EDIT", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.delete", "Delete POS Floor Layout", "DELETE", "pos_layout"},
+		{"/pos/fb/floor-layout", "pos.layout.publish", "Publish POS Floor Layout", "PUBLISH", "pos_layout"},
 		{"/pos", "pos.outlet.read", "View POS Outlets", "VIEW", "pos_outlet"},
 		{"/pos", "pos.outlet.manage", "Manage POS Outlets", "MANAGE", "pos_outlet"},
 		{"/pos/fb/terminal", "pos.order.create", "Create POS Orders", "CREATE", "pos_order"},
@@ -682,22 +716,12 @@ func SeedPermissions() error {
 		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
 		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
 
-		// CRM Activities (Sprint 23) — crm_activity.create kept for embedded forms in lead/deal detail
-		{"/crm/activities", "crm_activity.read", "View Activities", "VIEW", "crm_activity"},
-		{"/crm/activities", "crm_activity.create", "Create Activities", "CREATE", "crm_activity"},
-
 		// CRM Tasks (Sprint 23)
 		{"/crm/tasks", "crm_task.read", "View Tasks", "VIEW", "crm_task"},
 		{"/crm/tasks", "crm_task.create", "Create Tasks", "CREATE", "crm_task"},
 		{"/crm/tasks", "crm_task.update", "Edit Tasks", "EDIT", "crm_task"},
 		{"/crm/tasks", "crm_task.delete", "Delete Tasks", "DELETE", "crm_task"},
 		{"/crm/tasks", "crm_task.assign", "Assign Tasks", "ASSIGN", "crm_task"},
-
-		// CRM Schedules (Sprint 23)
-		{"/crm/schedules", "crm_schedule.read", "View Schedules", "VIEW", "crm_schedule"},
-		{"/crm/schedules", "crm_schedule.create", "Create Schedules", "CREATE", "crm_schedule"},
-		{"/crm/schedules", "crm_schedule.update", "Edit Schedules", "EDIT", "crm_schedule"},
-		{"/crm/schedules", "crm_schedule.delete", "Delete Schedules", "DELETE", "crm_schedule"},
 
 		// CRM Area Mapping (Sprint 24)
 		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
@@ -903,6 +927,7 @@ func SeedPermissions() error {
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
 		//  standard module prefix, so they must be mapped explicitly)
 		"adjustment_journal": "DIVISION",
+		"journal_template":   "DIVISION",
 		"journal_valuation":  "DIVISION",
 		"cash_bank_journal":  "DIVISION",
 	}, "ALL")
@@ -918,6 +943,7 @@ func SeedPermissions() error {
 		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",
+		"journal_template":   "DIVISION",
 		"journal_valuation":  "DIVISION",
 		"cash_bank_journal":  "DIVISION",
 	}, "OWN")

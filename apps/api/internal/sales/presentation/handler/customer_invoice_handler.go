@@ -133,6 +133,12 @@ func (h *CustomerInvoiceHandler) Create(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrSalesOrderNotFound) {
+			errors.ErrorResponse(c, "SALES_ORDER_NOT_FOUND", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -143,6 +149,27 @@ func (h *CustomerInvoiceHandler) Create(c *gin.Context) {
 	}
 
 	response.SuccessResponseCreated(c, invoice, meta)
+}
+
+// PreviewJournal handles POST /customer-invoices/preview
+func (h *CustomerInvoiceHandler) PreviewJournal(c *gin.Context) {
+	var req dto.CreateCustomerInvoiceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	preview, err := h.invoiceUC.PreviewJournal(c.Request.Context(), &req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, preview, nil)
 }
 
 // Update handles update customer invoice request

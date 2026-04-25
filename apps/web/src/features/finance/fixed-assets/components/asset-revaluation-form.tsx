@@ -1,0 +1,143 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { assetRevaluationSchema, type AssetRevaluationValues } from "../schemas/fixed-assets.schema";
+import { useAssetRevaluation } from "../hooks/use-asset-revaluation";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+interface AssetRevaluationFormProps {
+  onSuccess?: () => void;
+}
+
+export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
+  const { assets, submit } = useAssetRevaluation();
+  const form = useForm<AssetRevaluationValues>({
+    resolver: zodResolver(assetRevaluationSchema),
+    defaultValues: {
+      asset_id: "",
+      new_value: 0,
+      revaluation_date: new Date().toISOString().slice(0, 10),
+      description: "",
+    },
+  });
+
+  const onSubmit = async (data: AssetRevaluationValues) => {
+    try {
+      const submitResult = await submit.mutateAsync({
+        assetId: data.asset_id,
+        newValue: data.new_value,
+        revaluationDate: data.revaluation_date,
+        description: data.description,
+      });
+
+      if (submitResult.success) {
+        toast.success("Asset revaluation submitted successfully");
+        form.reset();
+        onSuccess?.();
+      }
+    } catch (error) {
+      toast.error("Failed to process revaluation");
+      console.error(error);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>New Asset Revaluation</CardTitle>
+        <CardDescription>Submit asset revaluation for approval</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="asset_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Asset</FormLabel>
+                  <FormControl>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder="Select asset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assets.map((asset) => (
+                          <SelectItem key={asset.id} value={asset.id} className="cursor-pointer">
+                            {asset.code} - {asset.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="new_value"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New Asset Value</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      onChange={(event) => field.onChange(Number(event.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="revaluation_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Revaluation Date</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="date" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Reason for revaluation" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" disabled={submit.isPending} className="w-full">
+              {submit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit for Approval
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}

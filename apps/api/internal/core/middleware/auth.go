@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -14,9 +15,13 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) gin.HandlerFunc {
+	type tenantAwarePermissionService interface {
+		GetPermissionsForTenant(roleCode string, tenantID string) ([]string, error)
+		GetPermissionsWithScopeForTenant(roleCode string, tenantID string) (map[string]string, error)
+	}
 	return func(c *gin.Context) {
 		// 0. Exclude webhooks that do not use browser JWT sessions
-		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/crm/leads/upsert") {
+		if isCRMLeadUpsertWebhookRequest(c.Request.Method, c.Request.URL.Path) {
 			// Inject a system mock user so RequirePermission middleware passes
 			// created_by in DB is a UUID, so we must use a real UUID format instead of 'system-webhook'
 			mockUserID := "00000000-0000-0000-0000-000000000000"
@@ -101,6 +106,17 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 
+		// Propagate tenant_id from JWT claim into both gin and request contexts so
+		// GetDB can apply row-level tenant scoping without an extra DB round-trip.
+		if claims.TenantID != "" {
+			c.Set("tenant_id", claims.TenantID)
+		}
+
+		// System-admin tokens carry no tenant_id; mark them so GetDB skips scoping.
+		if claims.Role == "system_admin" {
+			c.Set("is_system_admin", true)
+		}
+
 		// Also set values on request context for infrastructure services (e.g. audit)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "user_id", claims.UserID)
@@ -108,25 +124,46 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		reqCtx = context.WithValue(reqCtx, "user_role", claims.Role)
 		reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
 		reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
+		if claims.TenantID != "" {
+			reqCtx = context.WithValue(reqCtx, "tenant_id", claims.TenantID)
+		}
+		if claims.Role == "system_admin" {
+			reqCtx = context.WithValue(reqCtx, "is_system_admin", true)
+		}
 
-		// Load Permissions with scope (with fallback to non-scoped permissions)
-		permScopeMap, err := permService.GetPermissionsWithScope(claims.Role)
+		log.Printf("[AuthMiddleware] method=%s path=%s user_id=%s role=%s tenant_id=%s", c.Request.Method, c.Request.URL.Path, claims.UserID, claims.Role, claims.TenantID)
+
+		// Load permissions with strict tenant boundary when available.
+		permScopeMap := map[string]string{}
+		tenantAwareSvc, isTenantAware := permService.(tenantAwarePermissionService)
+		if isTenantAware && claims.TenantID != "" {
+			permScopeMap, err = tenantAwareSvc.GetPermissionsWithScopeForTenant(claims.Role, claims.TenantID)
+		} else {
+			permScopeMap, err = permService.GetPermissionsWithScope(claims.Role)
+		}
 		if err != nil {
-			// Fallback: try loading non-scoped permissions and default scope to ALL
-			plainPerms, fallbackErr := permService.GetPermissions(claims.Role)
-			if fallbackErr != nil {
-				// Both methods failed - deny access
+			var plainPerms []string
+			if isTenantAware && claims.TenantID != "" {
+				plainPerms, err = tenantAwareSvc.GetPermissionsForTenant(claims.Role, claims.TenantID)
+			} else {
+				plainPerms, err = permService.GetPermissions(claims.Role)
+			}
+			if err != nil {
 				errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
 					"reason": "unable to load user permissions",
 				}, nil)
 				c.Abort()
 				return
 			}
-			// Build scope map with ALL as default for all permissions
 			permScopeMap = make(map[string]string, len(plainPerms))
 			for _, code := range plainPerms {
 				permScopeMap[code] = "ALL"
 			}
+		}
+
+		enforceSubscriptionAccess(c, claims.Role, claims.TenantID)
+		if c.IsAborted() {
+			return
 		}
 
 		// Build backward-compatible map[string]bool for existing checks

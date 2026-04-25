@@ -140,6 +140,44 @@ func (h *PurchaseReturnHandler) Create(c *gin.Context) {
 	response.SuccessResponseCreated(c, item, nil)
 }
 
+func (h *PurchaseReturnHandler) Update(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseInvalidIDFormatMessage}, nil)
+		return
+	}
+
+	var req dto.UpdatePurchaseReturnRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		return
+	}
+
+	item, err := h.uc.Update(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrPurchaseReturnNotFound {
+			errors.NotFoundResponse(c, "purchase_return", id)
+			return
+		}
+		if err == usecase.ErrPurchaseReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, item, nil)
+}
+
 func (h *PurchaseReturnHandler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -162,6 +200,49 @@ func (h *PurchaseReturnHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	item, err := h.uc.UpdateStatus(c.Request.Context(), id, req.Status)
+	if err != nil {
+		if err == usecase.ErrPurchaseReturnNotFound {
+			errors.NotFoundResponse(c, "purchase_return", id)
+			return
+		}
+		if err == usecase.ErrPurchaseReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, item, nil)
+}
+
+// Submit handles PATCH /purchase/returns/:id/submit
+func (h *PurchaseReturnHandler) Submit(c *gin.Context) {
+	h.updateStatusByAction(c, "SUBMITTED")
+}
+
+// Confirm handles PATCH /purchase/returns/:id/confirm
+func (h *PurchaseReturnHandler) Confirm(c *gin.Context) {
+	h.updateStatusByAction(c, "APPROVED")
+}
+
+// Reject handles PATCH /purchase/returns/:id/reject
+func (h *PurchaseReturnHandler) Reject(c *gin.Context) {
+	h.updateStatusByAction(c, "REJECTED")
+}
+
+func (h *PurchaseReturnHandler) updateStatusByAction(c *gin.Context, status string) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseInvalidIDFormatMessage}, nil)
+		return
+	}
+
+	item, err := h.uc.UpdateStatus(c.Request.Context(), id, status)
 	if err != nil {
 		if err == usecase.ErrPurchaseReturnNotFound {
 			errors.NotFoundResponse(c, "purchase_return", id)

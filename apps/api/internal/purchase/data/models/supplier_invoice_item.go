@@ -10,6 +10,7 @@ import (
 
 type SupplierInvoiceItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	SupplierInvoiceID string          `gorm:"type:uuid;index;not null" json:"supplier_invoice_id"`
 	SupplierInvoice   *SupplierInvoice `gorm:"foreignKey:SupplierInvoiceID" json:"supplier_invoice,omitempty"`

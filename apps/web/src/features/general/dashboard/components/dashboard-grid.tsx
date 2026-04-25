@@ -26,12 +26,16 @@ import { useDashboardStore } from "../stores/useDashboardStore";
 import { SortableWidget } from "./sortable-widget";
 import { WidgetRenderer } from "./widget-renderer";
 import { WidgetPicker } from "./widget-picker";
+import { OnboardingWizard } from "./onboarding-wizard";
+import { DashboardTemplatePicker } from "./dashboard-template-picker";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
-import type { WidgetType } from "../types";
+import { useOnboardingState } from "../hooks/use-onboarding";
+import type { WidgetConfig, WidgetType } from "../types";
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
   const { data: layoutData } = useDashboardLayout();
+  const { data: onboarding } = useOnboardingState();
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
 
   const {
@@ -49,12 +53,28 @@ export function DashboardGrid() {
     setDateFilter,
   } = useDashboardStore();
 
-  // Sync layout from DB into store once loaded
+  const hasPersistedLayout = Boolean(layoutData && layoutData.length > 0);
+  const shouldShowTemplatePicker =
+    onboarding?.completed === true &&
+    layoutData !== undefined &&
+    !hasPersistedLayout &&
+    widgets.length === 0;
+
+  // Sync layout from DB into store once loaded.
+  // When a saved layout exists, hydrate it into the store.
   useEffect(() => {
-    if (layoutData && layoutData.length > 0) {
+    if (hasPersistedLayout && layoutData) {
       setWidgets(layoutData);
     }
-  }, [layoutData, setWidgets]);
+  }, [hasPersistedLayout, layoutData, setWidgets]);
+
+  const handleSelectTemplate = useCallback(
+    (templateWidgets: WidgetConfig[]) => {
+      setWidgets(templateWidgets);
+      saveLayout(templateWidgets);
+    },
+    [setWidgets, saveLayout],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -89,9 +109,9 @@ export function DashboardGrid() {
   }, [saveLayout, widgets, toggleEditMode]);
 
   const handleReset = useCallback(() => {
+    // Restore pre-edit snapshot, stay in edit mode (no DB save)
     resetLayout();
-    saveLayout([]);
-  }, [resetLayout, saveLayout]);
+  }, [resetLayout]);
 
   const handleAddWidget = useCallback(async (type: WidgetType) => {
     const registry = WIDGET_REGISTRY[type];
@@ -121,6 +141,16 @@ export function DashboardGrid() {
   const visibleWidgets = widgets
     .filter((w) => w.visible)
     .sort((a, b) => a.order - b.order);
+
+  // While onboarding is in progress, render the wizard as the full dashboard content.
+  // Once onboarding is complete (or while the state is still loading), render the grid.
+  if (onboarding !== undefined && !onboarding?.completed) {
+    return <OnboardingWizard />;
+  }
+
+  if (shouldShowTemplatePicker) {
+    return <DashboardTemplatePicker onSelect={handleSelectTemplate} />;
+  }
 
   return (
     <PageMotion>

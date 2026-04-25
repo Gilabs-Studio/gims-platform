@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { deliveryService } from "../services/delivery-service";
 import { orderKeys } from "../../order/hooks/use-orders";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type { DeliveryOrderSummary, SalesOrderListResponse } from "../../order/types";
 import type {
   ListDeliveryOrdersParams,
@@ -116,6 +118,9 @@ export function useCreateDeliveryOrder() {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create delivery order"));
+    },
   });
 }
 
@@ -153,8 +158,9 @@ export function useUpdateDeliveryOrder() {
       });
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
     },
-    onError: () => {
+    onError: (error) => {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+      toast.error(getSalesErrorMessage(error, "Failed to update delivery order"));
     },
   });
 }
@@ -167,6 +173,9 @@ export function useDeleteDeliveryOrder() {
     mutationFn: (id: string) => deliveryService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete delivery order"));
     },
   });
 }
@@ -190,6 +199,9 @@ export function useUpdateDeliveryOrderStatus() {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update delivery order status"));
+    },
   });
 }
 
@@ -203,6 +215,9 @@ export function useApproveDeliveryOrder() {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to approve delivery order"));
     },
   });
 }
@@ -227,6 +242,9 @@ export function useShipDeliveryOrder() {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to ship delivery order"));
+    },
   });
 }
 
@@ -250,6 +268,9 @@ export function useDeliverDeliveryOrder() {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to deliver delivery order"));
+    },
   });
 }
 
@@ -258,5 +279,8 @@ export function useSelectBatches() {
   return useMutation({
     mutationFn: (data: BatchSelectionRequest) =>
       deliveryService.selectBatches(data),
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to select batches"));
+    },
   });
 }

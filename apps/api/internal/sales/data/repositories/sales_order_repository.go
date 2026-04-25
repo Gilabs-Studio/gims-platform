@@ -96,7 +96,12 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 	var orders []models.SalesOrder
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.SalesOrder{})
+	query := r.db.WithContext(ctx).Model(&models.SalesOrder{})
+	var err error
+	query, err = applyTenantFilter(ctx, query, "sales_orders.tenant_id")
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())
@@ -105,6 +110,10 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 	if s := strings.TrimSpace(req.Search); s != "" {
 		search := "%" + s + "%"
 		query = query.Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		query, err = applyTenantFilter(ctx, query, "employees.tenant_id")
+		if err != nil {
+			return nil, 0, err
+		}
 		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR sales_orders.code ILIKE ? OR sales_orders.notes ILIKE ?", search, search, search, search)
 	}
 
@@ -198,7 +207,7 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 	query = query.Order(sortBy + " " + sortDir)
 
 	// Execute query with preloads
-	err := query.
+	err = query.
 		Preload("Customer").
 		Preload("SalesQuotation").
 		Preload("PaymentTerms").

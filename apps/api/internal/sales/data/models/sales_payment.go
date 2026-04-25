@@ -26,6 +26,7 @@ const (
 
 type SalesPayment struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CustomerInvoiceID string           `gorm:"type:uuid;not null;index" json:"invoice_id"`
 	CustomerInvoice   *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"invoice,omitempty"`

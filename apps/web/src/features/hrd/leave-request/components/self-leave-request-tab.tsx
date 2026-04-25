@@ -448,8 +448,9 @@ export function SelfLeaveRequestTab({
                     {t("actions.edit")}
                   </Button>
                 )}
-                {(item.status === "PENDING" || item.status === "APPROVED") &&
-                  new Date() < new Date(item.start_date) && (
+                {(item.status === "PENDING" ||
+                  (item.status === "APPROVED" &&
+                    new Date() < new Date(item.start_date))) && (
                     <Button
                       variant="outline"
                       size="sm"

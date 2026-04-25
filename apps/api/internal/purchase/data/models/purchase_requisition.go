@@ -4,6 +4,7 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ const (
 // NOTE: request_date is stored as string (recommended ISO YYYY-MM-DD).
 type PurchaseRequisition struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 
@@ -33,6 +35,11 @@ type PurchaseRequisition struct {
 
 	SupplierCodeSnapshot string `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
 	SupplierNameSnapshot string `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
+
+	CompanyID *string             `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company   *orgModels.Company  `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID *string                `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	FiscalYear   *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 
 	PaymentTermsID *string              `gorm:"type:uuid;index" json:"payment_terms_id"`
 	PaymentTerms   *coreModels.PaymentTerms `gorm:"foreignKey:PaymentTermsID" json:"payment_terms,omitempty"`

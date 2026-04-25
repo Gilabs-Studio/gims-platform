@@ -99,7 +99,7 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 
 	// Fetch active bank accounts
 	var bankAccounts []coreModels.BankAccount
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&coreModels.BankAccount{}).
 		Where("is_active = ?", true).
 		Order("name ASC").
@@ -121,7 +121,7 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 
 	// Fetch eligible invoices (unpaid or partial, both regular and down_payment)
 	var invoices []*models.CustomerInvoice
-	if err := uc.db.WithContext(ctx).
+	if err := database.GetDB(ctx, uc.db).
 		Model(&models.CustomerInvoice{}).
 		Preload("SalesOrder").
 		Where("status IN ?", []models.CustomerInvoiceStatus{
@@ -232,7 +232,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 	method models.SalesPaymentMethod,
 ) (string, error) {
 	createdID := ""
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		inv, err := lockInvoiceForSalesPaymentCreate(tx, strings.TrimSpace(req.InvoiceID))
 		if err != nil {
 			return err
@@ -252,7 +252,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 			return err
 		}
 
-		ba, err := lockActiveBankAccount(tx, strings.TrimSpace(req.BankAccountID))
+		ba, err := resolveBankAccountForPaymentCreate(tx, trimOptionalString(req.BankAccountID), method, actorID)
 		if err != nil {
 			return err
 		}
@@ -323,6 +323,80 @@ func ensureNoPendingSalesPayment(tx *gorm.DB, invoiceID string) error {
 	}
 
 	return nil
+}
+
+func trimOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(*value)
+}
+
+func resolveBankAccountForPaymentCreate(
+	tx *gorm.DB,
+	bankAccountID string,
+	method models.SalesPaymentMethod,
+	actorID string,
+) (*coreModels.BankAccount, error) {
+	if bankAccountID != "" {
+		return lockActiveBankAccount(tx, bankAccountID)
+	}
+
+	if method != models.SalesPaymentMethodCash {
+		return nil, errors.New("bank account is required for bank transfers")
+	}
+
+	companyID, err := resolveActorCompanyID(tx, actorID)
+	if err != nil {
+		return nil, err
+	}
+
+	return lockAnyActiveBankAccountForCompany(tx, companyID)
+}
+
+func resolveActorCompanyID(tx *gorm.DB, actorID string) (string, error) {
+	trimmedActorID := strings.TrimSpace(actorID)
+	if trimmedActorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	type employeeCompanyRow struct {
+		CompanyID string
+	}
+
+	var row employeeCompanyRow
+	if err := tx.Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", trimmedActorID).
+		Limit(1).
+		Scan(&row).Error; err != nil {
+		return "", err
+	}
+
+	companyID := strings.TrimSpace(row.CompanyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
+func lockAnyActiveBankAccountForCompany(tx *gorm.DB, companyID string) (*coreModels.BankAccount, error) {
+	var ba coreModels.BankAccount
+	if err := tx.Model(&coreModels.BankAccount{}).
+		Where("company_id = ?", companyID).
+		Where("is_active = ?", true).
+		Order("updated_at DESC").
+		Order("created_at DESC").
+		First(&ba).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("no active cash/bank account configured for this company")
+		}
+		return nil, err
+	}
+
+	return &ba, nil
 }
 
 func lockActiveBankAccount(tx *gorm.DB, bankAccountID string) (*coreModels.BankAccount, error) {
@@ -457,7 +531,7 @@ func (uc *salesPaymentUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (uc *salesPaymentUsecase) deleteSalesPaymentTx(ctx context.Context, id string) error {
-	return uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, err := lockPendingSalesPayment(tx, id)
 		if err != nil {
 			return err
@@ -588,7 +662,7 @@ func (uc *salesPaymentUsecase) Reverse(ctx context.Context, id string) (*dto.Sal
 
 func (uc *salesPaymentUsecase) reverse(ctx context.Context, id string, reason string) (*dto.SalesPaymentDetailResponse, error) {
 	var reversed *models.SalesPayment
-	err := uc.db.Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, err := uc.repo.GetByID(database.WithTx(ctx, tx), id)
 		if err != nil {
 			return err
@@ -642,14 +716,15 @@ func (uc *salesPaymentUsecase) reverse(ctx context.Context, id string, reason st
 
 func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymentID string) (string, error) {
 	confirmedID := ""
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, invoice, confirmedTotal, err := uc.prepareConfirmSalesPayment(tx, paymentID)
 		if err != nil {
 			return err
 		}
 
 		appliedAmount := appliedSalesPaymentAmount(payment)
-		if err := ensurePaymentWithinInvoiceLimit(confirmedTotal, appliedAmount, invoice.Amount); err != nil {
+		if err := ensurePaymentWithinInvoiceLimit(appliedAmount, invoice.RemainingAmount); err != nil {
+
 			return err
 		}
 
@@ -673,6 +748,10 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 		loadedPay, loadErr := uc.repo.GetByID(txCtx, payment.ID)
 		if loadErr != nil {
 			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
+		}
+		// Preload CustomerInvoice for proper journal profile selection
+		if err := tx.Model(loadedPay).Association("CustomerInvoice").Find(&loadedPay.CustomerInvoice); err != nil {
+			return fmt.Errorf("failed to load customer invoice for payment journal: %w", err)
 		}
 		if err := uc.triggerJournalEntry(txCtx, loadedPay); err != nil {
 			return fmt.Errorf("failed to create journal for sales payment: %w", err)
@@ -719,8 +798,8 @@ func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error 
 	return ErrSalesPaymentConflict
 }
 
-func ensurePaymentWithinInvoiceLimit(confirmedTotal, paymentAmount, invoiceAmount float64) error {
-	if confirmedTotal+paymentAmount <= invoiceAmount+0.0001 {
+func ensurePaymentWithinInvoiceLimit(paymentAmount, remainingAmount float64) error {
+	if paymentAmount <= remainingAmount+0.0001 {
 		return nil
 	}
 
@@ -830,8 +909,20 @@ func (uc *salesPaymentUsecase) triggerJournalReversed(ctx context.Context, pay *
 }
 
 func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.SalesPayment) error {
-	if pay == nil || uc.journalUC == nil || uc.engine == nil {
-		return nil
+	// Validate critical dependencies — NO SILENT FAILURES
+	if pay == nil {
+		return errors.New("sales payment is nil")
+	}
+	if uc.journalUC == nil {
+		return errors.New("journal entry usecase is not initialized for sales payment journal trigger")
+	}
+	if uc.engine == nil {
+		return errors.New("accounting engine is not initialized for sales payment journal trigger")
+	}
+
+	companyID, err := uc.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve company for sales payment journal: %w", err)
 	}
 
 	// Resolve Bank Account COA for the DEBIT side
@@ -870,9 +961,21 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	}
 
 	// Choose profile based on invoice type
+	// If CustomerInvoice not preloaded, load invoice type from database
+	invoiceType := models.CustomerInvoiceTypeRegular
+	if pay.CustomerInvoice != nil {
+		invoiceType = pay.CustomerInvoice.Type
+	} else {
+		// Fallback: query invoice type if not preloaded
+		var inv models.CustomerInvoice
+		if err := database.GetDB(ctx, uc.db).Model(&models.CustomerInvoice{}).Select("type").First(&inv, "id = ?", pay.CustomerInvoiceID).Error; err == nil {
+			invoiceType = inv.Type
+		}
+	}
+
 	profile := accounting.ProfileSalesPayment
 	descPrefix := "Customer Payment"
-	if pay.CustomerInvoice != nil && pay.CustomerInvoice.Type == models.CustomerInvoiceTypeDownPayment {
+	if invoiceType == models.CustomerInvoiceTypeDownPayment {
 		profile = accounting.ProfileSalesPaymentDP
 		descPrefix = "Customer Down Payment"
 	}
@@ -885,6 +988,7 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	data := accounting.TransactionData{
 		ReferenceType:    reference.RefTypeSalesPayment,
 		ReferenceID:      pay.ID,
+		CompanyID:        companyID,
 		EntryDate:        pay.PaymentDate,
 		Description:      fmt.Sprintf("%s %s", descPrefix, refNum),
 		TotalAmount:      pay.Amount,
@@ -920,9 +1024,42 @@ func (uc *salesPaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay
 	return uc.triggerJournalEntry(ctx, pay)
 }
 
+func (uc *salesPaymentUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {
+	if uc == nil || uc.db == nil {
+		return "", errors.New("db is not configured")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	var companyID string
+	if err := database.GetDB(ctx, uc.db).
+		WithContext(ctx).
+		Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", actorID).
+		Limit(1).
+		Scan(&companyID).Error; err != nil {
+		return "", err
+	}
+
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
 func (uc *salesPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesPaymentAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New(errSalesPaymentDBNil)
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SalesPayment{}, id, security.SalesScopeQueryOptions()) {
+		return nil, 0, ErrSalesPaymentNotFound
 	}
 
 	entries, total, err := listAuditTrailEntries(ctx, uc.db, id, "sales_payment.", page, perPage)

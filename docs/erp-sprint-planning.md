@@ -1241,3 +1241,21 @@ erDiagram
 3. **Code Review:** Wajib review sebelum merge ke main
 4. **Documentation:** Update API docs (Swagger/OpenAPI) per sprint
 5. **Demo:** Sprint review setiap akhir sprint dengan stakeholder
+
+---
+
+## Bug Fix Log
+
+Resolved issues tracked here. Format: `[x] #<issue> — <summary>`.
+
+### Batch Fix — 2026-04-19
+
+- [x] **#122** — Stock movement `source` field was never populated for IN-type movements created from goods receipts. Fixed by deriving supplier name from `gr.Supplier.Name` (with `SupplierNameSnapshot` fallback) and propagating through `ReceiveStockRequest` → `StockMovementRequest` → repository.
+- [x] **#124** — Stock opname `FindByID` did not preload `Warehouse`. Fixed by adding `.Preload("Warehouse")` to the repository query.
+- [x] **#125** — Stock opname detail dialog header displayed raw UUID instead of `opname_number`. Fixed by rendering `opname.opname_number`.
+- [x] **#126** — Quantity and unit were rendered without a space separator in the movement detail dialog. Fixed by using `inline-flex gap-1` layout.
+- [x] **#127** — `system_qty` (current stock level) showed 0 in stock opname items due to three bugs: (1) frontend had no mechanism to fetch current stock on product selection — fixed by adding `getProductStockLevel()` service, `useProductStockLevel()` hook, and wiring to the product selection handler with `warehouseId` passed from the parent detail dialog; (2) `SaveItems` usecase accepted `system_qty` from the frontend without verification — fixed by querying authoritative stock from `inventoryUC.GetStockList` at save time; (3) `GetStockList` SQL returned NULL `warehouse_id`/`warehouse_name` for products with no batches in the queried warehouse — fixed by joining `warehouses` on `req.WarehouseID` directly instead of via `ib.warehouse_id`. Frontend also gained loading and no-stock helper text.
+- [x] **#128** — Recruitment detail modal used a non-existent `PATCH /{id}/status` endpoint, causing 404 errors. Fixed by replacing `useUpdateRecruitmentStatus()` with per-action hooks: `useApproveRecruitmentRequest`, `useRejectRecruitmentRequest`, `useSubmitRecruitmentRequest`, `useCancelRecruitmentRequest`.
+- [x] **#129** — Move-applicant-stage endpoint rejected requests that sent `stage_id` instead of `to_stage_id`. Fixed by accepting both field aliases in `MoveApplicantStageDTO` and normalising via `TargetStageID()` helper.
+- [x] **#130** — Leave cancel endpoint returned 500 when called with an empty or invalid `:id` parameter (e.g., `/leave-requests//cancel`). Fixed by validating the path param as a UUID before DB access and returning `VALIDATION_ERROR` for invalid inputs.
+- [x] **#140** — Sales payment detail view was missing a Reverse action for confirmed payments (backend was already complete). Fixed by adding a Reverse button (visible only when `status === "CONFIRMED"` and user has `sales_payment.reverse` permission) with a confirmation dialog, and adding i18n keys in both `en.ts` and `id.ts`.

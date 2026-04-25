@@ -23,12 +23,34 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center space-y-4">
+      <div className="flex min-h-screen items-center justify-center bg-background/50 backdrop-blur-sm">
+        <div className="text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
           <div className="flex items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <div className="relative h-12 w-12 text-primary">
+              <svg className="h-full w-full animate-spin" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-20"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  fill="none"
+                />
+                <path
+                  className="opacity-80"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  d="M12 2a10 10 0 0 1 10 10"
+                />
+              </svg>
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">Loading...</div>
+          <div className="text-sm font-medium tracking-tight text-muted-foreground/80 animate-pulse">
+            Loading...
+          </div>
         </div>
       </div>
     );

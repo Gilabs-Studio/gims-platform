@@ -21,7 +21,7 @@
       "allStatus": "Semua Status",
       "allRoles": "Semua Role",
       "addUser": "Tambah Pengguna",
-      "empty": "Tidak ada pengguna",
+      "limitReached": "Batas pengguna tercapai. Upgrade paket Anda untuk menambah lebih banyak pengguna.",      "userLimitLabel": "{current}/{max} pengguna",      "empty": "Tidak ada pengguna",
       "createTitle": "Buat Pengguna",
       "editTitle": "Edit Pengguna",
       "deleteTitle": "Hapus Pengguna?",

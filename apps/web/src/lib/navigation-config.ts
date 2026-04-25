@@ -341,6 +341,13 @@ export const navigationConfig: NavItem[] = [
         permission: "inventory.read",
       },
       {
+        name: "Stock Ledger",
+        i18nKey: "stockLedger",
+        url: "/stock/ledger",
+        icon: "scroll-text",
+        permission: "inventory.read",
+      },
+      {
         name: "Stock Movement",
         i18nKey: "stockMovement",
         url: "/stock/movements",
@@ -378,35 +385,35 @@ export const navigationConfig: NavItem[] = [
           {
             name: "Journal Entries",
             i18nKey: "journalEntries",
-            url: "/finance/accounting/journal-entries",
+            url: "/finance/journals",
             icon: "file-text",
             permission: "journal.read",
           },
           {
             name: "Sales Journal",
             i18nKey: "salesJournal",
-            url: "/finance/ar/customer-invoices",
+            url: "/finance/journals/sales",
             icon: "receipt",
             permission: "sales_journal.read",
           },
           {
             name: "Purchase Journal",
             i18nKey: "purchaseJournal",
-            url: "/finance/accounting/journal-entries/purchase",
+            url: "/finance/journals/purchase",
             icon: "shopping-cart",
             permission: "purchase_journal.read",
           },
           {
             name: "Adjustment Journal",
             i18nKey: "adjustmentJournal",
-            url: "/finance/accounting/journal-entries/adjustment",
+            url: "/finance/journals/adjustment",
             icon: "edit-3",
             permission: "adjustment_journal.read",
           },
           {
             name: "Financial Closing",
             i18nKey: "financialClosing",
-            url: "/finance/accounting/closing",
+            url: "/finance/closing",
             icon: "shield-check",
             permission: "financial_closing.read",
           },
@@ -418,13 +425,6 @@ export const navigationConfig: NavItem[] = [
         url: "",
         icon: "receipt",
         children: [
-          {
-            name: "Customer Invoices",
-            i18nKey: "customerInvoices",
-            url: "/finance/ar/customer-invoices",
-            icon: "receipt",
-            permission: "sales_journal.read",
-          },
           {
             name: "Customer Payments",
             i18nKey: "payments",
@@ -454,13 +454,6 @@ export const navigationConfig: NavItem[] = [
         url: "",
         icon: "receipt",
         children: [
-          {
-            name: "Supplier Invoices",
-            i18nKey: "supplierInvoices",
-            url: "/finance/ap/supplier-invoices",
-            icon: "receipt",
-            permission: "supplier_invoice.read",
-          },
           {
             name: "Supplier Payments",
             i18nKey: "payments",
@@ -638,7 +631,7 @@ export const navigationConfig: NavItem[] = [
             i18nKey: "fiscalYears",
             url: "/finance/settings/fiscal-years",
             icon: "calendar-range",
-            permission: "finance_settings.read",
+            permission: "fiscal_year.read",
           },
           {
             name: "Tax Configuration",

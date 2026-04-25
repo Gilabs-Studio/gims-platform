@@ -96,8 +96,9 @@ func (h *LoyaltyHandler) ListPrograms(c *gin.Context) {
 page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 perPage = clampPerPage(perPage)
+search := c.Query("search")
 
-items, pagination, err := h.uc.ListPrograms(c.Request.Context(), page, perPage)
+items, pagination, err := h.uc.ListPrograms(c.Request.Context(), page, perPage, search)
 if err != nil {
 handleLoyaltyError(c, err)
 return
@@ -197,6 +198,7 @@ Page:     page,
 PerPage:  perPage,
 Tier:     c.Query("tier"),
 OutletID: c.Query("outlet_id"),
+Search:   c.Query("search"),
 }
 
 items, pagination, err := h.uc.ListMembers(c.Request.Context(), params)
@@ -304,6 +306,8 @@ case errors.Is(err, usecase.ErrPointsAlreadyAwarded):
 response.ErrorResponse(c, http.StatusConflict, "LOYALTY_POINTS_ALREADY_AWARDED", err.Error(), nil, nil)
 case errors.Is(err, usecase.ErrNoActiveProgram):
 response.ErrorResponse(c, http.StatusNotFound, "LOYALTY_NO_ACTIVE_PROGRAM", err.Error(), nil, nil)
+case errors.Is(err, usecase.ErrLoyaltyForbidden):
+response.ErrorResponse(c, http.StatusForbidden, "LOYALTY_FORBIDDEN", err.Error(), nil, nil)
 default:
 response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred", nil, nil)
 }

@@ -16,21 +16,21 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 	}
 
 	response := dto.DeliveryOrderResponse{
-		ID:                  m.ID,
-		Code:                m.Code,
-		DeliveryDate:        m.DeliveryDate.Format("2006-01-02"),
-		WarehouseID:         warehouseID,
-		SalesOrderID:        m.SalesOrderID,
-		TrackingNumber:     m.TrackingNumber,
-		ReceiverName:        m.ReceiverName,
-		ReceiverPhone:       m.ReceiverPhone,
-		DeliveryAddress:     m.DeliveryAddress,
-		ReceiverSignature:  m.ReceiverSignature,
-		Status:              string(m.Status),
-		Notes:               m.Notes,
-		IsPartialDelivery:   m.IsPartialDelivery,
-		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+		ID:                m.ID,
+		Code:              m.Code,
+		DeliveryDate:      m.DeliveryDate.Format("2006-01-02"),
+		WarehouseID:       warehouseID,
+		SalesOrderID:      m.SalesOrderID,
+		TrackingNumber:    m.TrackingNumber,
+		ReceiverName:      m.ReceiverName,
+		ReceiverPhone:     m.ReceiverPhone,
+		DeliveryAddress:   m.DeliveryAddress,
+		ReceiverSignature: m.ReceiverSignature,
+		Status:            string(m.Status),
+		Notes:             m.Notes,
+		IsPartialDelivery: m.IsPartialDelivery,
+		CreatedAt:         m.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         m.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if m.Warehouse != nil {
@@ -99,7 +99,7 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 		}
 		response.CancellationReason = m.CancellationReason
 	}
-	
+
 	if m.JournalEntryID != nil {
 		response.JournalEntryID = m.JournalEntryID
 	}
@@ -118,16 +118,18 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 // ToDeliveryOrderItemResponse converts a DeliveryOrderItem model to response DTO
 func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryOrderItemResponse {
 	response := dto.DeliveryOrderItemResponse{
-		ID:               m.ID,
-		DeliveryOrderID: m.DeliveryOrderID,
-		ProductID:        m.ProductID,
-		Quantity:         m.Quantity,
-		Price:            m.Price,
-		Subtotal:         m.Subtotal,
-		IsEquipment:      m.IsEquipment,
+		ID:                m.ID,
+		DeliveryOrderID:   m.DeliveryOrderID,
+		ProductID:         m.ProductID,
+		Quantity:          m.Quantity,
+		Price:             m.Price,
+		Subtotal:          m.Subtotal,
+		AvgCostSnapshot:   m.AvgCostSnapshot,
+		COGSAmount:        m.COGSAmount,
+		IsEquipment:       m.IsEquipment,
 		InstallationNotes: m.InstallationNotes,
-		CreatedAt:        m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        m.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:         m.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         m.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if m.SalesOrderItemID != nil {
@@ -145,7 +147,7 @@ func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryO
 			if m.InventoryBatch.ExpiryDate != nil {
 				expiryDate = *m.InventoryBatch.ExpiryDate
 			}
-			
+
 			response.InventoryBatch = &dto.BatchInfo{
 				ID:          m.InventoryBatch.ID,
 				BatchNumber: m.InventoryBatch.BatchNumber,
@@ -201,22 +203,22 @@ func ToDeliveryOrderModel(req *dto.CreateDeliveryOrderRequest, code string, crea
 	}
 
 	deliveryOrder := &salesModels.DeliveryOrder{
-		Code:            code,
-		DeliveryDate:    deliveryDate,
-		WarehouseID:     warehouseID,
-		SalesOrderID:    req.SalesOrderID,
-		DeliveredByID:   req.DeliveredByID,
-		CourierAgencyID: req.CourierAgencyID,
-		TrackingNumber:  req.TrackingNumber,
-		ReceiverName:    req.ReceiverName,
-		ReceiverPhone:   req.ReceiverPhone,
-		DeliveryAddress: req.DeliveryAddress,
-		Notes:           req.Notes,
-		Status:          salesModels.DeliveryOrderStatusDraft,
+		Code:              code,
+		DeliveryDate:      deliveryDate,
+		WarehouseID:       warehouseID,
+		SalesOrderID:      req.SalesOrderID,
+		DeliveredByID:     req.DeliveredByID,
+		CourierAgencyID:   req.CourierAgencyID,
+		TrackingNumber:    req.TrackingNumber,
+		ReceiverName:      req.ReceiverName,
+		ReceiverPhone:     req.ReceiverPhone,
+		DeliveryAddress:   req.DeliveryAddress,
+		Notes:             req.Notes,
+		Status:            salesModels.DeliveryOrderStatusDraft,
 		IsPartialDelivery: false, // Will be determined based on quantities
-		CreatedBy:       createdBy,
-		CreatedAt:       apptime.Now(),
-		UpdatedAt:       apptime.Now(),
+		CreatedBy:         createdBy,
+		CreatedAt:         apptime.Now(),
+		UpdatedAt:         apptime.Now(),
 	}
 
 	// Map items

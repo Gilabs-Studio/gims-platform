@@ -54,10 +54,13 @@ export const crmDealEn = {
     targetStage: "Target Stage",
     selectStage: "Select target stage",
     moveStageConvertLabel: "Convert to Sales Quotation",
-    moveStageConvertDescription: "Automatically create a sales quotation from this deal upon moving to Won stage.",
+    moveStageConvertDescription:
+      "Automatically create a sales quotation from this deal upon moving to Won stage.",
     moveStageConvertNoItems: "Cannot convert: deal has no product items.",
-    moveStageConvertNoCustomer: "Cannot convert: deal has no customer or linked lead.",
-    moveStageConvertAutoCreateCustomer: "A new customer will be auto-created from the linked lead data.",
+    moveStageConvertNoCustomer:
+      "Cannot convert: deal has no customer or linked lead.",
+    moveStageConvertAutoCreateCustomer:
+      "A new customer will be auto-created from the linked lead data.",
     convertedToSQBadge: "Converted to SQ",
 
     // Kanban
@@ -83,12 +86,14 @@ export const crmDealEn = {
     customer: "Customer",
     potential: "Prospect",
     prospectCustomerPlaceholder: "Prospect customer from lead",
-    prospectCustomerHint: "This deal comes from lead conversion, customer will be created during downstream conversion.",
+    prospectCustomerHint:
+      "This deal comes from lead conversion, customer will be created during downstream conversion.",
     customerPlaceholder: "Select customer",
     selectCustomer: "Select customer",
     contact: "Contact",
     prospectContactPlaceholder: "Contact from lead",
-    prospectContactHint: "Contact data follows lead basic and contact information.",
+    prospectContactHint:
+      "Contact data follows lead basic and contact information.",
     contactPlaceholder: "Select contact",
     selectContact: "Select contact",
     fromLead: "From lead",
@@ -101,7 +106,8 @@ export const crmDealEn = {
     selectEmployee: "Select employee",
     lead: "Lead",
     prospectLeadPlaceholder: "Linked lead",
-    prospectLeadHint: "Lead is locked because this deal was converted from that lead.",
+    prospectLeadHint:
+      "Lead is locked because this deal was converted from that lead.",
     leadPlaceholder: "Select lead (optional)",
     selectLead: "Select lead (optional)",
     bankAccount: "Linked Bank Account",
@@ -185,8 +191,12 @@ export const crmDealEn = {
     btnNext: "Next",
     btnBack: "Back",
     selectDate: "Select date",
-    dealAlreadyClosed: "This deal is already closed (won/lost) and cannot be edited.",
+    dealAlreadyClosed:
+      "This deal is already closed (won/lost) and cannot be edited.",
     errorAlreadyClosed: "Deal is already closed and cannot be modified.",
+    errorCreate: "Failed to create deal. Please try again.",
+    errorUpdate: "Failed to update deal. Please try again.",
+    errorValidation: "Please fix the highlighted fields before saving.",
 
     // Sections
     sections: {
@@ -211,7 +221,8 @@ export const crmDealEn = {
     conversion: {
       convertToQuotation: "Convert to Quotation",
       title: "Convert Deal to Sales Quotation",
-      description: 'Convert "{title}" into a sales quotation with all product items and pricing.',
+      description:
+        'Convert "{title}" into a sales quotation with all product items and pricing.',
       confirm: "Convert to Quotation",
       converting: "Converting...",
       convertSuccess: "Deal converted to quotation successfully",

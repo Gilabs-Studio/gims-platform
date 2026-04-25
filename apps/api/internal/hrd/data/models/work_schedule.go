@@ -56,6 +56,7 @@ func (Breaks) GormDataType() string {
 // Following international ERP standards with flexible hours support
 type WorkSchedule struct {
 	ID          string  `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name        string  `gorm:"size:100;not null" json:"name"`
 	Description string  `gorm:"size:255" json:"description"`
 	DivisionID  *string `gorm:"type:uuid;index" json:"division_id"`

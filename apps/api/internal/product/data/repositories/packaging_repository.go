@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
@@ -26,12 +27,12 @@ func NewPackagingRepository(db *gorm.DB) PackagingRepository {
 }
 
 func (r *packagingRepository) Create(ctx context.Context, packaging *models.Packaging) error {
-	return r.db.WithContext(ctx).Create(packaging).Error
+	return database.GetDB(ctx, r.db).Create(packaging).Error
 }
 
 func (r *packagingRepository) FindByID(ctx context.Context, id string) (*models.Packaging, error) {
 	var packaging models.Packaging
-	err := r.db.WithContext(ctx).First(&packaging, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).First(&packaging, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (r *packagingRepository) List(ctx context.Context, params ListParams) ([]mo
 	var packagings []models.Packaging
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.Packaging{})
+	query := database.GetDB(ctx, r.db).Model(&models.Packaging{})
 
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
@@ -80,9 +81,9 @@ func (r *packagingRepository) List(ctx context.Context, params ListParams) ([]mo
 }
 
 func (r *packagingRepository) Update(ctx context.Context, packaging *models.Packaging) error {
-	return r.db.WithContext(ctx).Save(packaging).Error
+	return database.GetDB(ctx, r.db).Save(packaging).Error
 }
 
 func (r *packagingRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.Packaging{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.Packaging{}, "id = ?", id).Error
 }

@@ -495,7 +495,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	startDate := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
 
-	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil)
+	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil, nil, nil)
 	require.NoError(t, err)
 
 	var cashAccount *dto.GeneralLedgerAccount
@@ -515,17 +515,17 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	require.NotNil(t, cashAccount.Transactions[0].ReferenceID)
 	require.Equal(t, postedRefID, *cashAccount.Transactions[0].ReferenceID)
 
-	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil, false)
+	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, bs.AssetTotal)
 
-	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate, nil)
+	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, pl.RevenueTotal)
 	require.Equal(t, 0.0, pl.ExpenseTotal)
 	require.Equal(t, 1500.0, pl.NetProfit)
 
-	exportBytes, err := reportUC.ExportGeneralLedger(ctx, startDate, endDate, nil)
+	exportBytes, err := reportUC.ExportGeneralLedger(ctx, startDate, endDate, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, exportBytes)
 }
@@ -593,7 +593,7 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 	startDate := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
 
-	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil)
+	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil, nil, nil)
 	require.NoError(t, err)
 
 	var cashAccount *dto.GeneralLedgerAccount

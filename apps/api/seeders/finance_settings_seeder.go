@@ -1,4 +1,4 @@
-﻿package seeders
+package seeders
 
 import (
 	"log"
@@ -86,6 +86,12 @@ func SeedFinanceSettings() error {
 			SettingKey:  models.SettingCOAPurchaseGRIR,
 			Value:       "11440",
 			Description: "GR/IR Accrual (Goods Received Not Invoiced - temporary payable)",
+			Category:    "coa",
+		},
+		{
+			SettingKey:  models.SettingCOAGoodReceiptInvoiceReceipt,
+			Value:       "11440",
+			Description: "GR/IR Clearing (alias used by accounting posting profile)",
 			Category:    "coa",
 		},
 		{
@@ -284,6 +290,12 @@ func SeedFinanceSettings() error {
 			Description: "Reconciliation tolerance for inventory valuation (default: 0.01 = 1%)",
 			Category:    "valuation",
 		},
+		{
+			SettingKey:  models.SettingAgingBucketConfig,
+			Value:       `[{"key":"current","label":"Current","min_days":null,"max_days":0},{"key":"days_1_30","label":"1-30 Days","min_days":1,"max_days":30},{"key":"days_31_60","label":"31-60 Days","min_days":31,"max_days":60},{"key":"days_61_90","label":"61-90 Days","min_days":61,"max_days":90},{"key":"over_90","label":">90 Days","min_days":91,"max_days":null}]`,
+			Description: "Aging bucket configuration in JSON array format for AR/AP aging reports",
+			Category:    "report",
+		},
 	}
 
 	// Insert with idempotency: if setting_key exists, update values
@@ -301,6 +313,3 @@ func SeedFinanceSettings() error {
 	log.Println(" Finance Settings seeded successfully")
 	return nil
 }
-
-
-

@@ -37,14 +37,49 @@ type UpdateRoleRequest struct {
 }
 
 // AssignPermissionsRequest represents assign permissions to role request DTO
+// Supports both full state (legacy) and differential modes (Sprint 21).
 type AssignPermissionsRequest struct {
 	PermissionIDs []string `json:"permission_ids" binding:"omitempty,dive,uuid"`
 	// Assignments allows scope-aware permission assignment (Sprint 20)
 	Assignments []PermissionAssignment `json:"assignments" binding:"omitempty,dive"`
+	// Diff support: Instead of full state, send only changed IDs (Sprint 21)
+	// When mode=diff, must provide Diff with Added/Removed arrays
+	Mode string `json:"mode" binding:"omitempty,oneof=full diff"`
+	Diff *DiffPermissionsRequest `json:"diff" binding:"omitempty"`
 }
 
 // PermissionAssignment represents a single permission-scope pair for assignment
 type PermissionAssignment struct {
 	PermissionID string `json:"permission_id" binding:"required,uuid"`
 	Scope        string `json:"scope" binding:"required,oneof=OWN DIVISION AREA ALL"`
+}
+
+// RoleMenuAccessRequest represents menu-level access assignment request.
+type RoleMenuAccessRequest struct {
+	Assignments []RoleMenuAccessAssignment `json:"assignments" binding:"omitempty,dive"`
+}
+
+// RoleMenuAccessAssignment represents one role-menu assignment.
+type RoleMenuAccessAssignment struct {
+	MenuID string `json:"menu_id" binding:"required,uuid"`
+	Scope  string `json:"scope" binding:"required,oneof=OWN DIVISION AREA WAREHOUSE OUTLET ALL"`
+}
+
+// RoleMenuAccessResponse represents menu-level access entry.
+type RoleMenuAccessResponse struct {
+	MenuID    string `json:"menu_id"`
+	Scope     string `json:"scope"`
+	IsEnabled bool   `json:"is_enabled"`
+}
+
+// DiffPermissionsRequest represents differential permission update (only changed IDs).
+// Instead of sending the full current state, send only added and removed permission IDs.
+// This allows partial updates without triggering full validation on unchanged permissions.
+type DiffPermissionsRequest struct {
+	// Added permission IDs to assign (with optional scope, defaults to ALL if omitted)
+	Added []string `json:"added" binding:"omitempty,dive,uuid"`
+	// Added permissions with explicit scope-aware assignment
+	AddedWithScope []PermissionAssignment `json:"added_with_scope" binding:"omitempty,dive"`
+	// Removed permission IDs to unassign
+	Removed []string `json:"removed" binding:"omitempty,dive,uuid"`
 }

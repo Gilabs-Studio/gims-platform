@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
@@ -23,20 +24,20 @@ func NewStockOpnameRepository(db *gorm.DB) repository.StockOpnameRepository {
 }
 
 func (r *stockOpnameRepository) Create(ctx context.Context, opname *models.StockOpname) error {
-	return r.db.WithContext(ctx).Create(opname).Error
+	return database.GetDB(ctx, r.db).Session(&gorm.Session{NewDB: true}).Create(opname).Error
 }
 
 func (r *stockOpnameRepository) Update(ctx context.Context, opname *models.StockOpname) error {
-	return r.db.WithContext(ctx).Save(opname).Error
+	return database.GetDB(ctx, r.db).Save(opname).Error
 }
 
 func (r *stockOpnameRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.StockOpname{}, "id = ?", id).Error
+	return database.GetDB(ctx, r.db).Delete(&models.StockOpname{}, "id = ?", id).Error
 }
 
 func (r *stockOpnameRepository) FindByID(ctx context.Context, id string) (*models.StockOpname, error) {
 	var opname models.StockOpname
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Preload("Items").
 		First(&opname, "id = ?", id).Error
 	if err != nil {
@@ -49,7 +50,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	var opnames []models.StockOpname
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.StockOpname{}).Preload("Warehouse").Preload("Items")
+	query := database.GetDB(ctx, r.db).Model(&models.StockOpname{}).Preload("Warehouse").Preload("Items")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
@@ -64,7 +65,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	}
 
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("status = ?", normalizeStatusFilter(req.Status))
 	}
 
 	if req.StartDate != "" {
@@ -89,7 +90,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 }
 
 func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID string, items []models.StockOpnameItem) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Delete existing items
 		if err := tx.Where("stock_opname_id = ?", opnameID).Delete(&models.StockOpnameItem{}).Error; err != nil {
 			return err
@@ -121,7 +122,7 @@ func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID strin
 
 func (r *stockOpnameRepository) ListItems(ctx context.Context, opnameID string) ([]models.StockOpnameItem, error) {
 	var items []models.StockOpnameItem
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("stock_opname_id = ?", opnameID).
 		Preload("Product").
 		Find(&items).Error
@@ -133,13 +134,13 @@ func (r *stockOpnameRepository) UpdateStatus(ctx context.Context, id string, sta
 	if userID != nil {
 		updates["updated_by"] = *userID
 	}
-	return r.db.WithContext(ctx).Model(&models.StockOpname{}).Where("id = ?", id).Updates(updates).Error
+	return database.GetDB(ctx, r.db).Model(&models.StockOpname{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *stockOpnameRepository) GetNextOpnameNumber(ctx context.Context) (string, error) {
 	prefix := fmt.Sprintf("OP-%s-", apptime.Now().Format("200601"))
 	var lastOpname models.StockOpname
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Where("opname_number LIKE ?", prefix+"%").
 		Order("opname_number DESC").
 		First(&lastOpname).Error
@@ -160,4 +161,15 @@ func (r *stockOpnameRepository) GetNextOpnameNumber(ctx context.Context) (string
 	}
 
 	return fmt.Sprintf("%s%04d", prefix, seq), nil
+}
+
+func normalizeStatusFilter(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "pending_approval":
+		return string(models.StockOpnameStatusPending)
+	case "completed":
+		return string(models.StockOpnameStatusPosted)
+	default:
+		return status
+	}
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"gorm.io/gorm"
 )
@@ -44,13 +46,13 @@ type ListCustomersParams struct {
 
 // CustomerResearchRow is raw customer row query result.
 type CustomerResearchRow struct {
-	CustomerID              string  `gorm:"column:customer_id"`
-	CustomerName            string  `gorm:"column:customer_name"`
-	TotalRevenue            float64 `gorm:"column:total_revenue"`
-	TotalOrders             int     `gorm:"column:total_orders"`
-	AverageOrderValue       float64 `gorm:"column:average_order_value"`
-	LastOrderDate           string  `gorm:"column:last_order_date"`
-	ActiveSalesOrderCount   int     `gorm:"column:active_sales_order_count"`
+	CustomerID            string  `gorm:"column:customer_id"`
+	CustomerName          string  `gorm:"column:customer_name"`
+	TotalRevenue          float64 `gorm:"column:total_revenue"`
+	TotalOrders           int     `gorm:"column:total_orders"`
+	AverageOrderValue     float64 `gorm:"column:average_order_value"`
+	LastOrderDate         string  `gorm:"column:last_order_date"`
+	ActiveSalesOrderCount int     `gorm:"column:active_sales_order_count"`
 }
 
 // CustomerRevenueTrendRow is raw trend query result.
@@ -90,6 +92,11 @@ func NewCustomerResearchRepository(db *gorm.DB) CustomerResearchRepository {
 }
 
 func (r *customerResearchRepository) GetKPIs(ctx context.Context, startDate, endDate time.Time) (CustomerResearchKPIsRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return CustomerResearchKPIsRow{}, tenantErr
+	}
+
 	query := `
 		SELECT
 			COALESCE(COUNT(DISTINCT c.id), 0) AS total_customers,
@@ -99,18 +106,20 @@ func (r *customerResearchRepository) GetKPIs(ctx context.Context, startDate, end
 		FROM customers c
 		LEFT JOIN sales_orders so ON so.customer_id = c.id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		LEFT JOIN sales_order_items soi ON soi.sales_order_id = so.id
 			AND soi.deleted_at IS NULL
 		WHERE c.deleted_at IS NULL
+			AND (@tenantFilter = false OR c.tenant_id = @tenantID)
 	`
 
 	var row CustomerResearchKPIsRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&row).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&row).Error; err != nil {
 		return CustomerResearchKPIsRow{}, fmt.Errorf("failed to get customer research KPIs: %w", err)
 	}
 
@@ -122,6 +131,11 @@ func (r *customerResearchRepository) GetKPIs(ctx context.Context, startDate, end
 }
 
 func (r *customerResearchRepository) ListCustomers(ctx context.Context, params ListCustomersParams) ([]CustomerResearchRow, utils.PaginationResult, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, utils.PaginationResult{}, tenantErr
+	}
+
 	if params.PerPage <= 0 || params.PerPage > 100 {
 		params.PerPage = 20
 	}
@@ -140,6 +154,7 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 			FROM sales_orders so
 			INNER JOIN sales_order_items soi ON soi.sales_order_id = so.id AND soi.deleted_at IS NULL
 			WHERE so.deleted_at IS NULL
+				AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 				AND so.status NOT IN ('draft', 'cancelled')
 				AND so.order_date BETWEEN @startDate AND @endDate
 			GROUP BY so.customer_id
@@ -147,16 +162,19 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 		LEFT JOIN (
 			SELECT customer_id, COUNT(DISTINCT id) AS active_sales_order_count
 			FROM sales_orders
-			WHERE deleted_at IS NULL AND LOWER(status) IN ('submitted', 'approved')
+			WHERE deleted_at IS NULL
+				AND (@tenantFilter = false OR tenant_id = @tenantID)
+				AND LOWER(status) IN ('submitted', 'approved')
 			GROUP BY customer_id
 		) aso ON aso.customer_id = c.id
 		WHERE c.deleted_at IS NULL
+			AND (@tenantFilter = false OR c.tenant_id = @tenantID)
 	`
 
-	queryParams := map[string]interface{}{
+	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate": params.StartDate,
 		"endDate":   params.EndDate,
-	}
+	}, tenantID, tenantFilter)
 
 	if params.Search != "" {
 		baseQuery += ` AND (c.name ILIKE @search OR c.code ILIKE @search)`
@@ -168,7 +186,7 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 
 	var total int64
 	countSQL := "SELECT COUNT(*) " + baseQuery
-	if err := r.db.WithContext(ctx).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(countSQL, queryParams).Scan(&total).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to count customers: %w", err)
 	}
 
@@ -206,7 +224,7 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 	queryParams["offset"] = offset
 
 	var rows []CustomerResearchRow
-	if err := r.db.WithContext(ctx).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(selectSQL, queryParams).Scan(&rows).Error; err != nil {
 		return nil, utils.PaginationResult{}, fmt.Errorf("failed to list customers: %w", err)
 	}
 
@@ -240,6 +258,11 @@ func (r *customerResearchRepository) GetPurchaseFrequency(ctx context.Context, p
 }
 
 func (r *customerResearchRepository) GetRevenueTrend(ctx context.Context, startDate, endDate time.Time, interval string) ([]CustomerRevenueTrendRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	dateTrunc := "day"
 	switch strings.ToLower(interval) {
 	case "weekly":
@@ -257,6 +280,7 @@ func (r *customerResearchRepository) GetRevenueTrend(ctx context.Context, startD
 		INNER JOIN sales_order_items soi ON soi.sales_order_id = so.id
 			AND soi.deleted_at IS NULL
 		WHERE so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		GROUP BY DATE_TRUNC('%s', so.order_date)
@@ -264,10 +288,10 @@ func (r *customerResearchRepository) GetRevenueTrend(ctx context.Context, startD
 	`, dateTrunc, dateTrunc, dateTrunc)
 
 	var rows []CustomerRevenueTrendRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get revenue trend: %w", err)
 	}
 
@@ -275,6 +299,11 @@ func (r *customerResearchRepository) GetRevenueTrend(ctx context.Context, startD
 }
 
 func (r *customerResearchRepository) GetCustomerDetail(ctx context.Context, customerID string, startDate, endDate time.Time) (*CustomerDetailRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	query := `
 		SELECT
 			COALESCE(c.id::text, '') AS customer_id,
@@ -286,19 +315,22 @@ func (r *customerResearchRepository) GetCustomerDetail(ctx context.Context, cust
 		FROM customers c
 		LEFT JOIN sales_orders so ON so.customer_id = c.id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		LEFT JOIN sales_order_items soi ON soi.sales_order_id = so.id AND soi.deleted_at IS NULL
-		WHERE c.deleted_at IS NULL AND c.id = @customerID
+		WHERE c.deleted_at IS NULL
+			AND (@tenantFilter = false OR c.tenant_id = @tenantID)
+			AND c.id = @customerID
 		GROUP BY c.id, c.name
 	`
 
 	var row CustomerDetailRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"customerID": customerID,
 		"startDate":  startDate,
 		"endDate":    endDate,
-	}).Scan(&row).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get customer detail: %w", err)
 	}
 
@@ -310,6 +342,11 @@ func (r *customerResearchRepository) GetCustomerDetail(ctx context.Context, cust
 }
 
 func (r *customerResearchRepository) GetCustomerTopProducts(ctx context.Context, customerID string, startDate, endDate time.Time, limit int) ([]CustomerProductRow, error) {
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
+	}
+
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -325,11 +362,13 @@ func (r *customerResearchRepository) GetCustomerTopProducts(ctx context.Context,
 		FROM sales_order_items soi
 		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
 			AND so.deleted_at IS NULL
+			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.customer_id = @customerID
 			AND so.order_date BETWEEN @startDate AND @endDate
 		INNER JOIN products p ON p.id = soi.product_id
 			AND p.deleted_at IS NULL
+			AND (@tenantFilter = false OR p.tenant_id = @tenantID)
 		WHERE soi.deleted_at IS NULL
 		GROUP BY p.id, p.code, p.name
 		ORDER BY total_revenue DESC
@@ -337,12 +376,12 @@ func (r *customerResearchRepository) GetCustomerTopProducts(ctx context.Context,
 	`
 
 	var rows []CustomerProductRow
-	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
 		"customerID": customerID,
 		"startDate":  startDate,
 		"endDate":    endDate,
 		"limit":      limit,
-	}).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get customer top products: %w", err)
 	}
 

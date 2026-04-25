@@ -10,6 +10,7 @@ import (
 // ProductRecipeVersionItem stores item snapshot rows for each recipe version.
 type ProductRecipeVersionItem struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	RecipeVersionID string                `gorm:"type:uuid;not null;index" json:"recipe_version_id"`
 	RecipeVersion   *ProductRecipeVersion `gorm:"foreignKey:RecipeVersionID" json:"recipe_version,omitempty"`

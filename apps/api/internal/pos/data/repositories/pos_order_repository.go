@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"time"
@@ -51,7 +52,7 @@ func NewPosOrderRepository(db *gorm.DB) PosOrderRepository {
 }
 
 func (r *posOrderRepository) getDB(ctx context.Context) *gorm.DB {
-	return r.db.WithContext(ctx)
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *posOrderRepository) Create(ctx context.Context, order *models.PosOrder) error {

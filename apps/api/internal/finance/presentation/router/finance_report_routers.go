@@ -1,10 +1,7 @@
 package router
 
 import (
-	"net/http"
-
 	"github.com/gilabs/gims/api/internal/core/middleware"
-	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +27,6 @@ func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReport
 	g.GET("/export/general-ledger", middleware.RequirePermission(generalLedgerReportExport), h.ExportGeneralLedger)
 	g.GET("/export/balance-sheet", middleware.RequirePermission(balanceSheetReportExport), h.ExportBalanceSheet)
 	g.GET("/export/profit-loss", middleware.RequirePermission(profitLossReportExport), h.ExportProfitAndLoss)
-	g.GET("/cash-flow-statement", middleware.RequirePermission(cashFlowReportRead), func(c *gin.Context) {
-		response.ErrorResponse(c, http.StatusNotImplemented, "REPORT_NOT_IMPLEMENTED", "Cash flow report endpoint is not implemented yet", nil, nil)
-	})
+	g.GET("/cash-flow-statement", middleware.RequirePermission(cashFlowReportRead), h.CashFlow)
+	g.GET("/cash-flow", middleware.RequirePermission(cashFlowReportRead), h.CashFlow)
 }

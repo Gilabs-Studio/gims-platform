@@ -29,10 +29,30 @@ type UserDTO struct {
 	EmployeeID  string            `json:"employee_id,omitempty"`
 	Role        RoleDTO           `json:"role"`
 	Permissions map[string]string `json:"permissions"` // code -> scope
+	TenantID    string            `json:"tenant_id,omitempty"`
+	TenantName  string            `json:"tenant_name,omitempty"`
+	SubscriptionPlan string       `json:"subscription_plan,omitempty"`
+	SubscriptionAccess *SubscriptionAccessDTO `json:"subscription_access,omitempty"`
+}
+
+type SubscriptionAccessDTO struct {
+	State                string `json:"state"`
+	Enforcement          string `json:"enforcement"`
+	DaysOverdue          int    `json:"days_overdue"`
+	GracePeriodDays      int    `json:"grace_period_days"`
+	ForceBillingRedirect bool   `json:"force_billing_redirect"`
+	AllowRead            bool   `json:"allow_read"`
+	AllowWrite           bool   `json:"allow_write"`
+	Message              string `json:"message,omitempty"`
+	BillingPath          string `json:"billing_path"`
 }
 
 type RoleDTO struct {
 	Code      string `json:"code"`
 	Name      string `json:"name"`
 	DataScope string `json:"data_scope"`
+	// IsOwner is true when this role is the unique, protected tenant-owner role
+	// generated during tenant registration. Use this to gate Billing/Payment UI
+	// instead of fragile string-matching on the role code.
+	IsOwner bool `json:"is_owner"`
 }

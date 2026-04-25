@@ -31,11 +31,7 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 
 import { toast } from "sonner";
 
-import { supplierService } from "@/features/master-data/supplier/services/supplier-service";
 import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
-import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
-import { businessUnitService } from "@/features/master-data/organization/services/organization-service";
-import { employeeService } from "@/features/master-data/employee/services/employee-service";
 import { productService } from "@/features/master-data/product/services/product-service";
 import { SupplierDialog } from "@/features/master-data/supplier/components/supplier/supplier-dialog";
 import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
@@ -51,6 +47,7 @@ import {
 	useCreatePurchaseRequisition,
 	usePurchaseRequisition,
 	useUpdatePurchaseRequisition,
+	usePurchaseRequisitionAddData,
 } from "../hooks/use-purchase-requisitions";
 import { usePurchaseRequisitionOverview } from "../hooks/use-purchase-requisition-overview";
 
@@ -127,6 +124,9 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	);
 	const detail = detailData?.data;
 
+	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open && shouldLoadSelectData });
+	const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
+
 	const schema = useMemo(() => getPurchaseRequisitionSchema(), []);
 	const resolver = zodResolver(schema) as Resolver<PurchaseRequisitionFormData>;
 
@@ -136,11 +136,12 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		control,
 		reset,
 		setValue,
+		trigger,
 		formState: { errors },
 	} = useForm<PurchaseRequisitionFormData>({
 		resolver,
 		defaultValues: {
-			supplier_id: null,
+			supplier_id: "",
 			supplier_contact_id: null,
 			payment_terms_id: null,
 			business_unit_id: null,
@@ -167,7 +168,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!isEdit) {
 			reset({
-					supplier_id: null, supplier_contact_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
+					supplier_id: "", supplier_contact_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
 				request_date: todayISO(), address: null, notes: "", tax_rate: 0, delivery_cost: 0, other_cost: 0,
 				items: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 			});
@@ -175,7 +176,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!detail) return;
 		reset({
-				supplier_id: detail.supplier_id ?? null, supplier_contact_id: null, payment_terms_id: detail.payment_terms_id ?? null,
+				supplier_id: detail.supplier_id ?? "", supplier_contact_id: null, payment_terms_id: detail.payment_terms_id ?? null,
 			business_unit_id: detail.business_unit_id ?? null, employee_id: detail.employee_id ?? null,
 			request_date: detail.request_date, address: detail.address ?? null, notes: detail.notes ?? "",
 			tax_rate: detail.tax_rate ?? 0, delivery_cost: detail.delivery_cost ?? 0, other_cost: detail.other_cost ?? 0,
@@ -184,46 +185,6 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 				: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 		});
 	}, [detail, isEdit, open, reset]);
-
-	const supplierCombobox = usePaginatedComboboxOptions({
-		queryKey: ["purchase", "requisition", "suppliers"],
-		queryFn: (params: { page: number; per_page: number; search?: string }) =>
-			supplierService.list({
-				...params,
-				sort_by: "name",
-				sort_dir: "asc",
-			}),
-		mapOption: (item) => ({
-			value: item.id,
-			label: item.code ? `${item.code} - ${item.name}` : item.name,
-		}),
-		enabled: open && shouldLoadSelectData,
-		pinnedOptions:
-			detail?.supplier?.id
-				? [{ value: detail.supplier.id, label: detail.supplier.code ? `${detail.supplier.code} - ${detail.supplier.name}` : detail.supplier.name }]
-				: undefined,
-	});
-
-
-
-	const employeesCombobox = usePaginatedComboboxOptions({
-		queryKey: ["purchase", "requisition", "employees"],
-		queryFn: (params: { page: number; per_page: number; search?: string }) =>
-			employeeService.list({
-				...params,
-				sort_by: "name",
-				sort_dir: "asc",
-			}),
-		mapOption: (item) => ({
-			value: item.id,
-			label: item.employee_code ? `${item.employee_code} - ${item.name}` : item.name,
-		}),
-		enabled: open && shouldLoadSelectData,
-		pinnedOptions:
-			detail?.employee?.id
-				? [{ value: detail.employee.id, label: detail.employee.name }]
-				: undefined,
-	});
 
 	const productsCombobox = usePaginatedComboboxOptions({
 		queryKey: ["purchase", "requisition", "products"],
@@ -251,8 +212,8 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	});
 
 	const products = useMemo(() => productsCombobox.items, [productsCombobox.items]);
-	const suppliers = useMemo(() => supplierCombobox.items, [supplierCombobox.items]);
-	const employees = useMemo(() => employeesCombobox.items, [employeesCombobox.items]);
+	const suppliers = useMemo(() => addData?.suppliers ?? [], [addData?.suppliers]);
+	const employees = useMemo(() => addData?.employees ?? [], [addData?.employees]);
 
 	const mergedSuppliers = useMemo(() => {
 		return [...suppliers];
@@ -269,70 +230,8 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const selectedSupplierWithDetail = selectedSupplierData?.data ?? selectedSupplier;
 
-	const paymentTermsCombobox = usePaginatedComboboxOptions({
-		queryKey: ["purchase", "requisition", "payment-terms"],
-		queryFn: (params: { page: number; per_page: number; search?: string }) =>
-			paymentTermsService.list({
-				...params,
-				sort_by: "name",
-				sort_dir: "asc",
-			}),
-		mapOption: (item) => ({
-			value: item.id,
-			label: item.name,
-		}),
-		enabled: open && shouldLoadSelectData,
-		pinnedOptions: (() => {
-			const options = [];
-			if (detail?.payment_terms?.id) {
-				options.push({ value: detail.payment_terms.id, label: detail.payment_terms.name });
-			}
-			if (selectedSupplierWithDetail?.payment_terms_id) {
-				options.push({
-					value: selectedSupplierWithDetail.payment_terms_id,
-					label:
-						selectedSupplierWithDetail.payment_terms?.name ??
-						detail?.payment_terms?.name ??
-						selectedSupplierWithDetail.payment_terms_id,
-				});
-			}
-			return options.length ? options : undefined;
-		})(),
-	});
-
-	const businessUnitsCombobox = usePaginatedComboboxOptions({
-		queryKey: ["purchase", "requisition", "business-units"],
-		queryFn: (params: { page: number; per_page: number; search?: string }) =>
-			businessUnitService.list({
-				...params,
-				sort_by: "name",
-				sort_dir: "asc",
-			}),
-		mapOption: (item) => ({
-			value: item.id,
-			label: item.name,
-		}),
-		enabled: open && shouldLoadSelectData,
-		pinnedOptions: (() => {
-			const options = [];
-			if (detail?.business_unit?.id) {
-				options.push({ value: detail.business_unit.id, label: detail.business_unit.name });
-			}
-			if (selectedSupplierWithDetail?.business_unit_id) {
-				options.push({
-					value: selectedSupplierWithDetail.business_unit_id,
-					label:
-						selectedSupplierWithDetail.business_unit?.name ??
-						detail?.business_unit?.name ??
-						selectedSupplierWithDetail.business_unit_id,
-				});
-			}
-			return options.length ? options : undefined;
-		})(),
-	});
-
-	const paymentTerms = useMemo(() => paymentTermsCombobox.items, [paymentTermsCombobox.items]);
-	const businessUnits = useMemo(() => businessUnitsCombobox.items, [businessUnitsCombobox.items]);
+	const paymentTerms = useMemo(() => addData?.payment_terms ?? [], [addData?.payment_terms]);
+	const businessUnits = useMemo(() => addData?.business_units ?? [], [addData?.business_units]);
 	const supplierContacts = useMemo(
 		() => selectedSupplierWithDetail?.contacts ?? [],
 		[selectedSupplierWithDetail],
@@ -413,6 +312,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+	const handleNext = async () => {
+		const isValid = await trigger(["supplier_id", "request_date"]);
+		if (isValid) {
+			setActiveTab("items");
+		}
+	};
+
 	const onSubmit = async (formData: PurchaseRequisitionFormData) => {
 		const payload = {
 			supplier_id: formData.supplier_id ?? null, payment_terms_id: formData.payment_terms_id ?? null,
@@ -478,19 +384,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														if (isOpen) {
 															setShouldLoadSelectData(true);
 														}
-														employeesCombobox.onOpenChange(isOpen);
 													}}
-													onSearchChange={employeesCombobox.onSearchChange}
-													onLoadMore={employeesCombobox.onLoadMore}
-													hasMore={employeesCombobox.hasMore}
-													isLoadingMore={employeesCombobox.isLoadingMore}
-													searchDebounceMs={300}
-													options={mergedEmployees.map((e) => ({ value: e.id, label: e.employee_code ? `${e.employee_code} - ${e.name}` : e.name }))}
+													options={mergedEmployees.map((e) => ({ value: e.id, label: e.email ? `${e.name} (${e.email})` : e.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="employee.create"
 													createLabel={t("actions.createNew") || "Create Employee"}
 													onCreateClick={() => openQuickCreate("employee")}
-													isLoading={employeesCombobox.isLoading || employeesCombobox.isFetching}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -542,7 +442,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => {
-														const selectedId = v || null;
+														const selectedId = v || "";
 														field.onChange(selectedId);
 														const supplierFromList = mergedSuppliers.find((s) => s.id === selectedId);
 														const supplier = selectedSupplierWithDetail ?? supplierFromList;
@@ -569,19 +469,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														if (isOpen) {
 															setShouldLoadSelectData(true);
 														}
-														supplierCombobox.onOpenChange(isOpen);
 													}}
-													onSearchChange={supplierCombobox.onSearchChange}
-													onLoadMore={supplierCombobox.onLoadMore}
-													hasMore={supplierCombobox.hasMore}
-													isLoadingMore={supplierCombobox.isLoadingMore}
-													searchDebounceMs={300}
 													options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="supplier.create"
 													createLabel={t("actions.createNew") || "Create New Supplier"}
 													onCreateClick={() => openQuickCreate("supplier")}
-													isLoading={supplierCombobox.isLoading || supplierCombobox.isFetching}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -625,19 +519,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														if (isOpen) {
 															setShouldLoadSelectData(true);
 														}
-														paymentTermsCombobox.onOpenChange(isOpen);
 													}}
-													onSearchChange={paymentTermsCombobox.onSearchChange}
-													onLoadMore={paymentTermsCombobox.onLoadMore}
-													hasMore={paymentTermsCombobox.hasMore}
-													isLoadingMore={paymentTermsCombobox.isLoadingMore}
-													searchDebounceMs={300}
-													options={paymentTermsCombobox.options}
+													options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="payment_term.create"
 													createLabel={t("actions.createNew") || "Create Payment Term"}
 													onCreateClick={() => openQuickCreate("paymentTerm")}
-													isLoading={paymentTermsCombobox.isLoading || paymentTermsCombobox.isFetching}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -655,19 +543,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														if (isOpen) {
 															setShouldLoadSelectData(true);
 														}
-														businessUnitsCombobox.onOpenChange(isOpen);
 													}}
-													onSearchChange={businessUnitsCombobox.onSearchChange}
-													onLoadMore={businessUnitsCombobox.onLoadMore}
-													hasMore={businessUnitsCombobox.hasMore}
-													isLoadingMore={businessUnitsCombobox.isLoadingMore}
-													searchDebounceMs={300}
-													options={businessUnitsCombobox.options}
+													options={businessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="business_unit.create"
 													createLabel={t("actions.createNew") || "Create Business Unit"}
 													onCreateClick={() => openQuickCreate("businessUnit")}
-													isLoading={businessUnitsCombobox.isLoading || businessUnitsCombobox.isFetching}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -716,7 +598,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 								<Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
 									{t("actions.cancel")}
 								</Button>
-								<Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+								<Button type="button" onClick={handleNext} className="cursor-pointer">
 									{t("common.next") || "Next"}
 								</Button>
 							</div>

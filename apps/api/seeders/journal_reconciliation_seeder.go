@@ -3,6 +3,7 @@ package seeders
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -56,7 +57,7 @@ func SeedJournalReconciliation() error {
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
-	customerInvoiceUC := salesUsecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, journalUC, coaUC, auditSvc, engine)
+	customerInvoiceUC := salesUsecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, journalUC, coaUC, auditSvc, engine, nil)
 	invoiceDpUC := salesUsecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditSvc, journalUC, coaUC, engine)
 	salesReturnRepo := salesRepos.NewSalesReturnRepository(db)
 	salesReturnUC := salesUsecase.NewSalesReturnUsecase(db, salesReturnRepo, inventoryUC, journalUC, coaUC, auditSvc, engine)
@@ -69,12 +70,13 @@ func SeedJournalReconciliation() error {
 	siRepo := purchaseRepos.NewSupplierInvoiceRepository(db)
 	poRepo := purchaseRepos.NewPurchaseOrderRepository(db)
 	grRepo := purchaseRepos.NewGoodsReceiptRepository(db)
+	fiscalYearRepo := financeRepos.NewFiscalYearRepository(db)
 	purchaseInvoiceUC := purchaseUsecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, grRepo, auditSvc, journalUC, coaUC, engine)
 	purchaseInvoiceDpUC := purchaseUsecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditSvc, journalUC, coaUC, engine)
 	purchaseReturnRepo := purchaseRepos.NewPurchaseReturnRepository(db)
 	purchaseReturnUC := purchaseUsecase.NewPurchaseReturnUsecase(db, purchaseReturnRepo, inventoryUC, journalUC, coaUC, auditSvc, engine)
 	purchasePaymentRepo := purchaseRepos.NewPurchasePaymentRepository(db)
-	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine, settingsService)
+	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine, settingsService, nil)
 
 	financePaymentRepo := financeRepos.NewPaymentRepository(db)
 	financePaymentUC := financeUsecase.NewPaymentUsecase(db, coaRepo, financePaymentRepo, journalUC, financeMapper.NewPaymentMapper(financeMapper.NewChartOfAccountMapper()))
@@ -93,7 +95,7 @@ func SeedJournalReconciliation() error {
 
 	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 
-	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine)
+	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine, fiscalYearRepo)
 
 	adminID := getAdminID(db)
 	ctx := context.WithValue(context.Background(), "user_id", adminID)
@@ -201,6 +203,11 @@ func SeedJournalReconciliation() error {
 		return err
 	}
 	for _, pp := range purchasePayments {
+		if pp.CashBankTransactionID != nil && strings.TrimSpace(*pp.CashBankTransactionID) != "" {
+			// Payment accounting is already represented by CASH_BANK journal path.
+			continue
+		}
+
 		var existing financeModels.JournalEntry
 		db.Table("journal_entries").
 			Where("reference_type = ? AND reference_id = ?", reference.RefTypePurchasePayment, pp.ID).

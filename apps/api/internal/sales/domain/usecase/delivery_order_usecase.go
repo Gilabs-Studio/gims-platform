@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
@@ -21,12 +22,14 @@ import (
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
+	salesService "github.com/gilabs/gims/api/internal/sales/domain/service"
 	"gorm.io/gorm"
 )
 
 var (
 	ErrDeliveryOrderNotFound           = errors.New("delivery order not found")
 	ErrDeliveryOrderAlreadyExists      = errors.New("delivery order with this code already exists")
+	ErrDeliveryOrderAlreadyPosted      = errors.New("delivery order has already been posted")
 	ErrInvalidDeliveryStatusTransition = errors.New("invalid delivery status transition")
 	ErrDeliveryProductNotFound         = errors.New("product not found in delivery")
 	ErrInvalidDeliveryOrderStatus      = errors.New("cannot modify delivery order in current status")
@@ -62,6 +65,7 @@ type deliveryOrderUsecase struct {
 	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
 	auditService      audit.AuditService
+	salesJournalSvc   salesService.SalesJournalService
 }
 
 // NewDeliveryOrderUsecase creates a new DeliveryOrderUsecase
@@ -72,7 +76,12 @@ func NewDeliveryOrderUsecase(
 	productRepo productRepos.ProductRepository,
 	inventoryUC inventoryUsecase.InventoryUsecase,
 	auditService audit.AuditService,
+	salesJournalSvc salesService.SalesJournalService,
 ) DeliveryOrderUsecase {
+	if salesJournalSvc == nil {
+		salesJournalSvc = salesService.NewSalesJournalService(db, nil, nil)
+	}
+
 	return &deliveryOrderUsecase{
 		db:                db,
 		deliveryOrderRepo: deliveryOrderRepo,
@@ -80,6 +89,7 @@ func NewDeliveryOrderUsecase(
 		productRepo:       productRepo,
 		inventoryUC:       inventoryUC,
 		auditService:      auditService,
+		salesJournalSvc:   salesJournalSvc,
 	}
 }
 
@@ -281,7 +291,7 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 	deliveryOrder.IsPartialDelivery = u.isPartialDelivery(salesOrder, deliveryOrder)
 
 	// Create delivery order and reserve batch stock (wrapped in transaction)
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Create delivery order
@@ -334,9 +344,9 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Check if delivery order can be modified
-	if deliveryOrder.Status == models.DeliveryOrderStatusShipped || 
-	   deliveryOrder.Status == models.DeliveryOrderStatusDelivered || 
-	   deliveryOrder.Status == models.DeliveryOrderStatusCancelled {
+	if deliveryOrder.Status == models.DeliveryOrderStatusShipped ||
+		deliveryOrder.Status == models.DeliveryOrderStatusDelivered ||
+		deliveryOrder.Status == models.DeliveryOrderStatusCancelled {
 		return nil, ErrInvalidDeliveryOrderStatus
 	}
 
@@ -376,7 +386,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Release old batch reservations before applying new ones
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Release existing batch reservations
@@ -442,7 +452,7 @@ func (u *deliveryOrderUsecase) Delete(ctx context.Context, id string) error {
 	}
 
 	// Release batch stock reservations and delete (wrapped in transaction)
-	return u.db.Transaction(func(tx *gorm.DB) error {
+	return database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		for _, item := range deliveryOrder.Items {
@@ -551,7 +561,7 @@ func (u *deliveryOrderUsecase) cancelAndReleaseStock(
 	userID *string,
 	reason *string,
 ) (*dto.DeliveryOrderResponse, error) {
-	err := u.db.Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
 		// Release batch-level and product-level stock reservations for each item
@@ -599,21 +609,18 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	if deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
+	if deliveryOrder.IsPosted || (deliveryOrder.JournalEntryID != nil && strings.TrimSpace(*deliveryOrder.JournalEntryID) != "") {
+		return nil, ErrDeliveryOrderAlreadyPosted
+	}
 	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
 		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 
 	// Atomic transaction for all stock and status changes
-	err = u.db.Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 
-		log.Printf("[Sales] PROCESSSING SHIP for DO %s (%s)", id, deliveryOrder.Code)
-
-		// 1. Mark DO as shipped in DB
-		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
-			log.Printf("[Sales] SHIP FAILED repo ship: %v", err)
-			return fmt.Errorf("repo ship: %w", err)
-		}
+		log.Printf("[Sales] PROCESSING SHIP for DO %s (%s)", id, deliveryOrder.Code)
 
 		if deliveryOrder.WarehouseID == nil {
 			log.Printf("[Sales] SHIP FAILED: DO %s missing warehouse ID", deliveryOrder.Code)
@@ -625,27 +632,33 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 			return fmt.Errorf("delivery order %s has no items", deliveryOrder.Code)
 		}
 
-		// 2. Process stock changes for each item
-		for _, item := range deliveryOrder.Items {
-			if item.InventoryBatchID != nil {
-				log.Printf("[Sales] Deducting stock for Product %s, Batch %s, Qty %.2f", item.ProductID, *item.InventoryBatchID, item.Quantity)
-				
-				// Release batch reservation
+		// 1. Process stock changes, delivery qty updates, and COGS snapshots per item
+		for i := range deliveryOrder.Items {
+			item := &deliveryOrder.Items[i]
+			isInventoryTracked := item.Product == nil || item.Product.IsInventoryTracked
+
+			avgCostSnapshot := resolveDeliveryOrderItemCost(item)
+			cogsAmount := 0.0
+
+			if isInventoryTracked {
+				if item.InventoryBatchID == nil || strings.TrimSpace(*item.InventoryBatchID) == "" {
+					return fmt.Errorf("inventory batch is required for product %s", item.ProductID)
+				}
+
+				log.Printf("[Sales] Deducting stock for Product %s, Batch %s, Qty %.3f", item.ProductID, *item.InventoryBatchID, item.Quantity)
+
 				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
 					return fmt.Errorf("release batch stock: %w", err)
 				}
 
-				// Release product-level reservation
 				if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
 					return fmt.Errorf("release product stock: %w", err)
 				}
 
-				// Deduct from batch
 				if err := u.inventoryUC.DeductStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
 					return fmt.Errorf("deduct stock: %w", err)
 				}
 
-				// Create stock movement record (Outbound)
 				movementReq := &inventoryDto.StockMovementRequest{
 					InventoryBatchID: *item.InventoryBatchID,
 					ProductID:        item.ProductID,
@@ -656,20 +669,59 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 					ReferenceID:      deliveryOrder.ID,
 					ReferenceNumber:  deliveryOrder.Code,
 					Description:      "Delivery Order Shipment",
+					Cost:             avgCostSnapshot,
 					CreatedBy:        userID,
-					SkipJournaling:   true, // We trigger a consolidated journal at the end
+					SkipJournaling:   true,
 				}
 
 				if _, err := u.inventoryUC.CreateStockMovement(txCtx, movementReq); err != nil {
 					return fmt.Errorf("create movement: %w", err)
 				}
+
+				cogsAmount = roundCurrency(avgCostSnapshot * item.Quantity)
+			} else {
+				// Keep reservation ledger clean even for non-stock products when previous flows reserved stock.
+				_ = u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity)
+			}
+
+			item.AvgCostSnapshot = avgCostSnapshot
+			item.COGSAmount = cogsAmount
+
+			if err := tx.Model(&models.DeliveryOrderItem{}).
+				Where("id = ?", item.ID).
+				Updates(map[string]interface{}{
+					"avg_cost_snapshot": roundCost(avgCostSnapshot),
+					"cogs_amount":       cogsAmount,
+				}).Error; err != nil {
+				return fmt.Errorf("update delivery item costing: %w", err)
+			}
+
+			if item.SalesOrderItemID != nil {
+				if err := u.salesOrderRepo.UpdateItemDeliveredQty(txCtx, *item.SalesOrderItemID, item.Quantity); err != nil {
+					return fmt.Errorf("update sales order delivered qty: %w", err)
+				}
 			}
 		}
 
-		// 3. Trigger consolidated journal for the entire DO
-		log.Printf("[Sales] Triggering consolidated journal for DO %s", deliveryOrder.Code)
-		if err := u.inventoryUC.TriggerDocumentJournal(txCtx, tx, reference.RefTypeDeliveryOrder, deliveryOrder.ID); err != nil {
-			return fmt.Errorf("delivery journal: %w", err)
+		// 2. Post logistics journal (COGS and inventory release only)
+		journalEntry, err := u.salesJournalSvc.GenerateSalesJournal(txCtx, deliveryOrder)
+		if err != nil {
+			return fmt.Errorf("post delivery sales journal: %w", err)
+		}
+
+		// 3. Mark DO as shipped only after stock and accounting completed
+		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
+			return fmt.Errorf("repo ship: %w", err)
+		}
+
+		if journalEntry != nil && strings.TrimSpace(journalEntry.ID) != "" {
+			if err := tx.Model(&models.DeliveryOrder{}).
+				Where("id = ?", deliveryOrder.ID).
+				Updates(map[string]interface{}{"journal_entry_id": journalEntry.ID, "is_posted": true}).Error; err != nil {
+				return fmt.Errorf("link delivery order journal: %w", err)
+			}
+			deliveryOrder.JournalEntryID = &journalEntry.ID
+			deliveryOrder.IsPosted = true
 		}
 
 		return nil
@@ -700,6 +752,9 @@ func (u *deliveryOrderUsecase) ListAuditTrail(ctx context.Context, id string, pa
 	if u.db == nil {
 		return nil, 0, errors.New(errDeliveryDBNil)
 	}
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, 0, ErrDeliveryOrderNotFound
+	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "delivery_order.", page, perPage)
 }
@@ -721,15 +776,6 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 	// Mark as delivered
 	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
 		return nil, err
-	}
-
-	// Update delivered quantities in sales order items
-	for _, item := range deliveryOrder.Items {
-		if item.SalesOrderItemID != nil {
-			if err := u.salesOrderRepo.UpdateItemDeliveredQty(ctx, *item.SalesOrderItemID, item.Quantity); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	// Sales order status is no longer tied strictly to Delivery completion
@@ -869,19 +915,21 @@ func deliveryOrderAuditItems(items []models.DeliveryOrderItem) []map[string]inte
 	out := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
 		out = append(out, map[string]interface{}{
-			"id":                    item.ID,
-			"sales_order_item_id":   item.SalesOrderItemID,
-			"product_id":            item.ProductID,
-			"inventory_batch_id":    item.InventoryBatchID,
-			"quantity":              item.Quantity,
-			"price":                 item.Price,
-			"subtotal":              item.Subtotal,
-			"is_equipment":          item.IsEquipment,
-			"installation_status":   item.InstallationStatus,
-			"function_test_status":  item.FunctionTestStatus,
-			"installation_date":     item.InstallationDate,
-			"function_test_date":    item.FunctionTestDate,
-			"installation_notes":    item.InstallationNotes,
+			"id":                   item.ID,
+			"sales_order_item_id":  item.SalesOrderItemID,
+			"product_id":           item.ProductID,
+			"inventory_batch_id":   item.InventoryBatchID,
+			"quantity":             item.Quantity,
+			"price":                item.Price,
+			"subtotal":             item.Subtotal,
+			"avg_cost_snapshot":    item.AvgCostSnapshot,
+			"cogs_amount":          item.COGSAmount,
+			"is_equipment":         item.IsEquipment,
+			"installation_status":  item.InstallationStatus,
+			"function_test_status": item.FunctionTestStatus,
+			"installation_date":    item.InstallationDate,
+			"function_test_date":   item.FunctionTestDate,
+			"installation_notes":   item.InstallationNotes,
 		})
 	}
 
@@ -905,4 +953,28 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 	}
 
 	return false
+}
+
+func resolveDeliveryOrderItemCost(item *models.DeliveryOrderItem) float64 {
+	if item == nil {
+		return 0
+	}
+
+	if item.InventoryBatch != nil && item.InventoryBatch.CostPrice > 0 {
+		return roundCost(item.InventoryBatch.CostPrice)
+	}
+
+	if item.Product != nil && item.Product.CurrentHpp > 0 {
+		return roundCost(item.Product.CurrentHpp)
+	}
+
+	return 0
+}
+
+func roundCurrency(value float64) float64 {
+	return math.Round(value*100) / 100
+}
+
+func roundCost(value float64) float64 {
+	return math.Round(value*1000000) / 1000000
 }

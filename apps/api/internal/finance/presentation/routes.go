@@ -18,16 +18,17 @@ import (
 )
 
 type FinanceDeps struct {
-	JournalUC    usecase.JournalEntryUsecase
-	CoaUC        usecase.ChartOfAccountUsecase
-	AssetUC      usecase.AssetUsecase
-	PaymentUC    usecase.PaymentUsecase
-	BudgetUC     usecase.BudgetUsecase
-	CashBankUC   usecase.CashBankJournalUsecase
-	TaxInvoiceUC usecase.TaxInvoiceUsecase
-	SalaryUC     usecase.SalaryStructureUsecase
-	SettingsUC   financesettings.SettingsService
-	Engine       accounting.AccountingEngine
+	JournalUC             usecase.JournalEntryUsecase
+	CoaUC                 usecase.ChartOfAccountUsecase
+	AssetUC               usecase.AssetUsecase
+	PaymentUC             usecase.PaymentUsecase
+	BudgetUC              usecase.BudgetUsecase
+	CashBankUC            usecase.CashBankJournalUsecase
+	CashBankTransactionUC usecase.CashBankTransactionUsecase
+	TaxInvoiceUC          usecase.TaxInvoiceUsecase
+	SalaryUC              usecase.SalaryStructureUsecase
+	SettingsUC            financesettings.SettingsService
+	Engine                accounting.AccountingEngine
 }
 
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, auditService interface {
@@ -99,7 +100,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
-	agingUC := usecase.NewAgingReportUsecase(agingRepo)
+	agingUC := usecase.NewAgingReportUsecase(agingRepo, settingsService)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
@@ -195,15 +196,16 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterLegacyFinanceRouteBridges(group)
 
 	return &FinanceDeps{
-		JournalUC:    journalUC,
-		CoaUC:        coaUC,
-		AssetUC:      assetUC,
-		PaymentUC:    paymentUC,
-		BudgetUC:     budgetUC,
-		CashBankUC:   cashBankUC,
-		TaxInvoiceUC: taxInvoiceUC,
-		SalaryUC:     salaryUC,
-		SettingsUC:   settingsService,
-		Engine:       accountingEngine,
+		JournalUC:             journalUC,
+		CoaUC:                 coaUC,
+		AssetUC:               assetUC,
+		PaymentUC:             paymentUC,
+		BudgetUC:              budgetUC,
+		CashBankUC:            cashBankUC,
+		CashBankTransactionUC: cashBankTransactionUC,
+		TaxInvoiceUC:          taxInvoiceUC,
+		SalaryUC:              salaryUC,
+		SettingsUC:            settingsService,
+		Engine:                accountingEngine,
 	}
 }

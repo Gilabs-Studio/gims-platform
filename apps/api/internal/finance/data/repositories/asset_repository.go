@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
@@ -44,7 +45,7 @@ func NewAssetRepository(db *gorm.DB) AssetRepository {
 
 func (r *assetRepository) FindByID(ctx context.Context, id string, withDetails bool) (*financeModels.Asset, error) {
 	var item financeModels.Asset
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	q = q.Preload("Category").Preload("Location")
 	if withDetails {
 		q = q.Preload("Depreciations", func(db *gorm.DB) *gorm.DB {
@@ -84,7 +85,7 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	var items []financeModels.Asset
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.Asset{}).
+	q := database.GetDB(ctx, r.db).Model(&financeModels.Asset{}).
 		Preload("Category").
 		Preload("Location")
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
@@ -140,7 +141,7 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 
 func (r *assetRepository) FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error) {
 	var last financeModels.AssetDepreciation
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("depreciation_date desc").
 		First(&last).Error; err != nil {
@@ -154,7 +155,7 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 	prefix := "AST-" + now.Format("200601") + "-"
 
 	var lastAsset financeModels.Asset
-	err := r.db.WithContext(ctx).
+	err := database.GetDB(ctx, r.db).
 		Unscoped().
 		Where("code LIKE ?", prefix+"%").
 		Order("code DESC").
@@ -174,7 +175,7 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 }
 
 func (r *assetRepository) UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error {
-	return r.db.WithContext(ctx).
+	return database.GetDB(ctx, r.db).
 		Model(&financeModels.Asset{}).
 		Where("id = ?", assetID).
 		Update("status", status).Error

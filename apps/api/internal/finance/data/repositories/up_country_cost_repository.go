@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
@@ -48,7 +50,7 @@ func NewUpCountryCostRepository(db *gorm.DB) UpCountryCostRepository {
 
 func (r *upCountryCostRepository) FindByID(ctx context.Context, id string, withRelations bool) (*financeModels.UpCountryCost, error) {
 	var item financeModels.UpCountryCost
-	q := r.db.WithContext(ctx)
+	q := database.GetDB(ctx, r.db)
 	if withRelations {
 		q = q.Preload("Employees").Preload("Items")
 	}
@@ -62,6 +64,8 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 	var items []financeModels.UpCountryCost
 	var total int64
 
+	// Use WithContext (not GetDB) because EmployeeID filter JOINs up_country_cost_employees.
+	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
 	q := r.db.WithContext(ctx).Model(&financeModels.UpCountryCost{})
 	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
@@ -134,7 +138,7 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 func (r *upCountryCostRepository) GenerateCode(ctx context.Context, now time.Time) (string, error) {
 	prefix := "UCC-" + now.Format("200601") + "-"
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).
+	if err := database.GetDB(ctx, r.db).Model(&financeModels.UpCountryCost{}).
 		Where("code LIKE ?", prefix+"%").
 		Count(&count).Error; err != nil {
 		return "", err
@@ -150,7 +154,7 @@ func (r *upCountryCostRepository) GetStats(ctx context.Context) (*UpCountryCostS
 	}
 
 	var rows []row
-	if err := r.db.WithContext(ctx).
+	if err := database.GetDB(ctx, r.db).
 		Model(&financeModels.UpCountryCost{}).
 		Select("status, COUNT(*) as count, COALESCE(SUM(ucci.total), 0) as amount").
 		Joins("LEFT JOIN (SELECT up_country_cost_id, SUM(amount) as total FROM up_country_cost_items WHERE deleted_at IS NULL GROUP BY up_country_cost_id) ucci ON ucci.up_country_cost_id = up_country_costs.id").

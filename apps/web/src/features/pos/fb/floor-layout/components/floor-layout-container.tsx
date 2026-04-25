@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, Store, ShieldOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
-import { useFloorLayouts, useFloorLayoutFormData } from "../hooks/use-floor-layouts";
+import { Link } from "@/i18n/routing";
+import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
 import { FloorLayoutList } from "./floor-layout-list";
 import { FloorLayoutEditor } from "./floor-layout-editor";
@@ -25,18 +26,24 @@ export function FloorLayoutContainer() {
     is_active: true, 
     per_page: 50 
   });
-  const assignedOutlets = outletsData?.data ?? [];
-
-  // Fetch form data to get outlets with floor_plan status
-  const { data: formData, isLoading: formDataLoading } = useFloorLayoutFormData();
-  const outletsWithStatus = formData?.data?.outlets ?? [];
+  const assignedOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
+  const companyId = useMemo(() => {
+    const uniqueCompanyIDs = Array.from(
+      new Set(
+        assignedOutlets
+          .map((outlet) => outlet.company_id)
+          .filter((id): id is string => !!id)
+      )
+    );
+    return uniqueCompanyIDs.length === 1 ? uniqueCompanyIDs[0] : undefined;
+  }, [assignedOutlets]);
 
   // Fetch existing floor layouts
   const { data: layoutsData, isLoading: layoutsLoading } = useFloorLayouts(
-    { status: "published", per_page: 100 },
+    { per_page: 100, company_id: companyId },
     { enabled: assignedOutlets.length > 0 }
   );
-  const existingLayouts = layoutsData?.data ?? [];
+  const existingLayouts = useMemo(() => layoutsData?.data ?? [], [layoutsData?.data]);
 
   const handleOpenEditor = useCallback((id: string) => {
     setEditorFloorPlanId(id);
@@ -57,7 +64,7 @@ export function FloorLayoutContainer() {
   // If user has only 1 outlet but no floor plan, open create dialog
   useEffect(() => {
     if (hasAutoNavigated.current) return;
-    if (outletsLoading || formDataLoading || layoutsLoading) return;
+    if (outletsLoading || layoutsLoading) return;
     if (assignedOutlets.length !== 1) return;
 
     hasAutoNavigated.current = true;
@@ -68,14 +75,17 @@ export function FloorLayoutContainer() {
     
     if (existingLayout) {
       // Open existing layout directly in editor
-      setEditorFloorPlanId(existingLayout.id);
+      queueMicrotask(() => {
+        setEditorFloorPlanId(existingLayout.id);
+      });
     } else {
       // No layout exists - show create dialog with outlet pre-selected
-      setAutoCreateOutletId(singleOutlet.id);
-      setShowCreateDialog(true);
+      queueMicrotask(() => {
+        setAutoCreateOutletId(singleOutlet.id);
+        setShowCreateDialog(true);
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outletsLoading, formDataLoading, layoutsLoading, assignedOutlets, existingLayouts]);
+  }, [outletsLoading, layoutsLoading, assignedOutlets, existingLayouts]);
 
   // Editor mode
   if (editorFloorPlanId) {
@@ -104,10 +114,34 @@ export function FloorLayoutContainer() {
     );
   }
 
+  // Null state: RBAC granted but no outlets assigned at all
+  if (!outletsLoading && assignedOutlets.length === 0) {
+    return (
+      <PageMotion>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <div className="relative">
+            <Store className="h-16 w-16 text-muted-foreground/15" />
+            <ShieldOff className="h-7 w-7 absolute -bottom-1 -right-1 text-amber-500" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <p className="font-semibold text-base">No Outlets Assigned</p>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Your account has POS access but no outlet has been assigned to you.
+              Please contact your administrator.
+            </p>
+            <Button asChild variant="outline" className="mt-2 cursor-pointer">
+              <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+            </Button>
+          </div>
+        </div>
+      </PageMotion>
+    );
+  }
+
   // Loading state - when auto-navigating for single outlet
   if (
     assignedOutlets.length === 1 && 
-    (outletsLoading || formDataLoading || layoutsLoading)
+    (outletsLoading || layoutsLoading)
   ) {
     return (
       <PageMotion>
@@ -125,7 +159,7 @@ export function FloorLayoutContainer() {
   return (
     <>
       <PageMotion>
-        <FloorLayoutList onOpenEditor={handleOpenEditor} />
+        <FloorLayoutList onOpenEditor={handleOpenEditor} companyId={companyId} />
       </PageMotion>
 
       {/* Create floor plan dialog for single outlet flow */}
@@ -134,6 +168,7 @@ export function FloorLayoutContainer() {
         onOpenChange={setShowCreateDialog}
         onSuccess={handleCreateSuccess}
         preSelectedOutletId={autoCreateOutletId ?? undefined}
+        companyId={companyId}
       />
     </>
   );

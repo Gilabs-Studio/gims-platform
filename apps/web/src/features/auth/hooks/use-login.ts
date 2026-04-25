@@ -4,6 +4,7 @@ import { authService } from "../services/auth-service";
 import type { LoginFormData } from "../schemas/login.schema";
 import type { AuthError } from "../types/errors";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 function getSafeLoginErrorMessage(error: AuthError): string {
   const status = error.response?.status;
@@ -20,6 +21,7 @@ function getSafeLoginErrorMessage(error: AuthError): string {
 
 export function useLogin() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     setUser,
     setSessionVerified,
@@ -57,6 +59,8 @@ export function useLogin() {
 
       if (response.success && response.data) {
         const { user } = response.data;
+        // Clear previous session cache before binding the new authenticated user.
+        queryClient.clear();
         // setUser also sets isAuthenticated: true
         setUser(user);
         // Mark session as verified since we just logged in successfully

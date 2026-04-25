@@ -5,6 +5,8 @@ import "time"
 type GoodsReceiptListResponse struct {
 	ID                 string                         `json:"id"`
 	Code               string                         `json:"code"`
+	CompanyID          *string                        `json:"company_id,omitempty"`
+	FiscalYearID       *string                        `json:"fiscal_year_id,omitempty"`
 	PurchaseOrder      *GoodsReceiptPurchaseOrderMini `json:"purchase_order,omitempty"`
 	Warehouse          *GoodsReceiptWarehouseMini     `json:"warehouse,omitempty"`
 	WarehouseID        *string                        `json:"warehouse_id,omitempty"`
@@ -43,6 +45,8 @@ type GoodsReceiptWarehouseMini struct {
 type GoodsReceiptDetailResponse struct {
 	ID            string                           `json:"id"`
 	Code          string                           `json:"code"`
+	CompanyID     *string                          `json:"company_id,omitempty"`
+	FiscalYearID  *string                          `json:"fiscal_year_id,omitempty"`
 	PurchaseOrder *GoodsReceiptPurchaseOrderDetail `json:"purchase_order,omitempty"`
 	Warehouse     *GoodsReceiptWarehouseMini       `json:"warehouse,omitempty"`
 	WarehouseID   *string                          `json:"warehouse_id,omitempty"`

@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api-client";
-import type { ListUsersResponse, UserResponse, ListRolesResponse, Role, ListPermissionsResponse, Permission, UserPermissionsApiResponse, MenuCategory } from "../types";
+import type { ListUsersResponse, UserResponse, ListRolesResponse, Role, ListPermissionsResponse, Permission, UserPermissionsApiResponse, MenuCategory, RoleMenuAccessAssignment } from "../types";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema"; 
 
 export const userService = {
@@ -39,6 +39,14 @@ export const userService = {
     );
     return response.data;
   },
+
+  async getLimit(): Promise<{ current: number; max: number }> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { current: number; max: number };
+    }>("/users/limit");
+    return response.data.data;
+  },
 };
 
 export const roleService = {
@@ -72,17 +80,56 @@ export const roleService = {
   async assignPermissions(
     roleId: string,
     permissionIds: string[],
-    assignments?: Array<{ permission_id: string; scope: string }>
+    assignments?: Array<{ permission_id: string; scope: string }>,
+    tolerant: boolean = false,
+    diff?: {
+      added: string[];
+      added_with_scope?: Array<{ permission_id: string; scope: string }>;
+      removed: string[];
+    }
   ): Promise<Role> {
+    // Use diff mode if diff is provided
+    if (diff) {
+      const body = {
+        mode: "diff",
+        diff,
+      };
+      const response = await apiClient.post<{ success: boolean; data: Role }>(
+        `/roles/${roleId}/permissions`,
+        body
+      );
+      return response.data.data;
+    }
+
     // Use scope-aware format if assignments provided, otherwise legacy format
     const body = assignments?.length
       ? { assignments }
       : { permission_ids: permissionIds };
+    const queryParam = tolerant ? "?tolerant=true" : "";
     const response = await apiClient.post<{ success: boolean; data: Role }>(
-      `/roles/${roleId}/permissions`,
+      `/roles/${roleId}/permissions${queryParam}`,
       body
     );
     return response.data.data;
+  },
+
+  async getMenuAccess(roleId: string): Promise<RoleMenuAccessAssignment[]> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { assignments: RoleMenuAccessAssignment[] };
+    }>(`/roles/${roleId}/menu-access`);
+    return response.data.data.assignments ?? [];
+  },
+
+  async updateMenuAccess(
+    roleId: string,
+    assignments: RoleMenuAccessAssignment[]
+  ): Promise<RoleMenuAccessAssignment[]> {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: { assignments: RoleMenuAccessAssignment[] };
+    }>(`/roles/${roleId}/menu-access`, { assignments });
+    return response.data.data.assignments ?? [];
   },
 
   async validateUserRole(userId: string, roleId: string): Promise<{ is_valid: boolean }> {

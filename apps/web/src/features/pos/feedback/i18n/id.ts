@@ -35,6 +35,7 @@ export const feedbackId = {
       empty: "Tidak ada formulir",
       active: "Aktif",
       inactive: "Tidak Aktif",
+      latest: "Terbaru",
       version: "Versi",
       questions: "Pertanyaan",
       create: "Tambah Formulir",
@@ -81,6 +82,7 @@ export const feedbackId = {
         choicePlaceholder: "Teks pilihan",
         textMaxLength: "Panjang Maksimal",
         textPlaceholder: "Teks placeholder",
+        titleRequired: "Judul formulir wajib diisi (min. 2 karakter)",
         types: {
           rating: "Rating",
           multiple_choice: "Pilihan Ganda",

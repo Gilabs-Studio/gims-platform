@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -29,7 +30,7 @@ func (r *openingBalanceRepository) getDB(ctx context.Context) *gorm.DB {
 	if tx, ok := ctx.Value("tx").(*gorm.DB); ok && tx != nil {
 		return tx
 	}
-	return r.db.WithContext(ctx)
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *openingBalanceRepository) GetDB(ctx context.Context) *gorm.DB {

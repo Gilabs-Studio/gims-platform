@@ -61,6 +61,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   useDeleteCustomerInvoiceDP,
   usePendingCustomerInvoiceDP,
+  useApproveCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPListItem, CustomerInvoiceDPStatus } from "../types";
@@ -205,6 +206,7 @@ export function CustomerInvoiceDPList() {
 
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
+  const approveMutation = useApproveCustomerInvoiceDP();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -229,6 +231,7 @@ export function CustomerInvoiceDPList() {
   const canUpdate = useUserPermission("customer_invoice_dp.update");
   const canDelete = useUserPermission("customer_invoice_dp.delete");
   const canPending = useUserPermission("customer_invoice_dp.pending");
+  const canApprove = useUserPermission("customer_invoice_dp.approve");
   const canExport = useUserPermission("customer_invoice_dp.export");
   const canPrint = useUserPermission("customer_invoice_dp.print");
   const canCreatePayment = useUserPermission("sales_payment.create");
@@ -269,11 +272,21 @@ export function CustomerInvoiceDPList() {
     }
   }
 
+  async function handleApprove(id: string) {
+    try {
+      const response = await approveMutation.mutateAsync(id);
+      if (!response.success) throw new Error(response.error ?? "approve_failed");
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  }
+
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const canShowActions =
-    canUpdate || canPending || canDelete || canPrint || canCreatePayment;
+    canUpdate || canPending || canApprove || canDelete || canPrint || canCreatePayment;
 
   const getStatusBadge = (status: CustomerInvoiceDPStatus) => {
     switch (normalizeStatus(status)) {
@@ -543,6 +556,16 @@ export function CustomerInvoiceDPList() {
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {canApprove && normalizeStatus(row.status) === "submitted" ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-success focus:text-success"
+                              onClick={() => handleApprove(row.id)}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.approve")}
                             </DropdownMenuItem>
                           ) : null}
 

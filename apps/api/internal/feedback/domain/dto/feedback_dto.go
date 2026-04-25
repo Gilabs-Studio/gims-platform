@@ -152,6 +152,7 @@ type ListFeedbackResponsesRequest struct {
 	FormID    string `form:"form_id"`
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	Search    string `form:"search"`
 	Page      int    `form:"page,default=1"`
 	PerPage   int    `form:"per_page,default=20"`
 }

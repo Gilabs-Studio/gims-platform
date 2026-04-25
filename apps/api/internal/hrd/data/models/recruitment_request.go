@@ -44,6 +44,7 @@ const (
 // RecruitmentRequest represents a request to hire new employees
 type RecruitmentRequest struct {
 	ID          string `gorm:"type:uuid;primaryKey" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	RequestCode string `gorm:"type:varchar(50);not null;uniqueIndex" json:"request_code"`
 
 	// Requester
