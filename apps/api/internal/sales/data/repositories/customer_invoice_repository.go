@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CustomerInvoiceRepository defines the interface for customer invoice data access
@@ -153,16 +154,25 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	}
 	offset := (page - 1) * perPage
 
-	// Apply sorting
-	sortBy := req.SortBy
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"invoice_number": "invoice_number",
+		"invoice_date":   "invoice_date",
+		"due_date":       "due_date",
+		"amount":         "amount",
+		"status":         "status",
+		"created_at":     "created_at",
+		"updated_at":     "updated_at",
+	}
+
+	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
+	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
 		sortBy = "invoice_date"
 	}
-	sortDir := req.SortDir
-	if sortDir == "" {
-		sortDir = "desc"
-	}
-	query = query.Order(sortBy + " " + sortDir)
+
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads
 	err := query.

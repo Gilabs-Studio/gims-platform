@@ -8,6 +8,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"strings"
 )
 
 // WarehouseRepository handles database operations for warehouses
@@ -118,13 +120,24 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 		return nil, 0, err
 	}
 
-	// Apply sorting
-	if params.SortBy != "" {
-		order := fmt.Sprintf("%s %s", params.SortBy, params.SortDir)
-		query = query.Order("is_active DESC, " + order)
-	} else {
-		query = query.Order("is_active DESC, name ASC")
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"name":       "name",
+		"code":       "code",
+		"address":    "address",
+		"is_active":  "is_active",
+		"created_at": "created_at",
+		"updated_at": "updated_at",
 	}
+
+	sortBy := allowedSortColumns[strings.ToLower(strings.TrimSpace(params.SortBy))]
+	if sortBy == "" {
+		sortBy = "name"
+	}
+
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+
+	query = query.Order("is_active DESC").Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Apply pagination
 	if params.Limit > 0 {

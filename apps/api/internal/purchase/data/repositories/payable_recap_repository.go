@@ -137,15 +137,15 @@ SELECT
 FROM supplier_payables`
 
 // allowedSortCols guards against SQL injection in ORDER BY.
-var allowedSortCols = map[string]bool{
-	"supplier_name":      true,
-	"total_payable":      true,
-	"return_amount":      true,
-	"down_payment":       true,
-	"paid_amount":        true,
-	"outstanding_amount": true,
-	"aging_days":         true,
-	"last_transaction":   true,
+var allowedSortCols = map[string]string{
+	"supplier_name":      "supplier_name",
+	"total_payable":      "total_payable",
+	"return_amount":      "return_amount",
+	"down_payment":       "down_payment",
+	"paid_amount":        "paid_amount",
+	"outstanding_amount": "outstanding_amount",
+	"aging_days":         "aging_days",
+	"last_transaction":   "last_transaction",
 }
 
 func buildPayableRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
@@ -192,12 +192,12 @@ func (r *PayableRecapRepository) FindAll(ctx context.Context, params PayableReca
 
 	// Sort
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
-	if params.SortBy != "" && allowedSortCols[params.SortBy] {
+	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
 			dir = "DESC"
 		}
-		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
+		orderBy = fmt.Sprintf(" ORDER BY %s %s", sortBy, dir)
 	}
 
 	queryParams["limit"] = params.Limit
@@ -252,12 +252,12 @@ func (r *PayableRecapRepository) FindAllForExport(ctx context.Context, params Pa
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
-	if params.SortBy != "" && allowedSortCols[params.SortBy] {
+	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
 			dir = "DESC"
 		}
-		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
+		orderBy = fmt.Sprintf(" ORDER BY %s %s", sortBy, dir)
 	}
 
 	limit := params.Limit
