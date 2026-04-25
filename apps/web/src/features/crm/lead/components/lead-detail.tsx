@@ -746,7 +746,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                       >
                         <ExternalLink className="h-3 w-3 shrink-0" />
                         <span className="truncate">
-                          {lead.place_id.includes("linkedin.com") ? "View LinkedIn Profile" : "View on Google Maps"}
+                          {(() => {
+                            try {
+                              const hostname = new URL(lead.place_id).hostname.toLowerCase();
+                              if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com")) {
+                                return "View LinkedIn Profile";
+                              }
+                            } catch (e) {
+                              // Fallback if URL parsing fails
+                            }
+                            return "View on Google Maps";
+                          })()}
                         </span>
                       </Link>
                     </div>
