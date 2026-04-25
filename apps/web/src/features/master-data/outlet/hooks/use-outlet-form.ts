@@ -74,7 +74,7 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
       manager_id: undefined,
       company_id: undefined,
       is_active: true,
-      create_warehouse: false,
+      create_warehouse: true,
     },
   });
 
@@ -122,7 +122,7 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
         manager_id: undefined,
         company_id: undefined,
         is_active: true,
-        create_warehouse: false,
+        create_warehouse: true,
       });
     }
   }, [open, isEditing, editingItem, editingItem?.id, refetchDetail, form]);
