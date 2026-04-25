@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateOutlet, useUpdateOutlet, useOutlet, useOutletFormData } from "./use-outlets";
+import { useUsers } from "@/features/master-data/user-management/hooks/use-users";
 import type { Outlet } from "../types";
 
 export const outletFormSchema = z.object({
@@ -48,7 +49,13 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
   const fullOutlet = detailRes?.data ?? editingItem;
 
   const { data: formDataRes } = useOutletFormData({ enabled: open });
-  const formData = formDataRes?.data;
+  const { data: usersRes } = useUsers({ per_page: 500, status: "active" }, { enabled: open });
+
+  const rawFormData = formDataRes?.data;
+  const formData = rawFormData ? {
+    ...rawFormData,
+    managers: usersRes?.data?.map(u => ({ id: u.id, name: u.name })) ?? rawFormData.managers ?? []
+  } : undefined;
 
   const form = useForm<OutletFormData>({
     resolver: zodResolver(outletFormSchema),
