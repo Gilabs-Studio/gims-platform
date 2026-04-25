@@ -49,7 +49,7 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
   const fullOutlet = detailRes?.data ?? editingItem;
 
   const { data: formDataRes } = useOutletFormData({ enabled: open });
-  const { data: usersRes } = useUsers({ per_page: 500, status: "active" }, { enabled: open });
+  const { data: usersRes } = useUsers({ per_page: 100, status: "active" }, { enabled: open });
 
   const rawFormData = formDataRes?.data;
   const formData = rawFormData ? {
