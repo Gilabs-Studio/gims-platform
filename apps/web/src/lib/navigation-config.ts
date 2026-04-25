@@ -27,14 +27,14 @@ export const navigationConfig: NavItem[] = [
         i18nKey: "floorLayoutDesigner",
         url: "/pos/fb/floor-layout",
         icon: "layout-list",
-        permission: "pos.layout.manage",
+        permission: "pos.layout.read",
       },
       {
         name: "POS Terminal",
         i18nKey: "posTerminalNav",
         url: "/pos/fb/terminal",
         icon: "monitor-check",
-        permission: "pos.order.create",
+        permission: "pos.order.read",
       },
       {
         name: "Feedback",

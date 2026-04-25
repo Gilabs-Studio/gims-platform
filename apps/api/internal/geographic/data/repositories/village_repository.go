@@ -6,6 +6,7 @@ import (
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // VillageRepository defines the interface for village data access
@@ -101,16 +102,17 @@ func (r *villageRepository) List(ctx context.Context, req *dto.ListVillagesReque
 	offset := (page - 1) * perPage
 
 	// Apply sorting
-	sortBy := "villages.updated_at"
+	query = query.Order("is_active DESC")
 	if req.SortBy != "" {
-		sortBy = "villages." + req.SortBy
-	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Table: "villages", Name: req.SortBy},
+			Desc:   req.SortDir != "asc",
+		})
+	} else {
+		query = query.Order("villages.updated_at DESC")
 	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&villages).Error
+	err := query.Offset(offset).Limit(perPage).Find(&villages).Error
 	if err != nil {
 		return nil, 0, err
 	}

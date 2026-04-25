@@ -6,6 +6,7 @@ import (
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CountryRepository defines the interface for country data access
@@ -82,16 +83,17 @@ func (r *countryRepository) List(ctx context.Context, req *dto.ListCountriesRequ
 	offset := (page - 1) * perPage
 
 	// Apply sorting
-	sortBy := "updated_at"
+	query = query.Order("is_active DESC")
 	if req.SortBy != "" {
-		sortBy = req.SortBy
-	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: req.SortBy},
+			Desc:   req.SortDir != "asc",
+		})
+	} else {
+		query = query.Order("updated_at DESC")
 	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&countries).Error
+	err := query.Offset(offset).Limit(perPage).Find(&countries).Error
 	if err != nil {
 		return nil, 0, err
 	}

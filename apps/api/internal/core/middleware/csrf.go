@@ -149,12 +149,10 @@ func CSRF() gin.HandlerFunc {
 
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
-	isSecure := false
+	isSecure := true
 	sameSite := http.SameSiteLaxMode
 
 	if shouldUseCrossSiteCSRFCookie(c) {
-		// Cross-site browser requests require SameSite=None and Secure=true.
-		isSecure = true
 		sameSite = http.SameSiteNoneMode
 	}
 

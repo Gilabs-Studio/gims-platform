@@ -52,7 +52,7 @@ export async function generateMetadata({
 
 export default function POSTerminalPage() {
   return (
-    <PermissionGuard requiredPermission="pos.order.create">
+    <PermissionGuard requiredPermission="pos.order.read">
       <Suspense fallback={<OutletSelectionSkeleton />}>
         <POSTerminalPageClient />
       </Suspense>

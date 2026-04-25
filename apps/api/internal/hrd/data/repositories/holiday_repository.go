@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // HolidayRepository defines the interface for holiday data access
@@ -158,7 +159,10 @@ func (r *holidayRepository) List(ctx context.Context, req *dto.ListHolidaysReque
 	}
 
 	// Fetch data
-	err := query.Order(sortField + " " + sortOrder).Offset(offset).Limit(perPage).Find(&holidays).Error
+	err := query.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortField},
+		Desc:   sortOrder == "DESC",
+	}).Offset(offset).Limit(perPage).Find(&holidays).Error
 	if err != nil {
 		return nil, 0, err
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type inventoryRepository struct {
@@ -143,7 +144,10 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 
 	// Order: critical-first when filtering by low/OOS status; otherwise alphabetical
 	if effectiveStatus == "low_stock" || effectiveStatus == "out_of_stock" {
-		query = query.Order("(" + available + " / NULLIF(p.max_stock, 0)) ASC NULLS FIRST, p.name ASC")
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Raw: true, Name: "(" + available + " / NULLIF(p.max_stock, 0))"},
+			Desc:   false,
+		}).Order("p.name ASC")
 	} else {
 		query = query.Order("p.name ASC, w.name ASC")
 	}

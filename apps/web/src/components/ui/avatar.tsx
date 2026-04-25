@@ -9,6 +9,16 @@ const AvatarContext = React.createContext<{
   setImageLoaded: () => {},
 });
 
+/**
+ * Validates if a URL is safe to use in an img src.
+ * Prevents dangerous protocols like javascript:
+ */
+const isSafeUrl = (url?: string): boolean => {
+  if (!url) return false;
+  // Allow absolute URLs (http/https), data URLs for images, or relative paths
+  return /^(https?:\/\/|data:image\/|\/|blob:)/i.test(url);
+};
+
 function Avatar({ className, ...props }: React.ComponentProps<"div">) {
   const [imageLoaded, setImageLoaded] = React.useState(false);
 
@@ -48,16 +58,24 @@ function AvatarImage({
     }
   }, [src, setImageLoaded]);
 
+  // Validate SRC and ensure it's a safe string
+  const safeSrc = React.useMemo(() => {
+    if (typeof src !== "string" || !isSafeUrl(src)) {
+      return undefined;
+    }
+    return src;
+  }, [src]);
+
   // Avoid calling setState during render — effects handle notifying parent
-  if (hasError || !src) {
+  if (hasError || !safeSrc) {
     return null;
   }
 
   return (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
-      src={src}
-      alt={alt}
+      src={safeSrc}
+      alt={alt ?? ""}
       className={cn("aspect-square h-full w-full object-cover", className)}
       onLoad={() => setImageLoaded(true)}
       onError={() => {
@@ -76,7 +94,15 @@ function AvatarFallback({ className, children, dataSeed, ...props }: React.Props
     return null;
   }
 
-  const seedText = dataSeed ?? (typeof children === "string" && children.trim().length > 0 ? children.trim() : "user");
+  // Safely extract text from children for the seed, or default to "user"
+  const getSeedText = () => {
+    if (dataSeed) return dataSeed;
+    if (typeof children === "string") return children.trim();
+    if (typeof children === "number") return String(children);
+    return "user";
+  };
+
+  const seedText = getSeedText() || "user";
   const seed = encodeURIComponent(seedText);
   // Use DiceBear 'lorelei' style (consistent with user module)
   const dicebearUrl = `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}`;
@@ -90,7 +116,11 @@ function AvatarFallback({ className, children, dataSeed, ...props }: React.Props
       {...props}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={dicebearUrl} alt={seedText} className="h-full w-full object-cover" />
+      <img
+        src={dicebearUrl}
+        alt={seedText}
+        className="h-full w-full object-cover"
+      />
     </div>
   );
 }

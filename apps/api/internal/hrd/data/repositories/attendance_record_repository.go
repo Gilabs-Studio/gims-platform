@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AttendanceRecordRepository defines the interface for attendance record data access
@@ -157,7 +158,10 @@ func (r *attendanceRecordRepository) List(ctx context.Context, req *dto.ListAtte
 	}
 
 	// Fetch data
-	err := query.Order(sortField + " " + sortOrder).Offset(offset).Limit(perPage).Find(&records).Error
+	err := query.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortField},
+		Desc:   sortOrder == "DESC",
+	}).Offset(offset).Limit(perPage).Find(&records).Error
 	if err != nil {
 		return nil, 0, err
 	}

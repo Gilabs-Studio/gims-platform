@@ -113,7 +113,7 @@ func handleFloorPlanError(c *gin.Context, err error) {
 			"field":    "status",
 		}, nil)
 	case usecase.ErrFloorPlanForbidden:
-		coreErrors.ForbiddenResponse(c, "pos.layout.manage", nil)
+		coreErrors.ForbiddenResponse(c, "pos.layout.read", nil)
 	case usecase.ErrVersionNotFound:
 		coreErrors.NotFoundResponse(c, "layout_version", "")
 	default:

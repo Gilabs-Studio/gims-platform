@@ -38,8 +38,6 @@ This directory contains comprehensive standards and guidelines for backend API d
 
 ### Enterprise Standards
 
-### Enterprise Standards
-
 5. **[API Performance Standards](./api-performance-standards.md)**
    - Database query optimization
    - Caching strategies
@@ -107,11 +105,12 @@ This directory contains comprehensive standards and guidelines for backend API d
 - Efficient memory usage
 
 ### 3. Security
-- Input validation and sanitization
-- SQL injection prevention
-- XSS prevention
-- CSRF protection
-- Authentication and authorization
+- **Input Validation & Sanitization**: Strict validation using struct tags (backend) and Zod (frontend).
+- **SQL Injection Prevention**: Using parameterized queries and whitelist-based sorting (`clause.OrderByColumn`).
+- **XSS Prevention**: Robust URL host validation and output escaping.
+- **CSRF Protection**: Double-submit cookie pattern with `X-CSRF-Token` validation.
+- **Authentication & Authorization**: HttpOnly cookies for tokens and role-based access control.
+- **Security Headers**: HSTS, CSP, X-Frame-Options, and nosniff headers.
 
 ### 4. Scalability
 - Support for high traffic (1000+ req/s)
@@ -155,9 +154,9 @@ This directory contains comprehensive standards and guidelines for backend API d
 
 ### Security
 - [ ] Input sanitization implemented
-- [ ] SQL injection prevention
-- [ ] XSS prevention
-- [ ] CSRF protection (if needed)
+- [ ] SQL injection prevention (whitelist-based sorting)
+- [ ] XSS prevention (URL host validation)
+- [ ] CSRF protection (Double-submit cookie)
 - [ ] Authentication required
 - [ ] Authorization checked
 - [ ] Sensitive data not logged
@@ -192,5 +191,5 @@ This directory contains comprehensive standards and guidelines for backend API d
 
 ---
 
-**Last Updated**: 2025  
+**Last Updated**: 2026-04-25  
 **Maintained By**: Development Team

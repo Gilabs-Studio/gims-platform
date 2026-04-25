@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
@@ -18,12 +18,14 @@ import {
   Zap,
   Phone,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link, useRouter } from "@/i18n/routing";
 import { authService } from "../services/auth-service";
 import { useAuthStore } from "../stores/use-auth-store";
 import { cn } from "@/lib/utils";
+import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 
 // ─── Pricing data ─────────────────────────────────────────────────────────────
 
@@ -39,6 +41,7 @@ interface BundlePlan {
   modules: string[];
   highlight?: boolean;
   cta?: "select" | "contact";
+  modularPrice: number;
 }
 
 interface ModularPlan {
@@ -50,21 +53,29 @@ interface ModularPlan {
   features: string[];
 }
 
-// Enterprise plan — non-purchasable, always displayed as a CTA.
-const ENTERPRISE_CTA: BundlePlan = {
-  id: "enterprise",
-  name: "Enterprise",
-  tagline: "Custom for your business",
-  perUserMonthly: 0,
-  cta: "contact",
-  modules: [
-    "Everything in Ultimate",
-    "Unlimited users",
-    "Dedicated SLA",
-    "Custom integrations",
-    "On-premise option",
-  ],
-};
+function buildEnterpriseCTA(locale: string): BundlePlan {
+  const copy = getSubscriptionPlanCopy("enterprise", locale, {
+    name: "Enterprise",
+    description: "Custom for your business",
+    features: [
+      "Everything in Ultimate",
+      "Unlimited users",
+      "Dedicated SLA",
+      "Custom integrations",
+      "On-premise option",
+    ],
+  });
+
+  return {
+    id: "enterprise",
+    name: copy.name,
+    tagline: copy.description,
+    perUserMonthly: 0,
+    cta: "contact",
+    modules: copy.features,
+    modularPrice: 0,
+  };
+}
 
 
 
@@ -81,46 +92,76 @@ interface BundleComparisonRow {
 
 const BUNDLE_COMPARISON_ROWS: BundleComparisonRow[] = [
   {
-    label: "Users",
-    growthSuite: "Per seat",
-    ultimateSuite: "Per seat",
-    enterprise: "Unlimited users",
-  },
-  {
-    label: "Storage",
-    growthSuite: "100 GB",
-    ultimateSuite: "500 GB",
-    enterprise: "Unlimited storage",
-  },
-  {
-    label: "Support",
-    growthSuite: "Business hours",
-    ultimateSuite: "Priority support",
-    enterprise: "24/7 dedicated support",
-  },
-  {
-    label: "Integrations",
-    growthSuite: "Standard integrations",
-    ultimateSuite: "Advanced integrations",
-    enterprise: "Custom integrations",
-  },
-  {
-    label: "Advanced analytics",
+    label: "POS",
     growthSuite: "check",
     ultimateSuite: "check",
     enterprise: "check",
   },
   {
-    label: "Public API access",
+    label: "ERP",
+    growthSuite: "check",
+    ultimateSuite: "check",
+    enterprise: "check",
+  },
+  {
+    label: "FINANCE",
+    growthSuite: "check",
+    ultimateSuite: "check",
+    enterprise: "check",
+  },
+  {
+    label: "CRM",
+    growthSuite: "check",
+    ultimateSuite: "check",
+    enterprise: "check",
+  },
+  {
+    label: "HR",
     growthSuite: "minus",
     ultimateSuite: "check",
     enterprise: "check",
   },
   {
-    label: "Dedicated SLA",
+    label: "Advance REPORT",
     growthSuite: "minus",
-    ultimateSuite: "minus",
+    ultimateSuite: "check",
     enterprise: "check",
+  },
+  {
+    label: "AI",
+    growthSuite: "minus",
+    ultimateSuite: "check",
+    enterprise: "check",
+  },
+  {
+    label: "TRAVEL PLANNER",
+    growthSuite: "minus",
+    ultimateSuite: "check",
+    enterprise: "check",
+  },
+  {
+    label: "usersLabel",
+    growthSuite: "Per seat",
+    ultimateSuite: "Per seat",
+    enterprise: "Unlimited users",
+  },
+  {
+    label: "storage",
+    growthSuite: "100 GB",
+    ultimateSuite: "500 GB",
+    enterprise: "Unlimited storage",
+  },
+  {
+    label: "support",
+    growthSuite: "Business hours",
+    ultimateSuite: "Priority support",
+    enterprise: "24/7 dedicated support",
+  },
+  {
+    label: "integrations",
+    growthSuite: "Standard integrations",
+    ultimateSuite: "Advanced integrations",
+    enterprise: "Custom integrations",
   },
 ];
 
@@ -232,6 +273,7 @@ function StepDots({ current, total }: { current: number; total: number }) {
 
 export default function RegisterForm() {
   const t = useTranslations("auth.register");
+  const locale = useLocale();
   const router = useRouter();
   const { setUser, setSessionVerified } = useAuthStore();
 
@@ -271,31 +313,52 @@ export default function RegisterForm() {
     const bundlePlans = (apiPlans ?? [])
       .filter((p) => p.category === "bundle")
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map<BundlePlan>((p) => ({
-        id: p.slug,
-        name: p.name,
-        tagline: p.description ?? p.name,
-        perUserMonthly: p.price_monthly_idr,
-        badge: p.is_highlighted ? "Most Popular" : undefined,
-        highlight: p.is_highlighted,
-        modules: p.features ?? p.module_slugs ?? [],
-      }));
+      .map<BundlePlan>((p) => {
+        const planCopy = getSubscriptionPlanCopy(p.slug, locale, {
+          name: p.name,
+          description: p.description,
+          features: p.features ?? p.module_slugs ?? [],
+        });
+
+        const modularPrice = (apiPlans ?? [])
+          .filter((mp) => p.module_slugs?.includes(mp.slug))
+          .reduce((sum, mp) => sum + mp.price_monthly_idr, 0);
+
+        return {
+          id: p.slug,
+          name: planCopy.name,
+          tagline: planCopy.description,
+          perUserMonthly: p.price_monthly_idr,
+          badge: planCopy.badge ?? (p.is_highlighted ? "Most Popular" : undefined),
+          highlight: p.is_highlighted,
+          modules: planCopy.features,
+          modularPrice,
+        };
+      });
     // Always append the non-purchasable Enterprise CTA at the end
-    return [...bundlePlans, ENTERPRISE_CTA];
-  }, [apiPlans]);
+    return [...bundlePlans, buildEnterpriseCTA(locale)];
+  }, [apiPlans, locale]);
 
   const dynamicModular = useMemo<ModularPlan[]>(() => {
     return (apiPlans ?? [])
       .filter((p) => p.category !== "bundle")
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map<ModularPlan>((p) => ({
-        id: p.slug,
-        name: p.name,
-        category: p.category.toUpperCase(),
-        perUserMonthly: p.price_monthly_idr,
-        features: p.features ?? [],
-      }));
-  }, [apiPlans]);
+      .map<ModularPlan>((p) => {
+        const planCopy = getSubscriptionPlanCopy(p.slug, locale, {
+          name: p.name,
+          description: p.description,
+          features: p.features ?? [],
+        });
+
+        return {
+          id: p.slug,
+          name: planCopy.name,
+          category: p.category.toUpperCase(),
+          perUserMonthly: p.price_monthly_idr,
+          features: planCopy.features,
+        };
+      });
+  }, [apiPlans, locale]);
 
   // Modular tab is enabled once plans are loaded and at least one non-bundle plan exists.
   const hasModularPlans = dynamicModular.length > 0;
@@ -529,9 +592,9 @@ export default function RegisterForm() {
       return <Check className="mx-auto h-4 w-4 text-success" aria-label="Included" />;
     }
     if (value === "minus") {
-      return <XCircle className="mx-auto h-4 w-4 text-muted-foreground" aria-label="Not included" />;
+      return <XCircle className="mx-auto h-4 w-4 text-muted-foreground/30" aria-label="Not included" />;
     }
-    return <span className="text-sm text-foreground">{value}</span>;
+    return <p className="text-[10px] sm:text-xs text-muted-foreground text-center leading-normal whitespace-normal w-full">{value}</p>;
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -893,7 +956,12 @@ export default function RegisterForm() {
                             )}
                           >
                             {t("yearly")}
-                            <span className="rounded-lg bg-success/15 px-2 py-0.5 text-success">{t("save10")}</span>
+                            <span className={cn(
+                              "rounded-lg px-2 py-0.5 transition-colors",
+                              billing === "yearly" ? "bg-white/20 text-white" : "bg-success/15 text-success"
+                            )}>
+                              {t("save10")}
+                            </span>
                           </button>
                         </div>
 
@@ -989,114 +1057,133 @@ export default function RegisterForm() {
                         )}
                       </div>
 
-                      <div className="overflow-x-auto rounded-lg border border-border/80">
-                        <table className="w-full min-w-max border-collapse">
+                      <div className="overflow-x-auto rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm">
+                        <table className="w-full min-w-[700px] border-collapse">
                           <thead>
-                            <tr className="border-b border-border/80">
-                              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">{t("features")}</th>
+                            <tr className="border-b border-border/60 bg-muted/30">
+                              <th className="px-4 py-3 sm:px-6 sm:py-4 text-left text-xs sm:text-sm font-semibold text-foreground uppercase tracking-wider">{t("features")}</th>
                               {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 return (
                                   <th
                                     key={b.id}
                                     className={cn(
-                                      "px-6 py-4 text-left",
+                                      "px-4 py-3 sm:px-6 sm:py-4 text-center",
                                       isSelected && b.cta !== "contact" && "bg-primary/5",
                                     )}
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-base font-semibold text-foreground">{b.name}</p>
-                                      {b.badge && (
-                                        <span className="rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                                          {b.badge}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">{b.tagline}</p>
+                                      <div className="flex flex-col items-center gap-1">
+                                        <p className="text-sm sm:text-base font-bold text-foreground leading-tight">{b.name.replace(" Suite", "")}</p>
+                                        <p className="text-[10px] sm:text-xs text-muted-foreground font-normal leading-tight max-w-[120px]">{b.tagline}</p>
+                                      </div>
                                   </th>
                                 );
                               })}
                             </tr>
                           </thead>
                           <tbody>
-                            <tr className="border-b border-border/70">
-                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-foreground">{t("price")}</th>
+                            {/* Price Row */}
+                            <tr className="border-b border-border/60">
+                              <th scope="row" className="px-4 py-3 sm:px-6 sm:py-4 text-left text-xs sm:text-sm font-semibold text-foreground uppercase tracking-tight">{t("price")}</th>
                               {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 if (b.cta === "contact") {
                                   return (
                                     <td
                                       key={b.id}
-                                      className={cn("px-6 py-4 align-top", isSelected && "bg-primary/5")}
+                                      className={cn("px-4 py-3 sm:px-6 sm:py-4 align-top text-center", isSelected && "bg-primary/5")}
                                     >
-                                      <p className="text-xl font-semibold text-foreground">{t("custom")}</p>
-                                      <p className="mt-1 text-xs text-muted-foreground">{t("contactSalesHint")}</p>
+                                      <p className="text-sm sm:text-lg font-bold text-foreground">{t("custom")}</p>
+                                      <p className="mt-0.5 text-[10px] text-muted-foreground leading-tight">{t("contactSalesHint")}</p>
                                     </td>
                                   );
                                 }
 
-                                const effectiveMonthly = effectiveMonthlyPrice(b.perUserMonthly, userCount, billing);
-                                const discountedMonthly = applyCouponPreview(b.perUserMonthly, userCount, billing, couponState, b.id);
-                                const planHasDiscount = discountedMonthly < effectiveMonthly;
+                                const discountedTotal = applyCouponPreview(b.perUserMonthly, userCount, billing, couponState, b.id);
+                                const coretBadgeLabel = b.id === "growth_suite"
+                                  ? { original: 277_000, final: 125_000 }
+                                  : b.id === "ultimate_suite"
+                                    ? { original: 366_000, final: 175_000 }
+                                    : null;
+                                const coretBadgePercent = coretBadgeLabel
+                                  ? Math.round(((coretBadgeLabel.original - coretBadgeLabel.final) / coretBadgeLabel.original) * 100)
+                                  : 0;
 
                                 return (
                                   <td
                                     key={b.id}
-                                    className={cn("px-6 py-4 align-top", isSelected && "bg-primary/5")}
+                                    className={cn("px-4 py-3 sm:px-6 sm:py-4 align-top text-center", isSelected && "bg-primary/5")}
                                   >
-                                    {billing === "yearly" ? (
-                                      <div>
-                                        <p className="text-xs text-muted-foreground line-through">{formatIDR(b.perUserMonthly * userCount)}/mo</p>
-                                        <p className="text-xl font-semibold text-foreground">
-                                          {planHasDiscount ? (
-                                            <>
-                                              <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
-                                              {formatIDR(discountedMonthly)}
-                                            </>
-                                          ) : formatIDR(discountedMonthly)}
-                                          <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
+                                    <div className="flex flex-col items-center gap-1.5">
+                                      {coretBadgeLabel && (
+                                        <Badge
+                                          variant="outline"
+                                          className="rounded-full border-destructive/30 bg-destructive/10 px-3 py-1 text-[9px] font-semibold tracking-wide text-destructive shadow-sm"
+                                        >
+                                          <span className="flex items-center gap-1 whitespace-nowrap">
+                                            <span className="line-through decoration-destructive/70 decoration-2">
+                                              {formatIDR(coretBadgeLabel.original)}
+                                            </span>
+                                            <span>-{coretBadgePercent}%</span>
+                                          </span>
+                                        </Badge>
+                                      )}
+
+                                      <div className="flex flex-col items-center">
+                                        <p className="text-sm sm:text-lg font-bold text-foreground tracking-tight">
+                                          {billing === "yearly" && b.id !== "enterprise" && b.id !== "growth_suite" && b.id !== "ultimate_suite" ? (
+                                            <span className="flex flex-col items-start gap-0.5 text-left">
+                                              <span className="text-[10px] sm:text-xs text-muted-foreground/70 line-through decoration-destructive/60 decoration-2">
+                                                {formatIDR(b.perUserMonthly)}
+                                              </span>
+                                              <span>
+                                                {formatIDR(Math.round(b.perUserMonthly * 0.9))}
+                                              </span>
+                                            </span>
+                                          ) : (
+                                            formatIDR(discountedTotal / (billing === "yearly" ? 12 : 1))
+                                          )}
+                                          <span className="ml-0.5 text-[10px] font-normal text-muted-foreground leading-none">{t("perMonthShort")}</span>
                                         </p>
-                                        <p className="mt-1 text-xs text-success">{t("billedAnnually")}</p>
+                                        
+                                        {billing === "yearly" && (
+                                          <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight">
+                                            Total: {formatIDR(discountedTotal)}
+                                            <span className="ml-0.5 lowercase text-[8px] font-normal">{t("perYearShort")}</span>
+                                          </p>
+                                        )}
                                       </div>
-                                    ) : (
-                                      <p className="text-xl font-semibold text-foreground">
-                                        {planHasDiscount ? (
-                                          <>
-                                            <span className="mr-2 text-sm font-normal text-muted-foreground line-through">{formatIDR(effectiveMonthly)}</span>
-                                            {formatIDR(discountedMonthly)}
-                                          </>
-                                        ) : formatIDR(discountedMonthly)}
-                                        <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
-                                      </p>
-                                    )}
+
+                                    </div>
                                   </td>
                                 );
-                              })}
+                                })}
                             </tr>
-
+                            {/* Features Comparison Rows */}
                             {BUNDLE_COMPARISON_ROWS.map((row) => (
-                              <tr key={row.label} className="border-b border-border/70 last:border-b-0">
-                                <th scope="row" className="px-6 py-3 text-left text-sm font-medium text-foreground">{row.label}</th>
-                                <td className={cn("px-6 py-3", selectedBundle === "growth_suite" && "bg-primary/5")}>{renderComparisonCell(row.growthSuite)}</td>
-                                <td className={cn("px-6 py-3", selectedBundle === "ultimate_suite" && "bg-primary/5")}>{renderComparisonCell(row.ultimateSuite)}</td>
-                                <td className="px-6 py-3">{renderComparisonCell(row.enterprise)}</td>
+                              <tr key={row.label} className="border-b border-border/50 hover:bg-muted/10 transition-colors group">
+                                <th scope="row" className="px-4 py-2.5 sm:px-6 sm:py-3.5 text-left text-[11px] sm:text-sm font-medium text-muted-foreground/80 group-hover:text-foreground transition-colors group-hover:bg-muted/5">{t(row.label)}</th>
+                                <td className={cn("px-4 py-2.5 sm:px-6 sm:py-3.5 text-center", selectedBundle === "growth_suite" && "bg-primary/5")}>{renderComparisonCell(row.growthSuite)}</td>
+                                <td className={cn("px-4 py-2.5 sm:px-6 sm:py-3.5 text-center", selectedBundle === "ultimate_suite" && "bg-primary/5")}>{renderComparisonCell(row.ultimateSuite)}</td>
+                                <td className="px-4 py-2.5 sm:px-6 sm:py-3.5 text-center">{renderComparisonCell(row.enterprise)}</td>
                               </tr>
                             ))}
 
-                            <tr>
-                              <td className="px-6 py-4" />
+                            {/* Action Button Row */}
+                            <tr className="bg-muted/10">
+                              <td className="px-4 py-4 sm:px-6 sm:py-6" />
                               {dynamicBundles.map((b) => {
                                 const isSelected = selectedBundle === b.id;
                                 return (
-                                  <td key={b.id} className={cn("px-6 py-4", isSelected && b.cta !== "contact" && "bg-primary/5")}>
+                                  <td key={b.id} className={cn("px-4 py-4 sm:px-6 sm:py-6", isSelected && b.cta !== "contact" && "bg-primary/5")}>
                                     {b.cta === "contact" ? (
                                       <Button
                                         type="button"
                                         variant="outline"
                                         onClick={openContactSalesWhatsApp}
-                                        className="h-10 w-full"
+                                        className="h-8 sm:h-10 w-full text-[10px] sm:text-sm font-semibold"
                                       >
-                                        <Phone className="mr-1 h-4 w-4" />
+                                        <Phone className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
                                         {t("contactSales")}
                                       </Button>
                                     ) : (
@@ -1104,9 +1191,17 @@ export default function RegisterForm() {
                                         type="button"
                                         variant={isSelected ? "default" : "outline"}
                                         onClick={() => setSelectedBundle(b.id)}
-                                        className="h-10 w-full"
+                                        className={cn(
+                                          "h-8 sm:h-10 w-full text-[10px] sm:text-sm font-bold transition-all duration-300",
+                                          isSelected ? "shadow-md ring-2 ring-primary/20 scale-[1.02]" : "hover:scale-[1.01]"
+                                        )}
                                       >
-                                        {isSelected ? t("selected") : t("chooseBundle", { name: b.name.replace(" Suite", "") })}
+                                        {isSelected ? (
+                                          <span className="flex items-center justify-center gap-1">
+                                            <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                                            {t("selected")}
+                                          </span>
+                                        ) : t("chooseBundle", { name: b.name.replace(" Suite", "") })}
                                       </Button>
                                     )}
                                   </td>
@@ -1142,7 +1237,12 @@ export default function RegisterForm() {
                             className={cn("flex items-center gap-1 rounded-lg px-3 py-1.5 font-medium transition-colors", billing === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
                           >
                             {t("yearly")}
-                            <span className="rounded-lg bg-success/15 px-2 py-0.5 text-success">{t("save10")}</span>
+                            <span className={cn(
+                              "rounded-lg px-2 py-0.5 transition-colors",
+                              billing === "yearly" ? "bg-white/20 text-white" : "bg-success/15 text-success"
+                            )}>
+                              {t("save10")}
+                            </span>
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1210,11 +1310,17 @@ export default function RegisterForm() {
                               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{p.category}</p>
                               <p className="mt-1 text-sm font-semibold text-foreground">{p.name}</p>
                               <div className="mt-3">
-                                {billing === "yearly" && (
-                                  <p className="text-xs text-muted-foreground line-through">{formatIDR(baseMonthly)}{t("perMonthShort")}</p>
-                                )}
                                 <p className="text-lg font-semibold text-foreground">
-                                  {formatIDR(monthly)}
+                                  {billing === "yearly" ? (
+                                    <span className="flex flex-col gap-0.5">
+                                      <span className="text-[10px] sm:text-xs text-muted-foreground/70 line-through decoration-destructive/60 decoration-2">
+                                        {formatIDR(baseMonthly)}
+                                      </span>
+                                      <span>{formatIDR(monthly)}</span>
+                                    </span>
+                                  ) : (
+                                    formatIDR(monthly)
+                                  )}
                                   <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
                                 </p>
                               </div>
@@ -1236,9 +1342,9 @@ export default function RegisterForm() {
                     </motion.div>
                   )}
 
-                </AnimatePresence>
+                  </AnimatePresence>
 
-                </> // end normal plan selection
+                 </> // end normal plan selection
                 )} {/* end: coupon-locked vs full plan selection */}
 
                 {/* Error */}
