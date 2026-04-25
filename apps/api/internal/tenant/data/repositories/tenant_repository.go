@@ -122,7 +122,7 @@ func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search strin
 		Slug           string  `gorm:"column:slug"`
 		Status         string  `gorm:"column:status"`
 		Plan           string  `gorm:"column:plan"`
-		MaxUsers       int     `gorm:"column:max_users"`
+		SeatLimit      int     `gorm:"column:seat_limit"`
 		OwnerUserID    *string `gorm:"column:owner_user_id"`
 		CurrentUsers   int64   `gorm:"column:current_users"`
 		OwnerName      string  `gorm:"column:owner_name"`
@@ -149,7 +149,15 @@ func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search strin
 	var rows []row
 	offset := (page - 1) * perPage
 	err := baseQ.
-		Select(`tenants.id, tenants.name, tenants.slug, tenants.status, tenants.plan, tenants.max_users, tenants.owner_user_id,
+		Select(`tenants.id, tenants.name, tenants.slug, tenants.status, tenants.plan,
+			COALESCE((SELECT ts.seat_limit
+				FROM tenant_subscriptions ts
+				WHERE ts.tenant_id = tenants.id
+				  AND ts.status IN ('active', 'trial')
+				  AND ts.deleted_at IS NULL
+				ORDER BY ts.created_at DESC
+				LIMIT 1), tenants.max_users) AS seat_limit,
+			tenants.owner_user_id,
 			COALESCE((SELECT COUNT(*) FROM users WHERE users.tenant_id = tenants.id AND users.deleted_at IS NULL), 0) AS current_users,
 			COALESCE((SELECT COUNT(*) FROM companies WHERE companies.tenant_id = tenants.id AND companies.deleted_at IS NULL), 0) AS company_count,
 			COALESCE((SELECT COUNT(*) FROM outlets WHERE outlets.tenant_id = tenants.id AND outlets.deleted_at IS NULL), 0) AS outlet_count,
@@ -179,7 +187,7 @@ func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search strin
 		t.Slug = row.Slug
 		t.Status = row.Status
 		t.Plan = row.Plan
-		t.MaxUsers = row.MaxUsers
+			t.MaxUsers = row.SeatLimit
 		t.OwnerUserID = row.OwnerUserID
 		result = append(result, t)
 	}

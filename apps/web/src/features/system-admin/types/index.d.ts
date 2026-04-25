@@ -310,8 +310,15 @@ export interface SubscriptionPlanConfig {
   is_highlighted: boolean;
   sort_order: number;
   features: string[];
+  role_templates: RoleTemplate[];
   modules: string[];
   menu_urls: string[];
+}
+
+export interface RoleTemplate {
+  code?: string;
+  name: string;
+  description: string;
 }
 
 export interface UpsertPlanRequest {
@@ -327,6 +334,7 @@ export interface UpsertPlanRequest {
   is_highlighted?: boolean;
   sort_order?: number;
   features?: string[];
+  role_templates: RoleTemplate[];
   modules?: string[];
   menu_urls?: string[];
 }

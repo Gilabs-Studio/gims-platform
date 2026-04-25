@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -84,7 +85,11 @@ func (u *paymentTransactionUsecase) ListByTenant(ctx context.Context, tenantID s
 
 	txns, total, err := u.paymentTxnRepo.ListByTenantID(ctx, tenantID, params.Page, params.PerPage)
 	if err != nil {
-		return nil, nil, err
+		if !isMissingTenantIDColumnErr(err) {
+			return nil, nil, err
+		}
+		txns = nil
+		total = 0
 	}
 	if total > 0 {
 		result := make([]*dto.PaymentTransactionResponse, 0, len(txns))
@@ -112,6 +117,15 @@ func (u *paymentTransactionUsecase) ListByTenant(ctx context.Context, tenantID s
 
 	pagination := response.NewPaginationMeta(params.Page, params.PerPage, len(subs))
 	return result, pagination, nil
+}
+
+func isMissingTenantIDColumnErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "column \"tenant_id\" does not exist") ||
+		strings.Contains(msg, "column tenant_id does not exist")
 }
 
 func (u *paymentTransactionUsecase) ListBySubscription(ctx context.Context, subscriptionID string, params dto.PaymentHistoryListParams) ([]*dto.PaymentTransactionResponse, *response.PaginationMeta, error) {

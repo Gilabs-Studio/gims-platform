@@ -37,6 +37,63 @@ func (r *Repository) List(req *ListRequest) ([]Entity, error) {
 
 ---
 
+## Subscription Dunning Lifecycle
+
+### Scenario: Failed Billing Without Immediate Data Deletion
+
+**Requirement**: Tenant access must degrade gradually when recurring payment fails, without deleting operational data.
+
+**Lifecycle Stages**:
+
+1. **Grace Period** (`state=grace_period`, default day 1-7 overdue)
+- All read/write operations still allowed.
+- API should expose overdue metadata so frontend can render persistent warning banner.
+
+2. **Read-Only** (`state=read_only`, default day 8-14 overdue)
+- Tenant users can still authenticate and read data.
+- Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) are blocked with `402 PAYMENT_REQUIRED`.
+- Billing endpoints remain accessible.
+
+3. **Suspended** (`state=suspended`, default after day 14 overdue)
+- Non-owner/non-admin tenant users are blocked with `403 ACCOUNT_SUSPENDED`.
+- Owner/Admin may login only to complete billing and must be forced to Billing UI.
+- Non-billing paths for Owner/Admin return `402 PAYMENT_REQUIRED` with redirect metadata.
+
+**Backend Enforcement Pattern**:
+```go
+// Applied in auth middleware after JWT + permission resolution.
+// Response error payload includes subscription snapshot for frontend redirect/banner.
+if snapshot.State == "read_only" && isWriteMethod && !isBillingPath {
+    return 402 PAYMENT_REQUIRED
+}
+if snapshot.State == "suspended" && !isOwnerOrAdmin {
+    return 403 ACCOUNT_SUSPENDED
+}
+if snapshot.State == "suspended" && isOwnerOrAdmin && !isBillingPath {
+    return 402 PAYMENT_REQUIRED
+}
+```
+
+**Config (environment variables)**:
+- `SUBSCRIPTION_GRACE_PERIOD_DAYS` (default: `7`)
+- `SUBSCRIPTION_READ_ONLY_UNTIL_DAY` (default: `14`)
+
+**Response Contract Guidance**:
+- Auth response should include `subscription_access` metadata:
+  - `state`, `enforcement`, `days_overdue`
+  - `force_billing_redirect`, `allow_read`, `allow_write`
+  - `billing_path`
+- Error responses for enforcement should include `subscription` details in `error.details`.
+
+**Checklist**:
+- [ ] No immediate auto-logout on first failed payment
+- [ ] Read-only stage blocks all write APIs consistently
+- [ ] Suspended stage blocks regular users, keeps Owner/Admin billing access
+- [ ] Billing endpoints remain reachable in all overdue stages
+- [ ] Data is retained (no hard delete due to payment failure)
+
+---
+
 ## Concurrency & Race Conditions
 
 ### Scenario: Concurrent Updates

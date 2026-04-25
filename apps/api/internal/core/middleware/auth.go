@@ -161,6 +161,11 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			}
 		}
 
+		enforceSubscriptionAccess(c, claims.Role, claims.TenantID)
+		if c.IsAborted() {
+			return
+		}
+
 		// Build backward-compatible map[string]bool for existing checks
 		permMap := make(map[string]bool, len(permScopeMap))
 		for code := range permScopeMap {

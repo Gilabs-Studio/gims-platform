@@ -52,6 +52,7 @@ var (
 	ErrPendingBillingChangeInvalid    = errors.New("pending billing change data is invalid")
 	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
 	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
+	ErrSubscriptionSuspended          = errors.New("subscription access is suspended")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -117,6 +118,9 @@ type AuthUsecase interface {
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
 	// CompletePendingBillingChange finalizes a paid billing change after the webhook.
 	CompletePendingBillingChange(ctx context.Context, token string) error
+	// ConfirmPendingBillingChange allows authenticated tenants to reconcile a paid
+	// billing change when webhook processing is delayed.
+	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
 }
 
 type authUsecase struct {
@@ -223,6 +227,11 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			}
 		}
 
+		subscriptionAccess := resolveSubscriptionAccessForTenant(txCtx, tx, user.TenantID)
+		if subscriptionAccess != nil && subscriptionAccess.State == "suspended" && !isBillingPrivilegedSession(roleCode, isOwner) {
+			return ErrSubscriptionSuspended
+		}
+
 		// Generate tokens — embed tenant_id so AuthMiddleware can scope queries without a DB lookup
 		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
 		if err != nil {
@@ -284,6 +293,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			TenantID:         tenantID,
 			TenantName:       tenantName,
 			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			SubscriptionAccess: subscriptionAccess,
 		}
 
 		resp = &dto.LoginResponse{
@@ -407,6 +417,12 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			}
 		}
 
+		refreshIsOwner := user.Role != nil && user.Role.IsProtected
+		subscriptionAccess := resolveSubscriptionAccessForTenant(txCtx, tx, user.TenantID)
+		if subscriptionAccess != nil && subscriptionAccess.State == "suspended" && !isBillingPrivilegedSession(roleCode, refreshIsOwner) {
+			return ErrSubscriptionSuspended
+		}
+
 		// Revoke old refresh token (token rotation)
 		if err := u.refreshTokenRepo.Revoke(txCtx, tokenID); err != nil {
 			return err
@@ -454,9 +470,6 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
 
-		// Determine is_owner from role.is_protected flag (owner role is always protected)
-		refreshIsOwner := user.Role != nil && user.Role.IsProtected
-
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:               user.ID,
@@ -475,6 +488,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			TenantID:         tenantID,
 			TenantName:       tenantName,
 			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			SubscriptionAccess: subscriptionAccess,
 		}
 
 		resp = &dto.LoginResponse{
@@ -595,7 +609,10 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			req.Plan = validity.TargetPlanSlug
 			plan = validity.TargetPlanSlug
 		}
-		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+		// For package coupons (fixed package price + included users), exceeding max_user_count
+		// is allowed and billed as extra seats by ApplyDiscount.
+		isPackageCoupon := validity.PackagePriceMonthlyIDR > 0 && validity.MaxUserCount > 0
+		if !isPackageCoupon && validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
 			return nil, ErrCouponUserLimitExceeded
 		}
 		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
@@ -1189,13 +1206,13 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			_ = err
 		}
 
-		roleID, roleCode, roleName, permissions, err := u.createTenantOwnerRole(tx, tenantID, companyName, planSlug)
+		roleID, roleCode, roleName, permissions, err := u.createTenantOwnerRole(tx, tenantID, companyName, planSlug, planConfig.RoleTemplates)
 		if err != nil {
 			return err
 		}
 
-		// Auto-generate standard roles (Admin, Cashier, etc.) tailored for this specific tenant
-		if err := u.generateDefaultTenantRoles(tx, companyName, planSlug, tenantID); err != nil {
+		// Auto-generate standard roles tailored for this specific tenant.
+		if err := u.generateDefaultTenantRoles(tx, companyName, planSlug, tenantID, planConfig.RoleTemplates); err != nil {
 			return err
 		}
 
@@ -1271,7 +1288,7 @@ type rolePermissionAssignment struct {
 	MenuModule   string
 }
 
-func ensureUniqueRoleName(tx *gorm.DB, baseName string) (string, error) {
+func ensureUniqueRoleName(tx *gorm.DB, tenantID, baseName string) (string, error) {
 	name := strings.TrimSpace(baseName)
 	if name == "" {
 		name = "Tenant Role"
@@ -1283,8 +1300,15 @@ func ensureUniqueRoleName(tx *gorm.DB, baseName string) (string, error) {
 			candidate = fmt.Sprintf("%s (%s)", name, shortID())
 		}
 
+		query := tx.Table("roles").Where("name = ? AND deleted_at IS NULL", candidate)
+		if strings.TrimSpace(tenantID) == "" {
+			query = query.Where("tenant_id IS NULL")
+		} else {
+			query = query.Where("tenant_id = ?", tenantID)
+		}
+
 		var count int64
-		if err := tx.Table("roles").Where("name = ? AND deleted_at IS NULL", candidate).Count(&count).Error; err != nil {
+		if err := query.Count(&count).Error; err != nil {
 			return "", err
 		}
 		if count == 0 {
@@ -1295,29 +1319,111 @@ func ensureUniqueRoleName(tx *gorm.DB, baseName string) (string, error) {
 	return fmt.Sprintf("%s (%s)", name, newUUID()[:8]), nil
 }
 
-func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string) (string, string, string, map[string]string, error) {
-	roleID := newUUID()
-	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
-	roleCode := fmt.Sprintf("tenant_owner_%s_%s", sanitizeSlug(planSlug), codeSuffix)
-	roleName := fmt.Sprintf("%s Owner", companyName)
-	if roleName == " Owner" {
-		roleName = "Tenant Owner"
+func isRoleNameUniqueConflict(err error) bool {
+	if err == nil {
+		return false
 	}
 
-	uniqueRoleName, err := ensureUniqueRoleName(tx, roleName)
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "23505") {
+		return false
+	}
+
+	return strings.Contains(msg, "idx_roles_name") ||
+		strings.Contains(msg, "roles_name_key") ||
+		strings.Contains(msg, "roles_name_unique") ||
+		strings.Contains(msg, "uq_roles_name") ||
+		strings.Contains(msg, "uq_roles_tenant_name_active")
+}
+
+func (u *authUsecase) insertTenantRoleWithRetry(tx *gorm.DB, roleID, baseName, roleCode, description, tenantID string, isProtected bool) (string, error) {
+	name := strings.TrimSpace(baseName)
+	if name == "" {
+		name = "Tenant Role"
+	}
+
+	attemptedRepair := false
+	lastErr := error(nil)
+
+	for i := 0; i < 4; i++ {
+		candidate := name
+		if i > 0 {
+			candidate = fmt.Sprintf("%s (%s)", name, shortID())
+		}
+
+		err := tx.Exec(`
+			INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
+			VALUES (?, ?, ?, ?, 'active', ?, 'ALL', ?, NOW(), NOW())`,
+			roleID,
+			candidate,
+			roleCode,
+			description,
+			isProtected,
+			tenantID,
+		).Error
+		if err == nil {
+			return candidate, nil
+		}
+
+		lastErr = err
+		if !isRoleNameUniqueConflict(err) {
+			return "", err
+		}
+
+		if !attemptedRepair {
+			if repairErr := database.EnsureRoleNameTenantScopedUniqueIndex(); repairErr != nil {
+				lastErr = fmt.Errorf("role name index repair failed: %w (original insert error: %v)", repairErr, err)
+			}
+			attemptedRepair = true
+		}
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("role insert failed after retry")
+	}
+
+	return "", lastErr
+}
+
+func findRoleTemplate(templates tenantModels.RoleTemplateList, code string) (tenantModels.RoleTemplate, bool) {
+	normalizedCode := strings.TrimSpace(strings.ToLower(code))
+	for _, template := range templates {
+		if strings.TrimSpace(strings.ToLower(template.Code)) == normalizedCode {
+			return template, true
+		}
+	}
+	return tenantModels.RoleTemplate{}, false
+}
+
+func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string, roleTemplates tenantModels.RoleTemplateList) (string, string, string, map[string]string, error) {
+	roleID := newUUID()
+	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
+	roleTemplate, ok := findRoleTemplate(roleTemplates, "tenant_owner")
+	if !ok {
+		return "", "", "", nil, fmt.Errorf("role template tenant_owner not configured for plan %s", planSlug)
+	}
+
+	roleCode := fmt.Sprintf("tenant_owner_%s_%s", sanitizeSlug(planSlug), codeSuffix)
+	roleName := strings.TrimSpace(roleTemplate.Name)
+	if roleName == "" {
+		return "", "", "", nil, fmt.Errorf("role template tenant_owner is missing a display name")
+	}
+
+	uniqueRoleName, err := ensureUniqueRoleName(tx, tenantID, roleName)
 	if err != nil {
 		return "", "", "", nil, err
 	}
 
-	if err := tx.Exec(`
-		INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, 'active', true, 'ALL', ?, NOW(), NOW())`,
+	insertedName, err := u.insertTenantRoleWithRetry(
+		tx,
 		roleID,
 		uniqueRoleName,
 		roleCode,
-		fmt.Sprintf("Auto-generated owner role for tenant %s (%s)", tenantID, planSlug),
+		strings.TrimSpace(roleTemplate.Description),
 		tenantID,
-	).Error; err != nil {
+		true,
+	)
+	if err != nil {
 		return "", "", "", nil, err
 	}
 
@@ -1347,10 +1453,10 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 		return "", "", "", nil, err
 	}
 
-	return roleID, roleCode, uniqueRoleName, permissions, nil
+	return roleID, roleCode, insertedName, permissions, nil
 }
 
-func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string) error {
+func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string, roleTemplates tenantModels.RoleTemplateList) error {
 	assignments, err := u.collectPlanPermissionAssignments(tx, planSlug)
 	if err != nil {
 		return err
@@ -1361,14 +1467,12 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		allowedPerms[a.Code] = a.PermissionID
 	}
 
-	var templateCodes []string
-	if isPOSModulePlan(planSlug) {
-		templateCodes = []string{"admin", "cashier", "outlet_manager"}
-	} else {
-		templateCodes = []string{"admin", "manager", "staff"}
-	}
+	for _, roleTemplate := range roleTemplates {
+		tCode := strings.TrimSpace(strings.ToLower(roleTemplate.Code))
+		if tCode == "" || tCode == "tenant_owner" {
+			continue
+		}
 
-	for _, tCode := range templateCodes {
 		var tmplRole struct {
 			ID   string
 			Name string
@@ -1401,21 +1505,24 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		newRoleID := newUUID()
 		codeSuffix := shortID()
 		newCode := fmt.Sprintf("%s_%s_%s", tCode, sanitizeSlug(companyName), codeSuffix)
-		newName := fmt.Sprintf("%s - %s", tmplRole.Name, companyName)
-		uniqueRoleName, err := ensureUniqueRoleName(tx, newName)
+		newName := strings.TrimSpace(roleTemplate.Name)
+		if newName == "" {
+			continue
+		}
+		uniqueRoleName, err := ensureUniqueRoleName(tx, tenantID, newName)
 		if err != nil {
 			return err
 		}
 
-		if err := tx.Exec(`
-			INSERT INTO roles (id, name, code, description, status, is_protected, data_scope, tenant_id, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', false, 'ALL', ?, NOW(), NOW())`,
+		if _, err := u.insertTenantRoleWithRetry(
+			tx,
 			newRoleID,
 			uniqueRoleName,
 			newCode,
-			fmt.Sprintf("Auto-generated %s role for %s", tmplRole.Name, companyName),
+			strings.TrimSpace(roleTemplate.Description),
 			tenantID,
-		).Error; err != nil {
+			false,
+		); err != nil {
 			return err
 		}
 
@@ -1821,13 +1928,144 @@ func isPOSModulePlan(planSlug string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(planSlug)), "pos_")
 }
 
-func isViewReadPermissionCode(code string) bool {
-	parts := strings.Split(strings.ToLower(strings.TrimSpace(code)), ".")
-	if len(parts) == 0 {
-		return false
+func resolveSubscriptionAccessForTenant(ctx context.Context, db *gorm.DB, tenantID string) *dto.SubscriptionAccessResponse {
+	if tenantID == "" {
+		return nil
 	}
-	action := parts[len(parts)-1]
-	return action == "view" || action == "read"
+
+	gracePeriodDays := resolveSubscriptionLifecycleConfig()
+	access := &dto.SubscriptionAccessResponse{
+		State:                "active",
+		Enforcement:          "full_access",
+		DaysOverdue:          0,
+		GracePeriodDays:      gracePeriodDays,
+		ForceBillingRedirect: false,
+		AllowRead:            true,
+		AllowWrite:           true,
+		Message:              "Subscription is active.",
+		BillingPath:          "/billing/subscription",
+	}
+
+	type subscriptionLifecycleRow struct {
+		Status        string
+		NextBillingAt *time.Time
+		ExpiresAt     *time.Time
+	}
+
+	sub, ok := loadLatestSubscriptionLifecycleRow(ctx, db, tenantID)
+	if !ok {
+		return access
+	}
+
+	status := strings.ToLower(strings.TrimSpace(sub.Status))
+	if status == "" {
+		return access
+	}
+
+	daysOverdue := subscriptionDaysOverdue(sub.NextBillingAt, sub.ExpiresAt)
+	status = normalizeSubscriptionLifecycleStatus(ctx, db, tenantID, status, daysOverdue, gracePeriodDays)
+
+	access.DaysOverdue = daysOverdue
+	return applySubscriptionLifecycleState(access, status, daysOverdue, gracePeriodDays)
+}
+
+func resolveSubscriptionLifecycleConfig() int {
+	gracePeriodDays := 7
+	if config.AppConfig == nil {
+		return gracePeriodDays
+	}
+	if config.AppConfig.Subscription.GracePeriodDays > 0 {
+		gracePeriodDays = config.AppConfig.Subscription.GracePeriodDays
+	}
+	return gracePeriodDays
+}
+
+func loadLatestSubscriptionLifecycleRow(ctx context.Context, db *gorm.DB, tenantID string) (struct {
+	Status        string
+	NextBillingAt *time.Time
+	ExpiresAt     *time.Time
+}, bool) {
+	var sub struct {
+		Status        string
+		NextBillingAt *time.Time
+		ExpiresAt     *time.Time
+	}
+	err := db.WithContext(ctx).
+		Table("tenant_subscriptions").
+		Select("status, next_billing_at, expires_at").
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+		Order("starts_at DESC").
+		Limit(1).
+		Scan(&sub).Error
+	if err != nil {
+		return sub, false
+	}
+	return sub, true
+}
+
+func subscriptionDaysOverdue(nextBillingAt, expiresAt *time.Time) int {
+	dueAt := nextBillingAt
+	if dueAt == nil {
+		dueAt = expiresAt
+	}
+	if dueAt == nil {
+		return 0
+	}
+	now := apptime.Now()
+	if !now.After(*dueAt) {
+		return 0
+	}
+	return int(now.Sub(*dueAt).Hours()/24) + 1
+}
+
+func normalizeSubscriptionLifecycleStatus(ctx context.Context, db *gorm.DB, tenantID, status string, daysOverdue, gracePeriodDays int) string {
+	if daysOverdue > 0 && (status == string(tenantModels.SubscriptionActive) || status == string(tenantModels.SubscriptionTrial)) {
+		_ = db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("tenant_id = ? AND deleted_at IS NULL AND status IN ?", tenantID, []string{string(tenantModels.SubscriptionActive), string(tenantModels.SubscriptionTrial)}).
+			Updates(map[string]interface{}{"status": tenantModels.SubscriptionPastDue}).Error
+		status = string(tenantModels.SubscriptionPastDue)
+	}
+	if daysOverdue > gracePeriodDays && status != string(tenantModels.SubscriptionSuspended) {
+		_ = db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+			Updates(map[string]interface{}{"status": tenantModels.SubscriptionSuspended}).Error
+		status = string(tenantModels.SubscriptionSuspended)
+	}
+	return status
+}
+
+func applySubscriptionLifecycleState(access *dto.SubscriptionAccessResponse, status string, daysOverdue, gracePeriodDays int) *dto.SubscriptionAccessResponse {
+	if status == string(tenantModels.SubscriptionSuspended) || daysOverdue > gracePeriodDays {
+		access.State = "suspended"
+		access.Enforcement = "hard_lock"
+		access.AllowRead = false
+		access.AllowWrite = false
+		access.ForceBillingRedirect = true
+		access.Message = "Subscription suspended. Resolve billing to restore access."
+		return access
+	}
+	if status != string(tenantModels.SubscriptionPastDue) {
+		return access
+	}
+	if daysOverdue <= 0 {
+		return access
+	}
+	access.State = "grace_period"
+	access.Enforcement = "full_access"
+	access.AllowRead = true
+	access.AllowWrite = true
+	access.Message = "Subscription payment is overdue. Please pay before write access is restricted."
+	return access
+}
+
+func isBillingPrivilegedSession(roleCode string, isOwner bool) bool {
+	if isOwner {
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimSpace(roleCode))
+	return normalized == "admin" || normalized == "superadmin"
 }
 
 // activePlanForTenant returns the plan slug of the tenant's active or trial subscription.
@@ -1839,7 +2077,7 @@ func activePlanForTenant(db *gorm.DB, tenantID string) string {
 	var plan string
 	db.Table("tenant_subscriptions").
 		Select("plan").
-		Where("tenant_id = ? AND status IN ('active','trial')", tenantID).
+		Where("tenant_id = ? AND status IN ('active','trial','past_due','suspended')", tenantID).
 		Order("created_at DESC").
 		Limit(1).
 		Row().Scan(&plan)

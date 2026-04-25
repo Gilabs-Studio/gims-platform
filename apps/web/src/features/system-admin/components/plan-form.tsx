@@ -17,7 +17,7 @@ import {
   Layers,
   Zap,
 } from "lucide-react";
-import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
+import { useFieldArray, useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion/page-motion";
@@ -45,7 +45,7 @@ import {
   getDefaultMenuURLsForPlan,
   getMenuSectionSummary,
 } from "../lib/plan-menu-catalog";
-import { planSchema, type PlanFormData } from "../schemas/plan.schema";
+import { planSchema, type PlanFormValues } from "../schemas/plan.schema";
 import { AnimatePresence, motion } from "framer-motion";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +59,29 @@ const CATEGORY_LABELS: Record<PlanCategory, string> = {
   hr: "HR",
   bundle: "Bundle",
 };
+
+const TENANT_OWNER_ROLE_CODE = "tenant_owner";
+
+function ensureTenantOwnerRoleTemplate(templates: PlanFormValues["role_templates"]): PlanFormValues["role_templates"] {
+  const normalized = templates.map((item) => ({
+    code: item.code?.trim().toLowerCase() ?? "",
+    name: item.name ?? "",
+    description: item.description ?? "",
+  }));
+
+  if (normalized.some((item) => item.code === TENANT_OWNER_ROLE_CODE)) {
+    return normalized;
+  }
+
+  return [
+    {
+      code: TENANT_OWNER_ROLE_CODE,
+      name: "Owner",
+      description: "Main account owner role with full access.",
+    },
+    ...normalized,
+  ];
+}
 
 interface MenuTreeNode {
   id: string;
@@ -280,7 +303,7 @@ export function PlanForm() {
     control,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm({
+  } = useForm<PlanFormValues>({
     resolver: zodResolver(planSchema),
     defaultValues: {
       slug: "",
@@ -295,12 +318,22 @@ export function PlanForm() {
       is_highlighted: false,
       sort_order: 0,
       features: [],
+      role_templates: [{ code: TENANT_OWNER_ROLE_CODE, name: "Owner", description: "Main account owner role with full access." }],
       menu_urls: [],
       description: "",
     },
   });
 
-  const watchedValues = useWatch({ control }) as PlanFormData;
+  const {
+    fields: roleTemplateFields,
+    append: appendRoleTemplate,
+    remove: removeRoleTemplate,
+  } = useFieldArray({
+    control,
+    name: "role_templates",
+  });
+
+  const watchedValues = useWatch({ control }) as PlanFormValues;
   const selectedMenuUrls = useMemo(() => new Set((watchedValues.menu_urls as string[]) || []), [watchedValues.menu_urls]);
   const sectionSummary = useMemo(() => getMenuSectionSummary((watchedValues.menu_urls as string[]) || []), [watchedValues.menu_urls]);
 
@@ -311,6 +344,11 @@ export function PlanForm() {
         category: currentPlan.category as PlanCategory,
         billing_type: currentPlan.billing_type as PlanBillingType,
         features: currentPlan.features ?? [],
+        role_templates: ensureTenantOwnerRoleTemplate(
+          currentPlan.role_templates?.length > 0
+            ? currentPlan.role_templates
+            : [{ code: TENANT_OWNER_ROLE_CODE, name: "Owner", description: "Main account owner role with full access." }],
+        ),
         menu_urls: expandMasterDataMenuURLs(currentPlan.menu_urls ?? []),
       });
     } else if (isNew) {
@@ -328,6 +366,7 @@ export function PlanForm() {
         is_highlighted: false,
         sort_order: 0,
         features: [],
+        role_templates: [{ code: TENANT_OWNER_ROLE_CODE, name: "Owner", description: "Main account owner role with full access." }],
         menu_urls: expandMasterDataMenuURLs(defaultUrls),
         description: "",
       });
@@ -335,7 +374,7 @@ export function PlanForm() {
   }, [currentPlan, isNew, reset, slug, plansData]);
 
   const mutation = useMutation({
-    mutationFn: (payload: PlanFormData) => systemAdminService.upsertPlan(payload as any),
+    mutationFn: (payload: PlanFormValues) => systemAdminService.upsertPlan(payload as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-admin", "plans"] });
       toast.success("Plan saved successfully");
@@ -347,8 +386,8 @@ export function PlanForm() {
     },
   });
 
-  const onSubmit = (data: any) => {
-    mutation.mutate(data as PlanFormData);
+  const onSubmit = (data: PlanFormValues) => {
+    mutation.mutate(data);
   };
 
   const onInvalid = () => {
@@ -721,6 +760,75 @@ export function PlanForm() {
                         setValue("features", lines);
                       }}
                     />
+                 </div>
+
+                 <div className="space-y-4 rounded-2xl border border-border/50 bg-muted/10 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold ml-1">Role Templates</Label>
+                        <p className="text-xs text-muted-foreground ml-1">
+                          These roles will be generated for every new tenant using this plan.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => appendRoleTemplate({ code: "", name: "", description: "" })}
+                        className="cursor-pointer"
+                      >
+                        Add Role
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {roleTemplateFields.map((field, index) => {
+                        const isTenantOwnerTemplate = (watchedValues.role_templates?.[index]?.code ?? "").trim().toLowerCase() === TENANT_OWNER_ROLE_CODE;
+
+                        return (
+                        <div key={field.id} className="rounded-xl border border-border/50 bg-background p-4 space-y-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              {isTenantOwnerTemplate ? "Required Owner Role" : `Role ${index + 1}`}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeRoleTemplate(index)}
+                              className="h-8 px-2 text-destructive hover:text-destructive cursor-pointer"
+                              disabled={roleTemplateFields.length === 1 || isTenantOwnerTemplate}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold ml-1">Name</Label>
+                              <Input
+                                {...register(`role_templates.${index}.name` as const)}
+                                className={cn("h-10 rounded-xl bg-muted/30 border-border/50", errors.role_templates?.[index]?.name && "border-destructive")}
+                                placeholder="Admin"
+                              />
+                              {errors.role_templates?.[index]?.name && (
+                                <p className="text-xs text-destructive ml-1">{errors.role_templates[index]?.name?.message}</p>
+                              )}
+                            </div>
+
+                            <div className="space-y-2 md:col-span-1">
+                              <Label className="text-xs font-semibold ml-1">Description</Label>
+                              <Input
+                                {...register(`role_templates.${index}.description` as const)}
+                                className="h-10 rounded-xl bg-muted/30 border-border/50"
+                                placeholder="Full access to manage the system"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">

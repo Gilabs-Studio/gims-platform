@@ -27,6 +27,11 @@ type BillingHandler struct {
 
 type billingChangeUsecase interface {
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
+	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
+}
+
+type confirmBillingChangeRequest struct {
+	Token string `json:"token" binding:"required,max=255"`
 }
 
 const missingTenantContextMessage = "missing tenant context"
@@ -281,6 +286,48 @@ func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
 		tenantIDStr, req.Action, req.Target, resp.Status, resp.XenditAction)
 
 	response.SuccessResponse(c, resp, nil)
+}
+
+// ConfirmSubscriptionChange reconciles a paid billing change by token.
+// POST /api/v1/billing/change/confirm
+func (h *BillingHandler) ConfirmSubscriptionChange(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+	if !canModifyBilling(c) {
+		coreErrors.ForbiddenResponse(c, "billing.change", nil)
+		return
+	}
+
+	var req confirmBillingChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	tenantIDStr := tenantID.(string)
+	if h.billingChangeUC == nil {
+		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
+		return
+	}
+
+	err := h.billingChangeUC.ConfirmPendingBillingChange(c.Request.Context(), strings.TrimSpace(req.Token), tenantIDStr)
+	if err != nil {
+		if errors.Is(err, authUsecase.ErrPendingBillingChangeNotFound) {
+			response.SuccessResponse(c, gin.H{"status": "already_synced"}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrPendingBillingChangeInvalid) {
+			coreErrors.ErrorResponse(c, "INVALID_BILLING_TOKEN", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"status": "synced"}, nil)
 }
 
 func canModifyBilling(c *gin.Context) bool {

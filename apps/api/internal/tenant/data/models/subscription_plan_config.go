@@ -30,6 +30,33 @@ func (f *PlanFeatureList) Scan(value interface{}) error {
 	return fmt.Errorf("unsupported type: %T", value)
 }
 
+// RoleTemplate represents a role generated from a subscription plan.
+type RoleTemplate struct {
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// RoleTemplateList is a JSON-serialisable list of plan role templates.
+type RoleTemplateList []RoleTemplate
+
+func (f RoleTemplateList) Value() (driver.Value, error) {
+	return json.Marshal(f)
+}
+
+func (f *RoleTemplateList) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, f)
+	case string:
+		return json.Unmarshal([]byte(v), f)
+	case nil:
+		*f = nil
+		return nil
+	}
+	return fmt.Errorf("unsupported type: %T", value)
+}
+
 // BillingType classifies a plan as user-based or flat-rate.
 type BillingType string
 
@@ -55,6 +82,7 @@ type SubscriptionPlanConfig struct {
 	IsHighlighted   bool            `gorm:"type:boolean;not null;default:false"             json:"is_highlighted"` // show as "recommended"
 	SortOrder       int             `gorm:"type:int;not null;default:0"                     json:"sort_order"`
 	Features        PlanFeatureList `gorm:"type:jsonb;not null;default:'[]'"                json:"features"`
+	RoleTemplates   RoleTemplateList `gorm:"type:jsonb;not null;default:'[]'"               json:"role_templates"`
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt  `gorm:"index"                                           json:"-"`

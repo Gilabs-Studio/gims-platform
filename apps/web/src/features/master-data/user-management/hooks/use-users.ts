@@ -5,18 +5,22 @@ import { userService, roleService } from "../services/user-service";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
-export function useUsers(params?: {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  status?: string;
-  role_id?: string;
-}) {
+export function useUsers(
+  params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    status?: string;
+    role_id?: string;
+  },
+  options?: { enabled?: boolean }
+) {
   const tenantScope = useAuthStore((state) => state.user?.tenant_id ?? "anonymous");
 
   return useQuery({
     queryKey: ["users", tenantScope, params],
     queryFn: () => userService.list(params),
+    enabled: options?.enabled,
     staleTime: 10 * 1000,
     retry: (failureCount, error) => {
       // Don't retry on 404 errors (might be expected)

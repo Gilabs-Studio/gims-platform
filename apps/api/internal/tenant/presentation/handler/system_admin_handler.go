@@ -445,17 +445,19 @@ func (h *SystemAdminHandler) loadTenantOverview(ctx context.Context, tenants []d
 		seat := tenant.MaxUsers
 		var sub struct {
 			Plan      string `gorm:"column:plan"`
-			UserCount int    `gorm:"column:user_count"`
+			SeatLimit int    `gorm:"column:seat_limit"`
 		}
 		if err := database.DB.WithContext(ctx).
 			Table("tenant_subscriptions").
-			Select("plan, user_count").
+			Select("plan, seat_limit").
 			Where("tenant_id = ? AND status IN ('active','trial') AND deleted_at IS NULL", tenant.ID).
 			Order("created_at DESC").
 			Limit(1).
 			Scan(&sub).Error; err == nil && sub.Plan != "" {
 			plan = sub.Plan
-			seat = sub.UserCount
+			if sub.SeatLimit > 0 {
+				seat = sub.SeatLimit
+			}
 		}
 
 		rows = append(rows, dashboardTenantRow{

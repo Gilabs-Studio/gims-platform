@@ -43,7 +43,7 @@ const (
 // PaymentTransaction represents a payment transaction for a subscription or order.
 type PaymentTransaction struct {
 	ID                 string                   `gorm:"type:uuid;primaryKey"                 json:"id"`
-	TenantID           string                   `gorm:"type:uuid;index;not null"             json:"tenant_id"`
+	TenantID           string                   `gorm:"type:uuid;index"                      json:"tenant_id"`
 	SubscriptionID     string                   `gorm:"type:uuid;index"                      json:"subscription_id,omitempty"`
 	Provider           PaymentProvider          `gorm:"type:varchar(32);not null;default:'xendit'" json:"provider"`
 	Status             PaymentTransactionStatus `gorm:"type:varchar(32);not null;default:'pending'" json:"status"`
