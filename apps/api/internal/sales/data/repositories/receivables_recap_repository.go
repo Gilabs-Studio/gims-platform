@@ -136,15 +136,15 @@ SELECT
 FROM customer_receivables`
 
 // allowedSortCols guards against SQL injection in ORDER BY.
-var allowedSortCols = map[string]bool{
-	"customer_name":      true,
-	"total_receivable":   true,
-	"return_amount":      true,
-	"down_payment":       true,
-	"paid_amount":        true,
-	"outstanding_amount": true,
-	"aging_days":         true,
-	"last_transaction":   true,
+var allowedSortCols = map[string]string{
+	"customer_name":      "customer_name",
+	"total_receivable":   "total_receivable",
+	"return_amount":      "return_amount",
+	"down_payment":       "down_payment",
+	"paid_amount":        "paid_amount",
+	"outstanding_amount": "outstanding_amount",
+	"aging_days":         "aging_days",
+	"last_transaction":   "last_transaction",
 }
 
 func buildReceivablesRecapBaseQuery(ctx context.Context) (string, map[string]interface{}, error) {
@@ -191,12 +191,12 @@ func (r *ReceivablesRecapRepository) FindAll(ctx context.Context, params Receiva
 
 	// Sort
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
-	if params.SortBy != "" && allowedSortCols[params.SortBy] {
+	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
 			dir = "DESC"
 		}
-		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
+		orderBy = fmt.Sprintf(" ORDER BY %s %s", sortBy, dir)
 	}
 
 	queryParams["limit"] = params.Limit
@@ -251,12 +251,12 @@ func (r *ReceivablesRecapRepository) FindAllForExport(ctx context.Context, param
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
-	if params.SortBy != "" && allowedSortCols[params.SortBy] {
+	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
 			dir = "DESC"
 		}
-		orderBy = fmt.Sprintf(" ORDER BY %s %s", params.SortBy, dir)
+		orderBy = fmt.Sprintf(" ORDER BY %s %s", sortBy, dir)
 	}
 
 	limit := params.Limit

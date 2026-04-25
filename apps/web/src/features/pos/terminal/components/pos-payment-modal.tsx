@@ -35,7 +35,7 @@ interface POSPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   order: POSOrder;
   config?: POSConfig;
-  onSuccess: (customerName?: string, tenderAmount?: number) => void;
+  onSuccess: (customerName?: string, customerPhone?: string, tenderAmount?: number) => void;
   onPaymentError?: () => void;
   /** Loyalty member linked to this transaction (optional) */
   loyaltyMember?: LoyaltyMember;
@@ -311,7 +311,7 @@ export function POSPaymentModal({
           toast.error(t("enrollError"));
         });
       }
-      onSuccess(customerPayload?.customer_name);
+      onSuccess(customerPayload?.customer_name, customerPayload?.customer_phone);
     }
   }, [paymentsData, onSuccess, enrollLoyalty, order.id, order.outlet_id, enrollMutation, t, buildCustomerPayload]);
 
@@ -370,7 +370,7 @@ export function POSPaymentModal({
           toast.error(t("enrollError"));
         });
       }
-      onSuccess(customerPayload.customer_name, tenderAmount);
+      onSuccess(customerPayload.customer_name, customerPayload.customer_phone, tenderAmount);
     } catch {
       toast.error("Payment failed. Please try again.");
       onPaymentError?.();

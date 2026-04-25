@@ -14,6 +14,7 @@ import type {
   AssignTableRequest,
   POSOrderListParams,
   ProcessPaymentRequest,
+  UpdatePOSReceiptWhatsAppTemplateRequest,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
 } from "../types";
@@ -275,6 +276,22 @@ export function usePOSConfig(outletId: string, options?: { enabled?: boolean }) 
     queryFn: () => posConfigService.getByOutlet(outletId),
     enabled: !!outletId && options?.enabled !== false,
     staleTime: 5 * 60_000, // config rarely changes
+  });
+}
+
+export function useUpdatePOSReceiptWhatsAppTemplate(outletId: string) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdatePOSReceiptWhatsAppTemplateRequest) =>
+      posConfigService.updateReceiptWhatsAppTemplate(outletId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.config(outletId) });
+      toast.success("Receipt WhatsApp template updated.");
+    },
+    onError: () => {
+      toast.error("Failed to update receipt WhatsApp template.");
+    },
   });
 }
 

@@ -75,12 +75,23 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
 	}
 
-	sortField := normalizeGRSortField(params.SortBy)
-	sortDir := strings.ToLower(params.SortDir)
-	if sortDir != "asc" {
-		sortDir = "desc"
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"code":         "code",
+		"receipt_date": "receipt_date",
+		"status":       "status",
+		"created_at":   "created_at",
+		"updated_at":   "updated_at",
 	}
-	query = query.Order(sortField + " " + sortDir)
+
+	sortByFromReq := strings.ToLower(strings.TrimSpace(params.SortBy))
+	sortBy := allowedSortColumns[sortByFromReq]
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit).Offset(params.Offset)

@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SalesPaymentListParams struct {
@@ -94,11 +95,16 @@ func (r *salesPaymentRepository) List(ctx context.Context, params SalesPaymentLi
 	if sortCol == "" {
 		sortCol = salesPaymentAllowedSort["created_at"]
 	}
-	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) != "asc"
+
+	// Split table and column for clause.Column
+	parts := strings.Split(sortCol, ".")
+	column := clause.Column{Name: parts[len(parts)-1]}
+	if len(parts) > 1 {
+		column.Table = parts[0]
 	}
-	q = q.Order(sortCol + " " + sortDir)
+
+	q = q.Order(clause.OrderByColumn{Column: column, Desc: isDesc})
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

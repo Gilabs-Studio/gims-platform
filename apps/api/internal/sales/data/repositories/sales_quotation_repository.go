@@ -11,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // SalesQuotationRepository defines the interface for sales quotation data access
@@ -140,16 +141,25 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 	}
 	offset := (page - 1) * perPage
 
-	// Apply sorting
-	sortBy := req.SortBy
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"code":           "code",
+		"quotation_date": "quotation_date",
+		"valid_until":    "valid_until",
+		"customer_name":  "customer_name",
+		"total_amount":   "total_amount",
+		"status":         "status",
+		"created_at":     "created_at",
+		"updated_at":     "updated_at",
+	}
+
+	sortBy := allowedSortColumns[strings.ToLower(strings.TrimSpace(req.SortBy))]
 	if sortBy == "" {
 		sortBy = "quotation_date"
 	}
-	sortDir := req.SortDir
-	if sortDir == "" {
-		sortDir = "desc"
-	}
-	query = query.Order(sortBy + " " + sortDir)
+
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads
 	err = query.

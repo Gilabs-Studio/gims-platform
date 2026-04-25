@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"time"
+
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 )
@@ -58,12 +60,12 @@ func ToPOSOrderResponse(order *models.PosOrder) *dto.POSOrderResponse {
 
 // ToPOSSessionResponse maps a PosSession to its DTO response
 func ToPOSSessionResponse(s *models.PosSession) *dto.POSSessionResponse {
-	openedAt := s.OpenedAt.Format("2006-01-02T15:04:05Z07:00")
-	createdAt := s.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+	openedAt := s.OpenedAt.Format(time.RFC3339)
+	createdAt := s.CreatedAt.Format(time.RFC3339)
 
 	var closedAtStr *string
 	if s.ClosedAt != nil {
-		t := s.ClosedAt.Format("2006-01-02T15:04:05Z07:00")
+		t := s.ClosedAt.Format(time.RFC3339)
 		closedAtStr = &t
 	}
 
@@ -88,14 +90,15 @@ func ToPOSSessionResponse(s *models.PosSession) *dto.POSSessionResponse {
 // ToPOSConfigResponse maps a POSConfig to its DTO response
 func ToPOSConfigResponse(c *models.POSConfig) *dto.POSConfigResponse {
 	return &dto.POSConfigResponse{
-		ID:                 c.ID,
-		OutletID:           c.OutletID,
-		TaxRate:            c.TaxRate,
-		ServiceChargeRate:  c.ServiceChargeRate,
-		AllowDiscount:      c.AllowDiscount,
-		MaxDiscountPercent: c.MaxDiscountPercent,
-		PrintReceiptAuto:   c.PrintReceiptAuto,
-		ReceiptFooter:      c.ReceiptFooter,
-		Currency:           c.Currency,
+		ID:                      c.ID,
+		OutletID:                c.OutletID,
+		TaxRate:                 c.TaxRate,
+		ServiceChargeRate:       c.ServiceChargeRate,
+		AllowDiscount:           c.AllowDiscount,
+		MaxDiscountPercent:      c.MaxDiscountPercent,
+		PrintReceiptAuto:        c.PrintReceiptAuto,
+		ReceiptFooter:           c.ReceiptFooter,
+		ReceiptWhatsAppTemplate: c.ReceiptWhatsAppTemplate,
+		Currency:                c.Currency,
 	}
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -48,5 +50,32 @@ func (h *POSConfigHandler) Upsert(c *gin.Context) {
 		coreErrors.InternalServerErrorResponse(c, "")
 		return
 	}
+	response.SuccessResponse(c, cfg, nil)
+}
+
+// UpdateReceiptWhatsAppTemplate updates only receipt WhatsApp template and is restricted to owner/admin scope.
+func (h *POSConfigHandler) UpdateReceiptWhatsAppTemplate(c *gin.Context) {
+	uc, ok := extractUserContext(c)
+	if !ok {
+		return
+	}
+
+	outletID := c.Param("outletID")
+	var req dto.UpdateReceiptWhatsAppTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.HandleValidationError(c, err)
+		return
+	}
+
+	cfg, err := h.uc.UpdateReceiptWhatsAppTemplate(c.Request.Context(), outletID, &req, uc.userID, uc.isOwner)
+	if err != nil {
+		if errors.Is(err, usecase.ErrPOSConfigForbidden) {
+			coreErrors.ForbiddenResponse(c, "pos.receipt_template.manage", nil)
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, "")
+		return
+	}
+
 	response.SuccessResponse(c, cfg, nil)
 }
