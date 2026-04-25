@@ -52,6 +52,7 @@ var (
 	ErrPendingBillingChangeInvalid    = errors.New("pending billing change data is invalid")
 	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
 	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
+	ErrSubscriptionSuspended          = errors.New("subscription access is suspended")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -226,6 +227,11 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			}
 		}
 
+		subscriptionAccess := resolveSubscriptionAccessForTenant(txCtx, tx, user.TenantID)
+		if subscriptionAccess != nil && subscriptionAccess.State == "suspended" && !isBillingPrivilegedSession(roleCode, isOwner) {
+			return ErrSubscriptionSuspended
+		}
+
 		// Generate tokens — embed tenant_id so AuthMiddleware can scope queries without a DB lookup
 		accessToken, err := u.jwtManager.GenerateAccessToken(user.ID, user.Email, roleCode, user.TenantID)
 		if err != nil {
@@ -287,6 +293,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			TenantID:         tenantID,
 			TenantName:       tenantName,
 			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			SubscriptionAccess: subscriptionAccess,
 		}
 
 		resp = &dto.LoginResponse{
@@ -410,6 +417,12 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			}
 		}
 
+		refreshIsOwner := user.Role != nil && user.Role.IsProtected
+		subscriptionAccess := resolveSubscriptionAccessForTenant(txCtx, tx, user.TenantID)
+		if subscriptionAccess != nil && subscriptionAccess.State == "suspended" && !isBillingPrivilegedSession(roleCode, refreshIsOwner) {
+			return ErrSubscriptionSuspended
+		}
+
 		// Revoke old refresh token (token rotation)
 		if err := u.refreshTokenRepo.Revoke(txCtx, tokenID); err != nil {
 			return err
@@ -457,9 +470,6 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
 
-		// Determine is_owner from role.is_protected flag (owner role is always protected)
-		refreshIsOwner := user.Role != nil && user.Role.IsProtected
-
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:               user.ID,
@@ -478,6 +488,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			TenantID:         tenantID,
 			TenantName:       tenantName,
 			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			SubscriptionAccess: subscriptionAccess,
 		}
 
 		resp = &dto.LoginResponse{
@@ -1917,13 +1928,144 @@ func isPOSModulePlan(planSlug string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(planSlug)), "pos_")
 }
 
-func isViewReadPermissionCode(code string) bool {
-	parts := strings.Split(strings.ToLower(strings.TrimSpace(code)), ".")
-	if len(parts) == 0 {
-		return false
+func resolveSubscriptionAccessForTenant(ctx context.Context, db *gorm.DB, tenantID string) *dto.SubscriptionAccessResponse {
+	if tenantID == "" {
+		return nil
 	}
-	action := parts[len(parts)-1]
-	return action == "view" || action == "read"
+
+	gracePeriodDays := resolveSubscriptionLifecycleConfig()
+	access := &dto.SubscriptionAccessResponse{
+		State:                "active",
+		Enforcement:          "full_access",
+		DaysOverdue:          0,
+		GracePeriodDays:      gracePeriodDays,
+		ForceBillingRedirect: false,
+		AllowRead:            true,
+		AllowWrite:           true,
+		Message:              "Subscription is active.",
+		BillingPath:          "/billing/subscription",
+	}
+
+	type subscriptionLifecycleRow struct {
+		Status        string
+		NextBillingAt *time.Time
+		ExpiresAt     *time.Time
+	}
+
+	sub, ok := loadLatestSubscriptionLifecycleRow(ctx, db, tenantID)
+	if !ok {
+		return access
+	}
+
+	status := strings.ToLower(strings.TrimSpace(sub.Status))
+	if status == "" {
+		return access
+	}
+
+	daysOverdue := subscriptionDaysOverdue(sub.NextBillingAt, sub.ExpiresAt)
+	status = normalizeSubscriptionLifecycleStatus(ctx, db, tenantID, status, daysOverdue, gracePeriodDays)
+
+	access.DaysOverdue = daysOverdue
+	return applySubscriptionLifecycleState(access, status, daysOverdue, gracePeriodDays)
+}
+
+func resolveSubscriptionLifecycleConfig() int {
+	gracePeriodDays := 7
+	if config.AppConfig == nil {
+		return gracePeriodDays
+	}
+	if config.AppConfig.Subscription.GracePeriodDays > 0 {
+		gracePeriodDays = config.AppConfig.Subscription.GracePeriodDays
+	}
+	return gracePeriodDays
+}
+
+func loadLatestSubscriptionLifecycleRow(ctx context.Context, db *gorm.DB, tenantID string) (struct {
+	Status        string
+	NextBillingAt *time.Time
+	ExpiresAt     *time.Time
+}, bool) {
+	var sub struct {
+		Status        string
+		NextBillingAt *time.Time
+		ExpiresAt     *time.Time
+	}
+	err := db.WithContext(ctx).
+		Table("tenant_subscriptions").
+		Select("status, next_billing_at, expires_at").
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+		Order("starts_at DESC").
+		Limit(1).
+		Scan(&sub).Error
+	if err != nil {
+		return sub, false
+	}
+	return sub, true
+}
+
+func subscriptionDaysOverdue(nextBillingAt, expiresAt *time.Time) int {
+	dueAt := nextBillingAt
+	if dueAt == nil {
+		dueAt = expiresAt
+	}
+	if dueAt == nil {
+		return 0
+	}
+	now := apptime.Now()
+	if !now.After(*dueAt) {
+		return 0
+	}
+	return int(now.Sub(*dueAt).Hours()/24) + 1
+}
+
+func normalizeSubscriptionLifecycleStatus(ctx context.Context, db *gorm.DB, tenantID, status string, daysOverdue, gracePeriodDays int) string {
+	if daysOverdue > 0 && (status == string(tenantModels.SubscriptionActive) || status == string(tenantModels.SubscriptionTrial)) {
+		_ = db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("tenant_id = ? AND deleted_at IS NULL AND status IN ?", tenantID, []string{string(tenantModels.SubscriptionActive), string(tenantModels.SubscriptionTrial)}).
+			Updates(map[string]interface{}{"status": tenantModels.SubscriptionPastDue}).Error
+		status = string(tenantModels.SubscriptionPastDue)
+	}
+	if daysOverdue > gracePeriodDays && status != string(tenantModels.SubscriptionSuspended) {
+		_ = db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+			Updates(map[string]interface{}{"status": tenantModels.SubscriptionSuspended}).Error
+		status = string(tenantModels.SubscriptionSuspended)
+	}
+	return status
+}
+
+func applySubscriptionLifecycleState(access *dto.SubscriptionAccessResponse, status string, daysOverdue, gracePeriodDays int) *dto.SubscriptionAccessResponse {
+	if status == string(tenantModels.SubscriptionSuspended) || daysOverdue > gracePeriodDays {
+		access.State = "suspended"
+		access.Enforcement = "hard_lock"
+		access.AllowRead = false
+		access.AllowWrite = false
+		access.ForceBillingRedirect = true
+		access.Message = "Subscription suspended. Resolve billing to restore access."
+		return access
+	}
+	if status != string(tenantModels.SubscriptionPastDue) {
+		return access
+	}
+	if daysOverdue <= 0 {
+		return access
+	}
+	access.State = "grace_period"
+	access.Enforcement = "full_access"
+	access.AllowRead = true
+	access.AllowWrite = true
+	access.Message = "Subscription payment is overdue. Please pay before write access is restricted."
+	return access
+}
+
+func isBillingPrivilegedSession(roleCode string, isOwner bool) bool {
+	if isOwner {
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimSpace(roleCode))
+	return normalized == "admin" || normalized == "superadmin"
 }
 
 // activePlanForTenant returns the plan slug of the tenant's active or trial subscription.
@@ -1935,7 +2077,7 @@ func activePlanForTenant(db *gorm.DB, tenantID string) string {
 	var plan string
 	db.Table("tenant_subscriptions").
 		Select("plan").
-		Where("tenant_id = ? AND status IN ('active','trial')", tenantID).
+		Where("tenant_id = ? AND status IN ('active','trial','past_due','suspended')", tenantID).
 		Order("created_at DESC").
 		Limit(1).
 		Row().Scan(&plan)

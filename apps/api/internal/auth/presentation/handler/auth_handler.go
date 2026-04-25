@@ -121,6 +121,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if err == usecase.ErrSubscriptionSuspended {
+			errors.ErrorResponse(c, "ACCOUNT_SUSPENDED", map[string]interface{}{
+				"reason": "Subscription is suspended. Contact owner/admin to restore access.",
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -166,6 +172,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			TenantID:         loginResponse.User.TenantID,
 			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "", // Removed for security
 		RefreshToken: "", // Removed for security
@@ -195,6 +202,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	loginResponse, err := h.authUC.RefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
+		if err == usecase.ErrSubscriptionSuspended {
+			errors.ErrorResponse(c, "ACCOUNT_SUSPENDED", map[string]interface{}{
+				"reason": "Subscription is suspended. Contact owner/admin to restore access.",
+			}, nil)
+			return
+		}
 		if err == usecase.ErrUserNotFound {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
 			return
@@ -246,6 +259,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			TenantID:         loginResponse.User.TenantID,
 			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",
 		RefreshToken: "",
@@ -425,6 +439,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			TenantID:         loginResponse.User.TenantID,
 			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",
 		RefreshToken: "",
@@ -499,6 +514,7 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 			TenantID:         loginResponse.User.TenantID,
 			TenantName:       loginResponse.User.TenantName,
 			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",
 		RefreshToken: "",
@@ -572,4 +588,21 @@ func (h *AuthHandler) ComputePrice(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, resp, nil)
+}
+
+func mapSubscriptionAccess(access *dto.SubscriptionAccessResponse) *authDTO.SubscriptionAccessDTO {
+	if access == nil {
+		return nil
+	}
+	return &authDTO.SubscriptionAccessDTO{
+		State:                access.State,
+		Enforcement:          access.Enforcement,
+		DaysOverdue:          access.DaysOverdue,
+		GracePeriodDays:      access.GracePeriodDays,
+		ForceBillingRedirect: access.ForceBillingRedirect,
+		AllowRead:            access.AllowRead,
+		AllowWrite:           access.AllowWrite,
+		Message:              access.Message,
+		BillingPath:          access.BillingPath,
+	}
 }

@@ -91,6 +91,19 @@ type ServerRole = {
   code: string;
   name: string;
   data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+  is_owner?: boolean;
+};
+
+type ServerSubscriptionAccess = {
+  state?: "active" | "grace_period" | "suspended";
+  enforcement?: "full_access" | "hard_lock";
+  days_overdue?: number;
+  grace_period_days?: number;
+  force_billing_redirect?: boolean;
+  allow_read?: boolean;
+  allow_write?: boolean;
+  message?: string;
+  billing_path?: string;
 };
 
 type ServerUser = {
@@ -102,6 +115,7 @@ type ServerUser = {
   tenant_id?: string;
   tenant_name?: string;
   subscription_plan?: string;
+  subscription_access?: ServerSubscriptionAccess;
   role?: ServerRole;
   permissions?: Record<string, string>;
 } | null | undefined;
@@ -123,11 +137,25 @@ function normalizeUserResponse(rawUser: ServerUser): User | null {
       code: role.code,
       name: role.name,
       data_scope: dataScope,
+      is_owner: role.is_owner ?? false,
     },
     permissions: rawUser.permissions ?? {},
     tenant_id: rawUser.tenant_id ?? undefined,
     tenant_name: rawUser.tenant_name ?? undefined,
     subscription_plan: rawUser.subscription_plan ?? undefined,
+    subscription_access: rawUser.subscription_access
+      ? {
+          state: rawUser.subscription_access.state ?? "active",
+          enforcement: rawUser.subscription_access.enforcement ?? "full_access",
+          days_overdue: rawUser.subscription_access.days_overdue ?? 0,
+          grace_period_days: rawUser.subscription_access.grace_period_days ?? 7,
+          force_billing_redirect: rawUser.subscription_access.force_billing_redirect ?? false,
+          allow_read: rawUser.subscription_access.allow_read ?? true,
+          allow_write: rawUser.subscription_access.allow_write ?? true,
+          message: rawUser.subscription_access.message,
+          billing_path: rawUser.subscription_access.billing_path,
+        }
+      : undefined,
   };
 }
 
@@ -672,8 +700,10 @@ apiClient.interceptors.response.use(
                   code: string;
                   name: string;
                   data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+                  is_owner?: boolean;
                 };
                 permissions: Record<string, string>;
+                subscription_access?: ServerSubscriptionAccess;
               };
             };
           }>("/auth/refresh-token", {}, { headers })
@@ -736,8 +766,10 @@ apiClient.interceptors.response.use(
                         code: string;
                         name: string;
                         data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+                        is_owner?: boolean;
                       };
                       permissions: Record<string, string>;
+                      subscription_access?: ServerSubscriptionAccess;
                     };
                   };
                 }>("/auth/refresh-token", {}, { headers: retryHeaders });
@@ -813,9 +845,39 @@ apiClient.interceptors.response.use(
           })
           .catch((err) => Promise.reject(err));
       }
-    } else if (status === 403) {
+    } else if (status === 402) {
+      const subscription = errorDetails?.subscription as
+        | {
+            force_billing_redirect?: boolean;
+          }
+        | undefined;
+
       const msg = formatError("backend", "forbidden");
-      notifyGlobalError(msg.title, msg.description, "backend-forbidden");
+      notifyGlobalError(
+        "Payment required",
+        errorData?.error?.message || msg.description,
+        "backend-payment-required",
+      );
+
+      if (typeof window !== "undefined" && subscription?.force_billing_redirect) {
+        const onProfileBilling = window.location.pathname.includes("/profile");
+        if (!onProfileBilling) {
+          const segments = window.location.pathname.split("/").filter(Boolean);
+          const locale = ["en", "id"].includes(segments[0]) ? segments[0] : "en";
+          window.location.href = `/${locale}/profile?tab=billing&billing_tab=seat`;
+        }
+      }
+    } else if (status === 403) {
+      if (errorCode === "ACCOUNT_SUSPENDED") {
+        notifyGlobalError(
+          "Account suspended",
+          errorData?.error?.message || "Subscription is suspended due to unpaid billing.",
+          "backend-account-suspended",
+        );
+      } else {
+        const msg = formatError("backend", "forbidden");
+        notifyGlobalError(msg.title, msg.description, "backend-forbidden");
+      }
     } else if (status === 404) {
       const isMutation =
         error.config?.method &&

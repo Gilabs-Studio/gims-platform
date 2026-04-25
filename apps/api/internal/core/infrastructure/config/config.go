@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	Server        ServerConfig
+	Subscription  SubscriptionLifecycleConfig
 	Startup       StartupConfig
 	Security      SecurityConfig
 	Database      DatabaseConfig
@@ -63,6 +64,10 @@ type ServerConfig struct {
 	MaxBodyBytes            int64
 	MaxMultipartBodyBytes   int64
 	MaxMultipartMemoryBytes int64
+}
+
+type SubscriptionLifecycleConfig struct {
+	GracePeriodDays int
 }
 
 type DatabaseConfig struct {
@@ -176,6 +181,9 @@ func Load() error {
 			MaxMultipartBodyBytes:   getEnvAsInt64("SERVER_MAX_MULTIPART_BODY_BYTES", 50<<20),  // 50MB
 			MaxMultipartMemoryBytes: getEnvAsInt64("SERVER_MAX_MULTIPART_MEMORY_BYTES", 8<<20), // 8MB
 		},
+		Subscription: SubscriptionLifecycleConfig{
+			GracePeriodDays: getEnvAsInt("SUBSCRIPTION_GRACE_PERIOD_DAYS", 7),
+		},
 		Startup: StartupConfig{
 			RunMigrations: getEnvAsBool("RUN_MIGRATIONS", envValue != "production"),
 			RunSeeders:    getEnvAsBool("RUN_SEEDERS", envValue != "production"),
@@ -282,6 +290,10 @@ func Load() error {
 			PoolSize:        getEnvAsInt("REDIS_POOL_SIZE", 10),
 			MinIdleConns:    getEnvAsInt("REDIS_MIN_IDLE_CONNS", 5),
 		},
+	}
+
+	if AppConfig.Subscription.GracePeriodDays < 1 {
+		AppConfig.Subscription.GracePeriodDays = 7
 	}
 
 	// SECURITY: Enforce JWT_SECRET in production

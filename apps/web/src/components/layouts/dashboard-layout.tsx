@@ -14,6 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Breadcrumb } from "@/components/navigation/breadcrumb";
 import { CommandPalette } from "@/features/command-palette";
 import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
+import { SubscriptionLifecycleGuard } from "@/features/auth/components/subscription-lifecycle-guard";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -548,6 +549,9 @@ export const DashboardLayout = memo(function DashboardLayout({
                     : "gap-4 p-4 md:p-6",
               )}
             >
+              {!isAIChatbotPage && !isFullScreenMapPage && (
+                <SubscriptionLifecycleGuard />
+              )}
               {!isAIChatbotPage &&
                 !isFullScreenMapPage &&
                 !isDashboardOnboardingMode && <Breadcrumb />}

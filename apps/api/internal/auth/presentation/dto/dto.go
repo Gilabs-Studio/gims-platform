@@ -32,6 +32,19 @@ type UserDTO struct {
 	TenantID    string            `json:"tenant_id,omitempty"`
 	TenantName  string            `json:"tenant_name,omitempty"`
 	SubscriptionPlan string       `json:"subscription_plan,omitempty"`
+	SubscriptionAccess *SubscriptionAccessDTO `json:"subscription_access,omitempty"`
+}
+
+type SubscriptionAccessDTO struct {
+	State                string `json:"state"`
+	Enforcement          string `json:"enforcement"`
+	DaysOverdue          int    `json:"days_overdue"`
+	GracePeriodDays      int    `json:"grace_period_days"`
+	ForceBillingRedirect bool   `json:"force_billing_redirect"`
+	AllowRead            bool   `json:"allow_read"`
+	AllowWrite           bool   `json:"allow_write"`
+	Message              string `json:"message,omitempty"`
+	BillingPath          string `json:"billing_path"`
 }
 
 type RoleDTO struct {

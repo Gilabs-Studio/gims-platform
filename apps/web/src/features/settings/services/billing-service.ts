@@ -5,7 +5,7 @@ export interface TenantSubscription {
   tenant_id: string;
   plan: string;
   billing_period: string;
-  status: "active" | "trial" | "expired" | "cancelled";
+  status: "active" | "trial" | "past_due" | "suspended" | "expired" | "cancelled";
   starts_at: string;
   expires_at?: string;
   next_billing_at?: string;
