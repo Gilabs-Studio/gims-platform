@@ -272,4 +272,5 @@ export interface CartItem {
   quantity: number;
   notes?: string;
   subtotal: number;
+  image_url?: string | null;
 }

@@ -238,6 +238,7 @@ export function POSTerminalContainer({
           product_code: item.product_code,
           product_name: item.product_name,
           product_kind: item.product_kind,
+          image_url: item.image_url,
           quantity: 1,
           unit_price: item.price,
           subtotal: item.price,
