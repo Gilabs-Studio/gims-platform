@@ -11,7 +11,7 @@ import (
 // Role represents a role entity
 type Role struct {
 	ID              string                        `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Name            string                        `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
+	Name            string                        `gorm:"type:varchar(100);not null;index" json:"name"`
 	Code            string                        `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Description     string                        `gorm:"type:text" json:"description"`
 	Status          string                        `gorm:"type:varchar(20);not null;default:'active'" json:"status"`

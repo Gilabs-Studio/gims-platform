@@ -466,6 +466,152 @@ func AutoMigrate() error {
 		log.Printf("Warning: tenant_id backfill failed (non-fatal): %v", err)
 	}
 
+	if err := ensureRoleNameTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: role tenant-scoped name index migration failed (non-fatal): %v", err)
+	}
+
+	if err := syncGeneratedTenantRolesFromPlanTemplates(); err != nil {
+		log.Printf("Warning: generated tenant role sync from plan templates failed (non-fatal): %v", err)
+	}
+
+	return nil
+}
+
+func ensureRoleNameTenantScopedUniqueIndex() error {
+	// Drop legacy global unique constraints/indexes on roles.name if they exist.
+	_ = DB.Exec(`ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE roles DROP CONSTRAINT IF EXISTS idx_roles_name`).Error
+	_ = DB.Exec(`ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_name_unique`).Error
+	_ = DB.Exec(`ALTER TABLE roles DROP CONSTRAINT IF EXISTS uq_roles_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_roles_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_roles_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS roles_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS roles_name_unique`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS uq_roles_name`).Error
+
+	// Dynamic cleanup for any leftover unique constraints/indexes on roles.name
+	// across schemas / custom naming conventions from previous versions.
+	_ = DB.Exec(`
+		DO $$
+		DECLARE
+			constraint_row RECORD;
+			index_row RECORD;
+		BEGIN
+			FOR constraint_row IN
+				SELECT n.nspname AS schema_name, c.relname AS table_name, con.conname AS constraint_name
+				FROM pg_constraint con
+				JOIN pg_class c ON c.oid = con.conrelid
+				JOIN pg_namespace n ON n.oid = c.relnamespace
+				WHERE con.contype = 'u'
+				  AND c.relname = 'roles'
+				  AND EXISTS (
+					SELECT 1
+					FROM unnest(con.conkey) AS key_col(attnum)
+					JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = key_col.attnum
+					WHERE a.attname = 'name'
+				  )
+			LOOP
+				EXECUTE format(
+					'ALTER TABLE %I.%I DROP CONSTRAINT IF EXISTS %I',
+					constraint_row.schema_name,
+					constraint_row.table_name,
+					constraint_row.constraint_name,
+				);
+			END LOOP;
+
+			FOR index_row IN
+				SELECT schemaname, indexname
+				FROM pg_indexes
+				WHERE tablename = 'roles'
+				  AND lower(indexdef) LIKE '%unique%'
+				  AND lower(indexdef) LIKE '%name%'
+			LOOP
+				EXECUTE format('DROP INDEX IF EXISTS %I.%I', index_row.schemaname, index_row.indexname);
+			END LOOP;
+		END $$;
+	`).Error
+
+	// Enforce uniqueness by tenant + name (case-insensitive), while keeping soft-deletes reusable.
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_roles_tenant_name_active
+		ON roles ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error
+}
+
+// EnsureRoleNameTenantScopedUniqueIndex force-applies the tenant-scoped role-name
+// uniqueness rule and removes legacy global role-name constraints.
+func EnsureRoleNameTenantScopedUniqueIndex() error {
+	return ensureRoleNameTenantScopedUniqueIndex()
+}
+
+func syncGeneratedTenantRolesFromPlanTemplates() error {
+	var plans []tenant.SubscriptionPlanConfig
+	if err := DB.Find(&plans).Error; err != nil {
+		return err
+	}
+
+	planTemplates := make(map[string]tenant.RoleTemplateList, len(plans))
+	for _, plan := range plans {
+		if len(plan.RoleTemplates) == 0 {
+			continue
+		}
+		planTemplates[strings.TrimSpace(strings.ToLower(plan.Slug))] = plan.RoleTemplates
+	}
+
+	if len(planTemplates) == 0 {
+		return nil
+	}
+
+	type tenantRow struct {
+		ID   string
+		Plan string
+	}
+
+	var tenants []tenantRow
+	if err := DB.Table("tenants").Select("id, plan").Find(&tenants).Error; err != nil {
+		return err
+	}
+
+	for _, tenantRow := range tenants {
+		templates := planTemplates[strings.TrimSpace(strings.ToLower(tenantRow.Plan))]
+		for _, template := range templates {
+			code := strings.TrimSpace(strings.ToLower(template.Code))
+			if code == "" {
+				continue
+			}
+
+			name := strings.TrimSpace(template.Name)
+			if name == "" {
+				continue
+			}
+
+			codePattern := code + "_%"
+			if code == "tenant_owner" {
+				codePattern = "tenant_owner_%"
+			}
+
+			var tenantRole role.Role
+			if err := DB.Where("tenant_id = ? AND code LIKE ? AND deleted_at IS NULL", tenantRow.ID, codePattern).
+				Order("created_at ASC").
+				First(&tenantRole).Error; err != nil {
+				continue
+			}
+
+			updates := map[string]any{
+				"name":        name,
+				"description": strings.TrimSpace(template.Description),
+			}
+			if code == "tenant_owner" {
+				updates["is_protected"] = true
+			}
+
+			if err := DB.Model(&tenantRole).Updates(updates).Error; err != nil {
+				log.Printf("Warning: failed to sync role %s for tenant %s: %v", code, tenantRow.ID, err)
+			}
+		}
+	}
+
 	return nil
 }
 

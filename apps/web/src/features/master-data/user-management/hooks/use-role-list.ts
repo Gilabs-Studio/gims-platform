@@ -31,7 +31,7 @@ export function useRoleList() {
   const createRole = useCreateRole();
   const updateRole = useUpdateRole();
 
-  const roles = data?.data || [];
+  const roles = [...(data?.data || [])].sort((left, right) => left.name.localeCompare(right.name));
   const { data: editingRoleData } = useRole(editingRole || "");
   const roleForEdit = editingRoleData;
 

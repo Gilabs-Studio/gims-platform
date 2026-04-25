@@ -150,8 +150,16 @@ type SubscriptionPlanResponse struct {
 	IsHighlighted   bool     `json:"is_highlighted"`
 	SortOrder       int      `json:"sort_order"`
 	Features        []string `json:"features"`
+	RoleTemplates   []RoleTemplate `json:"role_templates"`
 	Modules         []string `json:"modules"` // enabled module slugs
 	MenuURLs        []string `json:"menu_urls"`
+}
+
+// RoleTemplate is a plan-provisioned role template.
+type RoleTemplate struct {
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 // UpsertPlanRequest is the system-admin payload for creating or updating a plan.
@@ -168,6 +176,7 @@ type UpsertPlanRequest struct {
 	IsHighlighted   bool     `json:"is_highlighted"`
 	SortOrder       int      `json:"sort_order"`
 	Features        []string `json:"features"          binding:"omitempty"`
+	RoleTemplates   []RoleTemplate `json:"role_templates" binding:"required,min=1"`
 	Modules         []string `json:"modules"           binding:"omitempty"` // module slugs to entitle
 	MenuURLs        []string `json:"menu_urls"         binding:"omitempty"`
 }
