@@ -6,6 +6,7 @@ import (
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DistrictRepository defines the interface for district data access
@@ -88,16 +89,17 @@ func (r *districtRepository) List(ctx context.Context, req *dto.ListDistrictsReq
 	offset := (page - 1) * perPage
 
 	// Apply sorting
-	sortBy := "districts.updated_at"
+	query = query.Order("is_active DESC")
 	if req.SortBy != "" {
-		sortBy = "districts." + req.SortBy
-	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Table: "districts", Name: req.SortBy},
+			Desc:   req.SortDir != "asc",
+		})
+	} else {
+		query = query.Order("districts.updated_at DESC")
 	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&districts).Error
+	err := query.Offset(offset).Limit(perPage).Find(&districts).Error
 	if err != nil {
 		return nil, 0, err
 	}

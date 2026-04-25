@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ProductCategoryRepository defines the interface for product category data access
@@ -62,16 +63,14 @@ func (r *productCategoryRepository) List(ctx context.Context, params ListParams)
 	}
 
 	// Apply sorting
+	query = query.Order("is_active DESC")
 	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order("is_active DESC, " + order)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: params.SortBy},
+			Desc:   params.SortDir == "desc",
+		})
 	} else {
-		query = query.Order("is_active DESC, name ASC")
+		query = query.Order("name ASC")
 	}
 
 	// Apply pagination

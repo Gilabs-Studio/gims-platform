@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ActivityTypeRepository defines the interface for activity type data access
@@ -56,16 +57,10 @@ func (r *activityTypeRepository) List(ctx context.Context, params ListParams) ([
 	}
 
 	if params.SortBy != "" {
-		// Quote reserved PostgreSQL keywords used as column names
-		sortCol := params.SortBy
-		if sortCol == "order" {
-			sortCol = "\"order\""
-		}
-		sortDir := "ASC"
-		if params.SortDir == "desc" {
-			sortDir = "DESC"
-		}
-		query = query.Order(sortCol + " " + sortDir)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: params.SortBy},
+			Desc:   params.SortDir == "desc",
+		})
 	} else {
 		query = query.Order("\"order\" ASC, name ASC")
 	}

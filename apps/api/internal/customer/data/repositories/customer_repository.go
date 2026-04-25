@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CustomerRepository defines the interface for customer data access
@@ -99,13 +100,10 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: params.SortBy},
+			Desc:   params.SortDir == "desc",
+		})
 	} else {
 		query = query.Order("name ASC")
 	}

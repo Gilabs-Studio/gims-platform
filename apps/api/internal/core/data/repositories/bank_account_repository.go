@@ -12,6 +12,7 @@ import (
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type BankAccountListParams struct {
@@ -198,7 +199,10 @@ func (r *bankAccountRepository) List(ctx context.Context, params BankAccountList
 	if sortDir != "asc" {
 		sortDir = "desc"
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortCol},
+		Desc:   sortDir == "desc",
+	})
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
@@ -666,7 +670,10 @@ func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, co
 	if strings.ToLower(params.SortDir) == "asc" {
 		sortDir = "asc"
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortCol},
+		Desc:   sortDir == "desc",
+	})
 
 	// Apply pagination
 	if params.Limit > 0 {
