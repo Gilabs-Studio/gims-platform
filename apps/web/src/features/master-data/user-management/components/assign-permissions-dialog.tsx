@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, memo, startTransition } from "react";
+import { useState, useMemo, useCallback, memo, startTransition, useEffect } from "react";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
@@ -61,9 +61,33 @@ const SCOPE_DESC_KEYS: Record<PermissionScope, string> = {
 // Deterministic ordering for actions within a resource row
 const ACTION_ORDER: Record<string, number> = {
   view: 0, read: 1, create: 2, update: 3, edit: 4,
-  delete: 5, approve: 6, reject: 7, assign_permissions: 8,
-  export: 9, import: 10,
+  delete: 5, manage: 6, approve: 7, reject: 8, assign_permissions: 9,
+  export: 10, import: 11,
 };
+
+function parsePermissionCode(code?: string): { resource: string; action: string } {
+  if (!code) {
+    return { resource: "", action: "" };
+  }
+
+  const parts = code
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return { resource: "", action: "" };
+  }
+
+  if (parts.length === 1) {
+    return { resource: parts[0] ?? "", action: "" };
+  }
+
+  return {
+    resource: parts.slice(0, -1).join("."),
+    action: parts[parts.length - 1] ?? "",
+  };
+}
 
 /**
  * Maps normalized section names (lowercase) to the module slug returned by
@@ -233,7 +257,7 @@ function detectPermissionModule(permission: Permission): string | undefined {
     return SECTION_TO_MODULE[menuName];
   }
 
-  const [resource] = permission.code.toLowerCase().split(".");
+  const { resource } = parsePermissionCode(permission.code.toLowerCase());
   if (resource.startsWith("crm")) return "crm";
   if (resource.startsWith("pos")) return "pos";
   if (resource.startsWith("sales")) return "sales";
@@ -247,7 +271,7 @@ function detectPermissionModule(permission: Permission): string | undefined {
 
 
 function actionSortKey(perm: Permission): number {
-  const [, action] = perm.code.split(".");
+  const { action } = parsePermissionCode(perm.code);
   return ACTION_ORDER[action ?? ""] ?? 99;
 }
 
@@ -308,14 +332,11 @@ function buildPermissionTree(
     return trimmed ? `/${trimmed}` : "";
   };
 
-  const getResourceFromCode = (code?: string): string => {
-    if (!code) return "";
-    const [resource] = code.split(".");
-    return resource ?? "";
-  };
+  const getResourceFromCode = (code?: string): string => parsePermissionCode(code).resource;
 
   const toTitle = (value: string): string =>
     value
+      .replace(/\./g, " ")
       .replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -610,7 +631,7 @@ const TreeResourceRow = memo(function TreeResourceRow({
   const scopeApplicablePerms = useMemo(
     () =>
       perms.filter((p) => {
-        const [, action] = p.code.split(".");
+        const { action } = parsePermissionCode(p.code);
         return p.id in selected && isScopeApplicable(action);
       }),
     [perms, selected],
@@ -667,7 +688,7 @@ const TreeResourceRow = memo(function TreeResourceRow({
       {/* Inline action checkboxes */}
       <div className="flex items-center gap-1.5 flex-wrap flex-1">
         {perms.map((perm) => {
-          const [, action] = perm.code.split(".");
+          const { action } = parsePermissionCode(perm.code);
           const isChecked = perm.id in selected;
           return (
             <label
@@ -931,6 +952,20 @@ function PermissionsSelector({
     [permissions],
   );
 
+  const permissionIdByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const permission of permissions) {
+      const normalizedCode = permission.code.trim().toLowerCase();
+      if (!normalizedCode) {
+        continue;
+      }
+      if (!map.has(normalizedCode)) {
+        map.set(normalizedCode, permission.id);
+      }
+    }
+    return map;
+  }, [permissions]);
+
   const effectiveEntitledModules = useMemo(
     () =>
       (entitlementData?.modules ?? [])
@@ -1026,41 +1061,41 @@ function PermissionsSelector({
   const planScopedTree = tree;
 
   // Valid permission ID set for filtering stale IDs from the role
-  const validPermIds = useMemo(() => new Set(permissions.map((p) => p.id)), [permissions]);
+  const validPermIds = useMemo(() => new Set(permissions.map((permission) => permission.id)), [permissions]);
 
   // Initialize state - filter out stale permission IDs that no longer exist
   const initialPermissions = useMemo(() => {
     const map: Record<string, string> = {};
     if (role?.permissions?.length) {
       for (const p of role.permissions) {
-        if (!validPermIds.has(p.id)) {
-          continue;
+        let targetPermissionId = p.id;
+        if (!validPermIds.has(targetPermissionId)) {
+          const fallbackId = permissionIdByCode.get(p.code.trim().toLowerCase());
+          if (!fallbackId) {
+            continue;
+          }
+          targetPermissionId = fallbackId;
         }
-        const permission = permissionByID.get(p.id);
+
+        const permission = permissionByID.get(targetPermissionId);
         if (!permission || !isPermissionAllowedByPlan(permission)) {
           continue;
         }
 
-        if (validPermIds.has(p.id)) {
-          map[p.id] = p.scope ?? "ALL";
-        }
+        map[targetPermissionId] = p.scope ?? "ALL";
       }
     }
     return map;
-  }, [role, validPermIds, permissionByID, isPermissionAllowedByPlan]);
+  }, [role, validPermIds, permissionByID, permissionIdByCode, isPermissionAllowedByPlan]);
 
   const [selectedPermissions, setSelectedPermissions] =
     useState<Record<string, string>>(initialPermissions);
   const [searchQuery, setSearchQuery] = useState("");
-  const defaultExpandedIds = useMemo(() => new Set<string>(), [role?.id]);
-
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setExpanded(defaultExpandedIds);
-  }, [defaultExpandedIds]);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const searchActive = searchQuery.trim().length > 0;
+
+
 
   // Filtered tree for search
   const displayTree = useMemo(() => {
@@ -1095,7 +1130,7 @@ function PermissionsSelector({
 
   // Toggle expand/collapse
   const handleToggleExpand = useCallback((id: string) => {
-    setExpanded((prev) => {
+    setExpanded((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -1106,11 +1141,14 @@ function PermissionsSelector({
   // Toggle single permission with auto-select view/read logic
   const handleToggle = useCallback(
     (permissionId: string) => {
-      const targetPerm = permissions.find((p) => p.id === permissionId);
+      const targetPerm = permissions.find((permission) => permission.id === permissionId);
       if (!targetPerm) return;
-      const [resource, action] = targetPerm.code.split(".");
+      const { resource, action } = parsePermissionCode(targetPerm.code);
+      if (!resource) {
+        return;
+      }
 
-      setSelectedPermissions((prev) => {
+      setSelectedPermissions((prev: Record<string, string>) => {
         const next = { ...prev };
         const isSelected = permissionId in next;
 
@@ -1118,9 +1156,9 @@ function PermissionsSelector({
           delete next[permissionId];
           // If removing view/read, also remove dependent actions for same resource
           if (action === "view" || action === "read") {
-            for (const p of permissions) {
-              if (p.code.startsWith(`${resource}.`) && p.id !== permissionId) {
-                delete next[p.id];
+            for (const permission of permissions) {
+              if (permission.code.startsWith(`${resource}.`) && permission.id !== permissionId) {
+                delete next[permission.id];
               }
             }
           }
@@ -1129,8 +1167,8 @@ function PermissionsSelector({
           // Auto-select view/read when selecting other actions
           if (action !== "view" && action !== "read") {
             const viewPerm = permissions.find(
-              (p) =>
-                p.code === `${resource}.view` || p.code === `${resource}.read`,
+              (permission) =>
+                permission.code === `${resource}.view` || permission.code === `${resource}.read`,
             );
             if (viewPerm && !(viewPerm.id in next)) {
               next[viewPerm.id] = "ALL";
@@ -1146,7 +1184,7 @@ function PermissionsSelector({
   // Batch toggle for select-all / deselect-all
   const handleToggleAll = useCallback(
     (ids: string[], select: boolean) => {
-      setSelectedPermissions((prev) => {
+      setSelectedPermissions((prev: Record<string, string>) => {
         const next = { ...prev };
         if (select) {
           for (const id of ids) {
@@ -1288,7 +1326,7 @@ function PermissionsSelector({
         };
         console.log(payload);
         console.groupEnd();
-      } catch (e) { /* noop */ }
+      } catch { /* noop */ }
 
       await assignPermissions.mutateAsync({
         roleId,
@@ -1305,7 +1343,7 @@ function PermissionsSelector({
     } catch {
       // Error handled by api-client interceptor
     }
-  }, [selectedPermissions, role.permissions, permissionByID, isPermissionAllowedByPlan, assignPermissions, roleId, t, onClose]);
+  }, [selectedPermissions, role.permissions, permissionByID, assignPermissions, roleId, t, onClose]);
 
   return (
     <div className="flex flex-col h-full">
@@ -1500,8 +1538,12 @@ export function AssignPermissionsDrawer({
   } = useRole(roleId);
   const t = useTranslations("userManagement.assignPermissions");
 
-  const permissions = permissionsData?.data || [];
+  const permissions = useMemo(() => permissionsData?.data ?? [], [permissionsData?.data]);
   const role = roleData;
+  const permissionsRevision = useMemo(
+    () => permissions.map((permission) => permission.id).join("|"),
+    [permissions],
+  );
 
   const drawerContent = (() => {
     if (permissionsError || roleError) {
@@ -1557,6 +1599,7 @@ export function AssignPermissionsDrawer({
 
     return (
       <PermissionsSelector
+        key={`${role.id}:${permissionsRevision}`}
         role={role}
         permissions={permissions}
         roleId={roleId}

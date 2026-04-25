@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ProductListParams extends ListParams with product-specific filters
@@ -134,20 +135,26 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	const currentStockExpr = "(SELECT COALESCE(SUM(ib.current_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL)"
 	const reservedStockExpr = "(SELECT COALESCE(SUM(ib.reserved_quantity), 0) FROM inventory_batches ib WHERE ib.product_id = products.id AND ib.tenant_id = products.tenant_id AND ib.deleted_at IS NULL)"
 
-	sortDir := "ASC"
-	if params.SortDir == "desc" {
-		sortDir = "DESC"
-	}
+	isDesc := params.SortDir == "desc"
 
 	switch params.SortBy {
 	case "current_stock":
-		query = query.Order(currentStockExpr + " " + sortDir)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Raw: true, Name: currentStockExpr},
+			Desc:   isDesc,
+		})
 	case "reserved_stock":
-		query = query.Order(reservedStockExpr + " " + sortDir)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Raw: true, Name: reservedStockExpr},
+			Desc:   isDesc,
+		})
 	case "":
 		query = query.Order("name ASC")
 	default:
-		query = query.Order(params.SortBy + " " + sortDir)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: params.SortBy},
+			Desc:   isDesc,
+		})
 	}
 
 	// Apply pagination

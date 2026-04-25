@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CompanyRepository defines the interface for company data access
@@ -113,10 +114,6 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 	if req.SortBy != "" {
 		sortBy = req.SortBy
 	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
-	}
 
 	err := r.getDB(ctx).
 		Select("companies.*, (SELECT COUNT(*) FROM outlets WHERE outlets.company_id = companies.id AND outlets.deleted_at IS NULL) AS outlet_count").
@@ -125,7 +122,11 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 		Preload("District").
 		Preload("Village").
 		Where(query).
-		Order("is_active DESC, " + sortBy + " " + sortDir).
+		Order("is_active DESC").
+		Order(clause.OrderByColumn{
+			Column: clause.Column{Name: sortBy},
+			Desc:   req.SortDir != "asc",
+		}).
 		Offset(offset).
 		Limit(perPage).
 		Find(&companies).Error

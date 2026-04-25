@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
 import { PageMotion } from "@/components/motion/page-motion";
 import { systemAdminService } from "../services/system-admin-service";
+import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 import {
   Card,
   CardContent,
@@ -31,22 +33,6 @@ import {
 import { Search, Infinity, Coins, Users, ReceiptText, CalendarClock } from "lucide-react";
 import type { Subscription, SubscriptionStatus } from "../types";
 
-const PLAN_LABELS: Record<string, string> = {
-  pos_essential: "POS Essential",
-  pos_growth: "POS Growth",
-  pos_enterprise: "POS Enterprise",
-  erp_core: "ERP Core",
-  erp_pro: "ERP Pro",
-  erp_enterprise: "ERP Enterprise",
-  crm_basic: "CRM Basic",
-  crm_growth: "CRM Growth",
-  crm_enterprise: "CRM Enterprise",
-  hr_basic: "HR Basic",
-  hr_growth: "HR Growth",
-  hr_enterprise: "HR Enterprise",
-  full_access: "Full Access",
-};
-
 const BILLING_LABELS: Record<string, string> = {
   monthly: "Monthly",
   yearly: "Yearly",
@@ -70,6 +56,7 @@ const currencyFormatter = new Intl.NumberFormat("id-ID", {
 });
 
 export function SubscriptionList() {
+  const locale = useLocale();
   const [statusFilter, setStatusFilter] = useState<SubscriptionStatus | "all">("all");
   const [tenantSearch, setTenantSearch] = useState("");
 
@@ -255,7 +242,7 @@ export function SubscriptionList() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="rounded-full">
-                        {PLAN_LABELS[sub.plan] ?? sub.plan}
+                        {getSubscriptionPlanCopy(sub.plan, locale, { name: sub.plan }).name}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">

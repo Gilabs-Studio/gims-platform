@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // LeaveTypeRepository defines the interface for leave type data access
@@ -80,13 +81,10 @@ func (r *leaveTypeRepository) List(ctx context.Context, params ListParams) ([]mo
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: params.SortBy},
+			Desc:   params.SortDir == "desc",
+		})
 	} else {
 		query = query.Order("name ASC")
 	}

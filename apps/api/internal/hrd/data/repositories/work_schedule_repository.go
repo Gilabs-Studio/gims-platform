@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // WorkScheduleRepository defines the interface for work schedule data access
@@ -122,7 +123,10 @@ func (r *workScheduleRepository) List(ctx context.Context, req *dto.ListWorkSche
 	}
 
 	// Fetch data
-	err := query.Order(sortField + " " + sortOrder).Offset(offset).Limit(perPage).Find(&schedules).Error
+	err := query.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortField},
+		Desc:   sortOrder == "DESC",
+	}).Offset(offset).Limit(perPage).Find(&schedules).Error
 	if err != nil {
 		return nil, 0, err
 	}

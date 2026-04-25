@@ -10,17 +10,16 @@ import (
 // RegisterFloorPlanRoutes sets up floor plan routes
 func RegisterFloorPlanRoutes(rg *gin.RouterGroup, h *handler.FloorPlanHandler) {
 	plans := rg.Group("/floor-plans")
-	plans.Use(middleware.RequirePermission("pos.layout.manage"))
 
 	// Static routes MUST come before parameterized routes
-	plans.GET("/form-data", h.GetFormData)
+	plans.GET("/form-data", middleware.RequirePermission("pos.layout.read"), h.GetFormData)
 
-	plans.POST("", h.Create)
-	plans.GET("", h.List)
-	plans.GET("/:id", h.GetByID)
-	plans.PUT("/:id", h.Update)
-	plans.PUT("/:id/layout", h.SaveLayoutData)
-	plans.DELETE("/:id", h.Delete)
-	plans.POST("/:id/publish", h.Publish)
-	plans.GET("/:id/versions", h.ListVersions)
+	plans.POST("", middleware.RequirePermission("pos.layout.create"), h.Create)
+	plans.GET("", middleware.RequirePermission("pos.layout.read"), h.List)
+	plans.GET("/:id", middleware.RequirePermission("pos.layout.read"), h.GetByID)
+	plans.PUT("/:id", middleware.RequirePermission("pos.layout.update"), h.Update)
+	plans.PUT("/:id/layout", middleware.RequirePermission("pos.layout.update"), h.SaveLayoutData)
+	plans.DELETE("/:id", middleware.RequirePermission("pos.layout.delete"), h.Delete)
+	plans.POST("/:id/publish", middleware.RequirePermission("pos.layout.update"), h.Publish)
+	plans.GET("/:id/versions", middleware.RequirePermission("pos.layout.read"), h.ListVersions)
 }

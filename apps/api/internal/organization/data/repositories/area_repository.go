@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AreaRepository defines the interface for area data access
@@ -146,12 +147,12 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 	if req.SortBy != "" {
 		sortBy = req.SortBy
 	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
-	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).
+	err := query.Order("is_active DESC").
+		Order(clause.OrderByColumn{
+			Column: clause.Column{Name: sortBy},
+			Desc:   req.SortDir != "asc",
+		}).
 		Offset(offset).
 		Limit(perPage).
 		Preload("Manager").

@@ -33,7 +33,7 @@ export function POSReceiptDialog({
   tenderAmount,
 }: POSReceiptDialogProps) {
   const t = useTranslations("posTerminal.receipt");
-  const canManageTemplate = useHasPermission("pos.receipt_template.manage");
+  const canManageTemplate = useHasPermission("pos.order.read");
   const showWhatsAppAction = Boolean(customerPhone?.trim());
   const receiptUrl = useMemo(() => posOrderService.getReceiptUrl(order.id), [
     order.id,

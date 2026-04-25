@@ -70,7 +70,7 @@ func (h *POSConfigHandler) UpdateReceiptWhatsAppTemplate(c *gin.Context) {
 	cfg, err := h.uc.UpdateReceiptWhatsAppTemplate(c.Request.Context(), outletID, &req, uc.userID, uc.isOwner)
 	if err != nil {
 		if errors.Is(err, usecase.ErrPOSConfigForbidden) {
-			coreErrors.ForbiddenResponse(c, "pos.receipt_template.manage", nil)
+			coreErrors.ForbiddenResponse(c, "pos.order.read", nil)
 			return
 		}
 		coreErrors.InternalServerErrorResponse(c, "")

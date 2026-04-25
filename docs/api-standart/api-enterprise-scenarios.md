@@ -431,9 +431,11 @@ func (h *Handler) GetEntity(c *gin.Context) {
 
 ### Scenario: SQL Injection Prevention
 
-**Requirement**: Prevent SQL injection attacks.
+**Requirement**: Prevent SQL injection attacks by strictly avoiding string concatenation in queries.
 
-**Implementation Pattern**:
+**Implementation Patterns**:
+
+1. **Standard Filtering**:
 ```go
 // ✅ GOOD: Parameterized query
 db.Where("name = ?", userInput).First(&entity)
@@ -443,16 +445,47 @@ query := fmt.Sprintf("SELECT * FROM users WHERE name = '%s'", userInput)
 db.Raw(query).Scan(&entity)
 ```
 
+2. **Secure Sorting (ORDER BY)**:
+```go
+// ✅ GOOD: White-listed sorting using GORM clauses
+import "gorm.io/gorm/clause"
+
+query = query.Order(clause.OrderByColumn{
+    Column: clause.Column{Name: params.SortBy},
+    Desc:   params.SortDir == "desc",
+})
+
+// ❌ BAD: Direct string concatenation in Order
+query = query.Order(params.SortBy + " " + params.SortDir)
+```
+
 ### Scenario: XSS Prevention
 
-**Requirement**: Prevent cross-site scripting attacks.
+**Requirement**: Prevent cross-site scripting attacks by sanitizing inputs and validating URLs.
 
-**Implementation Pattern**:
+**Implementation Patterns**:
+
+1. **Output Escaping**:
 ```go
-// Sanitize user input
+// Sanitize user input before rendering (if not handled by framework)
 import "html"
-
 sanitized := html.EscapeString(userInput)
+```
+
+2. **URL Sanitization (Frontend)**:
+```typescript
+// ✅ GOOD: Use URL constructor to validate host
+const validateUrl = (input: string) => {
+  try {
+    const url = new URL(input);
+    return ["linkedin.com", "google.com"].includes(url.hostname.replace('www.', ''));
+  } catch {
+    return false;
+  }
+}
+
+// ❌ BAD: Simple substring check
+if (url.includes("linkedin.com")) { ... }
 ```
 
 ### Scenario: CSRF Protection
@@ -461,7 +494,7 @@ sanitized := html.EscapeString(userInput)
 
 **Implementation Pattern**:
 ```go
-// Use CSRF tokens
+// Use CSRF tokens matching double-submit cookie pattern
 func CSRFMiddleware() gin.HandlerFunc {
     return csrf.Middleware(csrf.Options{
         Secret: csrfSecret,
@@ -475,12 +508,12 @@ func CSRFMiddleware() gin.HandlerFunc {
 **Security Checklist**:
 - [ ] All inputs validated and sanitized
 - [ ] Parameterized queries used (no string concatenation)
-- [ ] XSS prevention (escape HTML)
+- [ ] Whitelist-based sorting implemented using `clause.OrderByColumn`
+- [ ] XSS prevention via host-based URL validation
 - [ ] CSRF protection for state-changing operations
-- [ ] Authentication tokens properly validated
+- [ ] Authentication tokens stored in HttpOnly cookies
 - [ ] Sensitive data not logged
-- [ ] HTTPS enforced
-- [ ] Security headers set (HSTS, CSP, etc.)
+- [ ] Security headers set (HSTS, CSP, X-Frame-Options)
 
 ---
 

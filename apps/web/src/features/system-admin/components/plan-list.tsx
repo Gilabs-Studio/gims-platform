@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { PageMotion } from "@/components/motion/page-motion";
 import { systemAdminService } from "../services/system-admin-service";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Pencil, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 import type { SubscriptionPlanConfig, PlanCategory } from "../types";
 import { getMenuSectionSummary } from "../lib/plan-menu-catalog";
 
@@ -64,6 +66,7 @@ function MenuSummaryBadges({
 
 export function PlanList() {
   const t = useTranslations("systemAdmin.plans");
+  const locale = useLocale();
   const categoryLabels: Record<PlanCategory, string> = {
     pos: t("category.pos"),
     erp: t("category.erp"),
@@ -146,11 +149,21 @@ export function PlanList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((plan) => (
-                      <TableRow key={plan.slug}>
+                    {rows.map((plan) => {
+                      const planCopy = getSubscriptionPlanCopy(plan.slug, locale, {
+                        name: plan.name,
+                        description: plan.description,
+                        features: plan.features,
+                      });
+
+                      return (
+                        <TableRow key={plan.slug}>
                         <TableCell className="font-mono text-xs">{plan.slug}</TableCell>
                         <TableCell>
-                          <span className="font-medium">{plan.name}</span>
+                          <div className="space-y-0.5">
+                            <span className="font-medium">{planCopy.name}</span>
+                            <p className="text-xs text-muted-foreground">{planCopy.description}</p>
+                          </div>
                           {plan.is_highlighted && (
                             <Badge variant="secondary" className="ml-2 text-[10px]">
                               {t("highlighted")}
@@ -179,7 +192,7 @@ export function PlanList() {
                               onCheckedChange={(value) =>
                                 toggleMutation.mutate({ slug: plan.slug, isActive: value })
                               }
-                              aria-label={`Toggle ${plan.name}`}
+                              aria-label={`Toggle ${planCopy.name}`}
                             />
                             <span
                               className={cn(
@@ -193,13 +206,14 @@ export function PlanList() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild size="sm" variant="ghost" className="cursor-pointer">
-                            <Link href={`/system/plans/form?slug=${plan.slug}`} aria-label={t("editPlan", { name: plan.name })}>
+                            <Link href={`/system/plans/form?slug=${plan.slug}`} aria-label={t("editPlan", { name: planCopy.name })}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Link>
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    ))}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

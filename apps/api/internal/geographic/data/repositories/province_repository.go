@@ -6,6 +6,7 @@ import (
 	"github.com/gilabs/gims/api/internal/geographic/data/models"
 	"github.com/gilabs/gims/api/internal/geographic/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ProvinceRepository defines the interface for province data access
@@ -88,16 +89,17 @@ func (r *provinceRepository) List(ctx context.Context, req *dto.ListProvincesReq
 	offset := (page - 1) * perPage
 
 	// Apply sorting
-	sortBy := "provinces.updated_at"
+	query = query.Order("is_active DESC")
 	if req.SortBy != "" {
-		sortBy = "provinces." + req.SortBy
-	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
+		query = query.Order(clause.OrderByColumn{
+			Column: clause.Column{Table: "provinces", Name: req.SortBy},
+			Desc:   req.SortDir != "asc",
+		})
+	} else {
+		query = query.Order("provinces.updated_at DESC")
 	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&provinces).Error
+	err := query.Offset(offset).Limit(perPage).Find(&provinces).Error
 	if err != nil {
 		return nil, 0, err
 	}

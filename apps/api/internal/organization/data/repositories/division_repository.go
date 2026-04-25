@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DivisionRepository defines the interface for division data access
@@ -87,12 +88,15 @@ func (r *divisionRepository) List(ctx context.Context, req *dto.ListDivisionsReq
 	if req.SortBy != "" {
 		sortBy = req.SortBy
 	}
-	sortDir := "DESC"
-	if req.SortDir == "asc" {
-		sortDir = "ASC"
-	}
 
-	err := query.Order("is_active DESC, " + sortBy + " " + sortDir).Offset(offset).Limit(perPage).Find(&divisions).Error
+	err := query.Order("is_active DESC").
+		Order(clause.OrderByColumn{
+			Column: clause.Column{Name: sortBy},
+			Desc:   req.SortDir != "asc",
+		}).
+		Offset(offset).
+		Limit(perPage).
+		Find(&divisions).Error
 	if err != nil {
 		return nil, 0, err
 	}

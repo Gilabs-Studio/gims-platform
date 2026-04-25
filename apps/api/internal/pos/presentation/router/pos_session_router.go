@@ -16,6 +16,6 @@ func RegisterPOSSessionRoutes(rg *gin.RouterGroup, h *handler.POSSessionHandler)
 	sessions.POST("", middleware.RequirePermission("pos.order.create"), h.Open)
 	sessions.POST("/:id/close", middleware.RequirePermission("pos.order.create"), h.Close)
 
-	// Manager-level: list all sessions
-	sessions.GET("", middleware.RequirePermission("pos.session.manage"), h.List)
+	// Session listing now follows POS Terminal read permission.
+	sessions.GET("", middleware.RequirePermission("pos.order.read"), h.List)
 }

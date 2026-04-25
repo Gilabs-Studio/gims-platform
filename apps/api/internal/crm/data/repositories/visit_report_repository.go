@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -195,7 +196,11 @@ func (r *visitReportRepository) List(ctx context.Context, params *VisitReportLis
 	if sortDir == "" {
 		sortDir = "desc"
 	}
-	query = query.Order(sortBy + " " + sortDir)
+
+	query = query.Order(clause.OrderByColumn{
+		Column: clause.Column{Name: sortBy},
+		Desc:   sortDir == "desc",
+	})
 
 	// Pagination
 	if params.Limit > 0 {
