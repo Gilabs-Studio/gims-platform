@@ -253,7 +253,12 @@ export interface POSConfig {
   max_discount_percent: number;
   print_receipt_auto: boolean;
   receipt_footer?: string | null;
+  receipt_whatsapp_template?: string | null;
   currency: string;
+}
+
+export interface UpdatePOSReceiptWhatsAppTemplateRequest {
+  receipt_whatsapp_template: string;
 }
 
 // ─── Cart (client-side only) ─────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import type { Outlet } from "@/features/master-data/outlet/types";
 import { useFloorLayouts } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
@@ -45,7 +46,7 @@ export function POSTerminalPageClient() {
     isError: outletsError,
   } = useOutlets({ is_active: true, per_page: 50 });
 
-  const allOutlets = outletsData?.data ?? [];
+  const allOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
   const outlets = useMemo(
     () => allOutlets.filter((o) => !!o.warehouse_id),
     [allOutlets]
@@ -55,7 +56,7 @@ export function POSTerminalPageClient() {
     { status: "published", per_page: 100 },
     { enabled: outlets.length > 0 }
   );
-  const floorPlans = floorLayoutData?.data ?? [];
+  const floorPlans = useMemo(() => floorLayoutData?.data ?? [], [floorLayoutData?.data]);
 
   const outletWithLayouts = useMemo(() => {
     const ids = new Set<string>();
@@ -72,10 +73,8 @@ export function POSTerminalPageClient() {
     }));
   }, [outletWithLayouts, outlets]);
 
-  const selectedOutlet = outletsWithMode.find((o) => o.id === selectedOutletId) ?? null;
-
-  const resolveFloorPlanForOutlet = (outlet: OutletWithMode) => {
-    const byOutlet = floorPlans.filter((p) => p.outlet_id === outlet.id);
+  const resolveFloorPlanForOutlet = useCallback((outlet: OutletWithMode) => {
+    const byOutlet = floorPlans.filter((plan) => plan.outlet_id === outlet.id);
     if (byOutlet.length === 0) return null;
 
     const outletName = outlet.name.toLowerCase();
@@ -91,21 +90,7 @@ export function POSTerminalPageClient() {
     if (nameContainsCode) return nameContainsCode;
 
     return byOutlet[0] ?? null;
-  };
-
-  // Deep-link support: /pos/fb/terminal?outlet_id=...&table_id=...&table_label=...
-  useEffect(() => {
-    if (!outletIdFromQuery) return;
-    if (outletsLoading || floorLayoutLoading) return;
-    const targetOutlet = outletsWithMode.find((o) => o.id === outletIdFromQuery);
-    if (!targetOutlet) return;
-    setSelectedOutletId(targetOutlet.id);
-  }, [
-    outletIdFromQuery,
-    outletsLoading,
-    floorLayoutLoading,
-    outletsWithMode,
-  ]);
+  }, [floorPlans]);
 
   const handleOutletSelect = (outlet: OutletWithMode) => {
     if (outlet.pos_mode === "LIVE_TABLE") {
@@ -120,23 +105,62 @@ export function POSTerminalPageClient() {
     setSelectedOutletId(outlet.id);
   };
 
-  // Scenario 1: single outlet ⇒ auto-navigate immediately
+  const querySelectedOutlet = useMemo(
+    () => outletsWithMode.find((o) => o.id === outletIdFromQuery) ?? null,
+    [outletIdFromQuery, outletsWithMode],
+  );
+
+  const singleOutlet = useMemo(
+    () => (outletsWithMode.length === 1 ? outletsWithMode[0] : null),
+    [outletsWithMode],
+  );
+
+  const autoDirectOutlet =
+    !outletIdFromQuery && singleOutlet?.pos_mode === "DIRECT_POS" ? singleOutlet : null;
+
+  const selectedOutlet = useMemo(
+    () =>
+      outletsWithMode.find((o) => o.id === selectedOutletId) ??
+      querySelectedOutlet ??
+      autoDirectOutlet ??
+      null,
+    [autoDirectOutlet, outletsWithMode, querySelectedOutlet, selectedOutletId],
+  );
+
+  // Scenario 1: single outlet with LIVE_TABLE ⇒ auto-navigate immediately
   useEffect(() => {
     if (outletIdFromQuery) return;
     if (hasAutoNavigated.current) return;
     if (outletsLoading || floorLayoutLoading) return;
-    if (outletsWithMode.length !== 1) return;
+    if (!singleOutlet) return;
+    if (singleOutlet.pos_mode !== "LIVE_TABLE") return;
+
     hasAutoNavigated.current = true;
-    handleOutletSelect(outletsWithMode[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outletIdFromQuery, outletsLoading, floorLayoutLoading, outletsWithMode]);
+    const targetPlan = resolveFloorPlanForOutlet(singleOutlet);
+    const query = new URLSearchParams();
+    query.set("outlet_id", singleOutlet.id);
+    query.set("outlet_name", singleOutlet.name);
+    if (targetPlan?.id) query.set("floor_plan_id", targetPlan.id);
+    router.push(`/pos/fb/live-table?${query.toString()}`);
+  }, [floorLayoutLoading, outletIdFromQuery, outletsLoading, resolveFloorPlanForOutlet, router, singleOutlet]);
 
   if (outletsLoading || (floorLayoutLoading && outlets.length > 0)) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center space-y-3">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading POS outlets…</p>
+      <div className="space-y-6 max-w-5xl">
+        <div>
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-4 w-md mt-2" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="rounded-lg border p-4 space-y-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -307,6 +331,7 @@ export function POSTerminalPageClient() {
       <div className="flex-1 overflow-hidden">
         <POSTerminalContainer
           outletId={selectedOutlet.id}
+          outletName={selectedOutlet.name}
           initialTableId={tableIdFromQuery}
           initialTableLabel={tableLabelFromQuery}
           returnUrl={liveTableReturnUrl}

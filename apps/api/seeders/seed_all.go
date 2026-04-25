@@ -91,6 +91,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// POS config seeder (stores receipt template in DB for every active outlet)
+	if err := SeedPOSConfigs(); err != nil {
+		return err
+	}
+
 	// POS floor layout seeder (2 outlets live-table scenario)
 	if err := SeedPOSFloorLayouts(); err != nil {
 		return err
