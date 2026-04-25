@@ -3,6 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"hash/fnv"
+	"regexp"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -14,6 +17,8 @@ import (
 )
 
 var ErrPlanNotFound = errors.New("subscription plan not found")
+
+const tenantOwnerRoleTemplateCode = "tenant_owner"
 
 // SubscriptionPlanUsecase manages plan configs and exposes the public pricing catalogue.
 type SubscriptionPlanUsecase interface {
@@ -94,6 +99,11 @@ func (u *subscriptionPlanUsecase) GetBySlug(ctx context.Context, slug string) (*
 }
 
 func (u *subscriptionPlanUsecase) Upsert(ctx context.Context, req *dto.UpsertPlanRequest) (*dto.SubscriptionPlanResponse, error) {
+	validatedRoleTemplates, err := validateAndNormalizeRoleTemplates(req.RoleTemplates)
+	if err != nil {
+		return nil, err
+	}
+
 	plan := &models.SubscriptionPlanConfig{
 		Slug:            req.Slug,
 		Name:            req.Name,
@@ -107,6 +117,7 @@ func (u *subscriptionPlanUsecase) Upsert(ctx context.Context, req *dto.UpsertPla
 		IsHighlighted:   req.IsHighlighted,
 		SortOrder:       req.SortOrder,
 		Features:        models.PlanFeatureList(req.Features),
+		RoleTemplates:   validatedRoleTemplates,
 		IsActive:        true,
 	}
 	if plan.MinUsers < 1 {
@@ -207,9 +218,104 @@ func planModelToDTO(p *models.SubscriptionPlanConfig) *dto.SubscriptionPlanRespo
 		IsHighlighted:   p.IsHighlighted,
 		SortOrder:       p.SortOrder,
 		Features:        []string(p.Features),
+		RoleTemplates:   roleTemplateListToDTO(p.RoleTemplates),
 		Modules:         modules,
 		MenuURLs:        menuURLs,
 	}
+}
+
+func roleTemplateListToDTO(items models.RoleTemplateList) []dto.RoleTemplate {
+	result := make([]dto.RoleTemplate, 0, len(items))
+	for _, item := range items {
+		result = append(result, dto.RoleTemplate{
+			Code:        strings.TrimSpace(strings.ToLower(item.Code)),
+			Name:        strings.TrimSpace(item.Name),
+			Description: strings.TrimSpace(item.Description),
+		})
+	}
+	return result
+}
+
+func validateAndNormalizeRoleTemplates(items []dto.RoleTemplate) (models.RoleTemplateList, error) {
+	if len(items) == 0 {
+		return nil, fmt.Errorf("role_templates must contain at least one role")
+	}
+
+	seen := make(map[string]struct{}, len(items))
+	hasTenantOwner := false
+	result := make(models.RoleTemplateList, 0, len(items))
+
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		description := strings.TrimSpace(item.Description)
+		code := strings.TrimSpace(strings.ToLower(item.Code))
+
+		if code == "" {
+			code = generateRoleTemplateCode(name)
+		}
+
+		if code == "" {
+			return nil, fmt.Errorf("role template code cannot be empty")
+		}
+		if name == "" {
+			return nil, fmt.Errorf("role template name cannot be empty")
+		}
+		if _, exists := seen[code]; exists {
+			original := code
+			for i := 1; ; i++ {
+				candidate := fmt.Sprintf("%s_%d", original, i)
+				if _, duplicate := seen[candidate]; duplicate {
+					continue
+				}
+				code = candidate
+				break
+			}
+		}
+		seen[code] = struct{}{}
+
+		if code == tenantOwnerRoleTemplateCode {
+			hasTenantOwner = true
+		}
+
+		result = append(result, models.RoleTemplate{
+			Code:        code,
+			Name:        name,
+			Description: description,
+		})
+	}
+
+	if !hasTenantOwner {
+		return nil, fmt.Errorf("role_templates must include %s", tenantOwnerRoleTemplateCode)
+	}
+
+	return result, nil
+}
+
+var nonAlnumRoleCodeRegexp = regexp.MustCompile(`[^a-z0-9]+`)
+
+func generateRoleTemplateCode(name string) string {
+	normalizedName := strings.ToLower(strings.TrimSpace(name))
+	if normalizedName == "" {
+		normalizedName = "role"
+	}
+
+	base := nonAlnumRoleCodeRegexp.ReplaceAllString(normalizedName, "_")
+	base = strings.Trim(base, "_")
+	if base == "" {
+		base = "role"
+	}
+	if len(base) > 30 {
+		base = base[:30]
+		base = strings.Trim(base, "_")
+		if base == "" {
+			base = "role"
+		}
+	}
+
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(normalizedName))
+
+	return fmt.Sprintf("%s_%08x", base, h.Sum32())
 }
 
 func sanitizeMenuURLsForPlan(planSlug string, menuURLs []string) []string {

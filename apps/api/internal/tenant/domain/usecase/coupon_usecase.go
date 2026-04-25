@@ -17,17 +17,19 @@ import (
 )
 
 var (
-	ErrCouponNotFound       = errors.New("coupon not found")
-	ErrCouponInactive       = errors.New("coupon is inactive")
-	ErrCouponExpired        = errors.New("coupon has expired")
-	ErrCouponExhausted      = errors.New("coupon usage limit reached")
-	ErrCouponDuplicate      = errors.New("coupon code already exists")
-	ErrCouponAlreadyUsed    = errors.New("coupon already used by this email")
+	ErrCouponNotFound    = errors.New("coupon not found")
+	ErrCouponInactive    = errors.New("coupon is inactive")
+	ErrCouponExpired     = errors.New("coupon has expired")
+	ErrCouponExhausted   = errors.New("coupon usage limit reached")
+	ErrCouponDuplicate   = errors.New("coupon code already exists")
+	ErrCouponAlreadyUsed = errors.New("coupon already used by this email")
+	ErrCouponUserLimit   = errors.New("coupon user limit exceeded")
 )
 
 // CouponUsecase handles coupon management for system admins and validation during registration.
 type CouponUsecase interface {
 	Create(ctx context.Context, req *dto.CreateCouponRequest, adminEmail string) (*dto.CouponResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdateCouponRequest) (*dto.CouponResponse, error)
 	List(ctx context.Context, params dto.CouponListParams) ([]*dto.CouponResponse, *response.PaginationMeta, error)
 	SetActive(ctx context.Context, id string, active bool) error
 	// Validate checks whether a coupon code is usable (public, no email context).
@@ -40,7 +42,7 @@ type CouponUsecase interface {
 	RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error)
 	// ApplyDiscount computes the discounted invoice amount for a paid-plan coupon.
 	// Returns original amount when the coupon is a trial type or not applicable.
-	ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64) (int64, error)
+	ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64, userCount int, billingPeriod string) (int64, error)
 }
 
 type couponUsecase struct {
@@ -69,18 +71,22 @@ func (u *couponUsecase) Create(ctx context.Context, req *dto.CreateCouponRequest
 	}
 
 	coupon := &models.Coupon{
-		Code:            code,
-		Description:     req.Description,
-		CouponType:      models.CouponType(req.CouponType),
-		DiscountType:    models.CouponDiscountType(req.DiscountType),
-		DiscountValue:   req.DiscountValue,
-		Scope:           models.CouponScope(req.Scope),
-		DurationDays:    req.DurationDays,
-		MaxUses:         req.MaxUses,
-		MaxUsesPerEmail: req.MaxUsesPerEmail,
-		IsActive:        true,
-		ExpiresAt:       req.ExpiresAt,
-		CreatedBy:       adminEmail,
+		Code:                   code,
+		Description:            req.Description,
+		CouponType:             models.CouponType(req.CouponType),
+		DiscountType:           models.CouponDiscountType(req.DiscountType),
+		DiscountValue:          req.DiscountValue,
+		MaxUserCount:           req.MaxUserCount,
+		LockUserCount:          req.LockUserCount,
+		PackagePriceMonthlyIDR: req.PackagePriceMonthlyIDR,
+		PackagePriceYearlyIDR:  req.PackagePriceYearlyIDR,
+		Scope:                  models.CouponScope(req.Scope),
+		DurationDays:           req.DurationDays,
+		MaxUses:                req.MaxUses,
+		MaxUsesPerEmail:        req.MaxUsesPerEmail,
+		IsActive:               true,
+		ExpiresAt:              req.ExpiresAt,
+		CreatedBy:              adminEmail,
 	}
 	if req.TargetPlanSlug != "" {
 		slug := req.TargetPlanSlug
@@ -96,11 +102,64 @@ func (u *couponUsecase) Create(ctx context.Context, req *dto.CreateCouponRequest
 	if coupon.Scope == "" {
 		coupon.Scope = models.CouponScopeGeneral
 	}
+	if coupon.PackagePriceYearlyIDR <= 0 && coupon.PackagePriceMonthlyIDR > 0 {
+		coupon.PackagePriceYearlyIDR = coupon.PackagePriceMonthlyIDR * 12 * 0.9
+	}
 
 	if err := u.couponRepo.Create(ctx, coupon); err != nil {
 		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
 			return nil, ErrCouponDuplicate
 		}
+		return nil, err
+	}
+
+	return toCouponDTO(coupon), nil
+}
+
+func (u *couponUsecase) Update(ctx context.Context, id string, req *dto.UpdateCouponRequest) (*dto.CouponResponse, error) {
+	coupon, err := u.couponRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCouponNotFound
+		}
+		return nil, err
+	}
+
+	coupon.Description = req.Description
+	coupon.CouponType = models.CouponType(req.CouponType)
+	coupon.DiscountType = models.CouponDiscountType(req.DiscountType)
+	coupon.DiscountValue = req.DiscountValue
+	coupon.MaxUserCount = req.MaxUserCount
+	coupon.LockUserCount = req.LockUserCount
+	coupon.PackagePriceMonthlyIDR = req.PackagePriceMonthlyIDR
+	coupon.PackagePriceYearlyIDR = req.PackagePriceYearlyIDR
+	coupon.Scope = models.CouponScope(req.Scope)
+	coupon.DurationDays = req.DurationDays
+	coupon.MaxUses = req.MaxUses
+	coupon.MaxUsesPerEmail = req.MaxUsesPerEmail
+	coupon.ExpiresAt = req.ExpiresAt
+
+	if req.TargetPlanSlug != "" {
+		slug := req.TargetPlanSlug
+		coupon.TargetPlanSlug = &slug
+	} else {
+		coupon.TargetPlanSlug = nil
+	}
+
+	if coupon.DiscountType == "" {
+		coupon.DiscountType = models.CouponDiscountTrial
+	}
+	if coupon.Scope == "" {
+		coupon.Scope = models.CouponScopeGeneral
+	}
+	if coupon.MaxUsesPerEmail < 1 {
+		coupon.MaxUsesPerEmail = 1
+	}
+	if coupon.PackagePriceYearlyIDR <= 0 && coupon.PackagePriceMonthlyIDR > 0 {
+		coupon.PackagePriceYearlyIDR = coupon.PackagePriceMonthlyIDR * 12 * 0.9
+	}
+
+	if err := u.db.WithContext(ctx).Save(coupon).Error; err != nil {
 		return nil, err
 	}
 
@@ -154,13 +213,17 @@ func (u *couponUsecase) Validate(ctx context.Context, code string) (*dto.Validat
 	}
 
 	return &dto.ValidateCouponResponse{
-		Valid:        true,
-		Description:  coupon.Description,
-		CouponType:   string(coupon.CouponType),
-		DiscountType: string(coupon.DiscountType),
-		DiscountValue: coupon.DiscountValue,
-		Scope:        string(coupon.Scope),
-		DurationDays: coupon.DurationDays,
+		Valid:                  true,
+		Description:            coupon.Description,
+		CouponType:             string(coupon.CouponType),
+		DiscountType:           string(coupon.DiscountType),
+		DiscountValue:          coupon.DiscountValue,
+		MaxUserCount:           coupon.MaxUserCount,
+		LockUserCount:          coupon.LockUserCount,
+		PackagePriceMonthlyIDR: coupon.PackagePriceMonthlyIDR,
+		PackagePriceYearlyIDR:  coupon.PackagePriceYearlyIDR,
+		Scope:                  string(coupon.Scope),
+		DurationDays:           coupon.DurationDays,
 	}, nil
 }
 
@@ -194,14 +257,18 @@ func (u *couponUsecase) ValidateForEmail(ctx context.Context, code, email string
 	}
 
 	return &dto.ValidateCouponResponse{
-		Valid:          true,
-		Description:    coupon.Description,
-		CouponType:     string(coupon.CouponType),
-		DiscountType:   string(coupon.DiscountType),
-		DiscountValue:  coupon.DiscountValue,
-		Scope:          string(coupon.Scope),
-		TargetPlanSlug: targetPlanSlug(coupon),
-		DurationDays:   coupon.DurationDays,
+		Valid:                  true,
+		Description:            coupon.Description,
+		CouponType:             string(coupon.CouponType),
+		DiscountType:           string(coupon.DiscountType),
+		DiscountValue:          coupon.DiscountValue,
+		MaxUserCount:           coupon.MaxUserCount,
+		LockUserCount:          coupon.LockUserCount,
+		PackagePriceMonthlyIDR: coupon.PackagePriceMonthlyIDR,
+		PackagePriceYearlyIDR:  coupon.PackagePriceYearlyIDR,
+		Scope:                  string(coupon.Scope),
+		TargetPlanSlug:         targetPlanSlug(coupon),
+		DurationDays:           coupon.DurationDays,
 	}, nil
 }
 
@@ -226,9 +293,13 @@ func (u *couponUsecase) ValidateForPlan(ctx context.Context, code, email, planSl
 
 // ApplyDiscount computes the discounted invoice amount for a percent/amount coupon.
 // Trial-type coupons set the amount to zero (they bypass the payment flow entirely).
-func (u *couponUsecase) ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64) (int64, error) {
+// For amount coupons, DiscountValue is interpreted as a monthly amount in IDR.
+func (u *couponUsecase) ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64, userCount int, billingPeriod string) (int64, error) {
 	if code == "" {
 		return baseAmount, nil
+	}
+	if userCount < 1 {
+		userCount = 1
 	}
 	coupon, err := u.couponRepo.FindByCode(ctx, code)
 	if err != nil {
@@ -242,104 +313,177 @@ func (u *couponUsecase) ApplyDiscount(ctx context.Context, code, planSlug string
 			return baseAmount, nil
 		}
 	}
+
+	if packageAmount, ok := packageCouponAmount(coupon, baseAmount, userCount, billingPeriod); ok {
+		return packageAmount, nil
+	}
+
+	if coupon.MaxUserCount > 0 && userCount > coupon.MaxUserCount {
+		return baseAmount, ErrCouponUserLimit
+	}
+
+	return applyStandardCouponDiscount(coupon, baseAmount, billingPeriod), nil
+}
+
+func packageCouponAmount(coupon *models.Coupon, baseAmount int64, userCount int, billingPeriod string) (int64, bool) {
+	if coupon == nil || coupon.PackagePriceMonthlyIDR <= 0 || coupon.MaxUserCount <= 0 {
+		return 0, false
+	}
+
+	packageAmount := int64(coupon.PackagePriceMonthlyIDR)
+	if billingPeriod == "yearly" {
+		if coupon.PackagePriceYearlyIDR > 0 {
+			packageAmount = int64(coupon.PackagePriceYearlyIDR)
+		} else {
+			packageAmount = int64(coupon.PackagePriceMonthlyIDR * 12 * 0.9)
+		}
+	}
+
+	if userCount <= coupon.MaxUserCount {
+		return packageAmount, true
+	}
+
+	unitAmount := baseAmount / int64(userCount)
+	extraUsers := int64(userCount - coupon.MaxUserCount)
+	finalAmount := packageAmount + (extraUsers * unitAmount)
+	if finalAmount < 0 {
+		return 0, true
+	}
+	return finalAmount, true
+}
+
+func applyStandardCouponDiscount(coupon *models.Coupon, baseAmount int64, billingPeriod string) int64 {
+	if coupon == nil {
+		return baseAmount
+	}
+
 	switch coupon.DiscountType {
 	case models.CouponDiscountTrial:
-		return 0, nil
+		return 0
 	case models.CouponDiscountPercent:
 		if coupon.DiscountValue <= 0 {
-			return baseAmount, nil
+			return baseAmount
 		}
 		discount := int64(float64(baseAmount) * coupon.DiscountValue / 100)
 		if final := baseAmount - discount; final >= 0 {
-			return final, nil
+			return final
 		}
-		return 0, nil
+		return 0
 	case models.CouponDiscountAmount:
-		if final := baseAmount - int64(coupon.DiscountValue); final >= 0 {
-			return final, nil
+		discount := int64(coupon.DiscountValue)
+		if billingPeriod == "yearly" {
+			discount *= 12
 		}
-		return 0, nil
+		if final := baseAmount - discount; final >= 0 {
+			return final
+		}
+		return 0
+	default:
+		return baseAmount
 	}
-	return baseAmount, nil
 }
 
 func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error) {
 	var sub *models.TenantSubscription
 
 	err := u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Lock the coupon row to prevent concurrent over-redemption.
-		var coupon models.Coupon
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").
-			Where("code = ? AND deleted_at IS NULL", strings.ToUpper(strings.TrimSpace(code))).
-			First(&coupon).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrCouponNotFound
-			}
+		coupon, err := loadCouponForRedemption(tx, code)
+		if err != nil {
+			return err
+		}
+		if err := validateCouponForRedemption(tx, coupon, email); err != nil {
+			return err
+		}
+		if err := recordCouponUsage(tx, coupon.ID, email); err != nil {
+			return err
+		}
+		if err := incrementCouponUsedCount(tx, coupon.ID); err != nil {
 			return err
 		}
 
-		if !coupon.IsActive {
-			return ErrCouponInactive
-		}
-		if coupon.UsedCount >= coupon.MaxUses {
-			return ErrCouponExhausted
-		}
-		if coupon.ExpiresAt != nil && apptime.Now().After(*coupon.ExpiresAt) {
-			return ErrCouponExpired
-		}
-
-		// Enforce one-time-per-email inside the transaction.
-		var usageCount int64
-		if err := tx.Model(&models.CouponUsage{}).
-			Where("coupon_id = ? AND email = ?", coupon.ID, strings.ToLower(strings.TrimSpace(email))).
-			Count(&usageCount).Error; err != nil {
-			return err
-		}
-		if usageCount > 0 {
-			return ErrCouponAlreadyUsed
-		}
-
-		// Record usage before incrementing to satisfy the unique constraint first.
-		usage := &models.CouponUsage{
-			CouponID: coupon.ID,
-			Email:    strings.ToLower(strings.TrimSpace(email)),
-			UsedAt:   apptime.Now(),
-		}
-		if err := tx.Create(usage).Error; err != nil {
-			return err
-		}
-
-		// Atomically increment usage count.
-		if err := tx.Model(&models.Coupon{}).Where("id = ?", coupon.ID).
-			UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error; err != nil {
-			return err
-		}
-
-		now := apptime.Now()
-		expiresAt := now.Add(time.Duration(coupon.DurationDays) * 24 * time.Hour)
-		couponID := coupon.ID
-
-		// Determine the plan the coupon grants based on CouponType or TargetPlanSlug.
-		plan := couponTypeToPlan(coupon.CouponType)
-		if coupon.TargetPlanSlug != nil && *coupon.TargetPlanSlug != "" {
-			plan = models.SubscriptionPlan(*coupon.TargetPlanSlug)
-		}
-
-		sub = &models.TenantSubscription{
-			TenantID:      tenantID,
-			Plan:          plan,
-			BillingPeriod: models.BillingMonthly,
-			Status:        models.SubscriptionTrial,
-			StartsAt:      now,
-			ExpiresAt:     &expiresAt,
-			CouponID:      &couponID,
-			Notes:         fmt.Sprintf("Granted via coupon %s (%s)", coupon.Code, coupon.Description),
-		}
-
+		sub = buildTrialSubscriptionFromCoupon(coupon, tenantID)
 		return tx.Create(sub).Error
 	})
 
 	return sub, err
+}
+
+func loadCouponForRedemption(tx *gorm.DB, code string) (*models.Coupon, error) {
+	var coupon models.Coupon
+	if err := tx.Set("gorm:query_option", "FOR UPDATE").
+		Where("code = ? AND deleted_at IS NULL", strings.ToUpper(strings.TrimSpace(code))).
+		First(&coupon).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCouponNotFound
+		}
+		return nil, err
+	}
+	return &coupon, nil
+}
+
+func validateCouponForRedemption(tx *gorm.DB, coupon *models.Coupon, email string) error {
+	if coupon == nil {
+		return ErrCouponNotFound
+	}
+	if !coupon.IsActive {
+		return ErrCouponInactive
+	}
+	if coupon.UsedCount >= coupon.MaxUses {
+		return ErrCouponExhausted
+	}
+	if coupon.ExpiresAt != nil && apptime.Now().After(*coupon.ExpiresAt) {
+		return ErrCouponExpired
+	}
+
+	var usageCount int64
+	if err := tx.Model(&models.CouponUsage{}).
+		Where("coupon_id = ? AND email = ?", coupon.ID, strings.ToLower(strings.TrimSpace(email))).
+		Count(&usageCount).Error; err != nil {
+		return err
+	}
+	if usageCount > 0 {
+		return ErrCouponAlreadyUsed
+	}
+	return nil
+}
+
+func recordCouponUsage(tx *gorm.DB, couponID, email string) error {
+	usage := &models.CouponUsage{
+		CouponID: couponID,
+		Email:    strings.ToLower(strings.TrimSpace(email)),
+		UsedAt:   apptime.Now(),
+	}
+	return tx.Create(usage).Error
+}
+
+func incrementCouponUsedCount(tx *gorm.DB, couponID string) error {
+	return tx.Model(&models.Coupon{}).Where("id = ?", couponID).
+		UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error
+}
+
+func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string) *models.TenantSubscription {
+	if coupon == nil {
+		return nil
+	}
+
+	now := apptime.Now()
+	expiresAt := now.Add(time.Duration(coupon.DurationDays) * 24 * time.Hour)
+	couponID := coupon.ID
+	plan := couponTypeToPlan(coupon.CouponType)
+	if coupon.TargetPlanSlug != nil && *coupon.TargetPlanSlug != "" {
+		plan = models.SubscriptionPlan(*coupon.TargetPlanSlug)
+	}
+
+	return &models.TenantSubscription{
+		TenantID:      tenantID,
+		Plan:          plan,
+		BillingPeriod: models.BillingMonthly,
+		Status:        models.SubscriptionTrial,
+		StartsAt:      now,
+		ExpiresAt:     &expiresAt,
+		CouponID:      &couponID,
+		Notes:         fmt.Sprintf("Granted via coupon %s (%s)", coupon.Code, coupon.Description),
+	}
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -347,22 +491,26 @@ func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenant
 // toCouponDTO converts a model to the safe response DTO.
 func toCouponDTO(c *models.Coupon) *dto.CouponResponse {
 	r := &dto.CouponResponse{
-		ID:              c.ID,
-		Code:            c.Code,
-		Description:     c.Description,
-		CouponType:      string(c.CouponType),
-		DiscountType:    string(c.DiscountType),
-		DiscountValue:   c.DiscountValue,
-		Scope:           string(c.Scope),
-		DurationDays:    c.DurationDays,
-		MaxUses:         c.MaxUses,
-		UsedCount:       c.UsedCount,
-		MaxUsesPerEmail: c.MaxUsesPerEmail,
-		IsActive:        c.IsActive,
-		ExpiresAt:       c.ExpiresAt,
-		CreatedBy:       c.CreatedBy,
-		CreatedAt:       c.CreatedAt,
-		UpdatedAt:       c.UpdatedAt,
+		ID:                     c.ID,
+		Code:                   c.Code,
+		Description:            c.Description,
+		CouponType:             string(c.CouponType),
+		DiscountType:           string(c.DiscountType),
+		DiscountValue:          c.DiscountValue,
+		MaxUserCount:           c.MaxUserCount,
+		LockUserCount:          c.LockUserCount,
+		PackagePriceMonthlyIDR: c.PackagePriceMonthlyIDR,
+		PackagePriceYearlyIDR:  c.PackagePriceYearlyIDR,
+		Scope:                  string(c.Scope),
+		DurationDays:           c.DurationDays,
+		MaxUses:                c.MaxUses,
+		UsedCount:              c.UsedCount,
+		MaxUsesPerEmail:        c.MaxUsesPerEmail,
+		IsActive:               c.IsActive,
+		ExpiresAt:              c.ExpiresAt,
+		CreatedBy:              c.CreatedBy,
+		CreatedAt:              c.CreatedAt,
+		UpdatedAt:              c.UpdatedAt,
 	}
 	if c.TargetPlanSlug != nil {
 		r.TargetPlanSlug = *c.TargetPlanSlug

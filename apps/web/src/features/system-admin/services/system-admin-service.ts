@@ -18,6 +18,7 @@ import type {
   CouponDetailResponse,
   CouponListParams,
   CreateCouponRequest,
+  UpdateCouponRequest,
   SubscriptionListResponse,
   SubscriptionDetailResponse,
   SubscriptionListParams,
@@ -234,6 +235,11 @@ export const systemAdminService = {
 
   async getCoupons(params?: CouponListParams): Promise<CouponListResponse> {
     const { data } = await sysAdminClient.get<CouponListResponse>("/coupons", { params });
+    return data;
+  },
+
+  async updateCoupon(id: string, payload: UpdateCouponRequest): Promise<CouponDetailResponse> {
+    const { data } = await sysAdminClient.put<CouponDetailResponse>(`/coupons/${id}`, payload);
     return data;
   },
 

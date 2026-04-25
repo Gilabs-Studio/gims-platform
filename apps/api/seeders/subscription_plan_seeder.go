@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -28,8 +30,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "pos",
 			Description:     "Multi-outlet cashier with loyalty and advanced reports.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 199_000,
-			PriceYearlyIDR:  2_149_200, // 199000 * 12 * 0.9
+			PriceMonthlyIDR: 79_000,
+			PriceYearlyIDR:  853_200, // 79000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -40,6 +42,12 @@ func SeedSubscriptionPlans() error {
 				"Loyalty programs",
 				"Advanced sales reports",
 			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
+				{Code: "outlet_manager", Name: "Outlet Manager", Description: "Manages outlet operations and staff."},
+			},
 		},
 		{
 			Slug:            "erp_pro",
@@ -47,8 +55,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "erp",
 			Description:     "Purchase, sales, finance, and inventory operations.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 399_000,
-			PriceYearlyIDR:  4_309_200, // 399000 * 12 * 0.9
+			PriceMonthlyIDR: 109_000,
+			PriceYearlyIDR:  1_177_200, // 109000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -59,6 +67,12 @@ func SeedSubscriptionPlans() error {
 				"Finance and accounting",
 				"Inventory operations",
 			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
+				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+			},
 		},
 		{
 			Slug:            "crm_growth",
@@ -66,8 +80,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "crm",
 			Description:     "Pipeline automation, custom fields, and activity timeline.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 149_000,
-			PriceYearlyIDR:  1_609_200, // 149000 * 12 * 0.9
+			PriceMonthlyIDR: 89_000,
+			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -78,6 +92,12 @@ func SeedSubscriptionPlans() error {
 				"Custom fields",
 				"Customer activity timeline",
 			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
+				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+			},
 		},
 		{
 			Slug:            "hr_growth",
@@ -85,8 +105,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "hr",
 			Description:     "Payroll processing, attendance, and performance reviews.",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 79_000,
-			PriceYearlyIDR:  853_200, // 79000 * 12 * 0.9
+			PriceMonthlyIDR: 89_000,
+			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -97,6 +117,12 @@ func SeedSubscriptionPlans() error {
 				"Attendance tracking",
 				"Performance reviews",
 			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
+				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+			},
 		},
 		// ── Bundle plans ──────────────────────────────────────────────────────
 		{
@@ -105,8 +131,8 @@ func SeedSubscriptionPlans() error {
 			Category:        "bundle",
 			Description:     "POS · ERP · CRM",
 			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 149_000,
-			PriceYearlyIDR:  1_609_200, // 149000 * 12 * 0.9
+			PriceMonthlyIDR: 125_000,
+			PriceYearlyIDR:  1_350_000, // 125000 * 12 * 0.9
 			MinUsers:        1,
 			MaxUsers:        500,
 			IsActive:        true,
@@ -118,6 +144,14 @@ func SeedSubscriptionPlans() error {
 				"CRM",
 				"Unified dashboard",
 				"Cross-module reporting",
+			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
+				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
+				{Code: "outlet_manager", Name: "Outlet Manager", Description: "Manages outlet operations and staff."},
+				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
 			},
 		},
 		{
@@ -143,17 +177,29 @@ func SeedSubscriptionPlans() error {
 				"API access",
 				"Custom onboarding",
 			},
+			RoleTemplates: tenantModels.RoleTemplateList{
+				{Code: "tenant_owner", Name: "Owner", Description: "Main account owner role with full access."},
+				{Code: "admin", Name: "Admin", Description: "Full access to manage the system."},
+				{Code: "manager", Name: "Manager", Description: "Manages outlet operations and staff."},
+				{Code: "cashier", Name: "Cashier", Description: "Handles sales and payment transactions."},
+				{Code: "outlet_manager", Name: "Outlet Manager", Description: "Manages outlet operations and staff."},
+				{Code: "staff", Name: "Staff", Description: "Basic access for daily work."},
+			},
 		},
 	}
 
 	for i := range plans {
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "category", "description", "billing_type", "price_monthly_idr", "price_yearly_idr", "min_users", "max_users", "is_highlighted", "sort_order", "features", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"name", "category", "description", "billing_type", "price_monthly_idr", "price_yearly_idr", "min_users", "max_users", "is_highlighted", "sort_order", "features", "role_templates", "updated_at"}),
 		}).Create(&plans[i]).Error; err != nil {
 			log.Printf("Error seeding plan %s: %v", plans[i].Slug, err)
 			return err
 		}
+	}
+
+	if err := syncTenantRolesFromPlanTemplates(db); err != nil {
+		return err
 	}
 
 	// Seed module entitlements per plan.
@@ -511,5 +557,68 @@ func SeedSubscriptionPlans() error {
 	}
 
 	log.Printf("Seeded %d subscription plans with entitlements.", len(plans))
+	return nil
+}
+
+func syncTenantRolesFromPlanTemplates(db *gorm.DB) error {
+	var plans []tenantModels.SubscriptionPlanConfig
+	if err := db.Find(&plans).Error; err != nil {
+		return err
+	}
+
+	planTemplates := make(map[string]tenantModels.RoleTemplateList, len(plans))
+	for _, plan := range plans {
+		if len(plan.RoleTemplates) == 0 {
+			continue
+		}
+		planTemplates[plan.Slug] = plan.RoleTemplates
+	}
+
+	if len(planTemplates) == 0 {
+		return nil
+	}
+
+	type tenantRow struct {
+		ID   string
+		Plan string
+	}
+
+	var tenants []tenantRow
+	if err := db.Table("tenants").Select("id, plan").Find(&tenants).Error; err != nil {
+		return err
+	}
+
+	for _, tenant := range tenants {
+		templates := planTemplates[strings.TrimSpace(strings.ToLower(tenant.Plan))]
+		for _, template := range templates {
+			baseCode := strings.TrimSpace(strings.ToLower(template.Code))
+			if baseCode == "" {
+				continue
+			}
+
+			codePattern := baseCode + "_%"
+			if baseCode == "tenant_owner" {
+				codePattern = "tenant_owner_%"
+			}
+
+			var role roleModels.Role
+			if err := db.Where("tenant_id = ? AND code LIKE ? AND deleted_at IS NULL", tenant.ID, codePattern).First(&role).Error; err != nil {
+				continue
+			}
+
+			updates := map[string]any{
+				"name":        strings.TrimSpace(template.Name),
+				"description": strings.TrimSpace(template.Description),
+			}
+			if baseCode == "tenant_owner" {
+				updates["is_protected"] = true
+			}
+
+			if err := db.Model(&role).Updates(updates).Error; err != nil {
+				log.Printf("Warning: failed to sync role template %s for tenant %s: %v", baseCode, tenant.ID, err)
+			}
+		}
+	}
+
 	return nil
 }

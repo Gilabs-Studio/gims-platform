@@ -1,11 +1,18 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	"github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	"github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -19,6 +26,76 @@ type SystemAdminHandler struct {
 	couponUC   usecase.CouponUsecase
 	subUC      usecase.SubscriptionUsecase
 	planUC     usecase.SubscriptionPlanUsecase
+}
+
+type dashboardBusinessHealth struct {
+	MRRIDR                 int64   `json:"mrr_idr"`
+	ARRIDR                 int64   `json:"arr_idr"`
+	ChurnRatePercent       float64 `json:"churn_rate_percent"`
+	NetRevenueRetentionPct float64 `json:"net_revenue_retention_percent"`
+	TotalTenantAktif       int64   `json:"total_tenant_aktif"`
+	TotalSeatTerjual       int64   `json:"total_seat_terjual"`
+	TrialAktif             int64   `json:"trial_aktif"`
+	OverdueInvoice         int64   `json:"overdue_invoice"`
+	SuspendedTenant        int64   `json:"suspended_tenant"`
+	DeltaTenantBulanIni    int64   `json:"delta_tenant_bulan_ini"`
+}
+
+type dashboardPlanMixRow struct {
+	Plan         string  `json:"plan"`
+	Label        string  `json:"label"`
+	TenantCount  int64   `json:"tenant_count"`
+	SeatCount    int64   `json:"seat_count"`
+	SharePercent float64 `json:"share_percent"`
+}
+
+type dashboardBillingActivity struct {
+	SuccessCount   int64 `json:"success_count"`
+	FailedRetry    int64 `json:"failed_retry"`
+	RefundProcess  int64 `json:"refund_process"`
+	UpgradePlan    int64 `json:"upgrade_plan"`
+	AddSeat        int64 `json:"add_seat"`
+}
+
+type dashboardSupportSummary struct {
+	OpenTickets    int64   `json:"open_tickets"`
+	SLABreach      int64   `json:"sla_breach"`
+	CSATAverage    float64 `json:"csat_average"`
+	ActiveIncidents int64   `json:"active_incidents"`
+	TodoNote       string  `json:"todo_note"`
+	IsTodo         bool    `json:"is_todo"`
+}
+
+type dashboardTenantRow struct {
+	TenantName string    `json:"tenant_name"`
+	Plan       string    `json:"plan"`
+	Seat       int       `json:"seat"`
+	Status     string    `json:"status"`
+	MRRIDR     int64     `json:"mrr_idr"`
+	JoinedAt   time.Time `json:"joined_at"`
+}
+
+type dashboardInfrastructureSummary struct {
+	Uptime30DPercent  float64 `json:"uptime_30d_percent"`
+	APILatencyAvgMs   float64 `json:"api_latency_avg_ms"`
+	ErrorRatePercent   float64 `json:"error_rate_percent"`
+	DBSizeBytes       int64   `json:"db_size_bytes"`
+	DBSizeLabel       string  `json:"db_size_label"`
+	ObservationNote   string  `json:"observation_note"`
+}
+
+type dashboardPaymentRow struct {
+	ID              string     `json:"id"`
+	TenantName      string     `json:"tenant_name"`
+	Plan            string     `json:"plan"`
+	BillingPeriod   string     `json:"billing_period"`
+	AmountPaidIDR   int64      `json:"amount_paid_idr"`
+	CouponCode      string     `json:"coupon_code,omitempty"`
+	XenditInvoiceID string     `json:"xendit_invoice_id,omitempty"`
+	Notes           string     `json:"notes,omitempty"`
+	StartsAt        time.Time  `json:"starts_at"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 // NewSystemAdminHandler creates a new SystemAdminHandler.
@@ -158,10 +235,310 @@ func (h *SystemAdminHandler) Dashboard(c *gin.Context) {
 		return
 	}
 
+	businessHealth, planMix, billingActivity, supportSummary, tenantOverview, infrastructure := h.loadDashboardSummary(c.Request.Context(), tenants)
+
 	response.SuccessResponse(c, gin.H{
-		"total_tenants": len(tenants),
-		"tenants":       tenants,
+		"total_tenants":          len(tenants),
+		"tenants":                tenants,
+		"business_health":        businessHealth,
+		"plan_mix":               planMix,
+		"billing_activity":       billingActivity,
+		"support_incidents":      supportSummary,
+		"tenant_overview":           tenantOverview,
+		"infrastructure_performance": infrastructure,
 	}, nil)
+}
+
+	func (h *SystemAdminHandler) loadDashboardSummary(ctx context.Context, tenants []dto.TenantListResponse) (dashboardBusinessHealth, []dashboardPlanMixRow, dashboardBillingActivity, dashboardSupportSummary, []dashboardTenantRow, dashboardInfrastructureSummary) {
+	now := time.Now()
+	thirtyDaysAgo := now.AddDate(0, 0, -30)
+	previousThirtyDaysAgo := now.AddDate(0, 0, -60)
+
+	businessHealth := h.loadBusinessHealth(ctx, tenants, thirtyDaysAgo, previousThirtyDaysAgo, now)
+	planMix := h.loadPlanMix(ctx)
+	billingActivity := h.loadBillingActivity(ctx, thirtyDaysAgo)
+	supportSummary := dashboardSupportSummary{
+		OpenTickets:     24,
+		SLABreach:       2,
+		CSATAverage:     4.6,
+		ActiveIncidents: 1,
+		TodoNote:        "TODO: sambungkan data helpdesk dan incident tracker ke dashboard ini.",
+		IsTodo:          true,
+	}
+	tenantOverview := h.loadTenantOverview(ctx, tenants)
+	infrastructure := h.loadInfrastructureSummary(ctx)
+
+	return businessHealth, planMix, billingActivity, supportSummary, tenantOverview, infrastructure
+}
+
+func (h *SystemAdminHandler) loadBusinessHealth(ctx context.Context, tenants []dto.TenantListResponse, thirtyDaysAgo, previousThirtyDaysAgo, now time.Time) dashboardBusinessHealth {
+	type subscriptionAgg struct {
+		TotalPaidCurrent  int64 `gorm:"column:total_paid_current"`
+		TotalPaidPrevious int64 `gorm:"column:total_paid_previous"`
+		ActiveCount       int64 `gorm:"column:active_count"`
+		TrialCount        int64 `gorm:"column:trial_count"`
+		OverdueCount      int64 `gorm:"column:overdue_count"`
+		SeatCount         int64 `gorm:"column:seat_count"`
+		ExpiredCount      int64 `gorm:"column:expired_count"`
+	}
+
+	var subscriptionSummary subscriptionAgg
+	_ = database.DB.WithContext(ctx).
+		Table("tenant_subscriptions").
+		Select(`
+			COALESCE(SUM(CASE WHEN created_at >= ? AND status = 'active' THEN amount_paid_idr ELSE 0 END), 0) AS total_paid_current,
+			COALESCE(SUM(CASE WHEN created_at >= ? AND created_at < ? AND status = 'active' THEN amount_paid_idr ELSE 0 END), 0) AS total_paid_previous,
+			COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS active_count,
+			COALESCE(SUM(CASE WHEN status = 'trial' THEN 1 ELSE 0 END), 0) AS trial_count,
+			COALESCE(SUM(CASE WHEN status = 'active' AND expires_at IS NOT NULL AND expires_at < ? THEN 1 ELSE 0 END), 0) AS overdue_count,
+			COALESCE(SUM(CASE WHEN status IN ('active', 'trial') THEN user_count ELSE 0 END), 0) AS seat_count,
+			COALESCE(SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END), 0) AS expired_count
+		`, thirtyDaysAgo, previousThirtyDaysAgo, thirtyDaysAgo, now).
+		Where("deleted_at IS NULL").
+		Scan(&subscriptionSummary).Error
+
+	activeTenants := int64(0)
+	trialTenants := int64(0)
+	suspendedTenants := int64(0)
+	for _, tenant := range tenants {
+		switch strings.ToLower(strings.TrimSpace(tenant.Status)) {
+		case "active":
+			activeTenants++
+		case "trial":
+			trialTenants++
+		case "suspended":
+			suspendedTenants++
+		}
+	}
+
+	var payments30d struct {
+		CurrentRevenue  int64 `gorm:"column:current_revenue"`
+		PreviousRevenue int64 `gorm:"column:previous_revenue"`
+	}
+	_ = database.DB.WithContext(ctx).
+		Table("payment_transactions").
+		Select(`
+			COALESCE(SUM(CASE WHEN status = 'paid' AND created_at >= ? THEN amount_idr ELSE 0 END), 0) AS current_revenue,
+			COALESCE(SUM(CASE WHEN status = 'paid' AND created_at >= ? AND created_at < ? THEN amount_idr ELSE 0 END), 0) AS previous_revenue
+		`, thirtyDaysAgo, previousThirtyDaysAgo, thirtyDaysAgo).
+		Where("deleted_at IS NULL").
+		Scan(&payments30d).Error
+
+	mrr := payments30d.CurrentRevenue
+	if mrr == 0 {
+		mrr = subscriptionSummary.TotalPaidCurrent
+	}
+	arr := mrr * 12
+	nrr := float64(100)
+	if payments30d.PreviousRevenue > 0 {
+		nrr = float64(payments30d.CurrentRevenue) * 100 / float64(payments30d.PreviousRevenue)
+	}
+	churn := float64(0)
+	if activeTenants > 0 {
+		churn = float64(subscriptionSummary.ExpiredCount) * 100 / float64(activeTenants)
+	}
+
+	planDelta := activeTenants - subscriptionSummary.ActiveCount
+	if planDelta < 0 {
+		planDelta = 0
+	}
+
+	return dashboardBusinessHealth{
+		MRRIDR:                 mrr,
+		ARRIDR:                 arr,
+		ChurnRatePercent:       churn,
+		NetRevenueRetentionPct: nrr,
+		TotalTenantAktif:       activeTenants,
+		TotalSeatTerjual:       subscriptionSummary.SeatCount,
+		TrialAktif:             trialTenants,
+		OverdueInvoice:         subscriptionSummary.OverdueCount,
+		SuspendedTenant:        suspendedTenants,
+		DeltaTenantBulanIni:    planDelta,
+	}
+}
+
+func (h *SystemAdminHandler) loadPlanMix(ctx context.Context) []dashboardPlanMixRow {
+	type planRow struct {
+		Plan        string `gorm:"column:plan"`
+		TenantCount int64  `gorm:"column:tenant_count"`
+		SeatCount   int64  `gorm:"column:seat_count"`
+	}
+
+	var rows []planRow
+	_ = database.DB.WithContext(ctx).
+		Table("tenant_subscriptions").
+		Select("plan, COUNT(DISTINCT tenant_id) AS tenant_count, COALESCE(SUM(user_count), 0) AS seat_count").
+		Where("deleted_at IS NULL AND status IN ?", []tenantModels.SubscriptionStatus{tenantModels.SubscriptionActive, tenantModels.SubscriptionTrial}).
+		Group("plan").
+		Order("tenant_count DESC, seat_count DESC").
+		Scan(&rows).Error
+
+	total := int64(0)
+	for _, row := range rows {
+		total += row.TenantCount
+	}
+
+	result := make([]dashboardPlanMixRow, 0, len(rows))
+	for _, row := range rows {
+		share := 0.0
+		if total > 0 {
+			share = float64(row.TenantCount) * 100 / float64(total)
+		}
+		result = append(result, dashboardPlanMixRow{
+			Plan:         row.Plan,
+			Label:        humanizePlanLabel(row.Plan),
+			TenantCount:  row.TenantCount,
+			SeatCount:    row.SeatCount,
+			SharePercent: share,
+		})
+	}
+
+	return result
+}
+
+func (h *SystemAdminHandler) loadBillingActivity(ctx context.Context, since time.Time) dashboardBillingActivity {
+	type billingRow struct {
+		SuccessCount  int64 `gorm:"column:success_count"`
+		FailedRetry   int64 `gorm:"column:failed_retry"`
+		RefundProcess int64 `gorm:"column:refund_process"`
+		UpgradePlan   int64 `gorm:"column:upgrade_plan"`
+		AddSeat       int64 `gorm:"column:add_seat"`
+	}
+
+	var billing billingRow
+	if err := database.DB.WithContext(ctx).
+		Table("payment_transactions").
+		Select(`
+			COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS success_count,
+			COALESCE(SUM(CASE WHEN status IN ('failed', 'expired') THEN 1 ELSE 0 END), 0) AS failed_retry,
+			COALESCE(SUM(CASE WHEN status = 'canceled' THEN 1 ELSE 0 END), 0) AS refund_process,
+			COALESCE(SUM(CASE WHEN LOWER(COALESCE(description, '')) LIKE '%upgrade%' OR LOWER(COALESCE(notes, '')) LIKE '%upgrade%' THEN 1 ELSE 0 END), 0) AS upgrade_plan,
+			COALESCE(SUM(CASE WHEN LOWER(COALESCE(description, '')) LIKE '%seat%' OR LOWER(COALESCE(notes, '')) LIKE '%seat%' THEN 1 ELSE 0 END), 0) AS add_seat
+		`).
+		Where("deleted_at IS NULL AND created_at >= ?", since).
+		Scan(&billing).Error; err != nil {
+		// Non-fatal: return zeros on error
+		return dashboardBillingActivity{}
+	}
+
+	return dashboardBillingActivity{
+		SuccessCount:  billing.SuccessCount,
+		FailedRetry:   billing.FailedRetry,
+		RefundProcess: billing.RefundProcess,
+		UpgradePlan:   billing.UpgradePlan,
+		AddSeat:       billing.AddSeat,
+	}
+}
+
+func (h *SystemAdminHandler) loadTenantOverview(ctx context.Context, tenants []dto.TenantListResponse) []dashboardTenantRow {
+	rows := make([]dashboardTenantRow, 0, minInt(len(tenants), 4))
+	for _, tenant := range tenants {
+		joinedAt := time.Now()
+		if tenant.CreatedAt != nil {
+			if parsed, err := time.Parse(time.RFC3339, *tenant.CreatedAt); err == nil {
+				joinedAt = parsed
+			}
+		}
+
+		// Prefer active subscription plan over tenants.plan (which may be stale 'trial')
+		plan := tenant.Plan
+		seat := tenant.MaxUsers
+		var sub struct {
+			Plan      string `gorm:"column:plan"`
+			SeatLimit int    `gorm:"column:seat_limit"`
+		}
+		if err := database.DB.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Select("plan, seat_limit").
+			Where("tenant_id = ? AND status IN ('active','trial') AND deleted_at IS NULL", tenant.ID).
+			Order("created_at DESC").
+			Limit(1).
+			Scan(&sub).Error; err == nil && sub.Plan != "" {
+			plan = sub.Plan
+			if sub.SeatLimit > 0 {
+				seat = sub.SeatLimit
+			}
+		}
+
+		rows = append(rows, dashboardTenantRow{
+			TenantName: tenant.Name,
+			Plan:       plan,
+			Seat:       seat,
+			Status:     tenant.Status,
+			JoinedAt:   joinedAt,
+		})
+		if len(rows) >= 4 {
+			break
+		}
+	}
+
+	return rows
+}
+
+func (h *SystemAdminHandler) loadInfrastructureSummary(ctx context.Context) dashboardInfrastructureSummary {
+	metrics := middleware.MetricsSnapshot()
+	var dbSizeBytes int64
+	_ = database.DB.WithContext(ctx).Raw("SELECT COALESCE(pg_database_size(current_database()), 0)").Scan(&dbSizeBytes).Error
+
+	return dashboardInfrastructureSummary{
+		Uptime30DPercent: uptimePercentFromMetrics(metrics),
+		APILatencyAvgMs:  metrics.AvgDurationMs,
+		ErrorRatePercent:  errorRatePercentFromMetrics(metrics),
+		DBSizeBytes:      dbSizeBytes,
+		DBSizeLabel:      humanizeBytes(dbSizeBytes),
+		ObservationNote:  "Live metrics from request middleware and PostgreSQL storage size.",
+	}
+}
+
+func humanizePlanLabel(plan string) string {
+	if plan == "" {
+		return "Unknown"
+	}
+	label := strings.ReplaceAll(plan, "_", " ")
+	parts := strings.Fields(label)
+	for i, part := range parts {
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, " ")
+}
+
+func humanizeBytes(size int64) string {
+	if size <= 0 {
+		return "0 B"
+	}
+	units := []string{"B", "KB", "MB", "GB", "TB"}
+	value := float64(size)
+	unitIndex := 0
+	for value >= 1024 && unitIndex < len(units)-1 {
+		value /= 1024
+		unitIndex++
+	}
+	return fmt.Sprintf("%.2f %s", value, units[unitIndex])
+}
+
+func uptimePercentFromMetrics(metrics middleware.MetricsSnapshotData) float64 {
+	if metrics.TotalRequests == 0 {
+		return 100
+	}
+	uptime := 100 - errorRatePercentFromMetrics(metrics)
+	if uptime < 0 {
+		return 0
+	}
+	return uptime
+}
+
+func errorRatePercentFromMetrics(metrics middleware.MetricsSnapshotData) float64 {
+	if metrics.TotalRequests == 0 {
+		return 0
+	}
+	return float64(metrics.TotalErrors5xx) * 100 / float64(metrics.TotalRequests)
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ─── Coupon endpoints ────────────────────────────────────────────────────────
@@ -212,6 +589,37 @@ func (h *SystemAdminHandler) ListCoupons(c *gin.Context) {
 
 	meta := &response.Meta{Pagination: pagination}
 	response.SuccessResponse(c, coupons, meta)
+}
+
+// UpdateCoupon updates an existing coupon (system admin only).
+func (h *SystemAdminHandler) UpdateCoupon(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"id": "required"}, nil)
+		return
+	}
+
+	var req dto.UpdateCouponRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	coupon, err := h.couponUC.Update(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrCouponNotFound {
+			errors.ErrorResponse(c, "COUPON_NOT_FOUND", nil, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, coupon, nil)
 }
 
 // SetCouponStatus activates or deactivates a coupon (system admin only).

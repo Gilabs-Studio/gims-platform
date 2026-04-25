@@ -80,7 +80,7 @@ export function RoleList() {
       header: t("status"),
       accessor: (row) => {
         // Check if role is protected
-        const isProtected = (row.is_protected ?? false) || row.code === "admin" || row.code === "superadmin";
+        const isProtected = (row.is_protected ?? false) || row.code === "admin" || row.code === "superadmin" || row.code.startsWith("tenant_owner_");
         
         return (
           <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export function RoleList() {
       header: t("actions"),
       accessor: (row) => {
         // Check if role is protected - either by is_protected flag or by code (admin/superadmin)
-        const isProtected = (row.is_protected ?? false) || row.code === "admin" || row.code === "superadmin";
+        const isProtected = (row.is_protected ?? false) || row.code === "admin" || row.code === "superadmin" || row.code.startsWith("tenant_owner_");
         
         return (
           <div className="flex items-center justify-end gap-1">

@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // SubscriptionPlanRepository defines data-access operations for SubscriptionPlanConfig.
@@ -131,7 +132,10 @@ func NewSubscriptionPlanRepository(db *gorm.DB) SubscriptionPlanRepository {
 // getDB returns the db scoped to the context (respects transaction if present).
 // Plan configs are platform-wide, so we bypass tenant scoping intentionally.
 func (r *subscriptionPlanRepository) getDB(ctx context.Context) *gorm.DB {
-	return database.GetDB(ctx, r.db)
+	if tx := database.GetTx(ctx); tx != nil {
+		return tx.WithContext(ctx)
+	}
+	return r.db.WithContext(ctx)
 }
 
 func (r *subscriptionPlanRepository) ListActive(ctx context.Context) ([]*models.SubscriptionPlanConfig, error) {
@@ -180,10 +184,45 @@ func (r *subscriptionPlanRepository) FindBySlug(ctx context.Context, slug string
 }
 
 func (r *subscriptionPlanRepository) Upsert(ctx context.Context, plan *models.SubscriptionPlanConfig) error {
+	values := map[string]any{
+		"slug":              plan.Slug,
+		"name":              plan.Name,
+		"category":          plan.Category,
+		"description":       plan.Description,
+		"billing_type":      plan.BillingType,
+		"price_monthly_idr": plan.PriceMonthlyIDR,
+		"price_yearly_idr":  plan.PriceYearlyIDR,
+		"min_users":         plan.MinUsers,
+		"max_users":         plan.MaxUsers,
+		"is_active":         plan.IsActive,
+		"is_highlighted":    plan.IsHighlighted,
+		"sort_order":        plan.SortOrder,
+		"features":          plan.Features,
+		"role_templates":    plan.RoleTemplates,
+	}
+
 	return r.getDB(ctx).
-		Where(models.SubscriptionPlanConfig{Slug: plan.Slug}).
-		Assign(*plan).
-		FirstOrCreate(plan).Error
+		Table("subscription_plan_configs").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "slug"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"name":              plan.Name,
+				"category":          plan.Category,
+				"description":       plan.Description,
+				"billing_type":      plan.BillingType,
+				"price_monthly_idr": plan.PriceMonthlyIDR,
+				"price_yearly_idr":  plan.PriceYearlyIDR,
+				"min_users":         plan.MinUsers,
+				"max_users":         plan.MaxUsers,
+				"is_active":         plan.IsActive,
+				"is_highlighted":    plan.IsHighlighted,
+				"sort_order":        plan.SortOrder,
+				"features":          plan.Features,
+				"role_templates":    plan.RoleTemplates,
+				"updated_at":        gorm.Expr("NOW()"),
+			}),
+		}).
+		Create(values).Error
 }
 
 func (r *subscriptionPlanRepository) SetActive(ctx context.Context, slug string, active bool) error {

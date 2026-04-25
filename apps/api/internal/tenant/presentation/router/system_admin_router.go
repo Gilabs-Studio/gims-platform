@@ -32,6 +32,7 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			// Coupon management
 			protected.POST("/coupons", h.CreateCoupon)
 			protected.GET("/coupons", h.ListCoupons)
+			protected.PUT("/coupons/:id", h.UpdateCoupon)
 			protected.PATCH("/coupons/:id/status", h.SetCouponStatus)
 
 			// Subscription management

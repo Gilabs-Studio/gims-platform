@@ -3,12 +3,15 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 
+	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/response"
 	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	tenantPolicy "github.com/gilabs/gims/api/internal/tenant/domain/policy"
 	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -16,9 +19,22 @@ import (
 
 // BillingHandler exposes subscription and entitlement information to authenticated tenant users.
 type BillingHandler struct {
-	subUC    tenantUsecase.SubscriptionUsecase
-	planRepo tenantRepos.SubscriptionPlanRepository
+	subUC           tenantUsecase.SubscriptionUsecase
+	paymentTxnUC    tenantUsecase.PaymentTransactionUsecase
+	planRepo        tenantRepos.SubscriptionPlanRepository
+	billingChangeUC billingChangeUsecase
 }
+
+type billingChangeUsecase interface {
+	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
+	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
+}
+
+type confirmBillingChangeRequest struct {
+	Token string `json:"token" binding:"required,max=255"`
+}
+
+const missingTenantContextMessage = "missing tenant context"
 
 type planPermissionEntitlementRow struct {
 	PermissionCode string
@@ -26,8 +42,8 @@ type planPermissionEntitlementRow struct {
 }
 
 // NewBillingHandler creates a BillingHandler.
-func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, planRepo tenantRepos.SubscriptionPlanRepository) *BillingHandler {
-	return &BillingHandler{subUC: subUC, planRepo: planRepo}
+func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, paymentTxnUC tenantUsecase.PaymentTransactionUsecase, planRepo tenantRepos.SubscriptionPlanRepository, billingChangeUC billingChangeUsecase) *BillingHandler {
+	return &BillingHandler{subUC: subUC, paymentTxnUC: paymentTxnUC, planRepo: planRepo, billingChangeUC: billingChangeUC}
 }
 
 // GetMySubscription returns the active subscription for the calling tenant.
@@ -36,7 +52,7 @@ func NewBillingHandler(subUC tenantUsecase.SubscriptionUsecase, planRepo tenantR
 func (h *BillingHandler) GetMySubscription(c *gin.Context) {
 	tenantID, ok := c.Get("tenant_id")
 	if !ok || tenantID == "" {
-		coreErrors.UnauthorizedResponse(c, "missing tenant context")
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
 		return
 	}
 
@@ -59,7 +75,7 @@ func (h *BillingHandler) GetMySubscription(c *gin.Context) {
 func (h *BillingHandler) GetMyEntitlements(c *gin.Context) {
 	tenantID, ok := c.Get("tenant_id")
 	if !ok || tenantID == "" {
-		coreErrors.UnauthorizedResponse(c, "missing tenant context")
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
 		return
 	}
 	tenantIDStr := tenantID.(string)
@@ -177,4 +193,159 @@ func normalizePlanSlugKey(planSlug string) string {
 	normalized = strings.ReplaceAll(normalized, "-", "_")
 	normalized = strings.ReplaceAll(normalized, " ", "_")
 	return normalized
+}
+
+// GetMyPaymentHistory returns the payment history for the calling tenant.
+//
+// GET /api/v1/billing/payment-history
+func (h *BillingHandler) GetMyPaymentHistory(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+
+	var params tenantDTO.PaymentHistoryListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	payments, pagination, err := h.paymentTxnUC.ListByTenant(c.Request.Context(), tenantID.(string), params)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, "failed to load payment history")
+		return
+	}
+
+	meta := &response.Meta{Pagination: pagination}
+	response.SuccessResponse(c, gin.H{
+		"data": payments,
+	}, meta)
+}
+
+// ChangeSubscription handles seat-limit increases and plan upgrades.
+// POST /api/v1/billing/change
+func (h *BillingHandler) ChangeSubscription(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+	if !canModifyBilling(c) {
+		coreErrors.ForbiddenResponse(c, "billing.change", nil)
+		return
+	}
+
+	var req tenantDTO.BillingChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	tenantIDStr := tenantID.(string)
+	log.Printf("[billing.change] request tenant_id=%s action=%s target=%s action_date=%s idempotency_key=%s",
+		tenantIDStr, req.Action, req.Target, req.ActionDate, req.IdempotencyKey)
+
+	if h.billingChangeUC == nil {
+		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
+		return
+	}
+
+	resp, err := h.billingChangeUC.CreateBillingChangeInvoice(c.Request.Context(), &req, tenantIDStr)
+	if err != nil {
+		log.Printf("[billing.change] failed tenant_id=%s action=%s target=%s err=%v",
+			tenantIDStr, req.Action, req.Target, err)
+		if errors.Is(err, authUsecase.ErrSeatLimitExceeded) {
+			coreErrors.ErrorResponse(c, "SEAT_LIMIT_EXCEEDED", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		if strings.EqualFold(err.Error(), "COUPON_INVALID") {
+			coreErrors.ErrorResponse(c, "COUPON_INVALID", map[string]any{"reason": "Coupon expired, used, or invalid"}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrCouponUserLimitExceeded) {
+			coreErrors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]any{
+				"field":   "user_count",
+				"message": "Selected user count exceeds coupon limit",
+			}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrBillingChangeUnsupported) {
+			coreErrors.ErrorResponse(c, "UNSUPPORTED_BILLING_CHANGE", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrPaymentGatewayUnavailable) {
+			coreErrors.InternalServerErrorResponse(c, "payment gateway unavailable")
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	log.Printf("[billing.change] success tenant_id=%s action=%s target=%s status=%s xendit_action=%s",
+		tenantIDStr, req.Action, req.Target, resp.Status, resp.XenditAction)
+
+	response.SuccessResponse(c, resp, nil)
+}
+
+// ConfirmSubscriptionChange reconciles a paid billing change by token.
+// POST /api/v1/billing/change/confirm
+func (h *BillingHandler) ConfirmSubscriptionChange(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+	if !canModifyBilling(c) {
+		coreErrors.ForbiddenResponse(c, "billing.change", nil)
+		return
+	}
+
+	var req confirmBillingChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	tenantIDStr := tenantID.(string)
+	if h.billingChangeUC == nil {
+		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
+		return
+	}
+
+	err := h.billingChangeUC.ConfirmPendingBillingChange(c.Request.Context(), strings.TrimSpace(req.Token), tenantIDStr)
+	if err != nil {
+		if errors.Is(err, authUsecase.ErrPendingBillingChangeNotFound) {
+			response.SuccessResponse(c, gin.H{"status": "already_synced"}, nil)
+			return
+		}
+		if errors.Is(err, authUsecase.ErrPendingBillingChangeInvalid) {
+			coreErrors.ErrorResponse(c, "INVALID_BILLING_TOKEN", map[string]any{"reason": err.Error()}, nil)
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"status": "synced"}, nil)
+}
+
+func canModifyBilling(c *gin.Context) bool {
+	if permsRaw, exists := c.Get("user_permissions"); exists {
+		if permMap, ok := permsRaw.(map[string]bool); ok {
+			if permMap["billing.change"] {
+				return true
+			}
+		}
+	}
+
+	roleValue, ok := c.Get("user_role")
+	if !ok {
+		return false
+	}
+	role := strings.ToLower(strings.TrimSpace(roleValue.(string)))
+	if role == "admin" || role == "superadmin" {
+		return true
+	}
+	return strings.HasPrefix(role, "tenant_owner_") || role == "owner" || strings.HasSuffix(role, "_owner")
 }

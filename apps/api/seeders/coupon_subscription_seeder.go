@@ -19,6 +19,10 @@ const (
 	TrialCouponID   = "c0000002-0000-0000-0000-000000000002"
 	TrialCouponCode = "GIMSTRIAL30"
 
+	// Coupon: paid-plan discount for POS Growth registrations.
+	POSDiscountCouponID   = "c0000003-0000-0000-0000-000000000003"
+	POSDiscountCouponCode = "POSSAVE100"
+
 	// Subscription IDs for pre-seeded tenants
 	Tenant1SubscriptionID = "d0000001-0000-0000-0000-000000000001"
 	Tenant2SubscriptionID = "d0000002-0000-0000-0000-000000000002"
@@ -41,18 +45,37 @@ func SeedCoupons() error {
 			CreatedBy:    SystemAdminEmail,
 		},
 		{
-			ID:              TrialCouponID,
-			Code:            TrialCouponCode,
-			Description:     "Trial coupon — 30-day POS Growth plan access for first production launch",
-			CouponType:      tenantModels.CouponTypePOSOnly,
-			DiscountType:    tenantModels.CouponDiscountTrial,
-			Scope:           tenantModels.CouponScopeTierSpecific,
-			TargetPlanSlug:  func() *string { s := "pos_growth"; return &s }(),
-			DurationDays:    30,
-			MaxUses:         500,
-			IsActive:        true,
-			ExpiresAt:       nil,
-			CreatedBy:       SystemAdminEmail,
+			ID:             TrialCouponID,
+			Code:           TrialCouponCode,
+			Description:    "Trial coupon — 30-day POS Growth plan access for first production launch",
+			CouponType:     tenantModels.CouponTypePOSOnly,
+			DiscountType:   tenantModels.CouponDiscountTrial,
+			Scope:          tenantModels.CouponScopeTierSpecific,
+			TargetPlanSlug: func() *string { s := "pos_growth"; return &s }(),
+			DurationDays:   30,
+			MaxUses:        500,
+			IsActive:       true,
+			ExpiresAt:      nil,
+			CreatedBy:      SystemAdminEmail,
+		},
+		{
+			ID:                     POSDiscountCouponID,
+			Code:                   POSDiscountCouponCode,
+			Description:            "POS package coupon — IDR 100.000/month for up to 5 users, then normal per-user price",
+			CouponType:             tenantModels.CouponTypePOSOnly,
+			DiscountType:           tenantModels.CouponDiscountAmount,
+			DiscountValue:          0,
+			Scope:                  tenantModels.CouponScopeTierSpecific,
+			TargetPlanSlug:         func() *string { s := "pos_growth"; return &s }(),
+			MaxUserCount:           5,
+			LockUserCount:          true,
+			PackagePriceMonthlyIDR: 100_000,
+			PackagePriceYearlyIDR:  1_080_000,
+			DurationDays:           30,
+			MaxUses:                500,
+			IsActive:               true,
+			ExpiresAt:              nil,
+			CreatedBy:              SystemAdminEmail,
 		},
 	}
 

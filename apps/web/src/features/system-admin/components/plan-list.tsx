@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { PageMotion } from "@/components/motion/page-motion";
 import { systemAdminService } from "../services/system-admin-service";
@@ -21,14 +22,6 @@ import { cn } from "@/lib/utils";
 import type { SubscriptionPlanConfig, PlanCategory } from "../types";
 import { getMenuSectionSummary } from "../lib/plan-menu-catalog";
 
-const CATEGORY_LABELS: Record<PlanCategory, string> = {
-  pos: "POS",
-  erp: "ERP",
-  crm: "CRM",
-  hr: "HR",
-  bundle: "Bundle",
-};
-
 function formatIDR(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -37,12 +30,20 @@ function formatIDR(amount: number): string {
   }).format(amount);
 }
 
-function MenuSummaryBadges({ plan }: { plan: SubscriptionPlanConfig }) {
+function MenuSummaryBadges({
+  plan,
+  emptyLabel,
+  moreLabel,
+}: {
+  plan: SubscriptionPlanConfig;
+  emptyLabel: string;
+  moreLabel: (count: number) => string;
+}) {
   const summary = getMenuSectionSummary(plan.menu_urls ?? []);
   const entries = Object.entries(summary);
 
   if (entries.length === 0) {
-    return <span className="text-xs text-muted-foreground">No menu entitlements</span>;
+    return <span className="text-xs text-muted-foreground">{emptyLabel}</span>;
   }
 
   return (
@@ -54,7 +55,7 @@ function MenuSummaryBadges({ plan }: { plan: SubscriptionPlanConfig }) {
       ))}
       {entries.length > 4 && (
         <Badge variant="outline" className="text-[10px]">
-          +{entries.length - 4} sections
+          {moreLabel( entries.length - 4 )}
         </Badge>
       )}
     </div>
@@ -62,6 +63,14 @@ function MenuSummaryBadges({ plan }: { plan: SubscriptionPlanConfig }) {
 }
 
 export function PlanList() {
+  const t = useTranslations("systemAdmin.plans");
+  const categoryLabels: Record<PlanCategory, string> = {
+    pos: t("category.pos"),
+    erp: t("category.erp"),
+    crm: t("category.crm"),
+    hr: t("category.hr"),
+    bundle: t("category.bundle"),
+  };
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -77,7 +86,7 @@ export function PlanList() {
 
   const plans = data?.data ?? [];
 
-  const grouped = (Object.keys(CATEGORY_LABELS) as PlanCategory[]).reduce<
+  const grouped = (Object.keys(categoryLabels) as PlanCategory[]).reduce<
     Record<PlanCategory, SubscriptionPlanConfig[]>
   >(
     (acc, category) => {
@@ -89,18 +98,16 @@ export function PlanList() {
 
   return (
     <PageMotion>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Subscription Plans</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage pricing, features, and menu entitlements for each plan.
-            </p>
+      <div className="space-y-6 rounded-2xl border border-border/70 bg-card/60 p-4 shadow-sm backdrop-blur-sm md:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t("title")}</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">{t("description")}</p>
           </div>
-          <Button asChild className="gap-2 cursor-pointer">
+          <Button asChild className="gap-2 self-start cursor-pointer sm:self-auto">
             <Link href="/system/plans/form">
               <Plus className="h-4 w-4" />
-              Add Plan
+              {t("addPlan")}
             </Link>
           </Button>
         </div>
@@ -112,30 +119,30 @@ export function PlanList() {
             ))}
           </div>
         ) : (
-          (Object.keys(CATEGORY_LABELS) as PlanCategory[]).map((category) => {
+          (Object.keys(categoryLabels) as PlanCategory[]).map((category) => {
             const rows = grouped[category];
             if (rows.length === 0) {
               return null;
             }
 
             return (
-              <div key={category} className="rounded-lg border border-border/80">
-                <div className="border-b border-border/80 bg-muted/40 px-4 py-2.5">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {CATEGORY_LABELS[category]}
+              <div key={category} className="overflow-hidden rounded-2xl border border-border/70 bg-background/80">
+                <div className="border-b border-border/70 bg-muted/30 px-4 py-2.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    {categoryLabels[category]}
                   </span>
                 </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[180px]">Slug</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Billing</TableHead>
-                      <TableHead className="text-right">Monthly</TableHead>
-                      <TableHead className="text-right">Yearly</TableHead>
-                      <TableHead>Menu Entitlements</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="w-[180px]">{t("slug")}</TableHead>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("billing")}</TableHead>
+                      <TableHead className="text-right">{t("monthly")}</TableHead>
+                      <TableHead className="text-right">{t("yearly")}</TableHead>
+                      <TableHead>{t("menuEntitlements")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead className="text-right">{t("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -146,7 +153,7 @@ export function PlanList() {
                           <span className="font-medium">{plan.name}</span>
                           {plan.is_highlighted && (
                             <Badge variant="secondary" className="ml-2 text-[10px]">
-                              Highlighted
+                              {t("highlighted")}
                             </Badge>
                           )}
                         </TableCell>
@@ -155,9 +162,13 @@ export function PlanList() {
                         <TableCell className="text-right text-sm">{formatIDR(plan.price_yearly_idr)}</TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <MenuSummaryBadges plan={plan} />
+                            <MenuSummaryBadges
+                              plan={plan}
+                              emptyLabel={t("noMenuEntitlements")}
+                              moreLabel={(count) => `+${count} ${t("sections")}`}
+                            />
                             <div className="text-xs text-muted-foreground">
-                              {(plan.menu_urls ?? []).length} URLs selected
+                              {t("urlsSelected", { count: (plan.menu_urls ?? []).length })}
                             </div>
                           </div>
                         </TableCell>
@@ -176,13 +187,13 @@ export function PlanList() {
                                 plan.is_active ? "text-foreground" : "text-muted-foreground",
                               )}
                             >
-                              {plan.is_active ? "Active" : "Inactive"}
+                              {plan.is_active ? t("active") : t("inactive")}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild size="sm" variant="ghost" className="cursor-pointer">
-                            <Link href={`/system/plans/form?slug=${plan.slug}`} aria-label={`Edit ${plan.name}`}>
+                            <Link href={`/system/plans/form?slug=${plan.slug}`} aria-label={t("editPlan", { name: plan.name })}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Link>
                           </Button>

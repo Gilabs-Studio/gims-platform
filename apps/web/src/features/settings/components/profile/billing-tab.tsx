@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
   Minus,
@@ -15,12 +15,25 @@ import {
   CalendarClock,
   Users,
   BadgeCheck,
+  ArrowUpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
-import { billingService, type TenantSubscription } from "../../services/billing-service";
+import {
+  billingService,
+  type BillingChangeAction,
+  type BillingChangeResponse,
+  type TenantSubscription,
+} from "../../services/billing-service";
+import { paymentHistoryService } from "../../services/payment-history-service";
+
+const MAX_SELF_SERVICE_SEAT_LIMIT = 999;
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -40,49 +53,23 @@ interface BundlePlan {
 type ComparisonCellValue = string | "check" | "minus";
 interface BundleComparisonRow {
   label: string;
-  growthSuite: ComparisonCellValue;
-  ultimateSuite: ComparisonCellValue;
-  enterprise: ComparisonCellValue;
+  values: Record<string, ComparisonCellValue>;
 }
 
-// ─── Static fallback data (mirrors register-form.tsx) ────────────────────────
-
-const FALLBACK_BUNDLES: BundlePlan[] = [
-  {
-    id: "growth_suite",
-    name: "Growth Suite",
-    tagline: "POS · ERP · CRM",
-    perUserMonthly: 149_000,
-    modules: ["Point of Sale", "ERP (Purchase, Sales, Finance)", "CRM"],
-  },
-  {
-    id: "ultimate_suite",
-    name: "Ultimate Suite",
-    tagline: "All modules included",
-    perUserMonthly: 175_000,
-    badge: "Most Popular",
-    highlight: true,
-    modules: ["Point of Sale", "ERP (Full suite)", "CRM", "HR & Payroll"],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    tagline: "Custom for your business",
-    perUserMonthly: 0,
-    cta: "contact",
-    modules: ["Everything in Ultimate", "Unlimited users", "Dedicated SLA", "Custom integrations", "On-premise option"],
-  },
-];
-
-const BUNDLE_COMPARISON_ROWS: BundleComparisonRow[] = [
-  { label: "Users", growthSuite: "Per seat", ultimateSuite: "Per seat", enterprise: "Unlimited users" },
-  { label: "Storage", growthSuite: "100 GB", ultimateSuite: "500 GB", enterprise: "Unlimited storage" },
-  { label: "Support", growthSuite: "Business hours", ultimateSuite: "Priority support", enterprise: "24/7 dedicated support" },
-  { label: "Integrations", growthSuite: "Standard integrations", ultimateSuite: "Advanced integrations", enterprise: "Custom integrations" },
-  { label: "Advanced analytics", growthSuite: "check", ultimateSuite: "check", enterprise: "check" },
-  { label: "Public API access", growthSuite: "minus", ultimateSuite: "check", enterprise: "check" },
-  { label: "Dedicated SLA", growthSuite: "minus", ultimateSuite: "minus", enterprise: "check" },
-];
+const ENTERPRISE_CTA: BundlePlan = {
+  id: "enterprise",
+  name: "Enterprise",
+  tagline: "Custom for your business",
+  perUserMonthly: 0,
+  cta: "contact",
+  modules: [
+    "Everything in Ultimate",
+    "Unlimited users",
+    "Dedicated SLA",
+    "Custom integrations",
+    "On-premise option",
+  ],
+};
 
 const CONTACT_SALES_URL = "https://wa.me/6289607700028?text=Hi%20GiLabs%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
@@ -103,6 +90,24 @@ function totalInvoice(perUser: number, users: number, billing: BillingPeriod): n
   return billing === "yearly" ? monthly * 12 : monthly;
 }
 
+function estimateCycleTotal(plan: SubscriptionPlanConfig | undefined, billingPeriod: string | undefined, seatCount: number): number {
+  if (!plan) {
+    return 0;
+  }
+  const period = billingPeriod === "yearly" ? "yearly" : "monthly";
+  const safeSeats = Math.max(1, seatCount);
+  if (plan.billing_type === "flat") {
+    return period === "yearly" ? plan.price_yearly_idr : plan.price_monthly_idr;
+  }
+  const unitPrice = period === "yearly" ? plan.price_yearly_idr : plan.price_monthly_idr;
+  return unitPrice * safeSeats;
+}
+
+function resolveInvoiceURL(result: BillingChangeResponse): string | null {
+  const raw = result.xendit_payload?.invoice_url;
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
 function statusBadgeClass(status: TenantSubscription["status"]): string {
   switch (status) {
     case "active": return "bg-success/15 text-success";
@@ -111,6 +116,64 @@ function statusBadgeClass(status: TenantSubscription["status"]): string {
     case "cancelled": return "bg-muted text-muted-foreground";
     default: return "bg-muted text-muted-foreground";
   }
+}
+
+function normalizeFeatureName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function buildBundleComparisonRows(
+  bundles: BundlePlan[],
+  labels: {
+    users: string;
+    perSeat: string;
+    unlimitedUsers: string;
+  },
+): BundleComparisonRow[] {
+  if (!bundles.length) {
+    return [];
+  }
+
+  const rows: BundleComparisonRow[] = [
+    {
+      label: labels.users,
+      values: Object.fromEntries(
+        bundles.map((bundle) => [
+          bundle.id,
+          bundle.cta === "contact" ? labels.unlimitedUsers : labels.perSeat,
+        ]),
+      ),
+    },
+  ];
+
+  const uniqueFeatures: string[] = [];
+  for (const bundle of bundles) {
+    for (const feature of bundle.modules) {
+      const featureName = feature.trim();
+      if (!featureName) {
+        continue;
+      }
+      if (!uniqueFeatures.some((existing) => normalizeFeatureName(existing) === normalizeFeatureName(featureName))) {
+        uniqueFeatures.push(featureName);
+      }
+    }
+  }
+
+  for (const feature of uniqueFeatures) {
+    rows.push({
+      label: feature,
+      values: Object.fromEntries(
+        bundles.map((bundle) => {
+          const included = bundle.modules.some(
+            (moduleName) => normalizeFeatureName(moduleName) === normalizeFeatureName(feature),
+          );
+          return [bundle.id, included ? "check" : "minus"];
+        }),
+      ),
+    });
+  }
+
+  return rows;
 }
 
 // ─── Current plan card ────────────────────────────────────────────────────────
@@ -179,6 +242,7 @@ function CurrentPlanCard({ sub, planName }: { sub: TenantSubscription; planName:
 
 interface PlanTableProps {
   bundles: BundlePlan[];
+  comparisonRows: BundleComparisonRow[];
   billing: BillingPeriod;
   userCount: number;
   selectedBundle: string;
@@ -197,7 +261,7 @@ function renderComparisonCell(value: ComparisonCellValue) {
 }
 
 function PlanUpgradeTable({
-  bundles, billing, userCount, selectedBundle, currentPlanSlug,
+  bundles, comparisonRows, billing, userCount, selectedBundle, currentPlanSlug,
   onSelectBundle, onBillingChange, onUserCountChange, isUpgrading, onUpgrade,
 }: PlanTableProps) {
   const ultimatePlan = bundles.find((b) => b.id === "ultimate_suite");
@@ -331,12 +395,14 @@ function PlanUpgradeTable({
               })}
             </tr>
 
-            {BUNDLE_COMPARISON_ROWS.map((row) => (
+            {comparisonRows.map((row) => (
               <tr key={row.label} className="border-b border-border/70 last:border-b-0">
                 <th scope="row" className="px-6 py-3 text-left text-sm font-medium text-foreground">{row.label}</th>
-                <td className={cn("px-6 py-3", selectedBundle === "growth_suite" && "bg-primary/5")}>{renderComparisonCell(row.growthSuite)}</td>
-                <td className={cn("px-6 py-3", selectedBundle === "ultimate_suite" && "bg-primary/5")}>{renderComparisonCell(row.ultimateSuite)}</td>
-                <td className="px-6 py-3">{renderComparisonCell(row.enterprise)}</td>
+                {bundles.map((bundle) => (
+                  <td key={`${row.label}-${bundle.id}`} className={cn("px-6 py-3", selectedBundle === bundle.id && "bg-primary/5")}>
+                    {renderComparisonCell(row.values[bundle.id] ?? "minus")}
+                  </td>
+                ))}
               </tr>
             ))}
 
@@ -420,10 +486,23 @@ function PlanUpgradeTable({
 
 export function BillingTab() {
   const t = useTranslations("profile");
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [userCount, setUserCount] = useState(1);
+  // seatCount: dedicated seat tab input — independent from plan pricing
+  const [seatCount, setSeatCount] = useState(1);
+  // planUserCount: user count for plan comparison pricing only
+  const [planUserCount, setPlanUserCount] = useState(1);
   const [selectedBundle, setSelectedBundle] = useState("ultimate_suite");
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [activeBillingTab, setActiveBillingTab] = useState<"seat" | "plan">("seat");
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("billing_tab");
+    if (requestedTab === "plan" || requestedTab === "seat") {
+      setActiveBillingTab(requestedTab);
+    }
+  }, [searchParams]);
 
   const { data: subscription, isLoading: subLoading } = useQuery({
     queryKey: ["my-subscription"],
@@ -431,15 +510,61 @@ export function BillingTab() {
     staleTime: 60_000,
   });
 
-  const { data: apiPlans } = useQuery({
+  const isSubscriptionSuspended = subscription?.status === "suspended";
+
+  const {
+    data: pendingXenditPayments,
+    refetch: refetchPendingXenditPayments,
+    isFetching: pendingInvoiceFetching,
+  } = useQuery({
+    queryKey: ["pending-xendit-invoices"],
+    queryFn: () =>
+      paymentHistoryService.getMyPaymentHistory({
+        status: "pending",
+        provider: "xendit",
+        page: 1,
+        per_page: 20,
+      }),
+    enabled: Boolean(isSubscriptionSuspended),
+    staleTime: 30_000,
+  });
+
+  const { data: apiPlans, isLoading: plansLoading } = useQuery({
     queryKey: ["public-subscription-plans"],
     queryFn: () => authService.getSubscriptionPlans(),
     staleTime: 5 * 60_000,
     retry: false,
   });
 
+  const billingChangeMutation = useMutation({
+    mutationFn: (payload: {
+      action: BillingChangeAction;
+      target: string;
+      action_date: string;
+      idempotency_key: string;
+    }) => billingService.changeSubscription(payload),
+    onSuccess: async (result) => {
+      const nextCycleAmount = result.billing_change?.new_amount_per_cycle ?? 0;
+      const dueNow = result.user_notification?.amount_due_now ?? 0;
+      toast.success(
+        `${result.user_notification?.title ?? "Billing updated"} Due now: ${formatIDR(dueNow)}. Next cycle: ${formatIDR(nextCycleAmount)}.`,
+      );
+      const invoiceURL = resolveInvoiceURL(result);
+      if (invoiceURL) {
+        window.open(invoiceURL, "_blank", "noopener,noreferrer");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+      await queryClient.invalidateQueries({ queryKey: ["payment-history"] });
+    },
+    onError: () => {
+      toast.error("Failed to update billing. Please try again.");
+    },
+  });
+
   const bundles = useMemo<BundlePlan[]>(() => {
-    if (!apiPlans?.length) return FALLBACK_BUNDLES;
+    if (!apiPlans?.length) {
+      return [];
+    }
     const bundlePlans = (apiPlans as SubscriptionPlanConfig[])
       .filter((p) => p.category === "bundle")
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -452,9 +577,23 @@ export function BillingTab() {
         highlight: p.is_highlighted,
         modules: p.features ?? p.module_slugs ?? [],
       }));
-    const enterpriseCta = FALLBACK_BUNDLES.find((b) => b.cta === "contact");
-    return enterpriseCta ? [...bundlePlans, enterpriseCta] : bundlePlans;
+    if (!bundlePlans.length) {
+      return [];
+    }
+    return [...bundlePlans, ENTERPRISE_CTA];
   }, [apiPlans]);
+
+  const hasBundlePlans = bundles.some((bundle) => bundle.cta !== "contact");
+
+  const comparisonRows = useMemo(
+    () =>
+      buildBundleComparisonRows(bundles, {
+        users: t("billing.comparisonUsers"),
+        perSeat: t("billing.comparisonPerSeat"),
+        unlimitedUsers: t("billing.comparisonUnlimitedUsers"),
+      }),
+    [bundles, t],
+  );
 
   const modularPlans = useMemo(
     () => (apiPlans ?? []).filter((p) => p.category !== "bundle"),
@@ -472,22 +611,139 @@ export function BillingTab() {
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
   const isOnMaxPlan = subscription?.plan === "ultimate_suite" || subscription?.plan === "full_access";
 
-  const handleUpgrade = async (targetPlanSlug?: string) => {
+  const currentSeatLimit = subscription?.seat_limit ?? subscription?.user_count ?? 1;
+  const isSeatLimitAtMax = currentSeatLimit >= MAX_SELF_SERVICE_SEAT_LIMIT;
+  const activeUsers = subscription?.active_users ?? 0;
+  const requiredAdditionalSeats = Math.max(0, seatCount - currentSeatLimit);
+  const currentPlanConfig = useMemo(
+    () => (apiPlans ?? []).find((p) => p.slug === subscription?.plan),
+    [apiPlans, subscription?.plan],
+  );
+  const estimatedCurrentCycle = useMemo(
+    () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, currentSeatLimit),
+    [currentPlanConfig, subscription?.billing_period, currentSeatLimit],
+  );
+  const estimatedNextCycle = useMemo(
+    () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, seatCount),
+    [currentPlanConfig, subscription?.billing_period, seatCount],
+  );
+  const estimatedNextCycleDelta = Math.max(0, estimatedNextCycle - estimatedCurrentCycle);
+
+  useEffect(() => {
+    if (subscription) {
+      setSeatCount((prev) => (prev === 1 ? currentSeatLimit : prev));
+      setPlanUserCount((prev) => (prev === 1 ? currentSeatLimit : prev));
+    }
+  }, [subscription, currentSeatLimit]);
+
+  const submitBillingChange = useCallback(async (action: BillingChangeAction, target: string) => {
+    const actionDate = new Date().toISOString().slice(0, 10);
+    const idempotencyKey = `${subscription?.id ?? "sub"}-${action}-${actionDate}-${target}`;
+    await billingChangeMutation.mutateAsync({
+      action,
+      target,
+      action_date: actionDate,
+      idempotency_key: idempotencyKey,
+    });
+  }, [subscription?.id, billingChangeMutation]);
+
+  const handlePlanUpgrade = useCallback(async (targetPlanSlug?: string) => {
     const planSlug = targetPlanSlug ?? selectedBundle;
     if (!planSlug || planSlug === "enterprise") return;
+    if (!subscription) {
+      toast.error("No active subscription found.");
+      return;
+    }
     setIsUpgrading(true);
     try {
-      const result = await authService.computePrice({
-        plan_slug: planSlug,
-        billing_period: billing,
-        user_count: userCount,
-      });
-      void result;
-      window.open(CONTACT_SALES_URL, "_blank", "noopener,noreferrer");
+      const action: BillingChangeAction = targetPlanSlug ? "add_module" : "upgrade_plan";
+      await submitBillingChange(action, planSlug);
     } finally {
       setIsUpgrading(false);
     }
-  };
+  }, [selectedBundle, subscription, submitBillingChange]);
+
+  const handleSeatUpdate = useCallback(async (newLimit: number) => {
+    if (!subscription) return;
+    if (currentSeatLimit >= MAX_SELF_SERVICE_SEAT_LIMIT || newLimit > MAX_SELF_SERVICE_SEAT_LIMIT) {
+      toast.error(t("billing.maxSeatReachedDescription", { max: MAX_SELF_SERVICE_SEAT_LIMIT }));
+      return;
+    }
+    if (newLimit <= currentSeatLimit) {
+      toast.error("New seat limit must be greater than current seat limit.");
+      return;
+    }
+    setIsUpgrading(true);
+    try {
+      await submitBillingChange("add_seat", String(newLimit));
+    } finally {
+      setIsUpgrading(false);
+    }
+  }, [subscription, currentSeatLimit, submitBillingChange, t]);
+
+  const latestPendingXenditInvoiceUrl = useMemo(() => {
+    if (!pendingXenditPayments?.length) {
+      return null;
+    }
+    const sorted = [...pendingXenditPayments].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    const pendingWithInvoice = sorted.find((payment) => typeof payment.invoice_url === "string" && payment.invoice_url.length > 0);
+    return pendingWithInvoice?.invoice_url ?? null;
+  }, [pendingXenditPayments]);
+
+  useEffect(() => {
+    if (!hasBundlePlans) {
+      return;
+    }
+    const isSelectedPlanAvailable = bundles.some((bundle) => bundle.id === selectedBundle);
+    if (isSelectedPlanAvailable) {
+      return;
+    }
+    const firstPurchasableBundle = bundles.find((bundle) => bundle.cta !== "contact");
+    if (firstPurchasableBundle) {
+      setSelectedBundle(firstPurchasableBundle.id);
+    }
+  }, [bundles, hasBundlePlans, selectedBundle]);
+
+  const openPaymentHistoryTab = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("tab", "payment-history");
+    nextUrl.searchParams.delete("billing_tab");
+    window.location.assign(nextUrl.toString());
+  }, []);
+
+  const openPendingXenditInvoice = useCallback(async () => {
+    const openInvoice = (invoiceUrl: string | null) => {
+      if (!invoiceUrl) {
+        return false;
+      }
+      window.open(invoiceUrl, "_blank", "noopener,noreferrer");
+      return true;
+    };
+
+    if (openInvoice(latestPendingXenditInvoiceUrl)) {
+      return;
+    }
+
+    const refreshed = await refetchPendingXenditPayments();
+    const refreshedPending = refreshed.data ?? [];
+    const refreshedInvoice = [...refreshedPending]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .find((payment) => typeof payment.invoice_url === "string" && payment.invoice_url.length > 0)
+      ?.invoice_url ?? null;
+
+    if (openInvoice(refreshedInvoice)) {
+      return;
+    }
+
+    toast.info(t("billing.noPendingInvoice"));
+    openPaymentHistoryTab();
+  }, [latestPendingXenditInvoiceUrl, openPaymentHistoryTab, refetchPendingXenditPayments, t]);
 
   return (
     <div className="space-y-8">
@@ -513,91 +769,269 @@ export function BillingTab() {
         </div>
       )}
 
-      {subscription && modularPlans.length > 0 && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h4 className="text-base font-semibold">{t("billing.modularTitle")}</h4>
-            <p className="text-sm text-muted-foreground">{t("billing.modularDescription")}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {modularPlans.map((plan) => {
-              const isIncluded = plan.slug === subscription.plan;
-              return (
-                <div key={plan.slug} className="rounded-xl border border-border/80 bg-card p-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">{plan.name}</p>
-                    <p className="text-xs text-muted-foreground">{plan.description ?? plan.category.toUpperCase()}</p>
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-foreground">
-                    {formatIDR(plan.price_monthly_idr)}
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">/mo</span>
+      {subscription && (
+        <Tabs value={activeBillingTab} onValueChange={(tab) => setActiveBillingTab(tab as "seat" | "plan")} className="space-y-6">
+          <TabsList className="h-10">
+            <TabsTrigger value="seat" className="gap-2">
+              <Users className="h-3.5 w-3.5" />
+              {t("billing.seatTab")}
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-2">
+              <ArrowUpCircle className="h-3.5 w-3.5" />
+              {t("billing.planTab")}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="seat" className="space-y-6">
+            <div className="rounded-xl border border-border/80 bg-card p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="text-base font-semibold">
+                    {isSubscriptionSuspended
+                      ? t("billing.resumeTitle")
+                      : t("billing.seatTitle")}
+                  </h4>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {isSubscriptionSuspended
+                      ? t("billing.resumeDescription")
+                      : t("billing.seatDescription", {
+                          plan: currentPlanName ?? subscription.plan,
+                        })}
                   </p>
-                  <Button
-                    type="button"
-                    variant={isIncluded ? "outline" : "default"}
-                    disabled={isIncluded || isUpgrading}
-                    onClick={() => handleUpgrade(plan.slug)}
-                    className="mt-4 h-9 w-full"
-                  >
-                    {isIncluded ? t("billing.included") : t("billing.addModule")}
-                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>{t("billing.activeUsers", { count: activeUsers })}</span>
+                  <span>/</span>
+                  <span>{t("billing.seatCount", { count: currentSeatLimit })}</span>
+                </div>
+              </div>
 
-      {/* If on max plan show a "best plan" notice; otherwise show upgrade table */}
-      {isOnMaxPlan ? (
-        <div className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/5 px-5 py-5">
-          <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-          <div>
-            <p className="font-semibold text-foreground">You&apos;re on the best plan</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {currentPlanName} gives you access to every module. Need custom limits or a dedicated SLA?{" "}
-              <a
-                href={CONTACT_SALES_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                Contact our team.
-              </a>
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-1">
-            <h4 className="text-base font-semibold">Available Plans</h4>
-            <p className="text-sm text-muted-foreground">
-              {t("billing.availablePlansDescription")}
-            </p>
-          </div>
+              <div className="mb-5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t("billing.capacityUsed")}</span>
+                  <span>{Math.round((activeUsers / Math.max(1, currentSeatLimit)) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.round((activeUsers / Math.max(1, currentSeatLimit)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="plans"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <PlanUpgradeTable
-                bundles={bundles}
-                billing={billing}
-                userCount={userCount}
-                selectedBundle={selectedBundle}
-                currentPlanSlug={subscription?.plan}
-                onSelectBundle={setSelectedBundle}
-                onBillingChange={setBilling}
-                onUserCountChange={setUserCount}
-                isUpgrading={isUpgrading}
-                onUpgrade={handleUpgrade}
-              />
-            </motion.div>
-          </AnimatePresence>
-        </>
+              {isSubscriptionSuspended ? (
+                <div className="rounded-lg border border-destructive/25 bg-destructive/5 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t("billing.seatCount", { count: currentSeatLimit })} - {t("billing.resumeDescription")}
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      className="h-9"
+                      disabled={pendingInvoiceFetching}
+                      onClick={openPendingXenditInvoice}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      {pendingInvoiceFetching ? t("billing.checkingInvoice") : t("billing.payViaXendit")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.open(CONTACT_SALES_URL, "_blank", "noopener,noreferrer")}
+                    >
+                      <Phone className="mr-2 h-4 w-4" />
+                      {t("billing.contactTeam")}
+                    </Button>
+                    {!latestPendingXenditInvoiceUrl && (
+                      <p className="text-xs text-muted-foreground">{t("billing.noPendingInvoice")}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-5 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm">
+                    <p className="font-medium text-foreground">{t("billing.seatEstimateTitle")}</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {t("billing.seatNeedToAdd", { count: requiredAdditionalSeats })}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {t("billing.nextCycleTotal", { amount: formatIDR(estimatedNextCycle) })}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {t("billing.nextCycleIncrease", { amount: formatIDR(estimatedNextCycleDelta) })}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {t("billing.seatUpdateAfterPayment")}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">{t("billing.newSeatCount")}</label>
+                      <div className="flex items-center rounded-lg border border-border/70">
+                        <button
+                          type="button"
+                          onClick={() => setSeatCount((v) => Math.max(currentSeatLimit + 1, v - 1))}
+                          className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={t("billing.decreaseSeat")}
+                          disabled={isSeatLimitAtMax}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min={currentSeatLimit + 1}
+                          max={MAX_SELF_SERVICE_SEAT_LIMIT}
+                          value={seatCount}
+                          onChange={(e) => {
+                            const next = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(next) && next >= 1 && next <= MAX_SELF_SERVICE_SEAT_LIMIT) {
+                              setSeatCount(next);
+                            }
+                          }}
+                          className="h-9 w-16 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          aria-label={t("billing.newSeatCount")}
+                          disabled={isSeatLimitAtMax}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSeatCount((v) => Math.min(MAX_SELF_SERVICE_SEAT_LIMIT, v + 1))}
+                          className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={t("billing.increaseSeat")}
+                          disabled={isSeatLimitAtMax}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      className="h-9"
+                      disabled={isUpgrading || seatCount <= currentSeatLimit || isSeatLimitAtMax}
+                      onClick={() => handleSeatUpdate(seatCount)}
+                    >
+                      {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {isUpgrading ? t("billing.processing") : t("billing.addSeatToCount", { count: seatCount })}
+                    </Button>
+                    {isSeatLimitAtMax ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span>{t("billing.maxSeatReachedDescription", { max: MAX_SELF_SERVICE_SEAT_LIMIT })}</span>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => window.open(CONTACT_SALES_URL, "_blank", "noopener,noreferrer")}
+                        >
+                          {t("billing.contactTeam")}
+                        </Button>
+                      </div>
+                    ) : (
+                      seatCount <= currentSeatLimit && (
+                        <p className="text-xs text-muted-foreground">{t("billing.seatMustExceed", { count: currentSeatLimit })}</p>
+                      )
+                    )}
+                  </div>
+                  </>
+              )}
+            </div>
+
+            {modularPlans.length > 0 && (
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-semibold">{t("billing.modularTitle")}</h4>
+                  <p className="text-xs text-muted-foreground">{t("billing.modularSeatInfo")}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {modularPlans.map((plan) => {
+                    const isIncluded = plan.slug === subscription.plan;
+                    return (
+                      <div
+                        key={plan.slug}
+                        className={cn(
+                          "flex items-center justify-between rounded-xl border p-4",
+                          isIncluded ? "border-primary/30 bg-primary/5" : "border-border/70 bg-card",
+                        )}
+                      >
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium">{plan.name}</p>
+                          <p className="text-xs text-muted-foreground">{plan.description ?? plan.category.toUpperCase()}</p>
+                        </div>
+                        {isIncluded ? (
+                          <Badge variant="active" className="shrink-0">
+                            {t("billing.activeSeatBadge", { count: currentSeatLimit })}
+                          </Badge>
+                        ) : (
+                          <Badge variant="inactive" className="shrink-0">
+                            {t("billing.inactive")}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="plan" className="space-y-6">
+            {plansLoading ? (
+              <div className="rounded-xl border border-border/80 bg-card p-6 animate-pulse space-y-3">
+                <div className="h-4 w-40 rounded bg-muted" />
+                <div className="h-4 w-full rounded bg-muted" />
+                <div className="h-4 w-2/3 rounded bg-muted" />
+              </div>
+            ) : !hasBundlePlans ? (
+              <div className="rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8">
+                <p className="text-sm font-medium text-foreground">{t("billing.pricingUnavailableTitle")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("billing.pricingUnavailableDescription")}</p>
+              </div>
+            ) : isOnMaxPlan ? (
+              <div className="flex items-start gap-4 rounded-xl border border-success/25 bg-success/5 px-5 py-5">
+                <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                <div>
+                  <p className="font-semibold text-foreground">{t("billing.bestPlanTitle")}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("billing.bestPlanDescription", { plan: currentPlanName ?? subscription.plan })}{" "}
+                    <a
+                      href={CONTACT_SALES_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      {t("billing.contactTeam")}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key="plans"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <PlanUpgradeTable
+                    bundles={bundles}
+                    comparisonRows={comparisonRows}
+                    billing={billing}
+                    userCount={planUserCount}
+                    selectedBundle={selectedBundle}
+                    currentPlanSlug={subscription?.plan}
+                    onSelectBundle={setSelectedBundle}
+                    onBillingChange={setBilling}
+                    onUserCountChange={setPlanUserCount}
+                    isUpgrading={isUpgrading}
+                    onUpgrade={handlePlanUpgrade}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

@@ -56,6 +56,8 @@ export function UserListMobileFilters({
     onReset();
   };
 
+  const selectedRole = roles.find((role) => role.id === roleId);
+
   return (
     <Drawer
       open={open}
@@ -120,7 +122,7 @@ export function UserListMobileFilters({
               )}
               {roleId && (
                 <Badge variant="secondary" className="gap-1">
-                  {t("role")}: {roles.find((r) => r.id === roleId)?.name ?? "N/A"}
+                  {t("role")}: {selectedRole?.name ?? "N/A"}
                   <button
                     onClick={() => onRoleChange("")}
                     className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5 transition-colors"

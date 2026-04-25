@@ -107,6 +107,14 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusForbidden,
 		Message:    "You do not have permission to access this resource",
 	},
+	"PAYMENT_REQUIRED": {
+		HTTPStatus: http.StatusPaymentRequired,
+		Message:    "Subscription payment is required to continue",
+	},
+	"ACCOUNT_SUSPENDED": {
+		HTTPStatus: http.StatusForbidden,
+		Message:    "Account access is suspended due to subscription billing status",
+	},
 	"MODULE_NOT_ENTITLED": {
 		HTTPStatus: http.StatusForbidden,
 		Message:    "Your subscription plan does not include access to this module",
@@ -124,6 +132,18 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"EMAIL_ALREADY_TAKEN": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Email is already registered",
+	},
+	"SLUG_ALREADY_TAKEN": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Organization slug already in use",
+	},
+	"PENDING_REGISTRATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Pending registration not found or already finalized",
+	},
+	"INVALID_PAYLOAD": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid payload",
 	},
 	"COMPANY_NAME_TAKEN": {
 		HTTPStatus: http.StatusConflict,

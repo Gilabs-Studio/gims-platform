@@ -25,6 +25,19 @@ export interface User {
   tenant_id?: string;
   tenant_name?: string;
   subscription_plan?: string;
+  subscription_access?: SubscriptionAccess;
+}
+
+export interface SubscriptionAccess {
+  state: "active" | "grace_period" | "suspended";
+  enforcement: "full_access" | "hard_lock";
+  days_overdue: number;
+  grace_period_days: number;
+  force_billing_redirect: boolean;
+  allow_read: boolean;
+  allow_write: boolean;
+  message?: string;
+  billing_path?: string;
 }
 
 export interface Role {

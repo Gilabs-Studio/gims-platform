@@ -50,7 +50,7 @@ export function useUserList() {
 
   const users = data?.data || [];
   const pagination = data?.meta?.pagination;
-  const roles = rolesData?.data || [];
+  const roles = [...(rolesData?.data || [])].sort((left, right) => left.name.localeCompare(right.name));
 
   const handleCreate = async (formData: CreateUserFormData) => {
     try {
