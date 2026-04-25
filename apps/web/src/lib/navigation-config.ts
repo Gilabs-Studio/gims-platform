@@ -34,7 +34,7 @@ export const navigationConfig: NavItem[] = [
         i18nKey: "posTerminalNav",
         url: "/pos/fb/terminal",
         icon: "monitor-check",
-        permission: "pos.order.create",
+        permission: "pos.order.read",
       },
       {
         name: "Feedback",

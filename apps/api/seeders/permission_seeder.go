@@ -636,28 +636,15 @@ func SeedPermissions() error {
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
 
 		// POS
-		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
 		{"/pos/fb/floor-layout", "pos.layout.read", "View POS Floor Layout", "VIEW", "pos_layout"},
 		{"/pos/fb/floor-layout", "pos.layout.create", "Create POS Floor Layout", "CREATE", "pos_layout"},
 		{"/pos/fb/floor-layout", "pos.layout.update", "Edit POS Floor Layout", "EDIT", "pos_layout"},
 		{"/pos/fb/floor-layout", "pos.layout.delete", "Delete POS Floor Layout", "DELETE", "pos_layout"},
-		{"/pos", "pos.outlet.read", "View POS Outlets", "VIEW", "pos_outlet"},
-		{"/pos", "pos.outlet.manage", "Manage POS Outlets", "MANAGE", "pos_outlet"},
 		{"/pos/fb/terminal", "pos.order.create", "Create POS Orders", "CREATE", "pos_order"},
 		{"/pos/fb/terminal", "pos.order.read", "View POS Orders", "VIEW", "pos_order"},
-		{"/pos/fb/terminal", "pos.catalog.read", "View POS Catalog", "VIEW", "pos_catalog"},
-		{"/pos/fb/terminal", "pos.recipe.read", "View POS Recipes", "VIEW", "pos_recipe"},
-		{"/pos/fb/terminal", "pos.recipe.manage", "Manage POS Recipes", "MANAGE", "pos_recipe"},
-		// POS config — required by /pos/config/outlet/:id route
-		{"/pos", "pos.config.read", "Read POS Outlet Config", "VIEW", "pos_config"},
-		{"/pos", "pos.config.manage", "Manage POS Outlet Config", "MANAGE", "pos_config"},
-		// POS session management — required by GET /pos/sessions (list all sessions)
-		{"/pos", "pos.session.manage", "Manage POS Sessions", "MANAGE", "pos_session"},
 		// POS payment — view/manage Xendit connection (Owner/Admin only)
 		{"/pos/settings/payment", "pos.payment.view", "View POS Payment Settings", "VIEW", "pos_payment_config"},
 		{"/pos/settings/payment", "pos.payment.manage", "Manage POS Payment Gateway (Xendit)", "MANAGE", "pos_payment_config"},
-		// POS receipt template settings (owner/admin only)
-		{"/pos/fb/terminal", "pos.receipt_template.manage", "Manage POS Receipt WhatsApp Template", "MANAGE", "pos_receipt_template"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
@@ -815,6 +802,15 @@ func SeedPermissions() error {
 		"finance_reports_menu.read",
 		"ai_settings.view",
 		"ai_settings.edit",
+		"pos.outlet.read",
+		"pos.outlet.manage",
+		"pos.catalog.read",
+		"pos.recipe.read",
+		"pos.recipe.manage",
+		"pos.config.read",
+		"pos.config.manage",
+		"pos.session.manage",
+		"pos.receipt_template.manage",
 	})
 
 	// Assign all permissions to admin role with ALL scope
@@ -963,7 +959,7 @@ func SeedPermissions() error {
 	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
-	restrictPermissionToRoles("pos.receipt_template.manage", []string{"admin"})
+	// POS template/settings/session/outlet/catalog/recipe permissions were retired.
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()
