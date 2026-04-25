@@ -213,8 +213,24 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			return
 		}
 		// Clear cookies if refresh fails
-		http.SetCookie(c.Writer, &http.Cookie{Name: "gims_access_token", MaxAge: -1, Path: "/"})
-		http.SetCookie(c.Writer, &http.Cookie{Name: "gims_refresh_token", MaxAge: -1, Path: "/"})
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     "gims_access_token",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteNoneMode,
+		})
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     "gims_refresh_token",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteNoneMode,
+		})
 
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
