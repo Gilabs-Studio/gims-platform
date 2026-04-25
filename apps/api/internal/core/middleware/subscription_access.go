@@ -16,6 +16,7 @@ import (
 
 const subscriptionAccessCacheTTL = 60 * time.Second
 const billingPathPrefix = "/api/v1/billing"
+const authLogoutPath = "/api/v1/auth/logout"
 
 type subscriptionAccessSnapshot struct {
 	State                string
@@ -61,7 +62,11 @@ func enforceSubscriptionAccess(c *gin.Context, userRole, tenantID string) {
 	isOwnerOrAdmin := isBillingPrivilegedRole(userRole)
 	isBillingPath := strings.HasPrefix(c.Request.URL.Path, billingPathPrefix)
 
-	if snapshot.State == "suspended" {
+	// Logout must always be allowed regardless of subscription state so that
+	// suspended users can sign out without being intercepted by payment gates.
+	isLogoutPath := c.Request.URL.Path == authLogoutPath
+
+	if snapshot.State == "suspended" && !isLogoutPath {
 		if !isOwnerOrAdmin {
 			coreErrors.ErrorResponse(c, "ACCOUNT_SUSPENDED", map[string]interface{}{
 				"subscription": snapshot,
