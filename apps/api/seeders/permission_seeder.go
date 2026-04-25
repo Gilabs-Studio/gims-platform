@@ -2,7 +2,9 @@ package seeders
 
 import (
 	"context"
+	"errors"
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
@@ -418,22 +420,22 @@ func SeedPermissions() error {
 		{"/finance/accounting/journal-entries/adjustment", "journal_template.use", "Use Journal Templates", "USE", "journal_template"},
 
 		// Cash & Bank journal/transactions
-		{ "/finance/journals/cash-bank", "cash_bank_transaction.read", "View Cash-Bank Transactions", "VIEW", "cash_bank_transaction"},
-		{ "/finance/journals/cash-bank", "cash_bank_transaction.write", "Create Cash-Bank Transactions", "CREATE", "cash_bank_transaction"},
-		{ "/finance/journals/cash-bank", "cash_bank_transaction.reverse", "Reverse Cash-Bank Transactions", "REVERSE", "cash_bank_transaction"},
-		{ "/finance/journals/cash-bank", "cash_bank_transaction.export", "Export Cash-Bank Transactions", "EXPORT", "cash_bank_transaction"},
+		{"/finance/journals/cash-bank", "cash_bank_transaction.read", "View Cash-Bank Transactions", "VIEW", "cash_bank_transaction"},
+		{"/finance/journals/cash-bank", "cash_bank_transaction.write", "Create Cash-Bank Transactions", "CREATE", "cash_bank_transaction"},
+		{"/finance/journals/cash-bank", "cash_bank_transaction.reverse", "Reverse Cash-Bank Transactions", "REVERSE", "cash_bank_transaction"},
+		{"/finance/journals/cash-bank", "cash_bank_transaction.export", "Export Cash-Bank Transactions", "EXPORT", "cash_bank_transaction"},
 
-		{ "/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
-		{ "/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
-		{ "/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
-		{ "/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
-		{ "/finance/bank-transfer", "bank_transfer.read", "View Bank Transfers", "VIEW", "bank_transfer"},
-		{ "/finance/bank-transfer", "bank_transfer.write", "Create and Complete Bank Transfers", "EDIT", "bank_transfer"},
-		{ "/finance/bank-transfer", "bank_transfer.cancel", "Cancel Bank Transfers", "DELETE", "bank_transfer"},
-		{ "/finance/bank-reconciliation", "bank_reconciliation.read", "View Bank Reconciliations", "VIEW", "bank_reconciliation"},
-		{ "/finance/bank-reconciliation", "bank_reconciliation.write", "Import and Match Bank Reconciliations", "EDIT", "bank_reconciliation"},
-		{ "/finance/bank-reconciliation", "bank_reconciliation.reconcile", "Confirm Bank Reconciliations", "APPROVE", "bank_reconciliation"},
-		{ "/finance/bank-reconciliation", "bank_reconciliation.lock", "Lock Bank Reconciliations", "LOCK", "bank_reconciliation"},
+		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
+		{"/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
+		{"/finance/bank-transfer", "bank_transfer.read", "View Bank Transfers", "VIEW", "bank_transfer"},
+		{"/finance/bank-transfer", "bank_transfer.write", "Create and Complete Bank Transfers", "EDIT", "bank_transfer"},
+		{"/finance/bank-transfer", "bank_transfer.cancel", "Cancel Bank Transfers", "DELETE", "bank_transfer"},
+		{"/finance/bank-reconciliation", "bank_reconciliation.read", "View Bank Reconciliations", "VIEW", "bank_reconciliation"},
+		{"/finance/bank-reconciliation", "bank_reconciliation.write", "Import and Match Bank Reconciliations", "EDIT", "bank_reconciliation"},
+		{"/finance/bank-reconciliation", "bank_reconciliation.reconcile", "Confirm Bank Reconciliations", "APPROVE", "bank_reconciliation"},
+		{"/finance/bank-reconciliation", "bank_reconciliation.lock", "Lock Bank Reconciliations", "LOCK", "bank_reconciliation"},
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
@@ -658,6 +660,8 @@ func SeedPermissions() error {
 		// POS payment — view/manage Xendit connection (Owner/Admin only)
 		{"/pos/settings/payment", "pos.payment.view", "View POS Payment Settings", "VIEW", "pos_payment_config"},
 		{"/pos/settings/payment", "pos.payment.manage", "Manage POS Payment Gateway (Xendit)", "MANAGE", "pos_payment_config"},
+		// POS receipt template settings (owner/admin only)
+		{"/pos/fb/terminal", "pos.receipt_template.manage", "Manage POS Receipt WhatsApp Template", "MANAGE", "pos_receipt_template"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
@@ -963,6 +967,9 @@ func SeedPermissions() error {
 	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
+	restrictPermissionToRoles("pos.receipt_template.manage", []string{"admin"})
+
+	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()
 
 	log.Println("ERP permissions seeded successfully")
@@ -1112,6 +1119,75 @@ func removeDeprecatedPermissions(codes []string) {
 		return removePermissionsByIDs(tx, ids)
 	}); err != nil {
 		log.Printf("Warning: Failed to remove deprecated permissions: %v", err)
+	}
+}
+
+func findPermissionByCode(tx *gorm.DB, permissionCode string) (*permission.Permission, error) {
+	var perm permission.Permission
+	err := tx.Where("code = ?", permissionCode).First(&perm).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &perm, nil
+}
+
+func findRoleIDsByCodes(tx *gorm.DB, roleCodes []string) ([]string, error) {
+	if len(roleCodes) == 0 {
+		return []string{}, nil
+	}
+
+	var roleIDs []string
+	err := tx.Model(&role.Role{}).Where("code IN ?", roleCodes).Pluck("id", &roleIDs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return roleIDs, nil
+}
+
+func replaceRolePermissionWithAllScope(tx *gorm.DB, permissionID string, roleIDs []string) error {
+	if err := tx.Exec("DELETE FROM role_permissions WHERE permission_id = ?", permissionID).Error; err != nil {
+		return err
+	}
+
+	for _, roleID := range roleIDs {
+		if err := tx.Exec(
+			"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL') ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = 'ALL'",
+			roleID, permissionID,
+		).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func restrictPermissionToRoles(permissionCode string, allowedRoleCodes []string) {
+	if strings.TrimSpace(permissionCode) == "" {
+		return
+	}
+
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		perm, err := findPermissionByCode(tx, permissionCode)
+		if err != nil {
+			return err
+		}
+		if perm == nil {
+			return nil
+		}
+
+		allowedRoleIDs, err := findRoleIDsByCodes(tx, allowedRoleCodes)
+		if err != nil {
+			return err
+		}
+
+		return replaceRolePermissionWithAllScope(tx, perm.ID, allowedRoleIDs)
+	}); err != nil {
+		log.Printf("Warning: Failed to restrict permission %s: %v", permissionCode, err)
 	}
 }
 

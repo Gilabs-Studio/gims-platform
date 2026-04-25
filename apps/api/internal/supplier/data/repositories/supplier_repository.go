@@ -6,6 +6,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"strings"
 )
 
 // SupplierRepository defines the interface for supplier data access
@@ -105,18 +107,24 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 		return nil, 0, err
 	}
 
-	// Apply sorting
-	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("name ASC")
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"name":       "name",
+		"code":       "code",
+		"email":      "email",
+		"status":     "status",
+		"is_active":  "is_active",
+		"created_at": "created_at",
+		"updated_at": "updated_at",
 	}
+
+	sortBy := allowedSortColumns[strings.ToLower(strings.TrimSpace(params.SortBy))]
+	if sortBy == "" {
+		sortBy = "name"
+	}
+
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Apply pagination
 	if params.Limit > 0 {

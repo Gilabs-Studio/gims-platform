@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DeliveryOrderRepository defines the interface for delivery order data access
@@ -148,16 +149,23 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 	}
 	offset := (page - 1) * perPage
 
-	// Apply sorting
-	sortBy := req.SortBy
+	// Apply sorting with whitelist and clause builder to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"code":          "code",
+		"delivery_date": "delivery_date",
+		"status":        "status",
+		"created_at":    "created_at",
+		"updated_at":    "updated_at",
+	}
+
+	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
+	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
 		sortBy = "delivery_date"
 	}
-	sortDir := req.SortDir
-	if sortDir == "" {
-		sortDir = "desc"
-	}
-	query = query.Order(sortBy + " " + sortDir)
+
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads
 	err := query.

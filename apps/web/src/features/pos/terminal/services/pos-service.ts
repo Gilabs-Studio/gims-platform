@@ -13,6 +13,7 @@ import type {
   POSPayment,
   ProcessPaymentRequest,
   POSConfig,
+  UpdatePOSReceiptWhatsAppTemplateRequest,
   XenditConfig,
   XenditConnectionStatusResponse,
   ConnectXenditRequest,
@@ -155,6 +156,12 @@ export const posConfigService = {
   getByOutlet(outletId: string) {
     return apiClient
       .get<ApiResponse<POSConfig>>(`${BASE}/config/outlet/${outletId}`)
+      .then((r) => r.data);
+  },
+
+  updateReceiptWhatsAppTemplate(outletId: string, data: UpdatePOSReceiptWhatsAppTemplateRequest) {
+    return apiClient
+      .put<ApiResponse<POSConfig>>(`${BASE}/config/outlet/${outletId}/receipt-whatsapp-template`, data)
       .then((r) => r.data);
   },
 };

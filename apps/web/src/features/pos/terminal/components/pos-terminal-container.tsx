@@ -54,6 +54,7 @@ function mapLookupToMember(lookup: LoyaltyMemberLookup): LoyaltyMember | undefin
 
 interface POSTerminalContainerProps {
   outletId: string;
+  outletName: string;
   initialTableId?: string;
   initialTableLabel?: string;
   /** URL to navigate to after successful payment (e.g. live-table). If absent, stays on POS. */
@@ -62,6 +63,7 @@ interface POSTerminalContainerProps {
 
 export function POSTerminalContainer({
   outletId,
+  outletName,
   initialTableId,
   initialTableLabel,
   returnUrl,
@@ -78,6 +80,7 @@ export function POSTerminalContainer({
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<typeof activeOrder | null>(null);
   const [receiptCustomerName, setReceiptCustomerName] = useState<string | undefined>();
+  const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<string | undefined>();
   const [receiptTender, setReceiptTender] = useState<number | undefined>();
   const [voidOpen, setVoidOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -128,11 +131,12 @@ export function POSTerminalContainer({
 
   // Reset cart if order becomes terminal
   const handleOrderCompleted = useCallback(
-    (customerName?: string, tenderAmount?: number) => {
+    (customerName?: string, customerPhone?: string, tenderAmount?: number) => {
       // Snapshot the order for the receipt before resetting state.
       if (activeOrder) {
         setReceiptOrder(activeOrder);
         setReceiptCustomerName(customerName);
+        setReceiptCustomerPhone(customerPhone);
         setReceiptTender(tenderAmount);
       }
       setCart([]);
@@ -234,6 +238,7 @@ export function POSTerminalContainer({
           product_code: item.product_code,
           product_name: item.product_name,
           product_kind: item.product_kind,
+          image_url: item.image_url,
           quantity: 1,
           unit_price: item.price,
           subtotal: item.price,
@@ -464,7 +469,7 @@ export function POSTerminalContainer({
             onOpenChange={setPaymentOpen}
             order={activeOrder}
             config={config}
-            onSuccess={(cName, tender) => handleOrderCompleted(cName, tender)}
+            onSuccess={(cName, cPhone, tender) => handleOrderCompleted(cName, cPhone, tender)}
             onPaymentError={handlePaymentError}
             loyaltyMember={loyaltyMember}
             loyaltyRewards={loyaltyRewards}
@@ -508,6 +513,9 @@ export function POSTerminalContainer({
           open={!!receiptOrder}
           onClose={() => {
             setReceiptOrder(null);
+            setReceiptCustomerName(undefined);
+            setReceiptCustomerPhone(undefined);
+            setReceiptTender(undefined);
             // Navigate back to live table only after the receipt is dismissed
             if (returnUrl) {
               router.push(returnUrl);
@@ -515,6 +523,8 @@ export function POSTerminalContainer({
           }}
           order={receiptOrder}
           customerName={receiptCustomerName}
+          customerPhone={receiptCustomerPhone}
+          outletName={outletName}
           tenderAmount={receiptTender}
         />
       )}

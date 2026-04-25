@@ -87,7 +87,8 @@
     "amount": "Jumlah",
     "match": "Cocok",
     "name": "Nama",
-    "select": "Pilih"
+    "select": "Pilih",
+    "somethingWentWrong": "Terjadi kesalahan"
   },
   "notFound": {
     "label": "404",

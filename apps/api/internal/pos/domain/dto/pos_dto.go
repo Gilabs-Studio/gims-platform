@@ -140,26 +140,33 @@ type POSCatalogItem struct {
 
 // UpsertPOSConfigRequest creates or updates POS outlet configuration
 type UpsertPOSConfigRequest struct {
-	TaxRate            *float64 `json:"tax_rate"`
-	ServiceChargeRate  *float64 `json:"service_charge_rate"`
-	AllowDiscount      *bool    `json:"allow_discount"`
-	MaxDiscountPercent *float64 `json:"max_discount_percent"`
-	PrintReceiptAuto   *bool    `json:"print_receipt_auto"`
-	ReceiptFooter      *string  `json:"receipt_footer"`
-	Currency           *string  `json:"currency"`
+	TaxRate                 *float64 `json:"tax_rate"`
+	ServiceChargeRate       *float64 `json:"service_charge_rate"`
+	AllowDiscount           *bool    `json:"allow_discount"`
+	MaxDiscountPercent      *float64 `json:"max_discount_percent"`
+	PrintReceiptAuto        *bool    `json:"print_receipt_auto"`
+	ReceiptFooter           *string  `json:"receipt_footer"`
+	ReceiptWhatsAppTemplate *string  `json:"receipt_whatsapp_template"`
+	Currency                *string  `json:"currency"`
+}
+
+// UpdateReceiptWhatsAppTemplateRequest updates receipt WhatsApp template for one outlet.
+type UpdateReceiptWhatsAppTemplateRequest struct {
+	ReceiptWhatsAppTemplate *string `json:"receipt_whatsapp_template"`
 }
 
 // POSConfigResponse returned to client
 type POSConfigResponse struct {
-	ID                 string  `json:"id"`
-	OutletID           string  `json:"outlet_id"`
-	TaxRate            float64 `json:"tax_rate"`
-	ServiceChargeRate  float64 `json:"service_charge_rate"`
-	AllowDiscount      bool    `json:"allow_discount"`
-	MaxDiscountPercent float64 `json:"max_discount_percent"`
-	PrintReceiptAuto   bool    `json:"print_receipt_auto"`
-	ReceiptFooter      *string `json:"receipt_footer"`
-	Currency           string  `json:"currency"`
+	ID                      string  `json:"id"`
+	OutletID                string  `json:"outlet_id"`
+	TaxRate                 float64 `json:"tax_rate"`
+	ServiceChargeRate       float64 `json:"service_charge_rate"`
+	AllowDiscount           bool    `json:"allow_discount"`
+	MaxDiscountPercent      float64 `json:"max_discount_percent"`
+	PrintReceiptAuto        bool    `json:"print_receipt_auto"`
+	ReceiptFooter           *string `json:"receipt_footer"`
+	ReceiptWhatsAppTemplate *string `json:"receipt_whatsapp_template"`
+	Currency                string  `json:"currency"`
 }
 
 // ─── Xendit Config DTOs ───────────────────────────────────────────────────────

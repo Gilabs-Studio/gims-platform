@@ -138,11 +138,13 @@ export function formatWhatsAppLink(phone?: string, message?: string): string {
     ? "62" + digits.substring(1)
     : digits;
 
-  const baseUrl = `https://wa.me/${normalized}`;
   if (message) {
-    return `${baseUrl}?text=${encodeURIComponent(message)}`;
+    // Normalize string to NFC and encode
+    const sanitizedMessage = message.trim().normalize("NFC");
+    return `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(sanitizedMessage)}`;
   }
-  return baseUrl;
+
+  return `https://wa.me/${normalized}`;
 }
 
 /**

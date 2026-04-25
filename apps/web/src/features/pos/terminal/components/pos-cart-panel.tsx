@@ -1,10 +1,12 @@
 "use client";
 
-import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { useState } from "react";
+import { Minus, Plus, Trash2, ShoppingCart, Package, UtensilsCrossed } from "lucide-react";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, resolveImageUrl, cn } from "@/lib/utils";
 import { PosLoyaltyLookup } from "@/features/loyalty/components/pos-loyalty-lookup";
 import type { CartItem, POSConfig } from "../types";
 import type { LoyaltyMemberLookup } from "@/features/loyalty/types";
@@ -40,6 +42,123 @@ interface POSCartPanelProps {
   onRemove: (productId: string) => void;
   onCheckout: () => void;
   isPending?: boolean;
+}
+
+interface CartItemRowProps {
+  item: CartItem;
+  onIncrement: (productId: string) => void;
+  onDecrement: (productId: string) => void;
+  onRemove: (productId: string) => void;
+}
+
+function CartItemRow({ item, onIncrement, onDecrement, onRemove }: CartItemRowProps) {
+  const [imageBroken, setImageBroken] = useState(false);
+  const resolvedUrl = resolveImageUrl(item.image_url);
+  const showImage = !!resolvedUrl && !imageBroken;
+  const FallbackIcon = item.product_kind === "STOCK" ? Package : UtensilsCrossed;
+
+  // Swipe to delete logic
+  const x = useMotionValue(0);
+  const background = useTransform(
+    x,
+    [-100, -50, 0],
+    ["#ef4444", "#ef4444", "rgba(239, 68, 68, 0)"]
+  );
+  const iconScale = useTransform(x, [-100, -50, 0], [1.2, 1, 0.5]);
+  const iconOpacity = useTransform(x, [-60, -30, 0], [1, 0.5, 0]);
+
+  const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
+    if (info.offset.x < -80) {
+      onRemove(item.product_id);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-xl mb-1 group w-full">
+      {/* Background Action */}
+      <motion.div
+        style={{ background }}
+        className="absolute inset-0 flex items-center justify-end px-6 rounded-xl"
+      >
+        <motion.div style={{ scale: iconScale, opacity: iconOpacity }}>
+          <Trash2 className="h-5 w-5 text-white" />
+        </motion.div>
+      </motion.div>
+
+      {/* Main Content */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -100, right: 0 }}
+        dragElastic={0.05}
+        dragTransition={{ bounceStiffness: 600, bounceDamping: 30 }}
+        onDragEnd={handleDragEnd}
+        style={{ x }}
+        className="relative grid grid-cols-[40px_1fr_auto] items-center gap-2.5 py-3 px-3 bg-background border rounded-xl touch-none cursor-pointer active:cursor-grabbing transition-colors hover:border-primary/20 w-full"
+      >
+        {/* Product Image */}
+        <div className="h-10 w-10 rounded-lg border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
+          {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={resolvedUrl}
+              alt={item.product_name}
+              className="h-full w-full object-cover"
+              onError={() => setImageBroken(true)}
+            />
+          ) : (
+            <FallbackIcon className="h-4 w-4 text-muted-foreground/30" />
+          )}
+        </div>
+
+        {/* Item Info */}
+        <div className="min-w-0 flex flex-col justify-center">
+          <p
+            className="text-[13px] font-semibold leading-tight line-clamp-1 text-foreground"
+            title={item.product_name}
+          >
+            {item.product_name}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-1.5 mt-0.5 leading-none">
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {formatCurrency(item.unit_price)} × {item.quantity}
+            </span>
+            <span className="text-[11px] font-bold text-primary">
+              {formatCurrency(item.subtotal)}
+            </span>
+          </div>
+        </div>
+
+        {/* Quantity Controls */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full cursor-pointer hover:bg-muted"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDecrement(item.product_id);
+            }}
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </Button>
+          <span className="w-5 text-center text-xs font-bold tabular-nums">
+            {item.quantity}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full cursor-pointer hover:bg-muted"
+            onClick={(e) => {
+              e.stopPropagation();
+              onIncrement(item.product_id);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
 export function POSCartPanel({
@@ -109,58 +228,18 @@ export function POSCartPanel({
 
       {/* Item list */}
       <ScrollArea className="flex-1">
-        <div className="px-3 py-2 space-y-0.5">
-          {items.map((item) => (
-            <div
-              key={item.product_id}
-              className="flex items-start gap-2 py-2.5 border-b last:border-0 overflow-hidden"
-            >
-              <div className="flex-1 min-w-0 pr-1">
-                <p
-                  className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-tight"
-                  title={item.product_name}
-                >
-                  {truncateProductName(item.product_name)}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                  {formatCurrency(item.unit_price)} × {item.quantity}
-                  {" = "}
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(item.subtotal)}
-                  </span>
-                </p>
-              </div>
-              <div className="flex w-[94px] items-center justify-end gap-0.5 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded-full cursor-pointer"
-                  onClick={() => onDecrement(item.product_id)}
-                >
-                  <Minus className="h-3 w-3" />
-                </Button>
-                <span className="w-6 text-center text-sm font-semibold tabular-nums">
-                  {item.quantity}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded-full cursor-pointer"
-                  onClick={() => onIncrement(item.product_id)}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 rounded-full text-destructive cursor-pointer"
-                  onClick={() => onRemove(item.product_id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          ))}
+        <div className="px-3 py-2 space-y-1.5 flex flex-col w-full min-w-0 overflow-hidden">
+          <AnimatePresence initial={false}>
+            {items.map((item) => (
+              <CartItemRow
+                key={item.product_id}
+                item={item}
+                onIncrement={onIncrement}
+                onDecrement={onDecrement}
+                onRemove={onRemove}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </ScrollArea>
 
