@@ -74,7 +74,7 @@ export function useVisitReportList() {
   };
 
   const handleEdit = (item: VisitReport) => {
-    router.push(`/crm/visits/${item.id}/edit`);
+    router.push(`/crm/visits/${item.id}`);
   };
 
   const handleDelete = async () => {
