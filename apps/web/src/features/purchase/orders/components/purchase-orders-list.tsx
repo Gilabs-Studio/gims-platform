@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
@@ -103,8 +102,9 @@ export function PurchaseOrdersList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
+  const [initialOpenPurchaseOrderId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialOpenPurchaseOrderId));
+  const [detailId, setDetailId] = useState<string | null>(initialOpenPurchaseOrderId);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const exportProgress = useExportProgress();
@@ -156,13 +156,6 @@ export function PurchaseOrdersList() {
   const canCreateGR = useUserPermission("goods_receipt.create");
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
-
-  // Auto-open detail modal when detailId is set from URL query param
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   // Clear URL query param after modal is opened
   useEffect(() => {
