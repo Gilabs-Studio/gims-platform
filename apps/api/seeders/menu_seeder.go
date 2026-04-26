@@ -481,6 +481,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// Contact Roles (CRM Settings surfaced in Master Data)
+	if _, err := createChildMenu("Contact Roles", "users", "/master-data/contact-roles", &masterDataMenu.ID, 9); err != nil {
+		return err
+	}
+
 	// Users (RBAC)
 	if _, err := createChildMenu("Users", "users", "/master-data/users", &masterDataMenu.ID, 99); err != nil {
 		return err
@@ -999,8 +1004,7 @@ func SeedMenus() error {
 		{"Pipeline Stages", "git-branch", "/crm/settings/pipeline-stages", 1},
 		{"Lead Sources", "target", "/crm/settings/lead-sources", 2},
 		{"Lead Statuses", "tag", "/crm/settings/lead-statuses", 3},
-		{"Contact Roles", "users", "/crm/settings/contact-roles", 4},
-		{"Activity Types", "calendar-check", "/crm/settings/activity-types", 5},
+		{"Activity Types", "calendar-check", "/crm/settings/activity-types", 4},
 	}
 	for _, child := range crmSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &crmSettingsMenu.ID, child.order); err != nil {
