@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const monthlyTargetSchema = z.object({
   month: z.coerce.number().min(1).max(12),
-  target_amount: z.coerce.number().min(0),
+  target_amount: z.coerce.number().gt(0),
   notes: z.string().optional(),
 });
 
