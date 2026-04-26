@@ -23,12 +23,13 @@ type PipelineStageUsecase interface {
 }
 
 type pipelineStageUsecase struct {
-	repo repositories.PipelineStageRepository
+	repo      repositories.PipelineStageRepository
+	dealRepo  repositories.DealRepository
 }
 
 // NewPipelineStageUsecase creates a new pipeline stage usecase
-func NewPipelineStageUsecase(repo repositories.PipelineStageRepository) PipelineStageUsecase {
-	return &pipelineStageUsecase{repo: repo}
+func NewPipelineStageUsecase(repo repositories.PipelineStageRepository, dealRepo repositories.DealRepository) PipelineStageUsecase {
+	return &pipelineStageUsecase{repo: repo, dealRepo: dealRepo}
 }
 
 func (u *pipelineStageUsecase) Create(ctx context.Context, req dto.CreatePipelineStageRequest) (dto.PipelineStageResponse, error) {
@@ -119,6 +120,12 @@ func (u *pipelineStageUsecase) Update(ctx context.Context, id string, req dto.Up
 
 	if err := u.repo.Update(ctx, stage); err != nil {
 		return dto.PipelineStageResponse{}, err
+	}
+
+	if req.Probability != nil {
+		if err := u.dealRepo.UpdateProbabilityByStageID(ctx, id, *req.Probability); err != nil {
+			return dto.PipelineStageResponse{}, err
+		}
 	}
 
 	return mapper.ToPipelineStageResponse(stage), nil
