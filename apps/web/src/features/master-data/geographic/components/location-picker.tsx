@@ -133,6 +133,14 @@ export function LocationPicker({
   const districtId = useWatch({ control, name: fields.district_id });
   const latitude = useWatch({ control, name: fields.latitude });
   const longitude = useWatch({ control, name: fields.longitude });
+
+  // Use numeric truthiness for coordinates to handle 0 correctly
+  const hasCoordinates = useMemo(() => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+  }, [latitude, longitude]);
+
   const selectedProvinceId = typeof provinceId === "string" ? provinceId : "";
   const selectedCityId = typeof cityId === "string" ? cityId : "";
   const selectedDistrictId = typeof districtId === "string" ? districtId : "";
@@ -200,23 +208,8 @@ export function LocationPicker({
     return Array.from(map.values());
   }, [districtsData?.data, selectedDistrictData?.data]);
 
-  // Build human-readable location summary
-  const [resolvedNames, setResolvedNames] = useState<{
-    province?: string;
-    city?: string;
-    district?: string;
-  }>({});
-
-  const resolvedSummary = (() => {
-    const parts: string[] = [];
-    if (resolvedNames.district) parts.push(resolvedNames.district);
-    if (resolvedNames.city) parts.push(resolvedNames.city);
-    if (resolvedNames.province) parts.push(resolvedNames.province);
-    return parts.join(", ");
-  })();
-
   // Shared helper — apply a reverse geocode result unconditionally.
-  // Uses the same no-guard pattern as resolvedSummary so all three levels
+  // Uses the same no-guard pattern so all three levels
   // always reflect the latest resolved location.
   const applyGeocodeResult = useCallback(
     (result: ReverseGeocodeResult) => {
@@ -228,11 +221,7 @@ export function LocationPicker({
       setValue(fields.city_id, result.city_id || undefined, { shouldDirty: true });
       setValue(fields.district_id, result.district_id || undefined, { shouldDirty: true });
       isProgrammaticChange.current = false;
-      setResolvedNames({
-        province: result.province_name || undefined,
-        city: result.city_name || undefined,
-        district: result.district_name || undefined,
-      });
+
       // Notify parent — geocoding is always a user-initiated action (map pick)
       if (result.province_id && result.province_name) {
         onProvinceChange?.(result.province_id, result.province_name);
@@ -241,13 +230,28 @@ export function LocationPicker({
     [setValue, fields.province_id, fields.city_id, fields.district_id, onProvinceChange]
   );
 
+  // Auto-resolve location summary when coordinates are present (edit mode / form reset).
+  // Tracks the last resolved coordinate pair so re-opening with a different record
+  // (while the component stays mounted) correctly re-fires rather than being blocked
+  // by a stale ref.
+  const lastResolvedCoordsRef = useRef<string | null>(null);
+
+  // Build human-readable location summary from the currently selected geographic data
+  const resolvedSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (selectedDistrictData?.data?.name) parts.push(selectedDistrictData.data.name);
+    if (selectedCityData?.data?.name) parts.push(selectedCityData.data.name);
+    if (selectedProvinceData?.data?.name) parts.push(selectedProvinceData.data.name);
+    return parts.join(", ");
+  }, [selectedDistrictData?.data?.name, selectedCityData?.data?.name, selectedProvinceData?.data?.name]);
+
   // When coordinates are selected from the map picker, run reverse geocode.
   // Pre-sets lastResolvedCoords to prevent the coordKey effect from firing
   // a duplicate request for the same pick.
   const handleCoordinateSelect = useCallback(
     (lat: number, lng: number) => {
       const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-      setLastResolvedCoords(key);
+      lastResolvedCoordsRef.current = key;
       setValue(fields.latitude, lat, { shouldValidate: true, shouldDirty: true });
       setValue(fields.longitude, lng, { shouldValidate: true, shouldDirty: true });
 
@@ -256,11 +260,7 @@ export function LocationPicker({
         {
           onSuccess: applyGeocodeResult,
           onError: () => {
-            // Clear stale admin IDs so the form doesn't submit old geo values
-            setValue(fields.province_id, undefined, { shouldDirty: true });
-            setValue(fields.city_id, undefined, { shouldDirty: true });
             setValue(fields.district_id, undefined, { shouldDirty: true });
-            setResolvedNames({});
           },
         }
       );
@@ -294,12 +294,6 @@ export function LocationPicker({
     );
   }, [handleCoordinateSelect, labels.locationFailed, labels.locationNotSupported, labels.locationPermissionDenied, setIsMapPickerOpen]);
 
-  // Auto-resolve location summary when coordinates are present (edit mode / form reset).
-  // Tracks the last resolved coordinate pair so re-opening with a different record
-  // (while the component stays mounted) correctly re-fires rather than being blocked
-  // by a stale boolean flag.
-  const [lastResolvedCoords, setLastResolvedCoords] = useState<string | null>(null);
-  const hasCoordinates = latitude != null && longitude != null;
   // Round to 6 dp to avoid floating-point jitter triggering unnecessary re-resolves
   const coordKey = hasCoordinates
     ? `${Number(latitude).toFixed(6)},${Number(longitude).toFixed(6)}`
@@ -307,17 +301,14 @@ export function LocationPicker({
 
   useEffect(() => {
     if (!coordKey) return;
-    if (coordKey === lastResolvedCoords) {
+    if (coordKey === lastResolvedCoordsRef.current) {
       return; // handleCoordinateSelect already handled this pick
     }
 
-    setLastResolvedCoords(coordKey);
+    lastResolvedCoordsRef.current = coordKey;
     reverseGeocode.mutate(
       { lat: Number(latitude), lng: Number(longitude) },
       {
-        // Always apply unconditionally — same pattern as resolvedSummary.
-        // No guards so switching records (or picking a new coord) always
-        // overwrites province / city / district with the fresh result.
         onSuccess: applyGeocodeResult,
         onError: (err) => console.error("[LocationPicker] reverseGeocode error", err),
       }
@@ -417,25 +408,13 @@ export function LocationPicker({
                 <Select
                   value={field.value ?? ""}
                   onValueChange={(val) => {
-                    if (!val) return; // Radix fires onValueChange("") when value not in item list
+                    if (!val) return;
                     field.onChange(val);
-                    // Only cascade-clear when the user manually changes province;
-                    // skip when geocoder sets all three IDs atomically.
                     if (!isProgrammaticChange.current) {
                       setValue(fields.city_id, undefined, { shouldDirty: true });
                       setValue(fields.district_id, undefined, { shouldDirty: true });
-                    }
-                    // Update resolved names if we can find the province
-                    const prov = provinces.find((p) => p.id === val);
-                    if (prov) {
-                      setResolvedNames((prev) => ({
-                        ...prev,
-                        province: prov.name,
-                        city: undefined,
-                        district: undefined,
-                      }));
-                      // Notify parent — manual dropdown is a user-initiated action
-                      if (!isProgrammaticChange.current) {
+                      const prov = provinces.find((p) => p.id === val);
+                      if (prov) {
                         onProvinceChange?.(val, prov.name);
                       }
                     }
@@ -467,20 +446,10 @@ export function LocationPicker({
                 <Select
                   value={field.value ?? ""}
                   onValueChange={(val) => {
-                    if (!val) return; // Radix fires onValueChange("") when value not in item list
+                    if (!val) return;
                     field.onChange(val);
-                    // Only cascade-clear when the user manually changes city;
-                    // skip when geocoder sets all three IDs atomically.
                     if (!isProgrammaticChange.current) {
                       setValue(fields.district_id, undefined, { shouldDirty: true });
-                    }
-                    const city = cities.find((c) => c.id === val);
-                    if (city) {
-                      setResolvedNames((prev) => ({
-                        ...prev,
-                        city: city.name,
-                        district: undefined,
-                      }));
                     }
                   }}
                   disabled={disabled}
@@ -516,15 +485,8 @@ export function LocationPicker({
                 <Select
                   value={field.value ?? ""}
                   onValueChange={(val) => {
-                    if (!val) return; // Radix fires onValueChange("") when value not in item list
+                    if (!val) return;
                     field.onChange(val);
-                    const dist = districts.find((d) => d.id === val);
-                    if (dist) {
-                      setResolvedNames((prev) => ({
-                        ...prev,
-                        district: dist.name,
-                      }));
-                    }
                   }}
                   disabled={disabled}
                 >
