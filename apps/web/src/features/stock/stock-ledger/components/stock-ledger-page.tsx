@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ElementType } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
@@ -8,24 +8,36 @@ import { DateRange } from "react-day-picker";
 import {
   AlertTriangle,
   ArrowLeft,
-  CalendarDays,
-  CircleDollarSign,
-  Filter,
+  ArrowDownLeft,
+  ArrowUpRight,
   RotateCcw,
   ScrollText,
-  Warehouse,
-  WalletCards,
-  X,
+  TrendingUp,
+  Clock,
+  Hash,
+  Layers,
 } from "lucide-react";
 import { PageMotion } from "@/components/motion";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Link, useRouter } from "@/i18n/routing";
 import { formatCurrency } from "@/lib/utils";
@@ -35,16 +47,21 @@ import type { Product } from "@/features/master-data/product/types";
 import { useStockLedger } from "../hooks/use-stock-ledger";
 
 type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER";
+type LedgerBadgeVariant = "success" | "destructive" | "warning" | "info";
 
-const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> = [
-  { value: "all", labelKey: "filter.allTypes" },
-  { value: "GR", labelKey: "transactionTypes.GR" },
-  { value: "GI", labelKey: "transactionTypes.GI" },
-  { value: "OPNAME", labelKey: "transactionTypes.OPNAME" },
-  { value: "TRANSFER", labelKey: "transactionTypes.TRANSFER" },
-];
+const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> =
+  [
+    { value: "all", labelKey: "filter.allTypes" },
+    { value: "GR", labelKey: "transactionTypes.GR" },
+    { value: "GI", labelKey: "transactionTypes.GI" },
+    { value: "OPNAME", labelKey: "transactionTypes.OPNAME" },
+    { value: "TRANSFER", labelKey: "transactionTypes.TRANSFER" },
+  ];
 
-function getTransactionTypeLabel(t: (key: string) => string, value: TransactionTypeFilter): string {
+function getTransactionTypeLabel(
+  t: (key: string) => string,
+  value: TransactionTypeFilter
+): string {
   switch (value) {
     case "GR":
       return t("transactionTypes.GR");
@@ -61,87 +78,105 @@ function getTransactionTypeLabel(t: (key: string) => string, value: TransactionT
 
 function formatLedgerDateTime(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
   return format(date, "dd MMM yyyy HH:mm");
-}
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  icon: ElementType;
-  tone?: "neutral" | "success" | "warning" | "brand";
-}) {
-  const toneClasses = {
-    neutral: "bg-muted text-foreground",
-    success: "bg-success/15 text-success",
-    warning: "bg-warning/15 text-warning",
-    brand: "bg-primary/15 text-primary",
-  }[tone];
-
-  return (
-    <Card className="border-border/60 bg-background shadow-sm">
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${toneClasses}`}>
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold leading-tight">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 function LedgerTableSkeleton() {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Skeleton key={index} className="h-14 w-full rounded-xl" />
+    <div className="space-y-px">
+      {Array.from({ length: 7 }).map((_, index) => (
+        <Skeleton key={index} className="h-12 w-full rounded-none first:rounded-t-lg last:rounded-b-lg" />
       ))}
     </div>
   );
 }
 
+/* ─── Summary Stat Card ──────────────────────────────────────────── */
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  accent?: "green" | "red" | "blue" | "default";
+}) {
+  const accentMap = {
+    green: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40",
+    red: "text-rose-600 bg-rose-50 dark:bg-rose-950/40",
+    blue: "text-blue-600 bg-blue-50 dark:bg-blue-950/40",
+    default: "text-muted-foreground bg-muted/40",
+  };
+  const iconClass = accentMap[accent ?? "default"];
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3.5 shadow-sm transition-shadow hover:shadow-md">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold tabular-nums">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Active Filter Pill ──────────────────────────────────────────── */
+function FilterPill({ label, onRemove }: { label: string; onRemove?: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted">
+      {label}
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="ml-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-foreground"
+          aria-label="Remove filter"
+        >
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+/* ─── Main Page ───────────────────────────────────────────────────── */
 export function StockLedgerPage() {
   const t = useTranslations("stock_ledger");
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const initialProductId = searchParams.get("product_id")?.trim() ?? "";
-  const [productId, setProductId] = useState(initialProductId);
-  const [transactionType, setTransactionType] = useState<TransactionTypeFilter>("all");
+  const productId = searchParams.get("product_id")?.trim() ?? "";
+  const [transactionType, setTransactionType] =
+    useState<TransactionTypeFilter>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  useEffect(() => {
-    setProductId(initialProductId);
-  }, [initialProductId]);
-
   const selectedProductQuery = useProduct(productId, { enabled: !!productId });
   const selectedProduct = selectedProductQuery.data?.data ?? null;
-
   const productDefaultOptions = selectedProduct ? [selectedProduct] : [];
 
   const ledgerQuery = useStockLedger(productId || null, {
     page,
     limit: pageSize,
-    transaction_type: transactionType === "all" ? undefined : transactionType,
-    date_from: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
+    transaction_type:
+      transactionType === "all" ? undefined : transactionType,
+    date_from: dateRange?.from
+      ? format(dateRange.from, "yyyy-MM-dd")
+      : undefined,
     date_to: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
   });
 
   const ledgerResponse = ledgerQuery.data?.data;
-  const ledgerRows = ledgerResponse?.data ?? [];
+  const ledgerRows = useMemo(() => ledgerResponse?.data ?? [], [ledgerResponse?.data]);
   const pagination = ledgerResponse?.meta;
+
   const hasDateFilter = !!dateRange?.from || !!dateRange?.to;
   const hasTypeFilter = transactionType !== "all";
   const hasProductFilter = !!productId;
@@ -152,7 +187,6 @@ export function StockLedgerPage() {
     const currentHpp = selectedProduct?.current_hpp ?? 0;
     const currentValue = currentStock * currentHpp;
     const latestMovement = ledgerRows[0]?.created_at ?? null;
-
     return {
       currentStock,
       currentValue,
@@ -161,13 +195,20 @@ export function StockLedgerPage() {
     };
   }, [ledgerRows, pagination?.total, selectedProduct?.current_hpp, selectedProduct?.current_stock]);
 
-  const totalQtyIn = ledgerRows.reduce((sum, item) => sum + (item.qty > 0 ? item.qty : 0), 0);
-  const totalQtyOut = ledgerRows.reduce((sum, item) => sum + (item.qty < 0 ? Math.abs(item.qty) : 0), 0);
+  const totalQtyIn = ledgerRows.reduce(
+    (sum, item) => sum + (item.qty > 0 ? item.qty : 0),
+    0
+  );
+  const totalQtyOut = ledgerRows.reduce(
+    (sum, item) => sum + (item.qty < 0 ? Math.abs(item.qty) : 0),
+    0
+  );
 
   const handleProductChange = (nextProductId: string) => {
-    setProductId(nextProductId);
     setPage(1);
-    const path = nextProductId ? `/stock/ledger?product_id=${encodeURIComponent(nextProductId)}` : "/stock/ledger";
+    const path = nextProductId
+      ? `/stock/ledger?product_id=${encodeURIComponent(nextProductId)}`
+      : "/stock/ledger";
     router.push(path);
   };
 
@@ -176,11 +217,6 @@ export function StockLedgerPage() {
     setDateRange(undefined);
     setPage(1);
     setPageSize(20);
-  };
-
-  const handleClearProduct = () => {
-    setProductId("");
-    setPage(1);
     router.push("/stock/ledger");
   };
 
@@ -188,275 +224,364 @@ export function StockLedgerPage() {
     ? `${selectedProduct.code} · ${selectedProduct.name}`
     : "-";
 
-  const getTypeBadgeClassName = (type: string) => {
+  const getTypeBadgeVariant = (type: string): LedgerBadgeVariant => {
     switch (type) {
-      case "GR":
-        return "border-success/40 bg-success/10 text-success";
-      case "GI":
-        return "border-destructive/40 bg-destructive/10 text-destructive";
-      case "OPNAME":
-        return "border-warning/40 bg-warning/10 text-warning";
-      case "TRANSFER":
-        return "border-primary/40 bg-primary/10 text-primary";
-      default:
-        return "";
+      case "GR": return "success";
+      case "GI": return "destructive";
+      case "OPNAME": return "warning";
+      default: return "info";
     }
   };
 
+  /* ── render ── */
   return (
-    <PageMotion className="space-y-5 p-4 md:p-6">
-      <Card className="border-border/60 bg-background shadow-sm">
-        <CardContent className="space-y-4 p-5 md:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <Badge variant="outline" className="w-fit gap-2 rounded-full px-3 py-1">
-                <ScrollText className="h-3.5 w-3.5" />
-                {t("badge")}
-              </Badge>
-              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{t("title")}</h1>
-              <p className="max-w-3xl text-sm text-muted-foreground md:text-base">{t("subtitle")}</p>
-            </div>
+    <PageMotion className="space-y-6">
 
-            <Button asChild variant="outline" className="cursor-pointer w-full sm:w-auto">
-              <Link href="/stock/inventory">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t("actions.backToInventory")}
-              </Link>
-            </Button>
-          </div>
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-0.5">
+          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("selector.label")}</p>
-              <AsyncSelect<Product>
-                value={productId || undefined}
-                onChange={(value) => handleProductChange(value)}
-                label={t("selector.label")}
-                placeholder={t("selector.placeholder")}
-                emptyMessage={t("selector.empty")}
-                width="w-full"
-                triggerClassName="h-11 rounded-lg"
-                defaultOptions={productDefaultOptions}
-                preload
-                fetcher={async (query) => {
-                  const response = await productService.list({
-                    page: 1,
-                    per_page: 20,
-                    search: query || undefined,
-                  });
-                  return response.data ?? [];
-                }}
-                getLabel={(item) => `${item.code} · ${item.name}`}
-                getValue={(item) => item.id}
-                renderOption={(item) => (
-                  <div className="flex w-full items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{item.name}</div>
-                      <div className="truncate text-xs text-muted-foreground font-mono">{item.code}</div>
-                    </div>
-                    <Badge variant="outline" className="shrink-0 text-xs">
-                      {item.current_stock?.toLocaleString("id-ID") ?? 0}
-                    </Badge>
-                  </div>
-                )}
-              />
-            </div>
-
-            <Button
-              variant="ghost"
-              className="cursor-pointer lg:mt-6"
-              onClick={handleClearProduct}
-              disabled={!productId}
-            >
-              <X className="mr-2 h-4 w-4" />
-              {t("actions.clearProduct")}
-            </Button>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("filter.transactionType")}</p>
-              <Select
-                value={transactionType}
-                onValueChange={(value) => {
-                  setTransactionType(value as TransactionTypeFilter);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-11 rounded-lg">
-                  <SelectValue placeholder={t("filter.allTypes")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {getTransactionTypeLabel(t, option.value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("filter.dateRange")}</p>
-              <DateRangePicker
-                dateRange={dateRange}
-                onDateChange={(range) => {
-                  setDateRange(range);
-                  setPage(1);
-                }}
-              />
-            </div>
-
-            <Button variant="outline" className="cursor-pointer lg:mt-6" onClick={handleResetFilters}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {t("actions.reset")}
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-            <Badge variant="secondary" className="rounded-full px-3 py-1">
-              <Filter className="mr-1.5 h-3.5 w-3.5" />
-              {t("filter.activeFilters")} {activeFilterCount}
-            </Badge>
-            {hasProductFilter && <Badge variant="outline" className="rounded-full px-3 py-1">{selectedProductLabel}</Badge>}
-            {hasTypeFilter && (
-              <Badge variant="outline" className="rounded-full px-3 py-1">
-                {t("filter.transactionType")}: {getTransactionTypeLabel(t, transactionType)}
-              </Badge>
-            )}
-            {hasDateFilter && <Badge variant="outline" className="rounded-full px-3 py-1">{t("filter.dateRange")}</Badge>}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <SummaryCard
-          label={t("summary.currentStock")}
-          value={productId ? summary.currentStock.toLocaleString("id-ID") : "-"}
-          icon={Warehouse}
-          tone="brand"
-        />
-        <SummaryCard
-          label={t("summary.currentValue")}
-          value={productId ? formatCurrency(summary.currentValue) : "-"}
-          icon={WalletCards}
-          tone="success"
-        />
-        <SummaryCard
-          label={t("summary.ledgerEntries")}
-          value={productId ? summary.ledgerCount.toLocaleString("id-ID") : "-"}
-          icon={ScrollText}
-          tone="neutral"
-        />
-        <SummaryCard
-          label={t("summary.latestMovement")}
-          value={summary.latestMovement ? formatLedgerDateTime(summary.latestMovement) : "-"}
-          icon={CalendarDays}
-          tone="warning"
-        />
-        <SummaryCard
-          label={t("summary.totalQtyIn")}
-          value={totalQtyIn.toLocaleString("id-ID")}
-          icon={Warehouse}
-          tone="success"
-        />
-        <SummaryCard
-          label={t("summary.totalQtyOut")}
-          value={totalQtyOut.toLocaleString("id-ID")}
-          icon={CircleDollarSign}
-          tone="warning"
-        />
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-full gap-2 sm:w-auto"
+        >
+          <Link href="/stock/inventory">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t("actions.backToInventory")}
+          </Link>
+        </Button>
       </div>
 
-      <Card className="overflow-hidden border-border/60 bg-background shadow-sm">
-        <CardContent className="p-0">
-          {!productId ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border bg-muted/40 text-muted-foreground shadow-sm">
-                <ScrollText className="h-6 w-6" />
+      {/* ── Filter panel ── */}
+      <div className="space-y-3">
+        {/* Product selector */}
+        <AsyncSelect<Product>
+          value={productId || undefined}
+          onChange={handleProductChange}
+          label={t("selector.label")}
+          placeholder={t("selector.placeholder")}
+          emptyMessage={t("selector.empty")}
+          width="w-full"
+          triggerClassName="h-10"
+          defaultOptions={productDefaultOptions}
+          preload
+          fetcher={async (query) => {
+            const response = await productService.list({
+              page: 1,
+              per_page: 20,
+              search: query || undefined,
+            });
+            return response.data ?? [];
+          }}
+          getLabel={(item) => `${item.code} · ${item.name}`}
+          getValue={(item) => item.id}
+          renderOption={(item) => (
+            <div className="flex w-full items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{item.name}</div>
+                <div className="truncate font-mono text-xs text-muted-foreground">
+                  {item.code}
+                </div>
               </div>
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{t("emptyState.title")}</h2>
-                <p className="max-w-md text-sm text-muted-foreground">{t("emptyState.description")}</p>
-              </div>
-            </div>
-          ) : ledgerQuery.isError ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 px-6 py-14 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{t("states.errorTitle")}</h2>
-                <p className="max-w-md text-sm text-muted-foreground">{t("states.errorDescription")}</p>
-              </div>
-              <Button variant="outline" className="cursor-pointer" onClick={() => ledgerQuery.refetch()}>
-                {t("actions.retry")}
-              </Button>
-            </div>
-          ) : ledgerQuery.isLoading ? (
-            <div className="p-5 md:p-6">
-              <LedgerTableSkeleton />
-            </div>
-          ) : ledgerRows.length === 0 ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border bg-muted/40 text-muted-foreground shadow-sm">
-                <ScrollText className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{t("table.noResults")}</h2>
-                <p className="max-w-md text-sm text-muted-foreground">{t("description")}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-background">
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">{t("table.date")}</TableHead>
-                    <TableHead className="whitespace-nowrap">{t("table.type")}</TableHead>
-                    <TableHead className="whitespace-nowrap">{t("table.reference")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.qtyIn")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.qtyOut")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.unitCost")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.averageCost")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.runningQty")}</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">{t("table.stockValue")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ledgerRows.map((row) => {
-                    const qtyIn = row.qty > 0 ? row.qty : 0;
-                    const qtyOut = row.qty < 0 ? Math.abs(row.qty) : 0;
-
-                    return (
-                      <TableRow key={row.id} className="hover:bg-muted/40">
-                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground font-medium">
-                          {formatLedgerDateTime(row.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={`rounded-full ${getTypeBadgeClassName(row.transaction_type)}`}>
-                            {row.transaction_type_label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{row.transaction_id}</TableCell>
-                        <TableCell className="text-right font-mono text-emerald-600">{qtyIn.toLocaleString("id-ID")}</TableCell>
-                        <TableCell className="text-right font-mono text-rose-600">{qtyOut.toLocaleString("id-ID")}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(row.unit_cost)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(row.average_cost)}</TableCell>
-                        <TableCell className="text-right font-mono font-medium">{row.running_qty.toLocaleString("id-ID")}</TableCell>
-                        <TableCell className="text-right font-mono font-medium">{formatCurrency(row.stock_value)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <Badge variant="soft" className="shrink-0 text-xs tabular-nums">
+                {item.current_stock?.toLocaleString("id-ID") ?? 0}
+              </Badge>
             </div>
           )}
-        </CardContent>
-      </Card>
+        />
 
+        {/* Type + Date + Reset row */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)_auto]">
+          <Select
+            value={transactionType}
+            onValueChange={(value) => {
+              setTransactionType(value as TransactionTypeFilter);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-10 text-sm">
+              <SelectValue placeholder={t("filter.allTypes")} />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {getTransactionTypeLabel(t, option.value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateChange={(range) => {
+              setDateRange(range);
+              setPage(1);
+            }}
+          />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 gap-2 text-muted-foreground hover:text-foreground"
+            onClick={handleResetFilters}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t("actions.reset")}
+          </Button>
+        </div>
+
+        {/* Active filter pills */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
+              {t("filter.activeFilters")} {activeFilterCount}
+            </span>
+            {hasProductFilter && (
+              <FilterPill
+                label={selectedProductLabel}
+                onRemove={() => {
+                  setPage(1);
+                  router.push("/stock/ledger");
+                }}
+              />
+            )}
+            {hasTypeFilter && (
+              <FilterPill
+                label={getTransactionTypeLabel(t, transactionType)}
+                onRemove={() => setTransactionType("all")}
+              />
+            )}
+            {hasDateFilter && (
+              <FilterPill
+                label={t("filter.dateRange")}
+                onRemove={() => setDateRange(undefined)}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Summary stat cards ── */}
+      {productId && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <StatCard
+            label={t("summary.currentStock")}
+            value={summary.currentStock.toLocaleString("id-ID")}
+            icon={Layers}
+            accent="blue"
+          />
+          <StatCard
+            label={t("summary.currentValue")}
+            value={formatCurrency(summary.currentValue)}
+            icon={TrendingUp}
+            accent="blue"
+          />
+          <StatCard
+            label={t("summary.ledgerEntries")}
+            value={summary.ledgerCount.toLocaleString("id-ID")}
+            icon={Hash}
+          />
+          <StatCard
+            label={t("summary.totalQtyIn")}
+            value={totalQtyIn.toLocaleString("id-ID")}
+            icon={ArrowDownLeft}
+            accent="green"
+          />
+          <StatCard
+            label={t("summary.totalQtyOut")}
+            value={totalQtyOut.toLocaleString("id-ID")}
+            icon={ArrowUpRight}
+            accent="red"
+          />
+          <StatCard
+            label={t("summary.latestMovement")}
+            value={
+              summary.latestMovement
+                ? formatLedgerDateTime(summary.latestMovement)
+                : "-"
+            }
+            icon={Clock}
+          />
+        </div>
+      )}
+
+      {/* ── Table container ── */}
+      <div className="overflow-hidden rounded-2xl border border-border/60 shadow-sm">
+        {!productId ? (
+          /* Empty — no product selected */
+          <div className="flex min-h-80 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-muted-foreground/60">
+              <ScrollText className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold">{t("emptyState.title")}</h2>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                {t("emptyState.description")}
+              </p>
+            </div>
+          </div>
+        ) : ledgerQuery.isError ? (
+          /* Error state */
+          <div className="flex min-h-80 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/8 text-destructive">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold">{t("states.errorTitle")}</h2>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                {t("states.errorDescription")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => ledgerQuery.refetch()}
+            >
+              {t("actions.retry")}
+            </Button>
+          </div>
+        ) : ledgerQuery.isLoading ? (
+          /* Loading skeleton */
+          <div className="p-5">
+            <LedgerTableSkeleton />
+          </div>
+        ) : ledgerRows.length === 0 ? (
+          /* No results */
+          <div className="flex min-h-80 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-muted-foreground/60">
+              <ScrollText className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold">{t("table.noResults")}</h2>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                {t("description")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* Data table */
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border/60 bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.date")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.type")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.reference")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.qtyIn")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.qtyOut")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.unitCost")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.averageCost")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.runningQty")}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {t("table.stockValue")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ledgerRows.map((row) => {
+                  const qtyIn = row.qty > 0 ? row.qty : 0;
+                  const qtyOut = row.qty < 0 ? Math.abs(row.qty) : 0;
+
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className="group border-b border-border/40 transition-colors last:border-0 hover:bg-muted/25"
+                    >
+                      <TableCell className="whitespace-nowrap py-3">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatLedgerDateTime(row.created_at)}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="py-3">
+                        <Badge
+                          variant={getTypeBadgeVariant(row.transaction_type)}
+                          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                        >
+                          {row.transaction_type_label}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="py-3">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {row.transaction_id}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right">
+                        {qtyIn > 0 ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-emerald-600">
+                            <ArrowDownLeft className="h-3 w-3" />
+                            {qtyIn.toLocaleString("id-ID")}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-xs text-muted-foreground/40">—</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right">
+                        {qtyOut > 0 ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-rose-600">
+                            <ArrowUpRight className="h-3 w-3" />
+                            {qtyOut.toLocaleString("id-ID")}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-xs text-muted-foreground/40">—</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right font-mono text-xs text-muted-foreground">
+                        {formatCurrency(row.unit_cost)}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right font-mono text-xs text-muted-foreground">
+                        {formatCurrency(row.average_cost)}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right">
+                        <span className="font-mono text-xs font-semibold">
+                          {row.running_qty.toLocaleString("id-ID")}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right">
+                        <span className="font-mono text-xs font-semibold">
+                          {formatCurrency(row.stock_value)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Pagination ── */}
       {pagination && productId && ledgerRows.length > 0 && (
-        <div className="rounded-2xl border bg-background p-3 shadow-sm">
+        <div>
           <DataTablePagination
             pageIndex={pagination.page}
             pageSize={pagination.per_page}
