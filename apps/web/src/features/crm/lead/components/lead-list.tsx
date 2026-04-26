@@ -48,7 +48,7 @@ export function LeadList() {
 
   const leadSources = shouldLoadFilterOptions ? (leadSourcesResponse?.data ?? []) : [];
   const leadStatuses = shouldLoadFilterOptions || shouldLoadStatusActionOptions
-    ? (leadStatusesResponse?.data ?? [])
+    ? (leadStatusesResponse?.data ?? []).filter((status) => status.is_active)
     : [];
 
   const handleStatusChange = async (leadId: string, statusId: string) => {
@@ -232,7 +232,9 @@ export function LeadList() {
                 const statusLabel = isConverted
                   ? t("convertedBadge")
                   : (item.lead_status?.name
-                    ?? (item.lead_status_id === LEAD_STATUS_NEW_ID || !item.lead_status_id ? "New" : "-"));
+                    ?? (item.lead_status_id === LEAD_STATUS_NEW_ID || !item.lead_status_id
+                      ? "New"
+                      : `${t("table.status")} [Deleted]`));
                 const statusStyle = isConverted
                   ? undefined
                   : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
