@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
+import { Controller } from "react-hook-form";
 import { useLeadStatusForm } from "../hooks/use-lead-status-form";
 import type { LeadStatus } from "../types";
 
@@ -49,7 +50,26 @@ export function LeadStatusDialog({
           <div className="grid grid-cols-2 gap-4">
             <Field>
               <FieldLabel>{t("form.score")}</FieldLabel>
-              <Input type="number" min={0} max={100} {...register("score", { valueAsNumber: true })} />
+              <Controller
+                control={form.control}
+                name="score"
+                render={({ field }) => (
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={field.value}
+                    onChange={(e) => {
+                      const raw = Number(e.target.value);
+                      if (Number.isNaN(raw)) {
+                        field.onChange(0);
+                        return;
+                      }
+                      field.onChange(Math.max(0, Math.min(100, raw)));
+                    }}
+                  />
+                )}
+              />
               {errors.score && <FieldError>{errors.score.message}</FieldError>}
             </Field>
             <Field>
