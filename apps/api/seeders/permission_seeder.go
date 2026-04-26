@@ -671,10 +671,10 @@ func SeedPermissions() error {
 		{"/crm/settings/lead-statuses", "crm_lead_status.delete", "Delete Lead Statuses", "DELETE", "crm_lead_status"},
 
 		// CRM Settings - Contact Roles
-		{"/crm/settings/contact-roles", "crm_contact_role.read", "View Contact Roles", "VIEW", "crm_contact_role"},
-		{"/crm/settings/contact-roles", "crm_contact_role.create", "Create Contact Roles", "CREATE", "crm_contact_role"},
-		{"/crm/settings/contact-roles", "crm_contact_role.update", "Edit Contact Roles", "EDIT", "crm_contact_role"},
-		{"/crm/settings/contact-roles", "crm_contact_role.delete", "Delete Contact Roles", "DELETE", "crm_contact_role"},
+		{"/master-data/contact-roles", "crm_contact_role.read", "View Contact Roles", "VIEW", "crm_contact_role"},
+		{"/master-data/contact-roles", "crm_contact_role.create", "Create Contact Roles", "CREATE", "crm_contact_role"},
+		{"/master-data/contact-roles", "crm_contact_role.update", "Edit Contact Roles", "EDIT", "crm_contact_role"},
+		{"/master-data/contact-roles", "crm_contact_role.delete", "Delete Contact Roles", "DELETE", "crm_contact_role"},
 
 		// CRM Settings - Activity Types
 		{"/crm/settings/activity-types", "crm_activity_type.read", "View Activity Types", "VIEW", "crm_activity_type"},

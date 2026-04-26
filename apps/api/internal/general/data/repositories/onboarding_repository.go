@@ -68,41 +68,61 @@ func (r *onboardingRepository) Save(ctx context.Context, state *generalModels.Te
 // Company is considered complete when any identifying field (address, phone, email, npwp) is filled.
 // All other steps are complete when at least one record exists in the relevant table.
 func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingStepsData, error) {
-	db := database.GetDB(ctx, r.db)
 	tenantID := middleware.TenantFromContext(ctx)
 
 	var steps OnboardingStepsData
+	count := func(table string, where string, args ...interface{}) (int64, error) {
+		var total int64
+		query := database.GetDB(ctx, r.db).Table(table)
+		if where != "" {
+			query = query.Where(where, args...)
+		}
+		if err := query.Count(&total).Error; err != nil {
+			return 0, err
+		}
+		return total, nil
+	}
 
 	// Company: registration always creates a row; it is "done" only when detail fields are filled.
-	var companyCount int64
-	db.Table("companies").
-		Where("deleted_at IS NULL AND (address <> '' OR phone <> '' OR email <> '' OR npwp <> '')").
-		Count(&companyCount)
+	companyCount, err := count("companies", "deleted_at IS NULL AND (address <> '' OR phone <> '' OR email <> '' OR npwp <> '')")
+	if err != nil {
+		return nil, err
+	}
 	steps.Company = companyCount > 0
 
 	// Outlet
-	var outletCount int64
-	db.Table("outlets").Where("deleted_at IS NULL").Count(&outletCount)
+	outletCount, err := count("outlets", "deleted_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
 	steps.Outlet = outletCount > 0
 
 	// POS Floor Plan (F&B-specific, but we check for all business types)
-	var floorCount int64
-	db.Table("pos_floor_plans").Where("deleted_at IS NULL").Count(&floorCount)
+	floorCount, err := count("pos_floor_plans", "deleted_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
 	steps.FloorLayout = floorCount > 0
 
 	// Products
-	var productCount int64
-	db.Table("products").Where("deleted_at IS NULL").Count(&productCount)
+	productCount, err := count("products", "deleted_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
 	steps.Products = productCount > 0
 
 	// Warehouse
-	var warehouseCount int64
-	db.Table("warehouses").Where("deleted_at IS NULL").Count(&warehouseCount)
+	warehouseCount, err := count("warehouses", "deleted_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
 	steps.Warehouse = warehouseCount > 0
 
 	// Users: more than 1 means additional team members have been added
-	var userCount int64
-	db.Table("users").Where("deleted_at IS NULL").Count(&userCount)
+	userCount, err := count("users", "deleted_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
 	steps.Users = userCount > 1
 
 	// FiscalYear: at least one fiscal year exists for tenant-owned companies.
@@ -116,10 +136,16 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 			Count(&fiscalYearCount).Error
 		if err != nil {
 			// Fallback to tenant-scoped default query path.
-			db.Table("fiscal_years").Where("deleted_at IS NULL").Count(&fiscalYearCount)
+			fiscalYearCount, err = count("fiscal_years", "deleted_at IS NULL")
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		db.Table("fiscal_years").Where("deleted_at IS NULL").Count(&fiscalYearCount)
+		fiscalYearCount, err = count("fiscal_years", "deleted_at IS NULL")
+		if err != nil {
+			return nil, err
+		}
 	}
 	steps.FiscalYear = fiscalYearCount > 0
 

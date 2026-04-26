@@ -159,13 +159,6 @@ export const navigationConfig: NavItem[] = [
             permission: "crm_lead_status.read",
           },
           {
-            name: "Contact Roles",
-            i18nKey: "contactRoles",
-            url: "/crm/settings/contact-roles",
-            icon: "user-cog",
-            permission: "crm_contact_role.read",
-          },
-          {
             name: "Activity Types",
             i18nKey: "activityTypes",
             url: "/crm/settings/activity-types",
@@ -1009,6 +1002,13 @@ export const navigationConfig: NavItem[] = [
         url: "/master-data/leave-types",
         icon: "calendar",
         permission: "leave_type.read",
+      },
+      {
+        name: "Contact Roles",
+        i18nKey: "contactRoles",
+        url: "/master-data/contact-roles",
+        icon: "user-cog",
+        permission: "crm_contact_role.read",
       },
       
     ],
