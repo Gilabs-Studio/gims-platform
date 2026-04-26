@@ -172,11 +172,6 @@ func (u *taskUsecase) Update(ctx context.Context, id string, req dto.UpdateTaskR
 		return dto.TaskResponse{}, errors.New("task not found")
 	}
 
-	// Cannot update cancelled tasks
-	if task.Status == string(models.TaskStatusCancelled) {
-		return dto.TaskResponse{}, errors.New("cannot update a cancelled task")
-	}
-
 	if req.Title != nil {
 		task.Title = *req.Title
 	}
@@ -188,6 +183,16 @@ func (u *taskUsecase) Update(ctx context.Context, id string, req dto.UpdateTaskR
 	}
 	if req.Priority != nil {
 		task.Priority = *req.Priority
+	}
+	if req.Status != nil {
+		task.Status = *req.Status
+		if task.Status != string(models.TaskStatusCompleted) {
+			task.CompletedAt = nil
+		}
+		if task.Status == string(models.TaskStatusCompleted) && task.CompletedAt == nil {
+			now := apptime.Now()
+			task.CompletedAt = &now
+		}
 	}
 	if req.DueDate != nil {
 		if *req.DueDate == "" {

@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 import {
   useCreateVisitReport,
   useVisitReportFormData,
-  useSubmitVisitReport,
   useCheckInVisitReport,
   useUploadVisitPhotos,
   useUploadVisitImage,
@@ -101,7 +100,6 @@ export function LogVisitDialog({
   const authUser = useAuthStore((state) => state.user);
   const qc = useQueryClient();
   const createMutation = useCreateVisitReport();
-  const submitMutation = useSubmitVisitReport();
   const checkInMutation = useCheckInVisitReport();
   const uploadPhotosMutation = useUploadVisitPhotos();
   const uploadImageMutation = useUploadVisitImage();
@@ -348,6 +346,11 @@ export function LogVisitDialog({
       return;
     }
 
+    if (contactPhone.trim() && !/^\+?[0-9]+$/.test(contactPhone.trim())) {
+      toast.error(t("validation.contactPhoneInvalid"));
+      return;
+    }
+
     const payload: CreateVisitReportData = {
       visit_date: format(selectedDate, "yyyy-MM-dd"),
       scheduled_time: selectedTime || undefined,
@@ -386,9 +389,6 @@ export function LogVisitDialog({
         onSuccess?.();
         return;
       }
-
-      // Keep backend side-effects intact (activity feed + lead product sync).
-      await submitMutation.mutateAsync({ id: visitId, data: {} });
 
       // Check-in with GPS if captured
       if (checkInGps) {
@@ -430,13 +430,12 @@ export function LogVisitDialog({
     authUser, leadId, dealId, customerId, contactId,
     contactPerson, contactPhone, checkInGps,
     photos, productItems, createMutation, handleClose, onSuccess,
-    submitMutation, checkInMutation, uploadPhotosMutation,
+    checkInMutation, uploadPhotosMutation,
     qc, t, tCommon,
   ]);
 
   const isSubmittingFlow =
     createMutation.isPending ||
-    submitMutation.isPending ||
     checkInMutation.isPending ||
     uploadPhotosMutation.isPending;
 
@@ -511,8 +510,12 @@ export function LogVisitDialog({
                 <div className="space-y-1.5">
                   <Label>{t("form.contactPhone")}</Label>
                   <Input
+                    type="tel"
+                    inputMode="tel"
                     value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
+                    onChange={(e) =>
+                      setContactPhone(e.target.value.replace(/[^0-9+]/g, ""))
+                    }
                     placeholder={t("form.contactPhonePlaceholder")}
                   />
                 </div>

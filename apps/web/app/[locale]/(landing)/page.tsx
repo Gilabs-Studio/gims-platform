@@ -22,6 +22,7 @@ import {
   Sparkles,
   UserCheck,
 } from "lucide-react";
+import { PricingSection } from "@/components/landing/pricing-section";
 
 // WebGL background — single instance, fixed behind entire page
 import type { LightRaysProps } from "@/components/landing/light-rays";
@@ -135,6 +136,7 @@ function FaqItem({
 
 export default function LandingPage() {
   const [activeScreenshot, setActiveScreenshot] = useState(0);
+
   const t = useTranslations("landing");
 
   const MODULE_KEYS = [
@@ -525,8 +527,10 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <PricingSection />
+
         {/* ════════════════════════════════════════════════════════
-            6. MODULES
+            7. MODULES
         ════════════════════════════════════════════════════════ */}
         <section id="modules" className="flex min-h-screen flex-col items-center justify-center py-24">
           <div className={W}>
@@ -578,7 +582,7 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-            7. FAQ
+          8. FAQ
         ════════════════════════════════════════════════════════ */}
         <section id="faq" className="flex min-h-screen flex-col items-center justify-center py-24">
           <div className={W}>
@@ -624,7 +628,7 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-          8. CTA
+          9. CTA
         ════════════════════════════════════════════════════════ */}
         <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
           <div className={W}>

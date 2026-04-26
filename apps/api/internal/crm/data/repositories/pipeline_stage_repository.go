@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // PipelineStageRepository defines the interface for pipeline stage data access
@@ -58,16 +59,9 @@ func (r *pipelineStageRepository) List(ctx context.Context, params ListParams) (
 	}
 
 	if params.SortBy != "" {
-		// Quote column name to handle reserved keywords like 'order'
-		quotedColumn := "\"" + params.SortBy + "\""
-		if params.SortDir == "desc" {
-			quotedColumn += " DESC"
-		} else {
-			quotedColumn += " ASC"
-		}
-		query = query.Order(quotedColumn)
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: params.SortBy}, Desc: params.SortDir == "desc"})
 	} else {
-		query = query.Order("\"order\" ASC")
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: "order"}, Desc: false})
 	}
 
 	if params.Limit > 0 {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ContactRoleRepository defines the interface for contact role data access
@@ -55,16 +56,9 @@ func (r *contactRoleRepository) List(ctx context.Context, params ListParams) ([]
 	}
 
 	if params.SortBy != "" {
-		// Quote column name to handle reserved keywords
-		quotedColumn := "\"" + params.SortBy + "\""
-		if params.SortDir == "desc" {
-			quotedColumn += " DESC"
-		} else {
-			quotedColumn += " ASC"
-		}
-		query = query.Order(quotedColumn)
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: params.SortBy}, Desc: params.SortDir == "desc"})
 	} else {
-		query = query.Order("name ASC")
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: "name"}, Desc: false})
 	}
 
 	if params.Limit > 0 {

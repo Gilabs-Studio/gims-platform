@@ -241,6 +241,7 @@ type DealPipelineStageOption struct {
 	Probability int    `json:"probability"`
 	IsWon       bool   `json:"is_won"`
 	IsLost      bool   `json:"is_lost"`
+	IsActive    bool   `json:"is_active"`
 }
 
 type DealProductOption struct {

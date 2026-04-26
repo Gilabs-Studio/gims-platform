@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { useCreatePipelineStage, useUpdatePipelineStage } from "./use-pipeline-stage";
 import type { PipelineStage } from "../types";
 
@@ -64,8 +65,13 @@ export function usePipelineStageForm({ open, onOpenChange, editingItem }: UsePip
       }
       onOpenChange(false);
       form.reset();
-    } catch {
-      toast.error(tCommon("error"));
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? (error.response?.data?.error_id as string | undefined)
+          ?? (error.response?.data?.error?.message as string | undefined)
+          ?? (error.response?.data?.message as string | undefined)
+        : undefined;
+      toast.error(message ?? tCommon("error"));
     }
   };
 

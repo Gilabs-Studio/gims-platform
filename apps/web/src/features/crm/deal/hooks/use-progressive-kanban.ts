@@ -27,7 +27,9 @@ export function useProgressiveKanbanBoard() {
   // Sorted, active stages
   const stages: DealPipelineStageOption[] = useMemo(() => {
     if (!formData?.pipeline_stages) return [];
-    return [...formData.pipeline_stages].sort(
+    return formData.pipeline_stages
+      .filter((stage) => stage.is_active)
+      .sort(
       (a, b) => a.order - b.order
     );
   }, [formData]);

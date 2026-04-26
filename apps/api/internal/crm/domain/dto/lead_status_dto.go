@@ -6,7 +6,7 @@ import "time"
 type CreateLeadStatusRequest struct {
 	Name        string `json:"name" binding:"required,min=2,max=100"`
 	Description string `json:"description" binding:"max=500"`
-	Score       int    `json:"score" binding:"min=0"`
+	Score       int    `json:"score" binding:"min=0,max=100"`
 	Color       string `json:"color" binding:"max=20"`
 }
 
@@ -14,7 +14,7 @@ type CreateLeadStatusRequest struct {
 type UpdateLeadStatusRequest struct {
 	Name        string `json:"name" binding:"omitempty,min=2,max=100"`
 	Description string `json:"description" binding:"max=500"`
-	Score       *int   `json:"score" binding:"omitempty,min=0"`
+	Score       *int   `json:"score" binding:"omitempty,min=0,max=100"`
 	Color       string `json:"color" binding:"max=20"`
 	IsActive    *bool  `json:"is_active"`
 }

@@ -1,15 +1,18 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+const dealQueryByPipelineStageID = "pipeline_stage_id = ?"
 
 // DealListParams defines filtering/sorting/pagination parameters for deal queries
 type DealListParams struct {
@@ -93,6 +96,7 @@ type DealRepository interface {
 	SoftDeleteItemByID(ctx context.Context, itemID, dealID string) error
 	RestoreItemByID(ctx context.Context, itemID, dealID string) error
 	GetLastHistoryByDealID(ctx context.Context, dealID string) (*models.DealHistory, error)
+	UpdateProbabilityByStageID(ctx context.Context, stageID string, probability int) error
 }
 
 type dealRepository struct {
@@ -146,7 +150,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 		query = query.Where("status = ?", params.Status)
 	}
 	if params.PipelineStageID != "" {
-		query = query.Where("pipeline_stage_id = ?", params.PipelineStageID)
+		query = query.Where(dealQueryByPipelineStageID, params.PipelineStageID)
 	}
 	if params.CustomerID != "" {
 		query = query.Where("customer_id = ?", params.CustomerID)
@@ -189,7 +193,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 		Preload("Customer").
 		Preload("Contact").
 		Preload("AssignedEmployee").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).
 		Offset(params.Offset).
 		Find(&deals).Error
@@ -198,7 +202,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 }
 
 func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStageParams) ([]models.Deal, int64, error) {
-	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("pipeline_stage_id = ?", params.StageID)
+	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where(dealQueryByPipelineStageID, params.StageID)
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
@@ -277,6 +281,13 @@ func (r *dealRepository) GetLastHistoryByDealID(ctx context.Context, dealID stri
 		return nil, err
 	}
 	return &history, nil
+}
+
+func (r *dealRepository) UpdateProbabilityByStageID(ctx context.Context, stageID string, probability int) error {
+	return database.GetDB(ctx, r.db).
+		Model(&models.Deal{}).
+		Where(dealQueryByPipelineStageID, stageID).
+		Update("probability", probability).Error
 }
 
 func (r *dealRepository) DeleteItemsByDealID(ctx context.Context, dealID string) error {

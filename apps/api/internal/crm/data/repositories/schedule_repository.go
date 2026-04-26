@@ -1,13 +1,14 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ScheduleListParams defines filters for listing schedules
@@ -104,7 +105,7 @@ func (r *scheduleRepository) List(ctx context.Context, params ScheduleListParams
 	err := query.
 		Preload("Task").
 		Preload("Employee").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).Offset(params.Offset).
 		Find(&schedules).Error
 	return schedules, total, err
