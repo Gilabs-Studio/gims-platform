@@ -446,6 +446,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Finance defaults are tenant-scoped; backfill them after all tenants exist.
+	if err := BackfillTenantFinanceDefaults(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

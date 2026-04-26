@@ -1198,6 +1198,10 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			_ = err
 		}
 
+		if err := u.ensureTenantAccountingDefaults(tx, tenantID); err != nil {
+			return err
+		}
+
 		if err := tx.Exec(`
 			INSERT INTO tenant_onboardings (id, tenant_id, business_type, completed, created_at, updated_at)
 			VALUES (gen_random_uuid(), ?, '', false, NOW(), NOW())`,

@@ -466,6 +466,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: tenant_id backfill failed (non-fatal): %v", err)
 	}
 
+	if err := ensureCOACodeTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: COA tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureRoleNameTenantScopedUniqueIndex(); err != nil {
 		log.Printf("Warning: role tenant-scoped name index migration failed (non-fatal): %v", err)
 	}
@@ -536,6 +540,20 @@ func ensureRoleNameTenantScopedUniqueIndex() error {
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_roles_tenant_name_active
 		ON roles ((COALESCE(tenant_id::text, '__global__')), lower(name))
 		WHERE deleted_at IS NULL
+	`).Error
+}
+
+func ensureCOACodeTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS chart_of_accounts_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_chart_of_accounts_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS chart_of_accounts_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.chart_of_accounts_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_chart_of_accounts_tenant_code_active
+		ON chart_of_accounts (tenant_id, code)
 	`).Error
 }
 
