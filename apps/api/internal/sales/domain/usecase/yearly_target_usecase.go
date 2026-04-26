@@ -19,6 +19,7 @@ import (
 
 var (
 	ErrYearlyTargetNotFound = errors.New("yearly target not found")
+	ErrYearlyTargetConflict = errors.New("yearly target for selected year and area already exists")
 )
 
 // YearlyTargetUsecase defines the interface for yearly target business logic
@@ -92,6 +93,14 @@ func (u *yearlyTargetUsecase) GetByID(ctx context.Context, id string) (*dto.Year
 }
 
 func (u *yearlyTargetUsecase) Create(ctx context.Context, req *dto.CreateYearlyTargetRequest) (*dto.YearlyTargetResponse, error) {
+	exists, err := u.targetRepo.ExistsByYearAndArea(ctx, req.Year, req.AreaID, nil)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrYearlyTargetConflict
+	}
+
 	code, err := u.targetRepo.GetNextTargetNumber(ctx, "YT")
 	if err != nil {
 		return nil, err
@@ -122,6 +131,20 @@ func (u *yearlyTargetUsecase) Update(ctx context.Context, id string, req *dto.Up
 	}
 
 	before := salesTargetAuditSnapshot(target)
+
+	areaIDToCheck := target.AreaID
+	if req.AreaID != nil {
+		areaIDToCheck = req.AreaID
+	}
+
+	exists, err := u.targetRepo.ExistsByYearAndArea(ctx, target.Year, areaIDToCheck, &id)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrYearlyTargetConflict
+	}
+
 	mapper.UpdateYearlyTargetModel(target, req)
 
 	if err := u.targetRepo.Update(ctx, target); err != nil {

@@ -18,6 +18,7 @@ import (
 type YearlyTargetRepository interface {
 	FindByID(ctx context.Context, id string) (*models.YearlyTarget, error)
 	List(ctx context.Context, req *dto.ListYearlyTargetsRequest) ([]models.YearlyTarget, int64, error)
+	ExistsByYearAndArea(ctx context.Context, year int, areaID *string, excludeID *string) (bool, error)
 	Create(ctx context.Context, yt *models.YearlyTarget) error
 	Update(ctx context.Context, yt *models.YearlyTarget) error
 	Delete(ctx context.Context, id string) error
@@ -66,7 +67,9 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OwnerUserIDColumn: "yearly_targets.created_by",
+	})
 
 	// Apply search filter
 	if s := strings.TrimSpace(req.Search); s != "" {
@@ -202,6 +205,27 @@ func (r *yearlyTargetRepository) hydrateMonthlyActualAmounts(ctx context.Context
 			(*targets)[i].MonthlyTargets[j].CalculateAchievement()
 		}
 	}
+}
+
+func (r *yearlyTargetRepository) ExistsByYearAndArea(ctx context.Context, year int, areaID *string, excludeID *string) (bool, error) {
+	query := r.getDB(ctx).Model(&models.YearlyTarget{}).Where("year = ?", year)
+
+	if areaID == nil || *areaID == "" {
+		query = query.Where("area_id IS NULL")
+	} else {
+		query = query.Where("area_id = ?", *areaID)
+	}
+
+	if excludeID != nil && *excludeID != "" {
+		query = query.Where("id <> ?", *excludeID)
+	}
+
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (r *yearlyTargetRepository) Create(ctx context.Context, yt *models.YearlyTarget) error {
