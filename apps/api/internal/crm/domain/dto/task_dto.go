@@ -20,6 +20,7 @@ type UpdateTaskRequest struct {
 	Description *string `json:"description"`
 	Type        *string `json:"type" binding:"omitempty,oneof=general call email meeting follow_up"`
 	Priority    *string `json:"priority" binding:"omitempty,oneof=low medium high urgent"`
+	Status      *string `json:"status" binding:"omitempty,oneof=pending in_progress completed cancelled"`
 	DueDate     *string `json:"due_date"`
 	AssignedTo  *string `json:"assigned_to" binding:"omitempty,uuid"`
 	CustomerID  *string `json:"customer_id" binding:"omitempty,uuid"`
