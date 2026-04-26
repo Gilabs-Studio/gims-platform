@@ -122,6 +122,7 @@ func (v *VisitReport) BeforeCreate(tx *gorm.DB) error {
 // VisitReportDetail — Product interest tracking per visit (from ERP SalesVisitDetail)
 type VisitReportDetail struct {
 	ID            string                 `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID      string                 `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	VisitReportID string                 `gorm:"type:uuid;not null;index" json:"visit_report_id"`
 	VisitReport   *VisitReport           `gorm:"foreignKey:VisitReportID" json:"visit_report,omitempty"`
 	ProductID     string                 `gorm:"type:uuid;not null;index" json:"product_id"`
@@ -158,6 +159,7 @@ func (d *VisitReportDetail) BeforeCreate(tx *gorm.DB) error {
 // VisitReportProgressHistory tracks status changes.
 type VisitReportProgressHistory struct {
 	ID            string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID      string            `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	VisitReportID string            `gorm:"type:uuid;not null;index" json:"visit_report_id"`
 	VisitReport   *VisitReport      `gorm:"foreignKey:VisitReportID" json:"visit_report,omitempty"`
 	FromStatus    VisitReportStatus `gorm:"type:varchar(20)" json:"from_status"`
@@ -182,6 +184,7 @@ func (h *VisitReportProgressHistory) BeforeCreate(tx *gorm.DB) error {
 // Reuses existing SalesVisitInterestQuestion and SalesVisitInterestOption models
 type VisitReportInterestAnswer struct {
 	ID                  string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID            string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	VisitReportDetailID string `gorm:"type:uuid;not null;index" json:"visit_report_detail_id"`
 	QuestionID          string `gorm:"type:uuid;not null;index" json:"question_id"`
 	OptionID            string `gorm:"type:uuid;not null;index" json:"option_id"`

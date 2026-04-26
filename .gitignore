@@ -57,3 +57,5 @@ CLAUDE.md
 .CLAUDE/
 .playwright-mcp/
 .sisyphus/
+
+.pi/

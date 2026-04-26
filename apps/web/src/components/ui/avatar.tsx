@@ -14,9 +14,31 @@ const AvatarContext = React.createContext<{
  * Prevents dangerous protocols like javascript:
  */
 const isSafeUrl = (url?: string): boolean => {
-  if (!url) return false;
-  // Allow absolute URLs (http/https), data URLs for images, or relative paths
-  return /^(https?:\/\/|data:image\/|\/|blob:)/i.test(url);
+  if (!url || typeof url !== "string") return false;
+
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+
+  // Allow site-relative paths.
+  if (trimmed.startsWith("/")) return true;
+
+  // Allow image data URLs only.
+  if (/^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(trimmed)) {
+    return true;
+  }
+
+  // Allow browser-created blob URLs only (blob:<origin>/<uuid>).
+  if (/^blob:https?:\/\/[^/]+\/[0-9a-f-]{36}$/i.test(trimmed)) {
+    return true;
+  }
+
+  // Allow standard remote image URLs over HTTP(S).
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 };
 
 function Avatar({ className, ...props }: React.ComponentProps<"div">) {

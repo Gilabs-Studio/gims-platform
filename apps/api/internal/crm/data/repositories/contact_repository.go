@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ContactRepository defines the interface for contact data access
@@ -79,16 +80,9 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	}
 
 	if params.SortBy != "" {
-		// Quote column name to handle reserved keywords
-		quotedColumn := "\"" + params.SortBy + "\""
-		if params.SortDir == "desc" {
-			quotedColumn += " DESC"
-		} else {
-			quotedColumn += " ASC"
-		}
-		query = query.Order(quotedColumn)
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: params.SortBy}, Desc: params.SortDir == "desc"})
 	} else {
-		query = query.Order("name ASC")
+		query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: "name"}, Desc: false})
 	}
 
 	if params.Limit > 0 {

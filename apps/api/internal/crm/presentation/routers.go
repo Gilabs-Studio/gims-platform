@@ -46,7 +46,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salesQuotationRepo := salesRepos.NewSalesQuotationRepository(db)
 
 	// Initialize usecases
-	pipelineStageUC := usecase.NewPipelineStageUsecase(pipelineStageRepo)
+	pipelineStageUC := usecase.NewPipelineStageUsecase(pipelineStageRepo, dealRepo)
 	leadSourceUC := usecase.NewLeadSourceUsecase(leadSourceRepo)
 	leadStatusUC := usecase.NewLeadStatusUsecase(leadStatusRepo)
 	contactRoleUC := usecase.NewContactRoleUsecase(contactRoleRepo)

@@ -12,7 +12,7 @@ type CreateYearlyTargetRequest struct {
 // CreateMonthlyTargetRequest represents a monthly target in the request
 type CreateMonthlyTargetRequest struct {
 	Month        int     `json:"month" binding:"required,min=1,max=12"`
-	TargetAmount float64 `json:"target_amount" binding:"required,gte=0"`
+	TargetAmount float64 `json:"target_amount" binding:"required,gt=0"`
 	Notes        string  `json:"notes"`
 }
 
@@ -27,7 +27,7 @@ type UpdateYearlyTargetRequest struct {
 // UpdateMonthlyTargetRequest represents a monthly target in the update request
 type UpdateMonthlyTargetRequest struct {
 	Month        int     `json:"month" binding:"required,min=1,max=12"`
-	TargetAmount float64 `json:"target_amount" binding:"required,gte=0"`
+	TargetAmount float64 `json:"target_amount" binding:"required,gt=0"`
 	Notes        string  `json:"notes"`
 }
 

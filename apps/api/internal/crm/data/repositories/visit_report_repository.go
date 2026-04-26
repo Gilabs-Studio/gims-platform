@@ -236,6 +236,7 @@ func (r *visitReportRepository) Create(ctx context.Context, report *models.Visit
 		if len(details) > 0 {
 			for i := range details {
 				details[i].VisitReportID = report.ID
+				details[i].TenantID = report.TenantID
 				answers := details[i].Answers
 				details[i].Answers = nil
 				if err := tx.Create(&details[i]).Error; err != nil {
@@ -245,6 +246,7 @@ func (r *visitReportRepository) Create(ctx context.Context, report *models.Visit
 				if len(answers) > 0 {
 					for j := range answers {
 						answers[j].VisitReportDetailID = details[i].ID
+						answers[j].TenantID = report.TenantID
 					}
 					if err := tx.Create(&answers).Error; err != nil {
 						return err
@@ -284,6 +286,7 @@ func (r *visitReportRepository) Update(ctx context.Context, report *models.Visit
 		if len(report.Details) > 0 {
 			for i := range report.Details {
 				report.Details[i].VisitReportID = report.ID
+				report.Details[i].TenantID = report.TenantID
 				answers := report.Details[i].Answers
 				report.Details[i].Answers = nil
 				report.Details[i].CreatedAt = apptime.Now()
@@ -294,6 +297,7 @@ func (r *visitReportRepository) Update(ctx context.Context, report *models.Visit
 				if len(answers) > 0 {
 					for j := range answers {
 						answers[j].VisitReportDetailID = report.Details[i].ID
+						answers[j].TenantID = report.TenantID
 					}
 					if err := tx.Create(&answers).Error; err != nil {
 						return err

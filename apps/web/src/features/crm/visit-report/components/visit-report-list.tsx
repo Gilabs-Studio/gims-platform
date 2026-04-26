@@ -9,6 +9,7 @@ import {
   Trash2,
   Filter,
   Eye,
+  Printer,
   MapPin,
   LogIn,
   LogOut,
@@ -51,6 +52,7 @@ import { VisitReportCalendarView } from "./visit-report-calendar-view";
 import { VisitReportEmployeeView } from "./visit-report-employee-view";
 import { LogVisitDialog } from "./log-visit-dialog";
 import { useVisitReportList } from "../hooks/use-visit-report-list";
+import { visitReportService } from "../services/visit-report-service";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import type { VisitReportOutcome } from "../types";
@@ -279,6 +281,14 @@ export function VisitReportList() {
                                 >
                                   <Eye className="mr-2 h-4 w-4" />
                                   {t("detailTitle")}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => window.open(visitReportService.getPrintUrl(item.id), "_blank")}
+                                  className="cursor-pointer"
+                                >
+                                  <Printer className="mr-2 h-4 w-4" />
+                                  {tCommon("print")}
                                 </DropdownMenuItem>
 
                                 {permissions.canUpdate && canCheckIn && owner && (

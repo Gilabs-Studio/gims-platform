@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // JournalLineListParams holds query parameters for listing journal lines.
@@ -86,12 +87,8 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 		}
 
 		// Sort
-		sortCol := "cbj.transaction_date"
 		sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-		if sortDir != "desc" {
-			sortDir = "asc"
-		}
-		orderClause := sortCol + " " + sortDir + ", cbl.created_at ASC, cbl.id ASC"
+		isDesc := sortDir == "desc"
 
 		selectFields := `
 			cbl.id, cbl.cash_bank_journal_id AS journal_entry_id, cbl.chart_of_account_id,
@@ -103,7 +100,10 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 		`
 
 		var items []JournalLineWithEntry
-		q := baseQuery.Select(selectFields).Order(orderClause)
+		q := baseQuery.Select(selectFields).
+			Order(clause.OrderByColumn{Column: clause.Column{Table: "cbj", Name: "transaction_date"}, Desc: isDesc}).
+			Order(clause.OrderByColumn{Column: clause.Column{Table: "cbl", Name: "created_at"}, Desc: false}).
+			Order(clause.OrderByColumn{Column: clause.Column{Table: "cbl", Name: "id"}, Desc: false})
 		if params.Limit > 0 {
 			q = q.Limit(params.Limit)
 		}
@@ -163,15 +163,21 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 
 	// Sort — default is entry_date ASC for running balance correctness
 	sortCol := journalLineAllowedSort[params.SortBy]
-	if sortCol == "" {
-		sortCol = "je.entry_date"
-	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "desc" {
-		sortDir = "asc"
+	isDesc := sortDir == "desc"
+
+	// Determine table and column for primary sort
+	var primarySort clause.Column
+	if sortCol != "" {
+		parts := strings.Split(sortCol, ".")
+		if len(parts) == 2 {
+			primarySort = clause.Column{Table: parts[0], Name: parts[1]}
+		} else {
+			primarySort = clause.Column{Name: parts[0]}
+		}
+	} else {
+		primarySort = clause.Column{Table: "je", Name: "entry_date"}
 	}
-	// Secondary sort by created_at for deterministic order within same entry_date
-	orderClause := sortCol + " " + sortDir + ", je.created_at ASC, jl.id ASC"
 
 	// Select fields
 	selectFields := `
@@ -184,7 +190,10 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 	`
 
 	var items []JournalLineWithEntry
-	q := baseQuery.Select(selectFields).Order(orderClause)
+	q := baseQuery.Select(selectFields).
+		Order(clause.OrderByColumn{Column: primarySort, Desc: isDesc}).
+		Order(clause.OrderByColumn{Column: clause.Column{Table: "je", Name: "created_at"}, Desc: false}).
+		Order(clause.OrderByColumn{Column: clause.Column{Table: "jl", Name: "id"}, Desc: false})
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

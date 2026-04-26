@@ -382,6 +382,7 @@ func (u *visitReportUsecase) CheckIn(ctx context.Context, id string, req *dto.Ch
 
 	// Log progress
 	history := &models.VisitReportProgressHistory{
+		TenantID:      report.TenantID,
 		VisitReportID: id,
 		FromStatus:    report.Status,
 		ToStatus:      report.Status,
@@ -426,6 +427,7 @@ func (u *visitReportUsecase) CheckOut(ctx context.Context, id string, req *dto.C
 
 	// Log progress
 	history := &models.VisitReportProgressHistory{
+		TenantID:      report.TenantID,
 		VisitReportID: id,
 		FromStatus:    report.Status,
 		ToStatus:      report.Status,
@@ -461,6 +463,7 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	}
 
 	history := &models.VisitReportProgressHistory{
+		TenantID:      report.TenantID,
 		VisitReportID: id,
 		FromStatus:    oldStatus,
 		ToStatus:      models.VisitReportStatusSubmitted,
@@ -529,6 +532,7 @@ func (u *visitReportUsecase) Approve(ctx context.Context, id string, req *dto.Ap
 	}
 
 	history := &models.VisitReportProgressHistory{
+		TenantID:      report.TenantID,
 		VisitReportID: id,
 		FromStatus:    models.VisitReportStatusSubmitted,
 		ToStatus:      models.VisitReportStatusApproved,
@@ -577,6 +581,7 @@ func (u *visitReportUsecase) Reject(ctx context.Context, id string, req *dto.Rej
 	}
 
 	history := &models.VisitReportProgressHistory{
+		TenantID:      report.TenantID,
 		VisitReportID: id,
 		FromStatus:    models.VisitReportStatusSubmitted,
 		ToStatus:      models.VisitReportStatusRejected,

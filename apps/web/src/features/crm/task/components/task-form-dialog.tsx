@@ -58,7 +58,6 @@ export function TaskFormDialog({
 
   // Calendar date/time local state for due date
   const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [dueTime, setDueTime] = useState("09:00");
   const [dueDateOpen, setDueDateOpen] = useState(false);
 
   // Reminder local state (separate from task form schema)
@@ -124,12 +123,8 @@ export function TaskFormDialog({
     if (currentTask?.due_date) {
       const d = new Date(currentTask.due_date);
       setDueDate(d);
-      setDueTime(
-        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-      );
     } else {
       setDueDate(null);
-      setDueTime("09:00");
     }
 
     const existingReminder = currentTask?.reminders?.[0] ?? null;
@@ -249,8 +244,8 @@ export function TaskFormDialog({
               </Field>
             </div>
 
-            {/* Status (edit only) + Due Date + Due Time */}
-            <div className={cn("grid gap-4", isEditing ? "grid-cols-3" : "grid-cols-2")}>
+            {/* Status (edit only) + Due Date */}
+            <div className={cn("grid gap-4", isEditing ? "grid-cols-2" : "grid-cols-1")}>
               {isEditing && (
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.status")}</FieldLabel>
@@ -304,15 +299,6 @@ export function TaskFormDialog({
                 </Popover>
               </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.dueTime")}</FieldLabel>
-                <Input
-                  type="time"
-                  value={dueTime}
-                  onChange={(e) => setDueTime(e.target.value)}
-                  disabled={!dueDate}
-                />
-              </Field>
             </div>
           </div>
 

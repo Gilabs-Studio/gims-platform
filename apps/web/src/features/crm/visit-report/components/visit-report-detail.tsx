@@ -7,7 +7,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Pencil,
   Phone,
   Trash2,
   User,
@@ -231,17 +230,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                   <LogOut className="h-4 w-4 mr-1" />
                 )}
                 {t("actions.checkOut")}
-              </Button>
-            )}
-            {canUpdate && isOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="cursor-pointer"
-                onClick={() => router.push(`/crm/visits/${visit.id}/edit`)}
-              >
-                <Pencil className="h-4 w-4 mr-1" />
-                {tCommon("edit")}
               </Button>
             )}
             {canDelete && isOwner && (

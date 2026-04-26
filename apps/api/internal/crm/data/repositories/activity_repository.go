@@ -1,14 +1,15 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ActivityListParams defines filters for listing activities
@@ -88,7 +89,7 @@ func (r *activityRepository) List(ctx context.Context, params ActivityListParams
 	err := query.
 		Preload("ActivityType").
 		Preload("Employee").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).Offset(params.Offset).
 		Find(&activities).Error
 	return activities, total, err

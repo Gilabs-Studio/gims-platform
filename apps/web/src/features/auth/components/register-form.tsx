@@ -1117,11 +1117,11 @@ export default function RegisterForm() {
                                     <div className="flex flex-col items-center gap-1.5">
                                       {coretBadgeLabel && (
                                         <Badge
-                                          variant="outline"
-                                          className="rounded-full border-destructive/30 bg-destructive/10 px-3 py-1 text-[9px] font-semibold tracking-wide text-destructive shadow-sm"
+                                          className="relative overflow-hidden rounded-full border-0 bg-linear-to-r from-destructive via-chart-3 to-chart-5 px-3 py-1 text-[9px] font-semibold tracking-wide text-primary-foreground shadow-md"
                                         >
-                                          <span className="flex items-center gap-1 whitespace-nowrap">
-                                            <span className="line-through decoration-destructive/70 decoration-2">
+                                          <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.38),transparent_45%)]" />
+                                          <span className="relative flex items-center gap-1 whitespace-nowrap">
+                                            <span className="line-through decoration-primary-foreground/80 decoration-2">
                                               {formatIDR(coretBadgeLabel.original)}
                                             </span>
                                             <span>-{coretBadgePercent}%</span>

@@ -207,8 +207,12 @@ export function LeadFormDialog({
   const queryClient = useQueryClient();
 
   const leadSources = leadSourcesRes?.data ?? [];
-  const leadStatuses = leadStatusesRes?.data ?? [];
-  const contactRoles: ContactRole[] = contactRolesRes?.data ?? [];
+  const leadStatuses = (leadStatusesRes?.data ?? []).filter(
+    (status) => status.is_active,
+  );
+  const contactRoles: ContactRole[] = (contactRolesRes?.data ?? []).filter(
+    (role) => role.is_active,
+  );
   const employees = employeesRes?.data ?? [];
   const businessTypes = businessTypesRes?.data ?? [];
   const areas = useMemo(() => areasRes?.data ?? [], [areasRes?.data]);
@@ -580,6 +584,7 @@ export function LeadFormDialog({
                             ariaInvalid={!!errors.lead_status_id}
                             isLoading={isLeadStatusesLoading}
                             options={leadStatuses
+                              .filter((s) => s.is_active)
                               .filter(
                                 (s) => s.code?.toUpperCase() !== "CONVERTED",
                               )

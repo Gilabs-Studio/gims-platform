@@ -73,8 +73,10 @@ export function useDeleteVisitReport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => visitReportService.delete(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
+    onSuccess: (_response, deletedId) => {
+      qc.removeQueries({ queryKey: visitReportKeys.detail(deletedId), exact: true });
+      qc.invalidateQueries({ queryKey: visitReportKeys.lists() });
+      qc.invalidateQueries({ queryKey: [...visitReportKeys.all, "by-employee"] });
     },
   });
 }

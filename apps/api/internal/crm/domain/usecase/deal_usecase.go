@@ -689,6 +689,9 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 	}
 	stageOptions := make([]dto.DealPipelineStageOption, 0, len(stages))
 	for _, s := range stages {
+		if !s.IsActive {
+			continue
+		}
 		stageOptions = append(stageOptions, dto.DealPipelineStageOption{
 			ID:          s.ID,
 			Name:        s.Name,
@@ -698,6 +701,7 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 			Probability: s.Probability,
 			IsWon:       s.IsWon,
 			IsLost:      s.IsLost,
+			IsActive:    s.IsActive,
 		})
 	}
 

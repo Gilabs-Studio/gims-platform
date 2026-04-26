@@ -97,6 +97,12 @@ func (h *YearlyTargetHandler) Create(c *gin.Context) {
 
 	target, err := h.targetUC.Create(c.Request.Context(), &req)
 	if err != nil {
+		if err == usecase.ErrYearlyTargetConflict {
+			errors.ErrorResponse(c, "YEARLY_TARGET_CONFLICT", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -129,6 +135,12 @@ func (h *YearlyTargetHandler) Update(c *gin.Context) {
 		if err == usecase.ErrYearlyTargetNotFound {
 			errors.ErrorResponse(c, "YEARLY_TARGET_NOT_FOUND", map[string]interface{}{
 				"target_id": id,
+			}, nil)
+			return
+		}
+		if err == usecase.ErrYearlyTargetConflict {
+			errors.ErrorResponse(c, "YEARLY_TARGET_CONFLICT", map[string]interface{}{
+				"message": err.Error(),
 			}, nil)
 			return
 		}
