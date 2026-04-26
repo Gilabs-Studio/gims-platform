@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
+import { Controller } from "react-hook-form";
 import { usePipelineStageForm } from "../hooks/use-pipeline-stage-form";
 import type { PipelineStage } from "../types";
 
@@ -35,7 +36,26 @@ export function PipelineStageDialog({ open, onOpenChange, editingItem }: { reado
           <div className="grid grid-cols-2 gap-4">
             <Field>
               <FieldLabel>{t("form.probability")}</FieldLabel>
-              <Input type="number" min={0} max={100} {...register("probability", { valueAsNumber: true })} />
+              <Controller
+                control={form.control}
+                name="probability"
+                render={({ field }) => (
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={field.value}
+                    onChange={(e) => {
+                      const raw = Number(e.target.value);
+                      if (Number.isNaN(raw)) {
+                        field.onChange(0);
+                        return;
+                      }
+                      field.onChange(Math.max(0, Math.min(100, raw)));
+                    }}
+                  />
+                )}
+              />
               {errors.probability && <FieldError>{errors.probability.message}</FieldError>}
             </Field>
             <Field>
