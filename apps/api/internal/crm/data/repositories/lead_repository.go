@@ -1,14 +1,15 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // LeadListParams defines filtering/sorting/pagination parameters for lead queries
@@ -258,7 +259,7 @@ func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]mod
 		Preload("LeadStatus").
 		Preload("ContactRole").
 		Preload("AssignedEmployee").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).
 		Offset(params.Offset).
 		Find(&leads).Error

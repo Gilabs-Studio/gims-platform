@@ -1,14 +1,16 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // TaskListParams defines filters for listing tasks
@@ -133,7 +135,7 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 		Preload("Customer").
 		Preload("Lead").
 		Preload("Reminders").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).Offset(params.Offset).
 		Find(&tasks).Error
 	return tasks, total, err

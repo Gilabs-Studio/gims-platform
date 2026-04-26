@@ -1,14 +1,15 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
-	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DealListParams defines filtering/sorting/pagination parameters for deal queries
@@ -189,7 +190,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 		Preload("Customer").
 		Preload("Contact").
 		Preload("AssignedEmployee").
-		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
+		Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: sortDir == "DESC"}).
 		Limit(params.Limit).
 		Offset(params.Offset).
 		Find(&deals).Error
