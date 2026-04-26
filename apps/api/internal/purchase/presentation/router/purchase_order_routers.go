@@ -11,13 +11,11 @@ const (
 	purchaseOrderCreate  = "purchase_order.create"
 	purchaseOrderUpdate  = "purchase_order.update"
 	purchaseOrderDelete  = "purchase_order.delete"
-	purchaseOrderConfirm = "purchase_order.confirm"
 	purchaseOrderExport  = "purchase_order.export"
 	purchaseOrderPrint   = "purchase_order.print"
 	purchaseOrderSubmit  = "purchase_order.submit"
 	purchaseOrderApprove = "purchase_order.approve"
 	purchaseOrderReject  = "purchase_order.reject"
-	purchaseOrderClose   = "purchase_order.close"
 )
 
 func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHandler, printH *handler.PurchaseOrderPrintHandler) {
@@ -35,12 +33,7 @@ func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHan
 	g.POST("/:id/submit", middleware.RequirePermission(purchaseOrderSubmit), h.Submit)
 	g.POST("/:id/approve", middleware.RequirePermission(purchaseOrderApprove), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(purchaseOrderReject), h.Reject)
-	g.POST("/:id/close", middleware.RequirePermission(purchaseOrderClose), h.Close)
 	g.PATCH("/:id/submit", middleware.RequirePermission(purchaseOrderSubmit), h.Submit)
 	g.PATCH("/:id/approve", middleware.RequirePermission(purchaseOrderApprove), h.Approve)
 	g.PATCH("/:id/reject", middleware.RequirePermission(purchaseOrderReject), h.Reject)
-	g.PATCH("/:id/close", middleware.RequirePermission(purchaseOrderClose), h.Close)
-	// Legacy backward-compat route
-	g.POST("/:id/confirm", middleware.RequirePermission(purchaseOrderConfirm), h.Confirm)
-	g.PATCH("/:id/confirm", middleware.RequirePermission(purchaseOrderConfirm), h.Confirm)
 }

@@ -43,8 +43,6 @@ type PurchaseOrderUsecase interface {
 	Submit(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	Reject(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
-	Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
-	Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	AddData(ctx context.Context) (*dto.PurchaseOrderAddResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseOrderAuditTrailEntry, int64, error)
 }
@@ -618,96 +616,6 @@ func (uc *purchaseOrderUsecase) Reject(ctx context.Context, id string) (*dto.Pur
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "purchase_order.reject", id, map[string]interface{}{
-		"before": before,
-		"after":  poAuditSnapshot(updated),
-	})
-	return uc.mapper.ToDetailResponse(updated), nil
-}
-
-func (uc *purchaseOrderUsecase) Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
-	existing, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-	if existing.Status != models.PurchaseOrderStatusApproved {
-		return nil, ErrPurchaseOrderConflict
-	}
-	before := poAuditSnapshot(existing)
-	now := apptime.Now()
-	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusClosed, map[string]interface{}{
-		"closed_at": now,
-	})
-	if err != nil {
-		return nil, err
-	}
-	uc.auditService.Log(ctx, "purchase_order.close", id, map[string]interface{}{
-		"before": before,
-		"after":  poAuditSnapshot(updated),
-	})
-	return uc.mapper.ToDetailResponse(updated), nil
-}
-
-// Confirm is kept for backward compatibility — delegates to the new Approve flow
-// but accepts DRAFT or SUBMITTED status to avoid breaking existing integrations.
-func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
-	existing, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-	if existing.Status != models.PurchaseOrderStatusDraft {
-		return nil, ErrPurchaseOrderConflict
-	}
-	before := poAuditSnapshot(existing)
-	var updated *models.PurchaseOrder
-	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
-		// 1. Lock and check
-		var po models.PurchaseOrder
-		if err := txScoped.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if po.Status != models.PurchaseOrderStatusDraft {
-			return ErrPurchaseOrderConflict
-		}
-
-		// 2. Budget Guard (Engagement Point)
-		// Check total PO committed against a general Purchase/Cost account (e.g., "50000")
-		// In a real ERP, this would map by Product Category to specific Expense/Asset accounts.
-		// Note: The previous call passed "COMMITTED_PURCHASE_COA" which is not a valid UUID
-		// and caused the Postgres transaction to abort.
-		/*
-			if po.TotalAmount > 0 {
-				// Using "50000" (COGS/Purchases) as the commitment check account
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", apptime.Now(), po.TotalAmount); err != nil {
-					// return err // Uncomment to strictly block
-				}
-			}
-		*/
-
-		// 3. Update Status
-		if err := txScoped.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
-			return err
-		}
-
-		loaded, _ := uc.repo.GetByID(ctx, id)
-		updated = loaded
-		return nil
-	})
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-
-	uc.auditService.Log(ctx, "purchase_order.confirm", id, map[string]interface{}{
 		"before": before,
 		"after":  poAuditSnapshot(updated),
 	})

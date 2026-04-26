@@ -231,25 +231,6 @@ func (h *PurchaseOrderHandler) Delete(c *gin.Context) {
 	response.SuccessResponse(c, map[string]interface{}{"id": id}, nil)
 }
 
-// Confirm handles POST /purchase/purchase-orders/:id/confirm
-func (h *PurchaseOrderHandler) Confirm(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
-		return
-	}
-	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
-		return
-	}
-	res, err := h.uc.Confirm(c.Request.Context(), id)
-	if err != nil {
-		handlePurchaseOrderError(c, err)
-		return
-	}
-	response.SuccessResponse(c, res, nil)
-}
-
 // Submit handles POST /purchase/purchase-orders/:id/submit
 func (h *PurchaseOrderHandler) Submit(c *gin.Context) {
 	id := c.Param("id")
@@ -300,25 +281,6 @@ func (h *PurchaseOrderHandler) Reject(c *gin.Context) {
 		return
 	}
 	res, err := h.uc.Reject(c.Request.Context(), id)
-	if err != nil {
-		handlePurchaseOrderError(c, err)
-		return
-	}
-	response.SuccessResponse(c, res, nil)
-}
-
-// Close handles POST /purchase/purchase-orders/:id/close
-func (h *PurchaseOrderHandler) Close(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
-		return
-	}
-	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
-		return
-	}
-	res, err := h.uc.Close(c.Request.Context(), id)
 	if err != nil {
 		handlePurchaseOrderError(c, err)
 		return

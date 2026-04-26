@@ -55,8 +55,6 @@ import { SupplierDetailModal } from "@/features/master-data/supplier/components/
 
 import {
   useApprovePurchaseOrder,
-  useClosePurchaseOrder,
-  useConfirmPurchaseOrder,
   useDeletePurchaseOrder,
   usePurchaseOrders,
   useRejectPurchaseOrder,
@@ -146,7 +144,6 @@ export function PurchaseOrdersList() {
   const canSubmit = useUserPermission("purchase_order.submit");
   const canApprove = useUserPermission("purchase_order.approve");
   const canReject = useUserPermission("purchase_order.reject");
-  const canClose = useUserPermission("purchase_order.close");
   const canDelete = useUserPermission("purchase_order.delete");
   const canPrint = useUserPermission("purchase_order.print");
   const canViewSupplier = useUserPermission("supplier.read");
@@ -184,10 +181,8 @@ export function PurchaseOrdersList() {
 
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
-  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
-  const closeMutation = useClosePurchaseOrder();
 
   // Note: cache subscribe removed to avoid refetch loops. Supplier-invoice hooks
   // already apply typed optimistic updates to purchase-order list cache.
@@ -377,7 +372,7 @@ export function PurchaseOrdersList() {
                 const hasGoodsReceipt = (it.fulfillment?.total_received ?? 0) > 0;
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
-                  canReject || canClose || canDelete || canPrint;
+                  canReject || canDelete || canPrint;
 
                 return (
                   <TableRow key={it.id}>
@@ -573,40 +568,6 @@ export function PurchaseOrdersList() {
                                   </DropdownMenuItem>
                                 )}
                               </>
-                            )}
-
-                            {canApprove && status === "APPROVED" && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-success focus:text-success"
-                                onClick={async () => {
-                                  try {
-                                    await confirmMutation.mutateAsync(it.id);
-                                    toast.success(t("toast.confirmed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.confirm")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canClose && status === "APPROVED" && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-warning focus:text-warning"
-                                onClick={async () => {
-                                  try {
-                                    await closeMutation.mutateAsync(it.id);
-                                    toast.success(t("toast.closed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {t("actions.close")}
-                              </DropdownMenuItem>
                             )}
 
                             {canCreateGR && status === "APPROVED" &&

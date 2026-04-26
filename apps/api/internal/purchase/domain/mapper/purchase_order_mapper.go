@@ -39,13 +39,6 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 			Code: po.Supplier.Code,
 			Name: po.Supplier.Name,
 		}
-	} else if po.Supplier != nil {
-		// Fall back to preloaded relation when snapshot fields were not captured at order time.
-		supplierSummary = &dto.PurchaseOrderPartySummary{
-			ID:   po.Supplier.ID,
-			Code: po.Supplier.Code,
-			Name: po.Supplier.Name,
-		}
 	}
 
 	var prRef *dto.PurchaseOrderRequisitionRef
@@ -88,9 +81,10 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		})
 	}
 
-	// Compute receipt fulfillment for approved POs.
+	// Compute receipt fulfillment for active/legacy-closed POs.
 	var fulfillment *dto.POFulfillmentSummary
-	if po.Status == models.PurchaseOrderStatusApproved && len(po.Items) > 0 {
+	status := strings.TrimSpace(string(po.Status))
+	if (strings.EqualFold(status, string(models.PurchaseOrderStatusApproved)) || strings.EqualFold(status, string(models.PurchaseOrderStatusClosed))) && len(po.Items) > 0 {
 		var totalOrdered, totalReceived, totalPending float64
 		for _, item := range po.Items {
 			totalOrdered += item.Quantity
@@ -98,8 +92,9 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 		for _, gr := range po.GoodsReceipts {
 			for _, grItem := range gr.Items {
 				switch gr.Status {
-				// Items are physically received once the GR is approved, closed, or confirmed (legacy).
+				// Items are physically received once the GR is approved/partial/closed/confirmed (legacy).
 				case models.GoodsReceiptStatusApproved,
+					models.GoodsReceiptStatusPartial,
 					models.GoodsReceiptStatusClosed,
 					models.GoodsReceiptStatusConfirmed:
 					totalReceived += grItem.QuantityReceived

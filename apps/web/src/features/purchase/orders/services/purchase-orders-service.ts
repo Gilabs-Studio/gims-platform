@@ -62,13 +62,6 @@ export const purchaseOrdersService = {
     return response.data;
   },
 
-  confirm: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
-    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
-      `${BASE_URL}/${id}/confirm`,
-    );
-    return response.data;
-  },
-
   submit: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
     const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
       `${BASE_URL}/${id}/submit`,
@@ -86,13 +79,6 @@ export const purchaseOrdersService = {
   reject: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
     const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
       `${BASE_URL}/${id}/reject`,
-    );
-    return response.data;
-  },
-
-  close: async (id: string): Promise<ApiResponse<PurchaseOrderDetail>> => {
-    const response = await apiClient.post<ApiResponse<PurchaseOrderDetail>>(
-      `${BASE_URL}/${id}/close`,
     );
     return response.data;
   },
