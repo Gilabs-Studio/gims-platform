@@ -72,6 +72,7 @@ export function OrderDetailModal({
   });
 
   const displayOrder = detailData?.data ?? order;
+  const isPOSOrder = displayOrder?.source_type === "POS";
 
   const { data: itemData, isFetching: isItemsLoading } = useOrderItems(
     displayOrder?.id ?? "",
@@ -121,7 +122,7 @@ export function OrderDetailModal({
   // Fetch customer credit info for display
   const { data: customerCreditData } = useCustomer(
     displayOrder?.customer_id ?? "",
-    { enabled: open && !!displayOrder?.customer_id },
+    { enabled: open && !!displayOrder?.customer_id && !isPOSOrder },
   );
 
   const financialOverview = useMemo(() => {
@@ -503,7 +504,7 @@ export function OrderDetailModal({
                 )}
 
                 {/* Credit Limit Indicator */}
-                {customerCreditData?.data && displayOrder.total_amount > 0 && (
+                {!isPOSOrder && customerCreditData?.data && displayOrder.total_amount > 0 && (
                   <CreditLimitIndicator
                     creditLimit={customerCreditData.data.credit_limit ?? 0}
                     creditIsActive={customerCreditData.data.credit_is_active ?? false}
