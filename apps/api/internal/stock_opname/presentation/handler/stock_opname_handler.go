@@ -40,6 +40,11 @@ func (h *StockOpnameHandler) Create(c *gin.Context) {
 
 	res, err := h.usecase.Create(c.Request.Context(), &req, createdBy)
 	if err != nil {
+		errMsg := strings.ToLower(strings.TrimSpace(err.Error()))
+		if strings.Contains(errMsg, "scope_type") || strings.Contains(errMsg, "category_ids") || strings.Contains(errMsg, "brand_ids") {
+			errors.ErrorResponse(c, "INVALID_REQUEST", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -189,9 +194,43 @@ func (h *StockOpnameHandler) SaveItems(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *StockOpnameHandler) SaveLines(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.SaveStockOpnameItemsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	res, err := h.usecase.SaveLines(c.Request.Context(), id, &req)
+	if err != nil {
+		if err == usecase.ErrStockOpnameNotFound {
+			errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidStatus {
+			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *StockOpnameHandler) ListItems(c *gin.Context) {
 	id := c.Param("id")
-	res, err := h.usecase.ListItems(c.Request.Context(), id)
+	var req dto.ListStockOpnameItemsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	res, pagination, err := h.usecase.ListItemsPaginated(c.Request.Context(), id, &req)
 	if err != nil {
 		if err == usecase.ErrStockOpnameNotFound {
 			errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
@@ -200,7 +239,18 @@ func (h *StockOpnameHandler) ListItems(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	response.SuccessResponse(c, res, nil)
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+	}
+	response.SuccessResponse(c, res, meta)
 }
 
 func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
@@ -330,4 +380,27 @@ func (h *StockOpnameHandler) SubmitApproval(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, res, nil)
+}
+
+// GetMyWarehouses returns warehouses the current user is assigned to.
+// Used by the frontend to determine whether to show a warehouse-picker or a scoped view.
+func (h *StockOpnameHandler) GetMyWarehouses(c *gin.Context) {
+userID, exists := c.Get("user_id")
+if !exists {
+errors.ForbiddenResponse(c, "not authenticated", nil)
+return
+}
+userIDStr, ok := userID.(string)
+if !ok || userIDStr == "" {
+errors.ForbiddenResponse(c, "invalid user context", nil)
+return
+}
+
+res, err := h.usecase.GetMyWarehouses(c.Request.Context(), userIDStr)
+if err != nil {
+errors.InternalServerErrorResponse(c, err.Error())
+return
+}
+
+response.SuccessResponse(c, res, nil)
 }
