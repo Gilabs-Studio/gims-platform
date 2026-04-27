@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Phone, User, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -70,6 +71,7 @@ export function SupplierContactList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<SupplierContactListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ index: number; item: SupplierContactListItem } | null>(null);
 
   const addMutation = useAddContact();
   const updateMutation = useUpdateContact();
@@ -152,8 +154,6 @@ export function SupplierContactList({
   };
 
   const handleDelete = async (index: number, item: SupplierContactListItem) => {
-    if (!confirm(tCommon("deleteConfirm") || "Are you sure?")) return;
-
     if (supplierId && isPersistedSupplierContact(item)) {
       try {
         await deleteMutation.mutateAsync({ supplierId, contactId: item.id });
@@ -309,7 +309,7 @@ export function SupplierContactList({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
-                      onClick={() => void handleDelete(index, contact)}
+                      onClick={() => setDeleteTarget({ index, item: contact })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -433,6 +433,22 @@ export function SupplierContactList({
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await handleDelete(deleteTarget.index, deleteTarget.item);
+          setDeleteTarget(null);
+        }}
+        itemName={deleteTarget?.item.name ?? t("singular")}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

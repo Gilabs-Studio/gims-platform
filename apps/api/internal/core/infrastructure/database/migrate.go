@@ -474,6 +474,46 @@ func AutoMigrate() error {
 		log.Printf("Warning: role tenant-scoped name index migration failed (non-fatal): %v", err)
 	}
 
+	if err := ensureAreaTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: area tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureDivisionTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: division tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureJobPositionTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: job position tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureEmployeeCodeTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: employee code tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCustomerCodeTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: customer code tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureSupplierCodeTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: supplier code tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureBankCodeTenantScopedUniqueIndex(); err != nil {
+		log.Printf("Warning: bank code tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureDefaultAreasForAllTenants(); err != nil {
+		log.Printf("Warning: failed to ensure default areas for existing tenants: %v", err)
+	}
+
+	if err := ensureDefaultBanksForAllTenants(); err != nil {
+		log.Printf("Warning: failed to ensure default banks for existing tenants: %v", err)
+	}
+
+	if err := dropCompanyDirectorColumnIfExists(); err != nil {
+		log.Printf("Warning: failed to drop deprecated companies.director_id column: %v", err)
+	}
+
 	if err := syncGeneratedTenantRolesFromPlanTemplates(); err != nil {
 		log.Printf("Warning: generated tenant role sync from plan templates failed (non-fatal): %v", err)
 	}
@@ -555,6 +595,277 @@ func ensureCOACodeTenantScopedUniqueIndex() error {
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_chart_of_accounts_tenant_code_active
 		ON chart_of_accounts (tenant_id, code)
 	`).Error
+}
+
+func ensureAreaTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE areas DROP CONSTRAINT IF EXISTS areas_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE areas DROP CONSTRAINT IF EXISTS idx_areas_name`).Error
+	_ = DB.Exec(`ALTER TABLE areas DROP CONSTRAINT IF EXISTS areas_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE areas DROP CONSTRAINT IF EXISTS idx_areas_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_areas_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_areas_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS areas_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.areas_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_areas_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_areas_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS areas_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.areas_code_key`).Error
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_areas_tenant_name_active
+		ON areas ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_areas_tenant_code_active
+		ON areas ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureDivisionTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE divisions DROP CONSTRAINT IF EXISTS divisions_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE divisions DROP CONSTRAINT IF EXISTS idx_divisions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_divisions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_divisions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS divisions_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.divisions_name_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_divisions_tenant_name_active
+		ON divisions ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error
+}
+
+func ensureJobPositionTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE job_positions DROP CONSTRAINT IF EXISTS job_positions_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE job_positions DROP CONSTRAINT IF EXISTS idx_job_positions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_job_positions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_job_positions_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS job_positions_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.job_positions_name_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_job_positions_tenant_name_active
+		ON job_positions ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error
+}
+
+func ensureEmployeeCodeTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_employee_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE employees DROP CONSTRAINT IF EXISTS idx_employees_employee_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_employees_employee_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_employees_employee_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS employees_employee_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.employees_employee_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_employees_tenant_code_active
+		ON employees ((COALESCE(tenant_id::text, '__global__')), lower(employee_code))
+		WHERE deleted_at IS NULL
+	`).Error
+}
+
+func ensureCustomerCodeTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE customers DROP CONSTRAINT IF EXISTS idx_customers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_customers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_customers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS customers_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.customers_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_tenant_code_active
+		ON customers ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureSupplierCodeTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE suppliers DROP CONSTRAINT IF EXISTS suppliers_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE suppliers DROP CONSTRAINT IF EXISTS idx_suppliers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_suppliers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_suppliers_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS suppliers_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.suppliers_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_suppliers_tenant_code_active
+		ON suppliers ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureBankCodeTenantScopedUniqueIndex() error {
+	_ = DB.Exec(`ALTER TABLE banks DROP CONSTRAINT IF EXISTS banks_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE banks DROP CONSTRAINT IF EXISTS idx_banks_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_banks_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_banks_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS banks_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.banks_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_banks_tenant_code_active
+		ON banks ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func dropCompanyDirectorColumnIfExists() error {
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_companies_director_id`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_companies_director_id`).Error
+
+	return DB.Exec(`ALTER TABLE companies DROP COLUMN IF EXISTS director_id`).Error
+}
+
+type areaDefaultSeed struct {
+	Name        string
+	Description string
+	Code        string
+	Color       string
+	Province    string
+}
+
+type bankDefaultSeed struct {
+	Name      string
+	Code      string
+	SwiftCode string
+}
+
+var defaultAreaSeeds = []areaDefaultSeed{
+	{Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", Code: "JABODETABEK", Color: "#3b82f6", Province: "DKI Jakarta"},
+	{Name: "Jawa Barat", Description: "Bandung and surrounding areas", Code: "JAWA-BARAT", Color: "#10b981", Province: "Jawa Barat"},
+	{Name: "Jawa Tengah", Description: "Semarang, Solo and surrounding areas", Code: "JAWA-TENGAH", Color: "#f59e0b", Province: "Jawa Tengah"},
+	{Name: "Jawa Timur", Description: "Surabaya, Malang and surrounding areas", Code: "JAWA-TIMUR", Color: "#ef4444", Province: "Jawa Timur"},
+	{Name: "Bali", Description: "Bali region", Code: "BALI", Color: "#8b5cf6", Province: "Bali"},
+	{Name: "Banten", Description: "Serang, Cilegon, Tangerang Selatan", Code: "BANTEN", Color: "#06b6d4", Province: "Banten"},
+	{Name: "DI Yogyakarta", Description: "Yogyakarta and surrounding areas", Code: "DIY", Color: "#ec4899", Province: "Daerah Istimewa Yogyakarta"},
+	{Name: "Sumatera Utara", Description: "Medan and surrounding areas", Code: "SUMUT", Color: "#14b8a6", Province: "Sumatera Utara"},
+	{Name: "Sulawesi Selatan", Description: "Makassar and surrounding areas", Code: "SULSEL", Color: "#f97316", Province: "Sulawesi Selatan"},
+	{Name: "Kalimantan Timur", Description: "Balikpapan, Samarinda", Code: "KALTIM", Color: "#84cc16", Province: "Kalimantan Timur"},
+}
+
+var defaultBankSeeds = []bankDefaultSeed{
+	{Name: "Bank Central Asia", Code: "BCA", SwiftCode: "CENAIDJA"},
+	{Name: "Bank Mandiri", Code: "MANDIRI", SwiftCode: "BMRIIDJA"},
+	{Name: "Bank Negara Indonesia", Code: "BNI", SwiftCode: "BNIAIDJAXXX"},
+	{Name: "Bank Rakyat Indonesia", Code: "BRI", SwiftCode: "BRINIDJA"},
+	{Name: "Bank CIMB Niaga", Code: "CIMB", SwiftCode: "BNIAIDJA"},
+}
+
+func ensureDefaultAreasForAllTenants() error {
+	type tenantRow struct {
+		ID string
+	}
+
+	var tenants []tenantRow
+	if err := DB.Table("tenants").Select("id").Find(&tenants).Error; err != nil {
+		return err
+	}
+
+	for _, tenantRow := range tenants {
+		if err := ensureDefaultAreasForTenant(tenantRow.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureDefaultAreasForTenant(tenantID string) error {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return nil
+	}
+
+	for _, seed := range defaultAreaSeeds {
+		if err := DB.Exec(`
+			INSERT INTO areas (
+				id, tenant_id, name, description, is_active, code, color, province, created_at, updated_at
+			)
+			SELECT
+				gen_random_uuid(),
+				?,
+				?,
+				?,
+				true,
+				?,
+				?,
+				?,
+				NOW(),
+				NOW()
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM areas
+				WHERE tenant_id = ?
+				  AND lower(name) = lower(?)
+				  AND deleted_at IS NULL
+			)
+		`, tenantID, seed.Name, seed.Description, seed.Code, seed.Color, seed.Province, tenantID, seed.Name).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureDefaultBanksForAllTenants() error {
+	type tenantRow struct {
+		ID string
+	}
+
+	var tenants []tenantRow
+	if err := DB.Table("tenants").Select("id").Find(&tenants).Error; err != nil {
+		return err
+	}
+
+	for _, tenantRow := range tenants {
+		if err := ensureDefaultBanksForTenant(tenantRow.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureDefaultBanksForTenant(tenantID string) error {
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return nil
+	}
+
+	for _, seed := range defaultBankSeeds {
+		if err := DB.Exec(`
+			INSERT INTO banks (
+				id, tenant_id, name, code, swift_code, is_active, created_at, updated_at
+			)
+			SELECT
+				gen_random_uuid(),
+				?,
+				?,
+				?,
+				?,
+				true,
+				NOW(),
+				NOW()
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM banks
+				WHERE tenant_id = ?
+				  AND lower(code) = lower(?)
+				  AND deleted_at IS NULL
+			)
+		`, tenantID, seed.Name, seed.Code, seed.SwiftCode, tenantID, seed.Code).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // EnsureRoleNameTenantScopedUniqueIndex force-applies the tenant-scoped role-name
@@ -705,7 +1016,7 @@ func migrateAreaSupervisorsToEmployeeAreas() error {
 	migrationSQL := `
 		INSERT INTO employee_areas (id, employee_id, area_id, is_supervisor, created_at)
 		SELECT
-			gen_random_uuid()::text,
+			gen_random_uuid(),
 			e.id,
 			asa.area_id,
 			true,

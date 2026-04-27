@@ -1,13 +1,16 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 // SupplierRepository defines the interface for supplier data access
@@ -162,24 +165,45 @@ func (r *supplierRepository) Delete(ctx context.Context, id string) error {
 
 // GetNextCode generates the next supplier code in the format SUP-XXXXX
 func (r *supplierRepository) GetNextCode(ctx context.Context) (string, error) {
-	var count int64
-	if err := database.GetDB(ctx, r.db).Model(&models.Supplier{}).Count(&count).Error; err != nil {
+	var latestCode string
+	if err := database.GetDB(ctx, r.db).
+		Model(&models.Supplier{}).
+		Where("code ~ ?", `^SUP-[0-9]+$`).
+		Select("code").
+		Order("LENGTH(code) DESC, code DESC").
+		Limit(1).
+		Scan(&latestCode).Error; err != nil {
 		return "", err
 	}
-	return generateSupplierCode(int(count) + 1), nil
+
+	return generateSupplierCode(extractSupplierCodeSequence(latestCode) + 1), nil
 }
 
 func generateSupplierCode(seq int) string {
 	return "SUP-" + padSupplierNumber(seq, 5)
 }
 
-func padSupplierNumber(n, width int) string {
-	s := ""
-	for i := 0; i < width; i++ {
-		s = string(rune('0'+n%10)) + s
-		n /= 10
+var supplierCodePattern = regexp.MustCompile(`^SUP-(\d+)$`)
+
+func extractSupplierCodeSequence(code string) int {
+	matches := supplierCodePattern.FindStringSubmatch(strings.TrimSpace(strings.ToUpper(code)))
+	if len(matches) != 2 {
+		return 0
 	}
-	return s
+
+	seq, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0
+	}
+
+	return seq
+}
+
+func padSupplierNumber(n, width int) string {
+	if width <= 0 {
+		width = 1
+	}
+	return fmt.Sprintf("%0*d", width, n)
 }
 
 // Nested Phone Number operations

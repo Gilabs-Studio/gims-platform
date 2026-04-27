@@ -89,8 +89,6 @@ export const getCompanySchema = (t?: TranslationFn) => z.object({
   // Coordinates
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
-  
-  director_id: z.string().uuid().optional().or(z.literal("")).nullable(),
   is_active: z.boolean(),
 });
 

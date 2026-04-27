@@ -39,7 +39,6 @@ type Company struct {
 	Latitude    *float64        `gorm:"type:decimal(10,8)" json:"latitude"`
 	Longitude   *float64        `gorm:"type:decimal(11,8)" json:"longitude"`
 	Village     *models.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
-	DirectorID *string        `gorm:"type:uuid;index" json:"director_id"` // Employee FK (Sprint 3)
 	// IANA timezone for company-local time calculations (e.g. "Asia/Jakarta", "Asia/Makassar")
 	Timezone   string         `gorm:"type:varchar(50);default:'Asia/Jakarta';not null" json:"timezone"`
 	// Approval workflow

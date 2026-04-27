@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
@@ -92,6 +93,10 @@ export function SupplierBankList({
   const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 20, sort_by: "code", sort_dir: "asc" });
   const bankOptions = bankOptionsData?.data ?? [];
   const currencyOptions = currencyOptionsData?.data ?? [];
+  const bankComboboxOptions = bankOptions.map((bank) => ({
+    value: bank.id,
+    label: `${bank.name} - ${bank.code}`,
+  }));
 
   const isSubmitting = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
@@ -174,7 +179,7 @@ export function SupplierBankList({
             supplierId,
             data,
           });
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added"); // Fallback if key missing
+          toast.success(t("createSuccess"));
         }
       } else {
         if (editingIndex !== null && onUpdate) {
@@ -182,17 +187,17 @@ export function SupplierBankList({
           toast.success(t("updateSuccess"));
         } else if (onAdd) {
           onAdd(data);
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added");
+          toast.success(t("createSuccess"));
         }
       }
       setDialogOpen(false);
     } catch {
-      toast.error("Failed to save bank account");
+      toast.error(t("saveError"));
     }
   };
 
   const getBankName = (id: string) => {
-    return bankOptions.find((b) => b.id === id)?.name || "Unknown Bank";
+    return bankOptions.find((b) => b.id === id)?.name || t("unknownBank");
   };
 
   const getCurrencyCode = (id?: string | null) => {
@@ -252,7 +257,7 @@ export function SupplierBankList({
                   <TableCell>
                     {bank.is_primary && (
                       <Badge variant="secondary" className="text-xs">
-                        Primary
+                        {tCommon("primary")}
                       </Badge>
                     )}
                   </TableCell>
@@ -302,21 +307,15 @@ export function SupplierBankList({
           >
             <Field>
               <FieldLabel>{t("form.bank")}</FieldLabel>
-              <Select
+              <CreatableCombobox
                 value={bankId}
-                onValueChange={(val) => setValue("bank_id", val, { shouldValidate: true })}
-              >
-                <SelectTrigger className="cursor-pointer">
-                  <SelectValue placeholder={t("form.bankPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {bankOptions.map((b) => (
-                    <SelectItem key={b.id} value={b.id} className="cursor-pointer">
-                      {b.name} - {b.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => setValue("bank_id", value, { shouldValidate: true })}
+                options={bankComboboxOptions}
+                placeholder={t("form.bankPlaceholder")}
+                searchPlaceholder={t("form.bankSearchPlaceholder")}
+                emptyText={t("emptyBankOptions")}
+                ariaInvalid={!!errors.bank_id}
+              />
               {errors.bank_id && <FieldError>{tValidation("bankRequired")}</FieldError>}
             </Field>
 
@@ -364,7 +363,7 @@ export function SupplierBankList({
               <div className="space-y-0.5">
                 <FieldLabel>{t("form.isPrimary")}</FieldLabel>
                 <p className="text-xs text-muted-foreground">
-                  Set as main bank account
+                  {t("form.primaryDescription")}
                 </p>
               </div>
               <Switch

@@ -47,6 +47,7 @@ export const crmContactEn = {
       emailMax: "Email must be at most 100 characters",
     },
     tab: "Contacts",
+    singular: "Contact",
     contactsCount: "{count} contact(s)",
     noContacts: "No contacts",
     tooltipTitle: "Contacts",

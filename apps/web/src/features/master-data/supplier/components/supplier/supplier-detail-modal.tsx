@@ -69,6 +69,7 @@ export function SupplierDetailModal({
 
   // Resolve geographic hierarchy from nested village or direct fields
   const village = supplier.village;
+  const villageName = village?.name ?? supplier.village_name ?? null;
   const districtVillage = village?.district;
   const cityVillage = districtVillage?.city;
   const provinceVillage = cityVillage?.province;
@@ -77,7 +78,7 @@ export function SupplierDetailModal({
   const city = cityVillage ?? supplier.city;
   const province = provinceVillage ?? supplier.province;
 
-  const areaText = [village?.name, district?.name, city?.name, province?.name]
+  const areaText = [villageName, district?.name, city?.name, province?.name]
     .filter(Boolean)
     .join(", ");
 
@@ -246,7 +247,7 @@ export function SupplierDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
                         <TableCell>{district?.name ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
-                        <TableCell>{village?.name ?? "-"}</TableCell>
+                        <TableCell>{villageName ?? "-"}</TableCell>
                       </TableRow>
                       {areaText && (
                         <TableRow>
@@ -296,4 +297,3 @@ export function SupplierDetailModal({
     </Dialog>
   );
 }
-

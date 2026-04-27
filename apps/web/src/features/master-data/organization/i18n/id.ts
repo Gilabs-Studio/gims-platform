@@ -277,8 +277,6 @@ export const organizationId: OrganizationTranslations = {
       villagePlaceholder: "Pilih desa/kelurahan",
       businessType: "Tipe Bisnis",
       businessTypePlaceholder: "Pilih tipe bisnis",
-      director: "Direktur",
-      directorPlaceholder: "Pilih direktur",
       isActive: "Aktif",
       rejectReason: "Alasan Penolakan",
       rejectReasonPlaceholder: "Masukkan alasan penolakan (opsional)",

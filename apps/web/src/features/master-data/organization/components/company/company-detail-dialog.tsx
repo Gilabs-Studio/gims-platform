@@ -42,7 +42,7 @@ export function CompanyDetailDialog({
   if (!company) return null;
 
   const resolvedArea = [
-    company.village?.name,
+    company.village?.name ?? company.village_name,
     company.district?.name ?? company.village?.district?.name,
     company.city?.name ?? company.village?.district?.city?.name,
     company.province?.name ?? company.village?.district?.city?.province?.name,
@@ -114,9 +114,9 @@ export function CompanyDetailDialog({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium bg-muted/50">{t("company.form.director")}</TableCell>
-                  <TableCell>{company.director?.name ?? company.director_id ?? "-"}</TableCell>
-                  <TableCell className="font-medium bg-muted/50">{t("common.createdAt")}</TableCell>
+                  <TableCell className="font-medium bg-muted/50">Village</TableCell>
+                  <TableCell>{company.village?.name ?? company.village_name ?? "-"}</TableCell>
+                  <TableCell className="font-medium bg-muted/50">Created</TableCell>
                   <TableCell>
                     {company.created_at
                       ? formatDate(company.created_at)
@@ -147,19 +147,13 @@ export function CompanyDetailDialog({
                   <TableRow>
                     <TableCell className="font-medium bg-muted/50">{t("company.form.district")}</TableCell>
                     <TableCell>{company.district?.name ?? company.village?.district?.name ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50">{t("company.form.village")}</TableCell>
-                    <TableCell>{company.village?.name ?? "-"}</TableCell>
+                    <TableCell className="font-medium bg-muted/50">Address</TableCell>
+                    <TableCell>{company.address ?? "-"}</TableCell>
                   </TableRow>
                   {resolvedArea && (
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50">{t("outlet.sections.fullArea")}</TableCell>
                       <TableCell colSpan={3}>{resolvedArea}</TableCell>
-                    </TableRow>
-                  )}
-                  {company.address && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">{t("company.form.address")}</TableCell>
-                      <TableCell colSpan={3}>{company.address}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

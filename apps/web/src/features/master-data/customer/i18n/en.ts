@@ -23,6 +23,7 @@ export const customerEn = {
     updatedAt: "Updated At",
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
+    primary: "Primary",
   },
   customerType: {
     title: "Customer Types",
@@ -143,6 +144,11 @@ export const customerEn = {
       edit: "Edit",
       delete: "Delete",
       viewDetails: "View Details",
+      primary: "Primary",
+      visitLink: "Visit Link",
+      googleMaps: "Google Maps",
+      openInMaps: "Open in Maps",
+      loyalty: "Loyalty",
     },
     pickFromMap: "Pick from Map",
     mapPicker: {
@@ -178,6 +184,10 @@ export const customerEn = {
     deleteTitle: "Delete Bank Account",
     deleteConfirm: "Are you sure you want to delete this bank account?",
     empty: "No bank accounts added",
+    createSuccess: "Bank account added",
+    updateSuccess: "Bank account updated",
+    saveError: "Failed to save bank account",
+    unknownBank: "Unknown bank",
     form: {
       bank: "Bank",
       bankPlaceholder: "Select bank",
@@ -187,9 +197,8 @@ export const customerEn = {
       accountNumberPlaceholder: "Enter account number",
       accountName: "Account Name",
       accountNamePlaceholder: "Enter account holder name",
-      branch: "Branch",
-      branchPlaceholder: "Enter branch name (optional)",
       isPrimary: "Primary",
+      primaryDescription: "Set as the main bank account",
     },
   },
   validation: {
@@ -209,6 +218,7 @@ export const customerEn = {
     accountNumberRequired: "Account number is required",
     accountNameRequired: "Account name is required",
     bankRequired: "Bank is required",
+    currencyRequired: "Currency is required",
   },
   // Top-level shortcuts used by QuickCreateCustomerDialog
   createSuccess: "Customer created successfully",
