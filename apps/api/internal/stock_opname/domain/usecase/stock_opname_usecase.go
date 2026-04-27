@@ -526,46 +526,10 @@ func (u *stockOpnameUsecase) Submit(ctx context.Context, id string) (*dto.StockO
 }
 
 func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error) {
-	if u.journalUC == nil {
-		return nil, ErrJournalWorkflowUnavailable
-	}
-
-	opname, err := u.repo.FindByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrStockOpnameNotFound
-		}
-		return nil, err
-	}
-
-	if opname.JournalID != nil && *opname.JournalID != "" {
-		if _, err := u.journalUC.ApproveAdjustmentJournal(ctx, *opname.JournalID, fmt.Sprintf("Stock opname %s approved", opname.OpnameNumber)); err != nil {
-			return nil, err
-		}
-	}
-
 	return u.updateStatus(ctx, id, models.StockOpnameStatusApproved, approvedBy)
 }
 
 func (u *stockOpnameUsecase) Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error) {
-	if u.journalUC == nil {
-		return nil, ErrJournalWorkflowUnavailable
-	}
-
-	opname, err := u.repo.FindByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrStockOpnameNotFound
-		}
-		return nil, err
-	}
-
-	if opname.JournalID != nil && *opname.JournalID != "" {
-		if _, err := u.journalUC.RejectAdjustmentJournal(ctx, *opname.JournalID, fmt.Sprintf("Stock opname %s rejected", opname.OpnameNumber)); err != nil {
-			return nil, err
-		}
-	}
-
 	return u.updateStatus(ctx, id, models.StockOpnameStatusRejected, rejectedBy)
 }
 

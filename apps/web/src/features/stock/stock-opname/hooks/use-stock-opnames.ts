@@ -8,6 +8,7 @@ import type {
   StockOpnameItem,
   StockOpnameItemsFilter,
   StockOpnameItemsListResponse,
+  StockOpnameListResponse,
   StockOpnameSingleResponse,
   UpdateStockOpnameRequest,
   UpdateStockOpnameStatusRequest,
@@ -120,6 +121,17 @@ export function useUpdateStockOpnameStatus() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateStockOpnameStatusRequest }) => stockOpnameService.updateStatus(id, data),
     onSuccess: (data) => {
+      queryClient.setQueryData(stockOpnameKeys.detail(data.data.id), data);
+      queryClient.setQueriesData<StockOpnameListResponse>({ queryKey: stockOpnameKeys.lists() }, (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          data: current.data.map((item) => (item.id === data.data.id ? data.data : item)),
+        };
+      });
       queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(data.data.id) });
       queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() });
     },
@@ -154,6 +166,17 @@ export function useSubmitStockOpnameApproval() {
   return useMutation({
     mutationFn: (id: string) => stockOpnameService.submitApproval(id),
     onSuccess: (data) => {
+      queryClient.setQueryData(stockOpnameKeys.detail(data.data.id), data);
+      queryClient.setQueriesData<StockOpnameListResponse>({ queryKey: stockOpnameKeys.lists() }, (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          data: current.data.map((item) => (item.id === data.data.id ? data.data : item)),
+        };
+      });
       queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(data.data.id) });
       queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() });
     },

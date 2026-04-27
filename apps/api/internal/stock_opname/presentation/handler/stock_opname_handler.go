@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -188,6 +189,9 @@ func (h *StockOpnameHandler) SaveItems(c *gin.Context) {
 			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if handleStockOpnameStandardError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -278,17 +282,8 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	actionStatus := strings.ToLower(strings.TrimSpace(req.Status))
-	requiredPermission := ""
-	switch actionStatus {
-	case "pending", "pending_approval":
-		requiredPermission = "stock_opname.update"
-	case "approved":
-		requiredPermission = "stock_opname.approve"
-	case "rejected":
-		requiredPermission = "stock_opname.reject"
-	case "posted", "completed":
-		requiredPermission = "stock_opname.post"
-	default:
+	requiredPermission, ok := stockOpnameStatusPermission(actionStatus)
+	if !ok {
 		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": "Status action not found"}, nil)
 		return
 	}
@@ -305,27 +300,9 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 		}
 	}
 
-	var res *dto.StockOpnameResponse
-	var err error
-
-	switch actionStatus {
-	case "pending", "pending_approval":
-		res, err = h.usecase.Submit(c.Request.Context(), id)
-	case "approved":
-		res, err = h.usecase.Approve(c.Request.Context(), id, userID)
-	case "rejected":
-		res, err = h.usecase.Reject(c.Request.Context(), id, userID)
-	case "posted", "completed":
-		res, err = h.usecase.Post(c.Request.Context(), id, userID)
-	}
-
+	res, err := executeStockOpnameStatusAction(c.Request.Context(), h.usecase, actionStatus, id, userID)
 	if err != nil {
-		if err == usecase.ErrStockOpnameNotFound {
-			errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
-			return
-		}
-		if err == usecase.ErrInvalidStatus {
-			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+		if handleStockOpnameStatusError(c, id, err) {
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
@@ -333,6 +310,51 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, res, nil)
+}
+
+func stockOpnameStatusPermission(actionStatus string) (string, bool) {
+	switch actionStatus {
+	case "pending", "pending_approval":
+		return "stock_opname.update", true
+	case "approved":
+		return "stock_opname.approve", true
+	case "rejected":
+		return "stock_opname.reject", true
+	case "posted", "completed":
+		return "stock_opname.post", true
+	default:
+		return "", false
+	}
+}
+
+func executeStockOpnameStatusAction(ctx context.Context, u usecase.StockOpnameUsecase, actionStatus, id string, userID *string) (*dto.StockOpnameResponse, error) {
+	switch actionStatus {
+	case "pending", "pending_approval":
+		return u.Submit(ctx, id)
+	case "approved":
+		return u.Approve(ctx, id, userID)
+	case "rejected":
+		return u.Reject(ctx, id, userID)
+	case "posted", "completed":
+		return u.Post(ctx, id, userID)
+	default:
+		return nil, usecase.ErrInvalidStatus
+	}
+}
+
+func handleStockOpnameStatusError(c *gin.Context, id string, err error) bool {
+	if err == usecase.ErrStockOpnameNotFound {
+		errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
+		return true
+	}
+	if err == usecase.ErrInvalidStatus {
+		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+		return true
+	}
+	if handleStockOpnameStandardError(c, err) {
+		return true
+	}
+	return false
 }
 
 // GenerateJournal creates (or returns existing) draft adjustment journal linked to stock opname.
