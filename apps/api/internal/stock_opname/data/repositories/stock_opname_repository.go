@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -18,6 +19,8 @@ import (
 type stockOpnameRepository struct {
 	db *gorm.DB
 }
+
+const whereStockOpnameID = "stock_opname_id = ?"
 
 func NewStockOpnameRepository(db *gorm.DB) repository.StockOpnameRepository {
 	return &stockOpnameRepository{db: db}
@@ -39,6 +42,9 @@ func (r *stockOpnameRepository) FindByID(ctx context.Context, id string) (*model
 	var opname models.StockOpname
 	err := database.GetDB(ctx, r.db).
 		Preload("Items").
+		Preload("Warehouse").
+		Preload("OrderedBy").
+		Preload("AssignedTo").
 		First(&opname, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -50,10 +56,22 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	var opnames []models.StockOpname
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.StockOpname{}).Preload("Warehouse").Preload("Items")
+	query := database.GetDB(ctx, r.db).
+		Model(&models.StockOpname{}).
+		Preload("Warehouse").
+		Preload("Items").
+		Preload("OrderedBy").
+		Preload("AssignedTo")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+
+	// For OUTLET-scoped users (user_warehouses assignment), restrict to their warehouses.
+	// Only applies when no explicit warehouse_id filter is provided by the caller.
+	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
+	if len(warehouseIDs) > 0 && req.WarehouseID == "" {
+		query = query.Where("warehouse_id IN ?", warehouseIDs)
+	}
 
 	if req.Search != "" {
 		search := "%" + strings.ToLower(req.Search) + "%"
@@ -92,7 +110,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID string, items []models.StockOpnameItem) error {
 	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Delete existing items
-		if err := tx.Where("stock_opname_id = ?", opnameID).Delete(&models.StockOpnameItem{}).Error; err != nil {
+		if err := tx.Where(whereStockOpnameID, opnameID).Delete(&models.StockOpnameItem{}).Error; err != nil {
 			return err
 		}
 
@@ -123,10 +141,69 @@ func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID strin
 func (r *stockOpnameRepository) ListItems(ctx context.Context, opnameID string) ([]models.StockOpnameItem, error) {
 	var items []models.StockOpnameItem
 	err := database.GetDB(ctx, r.db).
-		Where("stock_opname_id = ?", opnameID).
+		Where(whereStockOpnameID, opnameID).
 		Preload("Product").
 		Find(&items).Error
 	return items, err
+}
+
+func (r *stockOpnameRepository) ListItemsPaginated(ctx context.Context, opnameID string, page, perPage int) ([]models.StockOpnameItem, int64, error) {
+	var items []models.StockOpnameItem
+	var total int64
+
+	query := database.GetDB(ctx, r.db).
+		Model(&models.StockOpnameItem{}).
+		Where(whereStockOpnameID, opnameID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * perPage
+	err := query.
+		Preload("Product").
+		Order("created_at ASC").
+		Limit(perPage).
+		Offset(offset).
+		Find(&items).Error
+
+	return items, total, err
+}
+
+func (r *stockOpnameRepository) ListWarehouseStockSnapshot(ctx context.Context, warehouseID, scopeType string, categoryIDs, brandIDs []string) ([]dto.WarehouseStockSnapshot, error) {
+	var rows []dto.WarehouseStockSnapshot
+
+	query := r.db.WithContext(ctx).
+		Table("inventory_batches ib").
+		Select("ib.product_id AS product_id, COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) AS system_qty").
+		Joins("JOIN products p ON p.id = ib.product_id AND p.deleted_at IS NULL").
+		Where("ib.warehouse_id = ? AND ib.deleted_at IS NULL", warehouseID)
+
+	if tid, ok := ctx.Value("tenant_id").(string); ok && tid != "" {
+		query = query.Where("ib.tenant_id = ? AND p.tenant_id = ?", tid, tid)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(scopeType)) {
+	case "category":
+		if len(categoryIDs) > 0 {
+			query = query.Where("p.category_id IN ?", categoryIDs)
+		}
+	case "brand":
+		if len(brandIDs) > 0 {
+			query = query.Where("p.brand_id IN ?", brandIDs)
+		}
+	}
+
+	err := query.
+		Group("ib.product_id").
+		Having("COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) <> 0").
+		Scan(&rows).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func (r *stockOpnameRepository) UpdateStatus(ctx context.Context, id string, status models.StockOpnameStatus, userID *string) error {
@@ -172,4 +249,34 @@ func normalizeStatusFilter(status string) string {
 	default:
 		return status
 	}
+}
+
+// GetMyWarehouses returns the warehouses assigned to a specific user via user_warehouses.
+func (r *stockOpnameRepository) GetMyWarehouses(ctx context.Context, userID string) ([]dto.UserWarehouseInfo, error) {
+	type row struct {
+		ID   string
+		Name string
+		Code string
+	}
+	var rows []row
+	query := r.db.WithContext(ctx).
+		Table("user_warehouses uw").
+		Joins("JOIN warehouses w ON w.id = uw.warehouse_id AND w.deleted_at IS NULL").
+		Where("uw.user_id = ? AND uw.deleted_at IS NULL", userID)
+
+	if tid, ok := ctx.Value("tenant_id").(string); ok && tid != "" {
+		query = query.Where("w.tenant_id = ?", tid)
+	}
+
+	err := query.
+		Select("w.id, w.name, w.code").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make([]dto.UserWarehouseInfo, len(rows))
+	for i, rw := range rows {
+		result[i] = dto.UserWarehouseInfo{ID: rw.ID, Name: rw.Name, Code: rw.Code}
+	}
+	return result, nil
 }

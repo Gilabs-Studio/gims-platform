@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, Download, Eye, MoreHorizontal, Pencil, Send, CheckCircle, XCircle, Archive } from "lucide-react";
+import { Search, Plus, Trash2, Download, Eye, MoreHorizontal, Pencil, Send, CheckCircle, XCircle, Archive, Warehouse } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useGenerateStockOpnameJournal, useStockOpnames, useDeleteStockOpname, useSubmitStockOpnameApproval, useUpdateStockOpnameStatus } from "../hooks/use-stock-opnames";
+import { useGenerateStockOpnameJournal, useMyOpnameWarehouses, useStockOpnames, useDeleteStockOpname, useSubmitStockOpnameApproval, useUpdateStockOpnameStatus } from "../hooks/use-stock-opnames";
 import { StockOpnameStatusBadge } from "./stock-opname-status-badge";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -23,7 +23,6 @@ import { formatDate } from "@/lib/utils";
 import { StockOpnameStatus, StockOpname } from "../types";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
-import { StockOpnameDetailDialog } from "./stock-opname-detail-dialog";
 import { EditStockOpnameDialog } from "./edit-stock-opname-dialog";
 import { CreateStockOpnameDialog } from "./stock-opname-form";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -31,20 +30,21 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/routing";
 import { getStockOpnameErrorMessage, isStockOpnameMappingError } from "../utils/error-utils";
-
-function getInitialOpenStockOpnameFromURL(): string | null {
-    if (typeof window === "undefined") {
-        return null;
-    }
-
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get("open_stock_opname");
-}
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
 export function StockOpnameList() {
   const t = useTranslations("stock_opname");
   const tCommon = useTranslations("common");
     const router = useRouter();
+
+  // Auth & scope
+  const { user } = useAuthStore();
+  const { data: myWarehousesData, isLoading: isLoadingWarehouses } = useMyOpnameWarehouses();
+  const myWarehouses = myWarehousesData?.data ?? [];
+  const isAdminScope = user?.role?.is_owner || user?.role?.data_scope === "ALL" || user?.role?.data_scope === "DIVISION";
+  const hasNoWarehouse = !isAdminScope && !isLoadingWarehouses && myWarehouses.length === 0;
+  // For outlet-scoped users with exactly one warehouse, auto-select it
+  const autoWarehouseId = !isAdminScope && myWarehouses.length === 1 ? myWarehouses[0].id : undefined;
 
   // Permissions
   const canCreate = useUserPermission("stock_opname.create");
@@ -55,30 +55,14 @@ export function StockOpnameList() {
     const canPost = useUserPermission("stock_opname.post");
   
   // Dialog State
-        const initialSelectedOpnameId = getInitialOpenStockOpnameFromURL();
-        const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(initialSelectedOpnameId);
-    const [detailOpen, setDetailOpen] = useState(Boolean(initialSelectedOpnameId));
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpnameOpen, setEditOpnameOpen] = useState(false);
-    const [editingOpname, setEditingOpname] = useState<StockOpname | null>(null);
+  const [editingOpname, setEditingOpname] = useState<StockOpname | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleView = (id: string) => {
-    setSelectedOpnameId(id);
-    setDetailOpen(true);
+    router.push(`/stock/opname/${id}`);
   };
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        const searchParams = new URLSearchParams(window.location.search);
-        if (!searchParams.get("open_stock_opname")) return;
-
-        searchParams.delete("open_stock_opname");
-        const nextQuery = searchParams.toString();
-        const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
-        window.history.replaceState(null, "", nextURL);
-    }, []);
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -89,12 +73,15 @@ export function StockOpnameList() {
   const [status, setStatus] = useState<StockOpnameStatus | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
+  // Resolve effective warehouse filter: outlet-scoped users are locked to their warehouse(s)
+  const effectiveWarehouseId = autoWarehouseId ?? (warehouseId !== "all" ? warehouseId : undefined);
+
   // Data Fetching
   const { data, isLoading, isError } = useStockOpnames({
     page,
     per_page: perPage,
     search: debouncedSearch || undefined,
-    warehouse_id: warehouseId !== "all" ? warehouseId : undefined,
+    warehouse_id: effectiveWarehouseId,
     status: status !== "all" ? status : undefined,
     start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
     end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
@@ -206,6 +193,25 @@ export function StockOpnameList() {
     );
   }
 
+  // Outlet-scoped user with no warehouse assignment — show informational state
+  if (hasNoWarehouse) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 gap-4 rounded-lg border border-dashed">
+          <Warehouse className="h-12 w-12 text-muted-foreground" />
+          <div className="text-center space-y-1">
+            <p className="text-base font-semibold">{t("noWarehouseAssigned.title")}</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{t("noWarehouseAssigned.description")}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -233,19 +239,30 @@ export function StockOpnameList() {
 
       {/* Filters */}
       <div className="flex flex-col gap-4">
+        {/* Outlet-scoped: show which warehouse is active */}
+        {!isAdminScope && myWarehouses.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+            <Warehouse className="h-4 w-4 shrink-0" />
+            <span>{myWarehouses.map(w => w.name).join(", ")}</span>
+          </div>
+        )}
+
         {/* Top Filters Row */}
         <div className="flex flex-wrap gap-3 items-center">
-            <Select value={warehouseId} onValueChange={(v) => { setWarehouseId(v); setPage(1); }}>
-                <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder={t("filter.warehouse")} />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">{t("filter.warehouse")}</SelectItem>
-                    {warehouses.map((w) => (
-                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            {/* Admin-scope users can filter by any warehouse */}
+            {isAdminScope && (
+              <Select value={warehouseId} onValueChange={(v) => { setWarehouseId(v); setPage(1); }}>
+                  <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder={t("filter.warehouse")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">{t("filter.warehouse")}</SelectItem>
+                      {warehouses.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+            )}
             
             <Select value={status} onValueChange={(v: string) => { setStatus(v as StockOpnameStatus | "all"); setPage(1); }}>
                 <SelectTrigger className="w-[180px]">
@@ -291,6 +308,8 @@ export function StockOpnameList() {
               <TableHead>{t("table.warehouse")}</TableHead>
               <TableHead className="w-[150px]">{t("table.date")}</TableHead>
               <TableHead className="w-[150px]">{t("table.status")}</TableHead>
+              <TableHead className="w-[180px]">{t("table.orderedBy")}</TableHead>
+              <TableHead className="w-[180px]">{t("table.assignedTo")}</TableHead>
               <TableHead className="text-center w-[120px]">{t("table.variance")}</TableHead>
               <TableHead className="w-[100px] text-right">{t("table.actions")}</TableHead>
             </TableRow>
@@ -299,14 +318,14 @@ export function StockOpnameList() {
             {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                        <TableCell colSpan={6} className="h-16 text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="h-16 text-center text-muted-foreground">
                             {tCommon("loading")}
                         </TableCell>
                     </TableRow>
                 ))
             ) : opnames.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                    {tCommon("noData")}
                 </TableCell>
               </TableRow>
@@ -327,6 +346,8 @@ export function StockOpnameList() {
                         <TableCell>{row.warehouse_name}</TableCell>
                         <TableCell>{formatDate(row.date)}</TableCell>
                         <TableCell><StockOpnameStatusBadge status={row.status} /></TableCell>
+                        <TableCell>{row.ordered_by_name || "-"}</TableCell>
+                        <TableCell>{row.assigned_to_name || "-"}</TableCell>
                         <TableCell className="text-center">
                             {(() => {
                                 const negativeVariance = row.total_negative_variance_qty ?? 0;
@@ -449,11 +470,6 @@ export function StockOpnameList() {
         />
       )}
       
-      <StockOpnameDetailDialog 
-        open={detailOpen} 
-        onOpenChange={setDetailOpen} 
-        opnameId={selectedOpnameId} 
-      />
       
       <CreateStockOpnameDialog 
         open={createOpen} 

@@ -102,12 +102,15 @@ function StatCard({
   label: string;
   value: string;
   icon: React.ElementType;
-  accent?: "green" | "red" | "blue" | "default";
+  accent?: "brand" | "success" | "destructive" | "warning" | "purple" | "cyan" | "default";
 }) {
   const accentMap = {
-    green: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40",
-    red: "text-rose-600 bg-rose-50 dark:bg-rose-950/40",
-    blue: "text-blue-600 bg-blue-50 dark:bg-blue-950/40",
+    brand: "text-brand bg-brand/10",
+    success: "text-success bg-success/10",
+    destructive: "text-destructive bg-destructive/10",
+    warning: "text-warning bg-warning/10",
+    purple: "text-purple bg-purple/10",
+    cyan: "text-cyan bg-cyan/10",
     default: "text-muted-foreground bg-muted/40",
   };
   const iconClass = accentMap[accent ?? "default"];
@@ -118,10 +121,10 @@ function StatCard({
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 leading-tight">
           {label}
         </p>
-        <p className="truncate text-sm font-semibold tabular-nums">{value}</p>
+        <p className="text-sm font-semibold tabular-nums leading-none mt-1">{value}</p>
       </div>
     </div>
   );
@@ -368,18 +371,18 @@ export function StockLedgerPage() {
 
       {/* ── Summary stat cards ── */}
       {productId && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           <StatCard
             label={t("summary.currentStock")}
             value={summary.currentStock.toLocaleString("id-ID")}
             icon={Layers}
-            accent="blue"
+            accent="brand"
           />
           <StatCard
             label={t("summary.currentValue")}
             value={formatCurrency(summary.currentValue)}
             icon={TrendingUp}
-            accent="blue"
+            accent="purple"
           />
           <StatCard
             label={t("summary.ledgerEntries")}
@@ -390,13 +393,13 @@ export function StockLedgerPage() {
             label={t("summary.totalQtyIn")}
             value={totalQtyIn.toLocaleString("id-ID")}
             icon={ArrowDownLeft}
-            accent="green"
+            accent="success"
           />
           <StatCard
             label={t("summary.totalQtyOut")}
             value={totalQtyOut.toLocaleString("id-ID")}
             icon={ArrowUpRight}
-            accent="red"
+            accent="destructive"
           />
           <StatCard
             label={t("summary.latestMovement")}
@@ -531,7 +534,7 @@ export function StockLedgerPage() {
 
                       <TableCell className="py-3 text-right">
                         {qtyIn > 0 ? (
-                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-emerald-600">
+                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-success">
                             <ArrowDownLeft className="h-3 w-3" />
                             {qtyIn.toLocaleString("id-ID")}
                           </span>
@@ -542,7 +545,7 @@ export function StockLedgerPage() {
 
                       <TableCell className="py-3 text-right">
                         {qtyOut > 0 ? (
-                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-rose-600">
+                          <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-destructive">
                             <ArrowUpRight className="h-3 w-3" />
                             {qtyOut.toLocaleString("id-ID")}
                           </span>

@@ -26,6 +26,13 @@ const (
 	ProductKindService = "SERVICE" // Non-physical service, no inventory impact
 )
 
+// POSScope controls which outlets can see this product in the POS catalog
+const (
+	POSScopeNone     = "none"     // Not visible in POS
+	POSScopeGlobal   = "global"   // Visible in all outlets
+	POSScopeSpecific = "specific" // Visible only in assigned outlets
+)
+
 // Product represents a product in the ERP system
 type Product struct {
 	ID                     string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -103,12 +110,15 @@ type Product struct {
 	IsIngredient bool `gorm:"column:is_ingredient;default:false;index" json:"is_ingredient"`
 	// Whether this product tracks inventory batches (true for STOCK, can be false for RECIPE/SERVICE)
 	IsInventoryTracked bool `gorm:"column:is_inventory_tracked;default:true" json:"is_inventory_tracked"`
-	// Whether this product appears in POS product catalog
-	IsPosAvailable bool `gorm:"column:is_pos_available;default:false;index" json:"is_pos_available"`
+	// POSScope controls POS visibility: "none" = hidden, "global" = all outlets, "specific" = assigned outlets only
+	POSScope string `gorm:"column:pos_scope;type:varchar(20);default:'none';index" json:"pos_scope"`
 
 	// Recipe items: only populated for RECIPE kind products
 	RecipeItems    []ProductRecipeItem    `gorm:"foreignKey:ProductID" json:"recipe_items,omitempty"`
 	RecipeVersions []ProductRecipeVersion `gorm:"foreignKey:ProductID" json:"recipe_versions,omitempty"`
+
+	// Outlet assignments: outlets where this product is available for sale
+	Outlets []ProductOutlet `gorm:"foreignKey:ProductID" json:"outlets,omitempty"`
 
 	// Active status
 	IsActive bool `gorm:"default:true;index" json:"is_active"`

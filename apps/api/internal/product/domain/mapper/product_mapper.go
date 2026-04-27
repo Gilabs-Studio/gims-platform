@@ -42,7 +42,7 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		ProductKind:        m.ProductKind,
 		IsIngredient:       m.IsIngredient,
 		IsInventoryTracked: m.IsInventoryTracked,
-		IsPosAvailable:     m.IsPosAvailable,
+			POSScope:           m.POSScope,
 		Status:            string(m.Status),
 		IsApproved:        m.IsApproved,
 		CreatedBy:         m.CreatedBy,
@@ -185,6 +185,15 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 			}
 			resp.ProducibleQuantity = producibleQuantity
 		}
+	}
+
+	// Map outlet IDs from junction records
+	if len(m.Outlets) > 0 {
+		outletIDs := make([]string, 0, len(m.Outlets))
+		for _, o := range m.Outlets {
+			outletIDs = append(outletIDs, o.OutletID)
+		}
+		resp.OutletIDs = outletIDs
 	}
 
 	return resp

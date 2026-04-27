@@ -70,6 +70,7 @@ func (h *ProductHandler) List(c *gin.Context) {
 		TypeID:     c.Query("type_id"),
 		SupplierID: c.Query("supplier_id"),
 		Status:     c.Query("status"),
+		OutletID:   c.Query("outlet_id"),
 	}
 
 	if isApproved := c.Query("is_approved"); isApproved != "" {
@@ -79,9 +80,8 @@ func (h *ProductHandler) List(c *gin.Context) {
 	if productKind := c.Query("product_kind"); productKind != "" {
 		params.ProductKind = productKind
 	}
-	if isPosAvailable := c.Query("is_pos_available"); isPosAvailable != "" {
-		val := isPosAvailable == "true"
-		params.IsPosAvailable = &val
+	if posScope := c.Query("pos_scope"); posScope != "" {
+		params.POSScope = posScope
 	}
 	if isIngredient := c.Query("is_ingredient"); isIngredient != "" {
 		val := isIngredient == "true"

@@ -77,6 +77,11 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
 
+	// PRE-MIGRATION: Replace is_pos_available boolean with pos_scope enum.
+	// Add column first, then migrate data, so existing products are not lost.
+	_ = DB.Exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_scope varchar(20) NOT NULL DEFAULT 'none'`)
+	_ = DB.Exec(`UPDATE products SET pos_scope = CASE WHEN is_pos_available = true THEN 'global' ELSE 'none' END WHERE pos_scope = 'none' AND is_pos_available IS NOT NULL`)
+
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)
@@ -147,6 +152,8 @@ func AutoMigrate() error {
 		&warehouse.Warehouse{},
 		// Outlet entity (Organization)
 		&organization.Outlet{},
+		// Product-Outlet junction (depends on both Product and Outlet)
+		&product.ProductOutlet{},
 		// Core Master Data entities (Sprint 4)
 		&core.PaymentTerms{},
 		&core.CourierAgency{},

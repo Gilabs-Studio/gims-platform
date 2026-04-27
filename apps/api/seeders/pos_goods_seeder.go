@@ -54,7 +54,7 @@ func SeedPosGoodsProducts() error {
 			SellingPrice:       5000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -72,7 +72,7 @@ func SeedPosGoodsProducts() error {
 			SellingPrice:       12000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -90,7 +90,7 @@ func SeedPosGoodsProducts() error {
 			SellingPrice:       7000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -105,7 +105,7 @@ func SeedPosGoodsProducts() error {
 			DoUpdates: clause.AssignmentColumns([]string{
 				"code", "name", "description", "image_url", "category_id",
 				"cost_price", "selling_price", "product_kind", "is_inventory_tracked",
-				"is_pos_available", "is_ingredient", "is_active", "status", "is_approved", "tax_type", "updated_at",
+				"pos_scope", "is_ingredient", "is_active", "status", "is_approved", "tax_type", "updated_at",
 			}),
 		}).Create(&products[i]).Error; err != nil {
 			return err
