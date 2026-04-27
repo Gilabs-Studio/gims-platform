@@ -1,12 +1,14 @@
 package seeders
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -22,7 +24,28 @@ func SeedSupplier() error {
 			ContactPerson: "John Doe",
 			IsActive:      true,
 		}
-		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "address", "email", "contact_person", "is_active", "updated_at"})}).Create(&supplier).Error; err != nil {
+
+		var existing models.Supplier
+		err := db.Unscoped().Where("code = ?", supplier.Code).First(&existing).Error
+		if err == nil {
+			if err := db.Unscoped().Model(&existing).Updates(map[string]interface{}{
+				"name":           supplier.Name,
+				"address":        supplier.Address,
+				"email":          supplier.Email,
+				"contact_person": supplier.ContactPerson,
+				"is_active":      supplier.IsActive,
+				"deleted_at":     nil,
+			}).Error; err != nil {
+				return err
+			}
+			return nil
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if err := db.Create(&supplier).Error; err != nil {
 			return err
 		}
 		return nil

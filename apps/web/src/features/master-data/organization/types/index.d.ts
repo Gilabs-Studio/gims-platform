@@ -165,8 +165,6 @@ export interface Company {
   };
   latitude?: number | null;
   longitude?: number | null;
-  director_id?: string | null;
-  director?: { id: string; name: string };
   status: CompanyStatus;
   is_approved: boolean;
   created_by?: string;
@@ -189,7 +187,6 @@ export interface CreateCompanyData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
-  director_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
@@ -206,7 +203,6 @@ export interface UpdateCompanyData {
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
-  director_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;

@@ -9,10 +9,10 @@ import (
 func RegisterCurrencyRoutes(rg *gin.RouterGroup, h *handler.CurrencyHandler) {
 	g := rg.Group("/currencies")
 	{
-		g.POST("", middleware.RequirePermission("currency.create"), h.Create)
 		g.GET("", middleware.RequirePermission("currency.read"), h.List)
 		g.GET("/:id", middleware.RequirePermission("currency.read"), h.GetByID)
-		g.PUT("/:id", middleware.RequirePermission("currency.update"), h.Update)
-		g.DELETE("/:id", middleware.RequirePermission("currency.delete"), h.Delete)
+		g.POST("", middleware.RequireSystemAdmin(), middleware.RequirePermission("currency.create"), h.Create)
+		g.PUT("/:id", middleware.RequireSystemAdmin(), middleware.RequirePermission("currency.update"), h.Update)
+		g.DELETE("/:id", middleware.RequireSystemAdmin(), middleware.RequirePermission("currency.delete"), h.Delete)
 	}
 }

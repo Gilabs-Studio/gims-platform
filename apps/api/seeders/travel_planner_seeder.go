@@ -225,7 +225,10 @@ func SeedTravelPlanner() error {
 	for _, plan := range plans {
 		currentPlan := plan
 		err := database.DB.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Where("id = ?", currentPlan.ID).Delete(&travelPlanner.TravelPlan{}).Error; err != nil {
+			if err := tx.Unscoped().Where("id = ?", currentPlan.ID).Delete(&travelPlanner.TravelPlan{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Unscoped().Where("code = ? AND id <> ?", currentPlan.Code, currentPlan.ID).Delete(&travelPlanner.TravelPlan{}).Error; err != nil {
 				return err
 			}
 			if err := tx.Create(&currentPlan).Error; err != nil {

@@ -57,6 +57,7 @@ export function CustomerDetailModal({
 
   // Resolve geographic hierarchy from nested village or direct FK fields
   const village = entity.village;
+  const villageName = village?.name ?? entity.village_name ?? null;
   const districtVillage = village?.district;
   const cityVillage = districtVillage?.city;
   const provinceVillage = cityVillage?.province;
@@ -67,7 +68,7 @@ export function CustomerDetailModal({
   const city = entity.city ?? cityVillage;
   const province = entity.province ?? provinceVillage;
 
-  const areaText = [village?.name, district?.name, city?.name, province?.name]
+  const areaText = [villageName, district?.name, city?.name, province?.name]
     .filter(Boolean)
     .join(", ");
 
@@ -159,7 +160,7 @@ export function CustomerDetailModal({
               </TabsTrigger>
               <TabsTrigger value="loyalty" className="flex items-center gap-1.5">
                 <Star className="h-3.5 w-3.5" />
-                Loyalty
+                {t("common.loyalty")}
               </TabsTrigger>
             </TabsList>
 
@@ -196,7 +197,7 @@ export function CustomerDetailModal({
                               className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer"
                             >
                               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                                Visit Link
+                              {t("common.visitLink")}
                             </a>
                           ) : "-"}
                         </TableCell>
@@ -233,7 +234,7 @@ export function CustomerDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
                         <TableCell>{district?.name ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
-                        <TableCell>{village?.name ?? "-"}</TableCell>
+                        <TableCell>{villageName ?? "-"}</TableCell>
                       </TableRow>
                       {areaText && (
                         <TableRow>
@@ -271,7 +272,7 @@ export function CustomerDetailModal({
                           </TableRow>
                           {entity.latitude != null && entity.longitude != null && (
                             <TableRow>
-                              <TableCell className="font-medium bg-muted/50">Google Maps</TableCell>
+                              <TableCell className="font-medium bg-muted/50">{t("common.googleMaps")}</TableCell>
                               <TableCell colSpan={3}>
                                 <a
                                   href={`https://maps.google.com/?q=${entity.latitude},${entity.longitude}`}
@@ -279,7 +280,7 @@ export function CustomerDetailModal({
                                   rel="noopener noreferrer"
                                   className="text-primary hover:underline"
                                 >
-                                  Open in Maps
+                                  {t("common.openInMaps")}
                                 </a>
                               </TableCell>
                             </TableRow>
@@ -320,7 +321,7 @@ export function CustomerDetailModal({
                                     </TableCell>
                                     <TableCell className="text-right">
                                       {bank.is_primary && (
-                                        <Badge variant="secondary" className="text-[10px]">Primary</Badge>
+                                        <Badge variant="secondary" className="text-[10px]">{t("common.primary")}</Badge>
                                       )}
                                     </TableCell>
                                   </TableRow>

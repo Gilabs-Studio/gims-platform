@@ -275,8 +275,6 @@ export const organizationEn = {
       villagePlaceholder: "Select village",
       businessType: "Business Type",
       businessTypePlaceholder: "Select business type",
-      director: "Director",
-      directorPlaceholder: "Select director",
       isActive: "Active",
       rejectReason: "Rejection Reason",
       rejectReasonPlaceholder: "Enter reason for rejection (optional)",

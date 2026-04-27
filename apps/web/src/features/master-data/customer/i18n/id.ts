@@ -25,6 +25,7 @@ export const customerId: CustomerTranslations = {
     updatedAt: "Diperbarui Pada",
     success_update: "Berhasil memperbarui {name}",
     error_update: "Gagal memperbarui",
+    primary: "Utama",
   },
   customerType: {
     title: "Tipe Pelanggan",
@@ -145,6 +146,11 @@ export const customerId: CustomerTranslations = {
       edit: "Ubah",
       delete: "Hapus",
       viewDetails: "Lihat Detail",
+      primary: "Utama",
+      visitLink: "Kunjungi Tautan",
+      googleMaps: "Google Maps",
+      openInMaps: "Buka di Maps",
+      loyalty: "Loyalitas",
     },
     pickFromMap: "Pilih dari Peta",
     mapPicker: {
@@ -180,6 +186,10 @@ export const customerId: CustomerTranslations = {
     deleteTitle: "Hapus Rekening Bank",
     deleteConfirm: "Apakah Anda yakin ingin menghapus rekening bank ini?",
     empty: "Belum ada rekening bank",
+    createSuccess: "Rekening bank berhasil ditambahkan",
+    updateSuccess: "Rekening bank berhasil diperbarui",
+    saveError: "Gagal menyimpan rekening bank",
+    unknownBank: "Bank tidak dikenal",
     form: {
       bank: "Bank",
       bankPlaceholder: "Pilih bank",
@@ -189,9 +199,8 @@ export const customerId: CustomerTranslations = {
       accountNumberPlaceholder: "Masukkan nomor rekening",
       accountName: "Nama Pemilik Rekening",
       accountNamePlaceholder: "Masukkan nama pemilik rekening",
-      branch: "Cabang",
-      branchPlaceholder: "Masukkan nama cabang (opsional)",
       isPrimary: "Utama",
+      primaryDescription: "Jadikan sebagai rekening bank utama",
     },
   },
   validation: {
@@ -211,6 +220,7 @@ export const customerId: CustomerTranslations = {
     accountNumberRequired: "Nomor rekening wajib diisi",
     accountNameRequired: "Nama pemilik rekening wajib diisi",
     bankRequired: "Bank wajib dipilih",
+    currencyRequired: "Mata uang wajib dipilih",
   },
   // Top-level shortcuts used by QuickCreateCustomerDialog
   createSuccess: "Pelanggan berhasil dibuat",

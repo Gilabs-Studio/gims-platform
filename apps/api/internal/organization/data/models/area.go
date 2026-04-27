@@ -12,7 +12,7 @@ import (
 type Area struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
+	Name        string         `gorm:"type:varchar(100);not null;index" json:"name"`
 	Description string         `gorm:"type:text" json:"description"`
 	IsActive    bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -20,7 +20,7 @@ type Area struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Sprint 24: CRM Territory enhancement fields
-	Code      string  `gorm:"type:varchar(50);uniqueIndex" json:"code"`            // Territory code (e.g. JAWA-BARAT)
+	Code      string  `gorm:"type:varchar(50);index" json:"code"`                  // Territory code (e.g. JAWA-BARAT)
 	Polygon   *string `gorm:"type:jsonb" json:"polygon"`                           // GeoJSON polygon coordinates stored as JSONB
 	Color     string  `gorm:"type:varchar(20)" json:"color"`                       // Display color on map (hex)
 	ManagerID *string `gorm:"type:uuid;index" json:"manager_id"`                   // FK to employees (area manager)
