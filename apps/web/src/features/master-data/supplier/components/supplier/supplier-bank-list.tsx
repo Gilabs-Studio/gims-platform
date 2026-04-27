@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
   Table,
   TableBody,
@@ -83,6 +84,10 @@ export function SupplierBankList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<SupplierBankListItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    index: number;
+    item: SupplierBankListItem;
+  } | null>(null);
 
   const addMutation = useAddBankAccount();
   const updateMutation = useUpdateBankAccount();
@@ -144,8 +149,6 @@ export function SupplierBankList({
   };
 
   const handleDelete = async (index: number, item: SupplierBankListItem) => {
-    if (!confirm(tCommon("deleteConfirm") || "Are you sure?")) return;
-
     if (supplierId && isPersistedSupplierBank(item)) {
       try {
         await deleteMutation.mutateAsync({ supplierId, bankId: item.id });
@@ -272,7 +275,7 @@ export function SupplierBankList({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(index, bank)}
+                          onClick={() => setPendingDelete({ index, item: bank })}
                           className="h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -385,6 +388,24 @@ export function SupplierBankList({
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await handleDelete(pendingDelete.index, pendingDelete.item);
+          setPendingDelete(null);
+        }}
+        title={tCommon("deleteConfirm") || "Are you sure?"}
+        description={t("deleteDescription") || undefined}
+        itemName={t("title") || "bank account"}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

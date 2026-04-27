@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
@@ -70,6 +71,10 @@ export function SupplierContactList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<SupplierContactListItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    index: number;
+    item: SupplierContactListItem;
+  } | null>(null);
 
   const addMutation = useAddContact();
   const updateMutation = useUpdateContact();
@@ -152,8 +157,6 @@ export function SupplierContactList({
   };
 
   const handleDelete = async (index: number, item: SupplierContactListItem) => {
-    if (!confirm(tCommon("deleteConfirm") || "Are you sure?")) return;
-
     if (supplierId && isPersistedSupplierContact(item)) {
       try {
         await deleteMutation.mutateAsync({ supplierId, contactId: item.id });
@@ -309,7 +312,7 @@ export function SupplierContactList({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
-                      onClick={() => void handleDelete(index, contact)}
+                      onClick={() => setPendingDelete({ index, item: contact })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -433,6 +436,24 @@ export function SupplierContactList({
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await handleDelete(pendingDelete.index, pendingDelete.item);
+          setPendingDelete(null);
+        }}
+        title={tCommon("deleteConfirm") || "Are you sure?"}
+        description={t("deleteDescription") || undefined}
+        itemName={t("title") || "contact"}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }
