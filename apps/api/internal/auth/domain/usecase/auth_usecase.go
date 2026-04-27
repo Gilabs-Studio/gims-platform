@@ -549,6 +549,8 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 		"company_name": true,
 	}
 
+	_ = companyName
+
 	if email != "" {
 		var count int64
 		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
@@ -556,17 +558,6 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 		}
 		if count > 0 {
 			result["email"] = false
-		}
-	}
-
-	if companyName != "" {
-		slug := slugify(companyName)
-		var count int64
-		if err := u.db.WithContext(ctx).Table("tenants").Where("slug = ?", slug).Count(&count).Error; err != nil {
-			return nil, err
-		}
-		if count > 0 {
-			result["company_name"] = false
 		}
 	}
 
@@ -1135,21 +1126,7 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			companyName = req.Name
 		}
 
-		baseSlug := slugify(companyName)
-		slug := baseSlug
-
-		// Ensure slug uniqueness by appending a suffix if collision detected
-		for attempt := 0; attempt < 10; attempt++ {
-			var slugCount int64
-			if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
-				return err
-			}
-			if slugCount == 0 {
-				break // Slug is unique
-			}
-			// Append suffix (-1, -2, etc.) for uniqueness
-			slug = fmt.Sprintf("%s-%d", baseSlug, attempt+1)
-		}
+		slug := buildUniqueTenantSlug(companyName)
 
 		tenantID := newUUID()
 		userID := newUUID()
@@ -1178,15 +1155,29 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			maxUsers = planConfig.MaxUsers
 		}
 
-		if err := tx.Exec(`
-			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
-			tenantID, companyName, slug, userID, planSlug, maxUsers,
-		).Error; err != nil {
-			if isUniqueViolationForSlug(err) {
-				return ErrSlugAlreadyTaken
+		insertedTenant := false
+		for attempt := 0; attempt < 8; attempt++ {
+			if attempt > 0 {
+				slug = buildUniqueTenantSlug(companyName)
 			}
-			return err
+
+			if err := tx.Exec(`
+				INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
+				VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
+				tenantID, companyName, slug, userID, planSlug, maxUsers,
+			).Error; err != nil {
+				if isUniqueViolationForSlug(err) {
+					continue
+				}
+				return err
+			}
+
+			insertedTenant = true
+			break
+		}
+
+		if !insertedTenant {
+			return ErrSlugAlreadyTaken
 		}
 
 		companyID := newUUID()
@@ -2109,6 +2100,22 @@ func slugify(s string) string {
 		result = result[:len(result)-1]
 	}
 	return string(result)
+}
+
+func buildUniqueTenantSlug(companyName string) string {
+	base := slugify(companyName)
+	if base == "" {
+		base = "company"
+	}
+
+	if len(base) > 48 {
+		base = strings.Trim(base[:48], "-")
+		if base == "" {
+			base = "company"
+		}
+	}
+
+	return fmt.Sprintf("%s-%s", base, shortID())
 }
 
 // newUUID generates a random UUID v4.
