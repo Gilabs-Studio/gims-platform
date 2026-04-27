@@ -13,6 +13,7 @@ import { useRateLimitStore } from "./stores/useRateLimitStore";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 const CSRF_BOOTSTRAP_COOLDOWN_MS = 2000;
 const GLOBAL_TOAST_DEDUPE_WINDOW_MS = 2500;
+const MAX_RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
 const globalToastLastShownAt = new Map<string, number>();
 
@@ -85,6 +86,35 @@ function normalizeQueryParams(value: unknown): unknown {
   }
 
   return value;
+}
+
+function normalizeRateLimitResetTime(resetHeader: string | number): number | null {
+  const now = Math.floor(Date.now() / 1000);
+  let parsed =
+    typeof resetHeader === "number"
+      ? resetHeader
+      : Number.parseInt(String(resetHeader), 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  // Some proxies send Unix milliseconds; normalize to seconds.
+  if (parsed > 1_000_000_000_000) {
+    parsed = Math.floor(parsed / 1000);
+  }
+
+  // If the value is tiny, treat it as delta-seconds.
+  if (parsed < 1_000_000_000) {
+    parsed = now + parsed;
+  }
+
+  // Ignore obviously stale or unrealistic future values to avoid sticky lockouts.
+  if (parsed <= now || parsed > now + MAX_RATE_LIMIT_WINDOW_SECONDS) {
+    return null;
+  }
+
+  return parsed;
 }
 
 type ServerRole = {
@@ -905,19 +935,14 @@ apiClient.interceptors.response.use(
         headers["x-ratelimit-reset"] || headers["X-RateLimit-Reset"];
 
       if (resetHeader) {
-        const resetTimeValue =
-          typeof resetHeader === "string"
-            ? parseInt(resetHeader, 10)
-            : typeof resetHeader === "number"
-              ? resetHeader
-              : null;
+        const resetTimeValue = normalizeRateLimitResetTime(
+          resetHeader as string | number,
+        );
 
-        if (
-          resetTimeValue !== null &&
-          !isNaN(resetTimeValue) &&
-          resetTimeValue > 0
-        ) {
+        if (resetTimeValue !== null) {
           useRateLimitStore.getState().setResetTime(resetTimeValue);
+        } else {
+          useRateLimitStore.getState().clearResetTime();
         }
       }
 
