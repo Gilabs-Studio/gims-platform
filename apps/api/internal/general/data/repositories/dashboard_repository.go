@@ -438,7 +438,6 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 		ID              string
 		Name            string
 		Address         string
-		Capacity        float64
 		ItemCount       int
 		StockValue      float64
 		InStockCount    int
@@ -475,7 +474,6 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 			w.id,
 			w.name,
 			COALESCE(w.address, '')      AS address,
-			COALESCE(w.capacity, 0)      AS capacity,
 			COALESCE(ws.item_count, 0)   AS item_count,
 			COALESCE(ws.stock_value, 0)  AS stock_value,
 			COUNT(CASE WHEN sl.available > sl.min_stock OR (sl.min_stock = 0 AND sl.available > 0) THEN 1 END) AS in_stock_count,
@@ -485,27 +483,19 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 		LEFT JOIN warehouse_stats ws ON ws.warehouse_id = w.id
 		LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
 		WHERE w.is_active = true AND w.deleted_at IS NULL
-		GROUP BY w.id, w.name, w.address, w.capacity, ws.item_count, ws.stock_value
+		GROUP BY w.id, w.name, w.address, ws.item_count, ws.stock_value
 		ORDER BY w.name ASC
 	`).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	items := make([]dto.WarehouseItem, 0, len(rows))
 	for _, row := range rows {
-		utilization := float64(0)
-		if row.Capacity > 0 {
-			utilization = (float64(row.ItemCount) / row.Capacity) * 100
-			if utilization > 100 {
-				utilization = 100
-			}
-		}
 		items = append(items, dto.WarehouseItem{
 			ID:                 row.ID,
 			Name:               row.Name,
 			Location:           row.Address,
 			StockValue:         row.StockValue,
 			ItemCount:          row.ItemCount,
-			UtilizationPercent: utilization,
 			InStockCount:       row.InStockCount,
 			LowStockCount:      row.LowStockCount,
 			OutOfStockCount:    row.OutOfStockCount,

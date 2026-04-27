@@ -7,7 +7,6 @@ import geographic "github.com/gilabs/gims/api/internal/geographic/domain/dto"
 type CreateWarehouseRequest struct {
 	Name        string   `json:"name" validate:"required,min=2,max=200"`
 	Description string   `json:"description,omitempty"`
-	Capacity    *int     `json:"capacity,omitempty"`
 	Address     string   `json:"address,omitempty"`
 	ProvinceID  *string  `json:"province_id,omitempty"`
 	CityID      *string  `json:"city_id,omitempty"`
@@ -26,7 +25,6 @@ type UpdateWarehouseRequest struct {
 	Code        *string  `json:"code,omitempty" validate:"omitempty,min=2,max=50"`
 	Name        *string  `json:"name,omitempty" validate:"omitempty,min=2,max=200"`
 	Description *string  `json:"description,omitempty"`
-	Capacity    *int     `json:"capacity,omitempty"`
 	Address     *string  `json:"address,omitempty"`
 	ProvinceID  *string  `json:"province_id,omitempty"`
 	CityID      *string  `json:"city_id,omitempty"`
@@ -46,7 +44,6 @@ type WarehouseResponse struct {
 	Code        string                  `json:"code"`
 	Name        string                  `json:"name"`
 	Description string                  `json:"description,omitempty"`
-	Capacity    *int                    `json:"capacity,omitempty"`
 	Address     string                  `json:"address,omitempty"`
 	ProvinceID  *string                 `json:"province_id,omitempty"`
 	Province    *geographic.ProvinceResponse `json:"province,omitempty"`

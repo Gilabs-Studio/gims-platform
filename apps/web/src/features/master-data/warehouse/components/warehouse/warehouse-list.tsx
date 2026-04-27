@@ -98,7 +98,6 @@ export function WarehouseList() {
               <TableHead>{t("warehouse.form.code")}</TableHead>
               <TableHead>{t("warehouse.form.name")}</TableHead>
               <TableHead>{t("warehouse.form.address")}</TableHead>
-              <TableHead>{t("warehouse.form.capacity")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
               {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[100px]">{t("common.actions")}</TableHead>}
             </TableRow>
@@ -110,7 +109,6 @@ export function WarehouseList() {
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
@@ -118,7 +116,7 @@ export function WarehouseList() {
             ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5}
+                  colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("warehouse.empty")}
@@ -145,7 +143,6 @@ export function WarehouseList() {
                     )}
                   </TableCell>
                   <TableCell>{item.address ?? "-"}</TableCell>
-                  <TableCell>{item.capacity ?? "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch

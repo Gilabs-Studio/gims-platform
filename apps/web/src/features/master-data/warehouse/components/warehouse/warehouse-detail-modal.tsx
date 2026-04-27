@@ -65,11 +65,6 @@ export function WarehouseDetailModal({
                 <Badge variant={entity.is_active ? "default" : "secondary"} className="text-xs font-medium">
                   {entity.is_active ? t("common.active") : t("common.inactive")}
                 </Badge>
-                {entity.capacity != null && (
-                  <Badge variant="outline" className="text-xs">
-                    Cap: {entity.capacity}
-                  </Badge>
-                )}
                 {entity.outlet_id && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Store className="h-3 w-3" />
@@ -116,8 +111,6 @@ export function WarehouseDetailModal({
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.description")}</TableCell>
                       <TableCell>{entity.description || "-"}</TableCell>
-                      <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.capacity")}</TableCell>
-                      <TableCell>{entity.capacity != null ? String(entity.capacity) : "-"}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50">{t("common.createdAt")}</TableCell>

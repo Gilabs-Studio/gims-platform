@@ -15,12 +15,10 @@ func SeedWarehouse() error {
 	if isMinimalSeedMode() {
 		db := database.DB
 		log.Println("Seeding minimal warehouse for SEED_MINIMAL_DATA")
-		cap := 1000
 		wh := models.Warehouse{
 			Code:        "WH-MIN-001",
 			Name:        "Minimal Warehouse",
 			Description: "Warehouse used for minimal seed mode",
-			Capacity:    &cap,
 			Address:     "Jl. Minimal No. 1, Jakarta",
 			IsActive:    true,
 		}
@@ -55,9 +53,6 @@ func SeedWarehouse() error {
 	lat1, lng1 := -6.2088, 106.8456 // Central Jakarta
 	lat2, lng2 := -6.1751, 106.8650 // North Jakarta
 
-	// Capacities
-	cap1, cap2 := 10000, 15000
-
 	// Seed warehouses - use unique codes that won't conflict with real data
 	// Format: SEED-XXX to clearly mark as seed data
 	warehouses := []models.Warehouse{
@@ -65,7 +60,6 @@ func SeedWarehouse() error {
 			Code:        "SEED-WH-001",
 			Name:        "Main Warehouse - Jakarta Pusat",
 			Description: "Primary warehouse for central Jakarta operations",
-			Capacity:    &cap1,
 			Address:     "Jl. Jend. Sudirman Kav. 52-53, Senayan, Jakarta Pusat",
 			VillageName: strPtr("Senayan"),
 			Latitude:    &lat1,
@@ -77,7 +71,6 @@ func SeedWarehouse() error {
 			Code:        "SEED-WH-002",
 			Name:        "North Jakarta Distribution Center",
 			Description: "Distribution warehouse for north Jakarta region",
-			Capacity:    &cap2,
 			Address:     "Kawasan Industri Pulogadung, Jakarta Utara",
 			VillageName: strPtr("Pulogadung"),
 			Latitude:    &lat2,

@@ -239,7 +239,6 @@ type WarehouseItem struct {
 	StockValue         float64 `json:"stock_value"`
 	StockFormatted     string  `json:"stock_formatted"`
 	ItemCount          int     `json:"item_count"`
-	UtilizationPercent float64 `json:"utilization_percent"`
 	// Stock status breakdown — consistent with inventory feature status logic
 	InStockCount    int `json:"in_stock_count"`
 	LowStockCount   int `json:"low_stock_count"`

@@ -265,7 +265,6 @@ export interface WarehouseItem {
   stock_value: number;
   stock_formatted: string;
   item_count: number;
-  utilization_percent: number;
   in_stock_count: number;
   low_stock_count: number;
   out_of_stock_count: number;

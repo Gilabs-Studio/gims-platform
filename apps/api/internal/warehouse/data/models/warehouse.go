@@ -15,7 +15,6 @@ type Warehouse struct {
 	Code        string              `gorm:"type:varchar(50);uniqueIndex" json:"code"`
 	Name        string              `gorm:"type:varchar(200);not null;index" json:"name"`
 	Description string              `gorm:"type:text" json:"description"`
-	Capacity    *int                `gorm:"type:integer" json:"capacity"`
 	Address     string              `gorm:"type:text" json:"address"`
 	ProvinceID  *string             `gorm:"type:uuid;index" json:"province_id"`
 	Province    *geographic.Province `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
