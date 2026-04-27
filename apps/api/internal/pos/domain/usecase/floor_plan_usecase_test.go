@@ -121,6 +121,10 @@ func (s *outletRepoStub) UpdateIsActiveByCompanyID(_ context.Context, _ string, 
 	return nil
 }
 
+func (s *outletRepoStub) FindByWarehouseIDs(_ context.Context, _ []string) ([]*orgModels.Outlet, error) {
+	return []*orgModels.Outlet{}, nil
+}
+
 func TestFloorPlanCreateUseOutletScopeWhenOutletMatchesUserCompany(t *testing.T) {
 	repo := &floorPlanRepoStub{}
 	companyID := testCompanyID

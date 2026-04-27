@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -112,7 +112,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
       product_kind: "STOCK",
       is_ingredient: false,
       is_inventory_tracked: true,
-      is_pos_available: false,
+      pos_scope: "none" as const,
       recipe_items: [],
       outlet_ids: [],
     },
@@ -148,7 +148,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
           product_kind: editingItem.product_kind ?? "STOCK",
           is_ingredient: editingItem.is_ingredient ?? false,
           is_inventory_tracked: editingItem.is_inventory_tracked ?? true,
-          is_pos_available: editingItem.is_pos_available ?? false,
+          pos_scope: (editingItem.pos_scope ?? "none") as "none" | "global" | "specific",
           recipe_items: editingItem.recipe_items?.map((item) => ({
             ingredient_product_id: item.ingredient_product_id,
             quantity: item.quantity,
@@ -186,7 +186,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
           product_kind: defaultProductKind ?? "STOCK",
           is_ingredient: false,
           is_inventory_tracked: true,
-          is_pos_available: false,
+          pos_scope: "none" as const,
           recipe_items: [],
           outlet_ids: [],
         });
@@ -287,7 +287,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
     }
   };
 
-  const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
+  const onSubmit = async (data: ProductFormData) => {
     try {
       const payload = {
         ...data,

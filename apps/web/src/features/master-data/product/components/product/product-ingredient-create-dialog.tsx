@@ -21,8 +21,10 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Separator } from "@/components/ui/separator";
 import { Wheat } from "lucide-react";
-import { useCreateProduct } from "../../hooks/use-products";
+import { useCreateProduct, useUpdateProduct } from "../../hooks/use-products";
+import type { Product } from "../../types";
 import { useProductCategories } from "../../hooks/use-product-categories";
+
 import { useUnitsOfMeasure } from "../../hooks/use-units-of-measure";
 
 interface CreatedIngredient {
@@ -39,6 +41,8 @@ interface ProductIngredientCreateDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Pre-fills the name field when opening inline from a recipe row */
   initialName?: string;
+  /** When provided, the dialog operates in edit mode */
+  editingItem?: Product | null;
   onCreated?: (item: CreatedIngredient) => void;
 }
 
@@ -46,13 +50,16 @@ export function ProductIngredientCreateDialog({
   open,
   onOpenChange,
   initialName,
+  editingItem,
   onCreated,
 }: ProductIngredientCreateDialogProps) {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
 
+  const isEditing = !!editingItem;
   const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,12 +73,23 @@ export function ProductIngredientCreateDialog({
   const [nameError, setNameError] = useState<string | null>(null);
   const [uomError, setUomError] = useState<string | null>(null);
 
-  // Sync initialName into the name field whenever the dialog opens
+  // Sync from editingItem or initialName when dialog opens
   useEffect(() => {
-    if (open && initialName) {
-      setName(initialName);
+    if (open) {
+      if (editingItem) {
+        setName(editingItem.name ?? "");
+        setDescription(editingItem.description ?? "");
+        setImageUrl(editingItem.image_url ?? null);
+        setCategoryId(editingItem.category_id ?? "");
+        setUomId(editingItem.uom_id ?? "");
+        setCostPrice(editingItem.cost_price ?? 0);
+        setMinStock(editingItem.min_stock ?? 0);
+        setMaxStock(editingItem.max_stock ?? 0);
+      } else if (initialName) {
+        setName(initialName);
+      }
     }
-  }, [open, initialName]);
+  }, [open, editingItem, initialName]);
 
   const fetchOptions = { enabled: open };
 
@@ -137,17 +155,18 @@ export function ProductIngredientCreateDialog({
     if (hasError) return;
 
     try {
-      const result = await createMutation.mutateAsync({
+      let result;
+      const payload = {
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
         image_url: imageUrl || undefined,
         category_id: categoryId || null,
         uom_id: uomId,
-        product_kind: "STOCK",
+        product_kind: "STOCK" as const,
         is_ingredient: true,
         is_inventory_tracked: true,
-        is_pos_available: false,
+        pos_scope: "none" as const,
         purchase_uom_conversion: 1,
         is_tax_inclusive: false,
         lead_time_days: 0,
@@ -155,17 +174,32 @@ export function ProductIngredientCreateDialog({
         selling_price: 0,
         min_stock: Math.max(0, minStock),
         max_stock: Math.max(0, maxStock),
-      });
+      };
 
-      toast.success(t("created"));
-      onCreated?.({
-        id: result.data.id,
-        name: result.data.name,
-        code: result.data.code,
-        cost_price: result.data.cost_price,
-        uom_id: result.data.uom_id ?? null,
-        uom_symbol: result.data.uom?.symbol ?? result.data.uom?.name ?? "",
-      });
+      if (isEditing && editingItem) {
+        await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        const updated = { ...editingItem, ...payload };
+        toast.success(tCommon("saved", { fallback: "Saved" }));
+        onCreated?.({
+          id: editingItem.id,
+          name: updated.name,
+          code: updated.code,
+          cost_price: updated.cost_price,
+          uom_id: updated.uom_id ?? null,
+          uom_symbol: updated.uom?.symbol ?? updated.uom?.name ?? "",
+        });
+      } else {
+        result = await createMutation.mutateAsync(payload);
+        toast.success(t("created"));
+        onCreated?.({
+          id: result.data.id,
+          name: result.data.name,
+          code: result.data.code,
+          cost_price: result.data.cost_price,
+          uom_id: result.data.uom_id ?? null,
+          uom_symbol: result.data.uom?.symbol ?? result.data.uom?.name ?? "",
+        });
+      }
       handleOpenChangeInternal(false);
     } catch (error) {
       let errorMessage = tCommon("error");
@@ -201,7 +235,7 @@ export function ProductIngredientCreateDialog({
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Wheat className="h-4 w-4 text-warning" />
-            {t("createIngredient")}
+            {isEditing ? tCommon("edit", { fallback: "Edit" }) + " " + t("createIngredient", { fallback: "Ingredient" }) : t("createIngredient")}
           </DialogTitle>
           <DialogDescription>{t("createIngredientDesc")}</DialogDescription>
         </DialogHeader>
@@ -366,18 +400,18 @@ export function ProductIngredientCreateDialog({
               type="button"
               variant="outline"
               onClick={() => handleOpenChangeInternal(false)}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="cursor-pointer"
             >
               {tCommon("cancel")}
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="cursor-pointer"
             >
-              <ButtonLoading loading={createMutation.isPending} loadingText={tCommon("saving")}>
-                {t("createIngredient")}
+              <ButtonLoading loading={createMutation.isPending || updateMutation.isPending} loadingText={tCommon("saving")}>
+                {isEditing ? tCommon("save") : t("createIngredient")}
               </ButtonLoading>
             </Button>
           </DialogFooter>

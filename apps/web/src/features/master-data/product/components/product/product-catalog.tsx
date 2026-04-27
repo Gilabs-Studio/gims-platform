@@ -298,7 +298,13 @@ export function ProductCatalog() {
     e?.stopPropagation();
     setEditingItem(item);
     setDefaultProductKind(undefined);
-    setDialogOpen(true);
+    if (item.product_kind === "RECIPE") {
+      setFnbCreateDialogOpen(true);
+    } else if (item.is_ingredient) {
+      setIngredientDialogOpen(true);
+    } else {
+      setDialogOpen(true);
+    }
   };
 
   const handleView = (item: Product) => {
@@ -800,12 +806,20 @@ export function ProductCatalog() {
 
       <ProductFnbCreateDialog
         open={fnbCreateDialogOpen}
-        onOpenChange={setFnbCreateDialogOpen}
+        onOpenChange={(open) => {
+          setFnbCreateDialogOpen(open);
+          if (!open) setEditingItem(null);
+        }}
+        editingItem={editingItem}
       />
 
       <ProductIngredientCreateDialog
         open={ingredientDialogOpen}
-        onOpenChange={setIngredientDialogOpen}
+        onOpenChange={(open) => {
+          setIngredientDialogOpen(open);
+          if (!open) setEditingItem(null);
+        }}
+        editingItem={editingItem}
       />
 
       <ProductDetailDialog

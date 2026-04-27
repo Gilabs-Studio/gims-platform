@@ -80,9 +80,8 @@ func (h *ProductHandler) List(c *gin.Context) {
 	if productKind := c.Query("product_kind"); productKind != "" {
 		params.ProductKind = productKind
 	}
-	if isPosAvailable := c.Query("is_pos_available"); isPosAvailable != "" {
-		val := isPosAvailable == "true"
-		params.IsPosAvailable = &val
+	if posScope := c.Query("pos_scope"); posScope != "" {
+		params.POSScope = posScope
 	}
 	if isIngredient := c.Query("is_ingredient"); isIngredient != "" {
 		val := isIngredient == "true"

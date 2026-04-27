@@ -42,7 +42,7 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		ProductKind:        m.ProductKind,
 		IsIngredient:       m.IsIngredient,
 		IsInventoryTracked: m.IsInventoryTracked,
-		IsPosAvailable:     m.IsPosAvailable,
+			POSScope:           m.POSScope,
 		Status:            string(m.Status),
 		IsApproved:        m.IsApproved,
 		CreatedBy:         m.CreatedBy,

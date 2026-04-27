@@ -59,7 +59,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       25000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -77,7 +77,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       55000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -95,7 +95,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       6000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -113,7 +113,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       10000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -131,7 +131,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       45000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -149,7 +149,7 @@ func SeedPosPharmaProducts() error {
 			SellingPrice:       450000,
 			ProductKind:        productModels.ProductKindStock,
 			IsInventoryTracked: true,
-			IsPosAvailable:     true,
+			POSScope:           productModels.POSScopeGlobal,
 			IsIngredient:       false,
 			IsActive:           true,
 			Status:             productModels.ProductStatusApproved,
@@ -164,7 +164,7 @@ func SeedPosPharmaProducts() error {
 			DoUpdates: clause.AssignmentColumns([]string{
 				"code", "name", "description", "image_url", "category_id",
 				"cost_price", "selling_price", "product_kind", "is_inventory_tracked",
-				"is_pos_available", "is_ingredient", "is_active", "status", "is_approved", "tax_type", "updated_at",
+				"pos_scope", "is_ingredient", "is_active", "status", "is_approved", "tax_type", "updated_at",
 			}),
 		}).Create(&products[i]).Error; err != nil {
 			return err
@@ -263,7 +263,7 @@ func SeedPosPharmaProducts() error {
 	log.Println("POS pharmacy products seeded successfully")
 
 	// Enable POS availability for existing products from product_seeder.go that have
-	// stock in warehouses but were seeded without IsPosAvailable = true.
+	// stock in warehouses but were seeded without POSScope = productModels.POSScopeGlobal.
 	posAvailableCodes := []string{
 		"OVE-20240101-001", // Cetirizine 10mg
 		"OVE-20240101-002", // Ibuprofen 400mg
@@ -275,10 +275,10 @@ func SeedPosPharmaProducts() error {
 	}
 	if err := database.DB.Model(&productModels.Product{}).
 		Where("code IN ?", posAvailableCodes).
-		Update("is_pos_available", true).Error; err != nil {
-		log.Printf("Warning: Failed to enable POS availability for existing products: %v", err)
+		Update("pos_scope", "global").Error; err != nil {
+		log.Printf("Warning: Failed to enable POS scope for existing products: %v", err)
 	} else {
-		log.Println("Enabled IsPosAvailable for legacy product_seeder products")
+		log.Println("Enabled POS scope for legacy product_seeder products")
 	}
 
 	return nil

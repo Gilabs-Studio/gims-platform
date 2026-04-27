@@ -36,7 +36,7 @@ type CreateProductRequest struct {
 	ProductKind            string              `json:"product_kind" binding:"omitempty,oneof=STOCK RECIPE SERVICE"`
 	IsIngredient           bool                `json:"is_ingredient"`
 	IsInventoryTracked     *bool               `json:"is_inventory_tracked"`
-	IsPosAvailable         bool                `json:"is_pos_available"`
+	POSScope               string              `json:"pos_scope" binding:"omitempty,oneof=none global specific"`
 	RecipeItems            []RecipeItemRequest `json:"recipe_items,omitempty"`
 	OutletIDs              []string            `json:"outlet_ids,omitempty"`
 	IsActive               *bool               `json:"is_active"`
@@ -74,7 +74,7 @@ type UpdateProductRequest struct {
 	ProductKind            string              `json:"product_kind" binding:"omitempty,oneof=STOCK RECIPE SERVICE"`
 	IsIngredient           *bool               `json:"is_ingredient"`
 	IsInventoryTracked     *bool               `json:"is_inventory_tracked"`
-	IsPosAvailable         *bool               `json:"is_pos_available"`
+	POSScope               *string             `json:"pos_scope" binding:"omitempty,oneof=none global specific"`
 	RecipeItems            []RecipeItemRequest `json:"recipe_items,omitempty"`
 	OutletIDs              []string            `json:"outlet_ids,omitempty"`
 	IsActive               *bool               `json:"is_active"`
@@ -183,7 +183,7 @@ type ProductResponse struct {
 	ProductKind            string                `json:"product_kind"`
 	IsIngredient           bool                  `json:"is_ingredient"`
 	IsInventoryTracked     bool                  `json:"is_inventory_tracked"`
-	IsPosAvailable         bool                  `json:"is_pos_available"`
+	POSScope               string                `json:"pos_scope"`
 	RecipeItems            []RecipeItemResponse  `json:"recipe_items,omitempty"`
 	RecipeCost             *float64              `json:"recipe_cost,omitempty"`
 	ProducibleQuantity     float64               `json:"producible_quantity"`

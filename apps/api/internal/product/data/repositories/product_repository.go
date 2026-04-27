@@ -21,7 +21,7 @@ type ProductListParams struct {
 	Status            string
 	IsApproved        *bool
 	ProductKind       string
-	IsPosAvailable    *bool
+	POSScope          string
 	IsIngredient      *bool
 	OutletID          string
 }
@@ -130,8 +130,8 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	if params.ProductKind != "" {
 		query = query.Where("product_kind = ?", params.ProductKind)
 	}
-	if params.IsPosAvailable != nil {
-		query = query.Where("is_pos_available = ?", *params.IsPosAvailable)
+	if params.POSScope != "" {
+		query = query.Where("pos_scope = ?", params.POSScope)
 	}
 	if params.IsIngredient != nil {
 		query = query.Where("is_ingredient = ?", *params.IsIngredient)

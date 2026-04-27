@@ -129,7 +129,7 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		ProductKind:            productKind,
 		IsIngredient:           req.IsIngredient,
 		IsInventoryTracked:     isInventoryTracked,
-		IsPosAvailable:         req.IsPosAvailable,
+		POSScope:               req.POSScope,
 	}
 
 	// Validate recipe items for RECIPE kind
@@ -289,8 +289,8 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	if req.IsInventoryTracked != nil {
 		product.IsInventoryTracked = *req.IsInventoryTracked
 	}
-	if req.IsPosAvailable != nil {
-		product.IsPosAvailable = *req.IsPosAvailable
+	if req.POSScope != nil {
+		product.POSScope = *req.POSScope
 	}
 
 	// Validate recipe items for RECIPE kind

@@ -46,7 +46,7 @@ export const productSchema = z.object({
   product_kind: z.enum(["STOCK", "RECIPE", "SERVICE"]).optional(),
   is_ingredient: z.boolean().optional(),
   is_inventory_tracked: z.boolean().optional(),
-  is_pos_available: z.boolean().optional(),
+  pos_scope: z.enum(["none", "global", "specific"]).default("none"),
   recipe_items: z.array(recipeItemSchema).optional(),
   outlet_ids: z.array(z.string()).optional().default([]),
 
@@ -64,5 +64,5 @@ export const productSchema = z.object({
   }
 );
 
-export type ProductFormData = z.infer<typeof productSchema>;
-export type RecipeItemFormData = z.infer<typeof recipeItemSchema>;
+export type ProductFormData = z.input<typeof productSchema>;
+export type RecipeItemFormData = z.input<typeof recipeItemSchema>;

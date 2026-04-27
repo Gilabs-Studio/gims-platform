@@ -32,7 +32,7 @@ func setupPOSProductRepoTestDB(t *testing.T) *gorm.DB {
 			status TEXT,
 			is_approved BOOLEAN,
 			is_active BOOLEAN,
-			is_pos_available BOOLEAN,
+			pos_scope TEXT NOT NULL DEFAULT 'none',
 			product_kind TEXT,
 			image_url TEXT,
 			deleted_at DATETIME
@@ -44,6 +44,16 @@ func setupPOSProductRepoTestDB(t *testing.T) *gorm.DB {
 			expiry_date DATETIME,
 			current_quantity REAL,
 			reserved_quantity REAL,
+			deleted_at DATETIME
+		)`,
+		`CREATE TABLE product_recipe_items (
+			id TEXT PRIMARY KEY,
+			product_id TEXT,
+			ingredient_product_id TEXT,
+			quantity REAL,
+			uom_id TEXT,
+			notes TEXT,
+			sort_order INTEGER,
 			deleted_at DATETIME
 		)`,
 	}
@@ -77,9 +87,9 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 			SellingPrice:   10000,
 			Status:         productModels.ProductStatusApproved,
 			IsApproved:     true,
-			IsActive:       true,
-			IsPosAvailable: true,
-			ProductKind:    productModels.ProductKindStock,
+			IsActive:    true,
+			POSScope:    productModels.POSScopeGlobal,
+			ProductKind: productModels.ProductKindStock,
 		},
 		{
 			ID:             "10000001-0000-0000-0000-000000000002",
@@ -89,9 +99,9 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 			SellingPrice:   25000,
 			Status:         productModels.ProductStatusApproved,
 			IsApproved:     true,
-			IsActive:       true,
-			IsPosAvailable: true,
-			ProductKind:    productModels.ProductKindRecipe,
+			IsActive:    true,
+			POSScope:    productModels.POSScopeGlobal,
+			ProductKind: productModels.ProductKindRecipe,
 		},
 		{
 			ID:             "10000001-0000-0000-0000-000000000003",
@@ -101,9 +111,9 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 			SellingPrice:   5000,
 			Status:         productModels.ProductStatusApproved,
 			IsApproved:     true,
-			IsActive:       true,
-			IsPosAvailable: true,
-			ProductKind:    productModels.ProductKindService,
+			IsActive:    true,
+			POSScope:    productModels.POSScopeGlobal,
+			ProductKind: productModels.ProductKindService,
 		},
 		{
 			ID:             "10000001-0000-0000-0000-000000000004",
@@ -112,10 +122,10 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 			CategoryID:     &categoryID,
 			SellingPrice:   9000,
 			Status:         productModels.ProductStatusPending,
-			IsApproved:     false,
-			IsActive:       true,
-			IsPosAvailable: true,
-			ProductKind:    productModels.ProductKindStock,
+			IsApproved:  false,
+			IsActive:    true,
+			POSScope:    productModels.POSScopeGlobal,
+			ProductKind: productModels.ProductKindStock,
 		},
 	}
 
@@ -123,7 +133,7 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 		if err := db.Exec(`
 			INSERT INTO products (
 				id, code, name, category_id, selling_price, status,
-				is_approved, is_active, is_pos_available, product_kind,
+				is_approved, is_active, pos_scope, product_kind,
 				image_url, deleted_at
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
 		`,
@@ -135,7 +145,7 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 			products[i].Status,
 			products[i].IsApproved,
 			products[i].IsActive,
-			products[i].IsPosAvailable,
+			products[i].POSScope,
 			products[i].ProductKind,
 		).Error; err != nil {
 			t.Fatalf("failed to seed product %s: %v", products[i].Code, err)
@@ -151,6 +161,15 @@ func seedPOSCatalogProducts(t *testing.T, db *gorm.DB) {
 	if err != nil {
 		t.Fatalf("failed to seed inventory batch: %v", err)
 	}
+
+	err = db.Exec(`
+		INSERT INTO product_recipe_items (
+			id, product_id, ingredient_product_id, quantity, uom_id, notes, sort_order, deleted_at
+		) VALUES (?, ?, ?, ?, NULL, NULL, 0, NULL)
+	`, "40000001-0000-0000-0000-000000000001", "10000001-0000-0000-0000-000000000002", "10000001-0000-0000-0000-000000000001", 2).Error
+	if err != nil {
+		t.Fatalf("failed to seed recipe item: %v", err)
+	}
 }
 
 func TestFindPOSAvailable_ShouldIncludeStockAndRecipe_WhenApprovedAndPosAvailable(t *testing.T) {
@@ -158,7 +177,7 @@ func TestFindPOSAvailable_ShouldIncludeStockAndRecipe_WhenApprovedAndPosAvailabl
 	seedPOSCatalogProducts(t, db)
 	repo := NewPOSProductRepository(db)
 
-	items, err := repo.FindPOSAvailable(context.Background(), "20000001-0000-0000-0000-000000000001")
+	items, err := repo.FindPOSAvailable(context.Background(), "20000001-0000-0000-0000-000000000001", "")
 	assert.NoError(t, err)
 	assert.Len(t, items, 3)
 
@@ -178,25 +197,32 @@ func TestFindPOSAvailable_ShouldIncludeStockAndRecipe_WhenApprovedAndPosAvailabl
 
 	assert.Equal(t, 8.0, stockItem.Stock)
 	assert.True(t, stockItem.IsAvailable)
+	assert.Equal(t, 4.0, recipeItem.Stock)
 	assert.True(t, recipeItem.IsAvailable)
 	assert.True(t, serviceItem.IsAvailable)
 }
 
-func TestFindPOSAvailable_ShouldExcludeStockProduct_WhenNoWarehouseStock(t *testing.T) {
+func TestFindPOSAvailable_ShouldKeepStockProductVisible_WhenNoWarehouseStock(t *testing.T) {
 	db := setupPOSProductRepoTestDB(t)
 	seedPOSCatalogProducts(t, db)
 	repo := NewPOSProductRepository(db)
 
-	// Warehouse with no inventory — STOCK products must be excluded from the catalog.
-	items, err := repo.FindPOSAvailable(context.Background(), "20000001-0000-0000-0000-000000000099")
+	// Warehouse with no inventory — STOCK and RECIPE stay visible but unavailable.
+	items, err := repo.FindPOSAvailable(context.Background(), "20000001-0000-0000-0000-000000000099", "")
 	assert.NoError(t, err)
-	// Only RECIPE and SERVICE should remain; STOCK product is filtered out.
-	assert.Len(t, items, 2)
+	assert.Len(t, items, 3)
 
+	var foundStock bool
 	for _, item := range items {
-		assert.NotEqual(t, "STK-1", item.ProductCode, "STOCK product with no warehouse stock must not be returned")
+		if item.ProductCode == "STK-1" {
+			foundStock = true
+			assert.Equal(t, 0.0, item.Stock)
+			assert.False(t, item.IsAvailable)
+		}
 		if item.ProductCode == "RCP-1" {
-			assert.True(t, item.IsAvailable)
+			assert.Equal(t, 0.0, item.Stock)
+			assert.False(t, item.IsAvailable)
 		}
 	}
+	assert.True(t, foundStock)
 }
