@@ -31,6 +31,7 @@ import { ChefHat, Plus, Trash2 } from "lucide-react";
 import { useCreateProduct, useProducts } from "../../hooks/use-products";
 import { useProductCategories } from "../../hooks/use-product-categories";
 import { useUnitsOfMeasure } from "../../hooks/use-units-of-measure";
+import { ProductIngredientCreateDialog } from "./product-ingredient-create-dialog";
 import type { RecipeItemRequest } from "../../types";
 
 interface ProductFnbCreateDialogProps {
@@ -86,6 +87,14 @@ export function ProductFnbCreateDialog({
   const [ingredientLoadedPages, setIngredientLoadedPages] = useState(1);
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([]);
 
+  // Inline ingredient creation state
+  const [ingredientCreateOpen, setIngredientCreateOpen] = useState(false);
+  const [ingredientCreateRowId, setIngredientCreateRowId] = useState<string | null>(null);
+  const [ingredientCreateInitialName, setIngredientCreateInitialName] = useState("");
+  // Options for newly created ingredients before the query refetches
+  const [localIngredientOptions, setLocalIngredientOptions] = useState<Array<{ value: string; label: string }>>([])
+
+
   const [nameError, setNameError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [recipeError, setRecipeError] = useState<string | null>(null);
@@ -139,10 +148,12 @@ export function ProductFnbCreateDialog({
 
   const ingredientOptionProducts = useMemo(() => ingredientsData?.data ?? [], [ingredientsData?.data]);
 
-  const ingredientComboboxOptions = useMemo(
-    () => ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` })),
-    [ingredientOptionProducts]
-  );
+  const ingredientComboboxOptions = useMemo(() => {
+    const remote = ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` }));
+    // Merge locally created ingredients that are not yet in the remote list
+    const localOnly = localIngredientOptions.filter((lo) => !remote.some((r) => r.value === lo.value));
+    return [...remote, ...localOnly];
+  }, [ingredientOptionProducts, localIngredientOptions]);
 
   const resetForm = () => {
     setName("");
@@ -158,6 +169,10 @@ export function ProductFnbCreateDialog({
     setNameError(null);
     setCategoryError(null);
     setRecipeError(null);
+    setLocalIngredientOptions([]);
+    setIngredientCreateOpen(false);
+    setIngredientCreateRowId(null);
+    setIngredientCreateInitialName("");
   };
 
   const handleOpenChangeInternal = (isOpen: boolean) => {
@@ -168,6 +183,48 @@ export function ProductFnbCreateDialog({
     }
 
     onOpenChange(isOpen);
+  };
+
+  const handleCreateIngredientForRow = (rowId: string, query: string) => {
+    setIngredientCreateRowId(rowId);
+    setIngredientCreateInitialName(query);
+    setIngredientCreateOpen(true);
+  };
+
+  const handleIngredientCreated = (item: {
+    id: string;
+    name: string;
+    code: string;
+    cost_price: number;
+    uom_id: string | null;
+    uom_symbol: string;
+  }) => {
+    // Immediately populate the recipe row that triggered the creation
+    if (ingredientCreateRowId) {
+      setRecipeRows((prev) =>
+        prev.map((row) => {
+          if (row.row_id !== ingredientCreateRowId) return row;
+          return {
+            ...row,
+            ingredient_product_id: item.id,
+            ingredient_name: item.name,
+            ingredient_code: item.code,
+            uom_id: item.uom_id,
+            uom_symbol: item.uom_symbol,
+            ingredient_cost_price: item.cost_price,
+          };
+        })
+      );
+      setRecipeError(null);
+    }
+    // Add to local options so the combobox renders the label immediately
+    setLocalIngredientOptions((prev) => [
+      ...prev.filter((o) => o.value !== item.id),
+      { value: item.id, label: `${item.name} (${item.code})` },
+    ]);
+    setIngredientCreateOpen(false);
+    setIngredientCreateRowId(null);
+    setIngredientCreateInitialName("");
   };
 
   const handleAddIngredientRow = () => {
@@ -344,7 +401,8 @@ export function ProductFnbCreateDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChangeInternal}>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChangeInternal}>
       <DialogContent
         size="2xl"
         className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
@@ -549,6 +607,9 @@ export function ProductFnbCreateDialog({
                             onLoadMore={handleIngredientLoadMore}
                             hasMore={hasMoreIngredients}
                             isLoadingMore={ingredientFetching && ingredientLoadedPages > 1}
+                            createPermission="product.create"
+                            createLabel={t("recipe.createIngredient")}
+                            onCreateClick={(query) => handleCreateIngredientForRow(row.row_id, query)}
                           />
                         </div>
 
@@ -632,6 +693,14 @@ export function ProductFnbCreateDialog({
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ProductIngredientCreateDialog
+        open={ingredientCreateOpen}
+        onOpenChange={setIngredientCreateOpen}
+        initialName={ingredientCreateInitialName}
+        onCreated={handleIngredientCreated}
+      />
+    </>
   );
 }

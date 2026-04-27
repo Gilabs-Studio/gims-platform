@@ -147,6 +147,8 @@ func AutoMigrate() error {
 		&warehouse.Warehouse{},
 		// Outlet entity (Organization)
 		&organization.Outlet{},
+		// Product-Outlet junction (depends on both Product and Outlet)
+		&product.ProductOutlet{},
 		// Core Master Data entities (Sprint 4)
 		&core.PaymentTerms{},
 		&core.CourierAgency{},

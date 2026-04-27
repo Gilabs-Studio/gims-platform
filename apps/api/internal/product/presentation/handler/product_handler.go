@@ -70,6 +70,7 @@ func (h *ProductHandler) List(c *gin.Context) {
 		TypeID:     c.Query("type_id"),
 		SupplierID: c.Query("supplier_id"),
 		Status:     c.Query("status"),
+		OutletID:   c.Query("outlet_id"),
 	}
 
 	if isApproved := c.Query("is_approved"); isApproved != "" {

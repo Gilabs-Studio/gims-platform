@@ -110,6 +110,9 @@ type Product struct {
 	RecipeItems    []ProductRecipeItem    `gorm:"foreignKey:ProductID" json:"recipe_items,omitempty"`
 	RecipeVersions []ProductRecipeVersion `gorm:"foreignKey:ProductID" json:"recipe_versions,omitempty"`
 
+	// Outlet assignments: outlets where this product is available for sale
+	Outlets []ProductOutlet `gorm:"foreignKey:ProductID" json:"outlets,omitempty"`
+
 	// Active status
 	IsActive bool `gorm:"default:true;index" json:"is_active"`
 

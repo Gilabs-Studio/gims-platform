@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"gorm.io/gorm"
@@ -22,6 +23,7 @@ type ProductListParams struct {
 	ProductKind       string
 	IsPosAvailable    *bool
 	IsIngredient      *bool
+	OutletID          string
 }
 
 // ProductRepository defines the interface for product data access
@@ -54,7 +56,10 @@ const stockSubquery = `products.*,
 
 func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Product, error) {
 	var product models.Product
-	err := database.GetDB(ctx, r.db).
+	tenantDB := database.GetDB(ctx, r.db)
+	hasProductOutlets := tenantDB.Migrator().HasTable(&models.ProductOutlet{})
+
+	query := tenantDB.
 		Select(stockSubquery).
 		Preload("Category").
 		Preload("Brand").
@@ -72,8 +77,13 @@ func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Pr
 		Preload("RecipeItems.IngredientProduct", func(db *gorm.DB) *gorm.DB {
 			return db.Select(stockSubquery)
 		}).
-		Preload("RecipeItems.Uom").
-		First(&product, "id = ?", id).Error
+		Preload("RecipeItems.Uom")
+
+	if hasProductOutlets {
+		query = query.Preload("Outlets")
+	}
+
+	err := query.First(&product, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +94,10 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	var products []models.Product
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.Product{}).Select(stockSubquery)
+	tenantDB := database.GetDB(ctx, r.db)
+	hasProductOutlets := tenantDB.Migrator().HasTable(&models.ProductOutlet{})
+
+	query := tenantDB.Model(&models.Product{}).Select(stockSubquery)
 
 	// Apply search filter
 	if params.Search != "" {
@@ -122,6 +135,9 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	}
 	if params.IsIngredient != nil {
 		query = query.Where("is_ingredient = ?", *params.IsIngredient)
+	}
+	if params.OutletID != "" && hasProductOutlets {
+		query = query.Where("id IN (SELECT product_id FROM product_outlets WHERE outlet_id = ? AND deleted_at IS NULL)", params.OutletID)
 	}
 
 	// Count total before pagination
@@ -184,6 +200,10 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 			return db.Select(stockSubquery)
 		}).
 		Preload("RecipeItems.Uom")
+
+	if hasProductOutlets {
+		query = query.Preload("Outlets")
+	}
 
 	if err := query.Find(&products).Error; err != nil {
 		return nil, 0, err

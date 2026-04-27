@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ProductCategoryDialog } from "../product-category/product-category-dialog";
 import { UnitOfMeasureDialog } from "../unit-of-measure/unit-of-measure-dialog";
 
@@ -77,6 +78,7 @@ export function ProductDialog({
     uoms,
     packagings,
     procurementTypes,
+    outlets,
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
@@ -100,8 +102,8 @@ export function ProductDialog({
   } = form;
 
 
+  const outletIds = watch("outlet_ids") ?? [];
   const isTaxInclusive = watch("is_tax_inclusive");
-  const isIngredient = watch("is_ingredient");
 
   // Watch IDs for Select values
   const categoryId = watch("category_id");
@@ -243,29 +245,6 @@ export function ProductDialog({
 
             <Separator />
 
-            {/* POS Details */}
-            <Section title="POS Details">
-              <div className="grid grid-cols-2 gap-4">
-                <Field
-                  orientation="horizontal"
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="space-y-0.5">
-                    <FieldLabel className="text-sm">{t("isIngredient")}</FieldLabel>
-                    <p className="text-xs text-muted-foreground">
-                      {t("isIngredientHint")}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isIngredient ?? false}
-                    onCheckedChange={(val) => setValue("is_ingredient", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Separator />
-
             {/* Units & Packaging */}
             <Section title={t("section.unitsPackaging")}>
               <div className="grid grid-cols-2 gap-4">
@@ -391,7 +370,7 @@ export function ProductDialog({
             {/* Pricing & Stock */}
             <Section title={t("section.pricingStock")}>
               <div className="grid grid-cols-2 gap-4">
-                <Field className="col-span-2 md:col-span-2">
+                <Field className="col-span-1">
                   <FieldLabel className="required">{t("form.costPrice")}</FieldLabel>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
@@ -411,6 +390,28 @@ export function ProductDialog({
                   </div>
                   {errors.cost_price && (
                     <FieldError>{errors.cost_price.message}</FieldError>
+                  )}
+                </Field>
+                <Field className="col-span-1">
+                  <FieldLabel>{t("form.sellingPrice")}</FieldLabel>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
+                      Rp
+                    </span>
+                    <Controller
+                      name="selling_price"
+                      control={control}
+                      render={({ field }) => (
+                        <NumericInput
+                          className="pl-9"
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      )}
+                    />
+                  </div>
+                  {errors.selling_price && (
+                    <FieldError>{errors.selling_price.message}</FieldError>
                   )}
                 </Field>
                 <Field>
@@ -443,6 +444,37 @@ export function ProductDialog({
             </Section>
 
             <Separator />
+
+            {/* Outlet Availability */}
+            {outlets.length > 0 && (
+              <Section title={t("section.outletAssignment")}>
+                <p className="text-xs text-muted-foreground">
+                  {t("outletAssignment.hint")}
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-md border p-3">
+                  {outlets.map((outlet) => {
+                    const checked = outletIds.includes(outlet.id);
+                    return (
+                      <label
+                        key={outlet.id}
+                        className="flex items-center gap-2 cursor-pointer select-none"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const next = v
+                              ? [...outletIds, outlet.id]
+                              : outletIds.filter((id) => id !== outlet.id);
+                            setValue("outlet_ids", next, { shouldDirty: true });
+                          }}
+                        />
+                        <span className="text-sm">{outlet.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
 
           </div>
 

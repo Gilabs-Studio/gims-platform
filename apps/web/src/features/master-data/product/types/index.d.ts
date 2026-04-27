@@ -300,6 +300,7 @@ export interface Product {
   recipe_items?: RecipeItemResponse[];
   recipe_cost?: number | null;
   producible_quantity: number; // For RECIPE products: max qty that can be produced based on ingredient stock
+  outlet_ids?: string[];
 
   created_at: string;
   updated_at: string;
@@ -340,6 +341,7 @@ export interface CreateProductData {
   is_inventory_tracked?: boolean;
   is_pos_available?: boolean;
   recipe_items?: RecipeItemRequest[];
+  outlet_ids?: string[];
 }
 
 export interface UpdateProductData {
@@ -377,6 +379,7 @@ export interface UpdateProductData {
   is_inventory_tracked?: boolean;
   is_pos_available?: boolean;
   recipe_items?: RecipeItemRequest[];
+  outlet_ids?: string[];
 }
 
 export interface ApproveProductData {

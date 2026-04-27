@@ -11,6 +11,7 @@ import { useProductTypes } from "./use-product-types";
 import { useUnitsOfMeasure } from "./use-units-of-measure";
 import { usePackagings } from "./use-packagings";
 import { useProcurementTypes } from "./use-procurement-types";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import { productSchema, type ProductFormData } from "../components/product/product.schema";
 import type { Product } from "../types";
 import { sortOptions } from "@/lib/utils";
@@ -51,6 +52,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
   const { data: uomsData } = useUnitsOfMeasure({ per_page: 20, sort: "name" }, fetchOptions);
   const { data: packagingsData } = usePackagings({ per_page: 20, sort: "name" }, fetchOptions);
   const { data: procurementTypesData } = useProcurementTypes({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: outletsData } = useOutlets({ per_page: 200, sort_by: "name" }, fetchOptions);
 
   const categories = sortOptions(categoriesData?.data ?? [], (i) => i.name);
   const brands = sortOptions(brandsData?.data ?? [], (i) => i.name);
@@ -59,6 +61,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
   const uoms = sortOptions(uomsData?.data ?? [], (i) => i.name);
   const packagings = sortOptions(packagingsData?.data ?? [], (i) => i.name);
   const procurementTypes = sortOptions(procurementTypesData?.data ?? [], (i) => i.name);
+  const outlets = sortOptions(outletsData?.data ?? [], (i) => i.name);
 
   const isEditing = !!editingItem;
   const isSubmitting =
@@ -103,6 +106,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
       is_tax_inclusive: true,
       lead_time_days: 0,
       cost_price: 0,
+      selling_price: 0,
       min_stock: 0,
       max_stock: 0,
       product_kind: "STOCK",
@@ -110,6 +114,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
       is_inventory_tracked: true,
       is_pos_available: false,
       recipe_items: [],
+      outlet_ids: [],
     },
   });
 
@@ -137,6 +142,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
           is_tax_inclusive: editingItem.is_tax_inclusive,
           lead_time_days: editingItem.lead_time_days,
           cost_price: editingItem.cost_price,
+          selling_price: editingItem.selling_price ?? 0,
           min_stock: editingItem.min_stock,
           max_stock: editingItem.max_stock,
           product_kind: editingItem.product_kind ?? "STOCK",
@@ -150,6 +156,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
             notes: item.notes ?? "",
             sort_order: item.sort_order ?? 0,
           })) ?? [],
+          outlet_ids: editingItem.outlet_ids ?? [],
         });
       } else {
         form.reset({
@@ -173,6 +180,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
           is_tax_inclusive: true,
           lead_time_days: 0,
           cost_price: 0,
+          selling_price: 0,
           min_stock: 0,
           max_stock: 0,
           product_kind: defaultProductKind ?? "STOCK",
@@ -180,6 +188,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
           is_inventory_tracked: true,
           is_pos_available: false,
           recipe_items: [],
+          outlet_ids: [],
         });
       }
     }
@@ -352,6 +361,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
     uoms,
     packagings,
     procurementTypes,
+    outlets,
     quickCreate,
     openQuickCreate,
     closeQuickCreate,

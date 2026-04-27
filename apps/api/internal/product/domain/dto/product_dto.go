@@ -38,6 +38,7 @@ type CreateProductRequest struct {
 	IsInventoryTracked     *bool               `json:"is_inventory_tracked"`
 	IsPosAvailable         bool                `json:"is_pos_available"`
 	RecipeItems            []RecipeItemRequest `json:"recipe_items,omitempty"`
+	OutletIDs              []string            `json:"outlet_ids,omitempty"`
 	IsActive               *bool               `json:"is_active"`
 }
 
@@ -75,6 +76,7 @@ type UpdateProductRequest struct {
 	IsInventoryTracked     *bool               `json:"is_inventory_tracked"`
 	IsPosAvailable         *bool               `json:"is_pos_available"`
 	RecipeItems            []RecipeItemRequest `json:"recipe_items,omitempty"`
+	OutletIDs              []string            `json:"outlet_ids,omitempty"`
 	IsActive               *bool               `json:"is_active"`
 }
 
@@ -184,7 +186,8 @@ type ProductResponse struct {
 	IsPosAvailable         bool                  `json:"is_pos_available"`
 	RecipeItems            []RecipeItemResponse  `json:"recipe_items,omitempty"`
 	RecipeCost             *float64              `json:"recipe_cost,omitempty"`
-	ProducibleQuantity     float64               `json:"producible_quantity"` // For RECIPE products: max qty that can be produced based on ingredient stock
+	ProducibleQuantity     float64               `json:"producible_quantity"`
+	OutletIDs              []string              `json:"outlet_ids,omitempty"`
 	IsActive               bool                  `json:"is_active"`
 	CreatedAt              time.Time             `json:"created_at"`
 	UpdatedAt              time.Time             `json:"updated_at"`

@@ -151,6 +151,13 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		}
 	}
 
+	// Sync outlet assignments if provided
+	if req.OutletIDs != nil {
+		if err := u.syncOutlets(ctx, product.ID, req.OutletIDs); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to sync outlets: %w", err)
+		}
+	}
+
 	// Reload to get relations
 	product, err := u.repo.FindByID(ctx, product.ID)
 	if err != nil {
@@ -304,6 +311,13 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 
 	if err := u.repo.Update(ctx, product); err != nil {
 		return dto.ProductResponse{}, err
+	}
+
+	// Sync outlet assignments if provided in the update request
+	if req.OutletIDs != nil {
+		if err := u.syncOutlets(ctx, product.ID, req.OutletIDs); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to sync outlets: %w", err)
+		}
 	}
 
 	// Reload to get relations
@@ -769,6 +783,27 @@ func (u *productUsecase) replaceRecipeItems(productID string, items []dto.Recipe
 				SortOrder:           item.SortOrder,
 			}
 			if err := tx.Create(&ri).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// syncOutlets replaces outlet assignments for a product using a delete-then-insert pattern.
+// Passing an empty outletIDs slice removes all outlet assignments.
+func (u *productUsecase) syncOutlets(ctx context.Context, productID string, outletIDs []string) error {
+	return database.RetryTx(u.db, func(tx *gorm.DB) error {
+		// Soft-delete all existing outlet assignments for this product
+		if err := tx.Where("product_id = ?", productID).Delete(&models.ProductOutlet{}).Error; err != nil {
+			return err
+		}
+		for _, outletID := range outletIDs {
+			po := models.ProductOutlet{
+				ProductID: productID,
+				OutletID:  outletID,
+			}
+			if err := tx.Create(&po).Error; err != nil {
 				return err
 			}
 		}

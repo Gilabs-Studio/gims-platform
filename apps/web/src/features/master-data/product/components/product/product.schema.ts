@@ -38,6 +38,7 @@ export const productSchema = z.object({
 
   // Pricing & Stock
   cost_price: z.number().min(0, "Purchase Price must be >= 0"),
+  selling_price: z.number().min(0, "Selling Price must be >= 0"),
   min_stock: z.number().min(0),
   max_stock: z.number().min(0),
 
@@ -47,6 +48,7 @@ export const productSchema = z.object({
   is_inventory_tracked: z.boolean().optional(),
   is_pos_available: z.boolean().optional(),
   recipe_items: z.array(recipeItemSchema).optional(),
+  outlet_ids: z.array(z.string()).optional().default([]),
 
   // Status
 }).refine(

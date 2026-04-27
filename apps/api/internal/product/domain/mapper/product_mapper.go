@@ -187,6 +187,15 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		}
 	}
 
+	// Map outlet IDs from junction records
+	if len(m.Outlets) > 0 {
+		outletIDs := make([]string, 0, len(m.Outlets))
+		for _, o := range m.Outlets {
+			outletIDs = append(outletIDs, o.OutletID)
+		}
+		resp.OutletIDs = outletIDs
+	}
+
 	return resp
 }
 

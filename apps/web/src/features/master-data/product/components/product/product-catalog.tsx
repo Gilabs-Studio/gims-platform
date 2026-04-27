@@ -15,6 +15,8 @@ import {
   Wheat,
   ChefHat,
   ChevronDown,
+  PanelLeftClose,
+  PanelRightOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,7 @@ import { ProductDialog } from "./product-dialog";
 import { ProductDetailDialog } from "./product-detail-dialog";
 import { ProductFnbCreateDialog } from "./product-fnb-create-dialog";
 import { ProductFnbDetailDialog } from "./product-fnb-detail-dialog";
+import { ProductIngredientCreateDialog } from "./product-ingredient-create-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
   DropdownMenu,
@@ -211,11 +214,15 @@ export function ProductCatalog() {
     prefetchChildren,
   } = useCategoryTreeState();
 
+  // Sidebar collapse state (persisted in sessionStorage for UX continuity)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   const [defaultProductKind, setDefaultProductKind] = useState<"STOCK" | "RECIPE" | "SERVICE" | undefined>(undefined);
   const [fnbCreateDialogOpen, setFnbCreateDialogOpen] = useState(false);
+  const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [fnbDetailDialogOpen, setFnbDetailDialogOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<Product | null>(null);
@@ -281,6 +288,10 @@ export function ProductCatalog() {
     setEditingItem(null);
     setDefaultProductKind(undefined);
     setFnbCreateDialogOpen(true);
+  }, []);
+
+  const handleCreateIngredient = useCallback(() => {
+    setIngredientDialogOpen(true);
   }, []);
 
   const handleEdit = (item: Product, e?: React.MouseEvent) => {
@@ -352,49 +363,120 @@ export function ProductCatalog() {
     <div className="h-full flex flex-col">
       {/* Main Content with Flex Layout */}
       <div className="flex-1 pt-4 min-h-0 flex gap-4">
-        {/* Category Tree Sidebar — always visible, not collapsible */}
-        <div className="flex flex-col border rounded-lg overflow-hidden shrink-0 bg-card w-72">
+        {/* Category Tree Sidebar — collapsible */}
+        <div
+          className={cn(
+            "hidden md:flex flex-col border rounded-lg overflow-hidden shrink-0 bg-card transition-all duration-200",
+            isSidebarCollapsed ? "w-14" : "w-56 lg:w-64 xl:w-72"
+          )}
+        >
           {/* Sidebar Header */}
-          <div className="flex items-center px-3 py-2 border-b bg-muted/30">
-            <span className="text-sm font-medium">{t("categories")}</span>
+          <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 shrink-0">
+            {!isSidebarCollapsed && (
+              <span className="text-sm font-medium truncate">{t("categories")}</span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-7 w-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground",
+                isSidebarCollapsed && "mx-auto"
+              )}
+              onClick={() => setIsSidebarCollapsed((v) => !v)}
+              title={isSidebarCollapsed ? t("categories") : "Collapse"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelRightOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </Button>
           </div>
 
-          {/* Category Tree */}
+          {/* Category Tree / Collapsed View */}
           <div className="flex-1 overflow-hidden">
-            <CategoryTree
-              data={treeData?.data ?? []}
-              selectedId={selectedCategoryId}
-              onSelect={handleCategorySelect}
-              expandedIds={expandedIds}
-              onToggleExpand={toggleExpanded}
-              showProductCount
-              searchable
-              isLoading={treeLoading}
-              height="100%"
-              onNodeHover={prefetchChildren}
-              className="border-0 rounded-none bg-transparent"
-              labels={{
-                searchPlaceholder: tCommon("searchCategories"),
-                noCategoriesFound: tCommon("noCategoriesFound"),
-                noCategories: tCommon("noCategories"),
-                category: tCommon("categoryRes"),
-                categories: tCommon("categoriesRes"),
-                selected: tCommon("selectedRes"),
-                inactive: tCommon("inactiveRes"),
-              }}
-            />
+            {isSidebarCollapsed ? (
+              <CollapsedCategoryView
+                data={treeData?.data ?? []}
+                selectedId={selectedCategoryId}
+                onSelect={handleCategorySelect}
+                isLoading={treeLoading}
+              />
+            ) : (
+              <CategoryTree
+                data={treeData?.data ?? []}
+                selectedId={selectedCategoryId}
+                onSelect={handleCategorySelect}
+                expandedIds={expandedIds}
+                onToggleExpand={toggleExpanded}
+                showProductCount
+                searchable
+                isLoading={treeLoading}
+                height="100%"
+                onNodeHover={prefetchChildren}
+                className="border-0 rounded-none bg-transparent"
+                labels={{
+                  searchPlaceholder: tCommon("searchCategories"),
+                  noCategoriesFound: tCommon("noCategoriesFound"),
+                  noCategories: tCommon("noCategories"),
+                  category: tCommon("categoryRes"),
+                  categories: tCommon("categoriesRes"),
+                  selected: tCommon("selectedRes"),
+                  inactive: tCommon("inactiveRes"),
+                }}
+              />
+            )}
           </div>
         </div>
 
         {/* Product List Panel */}
         <div className="flex-1 flex flex-col border rounded-lg overflow-hidden min-w-0">
           {/* Panel Header */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
-            <div className="flex-1 flex items-center gap-4">
-              <div>
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-muted/30">
+            <div className="flex-1 flex items-center gap-2 min-w-0">
+              {/* Mobile: category filter toggle */}
+              <div className="flex md:hidden items-center">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1 cursor-pointer shrink-0">
+                      <Folder className="h-3.5 w-3.5" />
+                      <span className="text-xs max-w-20 truncate">
+                        {selectedCategoryId && treeData?.data
+                          ? (getCategoryPath(treeData.data, selectedCategoryId)?.[getCategoryPath(treeData.data, selectedCategoryId)!.length - 1]?.name ?? t("categories"))
+                          : t("categories")}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-52 max-h-72 overflow-y-auto">
+                    <DropdownMenuItem
+                      className="cursor-pointer font-medium"
+                      onClick={() => handleCategorySelect(null)}
+                    >
+                      {t("allProducts")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {(treeData?.data ?? []).map((node) => (
+                      <DropdownMenuItem
+                        key={node.id}
+                        className="cursor-pointer"
+                        onClick={() => handleCategorySelect(node.id)}
+                      >
+                        <Folder className="h-3.5 w-3.5 mr-2 shrink-0 opacity-60" />
+                        <span className="truncate">{node.name}</span>
+                        {node.product_count > 0 && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">{node.product_count}</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div className="hidden md:block">
                 {categoryBreadcrumb ? (
                   <span className="text-sm text-muted-foreground">
-                    <span className="text-sm text-muted-foreground">{t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span></span>
+                    {t("showingProductsIn")} <span className="font-medium text-foreground">{categoryBreadcrumb}</span>
                   </span>
                 ) : (
                   <span className="text-sm text-muted-foreground">{t("allProducts")}</span>
@@ -402,7 +484,7 @@ export function ProductCatalog() {
               </div>
 
               {/* Search */}
-              <div className="relative flex-1 max-w-xs ml-4">
+              <div className="relative flex-1 max-w-xs ml-2 md:ml-4">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("searchPlaceholder")}
@@ -420,7 +502,7 @@ export function ProductCatalog() {
                 value={sortOption}
                 onValueChange={(v) => { setSortOption(v); setPage(1); }}
               >
-                <SelectTrigger className="h-8 w-44 text-xs gap-1 cursor-pointer">
+                <SelectTrigger className="h-8 w-36 md:w-44 text-xs gap-1 cursor-pointer shrink-0">
                   <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
@@ -435,8 +517,8 @@ export function ProductCatalog() {
               </Select>
             </div>
 
-            {/* Create button — dropdown with Regular / Recipe options */}
-            <div className="ml-2">
+            {/* Create button — dropdown with Regular / Recipe / Ingredient options */}
+            <div className="shrink-0">
               {canCreate && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -468,12 +550,23 @@ export function ProductCatalog() {
                       </span>
                       <span className="text-xs text-muted-foreground pl-6">{t("createRecipeDesc")}</span>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+                      onClick={handleCreateIngredient}
+                    >
+                      <span className="font-medium flex items-center gap-2">
+                        <Wheat className="h-4 w-4 text-warning" />
+                        {t("createIngredient")}
+                      </span>
+                      <span className="text-xs text-muted-foreground pl-6">{t("createIngredientDesc")}</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
             </div>
             {pagination && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground shrink-0">
                 {((page - 1) * (pagination.per_page ?? 20)) + 1}-
                 {Math.min(page * (pagination.per_page ?? 20), pagination.total ?? 0)} of {pagination.total?.toLocaleString() ?? 0}
               </span>
@@ -708,6 +801,11 @@ export function ProductCatalog() {
       <ProductFnbCreateDialog
         open={fnbCreateDialogOpen}
         onOpenChange={setFnbCreateDialogOpen}
+      />
+
+      <ProductIngredientCreateDialog
+        open={ingredientDialogOpen}
+        onOpenChange={setIngredientDialogOpen}
       />
 
       <ProductDetailDialog
