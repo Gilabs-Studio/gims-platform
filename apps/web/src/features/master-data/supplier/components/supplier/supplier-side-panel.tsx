@@ -389,7 +389,7 @@ export function SupplierSidePanel({
                         <SelectContent>
                           {paymentTerms.map((pt) => (
                             <SelectItem key={pt.id} value={pt.id}>
-                              {pt.code ? `${pt.code} - ${pt.name}` : pt.name}
+                              {pt.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

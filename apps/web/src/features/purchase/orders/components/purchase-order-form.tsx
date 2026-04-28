@@ -787,7 +787,7 @@ export function PurchaseOrderForm({
                             setShouldLoadSelectData(true);
                           }
                         }}
-                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}

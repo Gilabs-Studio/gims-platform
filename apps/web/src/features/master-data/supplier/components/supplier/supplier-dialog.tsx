@@ -139,7 +139,7 @@ export function SupplierDialog({
                       <CreatableCombobox
                         value={paymentTermsId ?? ""}
                         onValueChange={(val) => setValue("payment_terms_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
-                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
                         placeholder={t("form.paymentTermsPlaceholder")}
                       />
                       {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}

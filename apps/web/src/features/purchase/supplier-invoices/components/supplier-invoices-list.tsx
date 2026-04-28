@@ -608,7 +608,7 @@ export function SupplierInvoicesList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-accent focus:text-accent"
+                                className="cursor-pointer text-purple focus:text-purple"
                                 onClick={() => setPrintingId(row.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
