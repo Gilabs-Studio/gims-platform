@@ -26,7 +26,7 @@ export const supplierFormSchema = z.object({
   village_name: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  npwp: z.string().max(30, "NPWP cannot exceed 30 characters").optional(),
+  npwp: z.string().max(30, "NPWP cannot exceed 30 characters").regex(/^\d*$/, "NPWP must contain digits only").optional(),
   contact_person: z.string().max(100, "Contact person cannot exceed 100 characters").optional(),
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional(),
   is_active: z.boolean(),

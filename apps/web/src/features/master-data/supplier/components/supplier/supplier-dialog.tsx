@@ -176,7 +176,17 @@ export function SupplierDialog({
 
                     <Field>
                       <FieldLabel>{t("form.npwp")}</FieldLabel>
-                      <Input placeholder={t("form.npwpPlaceholder")} {...register("npwp")} />
+                      <Input
+                        placeholder={t("form.npwpPlaceholder")}
+                        inputMode="numeric"
+                        onKeyDown={(e) => {
+                          if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                              !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        {...register("npwp")}
+                      />
                       {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
                     </Field>
                   </div>

@@ -122,6 +122,16 @@ export function WarehouseMapView() {
     [warehouses]
   );
 
+  // Pan map to selected warehouse when user clicks a sidebar card
+  const selectedWarehouse = useMemo(
+    () => warehouses.find((w) => w.id === selectedWarehouseId),
+    [warehouses, selectedWarehouseId]
+  );
+  const flyToPosition = useMemo(() => {
+    if (selectedWarehouse?.latitude == null || selectedWarehouse?.longitude == null) return null;
+    return { lat: Number(selectedWarehouse.latitude), lng: Number(selectedWarehouse.longitude) };
+  }, [selectedWarehouse]);
+
   // Handlers
   const handleWarehouseClick = (warehouse: WarehouseType) => {
     setSelectedWarehouseId(warehouse.id);
@@ -452,6 +462,7 @@ export function WarehouseMapView() {
             defaultCenter={[-6.2088, 106.8456]}
             defaultZoom={12}
             selectedMarkerId={selectedWarehouseId}
+            flyToPosition={flyToPosition}
           />
         )}
       </div>

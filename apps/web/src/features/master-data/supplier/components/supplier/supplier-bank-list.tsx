@@ -46,7 +46,7 @@ import type { SupplierBank, CreateSupplierBankData } from "../../types";
 const bankSchema = z.object({
   bank_id: z.string().min(1, "Bank is required"),
   currency_id: z.string().min(1, "Currency is required"),
-  account_number: z.string().min(3, "Account number is required"),
+  account_number: z.string().min(3, "Account number is required").regex(/^\d+$/, "Account number must contain digits only"),
   account_name: z.string().min(3, "Account name is required"),
   branch: z.string().optional(),
   is_primary: z.boolean().default(false),
@@ -346,8 +346,18 @@ export function SupplierBankList({
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>{t("form.accountNumber")}</FieldLabel>
-                <Input placeholder={t("form.accountNumberPlaceholder")} {...register("account_number")} />
-                {errors.account_number && <FieldError>{tValidation("accountNumberRequired")}</FieldError>}
+                <Input
+                  placeholder={t("form.accountNumberPlaceholder")}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  {...register("account_number")}
+                />
+                {errors.account_number && <FieldError>{errors.account_number.message ?? tValidation("accountNumberRequired")}</FieldError>}
               </Field>
 
               <Field>

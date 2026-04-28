@@ -78,8 +78,14 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
         toast.success(t("area.createSuccess"));
       }
       onClose();
-    } catch {
-      toast.error(t("area.saveError"));
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique") || msg.includes("idx_areas_code")) {
+        toast.error(t("area.duplicateCode", { fallback: "Area code already exists. Please use a different code." }));
+      } else {
+        toast.error(t("area.saveError"));
+      }
     }
   };
 

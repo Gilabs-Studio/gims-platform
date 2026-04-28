@@ -38,7 +38,7 @@ const formSchema = z.object({
   address: z.string().max(500).optional(),
   email: z.string().email().optional().or(z.literal("")),
   website: z.string().url().optional().or(z.literal("")),
-  npwp: z.string().max(30).optional(),
+  npwp: z.string().max(30).regex(/^\d*$/, "NPWP must contain digits only").optional(),
   notes: z.string().max(500).optional(),
   province_id: z.string().optional(),
   city_id: z.string().optional(),
@@ -428,9 +428,17 @@ export function SupplierSidePanel({
                   <FieldLabel>{t("form.npwp")}</FieldLabel>
                   <Input
                     placeholder={t("form.npwpPlaceholder")}
+                    inputMode="numeric"
+                    onKeyDown={(e) => {
+                      if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                          !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     {...register("npwp")}
                     disabled={isViewing}
                   />
+                  {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
                 </Field>
 
               </div>

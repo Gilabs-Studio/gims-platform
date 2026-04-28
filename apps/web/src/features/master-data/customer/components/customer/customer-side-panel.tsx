@@ -130,6 +130,9 @@ export function CustomerSidePanel({
   // Stable ref so the setup effect can read the latest customer fallback
   // without adding customer to its deps (would reset the form on every parent re-render).
   const customerRef = useRef(customer);
+  // Hidden submit button ref — used to trigger form submission from action buttons
+  // that live outside the <form> tag so tab-switch clicks cannot accidentally submit.
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     customerRef.current = customer;
   }, [customer]);
@@ -610,42 +613,51 @@ export function CustomerSidePanel({
             />
           </TabsContent>
 
-          {!isViewing && (
-            <div className="flex items-center justify-end gap-3 px-1 pt-4 border-t sticky bottom-0 bg-background z-10">
+          {/* Hidden submit trigger — keeps the real submit button outside the form
+              so tab-switch re-renders cannot accidentally fire it. */}
+          <button ref={submitBtnRef} type="submit" className="hidden" aria-hidden />
+        </form>
+
+        {!isViewing && (
+          <div className="flex items-center justify-end gap-3 px-1 pt-4 border-t sticky bottom-0 bg-background z-10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading}
+              className="cursor-pointer"
+            >
+              {t("common.cancel")}
+            </Button>
+            {activeTab !== "financial" ? (
               <Button
                 type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isLoading}
+                onClick={() => setActiveTab("financial")}
                 className="cursor-pointer"
               >
-                {t("common.cancel")}
+                Next
               </Button>
-              {activeTab !== "financial" ? (
-                <Button
-                  type="button"
-                  onClick={() => setActiveTab("financial")}
-                  className="cursor-pointer"
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : isEditing ? (
-                    t("common.save")
-                  ) : (
-                    t("common.create")
-                  )}
-                </Button>
-              )}
-            </div>
-          )}
-        </form>
+            ) : (
+              <Button
+                type="button"
+                disabled={isLoading}
+                className="cursor-pointer"
+                onClick={() => submitBtnRef.current?.click()}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : isEditing ? (
+                  t("common.save")
+                ) : (
+                  t("common.create")
+                )}
+              </Button>
+            )}
+          </div>
+        )}
 
       <CustomerTypeDialog
         open={quickCreate.type === "customerType"}

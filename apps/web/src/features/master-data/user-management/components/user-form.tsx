@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -34,6 +35,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
   const {
     register,
     handleSubmit,
+    reset,
     setValue,
     watch,
     formState: { errors },
@@ -52,6 +54,19 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
   });
 
   const selectedRoleId = watch("role_id");
+
+  // Re-sync form values when editing user data finishes loading.
+  // defaultValues only runs on mount; this effect handles async fetch timing.
+  useEffect(() => {
+    if (user) {
+      reset({
+        email: user.email,
+        name: user.name,
+        role_id: user.role_id,
+        status: user.status,
+      });
+    }
+  }, [user, reset]);
 
   const handleFormSubmit = async (data: CreateUserFormData | UpdateUserFormData) => {
     await onSubmit(data);
