@@ -67,7 +67,11 @@ export function CustomerDetailModal({
   const city = entity.city ?? cityVillage;
   const province = entity.province ?? provinceVillage;
 
-  const areaText = [village?.name, district?.name, city?.name, province?.name]
+  // village_name is a plain string returned by the API even when the relation is not preloaded.
+  // Use it as a fallback so the field is never blank.
+  const villageName = village?.name ?? entity.village_name;
+
+  const areaText = [villageName, district?.name, city?.name, province?.name]
     .filter(Boolean)
     .join(", ");
 
@@ -233,7 +237,7 @@ export function CustomerDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
                         <TableCell>{district?.name ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
-                        <TableCell>{village?.name ?? "-"}</TableCell>
+                        <TableCell>{villageName ?? "-"}</TableCell>
                       </TableRow>
                       {areaText && (
                         <TableRow>

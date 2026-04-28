@@ -207,6 +207,7 @@ export const customerId: CustomerTranslations = {
     emailMaxLength: "Email maksimal 100 karakter",
     websiteMaxLength: "Website maksimal 200 karakter",
     npwpMaxLength: "NPWP maksimal 30 karakter",
+    npwpNumericOnly: "NPWP hanya boleh berisi angka",
     addressMaxLength: "Alamat maksimal 500 karakter",
     accountNumberRequired: "Nomor rekening wajib diisi",
     accountNameRequired: "Nama pemilik rekening wajib diisi",

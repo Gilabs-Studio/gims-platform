@@ -111,10 +111,8 @@ export function CompanyDetailDialog({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium bg-muted/50">Director</TableCell>
-                  <TableCell>{company.director?.name ?? company.director_id ?? "-"}</TableCell>
                   <TableCell className="font-medium bg-muted/50">Created</TableCell>
-                  <TableCell>
+                  <TableCell colSpan={3}>
                     {company.created_at
                       ? formatDate(company.created_at)
                       : "-"}

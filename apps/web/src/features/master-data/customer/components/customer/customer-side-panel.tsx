@@ -402,9 +402,17 @@ export function CustomerSidePanel({
                 <FieldLabel>{t("customer.form.npwp")}</FieldLabel>
                 <Input
                   placeholder={t("customer.form.npwpPlaceholder")}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   {...register("npwp")}
                   disabled={isViewing}
                 />
+                {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
               </Field>
             </div>
 

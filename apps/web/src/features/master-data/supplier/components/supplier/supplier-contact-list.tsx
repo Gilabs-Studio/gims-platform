@@ -36,7 +36,7 @@ const contactSchema = z.object({
   name: z.string().min(2, "Name is required"),
   contact_role_id: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().min(3, "Phone number is required"),
+  phone: z.string().min(3, "Phone number is required").regex(/^\d+$/, "Phone number must contain digits only"),
   notes: z.string().optional(),
   is_primary: z.boolean().default(false),
 });
@@ -382,7 +382,17 @@ export function SupplierContactList({
 
               <Field orientation="vertical">
                 <FieldLabel>{t("form.phone") || "Phone Number"} *</FieldLabel>
-                <Input placeholder={t("form.phonePlaceholder") || "Enter phone number"} {...register("phone")} />
+                <Input
+                  placeholder={t("form.phonePlaceholder") || "Enter phone number"}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  {...register("phone")}
+                />
                 {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
               </Field>
 
