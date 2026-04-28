@@ -23,6 +23,7 @@ var posGrowthDefaultMenuURLs = []string{
 	"/sales/payments",
 	"/purchase/purchase-orders",
 	"/purchase/supplier-invoices",
+	"/purchase/goods-receipt",
 	"/purchase/payments",
 	"/stock/inventory",
 	"/stock/movements",
