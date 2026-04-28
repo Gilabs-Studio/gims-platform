@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@/i18n/routing";
@@ -25,23 +25,9 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
-import { useInventoryTreeProducts } from "@/features/stock/inventory/hooks/use-inventory-tree";
+import { useStockMovementProducts, type MovementType, type StockMovementSelectableProduct as SelectableProduct } from "../hooks/use-stock-movement-products";
+import { useStockMovementWarehouses } from "../hooks/use-stock-movement-warehouses";
 import { stockMovementService } from "../services/movement-service";
-import type { InventoryStockItem } from "@/features/stock/inventory/types";
-import type { Product } from "@/features/master-data/product/types";
-
-type MovementType = "IN" | "OUT" | "TRANSFER";
-
-/** Unified shape for both tree-based and master-list products */
-interface SelectableProduct {
-  product_id: string;
-  product_name: string;
-  product_code: string;
-  available: number;
-  uom_name: string | null;
-}
 
 export function StockMovementForm() {
   const t = useTranslations("stock_movement");
@@ -61,42 +47,26 @@ export function StockMovementForm() {
   const [productSearch, setProductSearch] = useState("");
 
   // ─── Data ─────────────────────────────────────────────────────────────────
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
-  const warehouses = warehouseData?.data ?? [];
+  const {
+    warehouses,
+    isLoading: isWarehousesLoading,
+    isLoadingMore: isWarehousesLoadingMore,
+    hasNextPage: hasWarehousesNextPage,
+    loadMore: loadMoreWarehouses,
+  } = useStockMovementWarehouses(true);
 
   // OUT/TRANSFER → show only products that exist in the selected warehouse with stock
-  const { data: treeProducts, isLoading: isTreeLoading } = useInventoryTreeProducts(
-    sourceWarehouseId,
-    type !== "IN" && !!sourceWarehouseId
-  );
-
-  // IN → pick from master product catalogue (stock can be 0)
-  const { data: masterProductData, isLoading: isMasterLoading } = useProducts(
-    { page: 1, per_page: 20 },
-    { enabled: type === "IN" && !!sourceWarehouseId }
-  );
-
-  const isProductsLoading = type === "IN" ? isMasterLoading : isTreeLoading;
+  const {
+    products,
+    isLoading: isProductsLoading,
+    isLoadingMore,
+    hasNextPage,
+    loadMore,
+  } = useStockMovementProducts(type, sourceWarehouseId, !!sourceWarehouseId);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Normalise to a single shape
-  const rawProducts: SelectableProduct[] = useMemo(() => {
-    if (type === "IN") {
-      return (masterProductData?.data ?? []).map((p: Product) => ({
-        product_id: p.id,
-        product_name: p.name,
-        product_code: p.code,
-        available: p.current_stock,
-        uom_name: p.uom?.name ?? null,
-      }));
-    }
-    return (treeProducts ?? []).map((p: InventoryStockItem) => ({
-      product_id: p.product_id,
-      product_name: p.product_name,
-      product_code: p.product_code,
-      available: p.available,
-      uom_name: p.uom_name,
-    }));
-  }, [type, treeProducts, masterProductData]);
+  const rawProducts = products;
 
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
@@ -113,6 +83,57 @@ export function StockMovementForm() {
     if (type === "IN") return filteredProducts;
     return filteredProducts.filter((p) => p.available > 0);
   }, [filteredProducts, type]);
+
+  const hasMoreProducts = hasNextPage;
+  const warehouseLoadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasMoreProducts) {
+      return;
+    }
+
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { rootMargin: "240px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreProducts, isLoadingMore, loadMore]);
+
+  useEffect(() => {
+    if (!hasWarehousesNextPage) {
+      return;
+    }
+
+    const sentinel = warehouseLoadMoreRef.current;
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !isWarehousesLoadingMore) {
+          loadMoreWarehouses();
+        }
+      },
+      { rootMargin: "240px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasWarehousesNextPage, isWarehousesLoadingMore, loadMoreWarehouses]);
 
   const allSelected =
     selectableProducts.length > 0 &&
@@ -296,6 +317,16 @@ export function StockMovementForm() {
                 {type === "TRANSFER" ? t("form.sourceWarehouse") : t("form.warehouse")}
               </p>
               <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {isWarehousesLoading && warehouses.length === 0 ? (
+                  <div className="space-y-2 py-2">
+                    {[...Array(4)].map((_, index) => (
+                      <div key={index} className="flex items-center gap-3 rounded-lg border px-4 py-3">
+                        <Skeleton className="h-4 w-4 shrink-0" />
+                        <Skeleton className="h-4 w-40" />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {warehouses.map((w) => (
                   <button
                     key={w.id}
@@ -324,6 +355,19 @@ export function StockMovementForm() {
                     </span>
                   </button>
                 ))}
+                {hasWarehousesNextPage && (
+                  <div ref={warehouseLoadMoreRef} className="px-1 pt-2 pb-1 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="cursor-pointer min-w-40"
+                      disabled={isWarehousesLoadingMore}
+                      onClick={() => loadMoreWarehouses()}
+                    >
+                      {isWarehousesLoadingMore ? t("form.loadingMoreWarehouses") : t("form.loadMoreWarehouses")}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -514,6 +558,20 @@ export function StockMovementForm() {
                     </div>
                   );
                 })}
+
+                {hasNextPage && (
+                  <div ref={loadMoreRef} className="px-6 py-4 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="cursor-pointer min-w-40"
+                      disabled={isLoadingMore}
+                      onClick={() => loadMore()}
+                    >
+                      {isLoadingMore ? t("form.loadingMore") : t("form.loadMore")}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

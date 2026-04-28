@@ -92,6 +92,7 @@ import {
   MessageSquareHeart,
   MessageCircle,
   ClipboardPen,
+  ScrollText,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -204,6 +205,8 @@ const iconMap: Record<string, React.ReactNode> = {
 
   // Warehouse & Logistics icons
   warehouse: <Warehouse className="h-4 w-4" />,
+  "scroll-text": <ScrollText className="h-4 w-4" />,
+  scrolltext: <ScrollText className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,
 
   // Navigation & Location icons
