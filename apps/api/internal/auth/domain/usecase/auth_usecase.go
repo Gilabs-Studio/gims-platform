@@ -251,6 +251,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Store refresh token in database
 		refreshTokenEntity := &refreshTokenModels.RefreshToken{
+			TenantID:  user.TenantID,
 			UserID:    user.ID,
 			TokenID:   tokenID,
 			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
@@ -269,8 +270,9 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
 		// Resolve Tenant name for SaaS context display
-		var tenantID, tenantName string
-		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		// user.TenantID is already populated by FindByEmail — no extra query needed
+		tenantID := user.TenantID
+		var tenantName string
 		if tenantID != "" {
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
@@ -447,6 +449,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Store new refresh token in database
 		newRefreshTokenEntity := &refreshTokenModels.RefreshToken{
+			TenantID:  user.TenantID,
 			UserID:    user.ID,
 			TokenID:   newTokenID,
 			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
@@ -464,8 +467,9 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
 		// Resolve Tenant name for SaaS context display
-		var tenantID, tenantName string
-		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		// user.TenantID is already populated by FindByID — no extra query needed
+		tenantID := user.TenantID
+		var tenantName string
 		if tenantID != "" {
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
@@ -1194,9 +1198,10 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			return err
 		}
 
-		if err := u.ensureTenantAreaDefaults(tx, tenantID); err != nil {
-			return err
-		}
+		// NOTE: area defaults generation removed per UX change - areas should start empty
+		// Previously the system auto-created a set of default areas during tenant
+		// registration which forced users to rely on exact province/city matching
+		// to operate. This was removed so tenants start with no areas.
 
 		if err := u.ensureTenantBankDefaults(tx, tenantID); err != nil {
 			return err

@@ -16,32 +16,40 @@ import { useAreaForm } from "../../hooks/use-area-form";
 import { ButtonLoading } from "@/components/loading";
 import { Area } from "../../types";
 
+const COLOR_TEMPLATES = [
+  "var(--color-primary)",
+  "var(--color-info)",
+  "var(--color-success)",
+  "var(--color-warning)",
+  "var(--color-destructive)",
+  "var(--color-accent)",
+  "var(--color-secondary)",
+  "var(--color-muted)",
+];
+
 export interface AreaFormProps {
   open: boolean;
   onClose: () => void;
+  onCreateSuccess?: () => void;
   area?: Area | null;
   /** When true, the form renders without its own Dialog wrapper */
   embedded?: boolean;
+  initialPolygon?: GeoJSON.Geometry | null;
+  initialSelectedCities?: string[];
+  /** Areas that will lose cities to the new area on create */
+  conflictedAreaUpdates?: Array<{ id: string; regency: string }>;
 }
 
-// Predefined color palette for area map rendering
-const AREA_COLORS = [
-  { label: "Blue", value: "var(--color-primary)" },
-  { label: "Green", value: "var(--color-success)" },
-  { label: "Amber", value: "#f59e0b" },
-  { label: "Red", value: "#ef4444" },
-  { label: "Purple", value: "#8b5cf6" },
-  { label: "Cyan", value: "#06b6d4" },
-  { label: "Pink", value: "#ec4899" },
-  { label: "Teal", value: "#14b8a6" },
-  { label: "Orange", value: "#f97316" },
-  { label: "Lime", value: "#84cc16" },
-  { label: "Indigo", value: "#6366f1" },
-  { label: "Rose", value: "#f43f5e" },
-];
-
-function AreaFormContent({ open, onClose, area }: Omit<AreaFormProps, "embedded">) {
-  const { form, t, isEditing, isLoading, employees, onSubmit } = useAreaForm({ open, onClose, area });
+function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities, conflictedAreaUpdates }: Omit<AreaFormProps, "embedded">) {
+  const { form, t, isEditing, isLoading, employees, onSubmit } = useAreaForm({
+    open,
+    onClose,
+    onCreateSuccess,
+    area,
+    initialPolygon,
+    initialSelectedCities,
+    conflictedAreaUpdates,
+  });
 
   const {
     register,
@@ -50,106 +58,142 @@ function AreaFormContent({ open, onClose, area }: Omit<AreaFormProps, "embedded"
     formState: { errors },
   } = form;
   const selectedColor = watch("color");
+  const isMapCreateMode = !isEditing && (initialSelectedCities?.length ?? 0) > 0;
+  const cities = initialSelectedCities?.length
+    ? initialSelectedCities
+    : (area?.regency ? area.regency.split(/[,;|]/).map((city) => city.trim()).filter(Boolean) : []);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Name */}
+      {/* Show selected cities if available (read-only) */}
+      {cities.length > 0 && (
         <Field orientation="vertical">
-          <FieldLabel>{t("area.form.name")}</FieldLabel>
-          <Input
-            placeholder={t("area.form.namePlaceholder")}
-            {...register("name")}
-          />
-          {errors.name && <FieldError>{errors.name.message}</FieldError>}
+          <FieldLabel>{t("area.form.regency")}</FieldLabel>
+          <div className="flex flex-wrap gap-1">
+            {cities.map((city) => (
+              <span key={city} className="inline-flex items-center rounded-md border px-2 py-1 text-xs">
+                {city}
+              </span>
+            ))}
+          </div>
         </Field>
+      )}
 
-        {/* Code */}
+      {/* Name */}
+      <Field orientation="vertical">
+        <FieldLabel>{t("area.form.name")}</FieldLabel>
+        <Input placeholder={t("area.form.namePlaceholder")} {...register("name")} />
+        {errors.name && <FieldError>{errors.name.message}</FieldError>}
+      </Field>
+
+      {/* Code (optional in full mode) */}
+      {!isMapCreateMode && (
         <Field orientation="vertical">
-          <FieldLabel>{t("area.form.code")}</FieldLabel>
+          <FieldLabel>{t("area.form.code")} (optional)</FieldLabel>
           <Input placeholder="e.g. JAWA-BARAT" {...register("code")} />
           {errors.code && <FieldError>{errors.code.message}</FieldError>}
         </Field>
-      </div>
+      )}
 
-      {/* Description */}
-      <Field orientation="vertical">
-        <FieldLabel>{t("area.form.description")}</FieldLabel>
-        <Textarea
-          placeholder={t("area.form.descriptionPlaceholder")}
-          {...register("description")}
-          rows={2}
-        />
-        {errors.description && (
-          <FieldError>{errors.description.message}</FieldError>
-        )}
-      </Field>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Province */}
+      {/* Description (optional in full mode) */}
+      {!isMapCreateMode && (
         <Field orientation="vertical">
-          <FieldLabel>{t("area.form.province")}</FieldLabel>
-          <Input placeholder="e.g. Jawa Barat" {...register("province")} />
+          <FieldLabel>{t("area.form.description")} (optional)</FieldLabel>
+          <Textarea
+            placeholder={t("area.form.descriptionPlaceholder")}
+            {...register("description")}
+            rows={2}
+          />
+          {errors.description && (
+            <FieldError>{errors.description.message}</FieldError>
+          )}
         </Field>
+      )}
 
-        {/* Regency */}
-        <Field orientation="vertical">
-          <FieldLabel>{t("area.form.regency")}</FieldLabel>
-          <Input placeholder="e.g. Bandung" {...register("regency")} />
-        </Field>
-      </div>
+      {/* Province and Regency (optional in full mode) */}
+      {!isMapCreateMode && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field orientation="vertical">
+            <FieldLabel>{t("area.form.province")} (optional)</FieldLabel>
+            <Input placeholder="e.g. Jawa Barat" {...register("province")} />
+          </Field>
+          <Field orientation="vertical">
+            <FieldLabel>{t("area.form.regency")} (optional)</FieldLabel>
+            <Input placeholder="e.g. Bandung" {...register("regency")} />
+          </Field>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* District */}
+      {/* District (optional in full mode) */}
+      {!isMapCreateMode && (
         <Field orientation="vertical">
-          <FieldLabel>{t("area.form.district")}</FieldLabel>
+          <FieldLabel>{t("area.form.district")} (optional)</FieldLabel>
           <Input placeholder="e.g. Coblong" {...register("district")} />
         </Field>
+      )}
 
-        {/* Manager */}
-        <Field orientation="vertical">
-          <FieldLabel>{t("area.form.manager")}</FieldLabel>
-          <Select
-            value={watch("manager_id") ?? ""}
-            onValueChange={(val) => setValue("manager_id", val === "none" ? "" : val)}
-          >
-            <SelectTrigger className="cursor-pointer">
-              <SelectValue placeholder={t("area.form.selectManager")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{t("common.none")}</SelectItem>
-              {employees.map((emp) => (
-                <SelectItem key={emp.id} value={emp.id}>
-                  {emp.name} ({emp.employee_code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-
-      {/* Color */}
+      {/* Manager */}
       <Field orientation="vertical">
-        <FieldLabel>{t("area.form.color")}</FieldLabel>
-        <div className="flex flex-wrap gap-2">
-          {AREA_COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setValue("color", c.value)}
-              className="w-8 h-8 rounded-lg border-2 cursor-pointer transition-all hover:scale-110"
+        <FieldLabel>{t("area.form.manager")}</FieldLabel>
+        <Select
+          value={watch("manager_id") ?? ""}
+          onValueChange={(val) => setValue("manager_id", val === "none" ? "" : val)}
+        >
+          <SelectTrigger className="cursor-pointer">
+            <SelectValue placeholder={t("area.form.selectManager")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{t("common.none")}</SelectItem>
+            {employees.map((emp) => (
+              <SelectItem key={emp.id} value={emp.id}>
+                {emp.name} ({emp.employee_code})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {/* Color with template + custom input */}
+      <Field orientation="vertical">
+        <FieldLabel>{t("area.form.color")} (optional)</FieldLabel>
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {COLOR_TEMPLATES.map((template) => (
+              <button
+                key={template}
+                type="button"
+                onClick={() => setValue("color", template, { shouldDirty: true, shouldValidate: true })}
+                className="h-7 w-7 rounded border-2 transition-all hover:scale-105"
+                style={{
+                  backgroundColor: template,
+                  borderColor: selectedColor === template ? "var(--foreground)" : "transparent",
+                }}
+                title={template}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-12 h-12 rounded-lg border-2"
               style={{
-                backgroundColor: c.value,
-                borderColor: selectedColor === c.value ? "var(--foreground)" : "transparent",
+                backgroundColor: selectedColor || "var(--color-muted)",
               }}
-              title={c.label}
+              title="Color preview"
             />
-          ))}
+            <Input
+              type="text"
+              placeholder="e.g. #ff6b6b or rgb(255, 107, 107)"
+              {...register("color")}
+              className="flex-1"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Click template color or enter any valid CSS color.
+          </p>
         </div>
       </Field>
 
-      {/* Active toggle */}
-      
+      {/* Action buttons */}
       <div className="flex justify-end gap-2">
         <Button
           type="button"
@@ -169,10 +213,20 @@ function AreaFormContent({ open, onClose, area }: Omit<AreaFormProps, "embedded"
   );
 }
 
-export function AreaForm({ open, onClose, area, embedded }: AreaFormProps) {
+export function AreaForm({ open, onClose, onCreateSuccess, area, embedded, initialPolygon, initialSelectedCities, conflictedAreaUpdates }: AreaFormProps) {
   // When embedded in a parent Dialog, render form content only
   if (embedded) {
-    return <AreaFormContent open={open} onClose={onClose} area={area} />;
+    return (
+      <AreaFormContent
+        open={open}
+        onClose={onClose}
+        onCreateSuccess={onCreateSuccess}
+        area={area}
+        initialPolygon={initialPolygon}
+        initialSelectedCities={initialSelectedCities}
+        conflictedAreaUpdates={conflictedAreaUpdates}
+      />
+    );
   }
 
   // Standalone usage with its own Dialog wrapper
@@ -184,7 +238,15 @@ export function AreaForm({ open, onClose, area, embedded }: AreaFormProps) {
             {area ? "Edit Area" : "Create Area"}
           </DialogTitle>
         </DialogHeader>
-        <AreaFormContent open={open} onClose={onClose} area={area} />
+        <AreaFormContent
+          open={open}
+          onClose={onClose}
+          onCreateSuccess={onCreateSuccess}
+          area={area}
+          initialPolygon={initialPolygon}
+          initialSelectedCities={initialSelectedCities}
+          conflictedAreaUpdates={conflictedAreaUpdates}
+        />
       </DialogContent>
     </Dialog>
   );

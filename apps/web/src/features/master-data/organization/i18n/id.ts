@@ -28,6 +28,7 @@ export const organizationId: OrganizationTranslations = {
     error_update: "Gagal memperbarui",
     none: "Tidak Ada",
     add: "Tambah",
+    ok: "OK",
   },
   division: {
     title: "Divisi",
@@ -187,6 +188,13 @@ export const organizationId: OrganizationTranslations = {
       manager: "Manajer Area",
       selectManager: "Pilih manajer",
     },
+    tutorial: {
+      title: "Buat Area dari Peta",
+      step1: "Klik area kota di peta untuk multi-seleksi (klik lagi untuk membatalkan).",
+      step2: "Setelah selesai, klik OK, lalu masukkan nama area dan pilih manajer.",
+      emptySidebar: "Belum ada area — mulai dengan memilih wilayah di peta.",
+    },
+    selected: "{count} wilayah terpilih",
   },
   company: {
     title: "Perusahaan",

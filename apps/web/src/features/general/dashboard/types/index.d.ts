@@ -92,6 +92,7 @@ export type WidgetType =
   // --- POS ---
   | "pos_outlet_sales"
   | "pos_live_table_overview"
+  | "pos_cash_control"
   // --- HR ---
   | "hr_attendance_today"
   | "hr_pending_leaves";
@@ -437,9 +438,15 @@ export interface DashboardOverviewData {
 export interface POSOutletItem {
   outlet_id: string;
   outlet_name: string;
+  floor_plan_id?: string;
+  active_table_count: number;
+  active_table_labels?: string[];
   today_revenue: number;
   today_revenue_formatted: string;
   order_count: number;
+  served_orders: number;
+  waiting_orders: number;
+  warning_orders: number;
   tables_occupied: number;
   tables_total: number;
 }
@@ -448,6 +455,22 @@ export interface POSSummaryData {
   today_total_revenue: number;
   today_total_revenue_formatted: string;
   today_total_orders: number;
+  served_orders: number;
+  waiting_orders: number;
+  warning_orders: number;
+  active_sessions: number;
+  opening_cash_today: number;
+  opening_cash_today_formatted: string;
+  cash_sales_today: number;
+  cash_sales_today_formatted: string;
+  cash_change_today: number;
+  cash_change_today_formatted: string;
+  expected_cash: number;
+  expected_cash_formatted: string;
+  actual_cash: number;
+  actual_cash_formatted: string;
+  cash_variance: number;
+  cash_variance_formatted: string;
   outlets: POSOutletItem[];
 }
 

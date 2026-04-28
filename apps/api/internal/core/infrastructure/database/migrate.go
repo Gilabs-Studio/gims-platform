@@ -744,18 +744,7 @@ type bankDefaultSeed struct {
 	SwiftCode string
 }
 
-var defaultAreaSeeds = []areaDefaultSeed{
-	{Name: "Jabodetabek", Description: "Jakarta, Bogor, Depok, Tangerang, Bekasi", Code: "JABODETABEK", Color: "#3b82f6", Province: "DKI Jakarta"},
-	{Name: "Jawa Barat", Description: "Bandung and surrounding areas", Code: "JAWA-BARAT", Color: "#10b981", Province: "Jawa Barat"},
-	{Name: "Jawa Tengah", Description: "Semarang, Solo and surrounding areas", Code: "JAWA-TENGAH", Color: "#f59e0b", Province: "Jawa Tengah"},
-	{Name: "Jawa Timur", Description: "Surabaya, Malang and surrounding areas", Code: "JAWA-TIMUR", Color: "#ef4444", Province: "Jawa Timur"},
-	{Name: "Bali", Description: "Bali region", Code: "BALI", Color: "#8b5cf6", Province: "Bali"},
-	{Name: "Banten", Description: "Serang, Cilegon, Tangerang Selatan", Code: "BANTEN", Color: "#06b6d4", Province: "Banten"},
-	{Name: "DI Yogyakarta", Description: "Yogyakarta and surrounding areas", Code: "DIY", Color: "#ec4899", Province: "Daerah Istimewa Yogyakarta"},
-	{Name: "Sumatera Utara", Description: "Medan and surrounding areas", Code: "SUMUT", Color: "#14b8a6", Province: "Sumatera Utara"},
-	{Name: "Sulawesi Selatan", Description: "Makassar and surrounding areas", Code: "SULSEL", Color: "#f97316", Province: "Sulawesi Selatan"},
-	{Name: "Kalimantan Timur", Description: "Balikpapan, Samarinda", Code: "KALTIM", Color: "#84cc16", Province: "Kalimantan Timur"},
-}
+var defaultAreaSeeds = []areaDefaultSeed{}
 
 var defaultBankSeeds = []bankDefaultSeed{
 	{Name: "Bank Central Asia", Code: "BCA", SwiftCode: "CENAIDJA"},
@@ -766,21 +755,6 @@ var defaultBankSeeds = []bankDefaultSeed{
 }
 
 func ensureDefaultAreasForAllTenants() error {
-	type tenantRow struct {
-		ID string
-	}
-
-	var tenants []tenantRow
-	if err := DB.Table("tenants").Select("id").Find(&tenants).Error; err != nil {
-		return err
-	}
-
-	for _, tenantRow := range tenants {
-		if err := ensureDefaultAreasForTenant(tenantRow.ID); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

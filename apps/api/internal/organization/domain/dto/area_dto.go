@@ -9,7 +9,7 @@ type CreateAreaRequest struct {
 	IsActive    *bool            `json:"is_active"`
 	Code        string           `json:"code" binding:"omitempty,max=50"`
 	Polygon     *json.RawMessage `json:"polygon"`          // GeoJSON polygon coordinates
-	Color       string           `json:"color" binding:"omitempty,max=20"`
+	Color       string           `json:"color" binding:"omitempty,max=50"`
 	ManagerID   *string          `json:"manager_id" binding:"omitempty"`
 	Province    string           `json:"province" binding:"omitempty,max=100"`
 	Regency     string           `json:"regency" binding:"omitempty,max=100"`
@@ -23,7 +23,7 @@ type UpdateAreaRequest struct {
 	IsActive    *bool            `json:"is_active"`
 	Code        string           `json:"code" binding:"omitempty,max=50"`
 	Polygon     *json.RawMessage `json:"polygon"`
-	Color       string           `json:"color" binding:"omitempty,max=20"`
+	Color       string           `json:"color" binding:"omitempty,max=50"`
 	ManagerID   *string          `json:"manager_id"`
 	Province    string           `json:"province" binding:"omitempty,max=100"`
 	Regency     string           `json:"regency" binding:"omitempty,max=100"`

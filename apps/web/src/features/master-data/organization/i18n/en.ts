@@ -26,6 +26,7 @@ export const organizationEn = {
     error_update: "Failed to update",
     none: "None",
     add: "Add",
+    ok: "OK",
   },
   division: {
     title: "Divisions",
@@ -185,6 +186,13 @@ export const organizationEn = {
       manager: "Area Manager",
       selectManager: "Select manager",
     },
+    tutorial: {
+      title: "Create Areas from Map",
+      step1: "Click city areas on the map to multi-select (click again to toggle).",
+      step2: "When selection is ready, click OK, then provide an area name and assign a manager.",
+      emptySidebar: "No areas yet — start by selecting regions on the map.",
+    },
+    selected: "{count} region(s) selected",
   },
   company: {
     title: "Companies",

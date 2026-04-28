@@ -40,7 +40,6 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*models.User,
 	var u models.User
 	err := r.getDB(ctx).
 		Preload("Role").
-		Preload("Role.Permissions").
 		Preload("Role.RolePermissions").
 		Preload("Role.RolePermissions.Permission").
 		Where("id = ?", id).First(&u).Error
@@ -54,7 +53,6 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models
 	var u models.User
 	err := r.getDB(ctx).
 		Preload("Role").
-		Preload("Role.Permissions").
 		Preload("Role.RolePermissions").
 		Preload("Role.RolePermissions.Permission").
 		Where("email = ?", email).First(&u).Error

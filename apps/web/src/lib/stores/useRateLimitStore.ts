@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const MAX_RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
+
 interface RateLimitState {
   resetTime: number | null; // Unix timestamp in seconds (target time)
   setResetTime: (resetTime: number | null) => void;
@@ -26,6 +28,24 @@ function formatCountdown(seconds: number): string {
   } else {
     return `${remainingSeconds}s`;
   }
+}
+
+function sanitizeResetTime(resetTime: number | null): number | null {
+  if (!resetTime || !Number.isFinite(resetTime)) {
+    return null;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (resetTime <= now) {
+    return null;
+  }
+
+  // Guard against malformed persisted values (for example ms treated as sec).
+  if (resetTime > now + MAX_RATE_LIMIT_WINDOW_SECONDS) {
+    return null;
+  }
+
+  return resetTime;
 }
 
 /**
@@ -100,25 +120,15 @@ export const useRateLimitStore = create<RateLimitState>()(
     }),
     {
       name: "rate-limit-store", // localStorage key
-      // Only persist resetTime, and only if it's in the future
+      // Only persist valid future reset times to avoid sticky lockouts.
       partialize: (state) => {
-        const now = Math.floor(Date.now() / 1000);
-        // Only persist if resetTime is in the future
-        if (state.resetTime && state.resetTime > now) {
-          return { resetTime: state.resetTime };
-        }
-        return { resetTime: null };
+        return { resetTime: sanitizeResetTime(state.resetTime) };
       },
-      // Auto-clear expired reset time when loading from localStorage
-      // This handles the case where API restarts and rate limit is reset
+      // Auto-clear invalid or expired reset time when loading from localStorage.
       onRehydrateStorage: () => {
         return (state) => {
-          if (state?.resetTime) {
-            const now = Math.floor(Date.now() / 1000);
-            // If reset time has expired, clear it
-            if (state.resetTime <= now) {
-              state.resetTime = null;
-            }
+          if (state) {
+            state.resetTime = sanitizeResetTime(state.resetTime);
           }
         };
       },

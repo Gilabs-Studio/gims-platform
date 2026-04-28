@@ -22,7 +22,7 @@ type Area struct {
 	// Sprint 24: CRM Territory enhancement fields
 	Code      string  `gorm:"type:varchar(50);index" json:"code"`                  // Territory code (e.g. JAWA-BARAT)
 	Polygon   *string `gorm:"type:jsonb" json:"polygon"`                           // GeoJSON polygon coordinates stored as JSONB
-	Color     string  `gorm:"type:varchar(20)" json:"color"`                       // Display color on map (hex)
+	Color     string  `gorm:"type:varchar(50)" json:"color"`                       // Display color on map (hex or CSS token)
 	ManagerID *string `gorm:"type:uuid;index" json:"manager_id"`                   // FK to employees (area manager)
 	Province  string  `gorm:"type:varchar(100)" json:"province"`                   // Province name (display)
 	Regency   string  `gorm:"type:varchar(100)" json:"regency"`                    // Regency/City name (display)

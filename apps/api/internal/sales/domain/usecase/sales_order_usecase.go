@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -828,6 +829,10 @@ func salesOrderSalesRepName(order *models.SalesOrder) string {
 }
 
 func (u *salesOrderUsecase) checkCreditLimit(ctx context.Context, order *models.SalesOrder) error {
+	if strings.EqualFold(strings.TrimSpace(order.SourceType), "POS") {
+		return nil
+	}
+
 	if order.CustomerID == nil || *order.CustomerID == "" {
 		return nil
 	}
