@@ -39,7 +39,7 @@ type CouponUsecase interface {
 	// ValidateForPlan checks coupon validity for a specific plan slug (enforces tier_specific scope).
 	ValidateForPlan(ctx context.Context, code, email, planSlug string) (*dto.ValidateCouponResponse, error)
 	// RedeemForTenant validates the coupon, records the email usage, and creates a TenantSubscription.
-	RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error)
+	RedeemForTenant(ctx context.Context, code, email, tenantID string, userCount int) (*models.TenantSubscription, error)
 	// ApplyDiscount computes the discounted invoice amount for a paid-plan coupon.
 	// Returns original amount when the coupon is a trial type or not applicable.
 	ApplyDiscount(ctx context.Context, code, planSlug string, baseAmount int64, userCount int, billingPeriod string) (int64, error)
@@ -314,18 +314,18 @@ func (u *couponUsecase) ApplyDiscount(ctx context.Context, code, planSlug string
 		}
 	}
 
-	if packageAmount, ok := packageCouponAmount(coupon, baseAmount, userCount, billingPeriod); ok {
-		return packageAmount, nil
-	}
-
 	if coupon.MaxUserCount > 0 && userCount > coupon.MaxUserCount {
 		return baseAmount, ErrCouponUserLimit
+	}
+
+	if packageAmount, ok := packageCouponAmount(coupon, userCount, billingPeriod); ok {
+		return packageAmount, nil
 	}
 
 	return applyStandardCouponDiscount(coupon, baseAmount, billingPeriod), nil
 }
 
-func packageCouponAmount(coupon *models.Coupon, baseAmount int64, userCount int, billingPeriod string) (int64, bool) {
+func packageCouponAmount(coupon *models.Coupon, userCount int, billingPeriod string) (int64, bool) {
 	if coupon == nil || coupon.PackagePriceMonthlyIDR <= 0 || coupon.MaxUserCount <= 0 {
 		return 0, false
 	}
@@ -342,14 +342,7 @@ func packageCouponAmount(coupon *models.Coupon, baseAmount int64, userCount int,
 	if userCount <= coupon.MaxUserCount {
 		return packageAmount, true
 	}
-
-	unitAmount := baseAmount / int64(userCount)
-	extraUsers := int64(userCount - coupon.MaxUserCount)
-	finalAmount := packageAmount + (extraUsers * unitAmount)
-	if finalAmount < 0 {
-		return 0, true
-	}
-	return finalAmount, true
+	return 0, false
 }
 
 func applyStandardCouponDiscount(coupon *models.Coupon, baseAmount int64, billingPeriod string) int64 {
@@ -383,7 +376,7 @@ func applyStandardCouponDiscount(coupon *models.Coupon, baseAmount int64, billin
 	}
 }
 
-func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenantID string) (*models.TenantSubscription, error) {
+func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenantID string, userCount int) (*models.TenantSubscription, error) {
 	var sub *models.TenantSubscription
 
 	err := u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -401,7 +394,18 @@ func (u *couponUsecase) RedeemForTenant(ctx context.Context, code, email, tenant
 			return err
 		}
 
-		sub = buildTrialSubscriptionFromCoupon(coupon, tenantID)
+		if userCount < 1 {
+			userCount = 1
+		}
+		if coupon.MaxUserCount > 0 {
+			if coupon.LockUserCount {
+				userCount = coupon.MaxUserCount
+			} else if userCount > coupon.MaxUserCount {
+				return ErrCouponUserLimit
+			}
+		}
+
+		sub = buildTrialSubscriptionFromCoupon(coupon, tenantID, userCount)
 		return tx.Create(sub).Error
 	})
 
@@ -461,7 +465,7 @@ func incrementCouponUsedCount(tx *gorm.DB, couponID string) error {
 		UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error
 }
 
-func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string) *models.TenantSubscription {
+func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string, userCount int) *models.TenantSubscription {
 	if coupon == nil {
 		return nil
 	}
@@ -473,12 +477,17 @@ func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string) *m
 	if coupon.TargetPlanSlug != nil && *coupon.TargetPlanSlug != "" {
 		plan = models.SubscriptionPlan(*coupon.TargetPlanSlug)
 	}
+	if userCount < 1 {
+		userCount = 1
+	}
 
 	return &models.TenantSubscription{
 		TenantID:      tenantID,
 		Plan:          plan,
 		BillingPeriod: models.BillingMonthly,
 		Status:        models.SubscriptionTrial,
+		UserCount:     userCount,
+		SeatLimit:     userCount,
 		StartsAt:      now,
 		ExpiresAt:     &expiresAt,
 		CouponID:      &couponID,

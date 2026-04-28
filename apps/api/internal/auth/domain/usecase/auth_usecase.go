@@ -600,11 +600,11 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			req.Plan = validity.TargetPlanSlug
 			plan = validity.TargetPlanSlug
 		}
-		// For package coupons (fixed package price + included users), exceeding max_user_count
-		// is allowed and billed as extra seats by ApplyDiscount.
-		isPackageCoupon := validity.PackagePriceMonthlyIDR > 0 && validity.MaxUserCount > 0
-		if !isPackageCoupon && validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
 			return nil, ErrCouponUserLimitExceeded
+		}
+		if validity.LockUserCount && validity.MaxUserCount > 0 {
+			req.UserCount = validity.MaxUserCount
 		}
 		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
 	}
@@ -761,7 +761,7 @@ func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, re
 		return nil, err
 	}
 	// Redeem coupon usage after provisioning.
-	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID)
+	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount)
 	return &RegisterTenantResult{LoginResponse: resp}, nil
 }
 
@@ -890,6 +890,7 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		ExpiresAt:       &nextBilling,
 		AmountPaidIDR:   pending.AmountPaid,
 		UserCount:       userCount,
+		SeatLimit:       userCount,
 		CouponID:        couponID,
 		XenditInvoiceID: &xenditInvoiceID,
 		NextBillingAt:   &nextBilling,
@@ -1096,7 +1097,7 @@ func (u *authUsecase) provisionTenantWithCoupon(ctx context.Context, req *dto.Re
 	// Redeem coupon AFTER the tenant transaction commits to avoid holding the row lock
 	// while expensive user/tenant inserts run. Failure is non-fatal for UX.
 	if couponCode != "" {
-		if _, redeemErr := u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID); redeemErr != nil {
+		if _, redeemErr := u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount); redeemErr != nil {
 			_ = redeemErr
 		}
 	}

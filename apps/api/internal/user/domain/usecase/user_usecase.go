@@ -239,11 +239,11 @@ func (u *userUsecase) GetLimit(ctx context.Context) (*UserLimitResponse, error) 
 		}
 	}
 
-	if max <= 0 {
-		tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
-		if err != nil {
-			return nil, err
-		}
+	tenant, err := u.tenantRepo.FindByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if tenant.MaxUsers > max {
 		max = tenant.MaxUsers
 	}
 
