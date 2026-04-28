@@ -625,6 +625,19 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     icon: "LayoutGrid",
     permission: "pos.order.create",
   },
+  pos_cash_control: {
+    type: "pos_cash_control",
+    category: "pos",
+    defaultSize: "lg",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 2,
+    titleKey: "widgets.pos_cash_control.title",
+    descriptionKey: "widgets.pos_cash_control.description",
+    icon: "ReceiptText",
+    permission: "pos.order.read",
+  },
 
   // ════════════════════════════════════════════════════════════════════════
   // HR Widgets

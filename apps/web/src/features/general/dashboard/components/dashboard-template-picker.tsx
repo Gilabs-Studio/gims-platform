@@ -35,8 +35,8 @@ const POS_WIDGETS: WidgetConfig[] = [
   { id: "t-2", type: "total_revenue",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
   { id: "t-3", type: "total_orders",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
   { id: "t-4", type: "pos_live_table_overview",  title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 3, visible: true },
-  { id: "t-5", type: "best_selling",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
-  { id: "t-6", type: "revenue_bar_chart",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "t-5", type: "pos_cash_control",         title: "", size: "lg", colSpan: 2, rowSpan: 2, order: 4, visible: true },
+  { id: "t-6", type: "best_selling",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
 ];
 
 const HR_WIDGETS: WidgetConfig[] = [

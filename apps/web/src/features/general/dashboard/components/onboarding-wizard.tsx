@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import {
   useOnboardingState,
@@ -107,8 +108,11 @@ export function OnboardingWizard() {
   const { mutate: markComplete, isPending: isCompleting } =
     useMarkOnboardingComplete();
 
-  // Loading or already done — caller (DashboardGrid) guards rendering.
-  if (isLoading || state?.completed) return null;
+  if (isLoading) {
+    return <OnboardingWizardSkeleton />;
+  }
+
+  if (state?.completed) return null;
 
   const businessType = state?.business_type ?? "";
   const steps = state?.steps;
@@ -142,6 +146,40 @@ export function OnboardingWizard() {
           onComplete={() => markComplete()}
         />
       )}
+    </motion.div>
+  );
+}
+
+function OnboardingWizardSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-[440px] px-4"
+    >
+      <div className="rounded-2xl border bg-card/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="mb-8 text-center">
+          <Skeleton className="mx-auto h-7 w-44" />
+          <Skeleton className="mx-auto mt-3 h-4 w-60" />
+        </div>
+
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-4 rounded-xl border bg-background/60 px-5 py-4"
+            >
+              <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
     </motion.div>
   );
 }
