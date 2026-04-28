@@ -10,7 +10,10 @@ import type { Area } from "../types";
 export interface UseAreaFormProps {
   open: boolean;
   onClose: () => void;
+  onCreateSuccess?: () => void;
   area?: Area | null;
+  initialPolygon?: GeoJSON.Geometry | null;
+  initialSelectedCities?: string[];
 }
 
 const DEFAULT_COLOR = "var(--color-primary)";
@@ -27,7 +30,7 @@ const DEFAULT_VALUES: AreaFormData = {
   district: "",
 };
 
-export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
+export function useAreaForm({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities }: UseAreaFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!area;
 
@@ -57,10 +60,14 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
           district: area.district ?? "",
         });
       } else {
-        form.reset(DEFAULT_VALUES);
+        const regencyValue = initialSelectedCities?.join(", ") ?? "";
+        form.reset({
+          ...DEFAULT_VALUES,
+          regency: regencyValue,
+        });
       }
     }
-  }, [open, area, form]);
+  }, [open, area, form, initialSelectedCities]);
 
   const onSubmit: SubmitHandler<AreaFormData> = async (data) => {
     // Clean empty string UUIDs to null for optional foreign keys
@@ -74,8 +81,14 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
         await updateArea.mutateAsync({ id: area.id, data: cleanedData });
         toast.success(t("area.updateSuccess"));
       } else {
-        await createArea.mutateAsync(cleanedData);
+        const payload = {
+          ...cleanedData,
+          regency: cleanedData.regency || (initialSelectedCities?.join(", ") ?? ""),
+          polygon: initialPolygon ?? null,
+        } as any;
+        await createArea.mutateAsync(payload);
         toast.success(t("area.createSuccess"));
+        onCreateSuccess?.();
       }
       onClose();
     } catch {

@@ -1197,9 +1197,10 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			return err
 		}
 
-		if err := u.ensureTenantAreaDefaults(tx, tenantID); err != nil {
-			return err
-		}
+		// NOTE: area defaults generation removed per UX change - areas should start empty
+		// Previously the system auto-created a set of default areas during tenant
+		// registration which forced users to rely on exact province/city matching
+		// to operate. This was removed so tenants start with no areas.
 
 		if err := u.ensureTenantBankDefaults(tx, tenantID); err != nil {
 			return err
