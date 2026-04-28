@@ -38,6 +38,7 @@ export function AreaList() {
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedPolygon, setSelectedPolygon] = useState<GeoJSON.Geometry | undefined>(undefined);
+  const [conflictAreas, setConflictAreas] = useState<Array<{ areaId: string; removedCities: string[] }>>([]);
   const [selectionResetToken, setSelectionResetToken] = useState(0);
   const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [detailAreaId, setDetailAreaId] = useState<string | null>(null);
@@ -70,10 +71,16 @@ export function AreaList() {
   const handleView = useCallback((area: Area) => { setDetailAreaId(area.id); }, []);
 
   const handleSelectionChange = useCallback(
-    ({ areaIds, cities, polygon }: { areaIds: string[]; cities: string[]; polygon?: GeoJSON.Geometry | undefined }) => {
+    ({ areaIds, cities, polygon, conflictAreas: incoming }: {
+      areaIds: string[];
+      cities: string[];
+      polygon?: GeoJSON.Geometry | undefined;
+      conflictAreas?: Array<{ areaId: string; removedCities: string[] }>;
+    }) => {
       setSelectedAreaIds(areaIds);
       setSelectedCities(cities);
       setSelectedPolygon(polygon);
+      setConflictAreas(incoming ?? []);
     },
     []
   );
@@ -94,8 +101,22 @@ export function AreaList() {
     setSelectedAreaIds([]);
     setSelectedCities([]);
     setSelectedPolygon(undefined);
+    setConflictAreas([]);
     setSelectionResetToken((prev) => prev + 1);
   }, []);
+
+  // Compute the updated regency string for each area losing cities to the new area
+  const conflictedAreaUpdates = useMemo(() => {
+    return conflictAreas
+      .map((entry) => {
+        const area = areas.find((a) => a.id === entry.areaId);
+        if (!area?.regency) return null;
+        const current = area.regency.split(/[,;|]/).map((c) => c.trim()).filter(Boolean);
+        const updated = current.filter((c) => !entry.removedCities.includes(c.toLowerCase()));
+        return { id: entry.areaId, regency: updated.join(", ") };
+      })
+      .filter((x): x is { id: string; regency: string } => x !== null);
+  }, [conflictAreas, areas]);
 
   return (
     <div className="h-full w-full flex overflow-hidden">
@@ -282,6 +303,7 @@ export function AreaList() {
         onCreateSuccess={resetSelectionState}
         initialPolygon={selectedPolygon}
         initialSelectedCities={selectedCities}
+        conflictedAreaUpdates={conflictedAreaUpdates}
       />
 
       {/* Edit */}

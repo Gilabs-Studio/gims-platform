@@ -14,6 +14,8 @@ export interface UseAreaFormProps {
   area?: Area | null;
   initialPolygon?: GeoJSON.Geometry | null;
   initialSelectedCities?: string[];
+  /** Existing areas that need their regency updated after the new area steals some cities */
+  conflictedAreaUpdates?: Array<{ id: string; regency: string }>;
 }
 
 const DEFAULT_COLOR = "var(--color-primary)";
@@ -30,7 +32,7 @@ const DEFAULT_VALUES: AreaFormData = {
   district: "",
 };
 
-export function useAreaForm({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities }: UseAreaFormProps) {
+export function useAreaForm({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities, conflictedAreaUpdates }: UseAreaFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!area;
 
@@ -87,6 +89,14 @@ export function useAreaForm({ open, onClose, onCreateSuccess, area, initialPolyg
           polygon: initialPolygon ?? null,
         } as any;
         await createArea.mutateAsync(payload);
+        // Transfer cities: update each area that loses cities to the new area
+        if (conflictedAreaUpdates?.length) {
+          await Promise.all(
+            conflictedAreaUpdates.map(({ id, regency }) =>
+              updateArea.mutateAsync({ id, data: { regency } })
+            )
+          );
+        }
         toast.success(t("area.createSuccess"));
         onCreateSuccess?.();
       }

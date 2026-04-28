@@ -36,9 +36,11 @@ export interface AreaFormProps {
   embedded?: boolean;
   initialPolygon?: GeoJSON.Geometry | null;
   initialSelectedCities?: string[];
+  /** Areas that will lose cities to the new area on create */
+  conflictedAreaUpdates?: Array<{ id: string; regency: string }>;
 }
 
-function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities }: Omit<AreaFormProps, "embedded">) {
+function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon, initialSelectedCities, conflictedAreaUpdates }: Omit<AreaFormProps, "embedded">) {
   const { form, t, isEditing, isLoading, employees, onSubmit } = useAreaForm({
     open,
     onClose,
@@ -46,6 +48,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
     area,
     initialPolygon,
     initialSelectedCities,
+    conflictedAreaUpdates,
   });
 
   const {
@@ -55,6 +58,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
     formState: { errors },
   } = form;
   const selectedColor = watch("color");
+  const isMapCreateMode = !isEditing && (initialSelectedCities?.length ?? 0) > 0;
   const cities = initialSelectedCities?.length
     ? initialSelectedCities
     : (area?.regency ? area.regency.split(/[,;|]/).map((city) => city.trim()).filter(Boolean) : []);
@@ -83,7 +87,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
       </Field>
 
       {/* Code (optional in full mode) */}
-      {!initialPolygon && (
+      {!isMapCreateMode && (
         <Field orientation="vertical">
           <FieldLabel>{t("area.form.code")} (optional)</FieldLabel>
           <Input placeholder="e.g. JAWA-BARAT" {...register("code")} />
@@ -92,7 +96,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
       )}
 
       {/* Description (optional in full mode) */}
-      {!initialPolygon && (
+      {!isMapCreateMode && (
         <Field orientation="vertical">
           <FieldLabel>{t("area.form.description")} (optional)</FieldLabel>
           <Textarea
@@ -107,7 +111,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
       )}
 
       {/* Province and Regency (optional in full mode) */}
-      {!initialPolygon && (
+      {!isMapCreateMode && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field orientation="vertical">
             <FieldLabel>{t("area.form.province")} (optional)</FieldLabel>
@@ -121,7 +125,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
       )}
 
       {/* District (optional in full mode) */}
-      {!initialPolygon && (
+      {!isMapCreateMode && (
         <Field orientation="vertical">
           <FieldLabel>{t("area.form.district")} (optional)</FieldLabel>
           <Input placeholder="e.g. Coblong" {...register("district")} />
@@ -209,7 +213,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
   );
 }
 
-export function AreaForm({ open, onClose, onCreateSuccess, area, embedded, initialPolygon, initialSelectedCities }: AreaFormProps) {
+export function AreaForm({ open, onClose, onCreateSuccess, area, embedded, initialPolygon, initialSelectedCities, conflictedAreaUpdates }: AreaFormProps) {
   // When embedded in a parent Dialog, render form content only
   if (embedded) {
     return (
@@ -220,6 +224,7 @@ export function AreaForm({ open, onClose, onCreateSuccess, area, embedded, initi
         area={area}
         initialPolygon={initialPolygon}
         initialSelectedCities={initialSelectedCities}
+        conflictedAreaUpdates={conflictedAreaUpdates}
       />
     );
   }
@@ -240,6 +245,7 @@ export function AreaForm({ open, onClose, onCreateSuccess, area, embedded, initi
           area={area}
           initialPolygon={initialPolygon}
           initialSelectedCities={initialSelectedCities}
+          conflictedAreaUpdates={conflictedAreaUpdates}
         />
       </DialogContent>
     </Dialog>

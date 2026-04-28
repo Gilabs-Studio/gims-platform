@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { Layers } from "lucide-react";
@@ -65,11 +65,67 @@ const HOVER_OPACITY = 0.6;
 const SELECTED_OPACITY = 0.7;
 const DEFAULT_OPACITY = 0.35;
 
+// Tracks which cities are being transferred out of an existing area
+type ConflictEntry = { areaId: string; removedCities: string[] };
+
+type SelectionState = {
+  selectedCities: string[];
+  hoveredAreaId: string | null;
+  conflictEntries: ConflictEntry[];
+};
+
+type SelectionAction =
+  | { type: "TOGGLE_CITY"; city: string; ownerArea?: Area }
+  | { type: "SET_HOVERED"; areaId: string | null }
+  | { type: "RESET" };
+
+function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+  switch (action.type) {
+    case "TOGGLE_CITY": {
+      const lower = action.city.toLowerCase();
+      const isAdding = !state.selectedCities.includes(lower);
+      const nextCities = isAdding
+        ? [...state.selectedCities, lower]
+        : state.selectedCities.filter((c) => c !== lower);
+
+      let nextConflict = state.conflictEntries;
+      if (action.ownerArea) {
+        if (isAdding) {
+          const existing = nextConflict.find((e) => e.areaId === action.ownerArea!.id);
+          nextConflict = existing
+            ? nextConflict.map((e) =>
+                e.areaId === action.ownerArea!.id
+                  ? { ...e, removedCities: [...e.removedCities, lower] }
+                  : e
+              )
+            : [...nextConflict, { areaId: action.ownerArea.id, removedCities: [lower] }];
+        } else {
+          nextConflict = nextConflict
+            .map((e) =>
+              e.areaId === action.ownerArea!.id
+                ? { ...e, removedCities: e.removedCities.filter((c) => c !== lower) }
+                : e
+            )
+            .filter((e) => e.removedCities.length > 0);
+        }
+      }
+
+      return { ...state, selectedCities: nextCities, conflictEntries: nextConflict };
+    }
+    case "SET_HOVERED":
+      return { ...state, hoveredAreaId: action.areaId };
+    case "RESET":
+      return { selectedCities: [], hoveredAreaId: null, conflictEntries: [] };
+    default:
+      return state;
+  }
+}
+
 interface AreaMapViewProps {
   readonly areas: Area[];
   readonly selectedAreaId?: string | null;
   readonly onAreaClick?: (area: Area) => void;
-  readonly onSelectionChange?: (selection: { areaIds: string[]; cities: string[]; polygon?: Geometry | undefined }) => void;
+  readonly onSelectionChange?: (selection: { areaIds: string[]; cities: string[]; polygon?: Geometry | undefined; conflictAreas?: ConflictEntry[] }) => void;
   readonly resetSelectionToken?: number;
   readonly isLoading?: boolean;
   readonly className?: string;
@@ -130,10 +186,11 @@ function AreaMapViewComponent({
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([-2.5, 118.0]);
   const [mapZoom, setMapZoom] = useState(5);
   const [shouldAnimate, setShouldAnimate] = useState(false);
-  const [hoveredAreaId, setHoveredAreaId] = useState<string | null>(null);
-  // Selection supports multi-select by existing area id and by city (WADMKK)
-  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  // Selection state managed via reducer to avoid ESLint set-state-in-effect violations
+  const [{ selectedCities, hoveredAreaId, conflictEntries }, dispatch] = useReducer(
+    selectionReducer,
+    { selectedCities: [], hoveredAreaId: null, conflictEntries: [] }
+  );
   const areaToFeatureMapRef = useRef<Map<string, Feature[]>>(new Map());
   // Direct layer references so we can call setStyle() without remounting
   const layerBySelectionKeyRef = useRef<Map<string, L.Path[]>>(new Map());
@@ -216,7 +273,7 @@ function AreaMapViewComponent({
       if (!feature) return {};
       const area = findAreaForFeature(feature);
       const city = getCityFromFeature(feature).toLowerCase();
-      const isSelected = area ? selectedAreaIds.includes(area.id) : selectedCities.includes(city);
+      const isSelected = selectedCities.includes(city);
       const color = area?.color ?? DEFAULT_AREA_COLOR;
 
       return {
@@ -227,7 +284,7 @@ function AreaMapViewComponent({
         dashArray: area ? undefined : "4 4",
       };
     },
-    [findAreaForFeature, getCityFromFeature, selectedAreaIds, selectedCities]
+    [findAreaForFeature, getCityFromFeature, selectedCities]
   );
 
   // Handle feature events (hover, click)
@@ -246,38 +303,26 @@ function AreaMapViewComponent({
         { sticky: true, direction: "top", className: "area-map-tooltip" }
       );
 
-      // Track mapping for both existing areas and city keys
-      if (area) {
-        pushRefList(areaToFeatureMapRef.current, area.id, feature);
-        pushRefList(layerBySelectionKeyRef.current, `area:${area.id}`, layer as L.Path);
-      } else if (city) {
-        // store city keyed layers/features to allow styling and geometry aggregation updates
+      // All layers are registered by city key for granular per-city selection.
+      // Area features are also tracked separately for geometry aggregation.
+      if (city) {
         const cityKey = city.toLowerCase();
         pushRefList(layerBySelectionKeyRef.current, `city:${cityKey}`, layer as L.Path);
         pushRefList(cityToFeatureRef.current, cityKey, feature);
       }
+      if (area) {
+        pushRefList(areaToFeatureMapRef.current, area.id, feature);
+      }
 
       (layer as L.Path).on({
-        mouseover: () => setHoveredAreaId(area?.id ?? null),
-        mouseout: () => setHoveredAreaId(null),
+        mouseover: () => dispatch({ type: "SET_HOVERED", areaId: area?.id ?? null }),
+        mouseout: () => dispatch({ type: "SET_HOVERED", areaId: null }),
         click: () => {
-          // Toggle selection: existing area by id; otherwise by city
-          // Note: onSelectionChange is called from the effect below, not here
-          if (area) {
-            setSelectedAreaIds((prev) => {
-              const next = prev.includes(area.id) ? prev.filter((x) => x !== area.id) : [...prev, area.id];
-              return next;
-            });
-            onAreaClick?.(area);
-            return;
-          }
-
+          // Always select at city level. If the city belongs to an existing area,
+          // the conflict is tracked so that area is updated on create.
           if (city) {
-            setSelectedCities((prev) => {
-              const lower = city.toLowerCase();
-              const next = prev.includes(lower) ? prev.filter((c) => c !== lower) : [...prev, lower];
-              return next;
-            });
+            dispatch({ type: "TOGGLE_CITY", city, ownerArea: area ?? undefined });
+            if (area) onAreaClick?.(area);
           }
         },
       });
@@ -293,64 +338,36 @@ function AreaMapViewComponent({
   }, [areas]);
 
   // Reset map-local selection state when parent requests it.
+  // Uses dispatch (not direct setState) to satisfy react-hooks/set-state-in-effect.
   useEffect(() => {
     if (typeof resetSelectionToken === "undefined") return;
-    setSelectedAreaIds([]);
-    setSelectedCities([]);
-    setHoveredAreaId(null);
+    dispatch({ type: "RESET" });
   }, [resetSelectionToken]);
 
-  // Update layer styles directly when hover/selection changes — no GeoJSON remount
+  // Update layer styles directly when hover/selection changes — no GeoJSON remount.
+  // All layers are keyed by city; area color is derived from areaByCity lookup.
   useEffect(() => {
     layerBySelectionKeyRef.current.forEach((layers, key) => {
-      // key can be area:<id> or city:<city>
-      const isCityKey = typeof key === "string" && key.startsWith("city:");
-      if (isCityKey) {
-        const city = key.slice(5);
-        const isSelected = selectedCities.includes(city);
-        const color = DEFAULT_AREA_COLOR;
-        layers.forEach((layer) => {
-          layer.setStyle({
-            fillColor: color,
-            fillOpacity: isSelected ? SELECTED_OPACITY : DEFAULT_OPACITY,
-            color: isSelected ? color : "rgba(255,255,255,0.5)",
-            weight: isSelected ? 3 : 1,
-          });
-        });
-        return;
-      }
+      if (!key.startsWith("city:")) return;
+      const cityKey = key.slice(5);
+      const area = areaByCity.get(cityKey);
+      const isSelected = selectedCities.includes(cityKey);
+      const isHovered = area ? area.id === hoveredAreaId : false;
+      const color = area?.color ?? DEFAULT_AREA_COLOR;
 
-      const areaId = key.slice(5);
-      const area = areas.find((a) => a.id === areaId);
-      if (!area) return;
-      const color = area.color ?? DEFAULT_AREA_COLOR;
-      const isSelected = selectedAreaIds.includes(areaId);
-      const isHovered = areaId === hoveredAreaId;
       layers.forEach((layer) => {
         layer.setStyle({
           fillColor: color,
-          fillOpacity: isSelected ? SELECTED_OPACITY : isHovered ? HOVER_OPACITY : DEFAULT_OPACITY,
+          fillOpacity: isSelected ? SELECTED_OPACITY : area ? (isHovered ? HOVER_OPACITY : DEFAULT_OPACITY) : 0.1,
           color: isSelected || isHovered ? color : "rgba(255,255,255,0.5)",
           weight: isSelected ? 3 : isHovered ? 2 : 1,
+          dashArray: !area && !isSelected ? "4 4" : undefined,
         });
       });
     });
-    // Build aggregated geometry for selected cities/features
+
+    // Build aggregated geometry for all selected cities
     const multiPolygonCoords: MultiPolygon["coordinates"] = [];
-
-    for (const areaId of selectedAreaIds) {
-      const features = areaToFeatureMapRef.current.get(areaId) ?? [];
-      for (const feat of features) {
-        if (!feat.geometry) continue;
-        const geometry = feat.geometry;
-        if (geometry.type === "Polygon") {
-          multiPolygonCoords.push(geometry.coordinates as Polygon["coordinates"]);
-        } else if (geometry.type === "MultiPolygon") {
-          multiPolygonCoords.push(...geometry.coordinates);
-        }
-      }
-    }
-
     for (const city of selectedCities) {
       const features = cityToFeatureRef.current.get(city) ?? [];
       for (const feat of features) {
@@ -364,13 +381,13 @@ function AreaMapViewComponent({
       }
     }
 
-    const polygon: MultiPolygon | undefined = multiPolygonCoords.length > 0
-      ? { type: "MultiPolygon", coordinates: multiPolygonCoords }
-      : undefined;
+    const polygon: MultiPolygon | undefined =
+      multiPolygonCoords.length > 0
+        ? { type: "MultiPolygon", coordinates: multiPolygonCoords }
+        : undefined;
 
-    // notify parent selection change with optional polygon geometry
-    onSelectionChange?.({ areaIds: selectedAreaIds, cities: selectedCities, polygon });
-  }, [selectedAreaIds, selectedCities, hoveredAreaId, areas, onSelectionChange]);
+    onSelectionChange?.({ areaIds: [], cities: selectedCities, polygon, conflictAreas: conflictEntries });
+  }, [selectedCities, hoveredAreaId, areas, areaByCity, onSelectionChange, conflictEntries]);
 
   // Zoom to selected area
   useEffect(() => {
