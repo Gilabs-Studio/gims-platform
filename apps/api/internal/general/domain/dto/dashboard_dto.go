@@ -273,6 +273,9 @@ type DashboardLayoutResponse struct {
 type POSOutletItem struct {
 	OutletID              string  `json:"outlet_id"`
 	OutletName            string  `json:"outlet_name"`
+	FloorPlanID           string  `json:"floor_plan_id,omitempty"`
+	ActiveTableCount      int     `json:"active_table_count"`
+	ActiveTableLabels     []string `json:"active_table_labels,omitempty"`
 	TodayRevenue          float64 `json:"today_revenue"`
 	TodayRevenueFormatted string  `json:"today_revenue_formatted"`
 	OrderCount            int     `json:"order_count"`

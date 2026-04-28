@@ -43,6 +43,18 @@ export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
   const posSummary: POSSummaryData | undefined =
     selectedOutletId === "all" ? overviewSummary : selectedSummary ?? overviewSummary;
 
+  const focusedOutlet = useMemo(() => {
+    if (selectedOutletId !== "all") {
+      return visibleOutlets.find((outlet) => outlet.outlet_id === selectedOutletId);
+    }
+
+    if (visibleOutlets.length === 1) {
+      return visibleOutlets[0];
+    }
+
+    return undefined;
+  }, [selectedOutletId, visibleOutlets]);
+
   const isLoading = overviewQuery.isLoading || (enabled && selectedOutletId !== "all" && selectedOutletQuery.isLoading);
   const isError = overviewQuery.isError || selectedOutletQuery.isError;
 
@@ -60,6 +72,8 @@ export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
     selectedOutletId,
     setSelectedOutletId,
     hasOutletFilter: visibleOutlets.length > 1,
+    isSingleOutletScope: visibleOutlets.length === 1,
+    focusedOutlet,
     isLoading,
     isError,
     refetch,

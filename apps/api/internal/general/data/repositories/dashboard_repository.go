@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -436,6 +438,19 @@ func (r *dashboardRepository) GetGeoOverview(ctx context.Context, start, end tim
 }
 
 func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.WarehouseItem, error) {
+	tenantID := contextString(ctx, "tenant_id")
+	isSystemAdmin := middleware.IsSystemAdmin(ctx)
+	stockTenantFilter := "1=1"
+	warehouseStatsTenantFilter := "1=1"
+	warehouseTenantFilter := "1=1"
+	params := []any{}
+	if !isSystemAdmin && tenantID != "" {
+		stockTenantFilter = "ib.tenant_id = ? AND p.tenant_id = ?"
+		warehouseStatsTenantFilter = "ib2.tenant_id = ?"
+		warehouseTenantFilter = "w.tenant_id = ?"
+		params = append(params, tenantID, tenantID, tenantID, tenantID)
+	}
+
 	type row struct {
 		ID              string
 		Name            string
@@ -451,7 +466,7 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 	// out_of_stock: available <= 0
 	// low_stock:    available > 0 AND available <= products.min_stock
 	// in_stock:     available > products.min_stock (or min_stock = 0 and available > 0)
-	if err := r.scoped(ctx, "warehouses").Raw(`
+	query := fmt.Sprintf(`
 		WITH stock_levels AS (
 			SELECT
 				ib.warehouse_id,
@@ -460,7 +475,7 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 				COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) AS available
 			FROM inventory_batches ib
 			JOIN products p ON p.id = ib.product_id
-			WHERE ib.deleted_at IS NULL AND ib.is_active = true AND p.deleted_at IS NULL
+			WHERE ib.deleted_at IS NULL AND ib.is_active = true AND p.deleted_at IS NULL AND %s
 			GROUP BY ib.warehouse_id, ib.product_id, p.min_stock
 		),
 		warehouse_stats AS (
@@ -469,7 +484,7 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 				COUNT(DISTINCT ib2.product_id)                         AS item_count,
 				COALESCE(SUM(ib2.current_quantity * ib2.cost_price), 0) AS stock_value
 			FROM inventory_batches ib2
-			WHERE ib2.deleted_at IS NULL AND ib2.is_active = true
+			WHERE ib2.deleted_at IS NULL AND ib2.is_active = true AND %s
 			GROUP BY ib2.warehouse_id
 		)
 		SELECT
@@ -484,10 +499,11 @@ func (r *dashboardRepository) GetWarehouses(ctx context.Context) ([]dto.Warehous
 		FROM warehouses w
 		LEFT JOIN warehouse_stats ws ON ws.warehouse_id = w.id
 		LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
-		WHERE w.is_active = true AND w.deleted_at IS NULL
+		WHERE w.is_active = true AND w.deleted_at IS NULL AND %s
 		GROUP BY w.id, w.name, w.address, ws.item_count, ws.stock_value
 		ORDER BY w.name ASC
-	`).Scan(&rows).Error; err != nil {
+	`, stockTenantFilter, warehouseStatsTenantFilter, warehouseTenantFilter)
+	if err := r.db.WithContext(ctx).Raw(query, params...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	items := make([]dto.WarehouseItem, 0, len(rows))
@@ -608,6 +624,8 @@ func resolveAccessiblePOSOutletIDs(ctx context.Context, db *gorm.DB, userID stri
 // If userID is non-empty and the user has OUTLET scope, only their assigned outlets are returned.
 func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletID string, start, end time.Time) (*dto.POSSummaryData, error) {
 	db := r.scoped(ctx, "outlets")
+	tenantID := contextString(ctx, "tenant_id")
+	isSystemAdmin := middleware.IsSystemAdmin(ctx)
 
 	// Resolve outlet filter for RBAC and optional outlet selection.
 	outletIDs, err := resolveAccessiblePOSOutletIDs(ctx, db, userID)
@@ -646,6 +664,9 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 	type outletRow struct {
 		OutletID         string  `gorm:"column:outlet_id"`
 		OutletName       string  `gorm:"column:outlet_name"`
+		FloorPlanID      string  `gorm:"column:floor_plan_id"`
+		ActiveTableCount int     `gorm:"column:active_table_count"`
+		ActiveTableLabels string `gorm:"column:active_table_labels"`
 		TodayRevenue     float64 `gorm:"column:today_revenue"`
 		OrderCount       int     `gorm:"column:order_count"`
 		ServedOrders     int     `gorm:"column:served_orders"`
@@ -661,7 +682,11 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 	}
 
 	query := `
-		WITH outlet_orders AS (
+		WITH outlet_scope AS (
+			SELECT o.id, o.name
+			FROM outlets o
+			WHERE o.deleted_at IS NULL AND o.is_active = true
+		), outlet_orders AS (
 			SELECT
 				po.outlet_id,
 				COALESCE(SUM(CASE WHEN po.created_at BETWEEN ? AND ? THEN po.total_amount ELSE 0 END), 0) AS today_revenue,
@@ -674,6 +699,7 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 						AND po.created_at <= (?::timestamptz - INTERVAL '15 minutes')
 				) AS warning_orders
 			FROM pos_orders po
+			JOIN outlet_scope oscope ON oscope.id = po.outlet_id
 			WHERE po.deleted_at IS NULL
 			GROUP BY po.outlet_id
 		), floor_plan_tables AS (
@@ -681,9 +707,37 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				fp.outlet_id,
 				COUNT(*) FILTER (WHERE obj.value->>'type' = 'table') AS tables_total
 			FROM pos_floor_plans fp
+			JOIN outlet_scope oscope ON oscope.id = fp.outlet_id
 			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) obj
 			WHERE fp.deleted_at IS NULL
 			GROUP BY fp.outlet_id
+		), published_floor_plan AS (
+			SELECT DISTINCT ON (fp.outlet_id)
+				fp.outlet_id,
+				fp.id AS floor_plan_id
+			FROM pos_floor_plans fp
+			JOIN outlet_scope oscope ON oscope.id = fp.outlet_id
+			WHERE fp.deleted_at IS NULL AND fp.status = 'published'
+			ORDER BY fp.outlet_id, fp.updated_at DESC, fp.created_at DESC
+		), outlet_active_tables AS (
+			SELECT
+				src.outlet_id,
+				COUNT(*) AS active_table_count,
+				COALESCE(STRING_AGG(src.table_label, '||' ORDER BY src.table_label), '') AS active_table_labels
+			FROM (
+				SELECT DISTINCT ON (po.outlet_id, TRIM(po.table_label))
+					po.outlet_id,
+					TRIM(po.table_label) AS table_label,
+					po.created_at
+				FROM pos_orders po
+				JOIN outlet_scope oscope ON oscope.id = po.outlet_id
+				WHERE po.deleted_at IS NULL
+					AND po.table_label IS NOT NULL
+					AND TRIM(po.table_label) <> ''
+					AND po.status IN ('PAID', 'PARTIAL_SERVED', 'SERVED')
+				ORDER BY po.outlet_id, TRIM(po.table_label), po.created_at DESC
+			) src
+			GROUP BY src.outlet_id
 		), outlet_table_statuses AS (
 			SELECT
 				ps.outlet_id,
@@ -691,6 +745,7 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COUNT(*) FILTER (WHERE UPPER(pts.status) IN ('RESERVED', 'CLEANING')) AS tables_attention
 			FROM pos_table_statuses pts
 			JOIN pos_sessions ps ON ps.id = pts.session_id AND ps.deleted_at IS NULL
+			JOIN outlet_scope oscope ON oscope.id = ps.outlet_id
 			WHERE pts.deleted_at IS NULL AND ps.status = 'OPEN'
 			GROUP BY ps.outlet_id
 		), outlet_sessions AS (
@@ -700,6 +755,7 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COALESCE(SUM(CASE WHEN ps.opened_at BETWEEN ? AND ? THEN ps.opening_cash ELSE 0 END), 0) AS opening_cash_today,
 				COALESCE(SUM(CASE WHEN ps.status = 'CLOSED' AND ps.closed_at BETWEEN ? AND ? AND ps.closing_cash IS NOT NULL THEN ps.closing_cash ELSE 0 END), 0) AS actual_cash_today
 			FROM pos_sessions ps
+			JOIN outlet_scope oscope ON oscope.id = ps.outlet_id
 			WHERE ps.deleted_at IS NULL
 			GROUP BY ps.outlet_id
 		), outlet_payments AS (
@@ -709,12 +765,16 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COALESCE(SUM(CASE WHEN pp.created_at BETWEEN ? AND ? AND pp.method = 'CASH' AND pp.status = 'PAID' THEN pp.change_amount ELSE 0 END), 0) AS cash_change_today
 			FROM pos_payments pp
 			JOIN pos_orders po ON po.id = pp.order_id AND po.deleted_at IS NULL
+			JOIN outlet_scope oscope ON oscope.id = po.outlet_id
 			WHERE pp.created_at BETWEEN ? AND ?
 			GROUP BY po.outlet_id
 		)
 		SELECT
-			o.id AS outlet_id,
-			o.name AS outlet_name,
+			oscope.id AS outlet_id,
+			oscope.name AS outlet_name,
+			COALESCE(pfp.floor_plan_id::text, '') AS floor_plan_id,
+			COALESCE(oat.active_table_count, 0) AS active_table_count,
+			COALESCE(oat.active_table_labels, '') AS active_table_labels,
 			COALESCE(oo.today_revenue, 0) AS today_revenue,
 			COALESCE(oo.order_count, 0) AS order_count,
 			COALESCE(oo.served_orders, 0) AS served_orders,
@@ -727,13 +787,15 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 			COALESCE(op.cash_sales_today, 0) AS cash_sales_today,
 			COALESCE(op.cash_change_today, 0) AS cash_change_today,
 			COALESCE(os.actual_cash_today, 0) AS actual_cash_today
-		FROM outlets o
-		LEFT JOIN outlet_orders oo ON oo.outlet_id = o.id
-		LEFT JOIN floor_plan_tables fp ON fp.outlet_id = o.id
-		LEFT JOIN outlet_table_statuses ts ON ts.outlet_id = o.id
-		LEFT JOIN outlet_sessions os ON os.outlet_id = o.id
-		LEFT JOIN outlet_payments op ON op.outlet_id = o.id
-		WHERE o.deleted_at IS NULL AND o.is_active = true
+		FROM outlet_scope oscope
+		LEFT JOIN outlet_orders oo ON oo.outlet_id = oscope.id
+		LEFT JOIN floor_plan_tables fp ON fp.outlet_id = oscope.id
+		LEFT JOIN published_floor_plan pfp ON pfp.outlet_id = oscope.id
+		LEFT JOIN outlet_active_tables oat ON oat.outlet_id = oscope.id
+		LEFT JOIN outlet_table_statuses ts ON ts.outlet_id = oscope.id
+		LEFT JOIN outlet_sessions os ON os.outlet_id = oscope.id
+		LEFT JOIN outlet_payments op ON op.outlet_id = oscope.id
+		WHERE 1=1
 	`
 	params := []any{
 		start, end,
@@ -749,8 +811,12 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 		start, end,
 	}
 	if len(outletIDs) > 0 {
-		query += " AND o.id IN ?"
+		query += " AND oscope.id IN ?"
 		params = append(params, outletIDs)
+	}
+	if !isSystemAdmin && tenantID != "" {
+		query = strings.Replace(query, "WHERE o.deleted_at IS NULL AND o.is_active = true", "WHERE o.deleted_at IS NULL AND o.is_active = true AND o.tenant_id = ?", 1)
+		params = append([]any{tenantID}, params...)
 	}
 	query += " ORDER BY today_revenue DESC"
 
@@ -761,9 +827,12 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 
 	if len(rows) == 0 {
 		var outletsInScope int64
-		outletScopeQuery := db.WithContext(ctx).
+		outletScopeQuery := r.db.WithContext(ctx).
 			Table("outlets").
 			Where("outlets.deleted_at IS NULL")
+		if !isSystemAdmin && tenantID != "" {
+			outletScopeQuery = outletScopeQuery.Where("outlets.tenant_id = ?", tenantID)
+		}
 		if hasFullPOSAccess(ctx) {
 			if outletID != "" {
 				outletScopeQuery = outletScopeQuery.Where("outlets.id = ?", outletID)
@@ -780,9 +849,12 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 		}
 
 		var ordersInRange int64
-		orderScopeQuery := db.WithContext(ctx).
+		orderScopeQuery := r.db.WithContext(ctx).
 			Table("pos_orders po").
 			Where("po.deleted_at IS NULL AND po.created_at BETWEEN ? AND ?", start, end)
+		if !isSystemAdmin && tenantID != "" {
+			orderScopeQuery = orderScopeQuery.Where("po.tenant_id = ?", tenantID)
+		}
 		if hasFullPOSAccess(ctx) {
 			if outletID != "" {
 				orderScopeQuery = orderScopeQuery.Where("po.outlet_id = ?", outletID)
@@ -823,6 +895,8 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 		item := dto.POSOutletItem{
 			OutletID:              row.OutletID,
 			OutletName:            row.OutletName,
+			FloorPlanID:           row.FloorPlanID,
+			ActiveTableCount:      row.ActiveTableCount,
 			TodayRevenue:          row.TodayRevenue,
 			TodayRevenueFormatted: formatPOSCurrency(row.TodayRevenue),
 			OrderCount:            row.OrderCount,
@@ -831,6 +905,26 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 			WarningOrders:         warningOrders,
 			TablesTotal:           row.TablesTotal,
 			TablesOccupied:        row.TablesOccupied,
+		}
+		if row.ActiveTableLabels != "" {
+			parts := strings.Split(row.ActiveTableLabels, "||")
+			labels := make([]string, 0, len(parts))
+			for _, part := range parts {
+				clean := strings.TrimSpace(part)
+				if clean == "" {
+					continue
+				}
+				labels = append(labels, clean)
+			}
+			sort.Slice(labels, func(i, j int) bool {
+				leftNum, leftErr := strconv.Atoi(strings.TrimPrefix(strings.ToUpper(labels[i]), "T"))
+				rightNum, rightErr := strconv.Atoi(strings.TrimPrefix(strings.ToUpper(labels[j]), "T"))
+				if leftErr == nil && rightErr == nil {
+					return leftNum < rightNum
+				}
+				return labels[i] < labels[j]
+			})
+			item.ActiveTableLabels = labels
 		}
 		result.Outlets = append(result.Outlets, item)
 		result.TodayTotalRevenue += row.TodayRevenue
@@ -865,18 +959,28 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 
 	// Total active employees for rate calculation
 	var totalEmployees int64
-	db.Raw(`SELECT COUNT(*) FROM employees WHERE deleted_at IS NULL AND status = 'active'`).Scan(&totalEmployees)
+	if err := db.Table("employees").Where("deleted_at IS NULL AND status = ?", "active").Count(&totalEmployees).Error; err != nil {
+		return nil, err
+	}
 
 	// Today's attendance
-	r.scoped(ctx, "attendance_records").Raw(`
-		SELECT COUNT(*) FROM attendance_records
-		WHERE date = CURRENT_DATE AND deleted_at IS NULL AND status = 'present'
-	`).Scan(&result.PresentToday)
+	var presentToday int64
+	if err := r.scoped(ctx, "attendance_records").
+		Table("attendance_records").
+		Where("date = CURRENT_DATE AND deleted_at IS NULL AND status = ?", "present").
+		Count(&presentToday).Error; err != nil {
+		return nil, err
+	}
+	result.PresentToday = int(presentToday)
 
-	r.scoped(ctx, "attendance_records").Raw(`
-		SELECT COUNT(*) FROM attendance_records
-		WHERE date = CURRENT_DATE AND deleted_at IS NULL AND is_late = true
-	`).Scan(&result.LateToday)
+	var lateToday int64
+	if err := r.scoped(ctx, "attendance_records").
+		Table("attendance_records").
+		Where("date = CURRENT_DATE AND deleted_at IS NULL AND is_late = true").
+		Count(&lateToday).Error; err != nil {
+		return nil, err
+	}
+	result.LateToday = int(lateToday)
 
 	if totalEmployees > 0 {
 		result.AbsentToday = int(totalEmployees) - result.PresentToday
@@ -885,35 +989,73 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 	}
 
 	// Pending leaves
-	r.scoped(ctx, "leave_requests").Raw(`
-		SELECT COUNT(*) FROM leave_requests
-		WHERE deleted_at IS NULL AND status = 'pending'
-	`).Scan(&result.PendingLeaves)
+	var pendingLeaves int64
+	if err := r.scoped(ctx, "leave_requests").
+		Table("leave_requests").
+		Where("deleted_at IS NULL AND status = ?", "pending").
+		Count(&pendingLeaves).Error; err != nil {
+		return nil, err
+	}
+	result.PendingLeaves = int(pendingLeaves)
 
 	return result, nil
 }
 
 // GetCRMSummary returns aggregated CRM metrics.
 func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummaryData, error) {
-	db := r.scoped(ctx, "crm_contacts")
+	contactsDB := r.scoped(ctx, "crm_contacts")
 
 	result := &dto.CRMSummaryData{}
 
-	db.Raw(`SELECT COUNT(*) FROM crm_contacts WHERE deleted_at IS NULL`).Scan(&result.TotalContacts)
-	r.scoped(ctx, "crm_leads").Raw(`SELECT COUNT(*) FROM crm_leads WHERE deleted_at IS NULL AND status = 'active'`).Scan(&result.ActiveLeads)
-	r.scoped(ctx, "crm_leads").Raw(`
-		SELECT COUNT(*) FROM crm_leads
-		WHERE deleted_at IS NULL AND created_at >= date_trunc('month', CURRENT_DATE)
-	`).Scan(&result.LeadsThisMonth)
-	r.scoped(ctx, "crm_deals").Raw(`SELECT COUNT(*) FROM crm_deals WHERE deleted_at IS NULL AND status = 'in_progress'`).Scan(&result.DealsInProgress)
-	r.scoped(ctx, "crm_deals").Raw(`
-		SELECT COUNT(*) FROM crm_deals
-		WHERE deleted_at IS NULL AND status = 'won' AND closed_at >= date_trunc('month', CURRENT_DATE)
-	`).Scan(&result.DealsWonThisMonth)
-	r.scoped(ctx, "crm_activities").Raw(`
-		SELECT COUNT(*) FROM crm_activities
-		WHERE deleted_at IS NULL AND scheduled_at::date = CURRENT_DATE
-	`).Scan(&result.ActivitiesToday)
+	var totalContacts int64
+	if err := contactsDB.Table("crm_contacts").Where("deleted_at IS NULL").Count(&totalContacts).Error; err != nil {
+		return nil, err
+	}
+	result.TotalContacts = int(totalContacts)
+	var activeLeads int64
+	if err := r.scoped(ctx, "crm_leads").
+		Table("crm_leads").
+		Where("deleted_at IS NULL AND status = ?", "active").
+		Count(&activeLeads).Error; err != nil {
+		return nil, err
+	}
+	result.ActiveLeads = int(activeLeads)
+
+	var leadsThisMonth int64
+	if err := r.scoped(ctx, "crm_leads").
+		Table("crm_leads").
+		Where("deleted_at IS NULL AND created_at >= date_trunc('month', CURRENT_DATE)").
+		Count(&leadsThisMonth).Error; err != nil {
+		return nil, err
+	}
+	result.LeadsThisMonth = int(leadsThisMonth)
+
+	var dealsInProgress int64
+	if err := r.scoped(ctx, "crm_deals").
+		Table("crm_deals").
+		Where("deleted_at IS NULL AND status = ?", "in_progress").
+		Count(&dealsInProgress).Error; err != nil {
+		return nil, err
+	}
+	result.DealsInProgress = int(dealsInProgress)
+
+	var dealsWonThisMonth int64
+	if err := r.scoped(ctx, "crm_deals").
+		Table("crm_deals").
+		Where("deleted_at IS NULL AND status = ? AND closed_at >= date_trunc('month', CURRENT_DATE)", "won").
+		Count(&dealsWonThisMonth).Error; err != nil {
+		return nil, err
+	}
+	result.DealsWonThisMonth = int(dealsWonThisMonth)
+
+	var activitiesToday int64
+	if err := r.scoped(ctx, "crm_activities").
+		Table("crm_activities").
+		Where("deleted_at IS NULL AND scheduled_at::date = CURRENT_DATE").
+		Count(&activitiesToday).Error; err != nil {
+		return nil, err
+	}
+	result.ActivitiesToday = int(activitiesToday)
 
 	return result, nil
 }

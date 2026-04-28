@@ -438,6 +438,9 @@ export interface DashboardOverviewData {
 export interface POSOutletItem {
   outlet_id: string;
   outlet_name: string;
+  floor_plan_id?: string;
+  active_table_count: number;
+  active_table_labels?: string[];
   today_revenue: number;
   today_revenue_formatted: string;
   order_count: number;
