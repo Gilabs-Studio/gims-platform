@@ -50,21 +50,21 @@ export function DashboardSkeleton() {
   );
 }
 
+import { Loader2 } from "lucide-react";
+
 interface ButtonLoadingProps {
   readonly children: React.ReactNode;
   readonly loading?: boolean;
   readonly loadingText?: string;
 }
 
-import { Loader2 } from "lucide-react";
-
 export function ButtonLoading({ children, loading, loadingText }: ButtonLoadingProps) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        {loadingText || children}
-      </div>
+      <span className="inline-flex items-center justify-center gap-2">
+        <Loader2 className="size-4 shrink-0 animate-spin" strokeWidth={2} />
+        <span className="truncate">{loadingText || children}</span>
+      </span>
     );
   }
   return <>{children}</>;
