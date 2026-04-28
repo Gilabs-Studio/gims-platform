@@ -208,7 +208,9 @@
         "passwordTooShort": "At least 8 characters required",
         "emailTaken": "This email is already registered",
         "companyTaken": "This company name is already taken",
-        "availabilityCheckFailed": "Unable to verify account availability. Please try again."
+        "availabilityCheckFailed": "Unable to verify account availability. Please try again.",
+        "registrationFailed": "Registration failed. Please try again.",
+        "couponUserLimitExceeded": "Selected user count exceeds coupon limit."
       }
     },
     "login": {

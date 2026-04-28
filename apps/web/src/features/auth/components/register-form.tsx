@@ -223,20 +223,13 @@ function applyCouponPreview(
     return 0;
   }
 
-  if ((coupon.packagePriceMonthlyIDR ?? 0) > 0 && (coupon.maxUserCount ?? 0) > 0) {
+  if ((coupon.packagePriceMonthlyIDR ?? 0) > 0 && (coupon.maxUserCount ?? 0) > 0 && users <= (coupon.maxUserCount ?? 0)) {
     const packageAmount = billing === "yearly"
       ? Math.round((coupon.packagePriceYearlyIDR && coupon.packagePriceYearlyIDR > 0
         ? coupon.packagePriceYearlyIDR
         : (coupon.packagePriceMonthlyIDR ?? 0) * 12 * 0.9))
       : Math.round(coupon.packagePriceMonthlyIDR ?? 0);
-
-    if (users <= (coupon.maxUserCount ?? 0)) {
-      return Math.max(0, packageAmount);
-    }
-
-    const extraUsers = users - (coupon.maxUserCount ?? 0);
-    const extraAmount = totalInvoice(perUserMonthly, extraUsers, billing);
-    return Math.max(0, packageAmount + extraAmount);
+    return Math.max(0, packageAmount);
   }
 
   if (coupon.discountType === "percent" && (coupon.discountValue ?? 0) > 0) {
@@ -530,17 +523,17 @@ export default function RegisterForm() {
       const code = (err as { response?: { data?: { error?: { code?: string; message?: string } } } })?.response?.data?.error?.code;
       const message = (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message
         ?? (err as { message?: string })?.message
-        ?? "Registration failed. Please try again.";
+        ?? t("errors.registrationFailed");
 
       if (code === "EMAIL_ALREADY_TAKEN") {
         setStep(1);
-        setAccountErrors({ email: "This email is already registered" });
+        setAccountErrors({ email: t("errors.emailTaken") });
       } else if (code === "COUPON_ALREADY_USED") {
-        setCouponState({ isChecking: false, isValid: false, message: "This coupon has already been used with your email" });
+        setCouponState({ isChecking: false, isValid: false, message: t("couponReasons.already_used_by_email") });
       } else if (code === "COUPON_INVALID") {
-        setCouponState({ isChecking: false, isValid: false, message: "Coupon is no longer valid" });
+        setCouponState({ isChecking: false, isValid: false, message: t("couponReasons.inactive") });
       } else if (code === "COUPON_USER_LIMIT_EXCEEDED") {
-        setSubmitError("Selected user count exceeds coupon limit");
+        setSubmitError(t("errors.couponUserLimitExceeded"));
       } else {
         setSubmitError(message);
       }
@@ -552,16 +545,13 @@ export default function RegisterForm() {
   // ── Derived values ─────────────────────────────────────────────────────────────
   const selectedBundlePlan = dynamicBundles.find((b) => b.id === selectedBundle) ?? dynamicBundles.find((b) => b.id !== "enterprise") ?? dynamicBundles[0];
   const selectedModularPlan = dynamicModular.find((p) => p.id === selectedModular) ?? dynamicModular[0] ?? { id: "", name: "", category: "", perUserMonthly: 0, features: [] as string[] };
-  const hasPackageCoupon = couponState.isValid === true && (couponState.packagePriceMonthlyIDR ?? 0) > 0 && (couponState.maxUserCount ?? 0) > 0;
   const packageUserCount = couponState.maxUserCount ?? 0;
   const effectiveMinUsers = couponState.isValid === true && (couponState.lockUserCount ?? false) && (couponState.maxUserCount ?? 0) > 0
     ? (couponState.maxUserCount ?? 1)
     : 1;
-  const effectiveMaxUsers = hasPackageCoupon
-    ? 500
-    : couponState.isValid === true && (couponState.maxUserCount ?? 0) > 0
-      ? (couponState.maxUserCount ?? 500)
-      : 500;
+  const effectiveMaxUsers = couponState.isValid === true && (couponState.maxUserCount ?? 0) > 0
+    ? (couponState.maxUserCount ?? 500)
+    : 500;
 
   // Decoy banner: show if modular plan costs more than ultimate_suite for same users
   const ultimatePlan = dynamicBundles.find((b) => b.id === "ultimate_suite");

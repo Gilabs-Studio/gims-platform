@@ -204,7 +204,9 @@
         "passwordTooShort": "Minimal 8 karakter",
         "emailTaken": "Email ini sudah terdaftar",
         "companyTaken": "Nama perusahaan ini sudah digunakan",
-        "availabilityCheckFailed": "Gagal memverifikasi ketersediaan akun. Silakan coba lagi."
+        "availabilityCheckFailed": "Gagal memverifikasi ketersediaan akun. Silakan coba lagi.",
+        "registrationFailed": "Pendaftaran gagal. Silakan coba lagi.",
+        "couponUserLimitExceeded": "Jumlah pengguna yang dipilih melebihi batas kupon."
       }
   },
   "login": {
