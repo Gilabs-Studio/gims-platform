@@ -9,6 +9,22 @@
       }
     }
   },
+  "profile": {
+    "billing": {
+      "cancel": "Batal",
+      "seatDowngradeEstimateTitle": "Estimasi downgrade seat",
+      "seatNeedToReduce": "Kurangi batas saat ini sebanyak {count} seat.",
+      "nextCycleDecrease": "Siklus billing berikutnya turun sebesar {amount}.",
+      "downgradePricingTitle": "Informasi harga downgrade",
+      "downgradePricingDescription": "Penurunan seat memperbarui nominal recurring untuk siklus billing berikutnya. Siklus berjalan tidak otomatis direfund, sehingga perubahan tetap mengikuti perilaku recurring billing Xendit.",
+      "downgradeSeatConfirmTitle": "Downgrade batas seat?",
+      "downgradeSeatConfirmDescription": "Ini akan menurunkan batas seat menjadi {count}. Pastikan user aktif tetap berada di bawah limit baru ({active} user aktif saat ini).",
+      "downgradeConfirmAction": "Downgrade",
+      "downgradeSeatToCount": "Diturunkan ke {count} seat",
+      "downgradeSeatBlocked": "User aktif harus tetap di bawah atau sama dengan limit baru ({count}).",
+      "downgradeSeatHint": "Turunkan jumlah seat hanya setelah mengecek user aktif."
+    }
+  },
   "common": {
     "title": "Pengaturan Global",
     "loading": "Memuat...",
