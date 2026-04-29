@@ -24,9 +24,9 @@ type Area struct {
 	Polygon   *string `gorm:"type:jsonb" json:"polygon"`                           // GeoJSON polygon coordinates stored as JSONB
 	Color     string  `gorm:"type:varchar(50)" json:"color"`                       // Display color on map (hex or CSS token)
 	ManagerID *string `gorm:"type:uuid;index" json:"manager_id"`                   // FK to employees (area manager)
-	Province  string  `gorm:"type:varchar(100)" json:"province"`                   // Province name (display)
-	Regency   string  `gorm:"type:varchar(100)" json:"regency"`                    // Regency/City name (display)
-	District  string  `gorm:"type:varchar(100)" json:"district"`                   // District name (display)
+	Province  string  `gorm:"type:text" json:"province"`                           // Province name (display)
+	Regency   string  `gorm:"type:text" json:"regency"`                            // Regency/City name (display)
+	District  string  `gorm:"type:text" json:"district"`                           // District name (display)
 
 	// Relations
 	Manager       *Employee      `gorm:"foreignKey:ManagerID" json:"manager,omitempty"`

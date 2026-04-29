@@ -13,19 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAreaForm } from "../../hooks/use-area-form";
+import { getTemplateColors } from "@/lib/color-utils";
 import { ButtonLoading } from "@/components/loading";
 import { Area } from "../../types";
-
-const COLOR_TEMPLATES = [
-  "var(--color-primary)",
-  "var(--color-info)",
-  "var(--color-success)",
-  "var(--color-warning)",
-  "var(--color-destructive)",
-  "var(--color-accent)",
-  "var(--color-secondary)",
-  "var(--color-muted)",
-];
 
 export interface AreaFormProps {
   open: boolean;
@@ -58,6 +48,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
     formState: { errors },
   } = form;
   const selectedColor = watch("color");
+  const templateColors = getTemplateColors();
   const isMapCreateMode = !isEditing && (initialSelectedCities?.length ?? 0) > 0;
   const cities = initialSelectedCities?.length
     ? initialSelectedCities
@@ -65,6 +56,12 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {errors.root?.message && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {errors.root.message}
+        </div>
+      )}
+
       {/* Show selected cities if available (read-only) */}
       {cities.length > 0 && (
         <Field orientation="vertical">
@@ -116,10 +113,12 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
           <Field orientation="vertical">
             <FieldLabel>{t("area.form.province")} (optional)</FieldLabel>
             <Input placeholder="e.g. Jawa Barat" {...register("province")} />
+            {errors.province && <FieldError>{errors.province.message}</FieldError>}
           </Field>
           <Field orientation="vertical">
             <FieldLabel>{t("area.form.regency")} (optional)</FieldLabel>
             <Input placeholder="e.g. Bandung" {...register("regency")} />
+            {errors.regency && <FieldError>{errors.regency.message}</FieldError>}
           </Field>
         </div>
       )}
@@ -129,6 +128,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
         <Field orientation="vertical">
           <FieldLabel>{t("area.form.district")} (optional)</FieldLabel>
           <Input placeholder="e.g. Coblong" {...register("district")} />
+          {errors.district && <FieldError>{errors.district.message}</FieldError>}
         </Field>
       )}
 
@@ -158,15 +158,15 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
         <FieldLabel>{t("area.form.color")} (optional)</FieldLabel>
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
-            {COLOR_TEMPLATES.map((template) => (
+            {templateColors.map(({ template, hex }) => (
               <button
                 key={template}
                 type="button"
-                onClick={() => setValue("color", template, { shouldDirty: true, shouldValidate: true })}
+                onClick={() => setValue("color", hex, { shouldDirty: true, shouldValidate: true })}
                 className="h-7 w-7 rounded border-2 transition-all hover:scale-105"
                 style={{
-                  backgroundColor: template,
-                  borderColor: selectedColor === template ? "var(--foreground)" : "transparent",
+                  backgroundColor: hex,
+                  borderColor: selectedColor === hex ? "var(--foreground)" : "transparent",
                 }}
                 title={template}
               />
@@ -176,7 +176,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
             <div
               className="w-12 h-12 rounded-lg border-2"
               style={{
-                backgroundColor: selectedColor || "var(--color-muted)",
+                backgroundColor: selectedColor || "#E5E7EB",
               }}
               title="Color preview"
             />
@@ -188,7 +188,7 @@ function AreaFormContent({ open, onClose, onCreateSuccess, area, initialPolygon,
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Click template color or enter any valid CSS color.
+            Click template color or enter any valid CSS color (hex, rgb, hsl, named colors).
           </p>
         </div>
       </Field>

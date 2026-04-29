@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { inventoryService } from "../services/inventory-service";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { InventoryBatchItem } from "../types";
 
 export function useInventoryTree() {
@@ -35,22 +35,48 @@ export function useInventoryTree() {
 
 // Hook for fetching products of a warehouse
 export function useInventoryTreeProducts(warehouseId: string, enabled: boolean, isIngredient?: boolean) {
-  const [page, setPage] = useState(1);
-  
-  const query = useQuery({
-    queryKey: ["inventory", "tree", "products", warehouseId, page, isIngredient],
-    queryFn: () => inventoryService.getTreeProducts(warehouseId, { page, per_page: 50, is_ingredient: isIngredient }), // Load 50 products per chunk
-    enabled: enabled,
+  const query = useInfiniteQuery({
+    queryKey: ["inventory", "tree", "products", warehouseId, isIngredient],
+    queryFn: ({ pageParam = 1 }) =>
+      inventoryService.getTreeProducts(warehouseId, { page: pageParam, per_page: 20, is_ingredient: isIngredient }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.data?.meta;
+      if (!pagination?.has_next) {
+        return undefined;
+      }
+
+      return pagination.page + 1;
+    },
+    enabled: enabled && !!warehouseId,
     staleTime: 60000, // Keep data for 1 min
   });
 
+  const products = useMemo(
+    () => query.data?.pages.flatMap((page) => page.data?.data ?? []) ?? [],
+    [query.data?.pages]
+  );
+
+  const meta = query.data?.pages[query.data.pages.length - 1]?.data?.meta ?? null;
+  const summary = query.data?.pages[0]?.data?.summary ?? null;
+
+  const loadMore = () => {
+    if (!query.hasNextPage || query.isFetchingNextPage) {
+      return;
+    }
+
+    void query.fetchNextPage();
+  };
+
   return {
-    data: query.data?.data?.data ?? [],
-    meta: query.data?.data?.meta,
+    data: products,
+    meta,
+    summary,
     isLoading: query.isLoading,
+    isLoadingMore: query.isFetchingNextPage,
+    hasNextPage: query.hasNextPage,
+    loadMore,
     isError: query.isError,
-    page,
-    setPage,
   };
 }
 

@@ -75,6 +75,10 @@ export const stockMovementEn = {
       selectAll: "Select All",
       deselectAll: "Deselect All",
       items: "items",
+      loadMore: "Load More",
+      loadingMore: "Loading more...",
+      loadMoreWarehouses: "Load More Warehouses",
+      loadingMoreWarehouses: "Loading more warehouses...",
       available: "Available",
       qty: "Qty",
       // Details

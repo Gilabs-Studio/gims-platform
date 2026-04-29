@@ -461,6 +461,11 @@ func AutoMigrate() error {
 		return fmt.Errorf("failed to add menu metadata migration: %w", err)
 	}
 
+	// Relax area location columns so users can store free-form city/region text.
+	if err := migrations.EnsureAreaLocationTextMigration(DB); err != nil {
+		log.Printf("Warning: failed to relax area location columns: %v", err)
+	}
+
 	// NEW: Normalize journal data (casing/consistent naming)
 	if err := normalizeJournalData(); err != nil {
 		log.Printf("Warning: Failed to normalize journal data: %v", err)
