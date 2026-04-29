@@ -21,6 +21,7 @@ import { useLogout } from "@/features/auth/hooks/use-logout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ActivityFeedDialog } from "@/features/crm/activity/components/activity-feed-dialog";
 import type { AttendanceDrawerTab } from "@/features/hrd/attendance-records/components/attendance-right-drawer";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -62,6 +63,8 @@ export const DashboardHeader = memo(function DashboardHeader({
   const currentSrc = avatarLoadFailed
     ? fallbackAvatarUrl
     : (normalizedAvatarUrl ?? fallbackAvatarUrl);
+
+  const canViewActivities = useHasPermission("crm_activity.read");
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background px-4 md:rounded-tl-3xl">
@@ -193,11 +196,19 @@ export const DashboardHeader = memo(function DashboardHeader({
             <div className="flex flex-col gap-1">
               <button
                 type="button"
-                className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                className={
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors " +
+                  (canViewActivities
+                    ? "cursor-pointer hover:bg-accent"
+                    : "opacity-50 cursor-not-allowed")
+                }
                 onClick={() => {
+                  if (!canViewActivities) return;
                   setUserPopoverOpen(false);
                   setActivityFeedOpen(true);
                 }}
+                disabled={!canViewActivities}
+                aria-disabled={!canViewActivities}
               >
                 <Activity className="h-4 w-4" />
                 {t("myActivities")}
