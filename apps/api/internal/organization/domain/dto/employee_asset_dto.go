@@ -36,6 +36,7 @@ type CreateEmployeeAssetRequest struct {
 }
 
 type UpdateEmployeeAssetRequest struct {
+	AssetID         string  `json:"asset_id" binding:"omitempty,uuid"`
 	AssetName       string  `json:"asset_name" binding:"omitempty,max=200"`
 	AssetCode       string  `json:"asset_code" binding:"omitempty,max=100"`
 	AssetCategory   string  `json:"asset_category" binding:"omitempty,max=100"`

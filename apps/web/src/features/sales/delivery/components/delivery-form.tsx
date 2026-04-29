@@ -28,7 +28,12 @@ import {
 } from "../schemas/delivery.schema";
 
 import { ButtonLoading } from "@/components/loading";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+	Field,
+	FieldDescription,
+	FieldLabel,
+	FieldError,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
@@ -213,7 +218,7 @@ export function DeliveryForm({
 											</Field>
 
 											<Field orientation="vertical">
-												<FieldLabel>{t("warehouse")} *</FieldLabel>
+												<FieldLabel>{t("defaultWarehouse")} *</FieldLabel>
 												<Controller
 													name="warehouse_id"
 													control={control}
@@ -267,6 +272,9 @@ export function DeliveryForm({
 														</Select>
 													)}
 												/>
+												<FieldDescription>
+													{t("defaultWarehouseHint")}
+												</FieldDescription>
 												{errors.warehouse_id && (
 													<FieldError>{errors.warehouse_id.message}</FieldError>
 												)}
@@ -806,7 +814,7 @@ function WarehouseSelectionField({
 
 	return (
 		<Field orientation="vertical">
-			<FieldLabel>{t("warehouse")} *</FieldLabel>
+			<FieldLabel>{t("itemWarehouse")} *</FieldLabel>
 			<Controller
 				name={`items.${index}.warehouse_id`}
 				control={control}
@@ -851,6 +859,7 @@ function WarehouseSelectionField({
 					</Select>
 				)}
 			/>
+			<FieldDescription>{t("itemWarehouseHint")}</FieldDescription>
 			{error && <FieldError>{error}</FieldError>}
 		</Field>
 	);

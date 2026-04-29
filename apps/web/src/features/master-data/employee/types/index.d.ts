@@ -284,6 +284,7 @@ export interface CreateEmployeeAssetData {
 }
 
 export interface UpdateEmployeeAssetData {
+	asset_id?: string;
 	asset_name?: string;
 	asset_code?: string;
 	asset_category?: string;

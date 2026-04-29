@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
 	Dialog,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Select,
@@ -26,13 +25,20 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { FileUpload } from "@/components/ui/file-upload";
 import { toast } from "sonner";
-import type { EmployeeAsset, AssetCondition } from "../../types";
-import { useUpdateEmployeeAsset } from "../../hooks/use-employees";
+import type {
+	AssetCondition,
+	AvailableAsset,
+	EmployeeAsset,
+} from "../../types";
+import {
+	useAvailableAssets,
+	useUpdateEmployeeAsset,
+} from "../../hooks/use-employees";
 
 const CONDITION_OPTIONS: AssetCondition[] = [
 	"NEW",
@@ -59,53 +65,93 @@ export function EditAssetDialog({
 }: EditAssetDialogProps) {
 	const t = useTranslations("employee");
 	const updateMutation = useUpdateEmployeeAsset();
+	const { data: availableAssets, isLoading: isLoadingAssets } =
+		useAvailableAssets({
+			enabled: open,
+		});
 
-	const [assetName, setAssetName] = useState("");
-	const [assetCode, setAssetCode] = useState("");
-	const [assetCategory, setAssetCategory] = useState("");
+	const [selectedAssetId, setSelectedAssetId] = useState("");
 	const [borrowDate, setBorrowDate] = useState<Date | undefined>();
 	const [borrowCondition, setBorrowCondition] = useState<string>("");
 	const [assetImage, setAssetImage] = useState("");
 	const [notes, setNotes] = useState("");
 
-	const [prevOpen, setPrevOpen] = useState(false);
+	const assetOptions = useMemo<AvailableAsset[]>(() => {
+		const options = [...(availableAssets ?? [])];
 
-	if (open !== prevOpen) {
-		setPrevOpen(open);
-		if (asset && open) {
-			setAssetName(asset.asset_name ?? "");
-			setAssetCode(asset.asset_code ?? "");
-			setAssetCategory(asset.asset_category ?? "");
-			setBorrowDate(
-				asset.borrow_date ? new Date(asset.borrow_date) : undefined,
-			);
-			setBorrowCondition(asset.borrow_condition ?? "");
-			setAssetImage(asset.asset_image ?? "");
-			setNotes(asset.notes ?? "");
+		if (!asset?.asset_id) {
+			return options;
 		}
-	}
+
+		const currentLinkedAsset: AvailableAsset = asset.asset ?? {
+			id: asset.asset_id,
+			code: asset.asset_code,
+			name: asset.asset_name,
+			category: asset.asset_category
+				? {
+						id: `asset-category-${asset.asset_id}`,
+						name: asset.asset_category,
+					}
+				: undefined,
+			asset_image: asset.asset_image,
+			status: "in_use",
+			book_value: 0,
+		};
+
+		if (!options.some((item) => item.id === currentLinkedAsset.id)) {
+			options.unshift(currentLinkedAsset);
+		}
+
+		return options;
+	}, [availableAssets, asset]);
+
+	const selectedAsset = useMemo(
+		() => assetOptions.find((item) => item.id === selectedAssetId),
+		[assetOptions, selectedAssetId],
+	);
+
+	const resetForm = () => {
+		setSelectedAssetId(asset?.asset_id ?? "");
+		setBorrowDate(asset?.borrow_date ? new Date(asset.borrow_date) : undefined);
+		setBorrowCondition(asset?.borrow_condition ?? "");
+		setAssetImage(asset?.asset_image ?? "");
+		setNotes(asset?.notes ?? "");
+	};
+
+	useEffect(() => {
+		if (!open) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => {
+			resetForm();
+		}, 0);
+
+		return () => window.clearTimeout(timer);
+	}, [open, asset]);
+
+	const handleDialogChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			resetForm();
+		}
+		onOpenChange(nextOpen);
+	};
 
 	const handleSubmit = async (e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 
 		if (!asset) return;
-
-		if (
-			!assetName ||
-			!assetCode ||
-			!assetCategory ||
-			!borrowDate ||
-			!borrowCondition
-		) {
+		if (!selectedAsset || !borrowDate || !borrowCondition) {
 			toast.error("Please fill all required fields");
 			return;
 		}
 
 		const payload = {
-			asset_name: assetName,
-			asset_code: assetCode,
-			asset_category: assetCategory,
+			asset_id: selectedAsset.id,
+			asset_name: selectedAsset.name,
+			asset_code: selectedAsset.code,
+			asset_category: selectedAsset.category?.name || "Uncategorized",
 			borrow_date: format(borrowDate, "yyyy-MM-dd"),
 			borrow_condition: borrowCondition as AssetCondition,
 			asset_image: assetImage || null,
@@ -119,7 +165,7 @@ export function EditAssetDialog({
 				data: payload,
 			});
 			toast.success(t("asset.success.updated"));
-			onOpenChange(false);
+			handleDialogChange(false);
 			onSuccess?.();
 		} catch {
 			toast.error(t("asset.error.updateFailed"));
@@ -127,7 +173,7 @@ export function EditAssetDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleDialogChange}>
 			<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{t("asset.form.editTitle")}</DialogTitle>
@@ -135,32 +181,75 @@ export function EditAssetDialog({
 
 				<div className="space-y-4 py-2">
 					<div className="space-y-2">
-						<Label>{t("asset.fields.assetName")} *</Label>
-						<Input
-							value={assetName}
-							onChange={(e) => setAssetName(e.target.value)}
-							placeholder={t("asset.form.assetNamePlaceholder")}
-						/>
+						<Label>{t("asset.fields.selectAsset")} *</Label>
+						<Select
+							value={selectedAssetId}
+							onValueChange={setSelectedAssetId}
+							disabled={isLoadingAssets}
+						>
+							<SelectTrigger className="cursor-pointer">
+								<SelectValue
+									placeholder={
+										isLoadingAssets
+											? t("asset.form.loadingAssets")
+											: t("asset.form.selectAssetPlaceholder")
+									}
+								/>
+							</SelectTrigger>
+							<SelectContent className="max-h-[300px]">
+								{assetOptions.map((option) => (
+									<SelectItem
+										key={option.id}
+										value={option.id}
+										className="cursor-pointer"
+									>
+										<div className="flex items-center gap-2">
+											<Package className="h-4 w-4 text-muted-foreground" />
+											<span className="font-medium">{option.name}</span>
+											<span className="text-muted-foreground">
+												({option.code})
+											</span>
+											{option.category && (
+												<span className="text-xs text-muted-foreground ml-1">
+													- {option.category.name}
+												</span>
+											)}
+										</div>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label>{t("asset.fields.assetCode")} *</Label>
-							<Input
-								value={assetCode}
-								onChange={(e) => setAssetCode(e.target.value)}
-								placeholder={t("asset.form.assetCodePlaceholder")}
-							/>
+					{selectedAsset && (
+						<div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+							<div className="flex items-center gap-2">
+								<Package className="h-4 w-4 text-primary" />
+								<span className="font-medium">{selectedAsset.name}</span>
+							</div>
+							<div className="text-sm text-muted-foreground space-y-1">
+								<p>
+									{t("asset.fields.assetCode")}: {selectedAsset.code}
+								</p>
+								{selectedAsset.category && (
+									<p>
+										{t("asset.fields.assetCategory")}:{" "}
+										{selectedAsset.category.name}
+									</p>
+								)}
+								{selectedAsset.location && (
+									<p>
+										{t("asset.fields.location")}: {selectedAsset.location.name}
+									</p>
+								)}
+								{selectedAsset.asset_image && !assetImage && (
+									<p className="text-xs text-green-600">
+										{t("asset.form.hasDefaultImage")}
+									</p>
+								)}
+							</div>
 						</div>
-						<div className="space-y-2">
-							<Label>{t("asset.fields.assetCategory")} *</Label>
-							<Input
-								value={assetCategory}
-								onChange={(e) => setAssetCategory(e.target.value)}
-								placeholder={t("asset.form.assetCategoryPlaceholder")}
-							/>
-						</div>
-					</div>
+					)}
 
 					<div className="grid grid-cols-2 gap-4">
 						<div className="space-y-2">
@@ -202,9 +291,17 @@ export function EditAssetDialog({
 									<SelectValue placeholder={t("asset.form.selectCondition")} />
 								</SelectTrigger>
 								<SelectContent>
-									{CONDITION_OPTIONS.map((c) => (
-										<SelectItem key={c} value={c} className="cursor-pointer">
-											{t(`asset.conditions.${c}` as Parameters<typeof t>[0])}
+									{CONDITION_OPTIONS.map((condition) => (
+										<SelectItem
+											key={condition}
+											value={condition}
+											className="cursor-pointer"
+										>
+											{t(
+												`asset.conditions.${condition}` as Parameters<
+													typeof t
+												>[0],
+											)}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -240,7 +337,7 @@ export function EditAssetDialog({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => onOpenChange(false)}
+						onClick={() => handleDialogChange(false)}
 						className="cursor-pointer"
 					>
 						{t("actions.cancel")}
