@@ -556,7 +556,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <LeadActivityFeed
                   leadId={lead.id}
                   enabled={isActivitiesTabActive}
-                  canCreateActivity={canCreateActivity}
+                  canCreateActivity={true}
                   canCreateVisit={canCreateVisit}
                   onLogActivity={() => setShowActivityDialog(true)}
                   onLogVisit={() => setShowVisitDialog(true)}
@@ -1137,8 +1137,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
         />
       )}
 
-      {canCreateActivity && (
-        <LogActivityDialog
+      <LogActivityDialog
           open={showActivityDialog}
           onClose={() => setShowActivityDialog(false)}
           leadId={lead.id}
@@ -1150,7 +1149,6 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             setActivityRefreshKey((k) => k + 1);
           }}
         />
-      )}
 
       {canCreateVisit && (
         <LogVisitDialog

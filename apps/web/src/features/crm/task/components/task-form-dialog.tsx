@@ -384,7 +384,7 @@ export function TaskFormDialog({
                   </Field>
 
                   <Field orientation="vertical">
-                    <FieldLabel>{t("form.dueTime")}</FieldLabel>
+                    <FieldLabel>{t("form.reminderTime")}</FieldLabel>
                     <Input
                       type="time"
                       value={reminderTime}
