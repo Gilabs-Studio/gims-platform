@@ -63,8 +63,6 @@ export const warehouseEn = {
       namePlaceholder: "Enter warehouse name",
       description: "Description",
       descriptionPlaceholder: "Enter description (optional)",
-      capacity: "Capacity",
-      capacityPlaceholder: "Enter storage capacity",
       address: "Address",
       addressPlaceholder: "Enter address",
       province: "Province",
@@ -91,7 +89,6 @@ export const warehouseEn = {
     codeMaxLength: "Code cannot exceed 50 characters",
     descriptionMaxLength: "Description cannot exceed 500 characters",
     addressMaxLength: "Address cannot exceed 500 characters",
-    capacityMin: "Capacity must be a positive number",
   },
 };
 

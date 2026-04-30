@@ -78,7 +78,7 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false, cartQuan
             />
           </div>
 
-          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50 shrink-0">
+          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/20 shrink-0">
             {(["small", "medium", "large"] as const).map((size) => (
               <Button
                 key={size}
@@ -160,8 +160,9 @@ function ProductCard({
   gridSize,
 }: ProductCardProps & { gridSize: POSGridSize }) {
   const displayStock = Math.max(0, item.stock - cartQuantity);
-  const isLowStock = item.product_kind === "STOCK" && displayStock < 5 && displayStock > 0;
-  const isOutOfStock = !item.is_available || (item.product_kind === "STOCK" && displayStock === 0);
+  const isStockLike = item.product_kind === "STOCK" || item.product_kind === "RECIPE";
+  const isLowStock = isStockLike && displayStock < 5 && displayStock > 0;
+  const isOutOfStock = !item.is_available || (isStockLike && displayStock === 0);
   const [imageBroken, setImageBroken] = useState(false);
   const resolvedImageUrl = resolveImageUrl(item.image_url ?? undefined);
   const showImage = !!resolvedImageUrl && !imageBroken;
@@ -178,7 +179,7 @@ function ProductCard({
         "focus-visible:ring-2 focus-visible:ring-ring",
         "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.98]",
         "cursor-pointer overflow-hidden",
-        (disabled || isOutOfStock) && "opacity-50 cursor-not-allowed",
+        (disabled || isOutOfStock) && "opacity-30 cursor-not-allowed",
       )}
     >
       {/* Product image / fallback */}
@@ -219,7 +220,7 @@ function ProductCard({
           >
             {formatCurrency(item.price)}
           </span>
-          {item.product_kind === "STOCK" && (
+          {isStockLike && (
             <Badge
               variant={isOutOfStock ? "destructive" : isLowStock ? "warning" : "secondary"}
               className={cn(
@@ -227,7 +228,7 @@ function ProductCard({
                 gridSize === "large" ? "text-sm" : "text-[9px]",
               )}
             >
-              {displayStock}
+              {Number.isInteger(displayStock) ? displayStock : displayStock.toFixed(2)}
             </Badge>
           )}
         </div>

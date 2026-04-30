@@ -937,13 +937,6 @@ func (uc *purchasePaymentUsecase) confirmPaymentTx(ctx context.Context, tx *gorm
 		return "", err
 	}
 
-	if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeNormal && inv.PurchaseOrderID != "" {
-		var po models.PurchaseOrder
-		if err := tx.First(&po, "id = ?", inv.PurchaseOrderID).Error; err == nil {
-			_ = tx.Model(&po).Update("status", "closed").Error
-		}
-	}
-
 	if newStatus == models.SupplierInvoiceStatusPaid && inv.Type == models.SupplierInvoiceTypeDownPayment && inv.PurchaseOrderID != "" {
 		type dpSumRow struct{ Total float64 }
 		var dpSum dpSumRow

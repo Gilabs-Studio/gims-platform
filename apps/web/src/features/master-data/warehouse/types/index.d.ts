@@ -26,7 +26,6 @@ export interface Warehouse {
   code: string;
   name: string;
   description?: string;
-  capacity?: number;
   address?: string;
   province_id?: string;
   province?: { id: string; name: string };
@@ -50,7 +49,6 @@ export interface Warehouse {
 export interface CreateWarehouseData {
   name: string;
   description?: string;
-  capacity?: number;
   address?: string;
   province_id?: string;
   city_id?: string;
@@ -67,7 +65,6 @@ export interface UpdateWarehouseData {
   code?: string;
   name?: string;
   description?: string;
-  capacity?: number;
   address?: string;
   // null = explicit clear (set DB column to NULL), string = set to UUID, undefined = always send null (caller must handle)
   province_id?: string | null;

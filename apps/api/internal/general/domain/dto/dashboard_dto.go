@@ -239,7 +239,6 @@ type WarehouseItem struct {
 	StockValue         float64 `json:"stock_value"`
 	StockFormatted     string  `json:"stock_formatted"`
 	ItemCount          int     `json:"item_count"`
-	UtilizationPercent float64 `json:"utilization_percent"`
 	// Stock status breakdown — consistent with inventory feature status logic
 	InStockCount    int `json:"in_stock_count"`
 	LowStockCount   int `json:"low_stock_count"`
@@ -274,9 +273,15 @@ type DashboardLayoutResponse struct {
 type POSOutletItem struct {
 	OutletID              string  `json:"outlet_id"`
 	OutletName            string  `json:"outlet_name"`
+	FloorPlanID           string  `json:"floor_plan_id,omitempty"`
+	ActiveTableCount      int     `json:"active_table_count"`
+	ActiveTableLabels     []string `json:"active_table_labels,omitempty"`
 	TodayRevenue          float64 `json:"today_revenue"`
 	TodayRevenueFormatted string  `json:"today_revenue_formatted"`
 	OrderCount            int     `json:"order_count"`
+	ServedOrders          int     `json:"served_orders"`
+	WaitingOrders         int     `json:"waiting_orders"`
+	WarningOrders         int     `json:"warning_orders"`
 	TablesTotal           int     `json:"tables_total"`
 	TablesOccupied        int     `json:"tables_occupied"`
 }
@@ -287,6 +292,22 @@ type POSSummaryData struct {
 	TodayTotalRevenue         float64         `json:"today_total_revenue"`
 	TodayTotalRevenueFormatted string         `json:"today_total_revenue_formatted"`
 	TodayTotalOrders          int             `json:"today_total_orders"`
+	ServedOrders              int             `json:"served_orders"`
+	WaitingOrders             int             `json:"waiting_orders"`
+	WarningOrders             int             `json:"warning_orders"`
+	ActiveSessions            int             `json:"active_sessions"`
+	OpeningCashToday          float64         `json:"opening_cash_today"`
+	OpeningCashTodayFormatted string          `json:"opening_cash_today_formatted"`
+	CashSalesToday            float64         `json:"cash_sales_today"`
+	CashSalesTodayFormatted   string          `json:"cash_sales_today_formatted"`
+	CashChangeToday           float64         `json:"cash_change_today"`
+	CashChangeTodayFormatted  string          `json:"cash_change_today_formatted"`
+	ExpectedCash              float64         `json:"expected_cash"`
+	ExpectedCashFormatted     string          `json:"expected_cash_formatted"`
+	ActualCash                float64         `json:"actual_cash"`
+	ActualCashFormatted       string          `json:"actual_cash_formatted"`
+	CashVariance              float64         `json:"cash_variance"`
+	CashVarianceFormatted     string          `json:"cash_variance_formatted"`
 }
 
 // ---- HR Summary DTOs ----

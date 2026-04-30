@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Phone, User, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -12,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
@@ -36,7 +36,7 @@ const contactSchema = z.object({
   name: z.string().min(2, "Name is required"),
   contact_role_id: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().min(3, "Phone number is required").regex(/^\d+$/, "Phone number must contain digits only"),
+  phone: z.string().min(3, "Phone number is required"),
   notes: z.string().optional(),
   is_primary: z.boolean().default(false),
 });
@@ -71,10 +71,7 @@ export function SupplierContactList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<SupplierContactListItem | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{
-    index: number;
-    item: SupplierContactListItem;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ index: number; item: SupplierContactListItem } | null>(null);
 
   const addMutation = useAddContact();
   const updateMutation = useUpdateContact();
@@ -312,7 +309,7 @@ export function SupplierContactList({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
-                      onClick={() => setPendingDelete({ index, item: contact })}
+                      onClick={() => setDeleteTarget({ index, item: contact })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -382,17 +379,7 @@ export function SupplierContactList({
 
               <Field orientation="vertical">
                 <FieldLabel>{t("form.phone") || "Phone Number"} *</FieldLabel>
-                <Input
-                  placeholder={t("form.phonePlaceholder") || "Enter phone number"}
-                  inputMode="numeric"
-                  onKeyDown={(e) => {
-                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
-                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
-                      e.preventDefault();
-                    }
-                  }}
-                  {...register("phone")}
-                />
+                <Input placeholder={t("form.phonePlaceholder") || "Enter phone number"} {...register("phone")} />
                 {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
               </Field>
 
@@ -448,20 +435,18 @@ export function SupplierContactList({
       </Dialog>
 
       <DeleteDialog
-        open={!!pendingDelete}
+        open={!!deleteTarget}
         onOpenChange={(open) => {
           if (!open) {
-            setPendingDelete(null);
+            setDeleteTarget(null);
           }
         }}
         onConfirm={async () => {
-          if (!pendingDelete) return;
-          await handleDelete(pendingDelete.index, pendingDelete.item);
-          setPendingDelete(null);
+          if (!deleteTarget) return;
+          await handleDelete(deleteTarget.index, deleteTarget.item);
+          setDeleteTarget(null);
         }}
-        title={tCommon("deleteConfirm") || "Are you sure?"}
-        description={t("deleteDescription") || undefined}
-        itemName={t("title") || "contact"}
+        itemName={deleteTarget?.item.name ?? t("singular")}
         isLoading={deleteMutation.isPending}
       />
     </div>

@@ -17,10 +17,15 @@ type StockOpnameRepository interface {
 	// Items
 	ReplaceItems(ctx context.Context, opnameID string, items []models.StockOpnameItem) error
 	ListItems(ctx context.Context, opnameID string) ([]models.StockOpnameItem, error)
+	ListItemsPaginated(ctx context.Context, opnameID string, page, perPage int) ([]models.StockOpnameItem, int64, error)
+	ListWarehouseStockSnapshot(ctx context.Context, warehouseID, scopeType string, categoryIDs, brandIDs []string) ([]dto.WarehouseStockSnapshot, error)
 
 	// Status
 	UpdateStatus(ctx context.Context, id string, status models.StockOpnameStatus, userID *string) error
 	
 	// Helper
 	GetNextOpnameNumber(ctx context.Context) (string, error)
+
+	// GetMyWarehouses returns warehouses assigned to the given user via user_warehouses.
+	GetMyWarehouses(ctx context.Context, userID string) ([]dto.UserWarehouseInfo, error)
 }

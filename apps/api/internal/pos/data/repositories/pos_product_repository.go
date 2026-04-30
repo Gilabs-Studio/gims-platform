@@ -1,8 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"math"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"gorm.io/gorm"
 
@@ -27,7 +29,7 @@ type POSCatalogProduct struct {
 type POSProductRepository interface {
 	FindByID(ctx context.Context, id string) (*productModels.Product, error)
 	FindByIDWithRecipe(ctx context.Context, id string) (*productModels.Product, error)
-	FindPOSAvailable(ctx context.Context, warehouseID string) ([]POSCatalogProduct, error)
+	FindPOSAvailable(ctx context.Context, warehouseID string, outletID string) ([]POSCatalogProduct, error)
 }
 
 type posProductRepository struct {
@@ -62,15 +64,28 @@ func (r *posProductRepository) FindByIDWithRecipe(ctx context.Context, id string
 	return &product, nil
 }
 
-// FindPOSAvailable returns all POS-available products with live stock for the given warehouse.
+// FindPOSAvailable returns products visible in the POS catalog for the given outlet + warehouse.
+// - pos_scope='global': visible in all outlets
+// - pos_scope='specific': visible only if outlet is registered in product_outlets
 // When warehouseID is empty, stock values are 0 (catalog only, no stock info).
-func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID string) ([]POSCatalogProduct, error) {
+func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID string, outletID string) ([]POSCatalogProduct, error) {
 	var products []productModels.Product
-	err := database.GetDB(ctx, r.db).
+
+	db := database.GetDB(ctx, r.db).
 		Preload("Category").
-		Where("is_pos_available = ? AND deleted_at IS NULL AND status = ? AND is_approved = ? AND is_active = ?", true, productModels.ProductStatusApproved, true, true).
-		Order("name ASC").
-		Find(&products).Error
+		Preload("RecipeItems").
+		Where("deleted_at IS NULL AND status = ? AND is_approved = ? AND is_active = ? AND pos_scope IN ('global', 'specific')",
+			productModels.ProductStatusApproved, true, true)
+
+	if outletID != "" {
+		// Include global-scope products OR specific-scope products assigned to this outlet
+		db = db.Where(
+			"pos_scope = 'global' OR EXISTS (SELECT 1 FROM product_outlets WHERE product_id = products.id AND outlet_id = ? AND deleted_at IS NULL)",
+			outletID,
+		)
+	}
+
+	err := db.Order("name ASC").Find(&products).Error
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +112,10 @@ func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID
 	result := make([]POSCatalogProduct, 0, len(products))
 	for _, p := range products {
 		avail := stockMap[p.ID]
+		if p.ProductKind == productModels.ProductKindRecipe {
+			avail = computeRecipeProducibleQty(p.RecipeItems, stockMap)
+		}
+
 		categoryName := ""
 		if p.Category != nil {
 			categoryName = p.Category.Name
@@ -108,11 +127,10 @@ func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID
 		isAvailable := false
 		switch p.ProductKind {
 		case productModels.ProductKindStock:
-			// Show all STOCK products in the catalog; mark as unavailable when stock is 0
-			// so the UI can dim the card without hiding the product entirely.
 			isAvailable = avail > 0
-		case productModels.ProductKindRecipe, productModels.ProductKindService:
-			// Recipe/Service availability is validated at order-item time, not here.
+		case productModels.ProductKindRecipe:
+			isAvailable = avail > 0
+		case productModels.ProductKindService:
 			isAvailable = true
 		default:
 			isAvailable = false
@@ -130,4 +148,33 @@ func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID
 		})
 	}
 	return result, nil
+}
+
+func computeRecipeProducibleQty(items []productModels.ProductRecipeItem, ingredientStock map[string]float64) float64 {
+	if len(items) == 0 {
+		return 0
+	}
+
+	maxProducible := math.MaxFloat64
+	hasValidIngredient := false
+	for _, item := range items {
+		if item.Quantity <= 0 {
+			continue
+		}
+		hasValidIngredient = true
+		available := ingredientStock[item.IngredientProductID]
+		possible := available / item.Quantity
+		if possible < maxProducible {
+			maxProducible = possible
+		}
+	}
+
+	if !hasValidIngredient || maxProducible == math.MaxFloat64 {
+		return 0
+	}
+	if maxProducible < 0 {
+		return 0
+	}
+
+	return math.Floor(maxProducible)
 }

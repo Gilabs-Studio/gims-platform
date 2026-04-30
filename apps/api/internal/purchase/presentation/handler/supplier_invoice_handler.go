@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -143,7 +144,7 @@ func (h *SupplierInvoiceHandler) Create(c *gin.Context) {
 			errors.NotFoundResponse(c, "payment_terms", fmt.Sprintf("%v", req.PaymentTermsID))
 			return
 		}
-		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid {
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid || stdErrors.Is(err, usecase.ErrSupplierInvoiceQuantityExceeded) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
@@ -172,7 +173,7 @@ func (h *SupplierInvoiceHandler) PreviewJournal(c *gin.Context) {
 			errors.NotFoundResponse(c, "goods_receipt", fmt.Sprintf("%v", req.GoodsReceiptID))
 			return
 		}
-		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid {
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid || stdErrors.Is(err, usecase.ErrSupplierInvoiceQuantityExceeded) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
@@ -223,7 +224,7 @@ func (h *SupplierInvoiceHandler) Update(c *gin.Context) {
 			errors.NotFoundResponse(c, "payment_terms", fmt.Sprintf("%v", req.PaymentTermsID))
 			return
 		}
-		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid {
+		if err == usecase.ErrInvalidStatus || err == usecase.ErrSupplierInvoiceConflict || err == usecase.ErrSupplierInvoiceInvalid || stdErrors.Is(err, usecase.ErrSupplierInvoiceQuantityExceeded) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}

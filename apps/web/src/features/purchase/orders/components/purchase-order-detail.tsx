@@ -9,7 +9,6 @@ import {
   XCircle,
   Send,
   Printer,
-  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,10 +41,8 @@ import {
   usePurchaseOrder,
   useDeletePurchaseOrder,
   useSubmitPurchaseOrder,
-  useConfirmPurchaseOrder,
   useApprovePurchaseOrder,
   useRejectPurchaseOrder,
-  useClosePurchaseOrder,
 } from "../hooks/use-purchase-orders";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderAuditTrailContent } from "./purchase-order-audit-trail";
@@ -82,11 +79,9 @@ export function PurchaseOrderDetail({
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
   const canEdit = useUserPermission("purchase_order.update");
-  const canDelete = useUserPermission("purchase_order.delete");
   const canSubmit = useUserPermission("purchase_order.submit");
   const canApprove = useUserPermission("purchase_order.approve");
   const canReject = useUserPermission("purchase_order.reject");
-  const canClose = useUserPermission("purchase_order.close");
   const canPrint = useUserPermission("purchase_order.print");
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canViewSupplier = useUserPermission("supplier.read");
@@ -101,10 +96,8 @@ export function PurchaseOrderDetail({
 
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
-  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
-  const closeMutation = useClosePurchaseOrder();
 
   if (!purchaseOrderId) return null;
 
@@ -150,16 +143,6 @@ export function PurchaseOrderDetail({
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch (error) {
-      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
-    }
-  };
-
-  const handleClose = async () => {
-    if (!id) return;
-    try {
-      await closeMutation.mutateAsync(id);
-      toast.success(t("toast.closed"));
     } catch (error) {
       toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
@@ -244,38 +227,6 @@ export function PurchaseOrderDetail({
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "APPROVED" && canApprove && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={async () => {
-                      if (!id) return;
-                      try {
-                        await confirmMutation.mutateAsync(id);
-                        toast.success(t("toast.confirmed"));
-                      } catch (error) {
-                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
-                      }
-                    }}
-                    disabled={confirmMutation.isPending}
-                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
-                    title={t("actions.confirm")}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "APPROVED" && canClose && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleClose}
-                    disabled={closeMutation.isPending}
-                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
-                    title={t("actions.close")}
-                  >
-                    <Lock className="h-4 w-4" />
                   </Button>
                 )}
                 {status === "APPROVED" && canCreateSI && hasGoodsReceipt && (

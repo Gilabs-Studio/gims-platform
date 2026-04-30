@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { MapPin, Loader2, Camera, X, Check, CalendarIcon, Plus, Trash2, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -124,6 +124,10 @@ export function LogVisitDialog({
     [questions]
   );
 
+  // Guard against re-running the product-init effect after the user has already
+  // added or modified items within the same dialog open session.
+  const productItemsInitializedRef = useRef(false);
+
   // Tab state
   const [activeTab, setActiveTab] = useState<"info" | "products">("info");
 
@@ -148,6 +152,12 @@ export function LogVisitDialog({
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const isProductSelectedInAnotherRow = useCallback(
+    (productId: string, rowIndex: number) =>
+      productItems.some((item, index) => index !== rowIndex && item.product_id === productId),
+    [productItems],
+  );
+
   // Initialize fields from props when dialog opens
   useEffect(() => {
     if (open) {
@@ -165,7 +175,15 @@ export function LogVisitDialog({
   // This fixes a bug where saving a backdated visit/activity would revive products already removed
   // by a more recent (higher timestamp) activity.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Reset the guard whenever the dialog closes so the next open always re-initialises.
+      productItemsInitializedRef.current = false;
+      return;
+    }
+
+    // Skip if already initialised this session — prevents a background query refetch from
+    // overwriting items the user has manually added (e.g. the newly added empty product row).
+    if (productItemsInitializedRef.current) return;
 
     // Find the most recent activity (by timestamp) that has products in its metadata.
     const latestWithProducts = recentActivitiesRes?.data?.find((a) => {
@@ -189,6 +207,9 @@ export function LogVisitDialog({
     );
 
     if (!latestProductMap && !fallbackItems.length) return;
+
+    // Mark as initialised before calling setProductItems to prevent concurrent effect runs.
+    productItemsInitializedRef.current = true;
 
     setProductItems((prev) => {
       const merged = new Map<string, ProductInterestItem>();
@@ -682,7 +703,12 @@ export function LogVisitDialog({
                       </div>
                       <Select
                         value={item.product_id}
-                        onValueChange={(val) =>
+                        onValueChange={(val) => {
+                          if (isProductSelectedInAnotherRow(val, idx)) {
+                            toast.error(t("validation.duplicateProduct"));
+                            return;
+                          }
+
                           setProductItems((prev) =>
                             prev.map((p, i) => {
                               if (i !== idx) return p;
@@ -694,18 +720,21 @@ export function LogVisitDialog({
                                 price: p.price === 0 && found?.selling_price ? found.selling_price : p.price,
                               };
                             })
-                          )
-                        }
+                          );
+                        }}
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder={t("form.selectProduct")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="cursor-pointer">
+                          {products.map((p) => {
+                            const selectedInAnotherRow = isProductSelectedInAnotherRow(p.id, idx);
+                            return (
+                            <SelectItem key={p.id} value={p.id} className="cursor-pointer" disabled={selectedInAnotherRow}>
                               {p.name} {p.code && `(${p.code})`}
                             </SelectItem>
-                          ))}
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

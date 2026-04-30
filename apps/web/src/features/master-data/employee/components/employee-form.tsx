@@ -65,6 +65,7 @@ import { DivisionForm } from "@/features/master-data/organization/components/div
 import { JobPositionForm } from "@/features/master-data/organization/components/job-position/job-position-form";
 import { useCompanies, useCreateCompany } from "@/features/master-data/organization/hooks/use-companies";
 import { useCreateUser, useRoles } from "@/features/master-data/user-management/hooks/use-users";
+import { useUserLimit } from "@/features/master-data/user-management/hooks/use-user-limit";
 import { ButtonLoading } from "@/components/loading";
 import {
   employeeSchema,
@@ -148,6 +149,7 @@ export function EmployeeForm({
 
   const createUser = useCreateUser();
   const { data: rolesData } = useRoles({ enabled: open });
+  const { data: userLimitData } = useUserLimit();
 
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
@@ -158,6 +160,9 @@ export function EmployeeForm({
     () => availableUsersData?.data ?? [],
     [availableUsersData],
   );
+  const hasUserQuota = userLimitData
+    ? userLimitData.current < userLimitData.max
+    : null;
 
   // Areas from the form-data endpoint for the area assignment dropdown
   const areaOptions = useMemo(
@@ -348,6 +353,10 @@ export function EmployeeForm({
       let finalUserId = data.user_id || undefined;
 
       if (!isEditing && data.create_user) {
+        if (hasUserQuota === false) {
+          toast.error("Tenant user quota is full. Cannot create a new linked user account.");
+          return;
+        }
         if (!data.role_id) {
           toast.error("Role is required when creating a user");
           return;
@@ -585,29 +594,39 @@ export function EmployeeForm({
               {/* User account link */}
               <div className="space-y-4 p-4 border rounded-lg">
                 {!isEditing && (
-                  <Field
-                    orientation="horizontal"
-                    className="flex justify-between items-center"
-                  >
-                    <div className="space-y-0.5">
-                      <FieldLabel className="text-base text-foreground">Create User Account</FieldLabel>
-                      <p className="text-sm text-muted-foreground">Automatically create and link a system user.</p>
+                  hasUserQuota === null ? (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                      Checking tenant user quota...
                     </div>
-                    <Controller
-                      control={control}
-                      name="create_user"
-                      render={({ field }) => (
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="cursor-pointer"
-                        />
-                      )}
-                    />
-                  </Field>
+                  ) : hasUserQuota ? (
+                    <Field
+                      orientation="horizontal"
+                      className="flex justify-between items-center"
+                    >
+                      <div className="space-y-0.5">
+                        <FieldLabel className="text-base text-foreground">Create User Account</FieldLabel>
+                        <p className="text-sm text-muted-foreground">Automatically create and link a system user.</p>
+                      </div>
+                      <Controller
+                        control={control}
+                        name="create_user"
+                        render={({ field }) => (
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="cursor-pointer"
+                          />
+                        )}
+                      />
+                    </Field>
+                  ) : (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                      Tenant user quota is full. Create User Account is unavailable.
+                    </div>
+                  )
                 )}
 
-                {watch("create_user") && !isEditing ? (
+                {watch("create_user") && !isEditing && hasUserQuota === true ? (
                   <div className="grid grid-cols-2 gap-4">
                     <Field orientation="vertical">
                       <FieldLabel>Role *</FieldLabel>

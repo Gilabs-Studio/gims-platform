@@ -23,6 +23,7 @@ export const supplierEn = {
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
     viewDetails: "View Details",
+    primary: "Primary",
   },
   supplierType: {
     title: "Supplier Types",
@@ -199,9 +200,15 @@ export const supplierEn = {
     deleteTitle: "Delete Bank Account",
     deleteConfirm: "Are you sure you want to delete this bank account?",
     empty: "No bank accounts added",
+    createSuccess: "Bank account added",
+    updateSuccess: "Bank account updated",
+    saveError: "Failed to save bank account",
+    unknownBank: "Unknown bank",
+    emptyBankOptions: "No banks found",
     form: {
       bank: "Bank",
       bankPlaceholder: "Select bank",
+      bankSearchPlaceholder: "Search bank",
       currency: "Currency",
       currencyPlaceholder: "Select currency",
       accountNumber: "Account Number",
@@ -211,6 +218,7 @@ export const supplierEn = {
       branch: "Branch",
       branchPlaceholder: "Enter branch name (optional)",
       isPrimary: "Primary",
+      primaryDescription: "Set as the main bank account",
     },
   },
   validation: {

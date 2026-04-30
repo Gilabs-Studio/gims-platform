@@ -11,7 +11,7 @@ type CreateGoodsReceiptRequest struct {
 type CreateGoodsReceiptItemRequest struct {
 	PurchaseOrderItemID string  `json:"purchase_order_item_id" binding:"required,uuid"`
 	ProductID           string  `json:"product_id" binding:"required,uuid"`
-	QuantityReceived    float64 `json:"quantity_received" binding:"required,gte=0"`
+	QuantityReceived    float64 `json:"quantity_received" binding:"gte=0"`
 	Notes               *string `json:"notes,omitempty"`
 }
 

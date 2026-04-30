@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/mail"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
@@ -42,71 +44,83 @@ func NewSupplierUsecase(repo repositories.SupplierRepository) SupplierUsecase {
 }
 
 func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.CreateSupplierRequest) (dto.SupplierResponse, error) {
-	// Auto-generate supplier code
-	code, err := u.repo.GetNextCode(ctx)
-	if err != nil {
-		return dto.SupplierResponse{}, errors.New("failed to generate supplier code")
-	}
-
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
 	}
 
-	supplier := &models.Supplier{
-		ID:            uuid.New().String(),
-		Code:          code,
-		Name:          req.Name,
-		Address:       req.Address,
-		Email:         req.Email,
-		Website:       req.Website,
-		NPWP:          req.NPWP,
-		ContactPerson: req.ContactPerson,
-		Notes:         req.Notes,
-		Latitude:      req.Latitude,
-		Longitude:     req.Longitude,
-		Status:        models.SupplierStatusApproved,
-		IsApproved:    true,
-		CreatedBy:     &userID,
-		IsActive:      isActive,
+	var supplier *models.Supplier
+	for attempt := 0; attempt < 5; attempt++ {
+		code, err := u.repo.GetNextCode(ctx)
+		if err != nil {
+			return dto.SupplierResponse{}, errors.New("failed to generate supplier code")
+		}
+
+		supplier = &models.Supplier{
+			ID:            uuid.New().String(),
+			Code:          code,
+			Name:          req.Name,
+			Address:       req.Address,
+			Email:         req.Email,
+			Website:       req.Website,
+			NPWP:          req.NPWP,
+			ContactPerson: req.ContactPerson,
+			Notes:         req.Notes,
+			Latitude:      req.Latitude,
+			Longitude:     req.Longitude,
+			Status:        models.SupplierStatusApproved,
+			IsApproved:    true,
+			CreatedBy:     &userID,
+			IsActive:      isActive,
+		}
+
+		if req.SupplierTypeID != "" {
+			supplier.SupplierTypeID = &req.SupplierTypeID
+		}
+		if req.PaymentTermsID != "" {
+			supplier.PaymentTermsID = &req.PaymentTermsID
+		}
+		if req.BusinessUnitID != "" {
+			supplier.BusinessUnitID = &req.BusinessUnitID
+		}
+		if req.ProvinceID != "" {
+			supplier.ProvinceID = &req.ProvinceID
+		}
+		if req.CityID != "" {
+			supplier.CityID = &req.CityID
+		}
+		if req.DistrictID != "" {
+			supplier.DistrictID = &req.DistrictID
+		}
+		if req.VillageID != "" {
+			supplier.VillageID = &req.VillageID
+		}
+		if req.VillageName != "" {
+			supplier.VillageName = &req.VillageName
+		}
+
+		if err := u.repo.Create(ctx, supplier); err != nil {
+			if isUniqueSupplierCodeError(err) {
+				supplier = nil
+				continue
+			}
+			return dto.SupplierResponse{}, err
+		}
+
+		break
 	}
 
-	// Set optional relations
-	if req.SupplierTypeID != "" {
-		supplier.SupplierTypeID = &req.SupplierTypeID
-	}
-	if req.PaymentTermsID != "" {
-		supplier.PaymentTermsID = &req.PaymentTermsID
-	}
-	if req.BusinessUnitID != "" {
-		supplier.BusinessUnitID = &req.BusinessUnitID
-	}
-	if req.ProvinceID != "" {
-		supplier.ProvinceID = &req.ProvinceID
-	}
-	if req.CityID != "" {
-		supplier.CityID = &req.CityID
-	}
-	if req.DistrictID != "" {
-		supplier.DistrictID = &req.DistrictID
-	}
-	if req.VillageID != "" {
-		supplier.VillageID = &req.VillageID
-	}
-	if req.VillageName != "" {
-		supplier.VillageName = &req.VillageName
-	}
-
-	if err := u.repo.Create(ctx, supplier); err != nil {
-		return dto.SupplierResponse{}, err
+	if supplier == nil {
+		return dto.SupplierResponse{}, fmt.Errorf("failed to generate unique supplier code after retries")
 	}
 
 	// Create phone numbers
 	for _, phone := range req.Contacts {
+		contactRoleID := normalizeOptionalUUIDPointer(phone.ContactRoleID)
 		phoneModel := &models.SupplierContact{
 			ID:            uuid.New().String(),
 			SupplierID:    supplier.ID,
-			ContactRoleID: phone.ContactRoleID,
+			ContactRoleID: contactRoleID,
 			Name:          phone.Name,
 			Email:         phone.Email,
 			Phone:         phone.Phone,
@@ -348,10 +362,11 @@ func (u *supplierUsecase) Approve(ctx context.Context, id string, userID string,
 
 // Nested contact operations
 func (u *supplierUsecase) AddContact(ctx context.Context, supplierID string, req dto.CreateContactRequest) (dto.ContactResponse, error) {
+	contactRoleID := normalizeOptionalUUIDPointer(req.ContactRoleID)
 	phone := &models.SupplierContact{
 		ID:            uuid.New().String(),
 		SupplierID:    supplierID,
-		ContactRoleID: req.ContactRoleID,
+		ContactRoleID: contactRoleID,
 		Name:          req.Name,
 		Email:         req.Email,
 		Phone:         req.Phone,
@@ -388,7 +403,7 @@ func (u *supplierUsecase) UpdateContact(ctx context.Context, id string, req dto.
 	// For simplicity, we'll update directly. In production, you'd want a FindPhoneByID method
 	phone := &models.SupplierContact{ID: id}
 	if req.ContactRoleID != nil {
-		phone.ContactRoleID = req.ContactRoleID
+		phone.ContactRoleID = normalizeOptionalUUIDPointer(req.ContactRoleID)
 	}
 	if req.Name != "" {
 		phone.Name = req.Name
@@ -498,4 +513,32 @@ func (u *supplierUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 
 func (u *supplierUsecase) DeleteBankAccount(ctx context.Context, id string) error {
 	return u.repo.DeleteBankAccount(ctx, id)
+}
+
+func isUniqueSupplierCodeError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "23505") && !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+
+	return strings.Contains(msg, "suppliers_code") ||
+		strings.Contains(msg, "uq_suppliers_tenant_code_active") ||
+		strings.Contains(msg, "supplier code")
+}
+
+func normalizeOptionalUUIDPointer(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+
+	return &trimmed
 }

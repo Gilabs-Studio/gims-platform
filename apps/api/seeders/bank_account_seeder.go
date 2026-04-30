@@ -26,16 +26,19 @@ type bankAccountSeed struct {
 func SeedBankAccounts() error {
 	if isMinimalSeedMode() {
 		db := database.DB
+		if err := ensureChartOfAccountTenantScopedUniqueIndex(db); err != nil {
+			return err
+		}
 		companyID := GiLabsCompanyID
 		actorID := AdminEmployeeID
 		// Minimal bank account + corresponding COA.
-		coa := financeModels.ChartOfAccount{Code: "11101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
-		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
+		coa := financeModels.ChartOfAccount{TenantID: DefaultTenantID, Code: "11101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "tenant_id"}, {Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
 			return err
 		}
 
 		var existingID string
-		if err := db.Model(&financeModels.ChartOfAccount{}).Where("code = ?", coa.Code).Pluck("id", &existingID).Error; err != nil {
+		if err := db.Model(&financeModels.ChartOfAccount{}).Where("tenant_id = ? AND code = ?", DefaultTenantID, coa.Code).Pluck("id", &existingID).Error; err != nil {
 		}
 
 		account := coreModels.BankAccount{
@@ -57,6 +60,9 @@ func SeedBankAccounts() error {
 	}
 
 	db := database.DB
+	if err := ensureChartOfAccountTenantScopedUniqueIndex(db); err != nil {
+		return err
+	}
 
 	// 1) Resolve currency ID mapping.
 	currencyIDs := map[string]string{}
@@ -93,13 +99,14 @@ func SeedBankAccounts() error {
 			continue
 		}
 		coa := financeModels.ChartOfAccount{
+			TenantID: DefaultTenantID,
 			Code:     s.coaCode,
 			Name:     s.coaName,
 			Type:     financeModels.AccountTypeCashBank,
 			IsActive: s.isActive,
 		}
 		if err := db.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "code"}},
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"}),
 		}).Create(&coa).Error; err != nil {
 			log.Printf("Warning: Failed to upsert COA %s for bank account %s: %v", s.coaCode, s.name, err)
@@ -113,7 +120,7 @@ func SeedBankAccounts() error {
 			continue
 		}
 		var record financeModels.ChartOfAccount
-		if err := db.Where("code = ?", s.coaCode).First(&record).Error; err == nil {
+		if err := db.Where("tenant_id = ? AND code = ?", DefaultTenantID, s.coaCode).First(&record).Error; err == nil {
 			coaByCode[s.coaCode] = record.ID
 		}
 	}

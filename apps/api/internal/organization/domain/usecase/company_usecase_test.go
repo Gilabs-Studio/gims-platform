@@ -56,6 +56,10 @@ func (n *noopOutletRepository) UpdateIsActiveByCompanyID(_ context.Context, _ st
 	return nil
 }
 
+func (n *noopOutletRepository) FindByWarehouseIDs(_ context.Context, _ []string) ([]*models.Outlet, error) {
+	return []*models.Outlet{}, nil
+}
+
 type noopWarehouseRepository struct{}
 
 func (n *noopWarehouseRepository) Create(_ context.Context, _ *warehouseModels.Warehouse) error {

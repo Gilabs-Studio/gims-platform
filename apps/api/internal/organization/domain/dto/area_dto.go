@@ -11,9 +11,9 @@ type CreateAreaRequest struct {
 	Polygon     *json.RawMessage `json:"polygon"`          // GeoJSON polygon coordinates
 	Color       string           `json:"color" binding:"omitempty,max=20"`
 	ManagerID   *string          `json:"manager_id" binding:"omitempty"`
-	Province    string           `json:"province" binding:"omitempty,max=100"`
-	Regency     string           `json:"regency" binding:"omitempty,max=100"`
-	District    string           `json:"district" binding:"omitempty,max=100"`
+	Province    string           `json:"province" binding:"omitempty"`
+	Regency     string           `json:"regency" binding:"omitempty"`
+	District    string           `json:"district" binding:"omitempty"`
 }
 
 // UpdateAreaRequest represents update area request — enhanced in Sprint 24 with territory fields
@@ -25,9 +25,9 @@ type UpdateAreaRequest struct {
 	Polygon     *json.RawMessage `json:"polygon"`
 	Color       string           `json:"color" binding:"omitempty,max=20"`
 	ManagerID   *string          `json:"manager_id"`
-	Province    string           `json:"province" binding:"omitempty,max=100"`
-	Regency     string           `json:"regency" binding:"omitempty,max=100"`
-	District    string           `json:"district" binding:"omitempty,max=100"`
+	Province    string           `json:"province" binding:"omitempty"`
+	Regency     string           `json:"regency" binding:"omitempty"`
+	District    string           `json:"district" binding:"omitempty"`
 }
 
 // ListAreasRequest represents list areas request with optional filters

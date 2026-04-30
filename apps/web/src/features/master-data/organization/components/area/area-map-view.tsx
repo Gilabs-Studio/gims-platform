@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { Layers } from "lucide-react";
@@ -21,7 +21,7 @@ import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
-import type { FeatureCollection, Feature } from "geojson";
+import type { FeatureCollection, Feature, Geometry, GeoJsonObject, MultiPolygon, Polygon } from "geojson";
 import type { Area } from "../../types";
 
 // Turbopack may return a plain string or a StaticImageData object for PNG imports.
@@ -65,10 +65,68 @@ const HOVER_OPACITY = 0.6;
 const SELECTED_OPACITY = 0.7;
 const DEFAULT_OPACITY = 0.35;
 
+// Tracks which cities are being transferred out of an existing area
+type ConflictEntry = { areaId: string; removedCities: string[] };
+
+type SelectionState = {
+  selectedCities: string[];
+  hoveredAreaId: string | null;
+  conflictEntries: ConflictEntry[];
+};
+
+type SelectionAction =
+  | { type: "TOGGLE_CITY"; city: string; ownerArea?: Area }
+  | { type: "SET_HOVERED"; areaId: string | null }
+  | { type: "RESET" };
+
+function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
+  switch (action.type) {
+    case "TOGGLE_CITY": {
+      const lower = action.city.toLowerCase();
+      const isAdding = !state.selectedCities.includes(lower);
+      const nextCities = isAdding
+        ? [...state.selectedCities, lower]
+        : state.selectedCities.filter((c) => c !== lower);
+
+      let nextConflict = state.conflictEntries;
+      if (action.ownerArea) {
+        if (isAdding) {
+          const existing = nextConflict.find((e) => e.areaId === action.ownerArea!.id);
+          nextConflict = existing
+            ? nextConflict.map((e) =>
+                e.areaId === action.ownerArea!.id
+                  ? { ...e, removedCities: [...e.removedCities, lower] }
+                  : e
+              )
+            : [...nextConflict, { areaId: action.ownerArea.id, removedCities: [lower] }];
+        } else {
+          nextConflict = nextConflict
+            .map((e) =>
+              e.areaId === action.ownerArea!.id
+                ? { ...e, removedCities: e.removedCities.filter((c) => c !== lower) }
+                : e
+            )
+            .filter((e) => e.removedCities.length > 0);
+        }
+      }
+
+      return { ...state, selectedCities: nextCities, conflictEntries: nextConflict };
+    }
+    case "SET_HOVERED":
+      return { ...state, hoveredAreaId: action.areaId };
+    case "RESET":
+      return { selectedCities: [], hoveredAreaId: null, conflictEntries: [] };
+    default:
+      return state;
+  }
+}
+
 interface AreaMapViewProps {
   readonly areas: Area[];
   readonly selectedAreaId?: string | null;
   readonly onAreaClick?: (area: Area) => void;
+  readonly onSelectionChange?: (selection: { areaIds: string[]; cities: string[]; polygon?: Geometry | undefined; conflictAreas?: ConflictEntry[] }) => void;
+  readonly resetSelectionToken?: number;
   readonly isLoading?: boolean;
   readonly className?: string;
 }
@@ -117,6 +175,8 @@ function AreaMapViewComponent({
   areas,
   selectedAreaId,
   onAreaClick,
+  onSelectionChange,
+  resetSelectionToken,
   isLoading,
   className,
 }: AreaMapViewProps) {
@@ -126,20 +186,30 @@ function AreaMapViewComponent({
   const [mapCenter, setMapCenter] = useState<L.LatLngExpression>([-2.5, 118.0]);
   const [mapZoom, setMapZoom] = useState(5);
   const [shouldAnimate, setShouldAnimate] = useState(false);
-  const [hoveredAreaId, setHoveredAreaId] = useState<string | null>(null);
-  // Only remount GeoJSON layer when the underlying data changes — NOT on hover or selection
-  const [geoJsonKey, setGeoJsonKey] = useState(0);
-  const areaToFeatureMapRef = useRef<Map<string, Feature>>(new Map());
+  // Selection state managed via reducer to avoid ESLint set-state-in-effect violations
+  const [{ selectedCities, hoveredAreaId, conflictEntries }, dispatch] = useReducer(
+    selectionReducer,
+    { selectedCities: [], hoveredAreaId: null, conflictEntries: [] }
+  );
+  const areaToFeatureMapRef = useRef<Map<string, Feature[]>>(new Map());
   // Direct layer references so we can call setStyle() without remounting
-  const layerByAreaIdRef = useRef<Map<string, L.Path>>(new Map());
+  const layerBySelectionKeyRef = useRef<Map<string, L.Path[]>>(new Map());
+  // map city(lowercase) => features for non-area features
+  const cityToFeatureRef = useRef<Map<string, Feature[]>>(new Map());
   const { resolvedTheme } = useTheme();
 
-  // Build area lookup by province name (case-insensitive)
-  const areaByProvince = useMemo(() => {
+  // Build area lookup by city/regency name (case-insensitive).
+  // Regency can contain multiple cities separated by comma/semicolon/pipe.
+  const areaByCity = useMemo(() => {
     const map = new Map<string, Area>();
     for (const area of areas) {
-      if (area.province) {
-        map.set(area.province.toLowerCase(), area);
+      if (!area.regency) continue;
+      const cities = area.regency
+        .split(/[,;|]/)
+        .map((city) => city.trim().toLowerCase())
+        .filter(Boolean);
+      for (const city of cities) {
+        map.set(city, area);
       }
     }
     return map;
@@ -170,15 +240,31 @@ function AreaMapViewComponent({
     return (props.WADMPR ?? props.name ?? props.NAME ?? "").toString().trim();
   }, []);
 
-  // Match area to feature by province name
+  // Extract city/regency from GeoJSON feature properties
+  const getCityFromFeature = useCallback((feature: Feature): string => {
+    const props = feature.properties;
+    if (!props) return "";
+    return (props.WADMKK ?? props.city ?? "").toString().trim();
+  }, []);
+
+  // Match area to feature by city name
   const findAreaForFeature = useCallback(
     (feature: Feature): Area | undefined => {
-      const province = getProvinceFromFeature(feature);
-      if (!province) return undefined;
-      return areaByProvince.get(province.toLowerCase());
+      const city = getCityFromFeature(feature);
+      if (!city) return undefined;
+      return areaByCity.get(city.toLowerCase());
     },
-    [areaByProvince, getProvinceFromFeature]
+    [areaByCity, getCityFromFeature]
   );
+
+  const pushRefList = <T,>(map: Map<string, T[]>, key: string, value: T) => {
+    const current = map.get(key);
+    if (current) {
+      current.push(value);
+      return;
+    }
+    map.set(key, [value]);
+  };
 
   // Style each GeoJSON feature based on matched area — initial render only.
   // Hover and selection updates are applied imperatively via setStyle() in the effect above.
@@ -186,7 +272,8 @@ function AreaMapViewComponent({
     (feature?: Feature): L.PathOptions => {
       if (!feature) return {};
       const area = findAreaForFeature(feature);
-      const isSelected = area?.id === selectedAreaId;
+      const city = getCityFromFeature(feature).toLowerCase();
+      const isSelected = selectedCities.includes(city);
       const color = area?.color ?? DEFAULT_AREA_COLOR;
 
       return {
@@ -197,68 +284,118 @@ function AreaMapViewComponent({
         dashArray: area ? undefined : "4 4",
       };
     },
-    [findAreaForFeature, selectedAreaId]
+    [findAreaForFeature, getCityFromFeature, selectedCities]
   );
 
   // Handle feature events (hover, click)
   const onEachFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
       const area = findAreaForFeature(feature);
-      if (!area) return;
+      const city = getCityFromFeature(feature);
+      const province = getProvinceFromFeature(feature);
 
-      // Map area to its GeoJSON feature for zoom-to-area
-      areaToFeatureMapRef.current.set(area.id, feature);
-      // Track the actual Leaflet layer for direct style updates
-      layerByAreaIdRef.current.set(area.id, layer as L.Path);
-
-      // Tooltip with area name
+      // Tooltip uses either matched area or city name
+      const title = area ? area.name : city || "";
       (layer as L.Path).bindTooltip(
-        `<div style="font-weight:600">${area.name}</div>
-         <div style="font-size:11px;opacity:0.8">${area.code ?? ""}</div>
-         ${area.manager ? `<div style="font-size:11px;opacity:0.7">Manager: ${area.manager.name}</div>` : ""}`,
+        `<div style="font-weight:600">${title}</div>
+         <div style="font-size:11px;opacity:0.8">${area?.code ?? [city, province].filter(Boolean).join(", ")}</div>
+         ${area?.manager ? `<div style="font-size:11px;opacity:0.7">Manager: ${area.manager.name}</div>` : ""}`,
         { sticky: true, direction: "top", className: "area-map-tooltip" }
       );
 
+      // All layers are registered by city key for granular per-city selection.
+      // Area features are also tracked separately for geometry aggregation.
+      if (city) {
+        const cityKey = city.toLowerCase();
+        pushRefList(layerBySelectionKeyRef.current, `city:${cityKey}`, layer as L.Path);
+        pushRefList(cityToFeatureRef.current, cityKey, feature);
+      }
+      if (area) {
+        pushRefList(areaToFeatureMapRef.current, area.id, feature);
+      }
+
       (layer as L.Path).on({
-        mouseover: () => setHoveredAreaId(area.id),
-        mouseout: () => setHoveredAreaId(null),
-        click: () => onAreaClick?.(area),
+        mouseover: () => dispatch({ type: "SET_HOVERED", areaId: area?.id ?? null }),
+        mouseout: () => dispatch({ type: "SET_HOVERED", areaId: null }),
+        click: () => {
+          // Always select at city level. If the city belongs to an existing area,
+          // the conflict is tracked so that area is updated on create.
+          if (city) {
+            dispatch({ type: "TOGGLE_CITY", city, ownerArea: area ?? undefined });
+            if (area) onAreaClick?.(area);
+          }
+        },
       });
     },
-    [findAreaForFeature, onAreaClick]
+    [findAreaForFeature, getCityFromFeature, getProvinceFromFeature, onAreaClick]
   );
 
-  // Rebuild GeoJSON only when areas data actually changes
+  // Clear cached feature/layer references when area data changes.
   useEffect(() => {
     areaToFeatureMapRef.current.clear();
-    layerByAreaIdRef.current.clear();
-    setGeoJsonKey((prev) => prev + 1);
+    layerBySelectionKeyRef.current.clear();
+    cityToFeatureRef.current.clear();
   }, [areas]);
 
-  // Update layer styles directly when hover/selection changes — no GeoJSON remount
+  // Reset map-local selection state when parent requests it.
+  // Uses dispatch (not direct setState) to satisfy react-hooks/set-state-in-effect.
   useEffect(() => {
-    layerByAreaIdRef.current.forEach((layer, areaId) => {
-      const area = areas.find((a) => a.id === areaId);
-      if (!area) return;
-      const color = area.color ?? DEFAULT_AREA_COLOR;
-      const isSelected = areaId === selectedAreaId;
-      const isHovered = areaId === hoveredAreaId;
-      layer.setStyle({
-        fillColor: color,
-        fillOpacity: isSelected ? SELECTED_OPACITY : isHovered ? HOVER_OPACITY : DEFAULT_OPACITY,
-        color: isSelected || isHovered ? color : "rgba(255,255,255,0.5)",
-        weight: isSelected ? 3 : isHovered ? 2 : 1,
+    if (typeof resetSelectionToken === "undefined") return;
+    dispatch({ type: "RESET" });
+  }, [resetSelectionToken]);
+
+  // Update layer styles directly when hover/selection changes — no GeoJSON remount.
+  // All layers are keyed by city; area color is derived from areaByCity lookup.
+  useEffect(() => {
+    layerBySelectionKeyRef.current.forEach((layers, key) => {
+      if (!key.startsWith("city:")) return;
+      const cityKey = key.slice(5);
+      const area = areaByCity.get(cityKey);
+      const isSelected = selectedCities.includes(cityKey);
+      const isHovered = area ? area.id === hoveredAreaId : false;
+      const color = area?.color ?? DEFAULT_AREA_COLOR;
+
+      layers.forEach((layer) => {
+        layer.setStyle({
+          fillColor: color,
+          fillOpacity: isSelected ? SELECTED_OPACITY : area ? (isHovered ? HOVER_OPACITY : DEFAULT_OPACITY) : 0.1,
+          color: isSelected || isHovered ? color : "rgba(255,255,255,0.5)",
+          weight: isSelected ? 3 : isHovered ? 2 : 1,
+          dashArray: !area && !isSelected ? "4 4" : undefined,
+        });
       });
     });
-  }, [selectedAreaId, hoveredAreaId, areas]);
+
+    // Build aggregated geometry for all selected cities
+    const multiPolygonCoords: MultiPolygon["coordinates"] = [];
+    for (const city of selectedCities) {
+      const features = cityToFeatureRef.current.get(city) ?? [];
+      for (const feat of features) {
+        if (!feat.geometry) continue;
+        const geometry = feat.geometry;
+        if (geometry.type === "Polygon") {
+          multiPolygonCoords.push(geometry.coordinates as Polygon["coordinates"]);
+        } else if (geometry.type === "MultiPolygon") {
+          multiPolygonCoords.push(...geometry.coordinates);
+        }
+      }
+    }
+
+    const polygon: MultiPolygon | undefined =
+      multiPolygonCoords.length > 0
+        ? { type: "MultiPolygon", coordinates: multiPolygonCoords }
+        : undefined;
+
+    onSelectionChange?.({ areaIds: [], cities: selectedCities, polygon, conflictAreas: conflictEntries });
+  }, [selectedCities, hoveredAreaId, areas, areaByCity, onSelectionChange, conflictEntries]);
 
   // Zoom to selected area
   useEffect(() => {
     if (selectedAreaId && geoJsonData) {
-      const feature = areaToFeatureMapRef.current.get(selectedAreaId);
-      if (feature) {
+      const features = areaToFeatureMapRef.current.get(selectedAreaId) ?? [];
+      if (features.length > 0) {
         try {
-          const geoLayer = L.geoJSON(feature);
+          const geoLayer = L.geoJSON(features as GeoJsonObject[]);
           const bounds = geoLayer.getBounds();
           const center = bounds.getCenter();
           setMapCenter([center.lat, center.lng]);
@@ -360,7 +497,7 @@ function AreaMapViewComponent({
         <MapFocus center={mapCenter} zoom={mapZoom} shouldAnimate={shouldAnimate} />
         {geoJsonData && (
           <GeoJSON
-            key={geoJsonKey}
+            key={areas.map((area) => area.id).join("|")}
             data={geoJsonData}
             style={styleFeature}
             onEachFeature={onEachFeature}

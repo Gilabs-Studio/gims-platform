@@ -309,6 +309,7 @@ func SeedSubscriptionPlans() error {
 		masterDataMenuPrefix + "/courier-agencies",
 		masterDataMenuPrefix + "/so-sources",
 		masterDataMenuPrefix + "/leave-types",
+		"/master-data/contact-roles",
 	}
 	erpExactMenuURLs := []string{
 		"/dashboard",
@@ -388,7 +389,6 @@ func SeedSubscriptionPlans() error {
 		"/crm/settings/pipeline-stages",
 		"/crm/settings/lead-sources",
 		"/crm/settings/lead-statuses",
-		"/crm/settings/contact-roles",
 		"/crm/settings/activity-types",
 		"/travel/travel-planner",
 		"/travel/visit-planner",
@@ -422,6 +422,7 @@ func SeedSubscriptionPlans() error {
 		masterDataMenuPrefix + "/business-units",
 		masterDataMenuPrefix + "/business-types",
 		masterDataMenuPrefix + "/areas",
+		"/master-data/contact-roles",
 	}
 	masterDataSupplyChainURLs := []string{
 		masterDataMenuPrefix + "/supplier",
@@ -471,7 +472,6 @@ func SeedSubscriptionPlans() error {
 		"/crm/settings/pipeline-stages",
 		"/crm/settings/lead-sources",
 		"/crm/settings/lead-statuses",
-		"/crm/settings/contact-roles",
 		"/crm/settings/activity-types",
 		"/travel/travel-planner",
 		"/travel/visit-planner",
@@ -583,6 +583,7 @@ func SeedSubscriptionPlans() error {
 		"/master-data/courier-agencies",
 		"/master-data/so-sources",
 		"/master-data/leave-types",
+		"/master-data/contact-roles",
 		"/ai-assistant",
 		"/ai-chatbot",
 		"/ai-settings",

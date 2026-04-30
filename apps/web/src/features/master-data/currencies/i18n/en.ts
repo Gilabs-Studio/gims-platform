@@ -8,6 +8,7 @@ export const currencyEn = {
   deleted: "Currency deleted successfully",
   empty: "No currencies found",
   search: "Search currencies...",
+  viewOnlyHint: "Only system admins can create, edit, or delete currencies. Tenant users have read-only access.",
   form: {
     code: "Code",
     codePlaceholder: "Enter code (e.g. IDR)",

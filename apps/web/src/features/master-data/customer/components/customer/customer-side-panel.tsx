@@ -23,6 +23,11 @@ import { EmployeeForm } from "../../../employee/components/employee-form";
 import { PaymentTermsDialog } from "../../../payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { CustomerBankList } from "./customer-bank-list";
 import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
+import { useCreateContact } from "@/features/crm/contact/hooks/use-contact";
+import {
+  CustomerDraftContactList,
+  type DraftCustomerContact,
+} from "./customer-draft-contact-list";
 
 import {
   useCreateCustomer,
@@ -62,7 +67,10 @@ export function CustomerSidePanel({
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
+  const createContact = useCreateContact();
   const [activeTab, setActiveTab] = useState("general");
+  const [draftContacts, setDraftContacts] = useState<DraftCustomerContact[]>([]);
+  const saveIntentRef = useRef(false);
 
   type QuickCreateType = "customerType" | "businessType" | "employee" | "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; query: string }>({ type: null, query: "" });
@@ -130,9 +138,6 @@ export function CustomerSidePanel({
   // Stable ref so the setup effect can read the latest customer fallback
   // without adding customer to its deps (would reset the form on every parent re-render).
   const customerRef = useRef(customer);
-  // Hidden submit button ref — used to trigger form submission from action buttons
-  // that live outside the <form> tag so tab-switch clicks cannot accidentally submit.
-  const submitBtnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     customerRef.current = customer;
   }, [customer]);
@@ -192,6 +197,7 @@ export function CustomerSidePanel({
         });
       });
     } else if (mode === "create") {
+      setDraftContacts([]);
       reset({
         name: initialData?.name ?? "",
         customer_type_id: "",
@@ -238,7 +244,40 @@ export function CustomerSidePanel({
     setValue("bank_accounts", formBanks.filter((_, i) => i !== index));
   };
 
+  const handleAddDraftContact = (contact: DraftCustomerContact) => {
+    setDraftContacts((prev) => [...prev, contact]);
+  };
+
+  const handleUpdateDraftContact = (index: number, contact: DraftCustomerContact) => {
+    setDraftContacts((prev) => {
+      const next = [...prev];
+      next[index] = contact;
+      return next;
+    });
+  };
+
+  const handleDeleteDraftContact = (index: number) => {
+    setDraftContacts((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const onSubmit = async (data: CustomerFormData) => {
+    // Persist only when user explicitly clicks the Save/Create button.
+    // This blocks accidental submits from Enter key or other in-form interactions.
+    if (!saveIntentRef.current) {
+      if (!isViewing && activeTab !== "financial") {
+        setActiveTab("financial");
+      }
+      return;
+    }
+
+    // Prevent accidental submit (e.g. Enter key) from the first step.
+    // Users must explicitly reach the financial tab and press Save/Create.
+    if (!isViewing && activeTab !== "financial") {
+      setActiveTab("financial");
+      saveIntentRef.current = false;
+      return;
+    }
+
     try {
       if (isEditing && fullCustomer) {
         // Always send geographic fields with `|| null` so the backend clears columns
@@ -294,6 +333,27 @@ export function CustomerSidePanel({
           bank_accounts: data.bank_accounts as CreateCustomerBankData[],
         });
 
+        if (draftContacts.length > 0) {
+          const contactResults = await Promise.allSettled(
+            draftContacts.map((contact) =>
+              createContact.mutateAsync({
+                customer_id: result.data.id,
+                name: contact.name,
+                contact_role_id: contact.contact_role_id || null,
+                phone: contact.phone || undefined,
+                email: contact.email || undefined,
+                notes: contact.notes || undefined,
+                is_active: contact.is_active ?? true,
+              })
+            )
+          );
+
+          const failedContacts = contactResults.filter((entry) => entry.status === "rejected").length;
+          if (failedContacts > 0) {
+            toast.warning(`Customer saved, but ${failedContacts} contact(s) failed to save`);
+          }
+        }
+
         toast.success(t("customer.createSuccess"));
         onCreated?.({ id: result.data.id, name: result.data.name });
       }
@@ -305,12 +365,15 @@ export function CustomerSidePanel({
       const message = error instanceof Error ? error.message : "Failed to save customer";
       toast.error(message);
       console.error("Failed to save customer:", error);
+    } finally {
+      saveIntentRef.current = false;
     }
   };
 
   const isLoading =
     createCustomer.isPending ||
     updateCustomer.isPending ||
+    createContact.isPending ||
     isLoadingDetail;
 
   const panelTitle = isViewing
@@ -405,17 +468,9 @@ export function CustomerSidePanel({
                 <FieldLabel>{t("customer.form.npwp")}</FieldLabel>
                 <Input
                   placeholder={t("customer.form.npwpPlaceholder")}
-                  inputMode="numeric"
-                  onKeyDown={(e) => {
-                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
-                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
-                      e.preventDefault();
-                    }
-                  }}
                   {...register("npwp")}
                   disabled={isViewing}
                 />
-                {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
               </Field>
             </div>
 
@@ -595,8 +650,15 @@ export function CustomerSidePanel({
               )}
             </div>
 
-            {fullCustomer?.id ? (
+            {(isEditing || isViewing) && fullCustomer?.id ? (
               <CustomerContactsTab customerId={fullCustomer.id} />
+            ) : mode === "create" ? (
+              <CustomerDraftContactList
+                contacts={draftContacts}
+                onAdd={handleAddDraftContact}
+                onUpdate={handleUpdateDraftContact}
+                onDelete={handleDeleteDraftContact}
+              />
             ) : (
               <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                 Contact dapat ditambahkan setelah customer dibuat.
@@ -613,51 +675,52 @@ export function CustomerSidePanel({
             />
           </TabsContent>
 
-          {/* Hidden submit trigger — keeps the real submit button outside the form
-              so tab-switch re-renders cannot accidentally fire it. */}
-          <button ref={submitBtnRef} type="submit" className="hidden" aria-hidden />
-        </form>
-
-        {!isViewing && (
-          <div className="flex items-center justify-end gap-3 px-1 pt-4 border-t sticky bottom-0 bg-background z-10">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-              className="cursor-pointer"
-            >
-              {t("common.cancel")}
-            </Button>
-            {activeTab !== "financial" ? (
+          {!isViewing && (
+            <div className="flex items-center justify-end gap-3 px-1 pt-4 border-t sticky bottom-0 bg-background z-10">
               <Button
                 type="button"
-                onClick={() => setActiveTab("financial")}
-                className="cursor-pointer"
-              >
-                Next
-              </Button>
-            ) : (
-              <Button
-                type="button"
+                variant="outline"
+                onClick={onClose}
                 disabled={isLoading}
                 className="cursor-pointer"
-                onClick={() => submitBtnRef.current?.click()}
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : isEditing ? (
-                  t("common.save")
-                ) : (
-                  t("common.create")
-                )}
+                {t("common.cancel")}
               </Button>
-            )}
-          </div>
-        )}
+              {activeTab !== "financial" ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    saveIntentRef.current = false;
+                    setActiveTab("financial");
+                  }}
+                  className="cursor-pointer"
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    saveIntentRef.current = true;
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : isEditing ? (
+                    t("common.save")
+                  ) : (
+                    t("common.create")
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
+        </form>
 
       <CustomerTypeDialog
         open={quickCreate.type === "customerType"}

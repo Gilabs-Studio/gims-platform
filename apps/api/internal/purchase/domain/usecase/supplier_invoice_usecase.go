@@ -34,6 +34,7 @@ var (
 	ErrSupplierInvoiceNotFound = errors.New("supplier invoice not found")
 	ErrSupplierInvoiceConflict = errors.New("supplier invoice conflict")
 	ErrSupplierInvoiceInvalid  = errors.New("invalid supplier invoice")
+	ErrSupplierInvoiceQuantityExceeded = errors.New("supplier invoice quantity exceeds received quantity")
 	ErrPaymentTermsNotFound    = errors.New("payment terms not found")
 )
 

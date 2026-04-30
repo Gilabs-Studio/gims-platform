@@ -2,6 +2,7 @@
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -21,7 +22,6 @@ import (
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // SeedPurchaseFinanceE2E creates realistic end-to-end Purchase and Finance data
@@ -204,10 +204,30 @@ func SeedPurchaseFinanceE2E() error {
 			{Code: "81200", Name: "Beban Administrasi Bank", Type: financeModels.AccountTypeExpense, IsActive: true},
 		}
 		for i := range extraCOA {
-			tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "code"}},
-				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
-			}).Create(&extraCOA[i])
+			var existing financeModels.ChartOfAccount
+			err := tx.Unscoped().Where("code = ?", extraCOA[i].Code).First(&existing).Error
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					if err := tx.Create(&extraCOA[i]).Error; err != nil {
+						return fmt.Errorf("create extra COA %s: %w", extraCOA[i].Code, err)
+					}
+					continue
+				}
+				return fmt.Errorf("find extra COA %s: %w", extraCOA[i].Code, err)
+			}
+
+			updates := map[string]interface{}{
+				"name":      extraCOA[i].Name,
+				"type":      extraCOA[i].Type,
+				"is_active": true,
+			}
+			if existing.DeletedAt.Valid {
+				updates["deleted_at"] = nil
+			}
+
+			if err := tx.Model(&existing).Updates(updates).Error; err != nil {
+				return fmt.Errorf("update extra COA %s: %w", extraCOA[i].Code, err)
+			}
 		}
 
 		getCOA := func(code string) string {

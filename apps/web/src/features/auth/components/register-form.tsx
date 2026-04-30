@@ -223,20 +223,13 @@ function applyCouponPreview(
     return 0;
   }
 
-  if ((coupon.packagePriceMonthlyIDR ?? 0) > 0 && (coupon.maxUserCount ?? 0) > 0) {
+  if ((coupon.packagePriceMonthlyIDR ?? 0) > 0 && (coupon.maxUserCount ?? 0) > 0 && users <= (coupon.maxUserCount ?? 0)) {
     const packageAmount = billing === "yearly"
       ? Math.round((coupon.packagePriceYearlyIDR && coupon.packagePriceYearlyIDR > 0
         ? coupon.packagePriceYearlyIDR
         : (coupon.packagePriceMonthlyIDR ?? 0) * 12 * 0.9))
       : Math.round(coupon.packagePriceMonthlyIDR ?? 0);
-
-    if (users <= (coupon.maxUserCount ?? 0)) {
-      return Math.max(0, packageAmount);
-    }
-
-    const extraUsers = users - (coupon.maxUserCount ?? 0);
-    const extraAmount = totalInvoice(perUserMonthly, extraUsers, billing);
-    return Math.max(0, packageAmount + extraAmount);
+    return Math.max(0, packageAmount);
   }
 
   if (coupon.discountType === "percent" && (coupon.discountValue ?? 0) > 0) {
@@ -295,6 +288,7 @@ export default function RegisterForm() {
   const [selectedBundle, setSelectedBundle] = useState<string>("ultimate_suite");
   const [selectedModular, setSelectedModular] = useState<string>("pos_growth");
   const [couponCode, setCouponCode] = useState("");
+  const [validatedCouponCode, setValidatedCouponCode] = useState("");
   const [couponState, setCouponState] = useState<CouponState>({
     isChecking: false,
     isValid: null,
@@ -419,7 +413,7 @@ export default function RegisterForm() {
 
   // ── Coupon validation ─────────────────────────────────────────────────────────
   const handleCheckCoupon = async () => {
-    const code = couponCode.trim();
+    const code = couponCode.trim().toUpperCase();
     if (!code) return;
     setCouponState({ isChecking: true, isValid: null, message: null });
     try {
@@ -455,6 +449,7 @@ export default function RegisterForm() {
           setUserCount(data.max_user_count ?? userCount);
         }
         setCouponState(newState);
+        setValidatedCouponCode(code);
       } else {
         const reasonMap: Record<string, string> = {
           not_found: t("couponReasons.not_found"),
@@ -469,9 +464,11 @@ export default function RegisterForm() {
           message: reasonMap[data?.reason ?? ""] ?? t("couponInvalidOrExpired"),
           maxUserCount: data?.max_user_count,
         });
+        setValidatedCouponCode(code);
       }
     } catch {
       setCouponState({ isChecking: false, isValid: false, message: t("couponValidateFailed") });
+      setValidatedCouponCode(code);
     }
   };
 
@@ -479,6 +476,9 @@ export default function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (planTab === "bundle" && selectedBundle === "enterprise") return; // Contact Sales only
+
+    const normalizedCoupon = couponCode.trim().toUpperCase();
+    const isCouponValidatedForCurrentCode = couponState.isValid === true && normalizedCoupon === validatedCouponCode;
 
     setIsLoading(true);
     setSubmitError(null);
@@ -499,7 +499,7 @@ export default function RegisterForm() {
         plan: couponState.targetPlanSlug ?? (planTab === "bundle" ? selectedBundle : selectedModular),
         billing_period: billing,
         user_count: userCount,
-        ...(couponState.isValid ? { coupon: couponCode.trim().toUpperCase() } : {}),
+        ...(isCouponValidatedForCurrentCode ? { coupon: validatedCouponCode } : {}),
       };
 
       const response = await authService.register(payload, csrf);
@@ -523,17 +523,17 @@ export default function RegisterForm() {
       const code = (err as { response?: { data?: { error?: { code?: string; message?: string } } } })?.response?.data?.error?.code;
       const message = (err as { response?: { data?: { error?: { message?: string } } }; message?: string })?.response?.data?.error?.message
         ?? (err as { message?: string })?.message
-        ?? "Registration failed. Please try again.";
+        ?? t("errors.registrationFailed");
 
       if (code === "EMAIL_ALREADY_TAKEN") {
         setStep(1);
-        setAccountErrors({ email: "This email is already registered" });
+        setAccountErrors({ email: t("errors.emailTaken") });
       } else if (code === "COUPON_ALREADY_USED") {
-        setCouponState({ isChecking: false, isValid: false, message: "This coupon has already been used with your email" });
+        setCouponState({ isChecking: false, isValid: false, message: t("couponReasons.already_used_by_email") });
       } else if (code === "COUPON_INVALID") {
-        setCouponState({ isChecking: false, isValid: false, message: "Coupon is no longer valid" });
+        setCouponState({ isChecking: false, isValid: false, message: t("couponReasons.inactive") });
       } else if (code === "COUPON_USER_LIMIT_EXCEEDED") {
-        setSubmitError("Selected user count exceeds coupon limit");
+        setSubmitError(t("errors.couponUserLimitExceeded"));
       } else {
         setSubmitError(message);
       }
@@ -545,16 +545,13 @@ export default function RegisterForm() {
   // ── Derived values ─────────────────────────────────────────────────────────────
   const selectedBundlePlan = dynamicBundles.find((b) => b.id === selectedBundle) ?? dynamicBundles.find((b) => b.id !== "enterprise") ?? dynamicBundles[0];
   const selectedModularPlan = dynamicModular.find((p) => p.id === selectedModular) ?? dynamicModular[0] ?? { id: "", name: "", category: "", perUserMonthly: 0, features: [] as string[] };
-  const hasPackageCoupon = couponState.isValid === true && (couponState.packagePriceMonthlyIDR ?? 0) > 0 && (couponState.maxUserCount ?? 0) > 0;
   const packageUserCount = couponState.maxUserCount ?? 0;
   const effectiveMinUsers = couponState.isValid === true && (couponState.lockUserCount ?? false) && (couponState.maxUserCount ?? 0) > 0
     ? (couponState.maxUserCount ?? 1)
     : 1;
-  const effectiveMaxUsers = hasPackageCoupon
-    ? 500
-    : couponState.isValid === true && (couponState.maxUserCount ?? 0) > 0
-      ? (couponState.maxUserCount ?? 500)
-      : 500;
+  const effectiveMaxUsers = couponState.isValid === true && (couponState.maxUserCount ?? 0) > 0
+    ? (couponState.maxUserCount ?? 500)
+    : 500;
 
   // Decoy banner: show if modular plan costs more than ultimate_suite for same users
   const ultimatePlan = dynamicBundles.find((b) => b.id === "ultimate_suite");
@@ -566,6 +563,8 @@ export default function RegisterForm() {
   const selectedPlanTotal = planTab === "bundle"
     ? totalInvoice(selectedBundlePlan.perUserMonthly, userCount, billing)
     : totalInvoice(selectedModularPlan.perUserMonthly, userCount, billing);
+  const normalizedCouponCode = couponCode.trim().toUpperCase();
+  const couponNeedsRevalidation = couponState.isValid === true && normalizedCouponCode !== validatedCouponCode;
   const discountedSelectedPlanTotal = applyCouponPreview(
     planTab === "bundle" ? selectedBundlePlan.perUserMonthly : selectedModularPlan.perUserMonthly,
     userCount,
@@ -646,6 +645,12 @@ export default function RegisterForm() {
                         setAccount((p) => ({ ...p, name: e.target.value }));
                         if (accountErrors.name) setAccountErrors((p) => ({ ...p, name: undefined }));
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleContinue();
+                        }
+                      }}
                       aria-invalid={!!accountErrors.name}
                       className="h-11"
                     />
@@ -664,6 +669,12 @@ export default function RegisterForm() {
                       onChange={(e) => {
                         setAccount((p) => ({ ...p, email: e.target.value }));
                         if (accountErrors.email) setAccountErrors((p) => ({ ...p, email: undefined }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleContinue();
+                        }
                       }}
                       aria-invalid={!!accountErrors.email}
                       className="h-11"
@@ -684,6 +695,12 @@ export default function RegisterForm() {
                         onChange={(e) => {
                           setAccount((p) => ({ ...p, password: e.target.value }));
                           if (accountErrors.password) setAccountErrors((p) => ({ ...p, password: undefined }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleContinue();
+                          }
                         }}
                         aria-invalid={!!accountErrors.password}
                         className="h-11 pr-10"
@@ -714,6 +731,12 @@ export default function RegisterForm() {
                       placeholder={t("companyPlaceholder")}
                       value={account.company}
                       onChange={(e) => setAccount((p) => ({ ...p, company: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleContinue();
+                        }
+                      }}
                       className="h-11"
                     />
                   </div>
@@ -860,7 +883,7 @@ export default function RegisterForm() {
                           <Button
                             type="submit"
                             className="w-full h-11 font-semibold"
-                            disabled={isLoading}
+                            disabled={isLoading || couponNeedsRevalidation}
                           >
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {isTrial ? t("startFreeTrial") : t("startPlan", { name: lockedPlan.name })}
@@ -875,15 +898,18 @@ export default function RegisterForm() {
                                 value={couponCode}
                                 onChange={(e) => {
                                   setCouponCode(e.target.value.toUpperCase());
-                                  if (couponState.isValid !== null) {
-                                    setCouponState({ isChecking: false, isValid: null, message: null });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void handleCheckCoupon();
                                   }
                                 }}
                                 className="h-8 text-xs uppercase tracking-widest"
                                 maxLength={64}
                               />
                               <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs shrink-0"
-                                disabled={couponState.isChecking || !couponCode.trim()}
+                                disabled={couponState.isChecking || !normalizedCouponCode}
                                 onClick={handleCheckCoupon}>
                                 {couponState.isChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : t("validate")}
                               </Button>
@@ -1012,15 +1038,17 @@ export default function RegisterForm() {
                               value={couponCode}
                               onChange={(e) => {
                                 setCouponCode(e.target.value.toUpperCase());
-                                if (couponState.isValid !== null) {
-                                  // Clear coupon state and any plan lock when the code is edited.
-                                  setCouponState({ isChecking: false, isValid: null, message: null });
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void handleCheckCoupon();
                                 }
                               }}
                               className="h-11 pr-9 uppercase tracking-widest"
                               maxLength={64}
                             />
-                            {couponCode.trim() && (
+                            {normalizedCouponCode && (
                               <span className="absolute inset-y-0 right-3 flex items-center">
                                 {couponState.isChecking ? (
                                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -1035,7 +1063,7 @@ export default function RegisterForm() {
                           <Button
                             type="button"
                             variant="outline"
-                            disabled={couponState.isChecking || !couponCode.trim()}
+                            disabled={couponState.isChecking || !normalizedCouponCode}
                             onClick={handleCheckCoupon}
                             className="h-11 shrink-0"
                           >
@@ -1371,6 +1399,7 @@ export default function RegisterForm() {
                     type="submit"
                     disabled={
                       isLoading ||
+                      couponNeedsRevalidation ||
                       (planTab === "bundle" && selectedBundle === "enterprise")
                     }
                     className="h-11 flex-1 font-medium"
@@ -1390,7 +1419,7 @@ export default function RegisterForm() {
                   </Button>
                 </div>
                 )} {/* end: normal plan actions */}
-
+                {isLoading || couponNeedsRevalidation}
                 {/* Back button shown separately in locked plan mode */}
                 {couponState.isValid && couponState.targetPlanSlug && (
                   <div className="flex justify-start pt-1">

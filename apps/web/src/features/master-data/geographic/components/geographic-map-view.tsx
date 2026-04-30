@@ -37,23 +37,24 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import type { Feature, FeatureCollection } from "geojson";
 
-// Turbopack may return a plain string or a StaticImageData object for PNG imports.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getImageSrc = (img: any): string => {
-  if (typeof img === "string" && img) return img;
-  if (typeof img?.src === "string" && img.src) return img.src;
-  if (typeof img?.default === "string" && img.default) return img.default;
-  if (typeof img?.default?.src === "string" && img.default.src) return img.default.src;
+const getImageSrc = (img: string | { src: string } | { default: string } | { default: { src: string } } | null | undefined): string => {
+  if (!img) return "";
+  if (typeof img === "string") return img;
+  if ("src" in img && typeof img.src === "string") return img.src;
+  if ("default" in img) {
+    const def = img.default;
+    if (typeof def === "string") return def;
+    if (typeof def === "object" && def && "src" in def && typeof def.src === "string") return def.src;
+  }
   return "";
 };
 
 // Fix for default marker icons in Next.js (static imports avoid CDN dependency)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+(L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl = undefined;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: getImageSrc(markerIcon2x),
-  iconUrl: getImageSrc(markerIcon),
-  shadowUrl: getImageSrc(markerShadow),
+  iconRetinaUrl: getImageSrc(markerIcon2x as any),
+  iconUrl: getImageSrc(markerIcon as any),
+  shadowUrl: getImageSrc(markerShadow as any),
 });
 
 type MapStyle = "auto" | "light" | "dark" | "satellite";
@@ -161,9 +162,54 @@ function GeographicMapViewComponent() {
 
   // Map state
   const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
-  const [geoJsonKey, setGeoJsonKey] = useState(0);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const layerByGroupRef = useRef<Map<string, L.Path[]>>(new Map());
+
+  // Determines current drill level
+  const currentLevel: DrillLevel = useMemo(() => {
+    if (selectedCity) return "district";
+    if (selectedProvince) return "city";
+    return "province";
+  }, [selectedProvince, selectedCity]);
+
+  // The property key used for grouping/coloring at the current level
+  const groupKey = useMemo(() => {
+    if (currentLevel === "district") return "WADMKC";
+    if (currentLevel === "city") return "WADMKK";
+    return "WADMPR";
+  }, [currentLevel]);
+
+  // Filter features based on current selection
+  const filteredFeatures = useMemo(() => {
+    let features = allFeatures ?? [];
+    if (selectedProvince) {
+      features = features.filter((f) => f.properties?.WADMPR === selectedProvince);
+    }
+    if (selectedCity) {
+      features = features.filter((f) => f.properties?.WADMKK === selectedCity);
+    }
+    if (selectedDistrict) {
+      features = features.filter((f) => f.properties?.WADMKC === selectedDistrict);
+    }
+    return features;
+  }, [allFeatures, selectedProvince, selectedCity, selectedDistrict]);
+
+  // Build FeatureCollection for Leaflet
+  const geoJsonData = useMemo<FeatureCollection | null>(() => {
+    if (!filteredFeatures?.length) return null;
+    return { type: "FeatureCollection", features: filteredFeatures };
+  }, [filteredFeatures]);
+
+  // Unique groups visible on the map at the current level
+  const visibleGroups = useMemo(() => extractUniqueValues(filteredFeatures ?? [], groupKey), [filteredFeatures, groupKey]);
+
+  // Use a derived key for the GeoJSON layer to force remount when data changes.
+  // We also clear the layer tracking ref whenever the data object changes.
+  const geoJsonKey = useMemo(() => {
+    layerByGroupRef.current.clear();
+    return geoJsonData ? JSON.stringify(visibleGroups) : "empty";
+  }, [geoJsonData, visibleGroups]);
+  const colorMap = useMemo(() => buildColorMap(visibleGroups), [visibleGroups]);
 
   // Load GeoJSON on mount
   useEffect(() => {
@@ -184,61 +230,22 @@ function GeographicMapViewComponent() {
     load();
   }, []);
 
-  // Determine current drill level
-  const currentLevel: DrillLevel = useMemo(() => {
-    if (selectedCity) return "district";
-    if (selectedProvince) return "city";
-    return "province";
-  }, [selectedProvince, selectedCity]);
-
-  // The property key used for grouping/coloring at the current level
-  const groupKey = useMemo(() => {
-    if (currentLevel === "district") return "WADMKC";
-    if (currentLevel === "city") return "WADMKK";
-    return "WADMPR";
-  }, [currentLevel]);
-
-  // Filter features based on current selection
-  const filteredFeatures = useMemo(() => {
-    let features = allFeatures;
-    if (selectedProvince) {
-      features = features.filter((f) => f.properties?.WADMPR === selectedProvince);
-    }
-    if (selectedCity) {
-      features = features.filter((f) => f.properties?.WADMKK === selectedCity);
-    }
-    if (selectedDistrict) {
-      features = features.filter((f) => f.properties?.WADMKC === selectedDistrict);
-    }
-    return features;
-  }, [allFeatures, selectedProvince, selectedCity, selectedDistrict]);
-
-  // Build FeatureCollection for Leaflet
-  const geoJsonData = useMemo<FeatureCollection | null>(() => {
-    if (!filteredFeatures.length) return null;
-    return { type: "FeatureCollection", features: filteredFeatures };
-  }, [filteredFeatures]);
-
   // Available filter options derived from the GeoJSON data
-  const provinceOptions = useMemo(() => extractUniqueValues(allFeatures, "WADMPR"), [allFeatures]);
+  const provinceOptions = useMemo(() => extractUniqueValues(allFeatures ?? [], "WADMPR"), [allFeatures]);
   const cityOptions = useMemo(() => {
     if (!selectedProvince) return [];
     return extractUniqueValues(
-      allFeatures.filter((f) => f.properties?.WADMPR === selectedProvince),
+      (allFeatures ?? []).filter((f) => f.properties?.WADMPR === selectedProvince),
       "WADMKK",
     );
   }, [allFeatures, selectedProvince]);
   const districtOptions = useMemo(() => {
     if (!selectedCity) return [];
     return extractUniqueValues(
-      allFeatures.filter((f) => f.properties?.WADMPR === selectedProvince && f.properties?.WADMKK === selectedCity),
+      (allFeatures ?? []).filter((f) => f.properties?.WADMPR === selectedProvince && f.properties?.WADMKK === selectedCity),
       "WADMKC",
     );
   }, [allFeatures, selectedProvince, selectedCity]);
-
-  // Unique groups visible on the map at the current level
-  const visibleGroups = useMemo(() => extractUniqueValues(filteredFeatures, groupKey), [filteredFeatures, groupKey]);
-  const colorMap = useMemo(() => buildColorMap(visibleGroups), [visibleGroups]);
 
   // Legend search filter
   const filteredGroups = useMemo(() => {
@@ -346,12 +353,6 @@ function GeographicMapViewComponent() {
     },
     [groupKey, currentLevel, handleProvinceChange, handleCityChange, handleDistrictChange],
   );
-
-  // Remount GeoJSON layer when filtered data changes
-  useEffect(() => {
-    layerByGroupRef.current.clear();
-    setGeoJsonKey((prev) => prev + 1);
-  }, [geoJsonData]);
 
   // Imperative style update on hover
   useEffect(() => {

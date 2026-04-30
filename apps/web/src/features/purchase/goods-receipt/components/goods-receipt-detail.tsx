@@ -243,7 +243,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-primary/10"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -255,7 +255,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={() => setIsApproveConfirmOpen(true)}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-success/10"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -267,7 +267,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -278,7 +278,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     variant="ghost"
                     size="icon"
                     onClick={handleConvertToSI}
-                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-primary/10"
                     title={t("convertToSupplierInvoice")}
                   >
                     <FileText className="h-4 w-4" />
@@ -682,24 +682,26 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Goods Receipt?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
-                <p className="font-semibold flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Inventory & Financial Impact
-                </p>
-                <p className="mt-1">
-                  Approving this Goods Receipt will:
-                </p>
-                <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
-                  <li>Increase stock in <strong>{gr?.warehouse?.name}</strong>.</li>
-                  <li>Post <strong>Inventory Accrual Journal</strong>.</li>
-                </ul>
-                <p className="mt-2 text-[10px] uppercase font-bold tracking-wider opacity-70">
-                  This action is atomic and affects the GL.
-                </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <div className="bg-warning/10 border border-warning/30 rounded-md p-3 text-warning">
+                  <div className="font-semibold flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Inventory & Financial Impact
+                  </div>
+                  <div className="mt-1">
+                    Approving this Goods Receipt will:
+                  </div>
+                  <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
+                    <li>Increase stock in <strong>{gr?.warehouse?.name}</strong>.</li>
+                    <li>Post <strong>Inventory Accrual Journal</strong>.</li>
+                  </ul>
+                  <div className="mt-2 text-xs uppercase font-bold tracking-wider opacity-70">
+                    This action is atomic and affects the GL.
+                  </div>
+                </div>
+                <div>Are you sure you want to approve this receipt?</div>
               </div>
-              <p>Are you sure you want to approve this receipt?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

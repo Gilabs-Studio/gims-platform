@@ -9,6 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func RequireSystemAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !IsSystemAdmin(c.Request.Context()) {
+			errors.ForbiddenResponse(c, "system admin access required", nil)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func permissionAliases(requiredPermission string) []string {
 	switch requiredPermission {
 	case "fiscal_year.read":

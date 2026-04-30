@@ -35,7 +35,7 @@ import type { WidgetConfig, WidgetType } from "../types";
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
   const { data: layoutData } = useDashboardLayout();
-  const { data: onboarding } = useOnboardingState();
+  const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState();
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
 
   const {
@@ -142,9 +142,9 @@ export function DashboardGrid() {
     .filter((w) => w.visible)
     .sort((a, b) => a.order - b.order);
 
-  // While onboarding is in progress, render the wizard as the full dashboard content.
-  // Once onboarding is complete (or while the state is still loading), render the grid.
-  if (onboarding !== undefined && !onboarding?.completed) {
+  // While onboarding is in progress or still loading, render the wizard as the full dashboard content.
+  // Once onboarding is complete, render the grid.
+  if (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed)) {
     return <OnboardingWizard />;
   }
 

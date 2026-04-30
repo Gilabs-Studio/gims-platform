@@ -1,15 +1,17 @@
-﻿package seeders
+package seeders
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -26,14 +28,30 @@ type coaSeed struct {
 	Depth       int
 }
 
-func deterministicCOAID(code string) string {
-	return uuid.NewSHA1(coaDeterministicNamespace, []byte(code)).String()
+func deterministicCOAID(tenantID, code string) string {
+	return uuid.NewSHA1(coaDeterministicNamespace, []byte(tenantID+":"+code)).String()
 }
 
 // SeedChartOfAccounts creates the canonical commercial ERP COA hierarchy using 5-digit codes.
 func SeedChartOfAccounts() error {
+	return EnsureTenantChartOfAccounts(database.DB, DefaultTenantID)
+}
+
+// EnsureTenantChartOfAccounts provisions canonical COA rows for a tenant.
+// Idempotent: existing rows are updated to latest defaults.
+func EnsureTenantChartOfAccounts(db *gorm.DB, tenantID string) error {
+	if db == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+	if err := ensureChartOfAccountTenantScopedUniqueIndex(db); err != nil {
+		return fmt.Errorf("failed to ensure chart_of_accounts tenant unique index: %w", err)
+	}
+
 	log.Println("Seeding Chart of Accounts (5-digit hierarchy)...")
-	db := database.DB
 	ctx := context.Background()
 
 	seeds := []coaSeed{
@@ -187,7 +205,8 @@ func SeedChartOfAccounts() error {
 		}
 
 		item := models.ChartOfAccount{
-			ID:          deterministicCOAID(seed.Code),
+			ID:          deterministicCOAID(tenantID, seed.Code),
+			TenantID:    tenantID,
 			Code:        seed.Code,
 			Name:        seed.Name,
 			Type:        seed.Type,
@@ -198,7 +217,7 @@ func SeedChartOfAccounts() error {
 		}
 
 		if err := db.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "code"}},
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name",
 				"type",
@@ -212,7 +231,7 @@ func SeedChartOfAccounts() error {
 		}
 
 		var persisted models.ChartOfAccount
-		if err := db.Where("code = ?", seed.Code).First(&persisted).Error; err != nil {
+		if err := db.Where("tenant_id = ? AND code = ?", tenantID, seed.Code).First(&persisted).Error; err != nil {
 			return fmt.Errorf("failed to fetch persisted COA %s: %w", seed.Code, err)
 		}
 		idByCode[seed.Code] = persisted.ID
@@ -225,6 +244,24 @@ func SeedChartOfAccounts() error {
 
 	log.Println("Chart of Accounts seeded successfully with hierarchical parent-child structure")
 	return nil
+}
+
+func ensureChartOfAccountTenantScopedUniqueIndex(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	_ = db.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS chart_of_accounts_code_key`).Error
+	_ = db.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS public.idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS chart_of_accounts_code_key`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS public.chart_of_accounts_code_key`).Error
+
+	return db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_chart_of_accounts_tenant_code_active
+		ON chart_of_accounts (tenant_id, code)
+	`).Error
 }
 
 

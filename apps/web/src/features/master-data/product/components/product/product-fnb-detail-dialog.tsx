@@ -37,6 +37,7 @@ import {
 } from "../../hooks/use-products";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
+import { ProductIngredientCreateDialog } from "./product-ingredient-create-dialog";
 import type {
   Product,
   RecipeItemResponse,
@@ -171,6 +172,56 @@ export function ProductFnbDetailDialog({
     () => ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` })),
     [ingredientOptionProducts]
   );
+
+  // Local ingredient options for newly created ingredients before query refetches
+  const [localIngredientOptions, setLocalIngredientOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [ingredientCreateOpen, setIngredientCreateOpen] = useState(false);
+  const [ingredientCreateRowId, setIngredientCreateRowId] = useState<string | null>(null);
+  const [ingredientCreateInitialName, setIngredientCreateInitialName] = useState("");
+
+  const mergedIngredientOptions = useMemo(() => {
+    const localOnly = localIngredientOptions.filter((lo) => !ingredientComboboxOptions.some((r) => r.value === lo.value));
+    return [...ingredientComboboxOptions, ...localOnly];
+  }, [ingredientComboboxOptions, localIngredientOptions]);
+
+  const handleCreateIngredientForRow = (rowId: string, query: string) => {
+    setIngredientCreateRowId(rowId);
+    setIngredientCreateInitialName(query);
+    setIngredientCreateOpen(true);
+  };
+
+  const handleIngredientCreated = (item: {
+    id: string;
+    name: string;
+    code: string;
+    cost_price: number;
+    uom_id: string | null;
+    uom_symbol: string;
+  }) => {
+    if (ingredientCreateRowId) {
+      setEditRows((prev) =>
+        prev.map((row) => {
+          if (row.row_id !== ingredientCreateRowId) return row;
+          return {
+            ...row,
+            ingredient_product_id: item.id,
+            ingredient_name: item.name,
+            ingredient_code: item.code,
+            uom_id: item.uom_id,
+            uom_symbol: item.uom_symbol,
+            ingredient_cost_price: item.cost_price,
+          };
+        })
+      );
+    }
+    setLocalIngredientOptions((prev) => [
+      ...prev.filter((o) => o.value !== item.id),
+      { value: item.id, label: `${item.name} (${item.code})` },
+    ]);
+    setIngredientCreateOpen(false);
+    setIngredientCreateRowId(null);
+    setIngredientCreateInitialName("");
+  };
 
   const handleStartEdit = () => {
     setEditRows(
@@ -346,7 +397,8 @@ export function ProductFnbDetailDialog({
   if (!product) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         size="xl"
         className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
@@ -567,7 +619,7 @@ export function ProductFnbDetailDialog({
 
                       {editRows.map((row, idx) => {
                         const rowCost = row.ingredient_cost_price * row.quantity;
-                        const ingredientOptionsForRow = ingredientComboboxOptions.filter((option) =>
+                        const ingredientOptionsForRow = mergedIngredientOptions.filter((option) =>
                           !editRows.some(
                             (editRow, editIndex) => editIndex !== idx && editRow.ingredient_product_id === option.value
                           )
@@ -598,6 +650,8 @@ export function ProductFnbDetailDialog({
                                 onLoadMore={handleIngredientLoadMore}
                                 hasMore={hasMoreIngredients}
                                 isLoadingMore={ingredientFetching && ingredientLoadedPages > 1}
+                                createLabel={t("recipe.createIngredient", { query: "{query}" })}
+                                onCreateClick={(query) => handleCreateIngredientForRow(row.row_id, query)}
                               />
                             </div>
 
@@ -893,7 +947,15 @@ export function ProductFnbDetailDialog({
           )}
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ProductIngredientCreateDialog
+      open={ingredientCreateOpen}
+      onOpenChange={setIngredientCreateOpen}
+      initialName={ingredientCreateInitialName}
+      onCreated={handleIngredientCreated}
+      />
+    </>
   );
 }
 

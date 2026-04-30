@@ -34,6 +34,7 @@ type ActivityListParams struct {
 type ActivityRepository interface {
 	Create(ctx context.Context, activity *models.Activity) error
 	FindByID(ctx context.Context, id string) (*models.Activity, error)
+	FindByVisitReportID(ctx context.Context, visitReportID string) (*models.Activity, error)
 	List(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
 	Timeline(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
 }
@@ -57,6 +58,18 @@ func (r *activityRepository) FindByID(ctx context.Context, id string) (*models.A
 		Preload("ActivityType").
 		Preload("Employee").
 		First(&activity, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &activity, nil
+}
+
+func (r *activityRepository) FindByVisitReportID(ctx context.Context, visitReportID string) (*models.Activity, error) {
+	var activity models.Activity
+	err := database.GetDB(ctx, r.db).
+		Preload("ActivityType").
+		Preload("Employee").
+		First(&activity, "visit_report_id = ?", visitReportID).Error
 	if err != nil {
 		return nil, err
 	}

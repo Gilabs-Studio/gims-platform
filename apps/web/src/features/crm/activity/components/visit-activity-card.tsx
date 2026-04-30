@@ -20,6 +20,7 @@ import { useCheckInVisitReport } from "@/features/crm/visit-report/hooks/use-vis
 import { useTranslations } from "next-intl";
 import { activityKeys } from "../hooks/use-activities";
 import type { VisitActivityMetadata } from "../types";
+import { aggregateVisitProducts } from "../utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import { ProductDetailDialog } from "@/features/master-data/product/components/product/product-detail-dialog";
@@ -118,6 +119,7 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
   const visitReport = visitReportQuery?.data?.data;
   const hasCheckedOut = Boolean(visitReport?.check_out_at ?? meta.check_out_at);
   const hasCheckedIn = Boolean(visitReport?.check_in_at ?? meta.check_in_at);
+  const displayProducts = aggregateVisitProducts(meta.products);
 
   return (
     <div className="mt-1.5 space-y-2">
@@ -216,7 +218,7 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
       {/* duplicate checkout removed — actions are inline next to check-in */}
 
       {/* Product interest table */}
-      {meta.products && meta.products.length > 0 && (
+      {displayProducts.length > 0 && (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <Package className="h-3 w-3" />
@@ -233,7 +235,7 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
                 </tr>
               </thead>
               <tbody>
-                {meta.products.map((p, idx) => (
+                {displayProducts.map((p, idx) => (
                   <tr key={`${p.product_name}-${idx}`} className="border-t">
                     <td className="px-2 py-1">
                       {canViewProduct && p.product_id ? (

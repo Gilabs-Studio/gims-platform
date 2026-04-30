@@ -84,7 +84,7 @@ func (uc *supplierInvoiceUsecase) validateSIQuantity(ctx context.Context, tx *go
 		received := receivedMap[pid]
 		invoiced := invoicedMap[pid]
 		if q+invoiced > received+0.0001 {
-			return nil, fmt.Errorf("item %s: total invoiced (%.2f) would exceed total received (%.2f)", pid, q+invoiced, received)
+			return nil, fmt.Errorf("%w: %w: item %s: total invoiced (%.2f) would exceed total received (%.2f)", ErrSupplierInvoiceConflict, ErrSupplierInvoiceQuantityExceeded, pid, q+invoiced, received)
 		}
 	}
 

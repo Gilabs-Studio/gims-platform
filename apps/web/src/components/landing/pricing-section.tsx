@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, XCircle, Minus, Plus, Phone } from "lucide-react";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
+import { useRouter } from "@/i18n/routing";
 import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 import { cn } from "@/lib/utils";
 
@@ -213,6 +214,7 @@ export function PricingSection() {
   const t = useTranslations("landing");
   const tRegister = useTranslations("auth.register");
   const locale = useLocale();
+  const router = useRouter();
 
   const [pricingTab, setPricingTab] = useState<PlanTab>("bundle");
   const [pricingBilling, setPricingBilling] = useState<BillingPeriod>("monthly");
@@ -478,13 +480,13 @@ export function PricingSection() {
                             <Button
                               type="button"
                               variant={isSelected ? "default" : "outline"}
-                              onClick={() => setSelectedBundle(bundle.id)}
+                              onClick={() => router.push("/register")}
                               className={cn(
                                 "h-9 w-full text-xs font-bold transition-all duration-300 sm:h-10 sm:text-sm",
                                 isSelected ? "scale-[1.02] shadow-md ring-2 ring-primary/20" : "hover:scale-[1.01]",
                               )}
                             >
-                              {isSelected ? tRegister("selected") : tRegister("chooseBundle", { name: bundle.name.replace(" Suite", "") })}
+                              {isSelected ? tRegister("selected") : t("pricing.selectBundle", { name: bundle.name.replace(" Suite", "") })}
                             </Button>
                           )}
                         </td>
@@ -547,10 +549,10 @@ export function PricingSection() {
                       <Button
                         type="button"
                         variant={isSelected ? "default" : "outline"}
-                        onClick={() => setSelectedModular(plan.id)}
+                        onClick={() => router.push("/register")}
                         className="mt-3 h-9 text-xs font-semibold"
                       >
-                        {isSelected ? tRegister("selected") : t("pricing.chooseModular")}
+                        {isSelected ? tRegister("selected") : t("pricing.selectModular")}
                       </Button>
                     </div>
                   );

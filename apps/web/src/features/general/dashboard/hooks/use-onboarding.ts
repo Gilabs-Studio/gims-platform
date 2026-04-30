@@ -7,12 +7,12 @@ export function useOnboardingState(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ONBOARDING_KEY,
     queryFn: () => onboardingService.getState(),
-    // Keep onboarding state fresh so checklist updates immediately
-    // after setup actions performed on other pages.
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    // Keep the completed state cached so the dashboard does not refetch
+    // onboarding on every mount once setup has already finished.
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     enabled: options?.enabled ?? true,
   });
 }

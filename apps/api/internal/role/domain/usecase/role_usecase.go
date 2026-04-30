@@ -80,6 +80,7 @@ var alwaysSafePermissionPrefixes = []string{
 }
 
 var mandatoryPermissionCodes = []string{"user.read", "role.read", "permission.read"}
+var systemAdminOnlyPermissionCodes = []string{"currency.create", "currency.update", "currency.delete"}
 
 type RoleUsecase interface {
 	List(ctx context.Context, page, limit int, search string) ([]dto.RoleResponse, int64, error)
@@ -424,6 +425,10 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 		return err
 	}
 
+	if err := u.ensureSystemAdminOnlyPermissions(ctx, permissionIDs); err != nil {
+		return err
+	}
+
 	if err := u.validatePlanPermissionBoundary(ctx, permissionIDs); err != nil {
 		return err
 	}
@@ -484,6 +489,10 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 	permIDs = make([]string, 0, len(rolePerms))
 	for _, rp := range rolePerms {
 		permIDs = append(permIDs, rp.PermissionID)
+	}
+
+	if err := u.ensureSystemAdminOnlyPermissions(ctx, permIDs); err != nil {
+		return err
 	}
 
 	if err := u.validatePlanPermissionBoundary(ctx, permIDs); err != nil {
@@ -691,6 +700,15 @@ func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, 
 		final = append(final, rp)
 	}
 
+	finalIDs = make([]string, 0, len(final))
+	for _, rp := range final {
+		finalIDs = append(finalIDs, rp.PermissionID)
+	}
+
+	if err := u.ensureSystemAdminOnlyPermissions(ctx, finalIDs); err != nil {
+		return err
+	}
+
 	// Apply the change
 	if err := u.roleRepo.AssignPermissionsWithScope(ctx, roleID, final); err != nil {
 		log.Printf("[RoleUsecase] UpdatePermissionsDiff assign_failed tenant_id=%s role_id=%s err=%v", tenantID, roleID, err)
@@ -825,12 +843,37 @@ func (u *roleUsecase) UpdateMenuAccess(ctx context.Context, roleID string, assig
 			return err
 		}
 
+		if err := u.ensureSystemAdminOnlyPermissions(txCtx, permissionIDs); err != nil {
+			return err
+		}
+
 		if err := u.roleRepo.AssignPermissionsWithScope(txCtx, roleID, roleAssignments); err != nil {
 			return err
 		}
 
 		return nil
 	})
+}
+
+func (u *roleUsecase) ensureSystemAdminOnlyPermissions(ctx context.Context, permissionIDs []string) error {
+	if len(permissionIDs) == 0 || middleware.IsSystemAdmin(ctx) {
+		return nil
+	}
+
+	var blocked []string
+	if err := u.db.WithContext(ctx).
+		Table("permissions").
+		Where("id IN ? AND code IN ?", permissionIDs, systemAdminOnlyPermissionCodes).
+		Pluck("code", &blocked).Error; err != nil {
+		return err
+	}
+
+	if len(blocked) == 0 {
+		return nil
+	}
+
+	sort.Strings(blocked)
+	return fmt.Errorf("permissions reserved for system admins: %s", strings.Join(blocked, ", "))
 }
 
 func (u *roleUsecase) validatePlanPermissionBoundary(ctx context.Context, permissionIDs []string) error {

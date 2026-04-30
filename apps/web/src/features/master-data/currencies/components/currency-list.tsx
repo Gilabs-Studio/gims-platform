@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
@@ -23,10 +24,11 @@ import type { Currency } from "../types";
 export function CurrencyList() {
   const t = useTranslations("currency");
   const tCommon = useTranslations("common");
+  const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
 
-  const canCreate = useUserPermission("currency.create");
-  const canUpdate = useUserPermission("currency.update");
-  const canDelete = useUserPermission("currency.delete");
+  const canCreate = isSystemAdmin && useUserPermission("currency.create");
+  const canUpdate = isSystemAdmin && useUserPermission("currency.update");
+  const canDelete = isSystemAdmin && useUserPermission("currency.delete");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -67,6 +69,7 @@ export function CurrencyList() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
+          {!isSystemAdmin && <p className="mt-1 text-xs text-muted-foreground">{t("viewOnlyHint")}</p>}
         </div>
         {canCreate && (
           <Button

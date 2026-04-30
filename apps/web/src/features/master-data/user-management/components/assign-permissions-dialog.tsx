@@ -21,6 +21,7 @@ import { ButtonLoading } from "@/components/loading";
 import type { Permission, PermissionScope } from "../types";
 import { Input } from "@/components/ui/input";
 import { billingService } from "@/features/settings/services/billing-service";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import {
   Select,
   SelectContent,
@@ -135,6 +136,11 @@ const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
   "supplier.",
   "employee.",
 ] as const;
+const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
+
+function isSystemAdminOnlyPermission(permission: Permission): boolean {
+  return SYSTEM_ADMIN_ONLY_PERMISSION_CODES.has(permission.code.trim().toLowerCase());
+}
 
 function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
   if (entitledMenuURLSet.has(menuURL)) {
@@ -934,7 +940,12 @@ function PermissionsSelector({
   const t = useTranslations("userManagement.assignPermissions");
   const tNav = useTranslations("navigation");
   const locale = useLocale();
+  const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
   const upgradeHref = `/${locale}/profile?tab=billing`;
+  const visiblePermissions = useMemo(
+    () => permissions.filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission)),
+    [isSystemAdmin, permissions],
+  );
 
   // Provide a stable, typed translator function for buildPermissionTree
   const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
@@ -948,13 +959,13 @@ function PermissionsSelector({
   });
 
   const permissionByID = useMemo(
-    () => new Map(permissions.map((permission) => [permission.id, permission])),
-    [permissions],
+    () => new Map(visiblePermissions.map((permission) => [permission.id, permission])),
+    [visiblePermissions],
   );
 
   const permissionIdByCode = useMemo(() => {
     const map = new Map<string, string>();
-    for (const permission of permissions) {
+    for (const permission of visiblePermissions) {
       const normalizedCode = permission.code.trim().toLowerCase();
       if (!normalizedCode) {
         continue;
@@ -964,7 +975,7 @@ function PermissionsSelector({
       }
     }
     return map;
-  }, [permissions]);
+  }, [visiblePermissions]);
 
   const effectiveEntitledModules = useMemo(
     () =>
@@ -1053,15 +1064,15 @@ function PermissionsSelector({
 
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
-    () => buildPermissionTree(navigationConfig, permissions, tNavFn),
-    [permissions, tNavFn],
+    () => buildPermissionTree(navigationConfig, visiblePermissions, tNavFn),
+    [visiblePermissions, tNavFn],
   );
 
   // No hardcoded tree alteration needed, relies on API returned module entitlements
   const planScopedTree = tree;
 
   // Valid permission ID set for filtering stale IDs from the role
-  const validPermIds = useMemo(() => new Set(permissions.map((permission) => permission.id)), [permissions]);
+  const validPermIds = useMemo(() => new Set(visiblePermissions.map((permission) => permission.id)), [visiblePermissions]);
 
   // Initialize state - filter out stale permission IDs that no longer exist
   const initialPermissions = useMemo(() => {
@@ -1141,7 +1152,7 @@ function PermissionsSelector({
   // Toggle single permission with auto-select view/read logic
   const handleToggle = useCallback(
     (permissionId: string) => {
-      const targetPerm = permissions.find((permission) => permission.id === permissionId);
+      const targetPerm = visiblePermissions.find((permission) => permission.id === permissionId);
       if (!targetPerm) return;
       const { resource, action } = parsePermissionCode(targetPerm.code);
       if (!resource) {
@@ -1156,7 +1167,7 @@ function PermissionsSelector({
           delete next[permissionId];
           // If removing view/read, also remove dependent actions for same resource
           if (action === "view" || action === "read") {
-            for (const permission of permissions) {
+            for (const permission of visiblePermissions) {
               if (permission.code.startsWith(`${resource}.`) && permission.id !== permissionId) {
                 delete next[permission.id];
               }
@@ -1166,7 +1177,7 @@ function PermissionsSelector({
           next[permissionId] = "ALL";
           // Auto-select view/read when selecting other actions
           if (action !== "view" && action !== "read") {
-            const viewPerm = permissions.find(
+            const viewPerm = visiblePermissions.find(
               (permission) =>
                 permission.code === `${resource}.view` || permission.code === `${resource}.read`,
             );
@@ -1178,7 +1189,7 @@ function PermissionsSelector({
         return next;
       });
     },
-    [permissions],
+    [visiblePermissions],
   );
 
   // Batch toggle for select-all / deselect-all

@@ -171,8 +171,8 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 	if req.VillageID != nil {
 		company.VillageID = req.VillageID
 	}
-	if req.DirectorID != nil {
-		company.DirectorID = req.DirectorID
+	if req.VillageName != nil {
+		company.VillageName = req.VillageName
 	}
 	if req.Timezone != "" {
 		company.Timezone = req.Timezone

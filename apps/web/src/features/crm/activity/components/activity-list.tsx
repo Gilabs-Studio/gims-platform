@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LogActivityDialog } from "./log-activity-dialog";
 import { ActivityDetailDialog } from "./activity-detail-dialog";
 import { useActivityList } from "../hooks/use-activity-list";
-import { useActivities } from "../hooks/use-activities";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { useLeadFormData } from "@/features/crm/lead/hooks/use-leads";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -36,24 +35,15 @@ const TYPE_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "de
 };
 
 export function ActivityList() {
-  const { state, actions, permissions, translations } = useActivityList();
+  const { state, actions, data, permissions, translations } = useActivityList();
   const { t, tCommon } = translations;
+  const { items, pagination, isLoading, isError, refetch } = data;
 
   const { data: formDataRes } = useLeadFormData({ enabled: permissions.canCreate });
   const { data: activityTypesData } = useActivityTypes({ per_page: 20, sort_by: "order", sort_dir: "asc" });
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.data?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);
-
-  const { data: activitiesRes, isLoading, isError, refetch } = useActivities({
-    page: state.page,
-    per_page: state.pageSize,
-    search: state.debouncedSearch,
-    type: state.typeFilter || undefined,
-  });
-
-  const items = activitiesRes?.data ?? [];
-  const pagination = activitiesRes?.meta?.pagination;
 
   const [detailItem, setDetailItem] = useState<Activity | null>(null);
 
@@ -216,10 +206,6 @@ export function ActivityList() {
           defaultEmployeeId={authUser?.employee_id}
           employees={employees}
           activityTypes={activityTypes}
-          onSuccess={() => {
-            actions.handleDialogClose();
-            refetch();
-          }}
         />
       )}
 

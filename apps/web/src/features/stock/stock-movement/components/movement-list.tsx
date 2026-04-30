@@ -215,9 +215,9 @@ export function MovementList() {
             <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground">{t("description")}</p>
           </div>
-          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm font-medium">
+          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2 flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary shrink-0" />
+            <AlertDescription className="text-sm font-medium leading-none">
               All inventory movements are recorded via Stock. The Inventory Journal will be automatically managed.
             </AlertDescription>
           </Alert>

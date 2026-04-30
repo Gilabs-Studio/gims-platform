@@ -73,19 +73,6 @@ export function useDeletePurchaseOrder() {
   });
 }
 
-export function useConfirmPurchaseOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => purchaseOrdersService.confirm(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
-    },
-  });
-}
-
 export function useSubmitPurchaseOrder() {
   const queryClient = useQueryClient();
 
@@ -117,19 +104,6 @@ export function useRejectPurchaseOrder() {
 
   return useMutation({
     mutationFn: (id: string) => purchaseOrdersService.reject(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
-    },
-  });
-}
-
-export function useClosePurchaseOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => purchaseOrdersService.close(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });

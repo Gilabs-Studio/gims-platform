@@ -358,7 +358,7 @@ func (u *posOrderUsecase) GetCatalog(ctx context.Context, outletID string) ([]dt
 		warehouseID = *outlet.WarehouseID
 	}
 
-	products, err := u.productRepo.FindPOSAvailable(ctx, warehouseID)
+	products, err := u.productRepo.FindPOSAvailable(ctx, warehouseID, outletID)
 	if err != nil {
 		return nil, err
 	}

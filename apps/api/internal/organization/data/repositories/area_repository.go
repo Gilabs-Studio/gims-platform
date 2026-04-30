@@ -16,6 +16,7 @@ type AreaRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Area, error)
 	FindByIDWithMembers(ctx context.Context, id string) (*models.Area, error)
 	FindByName(ctx context.Context, name string) (*models.Area, error)
+	FindAll(ctx context.Context) ([]models.Area, error)
 	FindByIDs(ctx context.Context, ids []string) ([]models.Area, error)
 	List(ctx context.Context, req *dto.ListAreasRequest) ([]models.Area, int64, error)
 	Create(ctx context.Context, a *models.Area) error
@@ -70,6 +71,15 @@ func (r *areaRepository) FindByName(ctx context.Context, name string) (*models.A
 		return nil, err
 	}
 	return &area, nil
+}
+
+func (r *areaRepository) FindAll(ctx context.Context) ([]models.Area, error) {
+	var areas []models.Area
+	err := r.getDB(ctx).Find(&areas).Error
+	if err != nil {
+		return nil, err
+	}
+	return areas, nil
 }
 
 func (r *areaRepository) FindByIDs(ctx context.Context, ids []string) ([]models.Area, error) {

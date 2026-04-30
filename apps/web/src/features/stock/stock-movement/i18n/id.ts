@@ -75,6 +75,10 @@ export const stockMovementId = {
       selectAll: "Pilih Semua",
       deselectAll: "Batal Pilih Semua",
       items: "item",
+      loadMore: "Muat Lebih Banyak",
+      loadingMore: "Memuat lebih banyak...",
+      loadMoreWarehouses: "Muat Gudang Lainnya",
+      loadingMoreWarehouses: "Memuat gudang lainnya...",
       available: "Tersedia",
       qty: "Jumlah",
       // Detail

@@ -45,7 +45,7 @@ func (r *jobPositionRepository) FindByID(ctx context.Context, id string) (*model
 
 func (r *jobPositionRepository) FindByName(ctx context.Context, name string) (*models.JobPosition, error) {
 	var jobPosition models.JobPosition
-	err := r.getDB(ctx).Where("name = ?", name).First(&jobPosition).Error
+	err := r.getDB(ctx).Where("LOWER(TRIM(name)) = LOWER(TRIM(?))", name).First(&jobPosition).Error
 	if err != nil {
 		return nil, err
 	}

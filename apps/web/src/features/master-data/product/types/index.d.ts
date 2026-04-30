@@ -296,10 +296,11 @@ export interface Product {
   product_kind: ProductKind;
   is_ingredient: boolean;
   is_inventory_tracked: boolean;
-  is_pos_available: boolean;
+  pos_scope: "none" | "global" | "specific";
   recipe_items?: RecipeItemResponse[];
   recipe_cost?: number | null;
   producible_quantity: number; // For RECIPE products: max qty that can be produced based on ingredient stock
+  outlet_ids?: string[];
 
   created_at: string;
   updated_at: string;
@@ -338,8 +339,9 @@ export interface CreateProductData {
   product_kind?: ProductKind;
   is_ingredient?: boolean;
   is_inventory_tracked?: boolean;
-  is_pos_available?: boolean;
+  pos_scope?: "none" | "global" | "specific";
   recipe_items?: RecipeItemRequest[];
+  outlet_ids?: string[];
 }
 
 export interface UpdateProductData {
@@ -375,8 +377,9 @@ export interface UpdateProductData {
   product_kind?: ProductKind;
   is_ingredient?: boolean;
   is_inventory_tracked?: boolean;
-  is_pos_available?: boolean;
+  pos_scope?: "none" | "global" | "specific";
   recipe_items?: RecipeItemRequest[];
+  outlet_ids?: string[];
 }
 
 export interface ApproveProductData {
@@ -399,7 +402,7 @@ export interface ProductListParams {
   status?: ProductStatus;
   is_approved?: boolean;
   product_kind?: ProductKind;
-  is_pos_available?: boolean;
+  pos_scope?: "none" | "global" | "specific";
   is_ingredient?: boolean;
 }
 

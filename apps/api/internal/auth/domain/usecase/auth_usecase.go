@@ -251,6 +251,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Store refresh token in database
 		refreshTokenEntity := &refreshTokenModels.RefreshToken{
+			TenantID:  user.TenantID,
 			UserID:    user.ID,
 			TokenID:   tokenID,
 			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
@@ -269,8 +270,9 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
 		// Resolve Tenant name for SaaS context display
-		var tenantID, tenantName string
-		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		// user.TenantID is already populated by FindByEmail — no extra query needed
+		tenantID := user.TenantID
+		var tenantName string
 		if tenantID != "" {
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
@@ -447,6 +449,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Store new refresh token in database
 		newRefreshTokenEntity := &refreshTokenModels.RefreshToken{
+			TenantID:  user.TenantID,
 			UserID:    user.ID,
 			TokenID:   newTokenID,
 			ExpiresAt: apptime.Now().Add(u.jwtManager.RefreshTokenTTL()),
@@ -464,8 +467,9 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
 
 		// Resolve Tenant name for SaaS context display
-		var tenantID, tenantName string
-		u.db.Table("users").Select("tenant_id").Where("id = ?", user.ID).Row().Scan(&tenantID)
+		// user.TenantID is already populated by FindByID — no extra query needed
+		tenantID := user.TenantID
+		var tenantName string
 		if tenantID != "" {
 			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
 		}
@@ -549,6 +553,8 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 		"company_name": true,
 	}
 
+	_ = companyName
+
 	if email != "" {
 		var count int64
 		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
@@ -556,17 +562,6 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 		}
 		if count > 0 {
 			result["email"] = false
-		}
-	}
-
-	if companyName != "" {
-		slug := slugify(companyName)
-		var count int64
-		if err := u.db.WithContext(ctx).Table("tenants").Where("slug = ?", slug).Count(&count).Error; err != nil {
-			return nil, err
-		}
-		if count > 0 {
-			result["company_name"] = false
 		}
 	}
 
@@ -609,11 +604,11 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 			req.Plan = validity.TargetPlanSlug
 			plan = validity.TargetPlanSlug
 		}
-		// For package coupons (fixed package price + included users), exceeding max_user_count
-		// is allowed and billed as extra seats by ApplyDiscount.
-		isPackageCoupon := validity.PackagePriceMonthlyIDR > 0 && validity.MaxUserCount > 0
-		if !isPackageCoupon && validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
+		if validity.MaxUserCount > 0 && req.UserCount > validity.MaxUserCount {
 			return nil, ErrCouponUserLimitExceeded
+		}
+		if validity.LockUserCount && validity.MaxUserCount > 0 {
+			req.UserCount = validity.MaxUserCount
 		}
 		couponIsTrial = validity.DiscountType == "" || validity.DiscountType == "trial"
 	}
@@ -770,7 +765,7 @@ func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, re
 		return nil, err
 	}
 	// Redeem coupon usage after provisioning.
-	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID)
+	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount)
 	return &RegisterTenantResult{LoginResponse: resp}, nil
 }
 
@@ -899,6 +894,7 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		ExpiresAt:       &nextBilling,
 		AmountPaidIDR:   pending.AmountPaid,
 		UserCount:       userCount,
+		SeatLimit:       userCount,
 		CouponID:        couponID,
 		XenditInvoiceID: &xenditInvoiceID,
 		NextBillingAt:   &nextBilling,
@@ -1105,7 +1101,7 @@ func (u *authUsecase) provisionTenantWithCoupon(ctx context.Context, req *dto.Re
 	// Redeem coupon AFTER the tenant transaction commits to avoid holding the row lock
 	// while expensive user/tenant inserts run. Failure is non-fatal for UX.
 	if couponCode != "" {
-		if _, redeemErr := u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID); redeemErr != nil {
+		if _, redeemErr := u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount); redeemErr != nil {
 			_ = redeemErr
 		}
 	}
@@ -1135,21 +1131,7 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			companyName = req.Name
 		}
 
-		baseSlug := slugify(companyName)
-		slug := baseSlug
-
-		// Ensure slug uniqueness by appending a suffix if collision detected
-		for attempt := 0; attempt < 10; attempt++ {
-			var slugCount int64
-			if err := tx.Table("tenants").Where("slug = ?", slug).Count(&slugCount).Error; err != nil {
-				return err
-			}
-			if slugCount == 0 {
-				break // Slug is unique
-			}
-			// Append suffix (-1, -2, etc.) for uniqueness
-			slug = fmt.Sprintf("%s-%d", baseSlug, attempt+1)
-		}
+		slug := buildUniqueTenantSlug(companyName)
 
 		tenantID := newUUID()
 		userID := newUUID()
@@ -1178,15 +1160,29 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			maxUsers = planConfig.MaxUsers
 		}
 
-		if err := tx.Exec(`
-			INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
-			tenantID, companyName, slug, userID, planSlug, maxUsers,
-		).Error; err != nil {
-			if isUniqueViolationForSlug(err) {
-				return ErrSlugAlreadyTaken
+		insertedTenant := false
+		for attempt := 0; attempt < 8; attempt++ {
+			if attempt > 0 {
+				slug = buildUniqueTenantSlug(companyName)
 			}
-			return err
+
+			if err := tx.Exec(`
+				INSERT INTO tenants (id, name, slug, owner_user_id, status, plan, max_users, created_at, updated_at)
+				VALUES (?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())`,
+				tenantID, companyName, slug, userID, planSlug, maxUsers,
+			).Error; err != nil {
+				if isUniqueViolationForSlug(err) {
+					continue
+				}
+				return err
+			}
+
+			insertedTenant = true
+			break
+		}
+
+		if !insertedTenant {
+			return ErrSlugAlreadyTaken
 		}
 
 		companyID := newUUID()
@@ -1196,6 +1192,19 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			companyID, tenantID, companyName,
 		).Error; err != nil {
 			_ = err
+		}
+
+		if err := u.ensureTenantAccountingDefaults(tx, tenantID); err != nil {
+			return err
+		}
+
+		// NOTE: area defaults generation removed per UX change - areas should start empty
+		// Previously the system auto-created a set of default areas during tenant
+		// registration which forced users to rely on exact province/city matching
+		// to operate. This was removed so tenants start with no areas.
+
+		if err := u.ensureTenantBankDefaults(tx, tenantID); err != nil {
+			return err
 		}
 
 		if err := tx.Exec(`
@@ -2105,6 +2114,22 @@ func slugify(s string) string {
 		result = result[:len(result)-1]
 	}
 	return string(result)
+}
+
+func buildUniqueTenantSlug(companyName string) string {
+	base := slugify(companyName)
+	if base == "" {
+		base = "company"
+	}
+
+	if len(base) > 48 {
+		base = strings.Trim(base[:48], "-")
+		if base == "" {
+			base = "company"
+		}
+	}
+
+	return fmt.Sprintf("%s-%s", base, shortID())
 }
 
 // newUUID generates a random UUID v4.

@@ -341,7 +341,17 @@ func (u *employeeUsecase) getNextEmployeeCode(ctx context.Context) (string, erro
 func isEmployeeCodeUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505" && pgErr.ConstraintName == "idx_employees_employee_code"
+		if pgErr.Code != "23505" {
+			return false
+		}
+
+		constraint := strings.ToLower(strings.TrimSpace(pgErr.ConstraintName))
+		if strings.Contains(constraint, "employee_code") {
+			return true
+		}
+
+		message := strings.ToLower(strings.TrimSpace(pgErr.Message))
+		return strings.Contains(message, "employee_code")
 	}
 
 	return false

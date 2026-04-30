@@ -25,6 +25,7 @@ export const supplierId: SupplierTranslations = {
     success_update: "Berhasil memperbarui {name}",
     error_update: "Gagal memperbarui",
     viewDetails: "Lihat Detail",
+    primary: "Utama",
   },
   supplierType: {
     title: "Tipe Pemasok",
@@ -201,9 +202,15 @@ export const supplierId: SupplierTranslations = {
     deleteTitle: "Hapus Rekening Bank",
     deleteConfirm: "Apakah Anda yakin ingin menghapus rekening bank ini?",
     empty: "Belum ada rekening bank",
+    createSuccess: "Rekening bank berhasil ditambahkan",
+    updateSuccess: "Rekening bank berhasil diperbarui",
+    saveError: "Gagal menyimpan rekening bank",
+    unknownBank: "Bank tidak dikenal",
+    emptyBankOptions: "Tidak ada bank ditemukan",
     form: {
       bank: "Bank",
       bankPlaceholder: "Pilih bank",
+      bankSearchPlaceholder: "Cari bank",
       currency: "Mata Uang",
       currencyPlaceholder: "Pilih mata uang",
       accountNumber: "Nomor Rekening",
@@ -213,6 +220,7 @@ export const supplierId: SupplierTranslations = {
       branch: "Cabang",
       branchPlaceholder: "Masukkan nama cabang (opsional)",
       isPrimary: "Utama",
+      primaryDescription: "Jadikan sebagai rekening bank utama",
     },
   },
   validation: {

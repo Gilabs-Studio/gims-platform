@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Controller } from "react-hook-form";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ButtonLoading } from "@/components/loading";
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ProductCategoryDialog } from "../product-category/product-category-dialog";
 import { UnitOfMeasureDialog } from "../unit-of-measure/unit-of-measure-dialog";
 
@@ -77,6 +80,7 @@ export function ProductDialog({
     uoms,
     packagings,
     procurementTypes,
+    outlets,
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
@@ -100,8 +104,14 @@ export function ProductDialog({
   } = form;
 
 
+  const outletIds = watch("outlet_ids") ?? [];
+  const posScope = watch("pos_scope") ?? "none";
   const isTaxInclusive = watch("is_tax_inclusive");
-  const isIngredient = watch("is_ingredient");
+
+  const [outletSearch, setOutletSearch] = useState("");
+  const filteredOutlets = outletSearch.trim()
+    ? outlets.filter((o) => o.name.toLowerCase().includes(outletSearch.toLowerCase()))
+    : outlets;
 
   // Watch IDs for Select values
   const categoryId = watch("category_id");
@@ -243,29 +253,6 @@ export function ProductDialog({
 
             <Separator />
 
-            {/* POS Details */}
-            <Section title="POS Details">
-              <div className="grid grid-cols-2 gap-4">
-                <Field
-                  orientation="horizontal"
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="space-y-0.5">
-                    <FieldLabel className="text-sm">{t("isIngredient")}</FieldLabel>
-                    <p className="text-xs text-muted-foreground">
-                      {t("isIngredientHint")}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isIngredient ?? false}
-                    onCheckedChange={(val) => setValue("is_ingredient", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Separator />
-
             {/* Units & Packaging */}
             <Section title={t("section.unitsPackaging")}>
               <div className="grid grid-cols-2 gap-4">
@@ -391,7 +378,7 @@ export function ProductDialog({
             {/* Pricing & Stock */}
             <Section title={t("section.pricingStock")}>
               <div className="grid grid-cols-2 gap-4">
-                <Field className="col-span-2 md:col-span-2">
+                <Field className="col-span-1">
                   <FieldLabel className="required">{t("form.costPrice")}</FieldLabel>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
@@ -411,6 +398,28 @@ export function ProductDialog({
                   </div>
                   {errors.cost_price && (
                     <FieldError>{errors.cost_price.message}</FieldError>
+                  )}
+                </Field>
+                <Field className="col-span-1">
+                  <FieldLabel>{t("form.sellingPrice")}</FieldLabel>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
+                      Rp
+                    </span>
+                    <Controller
+                      name="selling_price"
+                      control={control}
+                      render={({ field }) => (
+                        <NumericInput
+                          className="pl-9"
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      )}
+                    />
+                  </div>
+                  {errors.selling_price && (
+                    <FieldError>{errors.selling_price.message}</FieldError>
                   )}
                 </Field>
                 <Field>
@@ -443,6 +452,112 @@ export function ProductDialog({
             </Section>
 
             <Separator />
+
+            {/* Outlet Availability */}
+            {outlets.length > 0 && (
+              <Section title={t("section.outletAssignment")}>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t("outletAssignment.hint")}
+                </p>
+
+                {/* POS Scope segmented selector */}
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {(["none", "global", "specific"] as const).map((scope) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      onClick={() => {
+                        setValue("pos_scope", scope, { shouldDirty: true });
+                        if (scope !== "specific") {
+                          setValue("outlet_ids", [], { shouldDirty: true });
+                        }
+                      }}
+                      className={cn(
+                        "flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-colors cursor-pointer",
+                        posScope === scope
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:border-muted-foreground/40"
+                      )}
+                    >
+                      <span className={cn(
+                        "text-xs font-semibold",
+                        posScope === scope ? "text-primary" : "text-foreground"
+                      )}>
+                        {t(`outletAssignment.posScope${scope.charAt(0).toUpperCase()}${scope.slice(1)}` as "outletAssignment.posScopeNone")}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground leading-snug">
+                        {t(`outletAssignment.posScope${scope.charAt(0).toUpperCase()}${scope.slice(1)}Desc` as "outletAssignment.posScopeNoneDesc")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Specific outlet picker — shown only when scope = specific */}
+                {posScope === "specific" && (
+                  <div className="rounded-lg border">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-2 px-3 py-2 border-b">
+                      <Input
+                        placeholder={t("outletAssignment.searchPlaceholder")}
+                        value={outletSearch}
+                        onChange={(e) => setOutletSearch(e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 text-[10px] text-primary hover:underline cursor-pointer"
+                        onClick={() => setValue("outlet_ids", filteredOutlets.map((o) => o.id), { shouldDirty: true })}
+                      >
+                        {t("outletAssignment.selectAll")}
+                      </button>
+                      <span className="text-muted-foreground text-[10px]">·</span>
+                      <button
+                        type="button"
+                        className="shrink-0 text-[10px] text-muted-foreground hover:text-destructive cursor-pointer"
+                        onClick={() => setValue("outlet_ids", [], { shouldDirty: true })}
+                      >
+                        {t("outletAssignment.clearAll")}
+                      </button>
+                      {outletIds.length > 0 && (
+                        <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          {outletIds.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Outlet list */}
+                    <div className="max-h-48 overflow-y-auto">
+                      {filteredOutlets.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">
+                          {t("outletAssignment.noOutlets")}
+                        </p>
+                      ) : (
+                        filteredOutlets.map((outlet) => {
+                          const checked = outletIds.includes(outlet.id);
+                          return (
+                            <label
+                              key={outlet.id}
+                              className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-muted/40 select-none border-b last:border-b-0"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  const next = v
+                                    ? [...outletIds, outlet.id]
+                                    : outletIds.filter((id) => id !== outlet.id);
+                                  setValue("outlet_ids", next, { shouldDirty: true });
+                                }}
+                              />
+                              <span className="text-sm">{outlet.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </Section>
+            )}
 
           </div>
 

@@ -32,6 +32,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Create group with auth middleware
 	group := api.Group("/general")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+	group.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterDashboardRoutes(group, dashboardHandler)
