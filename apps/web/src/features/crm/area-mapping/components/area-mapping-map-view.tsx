@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ButtonLoading } from "@/components/loading";
 import {
   Select,
   SelectContent,
@@ -998,7 +999,9 @@ export function AreaMappingMapView() {
             style={{ zIndex: 950 }}
           >
             <div className="rounded-lg bg-card p-6 shadow-lg">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <ButtonLoading loading>
+                <span className="sr-only">Loading map data</span>
+              </ButtonLoading>
             </div>
           </motion.div>
         )}

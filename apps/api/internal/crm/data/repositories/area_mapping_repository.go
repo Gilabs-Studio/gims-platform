@@ -28,6 +28,22 @@ type areaMappingRepository struct {
 	db *gorm.DB
 }
 
+func resolveTenantScope(ctx context.Context) (tenantID string, enabled bool) {
+	if v := ctx.Value("is_system_admin"); v != nil {
+		if isSystemAdmin, ok := v.(bool); ok && isSystemAdmin {
+			return "", false
+		}
+	}
+
+	if v := ctx.Value("tenant_id"); v != nil {
+		if tid, ok := v.(string); ok && tid != "" {
+			return tid, true
+		}
+	}
+
+	return "", false
+}
+
 func (r *areaMappingRepository) getDB(ctx context.Context) *gorm.DB {
 	return database.GetDB(ctx, r.db)
 }
@@ -37,10 +53,20 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 	var results []dto.AreaMappingLeadData
 
 	activityJoin := "LEFT JOIN crm_activities a ON l.id = a.lead_id"
-	taskJoin := "LEFT JOIN crm_tasks t ON l.id = t.lead_id"
-	dealJoin := "LEFT JOIN crm_deals d ON l.id = d.lead_id"
+	taskJoin := "LEFT JOIN crm_tasks t ON l.id = t.lead_id AND t.deleted_at IS NULL"
+	dealJoin := "LEFT JOIN crm_deals d ON l.id = d.lead_id AND d.deleted_at IS NULL"
+	tenantWhereFilter := ""
 	whereDateFilter := ""
 	args := make([]interface{}, 0)
+	tenantID, tenantScoped := resolveTenantScope(ctx)
+
+	if tenantScoped {
+		activityJoin += " AND a.tenant_id = l.tenant_id"
+		taskJoin += " AND t.tenant_id = l.tenant_id"
+		dealJoin += " AND d.tenant_id = l.tenant_id"
+		tenantWhereFilter = " AND l.tenant_id = ?"
+		args = append(args, tenantID)
+	}
 
 	if startDate != nil && endDate != nil {
 		activityJoin += " AND a.created_at >= ? AND a.created_at < ?"
@@ -77,8 +103,8 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 				ELSE LEAST(100, (COALESCE(COUNT(DISTINCT a.id), 0) * 5 + COALESCE(COUNT(DISTINCT t.id), 0) * 3 + COALESCE(COUNT(DISTINCT d.id), 0) * 10 + COALESCE(l.lead_score, 0) / 2))
 			END AS intensity_score
 		FROM crm_leads l
-		LEFT JOIN crm_lead_statuses ls ON l.lead_status_id = ls.id
-		LEFT JOIN employees e ON l.assigned_to = e.id
+		LEFT JOIN crm_lead_statuses ls ON l.lead_status_id = ls.id AND (ls.tenant_id = l.tenant_id OR ls.tenant_id IS NULL)
+		LEFT JOIN employees e ON l.assigned_to = e.id AND e.tenant_id = l.tenant_id
 		%s
 		%s
 		%s
@@ -87,9 +113,10 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 			AND l.latitude IS NOT NULL
 			AND l.longitude IS NOT NULL
 			%s
+			%s
 		GROUP BY l.id, l.code, l.first_name, l.last_name, l.latitude, l.longitude, l.province, l.city, ls.name, l.lead_score, l.estimated_value, l.assigned_to, e.name
 		ORDER BY intensity_score DESC
-	`, activityJoin, taskJoin, dealJoin, whereDateFilter)
+	`, activityJoin, taskJoin, dealJoin, tenantWhereFilter, whereDateFilter)
 
 	if err := r.getDB(ctx).Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, err
@@ -102,8 +129,15 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 func (r *areaMappingRepository) GetPipelinesForMapping(ctx context.Context, startDate *time.Time, endDate *time.Time) ([]dto.AreaMappingPipelineData, error) {
 	var results []dto.AreaMappingPipelineData
 
+	tenantWhereFilter := ""
 	whereDateFilter := ""
 	args := make([]interface{}, 0)
+	tenantID, tenantScoped := resolveTenantScope(ctx)
+	if tenantScoped {
+		tenantWhereFilter = " AND d.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
 	if startDate != nil && endDate != nil {
 		whereDateFilter = " AND d.created_at >= ? AND d.created_at < ?"
 		args = append(args, *startDate, *endDate)
@@ -137,18 +171,19 @@ func (r *areaMappingRepository) GetPipelinesForMapping(ctx context.Context, star
 				ELSE LEAST(100, COALESCE(d.probability, 0) + CASE WHEN COALESCE(d.value, 0) > 0 THEN 20 ELSE 0 END)
 			END AS intensity_score
 		FROM crm_deals d
-		LEFT JOIN crm_leads l ON d.lead_id = l.id
-		LEFT JOIN customers c ON d.customer_id = c.id
-		LEFT JOIN crm_pipeline_stages ps ON d.pipeline_stage_id = ps.id
-		LEFT JOIN employees e ON d.assigned_to = e.id
+		LEFT JOIN crm_leads l ON d.lead_id = l.id AND l.deleted_at IS NULL AND l.tenant_id = d.tenant_id
+		LEFT JOIN customers c ON d.customer_id = c.id AND c.deleted_at IS NULL AND c.tenant_id = d.tenant_id
+		LEFT JOIN crm_pipeline_stages ps ON d.pipeline_stage_id = ps.id AND (ps.tenant_id = d.tenant_id OR ps.tenant_id IS NULL)
+		LEFT JOIN employees e ON d.assigned_to = e.id AND e.tenant_id = d.tenant_id
 		LEFT JOIN provinces p ON c.province_id = p.id
 		LEFT JOIN cities ci ON c.city_id = ci.id
 		WHERE d.deleted_at IS NULL
 			AND COALESCE(l.latitude, c.latitude) IS NOT NULL
 			AND COALESCE(l.longitude, c.longitude) IS NOT NULL
 			%s
+			%s
 		ORDER BY intensity_score DESC, d.created_at DESC
-	`, whereDateFilter)
+	`, tenantWhereFilter, whereDateFilter)
 
 	if err := r.getDB(ctx).Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, err
