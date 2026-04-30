@@ -564,6 +564,8 @@ export function AreaMappingMapView() {
         totalLng: number;
         totalIntensity: number;
         maxIntensity: number;
+        seenLeadIds: Set<string>;
+        seenPipelineIds: Set<string>;
       }
     >();
 
@@ -595,16 +597,31 @@ export function AreaMappingMapView() {
         totalLng: 0,
         totalIntensity: 0,
         maxIntensity: 0,
+        seenLeadIds: new Set<string>(),
+        seenPipelineIds: new Set<string>(),
       };
 
-      existing.totalPoints += 1;
-      if (item.type === "lead") {
-        existing.leadCount += 1;
-        existing.totalPipelineValue += item.lead?.estimated_value ?? 0;
+      // Deduplicate: only count if we haven't seen this ID before in this cluster
+      const shouldCount = item.type === "lead" 
+        ? !existing.seenLeadIds.has(item.lead?.id ?? "")
+        : !existing.seenPipelineIds.has(item.pipeline?.id ?? "");
+
+      if (!shouldCount) {
+        // Skip duplicate in same cluster
+        clusters.set(cityKey, existing);
+        continue;
       }
-      if (item.type === "pipeline") {
+
+      existing.totalPoints += 1;
+      if (item.type === "lead" && item.lead) {
+        existing.leadCount += 1;
+        existing.seenLeadIds.add(item.lead.id);
+        existing.totalPipelineValue += item.lead.estimated_value;
+      }
+      if (item.type === "pipeline" && item.pipeline) {
         existing.pipelineDealCount += 1;
-        existing.totalPipelineValue += item.pipeline?.value ?? 0;
+        existing.seenPipelineIds.add(item.pipeline.id);
+        existing.totalPipelineValue += item.pipeline.value;
       }
       existing.totalLat += point.latitude;
       existing.totalLng += point.longitude;
