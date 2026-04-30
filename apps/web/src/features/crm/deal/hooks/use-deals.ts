@@ -11,6 +11,7 @@ import type {
   ConvertToQuotationRequest,
   ApiResponse,
 } from "../types";
+import type { LeadProductItem } from "@/features/crm/lead/types";
 
 const QUERY_KEY = "crm-deals";
 
@@ -109,8 +110,63 @@ export function useUpdateDeal() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDealData }) =>
       dealService.update(id, data),
+    onMutate: async ({ id, data }) => {
+      const previousProductItems = qc.getQueryData<ApiResponse<LeadProductItem[]>>(
+        dealKeys.productItems(id),
+      );
+
+      if (!data.items) {
+        return { previousProductItems };
+      }
+
+      await qc.cancelQueries({ queryKey: dealKeys.productItems(id) });
+
+      const cachedItems = previousProductItems?.data ?? [];
+      const cachedByKey = new Map(
+        cachedItems.map((item) => [
+          item.product_id ?? `${item.product_name}::${item.product_sku}`,
+          item,
+        ]),
+      );
+
+      const now = new Date().toISOString();
+      const optimisticItems: LeadProductItem[] = data.items.map((item, index) => {
+        const cacheKey = item.product_id ?? `${item.product_name}::${item.product_sku ?? ""}`;
+        const previous = cachedByKey.get(cacheKey);
+        const leadId = previous?.lead_id ?? cachedItems[0]?.lead_id ?? "";
+
+        return {
+          id: previous?.id ?? `optimistic-${id}-${index}`,
+          lead_id: leadId,
+          product_id: item.product_id ?? null,
+          product_name: item.product_name,
+          product_sku: item.product_sku ?? "",
+          interest_level: previous?.interest_level ?? 0,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          notes: item.notes ?? "",
+          source_visit_report_id: previous?.source_visit_report_id ?? null,
+          last_survey_answers: previous?.last_survey_answers ?? null,
+          is_deleted: previous?.is_deleted ?? false,
+          created_at: previous?.created_at ?? now,
+        };
+      });
+
+      qc.setQueryData<ApiResponse<LeadProductItem[]>>(dealKeys.productItems(id), {
+        ...(previousProductItems ?? { data: [] }),
+        data: optimisticItems,
+      });
+
+      return { previousProductItems };
+    },
+    onError: (_error, { id }, context) => {
+      if (context?.previousProductItems) {
+        qc.setQueryData(dealKeys.productItems(id), context.previousProductItems);
+      }
+    },
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: dealKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: dealKeys.productItems(id) });
       qc.invalidateQueries({ queryKey: dealKeys.byStage() });
       qc.invalidateQueries({ queryKey: dealKeys.lists() });
     },

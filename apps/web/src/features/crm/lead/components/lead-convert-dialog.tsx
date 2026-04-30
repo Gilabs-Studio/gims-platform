@@ -58,13 +58,16 @@ export function LeadConvertDialog({
     const title = currentLead.company_name || `${currentLead.first_name} ${currentLead.last_name ?? ""}`.trim();
     setDealTitle(title);
 
-    const defaultStage = stages.reduce<null | { id: string; probability: number }>((best, stage) => {
-      if (!best || stage.probability < best.probability) {
-        return { id: stage.id, probability: stage.probability };
-      }
-      return best;
-    }, null);
-    setPipelineStageId(defaultStage?.id ?? "");
+    const leadScore = currentLead.lead_score ?? currentLead.probability ?? 0;
+    const orderedStages = [...stages].sort((a, b) => {
+      if (a.probability !== b.probability) return a.probability - b.probability;
+      return a.order - b.order;
+    });
+    const matchingStage = orderedStages
+      .filter((stage) => stage.probability > 0 && stage.probability <= leadScore)
+      .at(-1);
+    const fallbackStage = orderedStages.find((stage) => stage.probability > 0) ?? orderedStages[0];
+    setPipelineStageId(matchingStage?.id ?? fallbackStage?.id ?? "");
 
     setDealValue(currentLead.budget_confirmed && currentLead.budget_amount > 0 ? currentLead.budget_amount : undefined);
     setNotes("");
