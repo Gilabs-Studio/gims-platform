@@ -11,7 +11,7 @@ export const crmDealEn = {
     addDeal: "Add Deal",
     searchPlaceholder: "Search deals...",
     emptyState: "No deals found",
-    noItems: "No product items",
+    noItems: "No product interest recorded",
     noHistory: "No stage transition history",
     activities: "Activities",
     activityTimeline: "Activity Timeline",
@@ -56,7 +56,7 @@ export const crmDealEn = {
     moveStageConvertLabel: "Convert to Sales Quotation",
     moveStageConvertDescription:
       "Automatically create a sales quotation from this deal upon moving to Won stage.",
-    moveStageConvertNoItems: "Cannot convert: deal has no product items.",
+    moveStageConvertNoItems: "Cannot convert: deal has no product interest.",
     moveStageConvertNoCustomer:
       "Cannot convert: deal has no customer or linked lead.",
     moveStageConvertAutoCreateCustomer:
@@ -78,7 +78,7 @@ export const crmDealEn = {
     descriptionPlaceholder: "Describe the deal",
     value: "Value",
     valuePlaceholder: "0",
-    valueAutoCalculated: "Value is auto-calculated from product items",
+    valueAutoCalculated: "Value is auto-calculated from product interest",
     probability: "Probability (%)",
     probabilityPlaceholder: "0",
     pipelineStage: "Pipeline Stage",
@@ -131,9 +131,9 @@ export const crmDealEn = {
     closeReasonPlaceholder: "Reason for closing this deal",
     dates: "Dates",
 
-    // Product items
-    productItems: "Product Items",
-    addItem: "Add Product Item",
+    // Product interest
+    productItems: "Product Interest",
+    addItem: "Add Product Interest",
     product: "Product",
     productPlaceholder: "Select product",
     selectProduct: "Select product",
@@ -184,7 +184,7 @@ export const crmDealEn = {
 
     // Form tabs & section headers
     tabBasic: "Basic Information",
-    tabItems: "Products & BANT",
+    tabItems: "Product Interest & BANT",
     sectionDealInfo: "Deal Information",
     sectionCustomerInfo: "Customer & Assignment",
     summary: "Summary",
@@ -201,7 +201,7 @@ export const crmDealEn = {
     // Sections
     sections: {
       basicInfo: "Basic Information",
-      productItems: "Product Items",
+      productItems: "Product Interest",
       bant: "BANT Qualification",
       assignment: "Assignment",
       notes: "Notes",

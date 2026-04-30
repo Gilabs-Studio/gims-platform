@@ -3,9 +3,7 @@
 import { useState } from "react";
 import {
   MoreHorizontal,
-  Plus,
   Search,
-  Pencil,
   Trash2,
   Filter,
   Eye,
@@ -50,7 +48,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisitReportCalendarView } from "./visit-report-calendar-view";
 import { VisitReportEmployeeView } from "./visit-report-employee-view";
-import { LogVisitDialog } from "./log-visit-dialog";
+
 import { useVisitReportList } from "../hooks/use-visit-report-list";
 import { visitReportService } from "../services/visit-report-service";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -71,7 +69,6 @@ export function VisitReportList() {
   const { t, tCommon } = translations;
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
-  const [createOpen, setCreateOpen] = useState(false);
 
   // Determine whether the user has a team-level scope (ALL / DIVISION / AREA)
   const hasTeamScope =
@@ -311,16 +308,6 @@ export function VisitReportList() {
                                   </DropdownMenuItem>
                                 )}
 
-                                {permissions.canUpdate && owner && (
-                                  <DropdownMenuItem
-                                    onClick={() => actions.handleEdit(item)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    {tCommon("edit")}
-                                  </DropdownMenuItem>
-                                )}
-
                                 {permissions.canDelete && owner && (
                                   <>
                                     <DropdownMenuSeparator />
@@ -370,12 +357,7 @@ export function VisitReportList() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
         </div>
-        {permissions.canCreate && (
-          <Button onClick={() => setCreateOpen(true)} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {tCommon("create")}
-          </Button>
-        )}
+
       </div>
 
       {/* Team scope: two tabs — By Date (list) | By Employee (expandable cards) */}
@@ -416,16 +398,7 @@ export function VisitReportList() {
         />
       )}
 
-      {permissions.canCreate && (
-        <LogVisitDialog
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false);
-            data.refetch();
-          }}
-        />
-      )}
+
     </div>
   );
 }

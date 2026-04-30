@@ -378,6 +378,15 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrSeatLimitExceeded
 		}
 		newSeatLimit = parsedSeatLimit
+	case tenantDTO.BillingChangeActionDowngrade:
+		parsedSeatLimit, parseErr := strconv.Atoi(strings.TrimSpace(req.Target))
+		if parseErr != nil || parsedSeatLimit >= snapshot.CurrentSeatLimit {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
+		}
+		if parsedSeatLimit < snapshot.ActiveUsers {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrSeatLimitExceeded
+		}
+		newSeatLimit = parsedSeatLimit
 	case tenantDTO.BillingChangeActionUpgradePlan:
 		targetPlanModel, err := u.planRepo.FindBySlug(ctx, strings.TrimSpace(req.Target))
 		if err != nil {
@@ -465,8 +474,13 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 	}
 
 	if decision.AmountDueNow <= 0 {
-		decision.NotificationTitle = "Perubahan langganan disiapkan"
-		decision.NotificationMessage = "Perubahan langganan akan diterapkan tanpa tagihan tambahan sekarang karena sisa periode aktif sudah terlalu singkat."
+		if decision.NewAmountPerCycle < decision.OldAmountPerCycle {
+			decision.NotificationTitle = "Downgrade langganan disiapkan"
+			decision.NotificationMessage = "Seat limit Anda akan diturunkan sekarang. Tidak ada refund untuk siklus berjalan; biaya recurring yang lebih rendah akan berlaku pada siklus billing berikutnya sesuai alur subscription Xendit."
+		} else {
+			decision.NotificationTitle = "Perubahan langganan disiapkan"
+			decision.NotificationMessage = "Perubahan langganan akan diterapkan tanpa tagihan tambahan sekarang karena sisa periode aktif sudah terlalu singkat."
+		}
 	} else {
 		decision.NotificationTitle = "Tagihan perubahan langganan siap"
 		decision.NotificationMessage = "Kami menyiapkan invoice perubahan langganan. Setelah pembayaran berhasil, seat limit dan paket Anda akan diperbarui otomatis."

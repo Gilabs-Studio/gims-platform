@@ -379,7 +379,7 @@ func handleLeadError(c *gin.Context, err error) {
 			"message": err.Error(),
 		}, nil)
 	case "lead already converted":
-		errors.ErrorResponse(c, "CRM_LEAD_ALREADY_CONVERTED", map[string]interface{}{
+		errors.ErrorResponse(c, "LEAD_ALREADY_CONVERTED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
 	case "cannot convert a lost lead":
@@ -387,11 +387,11 @@ func handleLeadError(c *gin.Context, err error) {
 			"message": err.Error(),
 		}, nil)
 	case "cannot update a converted lead":
-		errors.ErrorResponse(c, "CRM_LEAD_ALREADY_CONVERTED", map[string]interface{}{
+		errors.ErrorResponse(c, "LEAD_ALREADY_CONVERTED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
 	case "cannot delete a converted lead":
-		errors.ErrorResponse(c, "CRM_LEAD_ALREADY_CONVERTED", map[string]interface{}{
+		errors.ErrorResponse(c, "LEAD_ALREADY_CONVERTED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
 	case "cannot manually set converted status, use the convert endpoint":

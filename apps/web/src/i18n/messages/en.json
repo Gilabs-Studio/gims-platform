@@ -9,6 +9,22 @@
       }
     }
   },
+  "profile": {
+    "billing": {
+      "cancel": "Cancel",
+      "seatDowngradeEstimateTitle": "Seat downgrade estimate",
+      "seatNeedToReduce": "Reduce the current limit by {count} seats.",
+      "nextCycleDecrease": "Next billing cycle decreases by {amount}.",
+      "downgradePricingTitle": "Downgrade pricing info",
+      "downgradePricingDescription": "Seat reductions update the recurring amount for the next billing cycle. The current cycle is not refunded automatically, so the change stays aligned with Xendit recurring billing behavior.",
+      "downgradeSeatConfirmTitle": "Downgrade seat limit?",
+      "downgradeSeatConfirmDescription": "This will reduce the seat limit to {count}. Make sure your active users stay within the new limit ({active} active users right now).",
+      "downgradeConfirmAction": "Downgrade",
+      "downgradeSeatToCount": "Decreased to {count} seats",
+      "downgradeSeatBlocked": "Active users must stay at or below the new limit ({count}).",
+      "downgradeSeatHint": "Lower the seat count only after reviewing active users."
+    }
+  },
   "common": {
     "title": "Global Settings",
     "loading": "Loading...",

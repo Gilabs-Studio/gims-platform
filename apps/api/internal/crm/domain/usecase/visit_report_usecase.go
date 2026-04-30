@@ -59,8 +59,12 @@ type VisitActivityMetadata struct {
 	Products      []VisitActivityProductInfo `json:"products,omitempty"`
 }
 
-// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata
+// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata.
+// QuestionID and OptionID are included so consumers can restore radio-button state from the
+// metadata alone, without an additional roundtrip to lead_product_items.
 type SurveyAnswerInfo struct {
+	QuestionID   string `json:"question_id,omitempty"`
+	OptionID     string `json:"option_id,omitempty"`
 	QuestionText string `json:"question_text"`
 	OptionText   string `json:"option_text"`
 	Score        int    `json:"score"`
@@ -248,6 +252,17 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 
 	if err := u.visitRepo.Create(ctx, report); err != nil {
 		return nil, err
+	}
+
+	// Create the activity feed entry immediately so pipeline/deal timelines can
+	// show the visit as soon as it is logged.
+	u.autoCreateVisitActivity(ctx, report.ID)
+
+	// Sync product interests to the associated lead immediately after create so the
+	// Product Items tab reflects the visit data without requiring Submit.
+	// Runs in a background goroutine to avoid blocking the Create response.
+	if report.LeadID != nil {
+		go u.syncProductItemsToLead(context.Background(), report.ID)
 	}
 
 	created, err := u.visitRepo.FindByID(ctx, report.ID)
@@ -474,9 +489,6 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
 	}
-
-	// Auto-create activity on submit
-	u.autoCreateVisitActivity(ctx, id)
 
 	// Sync product interests to the associated lead
 	u.syncProductItemsToLead(ctx, id)
@@ -909,8 +921,15 @@ func (u *visitReportUsecase) ListByEmployee(ctx context.Context, req *dto.ListBy
 	return summaries, pagination, nil
 }
 
-// autoCreateVisitActivity creates an immutable Activity record from a submitted visit report
+// autoCreateVisitActivity creates an immutable Activity record from a logged visit report.
 func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitReportID string) {
+	if existing, err := u.activityRepo.FindByVisitReportID(ctx, visitReportID); err == nil && existing != nil {
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		fmt.Printf("[WARN] failed to check existing activity for visit %s: %v\n", visitReportID, err)
+		return
+	}
+
 	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
 	if err != nil {
 		fmt.Printf("[WARN] failed to fetch visit report %s for activity creation: %v\n", visitReportID, err)
@@ -946,7 +965,11 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 			p.UnitPrice = *detail.Price
 		}
 		for _, a := range detail.Answers {
-			sa := SurveyAnswerInfo{Score: a.Score}
+			sa := SurveyAnswerInfo{
+				Score:      a.Score,
+				QuestionID: a.QuestionID,
+				OptionID:   a.OptionID,
+			}
 			if a.Question != nil {
 				sa.QuestionText = a.Question.QuestionText
 			}
@@ -1127,6 +1150,38 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 
 	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
 		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
+	}
+
+	// If the visit is linked to a deal (directly or via a converted lead), also sync to
+	// crm_deal_product_items so the deal's Products & BANT tab stays up-to-date.
+	dealID := ""
+	if visit.DealID != nil {
+		dealID = *visit.DealID
+	} else if visit.Lead != nil && visit.Lead.DealID != nil {
+		dealID = *visit.Lead.DealID
+	}
+	if dealID != "" {
+		dealItems := make([]models.DealProductItem, 0, len(items))
+		for _, li := range items {
+			if li.ProductID == nil {
+				continue
+			}
+			di := models.DealProductItem{
+				DealID:        dealID,
+				ProductID:     li.ProductID,
+				ProductName:   li.ProductName,
+				ProductSKU:    li.ProductSKU,
+				InterestLevel: li.InterestLevel,
+				UnitPrice:     li.UnitPrice,
+				Quantity:      li.Quantity,
+				Notes:         li.Notes,
+			}
+			di.Subtotal = di.UnitPrice * float64(di.Quantity)
+			dealItems = append(dealItems, di)
+		}
+		if err := u.dealRepo.UpsertProductItemsFromVisit(ctx, dealID, dealItems); err != nil {
+			fmt.Printf("[WARN] failed to sync product items to deal %s: %v\n", dealID, err)
+		}
 	}
 }
 

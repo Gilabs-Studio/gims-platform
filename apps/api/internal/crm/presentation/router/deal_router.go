@@ -38,7 +38,10 @@ func RegisterDealRoutes(r *gin.RouterGroup, h *handler.DealHandler) {
 	g.POST("/:id/convert-to-quotation", middleware.RequirePermission(dealConvertQuotation), h.ConvertToQuotation)
 	g.GET("/:id/stock-check", middleware.RequirePermission(dealRead), h.StockCheck)
 
-        // Item management (soft-delete / restore individual items)
+	// Item management (soft-delete / restore individual items)
         g.DELETE("/:id/items/:itemId", middleware.RequirePermission(dealUpdate), h.SoftDeleteItem)
         g.POST("/:id/items/:itemId/restore", middleware.RequirePermission(dealUpdate), h.RestoreItem)
+
+	// Unified product interest items (lead-linked or standalone)
+	g.GET("/:id/product-items", middleware.RequirePermission(dealRead), h.GetProductItems)
 }
