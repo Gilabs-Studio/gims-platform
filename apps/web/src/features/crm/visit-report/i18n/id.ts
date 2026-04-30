@@ -163,6 +163,7 @@ export const crmVisitReportId = {
       employeeRequired: "Sales representative wajib diisi",
       fillRequired: "Mohon isi semua field yang wajib",
       invalidId: "ID tidak valid",
+      duplicateProduct: "Produk ini sudah dipilih. Gunakan satu baris per produk.",
       interestLevelMin: "Level minat tidak boleh negatif",
       interestLevelMax: "Level minat tidak boleh lebih dari 5",
       quantityMin: "Kuantitas tidak boleh negatif",

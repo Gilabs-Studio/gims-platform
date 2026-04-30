@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useMyActivities } from "../hooks/use-activities";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
-import { getActivityTypeIcon, parseVisitMetadata } from "../utils";
+import { aggregateVisitProducts, getActivityTypeIcon, parseVisitMetadata } from "../utils";
 import { VisitActivityCard } from "./visit-activity-card";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
@@ -215,7 +215,8 @@ export function ActivityFeedDialog({
                             {/* Product table for non-visit activities */}
                             {activity.type !== "visit" && (() => {
                               const meta = parseVisitMetadata(activity.metadata);
-                              if (!meta?.products?.length) return null;
+                              const displayProducts = aggregateVisitProducts(meta?.products);
+                              if (!displayProducts.length) return null;
                               return (
                                 <div className="mt-1 space-y-1">
                                   <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -233,7 +234,7 @@ export function ActivityFeedDialog({
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {meta.products.map((p, idx) => (
+                                        {displayProducts.map((p, idx) => (
                                           <tr key={`${p.product_name}-${idx}`} className="border-t">
                                             <td className="px-2 py-1">
                                               {p.product_name}
