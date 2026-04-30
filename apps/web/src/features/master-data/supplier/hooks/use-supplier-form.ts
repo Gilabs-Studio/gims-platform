@@ -56,6 +56,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
   const { data: supplierTypesData } = useSupplierTypes({
     page: 1,
     per_page: 20,
+    active_only: true,
   }, { enabled: open });
   const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
 

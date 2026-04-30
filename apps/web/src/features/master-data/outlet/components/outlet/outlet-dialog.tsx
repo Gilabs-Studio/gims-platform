@@ -178,6 +178,7 @@ export function OutletDialog({
             <LocationPicker
               control={control}
               setValue={form.setValue}
+              fieldNames={{ village_id: "village_id" }}
             />
           </div>
 

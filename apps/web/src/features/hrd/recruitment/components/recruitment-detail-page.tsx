@@ -15,13 +15,25 @@ import {
   Building2,
   Banknote,
   Plus,
+  Send,
+  XCircle,
+  Lock,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { useRecruitmentRequest } from "../hooks/use-recruitment";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { useRecruitmentRequest,
+  useSubmitRecruitmentRequest,
+  useApproveRecruitmentRequest,
+  useRejectRecruitmentRequest,
+  useCancelRecruitmentRequest,
+  useOpenRecruitmentRequest,
+  useCloseRecruitmentRequest,
+} from "../hooks/use-recruitment";
 import {
   useDeleteApplicant,
 } from "../hooks/use-applicants";
@@ -115,8 +127,86 @@ export function RecruitmentDetailPage({ id }: RecruitmentDetailPageProps) {
   const router = useRouter();
   const locale = useLocale();
 
+  const canUpdate = useUserPermission("recruitment.update");
+  const canApprove = useUserPermission("recruitment.approve");
+
   const { data, isLoading } = useRecruitmentRequest(id);
   const deleteApplicantMutation = useDeleteApplicant();
+
+  const submitRequest = useSubmitRecruitmentRequest();
+  const approveRequest = useApproveRecruitmentRequest();
+  const rejectRequest = useRejectRecruitmentRequest();
+  const cancelRequest = useCancelRecruitmentRequest();
+  const openRequest = useOpenRecruitmentRequest();
+  const closeRequest = useCloseRecruitmentRequest();
+
+  const isPendingAction =
+    submitRequest.isPending ||
+    approveRequest.isPending ||
+    rejectRequest.isPending ||
+    cancelRequest.isPending ||
+    openRequest.isPending ||
+    closeRequest.isPending;
+
+  const handleSubmitAction = async () => {
+    if (!request) return;
+    try {
+      await submitRequest.mutateAsync(request.id);
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!request) return;
+    try {
+      await approveRequest.mutateAsync(request.id);
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleReject = async () => {
+    if (!request) return;
+    try {
+      await rejectRequest.mutateAsync({ id: request.id });
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!request) return;
+    try {
+      await cancelRequest.mutateAsync(request.id);
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleOpen = async () => {
+    if (!request) return;
+    try {
+      await openRequest.mutateAsync(request.id);
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleClose = async () => {
+    if (!request) return;
+    try {
+      await closeRequest.mutateAsync(request.id);
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   const [viewingApplicant, setViewingApplicant] =
     useState<RecruitmentApplicant | null>(null);
@@ -224,10 +314,50 @@ export function RecruitmentDetailPage({ id }: RecruitmentDetailPageProps) {
           </div>
         </div>
 
-        <Button onClick={() => handleCreateApplicant()}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t("applicants.add")}
-        </Button>
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Lifecycle actions */}
+          {canUpdate && (request.status === "DRAFT" || request.status === "REJECTED") && (
+            <Button size="sm" onClick={handleSubmitAction} disabled={isPendingAction} className="cursor-pointer">
+              <Send className="h-4 w-4 mr-1" />
+              {request.status === "REJECTED" ? t("actions.resubmit") : t("actions.submit")}
+            </Button>
+          )}
+          {canApprove && request.status === "PENDING" && (
+            <>
+              <Button size="sm" onClick={handleApprove} disabled={isPendingAction} className="cursor-pointer">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                {t("actions.approve")}
+              </Button>
+              <Button size="sm" variant="destructive" onClick={handleReject} disabled={isPendingAction} className="cursor-pointer">
+                <XCircle className="h-4 w-4 mr-1" />
+                {t("actions.reject")}
+              </Button>
+            </>
+          )}
+          {canUpdate && request.status === "APPROVED" && (
+            <Button size="sm" onClick={handleOpen} disabled={isPendingAction} className="cursor-pointer">
+              <Briefcase className="h-4 w-4 mr-1" />
+              {t("actions.open")}
+            </Button>
+          )}
+          {canUpdate && request.status === "OPEN" && (
+            <Button size="sm" variant="secondary" onClick={handleClose} disabled={isPendingAction} className="cursor-pointer">
+              <Lock className="h-4 w-4 mr-1" />
+              {t("actions.close")}
+            </Button>
+          )}
+          {canUpdate && (request.status === "DRAFT" || request.status === "PENDING") && (
+            <Button size="sm" variant="destructive" onClick={handleCancel} disabled={isPendingAction} className="cursor-pointer">
+              <Ban className="h-4 w-4 mr-1" />
+              {t("actions.cancelRequest")}
+            </Button>
+          )}
+          {/* Add applicant button */}
+          <Button onClick={() => handleCreateApplicant()}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("applicants.add")}
+          </Button>
+        </div>
       </div>
 
       {/* Key Metrics */}

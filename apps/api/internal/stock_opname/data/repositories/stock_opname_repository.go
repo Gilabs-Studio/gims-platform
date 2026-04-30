@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -38,6 +39,7 @@ func (r *stockOpnameRepository) Delete(ctx context.Context, id string) error {
 func (r *stockOpnameRepository) FindByID(ctx context.Context, id string) (*models.StockOpname, error) {
 	var opname models.StockOpname
 	err := database.GetDB(ctx, r.db).
+		Preload("Warehouse").
 		Preload("Items").
 		First(&opname, "id = ?", id).Error
 	if err != nil {

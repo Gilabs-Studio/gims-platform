@@ -2,11 +2,12 @@ package repositories
 
 // ListParams defines common parameters for listing entities
 type ListParams struct {
-	Search  string
-	Limit   int
-	Offset  int
-	SortBy  string
-	SortDir string
+	Search     string
+	Limit      int
+	Offset     int
+	SortBy     string
+	SortDir    string
+	ActiveOnly bool // when true, only active (is_active=true) records are returned
 }
 
 // SupplierListParams extends ListParams with supplier-specific filters

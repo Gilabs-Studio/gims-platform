@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log"
 
+	"github.com/gilabs/gims/api/internal/core/utils"
 	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
 	"github.com/gilabs/gims/api/internal/customer/domain/mapper"
-	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -362,6 +362,14 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		return nil, err
 	}
 
+	// Filter to only active customer types for selection
+	var activeCustomerTypes []models.CustomerType
+	for _, ct := range customerTypes {
+		if ct.IsActive {
+			activeCustomerTypes = append(activeCustomerTypes, ct)
+		}
+	}
+
 	// Load business types
 	type btRow struct {
 		ID   string
@@ -369,7 +377,7 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 	}
 	var btRows []btRow
 	u.db.WithContext(ctx).Table("business_types").
-		Select("id, name").Where("deleted_at IS NULL").
+		Select("id, name").Where("deleted_at IS NULL AND is_active = true").
 		Order("name").Scan(&btRows)
 	btOptions := make([]dto.SalesDefaultOptionBrief, 0, len(btRows))
 	for _, r := range btRows {
@@ -384,7 +392,7 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 	}
 	var areaRows []areaRow
 	u.db.WithContext(ctx).Table("areas").
-		Select("id, name, province").Where("deleted_at IS NULL").
+		Select("id, name, province").Where("deleted_at IS NULL AND is_active = true").
 		Order("name").Scan(&areaRows)
 	areaOptions := make([]dto.CustomerAreaFormOption, 0, len(areaRows))
 	for _, r := range areaRows {
@@ -432,7 +440,7 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 	}
 
 	return &dto.CustomerFormDataResponse{
-		CustomerTypes: mapper.ToCustomerTypeResponseList(customerTypes),
+		CustomerTypes: mapper.ToCustomerTypeResponseList(activeCustomerTypes),
 		BusinessTypes: btOptions,
 		Areas:         areaOptions,
 		SalesReps:     salesRepOptions,

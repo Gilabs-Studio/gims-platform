@@ -36,6 +36,9 @@ export const clockOutSchema = z.object({
 
 export type ClockOutFormData = z.infer<typeof clockOutSchema>;
 
+// Statuses that require check-in and check-out times
+export const STATUSES_REQUIRING_TIMES = ["PRESENT", "LATE", "HALF_DAY", "WFH"] as const;
+
 // Manual attendance entry schema (admin use) - aligned with backend ManualAttendanceRequest
 export const manualAttendanceSchema = z.object({
   employee_id: z.string().min(1, "Employee is required"),
@@ -46,6 +49,15 @@ export const manualAttendanceSchema = z.object({
   status: attendanceStatusSchema,
   notes: z.string().max(1000).optional(),
   reason: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  if ((STATUSES_REQUIRING_TIMES as readonly string[]).includes(data.status)) {
+    if (!data.check_in_time) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Check-in time is required for this status", path: ["check_in_time"] });
+    }
+    if (!data.check_out_time) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Check-out time is required for this status", path: ["check_out_time"] });
+    }
+  }
 });
 
 export type ManualAttendanceFormData = z.infer<typeof manualAttendanceSchema>;
@@ -72,6 +84,15 @@ export const attendanceRecordSchema = z.object({
   status: attendanceStatusSchema,
   notes: z.string().max(1000).optional(),
   reason: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  if ((STATUSES_REQUIRING_TIMES as readonly string[]).includes(data.status)) {
+    if (!data.check_in_time) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Check-in time is required for this status", path: ["check_in_time"] });
+    }
+    if (!data.check_out_time) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Check-out time is required for this status", path: ["check_out_time"] });
+    }
+  }
 });
 
 export type AttendanceRecordFormData = z.infer<typeof attendanceRecordSchema>;
@@ -81,7 +102,6 @@ export const STATUS_OPTIONS = [
   { value: "PRESENT", label: "Present" },
   { value: "LATE", label: "Late" },
   { value: "ABSENT", label: "Absent" },
-  { value: "LEAVE", label: "Leave" },
   { value: "HALF_DAY", label: "Half Day" },
   { value: "WFH", label: "WFH" },
 ] as const;

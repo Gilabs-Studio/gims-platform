@@ -15,8 +15,8 @@ type Currency struct {
 	Symbol        string         `gorm:"type:varchar(10)" json:"symbol"`
 	DecimalPlaces int            `gorm:"not null;default:2" json:"decimal_places"`
 	IsActive      bool           `gorm:"default:true;index" json:"is_active"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `gorm:"index" json:"updated_at"`
+	CreatedAt     time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time      `gorm:"autoUpdateTime;index" json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 }
 

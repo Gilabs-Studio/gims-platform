@@ -18,6 +18,7 @@ import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { useProvince, useProvinces } from "../hooks/use-provinces";
 import { useCities, useCity } from "../hooks/use-cities";
 import { useDistricts, useDistrict } from "../hooks/use-districts";
+import { useVillages } from "../hooks/use-villages";
 import { useReverseGeocode } from "../hooks/use-reverse-geocode";
 import type { ReverseGeocodeResult } from "../types";
 
@@ -26,6 +27,8 @@ interface LocationFieldNames {
   city_id: string;
   district_id: string;
   village_name: string;
+  /** When set, renders a village select by ID instead of free-text village_name input */
+  village_id?: string;
   latitude: string;
   longitude: string;
 }
@@ -199,6 +202,13 @@ export function LocationPicker({
 
     return Array.from(map.values());
   }, [districtsData?.data, selectedDistrictData?.data]);
+
+  // Villages — only loaded when village_id field is configured
+  const { data: villagesData } = useVillages(
+    { district_id: selectedDistrictId, per_page: 50, sort_by: "name", sort_dir: "asc" },
+    { enabled: !!fields.village_id && !!selectedDistrictId }
+  );
+  const villages = villagesData?.data ?? [];
 
   // Build human-readable location summary
   const [resolvedNames, setResolvedNames] = useState<{
@@ -374,18 +384,46 @@ export function LocationPicker({
       {/* Village (always visible) */}
       <Field orientation="vertical">
         <FieldLabel>{labels.village}</FieldLabel>
-        <Controller
-          control={control}
-          name={fields.village_name}
-          render={({ field }) => (
-            <Input
-              {...field}
-              value={field.value ?? ""}
-              placeholder={labels.villagePlaceholder}
-              disabled={disabled}
-            />
-          )}
-        />
+        {fields.village_id ? (
+          <Controller
+            control={control}
+            name={fields.village_id}
+            render={({ field }) => (
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(val) => {
+                  field.onChange(val);
+                  if (fields.village_id) {
+                    setValue(fields.village_id, val, { shouldDirty: true });
+                  }
+                }}
+                disabled={disabled || !selectedDistrictId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={labels.villagePlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {villages.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        ) : (
+          <Controller
+            control={control}
+            name={fields.village_name}
+            render={({ field }) => (
+              <Input
+                {...field}
+                value={field.value ?? ""}
+                placeholder={labels.villagePlaceholder}
+                disabled={disabled}
+              />
+            )}
+          />
+        )}
       </Field>
 
       {/* Advanced mode toggle */}
