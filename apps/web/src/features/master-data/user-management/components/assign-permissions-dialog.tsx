@@ -142,6 +142,11 @@ function isSystemAdminOnlyPermission(permission: Permission): boolean {
   return SYSTEM_ADMIN_ONLY_PERMISSION_CODES.has(permission.code.trim().toLowerCase());
 }
 
+function isAlwaysSafePermissionCode(code: string): boolean {
+  const lower = code.trim().toLowerCase();
+  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
 function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
   if (entitledMenuURLSet.has(menuURL)) {
     return true;
@@ -696,23 +701,41 @@ const TreeResourceRow = memo(function TreeResourceRow({
         {perms.map((perm) => {
           const { action } = parsePermissionCode(perm.code);
           const isChecked = perm.id in selected;
+          const isProtected = isAlwaysSafePermissionCode(perm.code);
+          
           return (
-            <label
-              key={perm.id}
-              className="inline-flex items-center gap-1 cursor-pointer select-none"
-            >
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={() => onToggle(perm.id)}
-                className="size-3.5"
-              />
-              <Badge
-                variant={getActionBadgeVariant(action ?? "")}
-                className="text-[10px] px-1.5 py-0 capitalize leading-5"
-              >
-                {action}
-              </Badge>
-            </label>
+            <Tooltip key={perm.id}>
+              <TooltipTrigger asChild>
+                <label className={cn(
+                  "inline-flex items-center gap-1 select-none",
+                  !isProtected && "cursor-pointer",
+                  isProtected && "cursor-not-allowed opacity-75"
+                )}>
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => !isProtected && onToggle(perm.id)}
+                    disabled={isProtected}
+                    className={cn("size-3.5", isProtected && "cursor-not-allowed")}
+                  />
+                  <Badge
+                    variant={getActionBadgeVariant(action ?? "")}
+                    className="text-[10px] px-1.5 py-0 capitalize leading-5"
+                  >
+                    {action}
+                  </Badge>
+                  {isProtected && (
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-4">
+                      {t("protected") || "Protected"}
+                    </Badge>
+                  )}
+                </label>
+              </TooltipTrigger>
+              {isProtected && (
+                <TooltipContent side="top" className="text-xs">
+                  {t("protectedPermissionTooltip") || "This permission cannot be removed"}
+                </TooltipContent>
+              )}
+            </Tooltip>
           );
         })}
       </div>
@@ -1351,8 +1374,25 @@ function PermissionsSelector({
       setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");
       onClose();
-    } catch {
-      // Error handled by api-client interceptor
+    } catch (error: unknown) {
+      // Display error without closing dialog - user can retry
+      const errorMessage = 
+        error instanceof Error 
+          ? error.message 
+          : t("saveFailed") || "Failed to save permissions";
+      
+      // Check if error mentions protected/mandatory permissions or role requirements
+      if (errorMessage.toLowerCase().includes("always safe") || 
+          errorMessage.toLowerCase().includes("mandatory") ||
+          errorMessage.toLowerCase().includes("protected") ||
+          errorMessage.toLowerCase().includes("requires")) {
+        toast.error(
+          t("protectedPermissionsError") || 
+          "Some permissions are protected and cannot be removed. Please keep them checked."
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     }
   }, [selectedPermissions, role.permissions, permissionByID, assignPermissions, roleId, t, onClose]);
 

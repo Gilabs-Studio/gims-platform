@@ -54,10 +54,14 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
+import {
+  collectAccessibleMenuUrls,
+  getWidgetsByCategory,
+  isWidgetVisibleByAccessibleMenus,
+  WIDGET_REGISTRY,
+} from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
-import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { hasPermissionCode } from "@/lib/permission-utils";
+import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   DollarSign,
@@ -124,7 +128,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 
 export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps) {
   const t = useTranslations("dashboard");
-  const { user } = useAuthStore();
+  const { data: permissionsData, isLoading: isPermissionsLoading } = useUserPermissions();
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [addingSet, setAddingSet] = useState<Set<string>>(new Set());
@@ -144,13 +148,20 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
     [selectedCategory, grouped],
   );
 
+  const accessibleMenuUrls = useMemo(
+    () => collectAccessibleMenuUrls(permissionsData?.data.menus ?? []),
+    [permissionsData?.data.menus],
+  );
+
   const visibleWidgets = useMemo(() => {
-    const permissionMap = user?.permissions ?? {};
-    return filteredWidgets.filter((entry) => {
-      if (!entry.permission) return true;
-      return hasPermissionCode(permissionMap, entry.permission);
-    });
-  }, [filteredWidgets, user?.permissions]);
+    if (isPermissionsLoading) {
+      return [];
+    }
+
+    return filteredWidgets.filter((entry) =>
+      isWidgetVisibleByAccessibleMenus(entry.type, accessibleMenuUrls),
+    );
+  }, [accessibleMenuUrls, filteredWidgets, isPermissionsLoading]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
