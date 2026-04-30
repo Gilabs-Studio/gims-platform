@@ -16,6 +16,7 @@ import type {
   ConvertToQuotationResponse,
   StockCheckResponse,
 } from "../types";
+import type { LeadProductItem } from "@/features/crm/lead/types";
 
 const BASE_URL = "/crm/deals";
 
@@ -141,6 +142,13 @@ export const dealService = {
     const response = await apiClient.post<ApiResponse<null>>(
       `${BASE_URL}/${dealId}/items/${itemId}/restore`,
       {}
+    );
+    return response.data;
+  },
+
+  getProductItems: async (dealId: string): Promise<ApiResponse<LeadProductItem[]>> => {
+    const response = await apiClient.get<ApiResponse<LeadProductItem[]>>(
+      `${BASE_URL}/${dealId}/product-items`
     );
     return response.data;
   },

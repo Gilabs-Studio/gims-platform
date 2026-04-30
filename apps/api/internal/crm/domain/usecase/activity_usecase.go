@@ -29,6 +29,7 @@ type activityUsecase struct {
 	activityRepo     repositories.ActivityRepository
 	activityTypeRepo repositories.ActivityTypeRepository
 	leadRepo         repositories.LeadRepository
+	dealRepo         repositories.DealRepository
 }
 
 // NewActivityUsecase creates a new activity usecase
@@ -36,11 +37,13 @@ func NewActivityUsecase(
 	activityRepo repositories.ActivityRepository,
 	activityTypeRepo repositories.ActivityTypeRepository,
 	leadRepo repositories.LeadRepository,
+	dealRepo repositories.DealRepository,
 ) ActivityUsecase {
 	return &activityUsecase{
 		activityRepo:     activityRepo,
 		activityTypeRepo: activityTypeRepo,
 		leadRepo:         leadRepo,
+		dealRepo:         dealRepo,
 	}
 }
 
@@ -94,16 +97,21 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 		return dto.ActivityResponse{}, err
 	}
 
-	// Sync product items from metadata to lead (non-blocking — failures are logged, not surfaced)
+	// Sync product items from metadata to lead and deal (non-blocking — failures are logged, not surfaced)
 	if req.LeadID != nil && *req.LeadID != "" && activity.Metadata != nil {
-		go u.syncProductItemsFromMetadata(context.Background(), *req.LeadID, *activity.Metadata, activity.ID)
+		dealID := ""
+		if req.DealID != nil {
+			dealID = *req.DealID
+		}
+		go u.syncProductItemsFromMetadata(context.Background(), *req.LeadID, dealID, *activity.Metadata, activity.ID)
 	}
 
 	return mapper.ToActivityResponse(created), nil
 }
 
-// syncProductItemsFromMetadata parses activity metadata products and merges them into the lead's product items.
-func (u *activityUsecase) syncProductItemsFromMetadata(ctx context.Context, leadID string, metadataJSON string, activityID string) {
+// syncProductItemsFromMetadata parses activity metadata products and merges them into the lead's
+// product items and (if dealID is provided) the deal's product items.
+func (u *activityUsecase) syncProductItemsFromMetadata(ctx context.Context, leadID string, dealID string, metadataJSON string, activityID string) {
 	type answerInfo struct {
 		QuestionID string `json:"question_id"`
 		OptionID   string `json:"option_id"`
@@ -188,6 +196,32 @@ func (u *activityUsecase) syncProductItemsFromMetadata(ctx context.Context, lead
 
 	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
 		fmt.Printf("[WARN] activity sync: failed to upsert product items for lead %s: %v\n", leadID, err)
+	}
+
+	// If the activity is also linked to a deal, mirror the product items there too.
+	if dealID == "" {
+		return
+	}
+	dealItems := make([]models.DealProductItem, 0, len(items))
+	for _, li := range items {
+		if li.ProductID == nil {
+			continue
+		}
+		di := models.DealProductItem{
+			DealID:        dealID,
+			ProductID:     li.ProductID,
+			ProductName:   li.ProductName,
+			ProductSKU:    li.ProductSKU,
+			InterestLevel: li.InterestLevel,
+			UnitPrice:     li.UnitPrice,
+			Quantity:      li.Quantity,
+			Notes:         li.Notes,
+		}
+		di.Subtotal = di.UnitPrice * float64(di.Quantity)
+		dealItems = append(dealItems, di)
+	}
+	if err := u.dealRepo.UpsertProductItemsFromVisit(ctx, dealID, dealItems); err != nil {
+		fmt.Printf("[WARN] activity sync: failed to upsert product items for deal %s: %v\n", dealID, err)
 	}
 }
 

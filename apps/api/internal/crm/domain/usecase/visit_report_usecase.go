@@ -1151,6 +1151,38 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
 		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
 	}
+
+	// If the visit is linked to a deal (directly or via a converted lead), also sync to
+	// crm_deal_product_items so the deal's Products & BANT tab stays up-to-date.
+	dealID := ""
+	if visit.DealID != nil {
+		dealID = *visit.DealID
+	} else if visit.Lead != nil && visit.Lead.DealID != nil {
+		dealID = *visit.Lead.DealID
+	}
+	if dealID != "" {
+		dealItems := make([]models.DealProductItem, 0, len(items))
+		for _, li := range items {
+			if li.ProductID == nil {
+				continue
+			}
+			di := models.DealProductItem{
+				DealID:        dealID,
+				ProductID:     li.ProductID,
+				ProductName:   li.ProductName,
+				ProductSKU:    li.ProductSKU,
+				InterestLevel: li.InterestLevel,
+				UnitPrice:     li.UnitPrice,
+				Quantity:      li.Quantity,
+				Notes:         li.Notes,
+			}
+			di.Subtotal = di.UnitPrice * float64(di.Quantity)
+			dealItems = append(dealItems, di)
+		}
+		if err := u.dealRepo.UpsertProductItemsFromVisit(ctx, dealID, dealItems); err != nil {
+			fmt.Printf("[WARN] failed to sync product items to deal %s: %v\n", dealID, err)
+		}
+	}
 }
 
 // ensureTravelPlannerVisitReport creates a visit_report travel plan and links the submitted visit.

@@ -412,6 +412,25 @@ func (h *DealHandler) RestoreItem(c *gin.Context) {
 	response.SuccessResponse(c, nil, nil)
 }
 
+// GetProductItems handles GET /:id/product-items — returns unified product interest items for the deal.
+func (h *DealHandler) GetProductItems(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "Deal ID is required",
+		}, nil)
+		return
+	}
+
+	items, err := h.uc.GetProductItems(c.Request.Context(), id)
+	if err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, items, nil)
+}
+
 // handleDealError maps business errors to appropriate HTTP responses
 func handleDealError(c *gin.Context, err error) {
 	switch err.Error() {

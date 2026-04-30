@@ -97,6 +97,14 @@ type DealRepository interface {
 	RestoreItemByID(ctx context.Context, itemID, dealID string) error
 	GetLastHistoryByDealID(ctx context.Context, dealID string) (*models.DealHistory, error)
 	UpdateProbabilityByStageID(ctx context.Context, stageID string, probability int) error
+	// UpsertProductItemsFromVisit merges visit-sourced product items into a deal.
+	// For each item, if a non-deleted record already exists with the same product_id it is updated;
+	// otherwise a new row is created. Items already on the deal that are not in the visit are untouched.
+	UpsertProductItemsFromVisit(ctx context.Context, dealID string, items []models.DealProductItem) error
+	// ExistsByLeadID reports whether any non-deleted deal is linked to the given lead ID.
+	// Uses tenant scoping only (no user-ownership scope) to catch orphaned deals regardless
+	// of which employee the deal is assigned to.
+	ExistsByLeadID(ctx context.Context, leadID string) (bool, error)
 }
 
 type dealRepository struct {
@@ -316,6 +324,66 @@ func (r *dealRepository) RestoreItemByID(ctx context.Context, itemID, dealID str
 	return r.db.Unscoped().WithContext(ctx).Model(&models.DealProductItem{}).
 		Where("id = ? AND deal_id = ?", itemID, dealID).
 		Update("deleted_at", nil).Error
+}
+
+// UpsertProductItemsFromVisit merges visit-sourced product items into crm_deal_product_items.
+// Existing (non-deleted) rows matched by (deal_id, product_id) are updated in place;
+// absent rows are created. No deletions are performed so manually-added items are preserved.
+func (r *dealRepository) UpsertProductItemsFromVisit(ctx context.Context, dealID string, items []models.DealProductItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+
+	// Load existing active items keyed by product_id for O(1) lookup.
+	var existing []models.DealProductItem
+	if err := r.db.WithContext(ctx).
+		Where("deal_id = ?", dealID).
+		Find(&existing).Error; err != nil {
+		return err
+	}
+	existingByProductID := make(map[string]*models.DealProductItem, len(existing))
+	for i := range existing {
+		if existing[i].ProductID != nil {
+			existingByProductID[*existing[i].ProductID] = &existing[i]
+		}
+	}
+
+	db := r.db.WithContext(ctx)
+	for i := range items {
+		items[i].DealID = dealID
+		if items[i].ProductID == nil {
+			continue
+		}
+		productID := *items[i].ProductID
+		if ex, ok := existingByProductID[productID]; ok {
+			// Update mutable fields; preserve ID, DealID, and creation metadata.
+			if err := db.Model(ex).Updates(map[string]interface{}{
+				"product_name":   items[i].ProductName,
+				"product_sku":    items[i].ProductSKU,
+				"unit_price":     items[i].UnitPrice,
+				"quantity":       items[i].Quantity,
+				"subtotal":       items[i].Subtotal,
+				"notes":          items[i].Notes,
+				"interest_level": items[i].InterestLevel,
+			}).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := db.Create(&items[i]).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *dealRepository) ExistsByLeadID(ctx context.Context, leadID string) (bool, error) {
+	var count int64
+	err := database.GetDB(ctx, r.db).
+		Model(&models.Deal{}).
+		Where("lead_id = ?", leadID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *dealRepository) GetPipelineSummary(ctx context.Context) (*PipelineSummaryData, error) {

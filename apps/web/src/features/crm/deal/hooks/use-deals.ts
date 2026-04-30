@@ -28,6 +28,7 @@ export const dealKeys = {
   summary: () => [...dealKeys.all, "summary"] as const,
   forecast: () => [...dealKeys.all, "forecast"] as const,
   stockCheck: (id: string) => [...dealKeys.all, "stock-check", id] as const,
+  productItems: (id: string) => [...dealKeys.all, "product-items", id] as const,
 };
 
 export function useDeals(params?: DealListParams) {
@@ -320,5 +321,13 @@ export function useRestoreDealItem() {
     onSuccess: (_result, { dealId }) => {
       qc.invalidateQueries({ queryKey: dealKeys.detail(dealId) });
     },
+  });
+}
+
+export function useDealProductItems(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: dealKeys.productItems(id),
+    queryFn: () => dealService.getProductItems(id),
+    enabled: (options?.enabled ?? true) && !!id,
   });
 }

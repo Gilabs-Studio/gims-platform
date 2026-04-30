@@ -65,7 +65,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Lead, LeadStatusOption } from "../types";
 import type { PaymentTermsFormOption } from "@/features/master-data/customer/types";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
@@ -264,7 +264,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
   const lead: Lead | undefined = response?.data;
   const statuses = formDataRes?.data?.lead_statuses ?? [];
-  const isConverted = !!lead?.converted_at;
+  // Treat as converted if either converted_at is set OR deal_id is present.
+  // The latter catches leads in a broken state (deal created but ConvertedAt not saved).
+  const isConverted = !!lead?.converted_at || !!lead?.deal_id;
+
+  // Auto-redirect to the deal detail page once lead data resolves as converted.
+  // This makes the converted lead a single point of truth — the deal is the live record.
+  useEffect(() => {
+    if (!isLoading && lead?.deal_id && isConverted) {
+      router.replace(`/crm/pipeline/${lead.deal_id}`);
+    }
+  }, [isLoading, lead?.deal_id, isConverted, router]);
   const paymentTermsList: PaymentTermsFormOption[] = formDataRes?.data?.payment_terms ?? [];
   const paymentTerm = paymentTermsList.find((p: PaymentTermsFormOption) => String(p.id) === String(lead?.payment_terms_id));
 
