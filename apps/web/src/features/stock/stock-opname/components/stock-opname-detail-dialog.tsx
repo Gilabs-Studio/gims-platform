@@ -436,7 +436,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                         <TabsContent value="items" className="flex-1 min-h-0 m-0 border-none p-0">
                             <ScrollArea className="h-full">
                                 <div className="p-6">
-                                    <div className="rounded-md border">
+                                    <div className="rounded-md border overflow-x-auto">
                                         <Table>
                                             <TableHeader>
                                                 <TableRow className="bg-muted/50">

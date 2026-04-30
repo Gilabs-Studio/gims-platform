@@ -1671,6 +1671,29 @@ func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID st
 		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
 	}
 
+	currentLinkedAssetID := ""
+	if asset.AssetID != nil {
+		currentLinkedAssetID = *asset.AssetID
+	}
+
+	isLinkedAssetChanged := req.AssetID != "" && req.AssetID != currentLinkedAssetID
+	if isLinkedAssetChanged {
+		financeAsset, err := u.financeAssetRepo.FindByID(ctx, req.AssetID, false)
+		if err != nil {
+			return dto.EmployeeAssetResponse{}, errors.New("finance asset not found")
+		}
+		if financeAsset.Status != financeModels.AssetStatusActive {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is not available for borrowing")
+		}
+
+		existingBorrowed, _ := u.assetRepo.FindByAssetID(ctx, req.AssetID)
+		if existingBorrowed != nil && existingBorrowed.ID != assetID && !existingBorrowed.IsReturned() {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is already borrowed by another employee")
+		}
+
+		asset.AssetID = &req.AssetID
+	}
+
 	if req.AssetName != "" {
 		asset.AssetName = req.AssetName
 	}
@@ -1705,6 +1728,17 @@ func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID st
 
 	if err := u.assetRepo.Update(ctx, asset); err != nil {
 		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to update asset: %w", err)
+	}
+
+	if isLinkedAssetChanged {
+		if currentLinkedAssetID != "" {
+			if err := u.financeAssetRepo.UpdateStatus(ctx, currentLinkedAssetID, financeModels.AssetStatusActive); err != nil {
+				log.Printf("Failed to reactivate previous finance asset on employee asset update: %v", err)
+			}
+		}
+		if err := u.financeAssetRepo.UpdateStatus(ctx, req.AssetID, financeModels.AssetStatusInUse); err != nil {
+			log.Printf("Failed to mark new finance asset as in use on employee asset update: %v", err)
+		}
 	}
 
 	return mapper.ToAssetResponse(asset), nil

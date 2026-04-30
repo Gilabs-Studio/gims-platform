@@ -74,9 +74,10 @@ func (h *SupplierTypeHandler) GetByID(c *gin.Context) {
 // List handles GET /supplier-types
 func (h *SupplierTypeHandler) List(c *gin.Context) {
 	params := repositories.ListParams{
-		Search:  c.Query("search"),
-		SortBy:  c.DefaultQuery("sort_by", "name"),
-		SortDir: c.DefaultQuery("sort_dir", "asc"),
+		Search:     c.Query("search"),
+		SortBy:     c.DefaultQuery("sort_by", "name"),
+		SortDir:    c.DefaultQuery("sort_dir", "asc"),
+		ActiveOnly: c.Query("active_only") == "true",
 	}
 
 	// Parse pagination

@@ -80,8 +80,14 @@ export function CurrencyFormDialog({ open, onOpenChange, editingItem, onCreated 
       }
 
       onOpenChange(false);
-    } catch {
-      toast.error(tCommon("error"));
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique") || msg.includes("idx_currencies_code")) {
+        toast.error("Currency code already exists. Please use a different code.");
+      } else {
+        toast.error(tCommon("error"));
+      }
     }
   });
 

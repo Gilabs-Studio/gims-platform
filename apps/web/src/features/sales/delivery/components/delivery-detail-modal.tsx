@@ -509,10 +509,10 @@ export function DeliveryDetailModal({
                           )}
                         </TableCell>
                       </TableRow>
-                      {displayDelivery.tracking_number && (
+                      {(displayDelivery.tracking_number || displayDelivery.courier_agency?.name) && (
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("trackingNumber")}</TableCell>
-                          <TableCell>{displayDelivery.tracking_number}</TableCell>
+                          <TableCell>{displayDelivery.tracking_number ?? "-"}</TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("courier")}</TableCell>
                           <TableCell>{displayDelivery.courier_agency?.name ?? "-"}</TableCell>
                         </TableRow>

@@ -18,7 +18,7 @@ var ErrInvalidPermissionIDs = errors.New("one or more permission IDs are invalid
 type RoleRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Role, error)
 	FindByCode(ctx context.Context, code string) (*models.Role, error)
-	List(ctx context.Context, page, limit int) ([]models.Role, int64, error)
+	List(ctx context.Context, page, limit int, search string) ([]models.Role, int64, error)
 	Create(ctx context.Context, ro *models.Role) error
 	Update(ctx context.Context, ro *models.Role) error
 	Delete(ctx context.Context, id string) error
@@ -69,11 +69,16 @@ func (r *roleRepository) FindByCode(ctx context.Context, code string) (*models.R
 	return &ro, nil
 }
 
-func (r *roleRepository) List(ctx context.Context, page, limit int) ([]models.Role, int64, error) {
+func (r *roleRepository) List(ctx context.Context, page, limit int, search string) ([]models.Role, int64, error) {
 	var roles []models.Role
 	var total int64
 
 	query := r.getDB(ctx).Model(&models.Role{})
+
+	if search != "" {
+		s := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR code ILIKE ?", s, s)
+	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

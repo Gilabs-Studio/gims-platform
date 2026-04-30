@@ -474,6 +474,17 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 }
 
 func (u *attendanceRecordUsecase) CreateManualEntry(ctx context.Context, req *dto.ManualAttendanceRequest, createdBy string) (*dto.AttendanceRecordResponse, error) {
+	// Validate check-in/check-out are provided for statuses that require them
+	statusesRequiringTimes := map[string]bool{"PRESENT": true, "LATE": true, "HALF_DAY": true, "WFH": true}
+	if statusesRequiringTimes[req.Status] {
+		if req.CheckInTime == nil || *req.CheckInTime == "" {
+			return nil, errors.New("check_in_time is required for status " + req.Status)
+		}
+		if req.CheckOutTime == nil || *req.CheckOutTime == "" {
+			return nil, errors.New("check_out_time is required for status " + req.Status)
+		}
+	}
+
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return nil, err

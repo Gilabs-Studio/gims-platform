@@ -451,10 +451,17 @@ export function EmployeeForm({
         onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
-    } catch {
-      toast.error(
-        isEditing ? "Failed to update employee" : "Failed to create employee",
-      );
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
+      const code = apiErr?.response?.data?.error?.code ?? "";
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (code === "USER_LIMIT_REACHED" || msg.toLowerCase().includes("user limit") || msg.toLowerCase().includes("upgrade your plan")) {
+        toast.error("User limit reached", {
+          description: msg || "Upgrade your plan to add more users.",
+        });
+      } else {
+        toast.error(isEditing ? "Failed to update employee" : "Failed to create employee");
+      }
     }
   };
 
@@ -500,7 +507,12 @@ export function EmployeeForm({
             {isEditing ? t("editTitle") : t("createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit, () => {
+            toast.error("Please fix form errors before saving");
+          })}
+          className="space-y-6"
+        >
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
               className={cn(
@@ -566,8 +578,16 @@ export function EmployeeForm({
                   <FieldLabel>{t("form.phone")}</FieldLabel>
                   <Input
                     placeholder={t("form.phonePlaceholder")}
+                    inputMode="numeric"
+                    onKeyDown={(e) => {
+                      if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                          !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     {...register("phone")}
                   />
+                  {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
                 </Field>
               </div>
 

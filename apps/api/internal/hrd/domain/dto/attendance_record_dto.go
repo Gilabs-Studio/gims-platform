@@ -28,7 +28,7 @@ type ManualAttendanceRequest struct {
 	CheckInTime  *string `json:"check_in_time"`           // HH:MM
 	CheckOutTime *string `json:"check_out_time"`          // HH:MM
 	CheckInType  string  `json:"check_in_type" binding:"required,oneof=NORMAL WFH FIELD_WORK"`
-	Status       string  `json:"status" binding:"required,oneof=PRESENT ABSENT LATE HALF_DAY LEAVE WFH"`
+	Status       string  `json:"status" binding:"required,oneof=PRESENT ABSENT LATE HALF_DAY WFH"`
 	Notes        string  `json:"notes" binding:"max=1000"`
 	Reason       string  `json:"reason" binding:"omitempty,max=500"` // Reason for manual entry (optional)
 }

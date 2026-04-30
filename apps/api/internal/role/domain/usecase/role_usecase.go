@@ -55,8 +55,8 @@ func roleCacheScope(ctx context.Context) string {
 	return "public"
 }
 
-func roleListCacheKey(ctx context.Context, page, limit int) string {
-	return fmt.Sprintf("roles:list:scope:%s:page:%d:limit:%d", roleCacheScope(ctx), page, limit)
+func roleListCacheKey(ctx context.Context, page, limit int, search string) string {
+	return fmt.Sprintf("roles:list:scope:%s:page:%d:limit:%d:search:%s", roleCacheScope(ctx), page, limit, search)
 }
 
 func roleByIDCacheKey(ctx context.Context, roleID string) string {
@@ -83,7 +83,7 @@ var mandatoryPermissionCodes = []string{"user.read", "role.read", "permission.re
 var systemAdminOnlyPermissionCodes = []string{"currency.create", "currency.update", "currency.delete"}
 
 type RoleUsecase interface {
-	List(ctx context.Context, page, limit int) ([]dto.RoleResponse, int64, error)
+	List(ctx context.Context, page, limit int, search string) ([]dto.RoleResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.RoleResponse, error)
 	Create(ctx context.Context, req *dto.CreateRoleRequest) (*dto.RoleResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateRoleRequest) (*dto.RoleResponse, error)
@@ -119,8 +119,8 @@ func NewRoleUsecase(roleRepo repositories.RoleRepository, eventPublisher infraEv
 	}
 }
 
-func (u *roleUsecase) List(ctx context.Context, page, limit int) ([]dto.RoleResponse, int64, error) {
-	cacheKey := roleListCacheKey(ctx, page, limit)
+func (u *roleUsecase) List(ctx context.Context, page, limit int, search string) ([]dto.RoleResponse, int64, error) {
+	cacheKey := roleListCacheKey(ctx, page, limit, search)
 
 	// Try to get from cache
 	val, err := u.redis.Get(ctx, cacheKey).Result()
@@ -135,7 +135,7 @@ func (u *roleUsecase) List(ctx context.Context, page, limit int) ([]dto.RoleResp
 	}
 
 	// Get from DB
-	roles, total, err := u.roleRepo.List(ctx, page, limit)
+	roles, total, err := u.roleRepo.List(ctx, page, limit, search)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -216,8 +216,8 @@ func (u *roleUsecase) Create(ctx context.Context, req *dto.CreateRoleRequest) (*
 	// Enterprise solution: Use a "version" key for lists or just accept eventual consistency (5 mins).
 	// Let's implement partial invalidation for common first page.
 	u.redis.Del(ctx,
-		roleListCacheKey(ctx, 1, 10),
-		roleListCacheKey(ctx, 1, 20),
+		roleListCacheKey(ctx, 1, 10, ""),
+		roleListCacheKey(ctx, 1, 20, ""),
 		cacheRoleListPage1Limit10,
 		cacheRoleListPage1Limit20,
 	)
@@ -302,8 +302,8 @@ func (u *roleUsecase) Update(ctx context.Context, id string, req *dto.UpdateRole
 	u.redis.Del(ctx,
 		roleByIDCacheKey(ctx, id),
 		fmt.Sprintf(cacheRoleByIDKeyLegacy, id),
-		roleListCacheKey(ctx, 1, 10),
-		roleListCacheKey(ctx, 1, 20),
+		roleListCacheKey(ctx, 1, 10, ""),
+		roleListCacheKey(ctx, 1, 20, ""),
 		cacheRoleListPage1Limit10,
 		cacheRoleListPage1Limit20,
 	)
@@ -394,8 +394,8 @@ func (u *roleUsecase) Delete(ctx context.Context, id string) error {
 	u.redis.Del(ctx,
 		roleByIDCacheKey(ctx, id),
 		fmt.Sprintf(cacheRoleByIDKeyLegacy, id),
-		roleListCacheKey(ctx, 1, 10),
-		roleListCacheKey(ctx, 1, 20),
+		roleListCacheKey(ctx, 1, 10, ""),
+		roleListCacheKey(ctx, 1, 20, ""),
 		cacheRoleListPage1Limit10,
 		cacheRoleListPage1Limit20,
 	)
@@ -1217,8 +1217,8 @@ func (u *roleUsecase) invalidatePermissionCaches(ctx context.Context, roleID str
 	u.redis.Del(ctx,
 		roleByIDCacheKey(ctx, roleID),
 		fmt.Sprintf(cacheRoleByIDKeyLegacy, roleID),
-		roleListCacheKey(ctx, 1, 10),
-		roleListCacheKey(ctx, 1, 20),
+		roleListCacheKey(ctx, 1, 10, ""),
+		roleListCacheKey(ctx, 1, 20, ""),
 		cacheRoleListPage1Limit10,
 		cacheRoleListPage1Limit20,
 	)

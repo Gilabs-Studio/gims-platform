@@ -227,6 +227,7 @@ export function CreateCertificationDialog({
               value={certificateFile}
               onChange={(url) => setCertificateFile(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              uploadEndpoint="/upload/document"
             />
           </div>
 

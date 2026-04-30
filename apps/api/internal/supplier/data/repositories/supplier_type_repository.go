@@ -1,13 +1,15 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 // SupplierTypeRepository defines the interface for supplier type data access
@@ -51,6 +53,10 @@ func (r *supplierTypeRepository) List(ctx context.Context, params ListParams) ([
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
+	}
+
+	if params.ActiveOnly {
+		query = query.Where("is_active = ?", true)
 	}
 
 	// Count total before pagination

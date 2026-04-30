@@ -82,8 +82,15 @@ export function OutletSidePanel({
                 type="tel"
                 inputMode="numeric"
                 placeholder={t("outlet.form.phonePlaceholder")}
+                onKeyDown={(e) => {
+                  if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                      !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 {...register("phone")}
               />
+              {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
             </Field>
             <Field orientation="vertical">
               <FieldLabel>{t("outlet.form.email")}</FieldLabel>

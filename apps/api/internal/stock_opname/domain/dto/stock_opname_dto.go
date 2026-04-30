@@ -5,13 +5,13 @@ import "time"
 type StockOpnameStatus string
 
 const (
-	StockOpnameStatusDraft    StockOpnameStatus = "draft"
+	StockOpnameStatusDraft           StockOpnameStatus = "draft"
 	StockOpnameStatusPendingApproval StockOpnameStatus = "pending_approval"
-	StockOpnameStatusPending  StockOpnameStatus = "pending"
-	StockOpnameStatusApproved StockOpnameStatus = "approved"
-	StockOpnameStatusCompleted StockOpnameStatus = "completed"
-	StockOpnameStatusRejected StockOpnameStatus = "rejected"
-	StockOpnameStatusPosted   StockOpnameStatus = "posted"
+	StockOpnameStatusPending         StockOpnameStatus = "pending"
+	StockOpnameStatusApproved        StockOpnameStatus = "approved"
+	StockOpnameStatusCompleted       StockOpnameStatus = "completed"
+	StockOpnameStatusRejected        StockOpnameStatus = "rejected"
+	StockOpnameStatusPosted          StockOpnameStatus = "posted"
 )
 
 type CreateStockOpnameRequest struct {
@@ -80,13 +80,13 @@ type StockOpnameItemResponse struct {
 }
 
 type ListStockOpnamesRequest struct {
-	Page        int    `query:"page"`
-	PerPage     int    `query:"per_page"`
-	Search      string `query:"search"`
-	WarehouseID string `query:"warehouse_id"`
-	Status      string `query:"status"`
-	StartDate   string `query:"start_date"`
-	EndDate     string `query:"end_date"`
+	Page        int    `form:"page"`
+	PerPage     int    `form:"per_page"`
+	Search      string `form:"search"`
+	WarehouseID string `form:"warehouse_id"`
+	Status      string `form:"status"`
+	StartDate   string `form:"start_date"`
+	EndDate     string `form:"end_date"`
 }
 
 type ListStockOpnameItemsRequest struct {

@@ -63,7 +63,17 @@ export function CourierAgencyDialog({
 
           <Field>
             <FieldLabel>{t("form.phone")}</FieldLabel>
-            <Input placeholder={t("form.phonePlaceholder")} {...register("phone")} />
+            <Input
+              placeholder={t("form.phonePlaceholder")}
+              inputMode="numeric"
+              onKeyDown={(e) => {
+                if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                    !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              {...register("phone")}
+            />
             {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
           </Field>
 

@@ -11,7 +11,7 @@ import type { Outlet } from "../types";
 export const outletFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
   description: z.string().max(500).optional(),
-  phone: z.string().max(50).optional(),
+  phone: z.string().max(50).regex(/^\d*$/, "Phone number must contain digits only").optional(),
   email: z.string().email().max(100).optional().or(z.literal("")),
   address: z.string().max(500).optional(),
   province_id: z.string().optional(),

@@ -65,6 +65,12 @@ export function useUserList() {
             extractApiErrorMessage(err) ??
             "Upgrade your plan to add more users.",
         });
+      } else if (code === "DUPLICATE_EMAIL" || (extractApiErrorMessage(err) ?? "").toLowerCase().includes("email")) {
+        toast.error("Email already in use", {
+          description: "Another user is already registered with this email address.",
+        });
+      } else {
+        toast.error("Failed to create user");
       }
     }
   };
