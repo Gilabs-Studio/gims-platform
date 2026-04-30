@@ -153,7 +153,7 @@ export function useUpdateDeal() {
       });
 
       qc.setQueryData<ApiResponse<LeadProductItem[]>>(dealKeys.productItems(id), {
-        ...(previousProductItems ?? { data: [] }),
+        ...(previousProductItems ?? { success: true, data: [] }),
         data: optimisticItems,
       });
 
