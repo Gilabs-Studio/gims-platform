@@ -69,6 +69,7 @@ export function VisitReportList() {
   const { t, tCommon } = translations;
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const hasRowActions = true;
 
   // Determine whether the user has a team-level scope (ALL / DIVISION / AREA)
   const hasTeamScope =
@@ -194,7 +195,7 @@ export function VisitReportList() {
                   <TableHead>{t("table.outcome")}</TableHead>
                   <TableHead>{t("table.checkIn")}</TableHead>
                   <TableHead>{t("table.checkOut")}</TableHead>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canApprove) && (
+                  {hasRowActions && (
                     <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
                   )}
                 </TableRow>
@@ -203,7 +204,7 @@ export function VisitReportList() {
                 {data.isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: permissions.canUpdate || permissions.canDelete || permissions.canApprove ? 8 : 7 }).map((_, j) => (
+                      {Array.from({ length: hasRowActions ? 8 : 7 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                       ))}
                     </TableRow>
@@ -211,7 +212,7 @@ export function VisitReportList() {
                 ) : data.items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={(permissions.canUpdate || permissions.canDelete || permissions.canApprove) ? 8 : 7}
+                      colSpan={hasRowActions ? 8 : 7}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t("emptyState")}
@@ -263,7 +264,7 @@ export function VisitReportList() {
                             "-"
                           )}
                         </TableCell>
-                        {(permissions.canUpdate || permissions.canDelete || permissions.canApprove) && (
+                        {hasRowActions && (
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

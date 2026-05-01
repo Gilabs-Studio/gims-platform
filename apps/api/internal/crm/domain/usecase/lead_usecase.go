@@ -1169,6 +1169,9 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 	statusOptions := make([]dto.LeadStatusOption, 0, len(statuses))
 	for _, s := range statuses {
+		if !s.IsActive {
+			continue
+		}
 		statusOptions = append(statusOptions, dto.LeadStatusOption{
 			ID:          s.ID,
 			Name:        s.Name,
@@ -1187,6 +1190,9 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 	stageOptions := make([]dto.LeadPipelineStageOption, 0, len(stages))
 	for _, s := range stages {
+		if !s.IsActive {
+			continue
+		}
 		stageOptions = append(stageOptions, dto.LeadPipelineStageOption{
 			ID:          s.ID,
 			Name:        s.Name,
