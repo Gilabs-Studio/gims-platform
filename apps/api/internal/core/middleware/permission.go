@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -106,6 +107,7 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 				}
 			}
 		}
+		log.Printf("[permission] resolved permission=%s scope=%s user_id=%s role=%s", requiredPermission, scope, c.GetString("user_id"), c.GetString("user_role"))
 		c.Set("permission_scope", scope)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "permission_scope", scope)

@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -55,8 +56,10 @@ func (r *employeeAreaRepository) AssignAreas(ctx context.Context, employeeID str
 	}
 
 	employeeAreas := make([]models.EmployeeArea, 0, len(areaIDs))
+	tenantID := middleware.TenantFromContext(ctx)
 	for _, areaID := range areaIDs {
 		employeeAreas = append(employeeAreas, models.EmployeeArea{
+			TenantID:     tenantID,
 			EmployeeID:   employeeID,
 			AreaID:       areaID,
 			IsSupervisor: false,
@@ -138,8 +141,10 @@ func (r *employeeAreaRepository) AssignSupervisorAreas(ctx context.Context, empl
 	}
 
 	records := make([]models.EmployeeArea, 0, len(areaIDs))
+	tenantID := middleware.TenantFromContext(ctx)
 	for _, areaID := range areaIDs {
 		records = append(records, models.EmployeeArea{
+			TenantID:     tenantID,
 			EmployeeID:   employeeID,
 			AreaID:       areaID,
 			IsSupervisor: true,
@@ -166,8 +171,10 @@ func (r *employeeAreaRepository) AssignMembersToArea(ctx context.Context, areaID
 	}
 
 	records := make([]models.EmployeeArea, 0, len(employeeIDs))
+	tenantID := middleware.TenantFromContext(ctx)
 	for _, empID := range employeeIDs {
 		records = append(records, models.EmployeeArea{
+			TenantID:     tenantID,
 			EmployeeID:   empID,
 			AreaID:       areaID,
 			IsSupervisor: false,

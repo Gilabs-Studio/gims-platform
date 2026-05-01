@@ -3,10 +3,11 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
-	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -112,6 +113,13 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 
 	query := database.GetDB(ctx, r.db).Model(&models.Outlet{})
 
+	if !middleware.IsSystemAdmin(ctx) {
+		if scopedOutletIDs, ok := ctx.Value("scope_outlet_ids").([]string); ok && len(scopedOutletIDs) > 0 {
+			query = query.Where("id IN ?", scopedOutletIDs)
+			log.Printf("[outlet.list] restricting by employee_outlets count=%d user_id=%s", len(scopedOutletIDs), strings.TrimSpace(contextUserID(ctx)))
+		}
+	}
+
 	// RBAC: Filter by user-warehouse assignments if UserID is provided
 	if params.UserID != "" {
 		// Filter outlets by user-assigned warehouses
@@ -183,6 +191,14 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	}
 
 	return outlets, total, nil
+}
+
+func contextUserID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	value, _ := ctx.Value("user_id").(string)
+	return value
 }
 
 // Update updates an existing outlet

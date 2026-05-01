@@ -88,6 +88,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	group := api.Group("/pos")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+	group.Use(middleware.ScopeMiddleware(db))
 
 	router.RegisterFloorPlanRoutes(group, floorPlanH)
 	router.RegisterPOSOrderRoutes(group, orderH, receiptH)

@@ -33,6 +33,7 @@ export const employeeEn = {
     certifications: "Certifications",
     assets: "Assets",
     areas: "Areas",
+    scope: "Outlet & Warehouse",
   },
   sections: {
     personalInfo: "Personal Information",
@@ -42,6 +43,7 @@ export const employeeEn = {
     taxInfo: "Tax & Leave Information",
     areasInfo: "Area Assignments",
     userInfo: "User Account",
+    scopeInfo: "Outlet & Warehouse Assignments",
   },
   filters: {
     all: "All",
@@ -135,6 +137,16 @@ export const employeeEn = {
     member: "Member",
     setSupervisor: "Set Supervisor",
     setMember: "Set Member",
+    outletsLabel: "Outlets",
+    selectOutlet: "Select outlet",
+    noOutletsAssigned: "No outlets assigned",
+    warehousesLabel: "Warehouses",
+    selectWarehouse: "Select warehouse",
+    noWarehousesAssigned: "No warehouses assigned",
+    auto: "Auto",
+    manual: "Manual",
+    scopeDescription:
+      "Assign employee outlets and warehouses. Warehouses linked to selected outlets are auto-added after save.",
     isActive: "Active",
     rejectReason: "Rejection Reason",
     rejectReasonPlaceholder: "Enter reason for rejection (optional)",

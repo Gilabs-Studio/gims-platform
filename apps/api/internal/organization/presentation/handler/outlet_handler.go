@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -102,6 +103,12 @@ func (h *OutletHandler) List(c *gin.Context) {
 	userID := ""
 	if shouldFilterOutletByUserWarehouse(c) {
 		userID = getOutletUserID(c)
+	}
+
+	if scopedOutlets, ok := c.Request.Context().Value("scope_outlet_ids").([]string); ok {
+		if scopedWarehouses, ok := c.Request.Context().Value("scope_warehouse_ids").([]string); ok {
+			log.Printf("[outlet.list] user_id=%s permission_scope=%s outlet_ids=%d warehouse_ids=%d", getOutletUserID(c), c.GetString("permission_scope"), len(scopedOutlets), len(scopedWarehouses))
+		}
 	}
 
 	params := repositories.OutletListParams{

@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/presentation/router"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	orgUsecase "github.com/gilabs/gims/api/internal/organization/domain/usecase"
+	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -61,6 +62,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	educationHistoryRepo := orgRepos.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := orgRepos.NewEmployeeCertificationRepository(db)
 	assetRepo := orgRepos.NewEmployeeAssetRepository(db)
+	employeeOutletRepo := orgRepos.NewEmployeeOutletRepository(db)
+	employeeWarehouseRepo := orgRepos.NewEmployeeWarehouseRepository(db)
+	outletRepo := orgRepos.NewOutletRepository(db)
+	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
 	financeAssetRepo := financeRepos.NewAssetRepository(db)
 	auditLogRepo := financeRepos.NewAssetAuditLogRepository(db)
 	auditService := audit.NewAuditService(db)
@@ -76,7 +81,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(db, employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo, auditService)
 	recruitmentUC := usecase.NewRecruitmentRequestUsecase(recruitmentRepo, employeeRepo, divisionRepo, positionRepo)
 	signatureRepo := orgRepos.NewEmployeeSignatureRepository(db)
-	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, positionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
+	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, employeeOutletRepo, employeeWarehouseRepo, divisionRepo, positionRepo, companyRepo, areaRepo, outletRepo, warehouseRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 	applicantUC := usecase.NewRecruitmentApplicantUsecase(applicantRepo, applicantStageRepo, applicantActivityRepo, recruitmentRepo, employeeUC)
 
 	// Initialize handlers

@@ -94,8 +94,9 @@ export function useAssignPermissionsToRole() {
     onSuccess: async (updatedRole, variables) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });
-      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
+      queryClient.invalidateQueries({ queryKey: ["role"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
       
       // If current user's role code matches the updated role, update permissions in auth store
       if (updatedRole?.code === user?.role?.code) {
@@ -110,9 +111,6 @@ export function useAssignPermissionsToRole() {
           permissions: permissionsMap,
         });
       }
-      
-      // Invalidate user-permissions query last to trigger menu re-render
-      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
     },
   });
 }
@@ -140,8 +138,8 @@ export function useUpdateRoleMenuAccess() {
       assignments: RoleMenuAccessAssignment[];
     }) => roleService.updateMenuAccess(roleId, assignments),
     onSuccess: async (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["role-menu-access", variables.roleId] });
-      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
+      queryClient.invalidateQueries({ queryKey: ["role-menu-access"] });
+      queryClient.invalidateQueries({ queryKey: ["role"] });
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user-permissions"] });

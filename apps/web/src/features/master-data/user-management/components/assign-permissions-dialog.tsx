@@ -122,7 +122,6 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
-  "dashboard.",
   "profile.",
   "setting",
   "billing.",
@@ -1306,70 +1305,31 @@ function PermissionsSelector({
         }
       }
 
-      // Compute DIFF: only send what changed, not the full state
-      const currentPermSet = new Set((role.permissions ?? []).map(p => p.id));
-      const nextPermSet = new Set(Object.keys(nextSelected));
+      const nextAssignments = Object.entries(nextSelected).map(([permissionId, scope]) => ({
+        permission_id: permissionId,
+        scope,
+      }));
 
-      const added: string[] = [];
-      const removed: string[] = [];
+      const currentScopeById = new Map(
+        (role.permissions ?? []).map((permission) => [permission.id, permission.scope ?? "ALL"]),
+      );
+      const hasScopeChanges = nextAssignments.some(({ permission_id, scope }) => {
+        return (currentScopeById.get(permission_id) ?? "ALL") !== scope;
+      });
+      const hasPermissionChanges =
+        (role.permissions ?? []).length !== nextAssignments.length ||
+        nextAssignments.some(({ permission_id }) => !currentScopeById.has(permission_id));
 
-      // Find added permissions (in nextSelected but not in current)
-      for (const permId of nextPermSet) {
-        if (!currentPermSet.has(permId)) {
-          added.push(permId);
-        }
-      }
-
-      // Find removed permissions (in current but not in nextSelected)
-      for (const permId of currentPermSet) {
-        if (!nextPermSet.has(permId)) {
-          removed.push(permId);
-        }
-      }
-
-      // If no changes, just close the dialog
-      if (added.length === 0 && removed.length === 0) {
+      if (!hasScopeChanges && !hasPermissionChanges) {
         toast.success(t("save") || "No changes to save");
         onClose();
         return;
       }
 
-      // Build scope-aware assignments for added permissions
-      const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
-      for (const permId of added) {
-        const scope = nextSelected[permId] ?? "ALL";
-        if (!permissionByID.has(permId)) {
-          console.error("AssignPermissions Debug: building addedWithScope but permission not found in permissionByID:", permId);
-        }
-        addedWithScope.push({
-          permission_id: permId,
-          scope,
-        });
-      }
-
-      try {
-        console.groupCollapsed("AssignPermissions Debug: payload");
-        const payload = {
-          roleId,
-          permissionIds: [...added, ...removed],
-          diff: {
-            added,
-            added_with_scope: addedWithScope,
-            removed,
-          },
-        };
-        console.log(payload);
-        console.groupEnd();
-      } catch { /* noop */ }
-
       await assignPermissions.mutateAsync({
         roleId,
-        permissionIds: [...added, ...removed],
-        diff: {
-          added,
-          added_with_scope: addedWithScope,
-          removed,
-        },
+        permissionIds: [],
+        assignments: nextAssignments,
       });
       setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");
@@ -1394,7 +1354,7 @@ function PermissionsSelector({
         toast.error(errorMessage);
       }
     }
-  }, [selectedPermissions, role.permissions, permissionByID, assignPermissions, roleId, t, onClose]);
+  }, [selectedPermissions, role.permissions, assignPermissions, roleId, t, onClose]);
 
   return (
     <div className="flex flex-col h-full">

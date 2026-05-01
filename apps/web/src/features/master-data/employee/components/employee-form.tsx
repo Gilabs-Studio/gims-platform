@@ -48,6 +48,8 @@ import type {
   Gender,
   PTKPStatus,
   AreaAssignment,
+  OutletAssignment,
+  WarehouseAssignment,
   ContractType,
   CreateEmployeeData,
 } from "../types";
@@ -57,6 +59,8 @@ import {
   useAvailableUsers,
   useEmployeeFormData,
   useBulkUpdateEmployeeAreas,
+  useBulkUpdateEmployeeOutlets,
+  useBulkUpdateEmployeeWarehouses,
   useEmployee,
 } from "../hooks/use-employees";
 import { useDivisions, useCreateDivision } from "@/features/master-data/organization/hooks/use-divisions";
@@ -116,6 +120,10 @@ export function EmployeeForm({
   // Area assignments state (managed separately from the main form)
   const [areaAssignments, setAreaAssignments] = useState<AreaAssignment[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [outletAssignments, setOutletAssignments] = useState<OutletAssignment[]>([]);
+  const [warehouseAssignments, setWarehouseAssignments] = useState<WarehouseAssignment[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
 
   const [divisionFormOpen, setDivisionFormOpen] = useState(false);
   const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
@@ -142,6 +150,8 @@ export function EmployeeForm({
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const bulkUpdateAreas = useBulkUpdateEmployeeAreas();
+  const bulkUpdateOutlets = useBulkUpdateEmployeeOutlets();
+  const bulkUpdateWarehouses = useBulkUpdateEmployeeWarehouses();
 
   const createDivision = useCreateDivision();
   const createJobPosition = useCreateJobPosition();
@@ -169,6 +179,14 @@ export function EmployeeForm({
     () => sortOptions(formDataResp?.data?.areas ?? [], (a) => a.name),
     [formDataResp],
   );
+  const outletOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.outlets ?? [], (o) => o.name),
+    [formDataResp],
+  );
+  const warehouseOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.warehouses ?? [], (w) => w.name),
+    [formDataResp],
+  );
 
   // Filter out already-assigned areas from the dropdown
   const unassignedAreas = useMemo(
@@ -177,6 +195,20 @@ export function EmployeeForm({
         (a) => !areaAssignments.some((aa) => aa.area_id === a.id),
       ),
     [areaOptions, areaAssignments],
+  );
+  const unassignedOutlets = useMemo(
+    () =>
+      outletOptions.filter(
+        (o) => !outletAssignments.some((oa) => oa.outlet_id === o.id),
+      ),
+    [outletOptions, outletAssignments],
+  );
+  const unassignedWarehouses = useMemo(
+    () =>
+      warehouseOptions.filter(
+        (w) => !warehouseAssignments.some((wa) => wa.warehouse_id === w.id),
+      ),
+    [warehouseOptions, warehouseAssignments],
   );
 
   const {
@@ -283,7 +315,18 @@ export function EmployeeForm({
           area_id: ea.area_id,
           is_supervisor: ea.is_supervisor,
         })) ?? [];
+      const existingOutlets: OutletAssignment[] =
+        employeeData.outlets?.map((eo) => ({
+          outlet_id: eo.outlet_id,
+        })) ?? [];
+      const existingWarehouses: WarehouseAssignment[] =
+        employeeData.warehouses?.map((ew) => ({
+          warehouse_id: ew.warehouse_id,
+          is_auto: ew.is_auto,
+        })) ?? [];
       setAreaAssignments(existingAreas);
+      setOutletAssignments(existingOutlets);
+      setWarehouseAssignments(existingWarehouses);
     } else {
       reset({
         employee_code: "",
@@ -316,6 +359,8 @@ export function EmployeeForm({
         password: "",
       });
       setAreaAssignments([]);
+      setOutletAssignments([]);
+      setWarehouseAssignments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee?.id, employeeData]);
@@ -349,6 +394,11 @@ export function EmployeeForm({
       const supervisorAreaIds = areaAssignments
         .filter((a) => a.is_supervisor)
         .map((a) => a.area_id);
+      const outletIds = outletAssignments.map((o) => o.outlet_id);
+      const manualWarehouseAssignments = warehouseAssignments.filter(
+        (w) => !w.is_auto,
+      );
+      const warehouseIds = manualWarehouseAssignments.map((w) => w.warehouse_id);
 
       let finalUserId = data.user_id || undefined;
 
@@ -404,6 +454,8 @@ export function EmployeeForm({
         is_active: data.is_active,
         area_ids: memberAreaIds,
         supervised_area_ids: supervisorAreaIds,
+        outlet_ids: outletIds,
+        warehouse_ids: warehouseIds,
       };
 
       if (isEditing && employee) {
@@ -423,6 +475,14 @@ export function EmployeeForm({
             data: { assignments: areaAssignments },
           });
         }
+        await bulkUpdateOutlets.mutateAsync({
+          id: employee.id,
+          data: { assignments: outletAssignments },
+        });
+        await bulkUpdateWarehouses.mutateAsync({
+          id: employee.id,
+          data: { assignments: manualWarehouseAssignments },
+        });
         toast.success(t("updateSuccess"));
       } else {
         const cleanData: CreateEmployeeData = {
@@ -463,6 +523,8 @@ export function EmployeeForm({
     createEmployee.isPending ||
     updateEmployee.isPending ||
     bulkUpdateAreas.isPending ||
+    bulkUpdateOutlets.isPending ||
+    bulkUpdateWarehouses.isPending ||
     createDivision.isPending ||
     createJobPosition.isPending ||
     createCompany.isPending;
@@ -492,6 +554,43 @@ export function EmployeeForm({
     return areaOptions.find((a) => a.id === areaId)?.name ?? areaId;
   };
 
+  const handleAddOutlet = () => {
+    if (!selectedOutletId) {
+      return;
+    }
+    setOutletAssignments((prev) => [...prev, { outlet_id: selectedOutletId }]);
+    setSelectedOutletId("");
+  };
+
+  const handleRemoveOutlet = (outletId: string) => {
+    setOutletAssignments((prev) => prev.filter((o) => o.outlet_id !== outletId));
+  };
+
+  const getOutletName = (outletId: string): string => {
+    return outletOptions.find((o) => o.id === outletId)?.name ?? outletId;
+  };
+
+  const handleAddWarehouse = () => {
+    if (!selectedWarehouseId) {
+      return;
+    }
+    setWarehouseAssignments((prev) => [
+      ...prev,
+      { warehouse_id: selectedWarehouseId, is_auto: false },
+    ]);
+    setSelectedWarehouseId("");
+  };
+
+  const handleRemoveWarehouse = (warehouseId: string) => {
+    setWarehouseAssignments((prev) =>
+      prev.filter((w) => w.warehouse_id !== warehouseId || w.is_auto),
+    );
+  };
+
+  const getWarehouseName = (warehouseId: string): string => {
+    return warehouseOptions.find((w) => w.id === warehouseId)?.name ?? warehouseId;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -505,7 +604,7 @@ export function EmployeeForm({
             <TabsList
               className={cn(
                 "grid w-full",
-                isEditing ? "grid-cols-3" : "grid-cols-4",
+                isEditing ? "grid-cols-4" : "grid-cols-5",
               )}
             >
               <TabsTrigger value="basic" className="cursor-pointer">
@@ -521,6 +620,9 @@ export function EmployeeForm({
               )}
               <TabsTrigger value="areas" className="cursor-pointer">
                 {t("tabs.areas")}
+              </TabsTrigger>
+              <TabsTrigger value="scope" className="cursor-pointer">
+                {t("tabs.scope")}
               </TabsTrigger>
             </TabsList>
 
@@ -1227,6 +1329,136 @@ export function EmployeeForm({
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="scope" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                {t("form.scopeDescription")}
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.outletsLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedOutletId}
+                    onValueChange={setSelectedOutletId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectOutlet")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedOutlets.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddOutlet}
+                    disabled={!selectedOutletId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {outletAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noOutletsAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {outletAssignments.map((assignment) => (
+                      <div
+                        key={assignment.outlet_id}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <span className="text-sm font-medium">
+                          {getOutletName(assignment.outlet_id)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveOutlet(assignment.outlet_id)}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.warehousesLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedWarehouseId}
+                    onValueChange={setSelectedWarehouseId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectWarehouse")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedWarehouses.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddWarehouse}
+                    disabled={!selectedWarehouseId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {warehouseAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noWarehousesAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {warehouseAssignments.map((assignment) => (
+                      <div
+                        key={`${assignment.warehouse_id}-${assignment.is_auto ? "auto" : "manual"}`}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {getWarehouseName(assignment.warehouse_id)}
+                          </span>
+                          <Badge variant={assignment.is_auto ? "secondary" : "outline"}>
+                            {assignment.is_auto ? t("form.auto") : t("form.manual")}
+                          </Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveWarehouse(assignment.warehouse_id)}
+                          disabled={!!assignment.is_auto}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
 

@@ -64,7 +64,6 @@ func roleByIDCacheKey(ctx context.Context, roleID string) string {
 }
 
 var alwaysSafePermissionPrefixes = []string{
-	"dashboard.",
 	"profile.",
 	"setting",
 	"billing.",

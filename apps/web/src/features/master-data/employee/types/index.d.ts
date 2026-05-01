@@ -329,6 +329,21 @@ export interface EmployeeArea {
   created_at: string;
 }
 
+export interface EmployeeOutlet {
+  outlet_id: string;
+  outlet_name: string;
+  code: string;
+  address: string;
+}
+
+export interface EmployeeWarehouse {
+  warehouse_id: string;
+  warehouse_name: string;
+  code: string;
+  address: string;
+  is_auto: boolean;
+}
+
 export interface Employee {
   id: string;
   employee_code: string;
@@ -389,6 +404,8 @@ export interface Employee {
     name: string;
   };
   areas?: EmployeeArea[];
+  outlets?: EmployeeOutlet[];
+  warehouses?: EmployeeWarehouse[];
   is_area_supervisor: boolean;
   created_by?: string;
   is_active: boolean;
@@ -420,6 +437,8 @@ export interface CreateEmployeeData {
   replacement_for_id?: string;
   area_ids?: string[];
   supervised_area_ids?: string[];
+  outlet_ids?: string[];
+  warehouse_ids?: string[];
   is_active?: boolean;
   // Optional initial contract when creating employee
   initial_contract?: CreateEmployeeContractData;
@@ -449,6 +468,8 @@ export interface UpdateEmployeeData {
   replacement_for_id?: string;
   area_ids?: string[];
   supervised_area_ids?: string[];
+  outlet_ids?: string[];
+  warehouse_ids?: string[];
   is_active?: boolean;
 }
 
@@ -463,6 +484,31 @@ export interface AreaAssignment {
 
 export interface BulkUpdateEmployeeAreasData {
   assignments: AreaAssignment[];
+}
+
+export interface AssignEmployeeOutletsData {
+  outlet_ids: string[];
+}
+
+export interface OutletAssignment {
+  outlet_id: string;
+}
+
+export interface BulkUpdateEmployeeOutletsData {
+  assignments: OutletAssignment[];
+}
+
+export interface AssignEmployeeWarehousesData {
+  warehouse_ids: string[];
+}
+
+export interface WarehouseAssignment {
+  warehouse_id: string;
+  is_auto?: boolean;
+}
+
+export interface BulkUpdateEmployeeWarehousesData {
+  assignments: WarehouseAssignment[];
 }
 
 export interface AvailableUser {
@@ -488,6 +534,8 @@ export interface EmployeeFormData {
   job_positions: FormOption[];
   companies: FormOption[];
   areas: FormOption[];
+  outlets: FormOption[];
+  warehouses: FormOption[];
 }
 
 export interface EmployeeFormDataResponse {
