@@ -7,8 +7,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Software Inventory & Stok Barang Terbaik | GIMS` 
-    : `Best Inventory & Stock Software | GIMS`;
+    ? `Software Inventory & Stok Barang Terbaik | SalesView` 
+    : `Best Inventory & Stock Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Aplikasi inventory pintar untuk memantau stok, melacak pergerakan gudang, dan sinkronisasi laporan otomatis tanpa perhitungan manual.`
@@ -33,7 +33,7 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/stock#business`,
+    "@id": `https://salesview.id/${locale}/stock#business`,
     "name": locale === 'id' ? "Sistem Inventaris Cerdas" : "Smart Inventory System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -52,7 +52,7 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/stock`,
+    "url": `https://salesview.id/${locale}/stock`,
     "telephone": "+628111222333"
   };
 
@@ -64,7 +64,7 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Inventory
+            SalesView Inventory
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Akurasi Stok yang` : `A Stock Accuracy that`}

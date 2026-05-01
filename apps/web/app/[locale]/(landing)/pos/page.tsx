@@ -8,8 +8,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi Sistem Kasir POS Terbaik (Ritel & F&B) | GIMS` 
-    : `Best Point of Sale (POS) Software | GIMS`;
+    ? `Aplikasi Sistem Kasir POS Terbaik (Ritel & F&B) | SalesView` 
+    : `Best Point of Sale (POS) Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Sistem Point of Sale (POS) antijam otomatis tersinkronisasi ke inventori dan akuntansi. Sempurna untuk kafe, resto, dan retail.`
@@ -34,7 +34,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/pos#business`,
+    "@id": `https://salesview.id/${locale}/pos#business`,
     "name": locale === 'id' ? "Sistem Point of Sale Terbaik" : "Best POS System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -52,7 +52,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/pos`,
+    "url": `https://salesview.id/${locale}/pos`,
     "telephone": "+628111222333"
   };
 
@@ -64,7 +64,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Point of Sale
+            SalesView Point of Sale
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Sistem Kasir yang` : `A Point of Sale that`}

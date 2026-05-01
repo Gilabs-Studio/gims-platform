@@ -79,7 +79,7 @@ function buildEnterpriseCTA(locale: string): BundlePlan {
 
 
 
-const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20GiLabs%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
+const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
 type ComparisonCellValue = string | "check" | "minus";
 

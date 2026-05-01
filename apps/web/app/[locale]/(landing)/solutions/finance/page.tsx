@@ -8,8 +8,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Software Akuntansi & Keuangan Terbaik di Indonesia | GIMS` 
-    : `Best Finance & Accounting Software | GIMS`;
+    ? `Software Akuntansi & Keuangan Terbaik di Indonesia | SalesView` 
+    : `Best Finance & Accounting Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Sistem keuangan, akuntansi, dan faktur terintegrasi. Buat laporan real-time tanpa pusing. Semua metrik finansial dalam satu tempat.`
@@ -35,7 +35,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/solutions/finance#business`,
+    "@id": `https://salesview.id/${locale}/solutions/finance#business`,
     "name": locale === 'id' ? "Software Akuntansi Terintegrasi Terbaik" : "Best Integrated Accounting Software",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -53,7 +53,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/solutions/finance`,
+    "url": `https://salesview.id/${locale}/solutions/finance`,
     "telephone": "+628111222333"
   };
 
@@ -67,7 +67,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
         {/* HERO */}
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Finance
+            SalesView Finance
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Kendali Keuangan` : `Financial Control,`}

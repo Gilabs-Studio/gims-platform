@@ -70,7 +70,7 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
         {/* Header */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
           <ShieldCheck className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold">GIMS Admin</span>
+          <span className="text-lg font-bold">SalesView Admin</span>
         </div>
 
         {/* Navigation */}

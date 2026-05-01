@@ -6,7 +6,7 @@
  * 2. Manual logout
  * 3. API returns 401 and refresh fails
  *
- * Note: HttpOnly cookies (gims_access_token, gims_refresh_token) cannot be
+ * Note: HttpOnly cookies (salesview_access_token, salesview_refresh_token) cannot be
  * cleared by JavaScript. They must be cleared by the server via Set-Cookie
  * with MaxAge=-1. This function only clears non-HttpOnly cookies like csrf_token.
  *
@@ -16,11 +16,11 @@ export function clearAuthCookies(): void {
   if (typeof document === "undefined") return;
 
   const cookiesToClear = [
-    "gims_csrf_token",
+    "salesview_csrf_token",
     // Note: These are HttpOnly, so this won't actually work for them
     // but we include them for completeness in case they're ever non-HttpOnly
-    "gims_access_token",
-    "gims_refresh_token",
+    "salesview_access_token",
+    "salesview_refresh_token",
   ];
 
   cookiesToClear.forEach((cookieName) => {

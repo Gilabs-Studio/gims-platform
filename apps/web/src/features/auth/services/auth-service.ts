@@ -48,7 +48,7 @@ export const authService = {
    * Prefetch CSRF token from the API.
    *
    * Performs a GET /auth/csrf which causes the backend CSRF middleware to:
-   *  1. Generate/reuse the gims_csrf_token cookie (SameSite=None; Secure)
+   *  1. Generate/reuse the salesview_csrf_token cookie (SameSite=None; Secure)
    *  2. Echo the token in the X-CSRF-Token response header
    *
    * The response interceptor in api-client already captures the header into

@@ -96,7 +96,7 @@ export const feedbackEn = {
       invalid: "This feedback link is invalid.",
       error: "Unable to load the feedback form.",
       greeting: "Hi, {name}!",
-      poweredBy: "Powered by GIMS",
+      poweredBy: "Powered by SalesView",
     },
   },
 };

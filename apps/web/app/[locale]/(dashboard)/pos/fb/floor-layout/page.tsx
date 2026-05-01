@@ -24,7 +24,7 @@ export async function generateMetadata({
   const { locale } = await Promise.resolve(params);
   const t = await getTranslations({ locale, namespace: "floorLayout" });
   return {
-    title: `${t("title")} | GIMS`,
+    title: `${t("title")} | SalesView`,
     description: t("subtitle"),
   };
 }

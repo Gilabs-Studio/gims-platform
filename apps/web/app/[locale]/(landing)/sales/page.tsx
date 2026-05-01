@@ -7,8 +7,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi Sistem Penjualan Terbaik | GIMS` 
-    : `Best B2B Sales Software | GIMS`;
+    ? `Aplikasi Sistem Penjualan Terbaik | SalesView` 
+    : `Best B2B Sales Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Bawa Sales Anda ke level berikutnya. Buat Sales Order dalam sekejap, kirim faktur cantik, dan integrasikan pembayaran online.`
@@ -33,7 +33,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/sales#business`,
+    "@id": `https://salesview.id/${locale}/sales#business`,
     "name": locale === 'id' ? "Sistem Penjualan B2B Terbaik" : "Best B2B Sales System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -51,7 +51,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/sales`,
+    "url": `https://salesview.id/${locale}/sales`,
     "telephone": "+628111222333"
   };
 
@@ -63,7 +63,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Sales
+            SalesView Sales
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Pesan Penjualan` : `Closing Sales,`}

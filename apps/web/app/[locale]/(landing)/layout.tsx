@@ -11,19 +11,19 @@ export default function MarketingLayout({
     "@graph": [
       {
         "@type": "Organization",
-        "@id": "https://gims.gilabs.co.id/#organization",
+        "@id": "https://salesview.id/#organization",
         "name": "GILABS",
-        "url": "https://gims.gilabs.co.id",
-        "logo": "https://gims.gilabs.co.id/logo.png",
-        "description": "Provider of GIMS: All-in-One Enterprise Platform ERP, CRM, HRIS, POS, and Finance.",
+        "url": "https://salesview.id",
+        "logo": "https://salesview.id/logo.png",
+        "description": "Provider of SalesView: All-in-One Enterprise Platform ERP, CRM, HRIS, POS, and Finance.",
         "sameAs": [
           "https://www.linkedin.com/company/gilabs"
         ]
       },
       {
         "@type": "SoftwareApplication",
-        "@id": "https://gims.gilabs.co.id/#product",
-        "name": "GIMS (GILABS Integrated Management System)",
+        "@id": "https://salesview.id/#product",
+        "name": "SalesView - ERP, CRM, HRIS, POS & Finance",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web, Windows, macOS, Linux",
         "offers": {

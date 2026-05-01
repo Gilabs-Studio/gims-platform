@@ -215,7 +215,7 @@ export const crmLeadEn = {
       buttonLabel: "Generate Leads",
       title: "Generate Leads via n8n",
       description:
-        "Download n8n workflow templates to scrape leads from Google Maps or LinkedIn using free APIs, then push them to GIMS.",
+        "Download n8n workflow templates to scrape leads from Google Maps or LinkedIn using free APIs, then push them to SalesView.",
       selectSource: "Lead Source",
       keyword: "Keyword",
       keywordPlaceholder: "e.g. IT Company, Restaurant",
@@ -235,7 +235,7 @@ export const crmLeadEn = {
       step4:
         "Activate the workflow, then copy your /webhook/ URL (not /webhook-test/)",
       step5:
-        "Paste the URL above and click Run — n8n will scrape, AI-parse, research, and push leads to GIMS",
+        "Paste the URL above and click Run — n8n will scrape, AI-parse, research, and push leads to SalesView",
       freeApis: "Free APIs",
       downloadWorkflow: "Download Workflow",
       downloadUniversal: "Universal Workflow",
@@ -245,7 +245,7 @@ export const crmLeadEn = {
       copyFailed: "Failed to copy to clipboard",
       webhookUrl: "n8n Webhook URL (managed)",
       webhookUrlPlaceholder:
-        "https://your-instance.n8n.cloud/webhook/gims-generate-leads",
+        "https://your-instance.n8n.cloud/webhook/salesview-generate-leads",
       webhookUrlHint:
         "Webhook URL is managed by the server. No client action needed.",
       webhookTestModeWarning:

@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 import { PricingSection } from "@/components/landing/pricing-section";
 
-const BASE_URL = "https://gims.gilabs.co.id";
+const BASE_URL = "https://salesview.id";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const isId = locale === "id";
 
   const title = isId
-    ? "Pricing GIMS: Harga ERP, CRM, HRIS, POS & Finance"
-    : "GIMS Pricing: ERP, CRM, HRIS, POS & Finance Plans";
+    ? "Pricing SalesView: Harga ERP, CRM, HRIS, POS & Finance"
+    : "SalesView Pricing: ERP, CRM, HRIS, POS & Finance Plans";
   const description = isId
-    ? "Lihat harga GIMS untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular dan pilih paket sesuai skala bisnis Anda."
-    : "See GIMS pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular plans and choose the best fit for your business scale.";
+    ? "Lihat harga SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular dan pilih paket sesuai skala bisnis Anda."
+    : "See SalesView pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular plans and choose the best fit for your business scale.";
   const canonicalPath = `/${locale}/pricing`;
 
   return {
@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description,
     keywords: isId
       ? [
-          "harga erp gims",
-          "harga gims",
+          "harga erp salesview",
+          "harga salesview",
           "pricing erp indonesia",
           "harga software crm",
           "harga aplikasi kasir pos",
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
           "paket software bisnis",
         ]
       : [
-          "gims pricing",
+          "salesview pricing",
           "erp pricing indonesia",
           "crm pricing",
           "hris pricing",
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
           url: "/screenshot/dashboard.webp",
           width: 1920,
           height: 1080,
-          alt: "GIMS pricing overview",
+          alt: "SalesView pricing overview",
         },
       ],
     },
@@ -75,13 +75,13 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: "GIMS Pricing",
+    name: \"SalesView Pricing\",
     description: isId
-      ? "Halaman pricing resmi GIMS untuk paket ERP, CRM, HRIS, POS, dan Finance."
-      : "Official GIMS pricing page for ERP, CRM, HRIS, POS, and Finance plans.",
+      ? \"Halaman pricing resmi SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance.\"
+      : \"Official SalesView pricing page for ERP, CRM, HRIS, POS, and Finance plans.\",
     brand: {
-      "@type": "Brand",
-      name: "GILABS",
+      \"@type\": \"Brand\",
+      name: \"SalesView\",
     },
     category: "Business Software",
     offers: {
