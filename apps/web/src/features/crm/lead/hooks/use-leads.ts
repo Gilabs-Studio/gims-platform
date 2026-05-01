@@ -30,6 +30,7 @@ export function useLeadById(id: string) {
     queryKey: leadKeys.detail(id),
     queryFn: () => leadService.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -55,6 +56,7 @@ export function useLeadProductItems(id: string, options?: { enabled?: boolean })
     queryKey: leadKeys.productItems(id),
     queryFn: () => leadService.getProductItems(id),
     enabled: (options?.enabled ?? true) && !!id,
+    staleTime: 30 * 1000,
   });
 }
 

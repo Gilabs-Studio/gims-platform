@@ -139,7 +139,7 @@ export function SupplierDialog({
                       <CreatableCombobox
                         value={paymentTermsId ?? ""}
                         onValueChange={(val) => setValue("payment_terms_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
-                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
                         placeholder={t("form.paymentTermsPlaceholder")}
                       />
                       {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
@@ -176,7 +176,17 @@ export function SupplierDialog({
 
                     <Field>
                       <FieldLabel>{t("form.npwp")}</FieldLabel>
-                      <Input placeholder={t("form.npwpPlaceholder")} {...register("npwp")} />
+                      <Input
+                        placeholder={t("form.npwpPlaceholder")}
+                        inputMode="numeric"
+                        onKeyDown={(e) => {
+                          if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                              !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        {...register("npwp")}
+                      />
                       {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
                     </Field>
                   </div>

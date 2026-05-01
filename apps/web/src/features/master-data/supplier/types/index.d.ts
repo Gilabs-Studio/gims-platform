@@ -295,4 +295,5 @@ export interface ListParams {
   search?: string;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
+  active_only?: boolean;
 }

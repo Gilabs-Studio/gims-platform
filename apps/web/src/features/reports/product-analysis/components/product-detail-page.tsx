@@ -256,7 +256,7 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
         </div>
 
         {/* Right Column - 1/3: Product Info Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 lg:pb-28">
           <div className="rounded-lg border">
             <div className="px-3 py-3 border-b">
               <h2 className="text-base font-medium">{t("detail.productInfo")}</h2>

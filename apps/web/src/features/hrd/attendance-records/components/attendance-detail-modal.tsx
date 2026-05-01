@@ -12,7 +12,6 @@ import {
   CalendarIcon,
   Home,
   Coffee,
-  Briefcase,
   Shield,
   AlertCircle,
 } from "lucide-react";
@@ -398,50 +397,6 @@ export function AttendanceDetailModal({
                   </div>
                 </div>
               </div>
-
-              {/* Working Time Stats */}
-              <div className="bg-muted/30 p-4 rounded-xl space-y-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" /> {t("fields.workingMinutes")}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold">
-                      {displayRecord.working_hours || "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("stats.totalWorkingHours")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold">
-                      {displayRecord.overtime_hours || "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("fields.overtimeMinutes")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-destructive">
-                      {displayRecord.late_minutes > 0
-                        ? `${displayRecord.late_minutes}m`
-                        : "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("fields.lateMinutes")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-warning">
-                      {displayRecord.early_leave_minutes > 0
-                        ? `${displayRecord.early_leave_minutes}m`
-                        : "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Early Leave</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Notes & Manual Entry */}
               {(displayRecord.notes || displayRecord.is_manual_entry) && (
                 <div className="bg-muted/30 p-4 rounded-xl space-y-2">

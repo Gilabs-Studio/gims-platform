@@ -520,7 +520,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															setShouldLoadSelectData(true);
 														}
 													}}
-													options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+													options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="payment_term.create"
 													createLabel={t("actions.createNew") || "Create Payment Term"}

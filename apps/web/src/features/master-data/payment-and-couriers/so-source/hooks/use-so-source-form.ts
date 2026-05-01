@@ -66,8 +66,14 @@ export function useSOSourceForm({ open, onOpenChange, editingItem }: UseSOSource
       }
       onOpenChange(false);
       form.reset();
-    } catch {
-      toast.error(tCommon("error", { fallback: "An error occurred" }));
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (msg.toLowerCase().includes("minimum") || msg.toLowerCase().includes("too small") || msg.toLowerCase().includes("at least")) {
+        toast.error(t("validationError", { fallback: "Name must be at least 2 characters" }));
+      } else {
+        toast.error(tCommon("error", { fallback: "An error occurred" }));
+      }
     }
   };
 

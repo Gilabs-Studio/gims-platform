@@ -10,7 +10,7 @@ import type { CourierAgency } from "../types";
 export const courierAgencySchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
-  phone: z.string().max(20).optional(),
+  phone: z.string().max(20).regex(/^\d*$/, "Phone number must contain digits only").optional(),
   address: z.string().max(500).optional(),
   tracking_url: z.string().max(255).optional(),
   is_active: z.boolean(),

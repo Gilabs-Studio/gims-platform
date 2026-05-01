@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"gorm.io/gorm"
@@ -49,6 +50,10 @@ func (r *procurementTypeRepository) List(ctx context.Context, params ListParams)
 	if params.Search != "" {
 		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
+	}
+
+	if params.ActiveOnly {
+		query = query.Where("is_active = ?", true)
 	}
 
 	if err := query.Count(&total).Error; err != nil {

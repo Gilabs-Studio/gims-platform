@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Link } from "@/i18n/routing";
 import L from "leaflet";
 import {
@@ -61,6 +62,13 @@ export function CompanyMapView() {
   const { isMobile } = layout;
   const { t } = translations;
   const updateCompany = useUpdateCompany();
+
+  // Pan map to selected company when user clicks a sidebar card
+  const flyToPosition = useMemo(() => {
+    const sel = data.selectedCompany;
+    if (sel?.latitude == null || sel?.longitude == null) return null;
+    return { lat: Number(sel.latitude), lng: Number(sel.longitude) };
+  }, [data.selectedCompany]);
 
   const renderMarkers = (markerList: MapMarker<Company>[]) => (
     <>
@@ -295,6 +303,7 @@ export function CompanyMapView() {
             defaultCenter={[-6.2088, 106.8456]}
             defaultZoom={12}
             selectedMarkerId={state.selectedCompanyId}
+            flyToPosition={flyToPosition}
           />
         )}
       </div>

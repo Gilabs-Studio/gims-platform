@@ -5,77 +5,106 @@ import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
-import { useCreatePipelineStage, useUpdatePipelineStage } from "./use-pipeline-stage";
+import {
+	useCreatePipelineStage,
+	useUpdatePipelineStage,
+} from "./use-pipeline-stage";
 import type { PipelineStage } from "../types";
 
 const schema = z.object({
-  name: z.string().min(2).max(100),
-  color: z.string().max(20).optional(),
-  probability: z.number().min(0).max(100),
-  is_won: z.boolean(),
-  is_lost: z.boolean(),
-  description: z.string().max(500).optional(),
+	name: z.string().min(2).max(100),
+	color: z.string().max(20).optional(),
+	probability: z.number().min(0).max(100),
+	is_won: z.boolean(),
+	is_lost: z.boolean(),
+	description: z.string().max(500).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
 
 export interface UsePipelineStageFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingItem?: PipelineStage | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	editingItem?: PipelineStage | null;
 }
 
-export function usePipelineStageForm({ open, onOpenChange, editingItem }: UsePipelineStageFormProps) {
-  const t = useTranslations("pipelineStage");
-  const tCommon = useTranslations("common");
+export function usePipelineStageForm({
+	open,
+	onOpenChange,
+	editingItem,
+}: UsePipelineStageFormProps) {
+	const t = useTranslations("pipelineStage");
+	const tCommon = useTranslations("common");
 
-  const createMutation = useCreatePipelineStage();
-  const updateMutation = useUpdatePipelineStage();
+	const createMutation = useCreatePipelineStage();
+	const updateMutation = useUpdatePipelineStage();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: "", color: "#3B82F6", probability: 0, is_won: false, is_lost: false, description: "" },
-  });
+	const form = useForm<FormData>({
+		resolver: zodResolver(schema),
+		defaultValues: {
+			name: "",
+			color: "#3B82F6",
+			probability: 0,
+			is_won: false,
+			is_lost: false,
+			description: "",
+		},
+	});
 
-  useEffect(() => {
-    if (open) {
-      if (editingItem) {
-        form.reset({
-          name: editingItem.name,
-          color: editingItem.color ?? "#3B82F6",
-          probability: editingItem.probability,
-          is_won: editingItem.is_won,
-          is_lost: editingItem.is_lost,
-          description: editingItem.description ?? "",
-        });
-      } else {
-        form.reset({ name: "", color: "#3B82F6", probability: 0, is_won: false, is_lost: false, description: "" });
-      }
-    }
-  }, [editingItem, form, open]);
+	useEffect(() => {
+		if (open) {
+			if (editingItem) {
+				form.reset({
+					name: editingItem.name,
+					color: editingItem.color ?? "#3B82F6",
+					probability: editingItem.probability,
+					is_won: editingItem.is_won,
+					is_lost: editingItem.is_lost,
+					description: editingItem.description ?? "",
+				});
+			} else {
+				form.reset({
+					name: "",
+					color: "#3B82F6",
+					probability: 0,
+					is_won: false,
+					is_lost: false,
+					description: "",
+				});
+			}
+		}
+	}, [editingItem, form, open]);
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
-    try {
-      if (editingItem) {
-        await updateMutation.mutateAsync({ id: editingItem.id, data });
-        toast.success(t("updated"));
-      } else {
-        await createMutation.mutateAsync(data);
-        toast.success(t("created"));
-      }
-      onOpenChange(false);
-      form.reset();
-    } catch (error) {
-      const message = isAxiosError(error)
-        ? (error.response?.data?.error_id as string | undefined)
-          ?? (error.response?.data?.error?.message as string | undefined)
-          ?? (error.response?.data?.message as string | undefined)
-        : undefined;
-      toast.error(message ?? tCommon("error"));
-    }
-  };
+	const onSubmit: SubmitHandler<FormData> = async (data) => {
+		try {
+			if (editingItem) {
+				await updateMutation.mutateAsync({ id: editingItem.id, data });
+				toast.success(t("updated"));
+			} else {
+				await createMutation.mutateAsync(data);
+				toast.success(t("created"));
+			}
+			onOpenChange(false);
+			form.reset();
+		} catch (error) {
+			const message = isAxiosError(error)
+				? ((error.response?.data?.error_id as string | undefined) ??
+					(error.response?.data?.error?.message as string | undefined) ??
+					(error.response?.data?.message as string | undefined))
+				: undefined;
+			const isWonConflict =
+				message?.toLowerCase().includes("won") ||
+				message?.toLowerCase().includes("pipeline_stage_won") ||
+				message?.toLowerCase().includes("one stage can be");
+			toast.error(
+				isWonConflict
+					? 'Only one pipeline stage can be marked as "Won".'
+					: (message ?? tCommon("error")),
+			);
+		}
+	};
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+	const isLoading = createMutation.isPending || updateMutation.isPending;
 
-  return { form, t, tCommon, isLoading, onSubmit: form.handleSubmit(onSubmit) };
+	return { form, t, tCommon, isLoading, onSubmit: form.handleSubmit(onSubmit) };
 }

@@ -21,6 +21,12 @@ import { useProgressiveInventory } from "../hooks/use-progressive-inventory";
 import type { InventoryStockItem, InventoryTreeWarehouse, TreeProductsSummary } from "../types";
 import { formatDate, resolveImageUrl } from "@/lib/utils";
 
+function formatInventoryStatus(status: string): string {
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function StatusBadge({
   count,
   type,
@@ -214,7 +220,7 @@ function ProductNode({
             <span className="font-bold text-sm">{product.available}</span>
           </div>
           <div className={`min-w-20 text-right ${getStatusColor(product.status)}`}>
-            {product.status.replace("_", " ")}
+            {formatInventoryStatus(product.status)}
           </div>
         </div>
       </div>

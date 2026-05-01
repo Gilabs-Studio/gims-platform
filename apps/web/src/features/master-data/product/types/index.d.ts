@@ -492,6 +492,7 @@ export interface LookupListParams {
   sort_by?: string;
   sort_dir?: string;
   sort?: string; // Support for simple sort string if needed
+  active_only?: boolean;
 }
 
 export interface PaginationMeta {

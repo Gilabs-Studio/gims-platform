@@ -28,6 +28,7 @@ func NewRoleHandler(roleUC usecase.RoleUsecase) *RoleHandler {
 func (h *RoleHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	search := c.Query("search")
 
 	if page < 1 {
 		page = 1
@@ -39,7 +40,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 		limit = 100
 	}
 
-	roles, total, err := h.roleUC.List(c.Request.Context(), page, limit)
+	roles, total, err := h.roleUC.List(c.Request.Context(), page, limit, search)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return

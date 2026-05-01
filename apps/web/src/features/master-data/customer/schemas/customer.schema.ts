@@ -36,6 +36,7 @@ export const getCustomerSchema = (t?: TranslationFn) =>
     npwp: z
       .string()
       .max(30, getMsg(t, "validation.npwpMaxLength"))
+      .regex(/^\d*$/, getMsg(t, "validation.npwpNumericOnly"))
       .optional()
       .or(z.literal("")),
     notes: z.string().max(1000).optional().or(z.literal("")),

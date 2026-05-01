@@ -163,6 +163,7 @@ export const crmVisitReportEn = {
       employeeRequired: "Sales representative is required",
       fillRequired: "Please fill all required fields",
       invalidId: "Invalid ID",
+      duplicateProduct: "This product is already selected. Please use one row per product.",
       interestLevelMin: "Interest level cannot be negative",
       interestLevelMax: "Interest level cannot exceed 5",
       quantityMin: "Quantity cannot be negative",

@@ -45,6 +45,7 @@ export function useDealById(id: string) {
     queryKey: dealKeys.detail(id),
     queryFn: () => dealService.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -63,6 +64,7 @@ export function useDealHistory(id: string) {
     queryFn: () => dealService.getHistory(id),
     select: (res) => res.data,
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 }
 

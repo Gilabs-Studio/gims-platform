@@ -152,6 +152,12 @@ export function LogVisitDialog({
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const isProductSelectedInAnotherRow = useCallback(
+    (productId: string, rowIndex: number) =>
+      productItems.some((item, index) => index !== rowIndex && item.product_id === productId),
+    [productItems],
+  );
+
   // Initialize fields from props when dialog opens
   useEffect(() => {
     if (open) {
@@ -697,7 +703,12 @@ export function LogVisitDialog({
                       </div>
                       <Select
                         value={item.product_id}
-                        onValueChange={(val) =>
+                        onValueChange={(val) => {
+                          if (isProductSelectedInAnotherRow(val, idx)) {
+                            toast.error(t("validation.duplicateProduct"));
+                            return;
+                          }
+
                           setProductItems((prev) =>
                             prev.map((p, i) => {
                               if (i !== idx) return p;
@@ -709,18 +720,21 @@ export function LogVisitDialog({
                                 price: p.price === 0 && found?.selling_price ? found.selling_price : p.price,
                               };
                             })
-                          )
-                        }
+                          );
+                        }}
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder={t("form.selectProduct")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="cursor-pointer">
+                          {products.map((p) => {
+                            const selectedInAnotherRow = isProductSelectedInAnotherRow(p.id, idx);
+                            return (
+                            <SelectItem key={p.id} value={p.id} className="cursor-pointer" disabled={selectedInAnotherRow}>
                               {p.name} {p.code && `(${p.code})`}
                             </SelectItem>
-                          ))}
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

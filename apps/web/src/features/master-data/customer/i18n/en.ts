@@ -213,6 +213,7 @@ export const customerEn = {
     emailMaxLength: "Email cannot exceed 100 characters",
     websiteMaxLength: "Website cannot exceed 200 characters",
     npwpMaxLength: "NPWP cannot exceed 30 characters",
+    npwpNumericOnly: "NPWP must contain digits only",
     addressMaxLength: "Address cannot exceed 500 characters",
     phoneNumberRequired: "Phone number is required",
     accountNumberRequired: "Account number is required",
