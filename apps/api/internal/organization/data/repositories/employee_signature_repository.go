@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"errors"
 
@@ -40,7 +39,7 @@ func NewEmployeeSignatureRepository(db *gorm.DB) EmployeeSignatureRepository {
 // GetByEmployeeID retrieves the active signature for an employee
 func (r *employeeSignatureRepository) GetByEmployeeID(ctx context.Context, employeeID string) (*models.EmployeeSignature, error) {
 	var signature models.EmployeeSignature
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Where("employee_id = ?", employeeID).
 		First(&signature).Error
 
@@ -57,7 +56,7 @@ func (r *employeeSignatureRepository) GetByEmployeeID(ctx context.Context, emplo
 // GetAnyByEmployeeID retrieves any signature (including soft deleted) for an employee
 func (r *employeeSignatureRepository) GetAnyByEmployeeID(ctx context.Context, employeeID string) (*models.EmployeeSignature, error) {
 	var signature models.EmployeeSignature
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Unscoped().
 		Where("employee_id = ?", employeeID).
 		First(&signature).Error
@@ -74,19 +73,19 @@ func (r *employeeSignatureRepository) GetAnyByEmployeeID(ctx context.Context, em
 
 // Create creates a new signature record
 func (r *employeeSignatureRepository) Create(ctx context.Context, signature *models.EmployeeSignature) error {
-	return database.GetDB(ctx, r.db).Create(signature).Error
+	return r.db.WithContext(ctx).Create(signature).Error
 }
 
 // SoftDelete performs a soft delete of a signature
 func (r *employeeSignatureRepository) SoftDelete(ctx context.Context, id string) error {
-	return database.GetDB(ctx, r.db).
+	return r.db.WithContext(ctx).
 		Where("id = ?", id).
 		Delete(&models.EmployeeSignature{}).Error
 }
 
 // HardDelete permanently deletes a signature (used when replacing)
 func (r *employeeSignatureRepository) HardDelete(ctx context.Context, id string) error {
-	return database.GetDB(ctx, r.db).
+	return r.db.WithContext(ctx).
 		Unscoped().
 		Where("id = ?", id).
 		Delete(&models.EmployeeSignature{}).Error

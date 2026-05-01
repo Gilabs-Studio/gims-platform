@@ -83,7 +83,7 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 		query = r.db.WithContext(ctx).Model(&models.CustomerInvoice{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
-		
+
 		// Apply tenant filter manually since we are using joins
 		var err error
 		query, err = applyTenantFilter(ctx, query, "customer_invoices.tenant_id", "sales_orders.tenant_id")
@@ -106,28 +106,28 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("customer_invoices.status = ?", req.Status)
 	}
 
 	// Apply type filter
 	if req.Type != "" {
-		query = query.Where("type = ?", req.Type)
+		query = query.Where("customer_invoices.type = ?", req.Type)
 	}
 
 	// Apply date range filter
 	if req.DateFrom != "" {
-		query = query.Where("invoice_date >= ?", req.DateFrom)
+		query = query.Where("customer_invoices.invoice_date >= ?", req.DateFrom)
 	}
 	if req.DateTo != "" {
-		query = query.Where("invoice_date <= ?", req.DateTo)
+		query = query.Where("customer_invoices.invoice_date <= ?", req.DateTo)
 	}
 
 	// Apply due date range filter
 	if req.DueDateFrom != "" {
-		query = query.Where("due_date >= ?", req.DueDateFrom)
+		query = query.Where("customer_invoices.due_date >= ?", req.DueDateFrom)
 	}
 	if req.DueDateTo != "" {
-		query = query.Where("due_date <= ?", req.DueDateTo)
+		query = query.Where("customer_invoices.due_date <= ?", req.DueDateTo)
 	}
 
 	// Apply sales order filter
@@ -156,13 +156,13 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"invoice_number": "invoice_number",
-		"invoice_date":   "invoice_date",
-		"due_date":       "due_date",
-		"amount":         "amount",
-		"status":         "status",
-		"created_at":     "created_at",
-		"updated_at":     "updated_at",
+		"invoice_number": "customer_invoices.invoice_number",
+		"invoice_date":   "customer_invoices.invoice_date",
+		"due_date":       "customer_invoices.due_date",
+		"amount":         "customer_invoices.amount",
+		"status":         "customer_invoices.status",
+		"created_at":     "customer_invoices.created_at",
+		"updated_at":     "customer_invoices.updated_at",
 	}
 
 	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))

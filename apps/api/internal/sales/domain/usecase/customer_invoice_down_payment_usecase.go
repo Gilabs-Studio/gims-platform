@@ -173,6 +173,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
 		Status:             string(ci.Status),
+		AttachmentURL:      ci.AttachmentURL,
 		Notes:              &n,
 		CreatedBy:          ci.CreatedBy,
 		CreatedAt:          ci.CreatedAt,
@@ -219,6 +220,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
 		Status:             string(ci.Status),
+		AttachmentURL:      ci.AttachmentURL,
 		CreatedAt:          ci.CreatedAt,
 	}
 }
@@ -587,6 +589,7 @@ func (uc *customerInvoiceDownPaymentUsecase) createDraftDownPaymentInTx(
 		Amount:        req.Amount,
 		Subtotal:      req.Amount,
 		Status:        models.CustomerInvoiceStatusDraft,
+		AttachmentURL: req.AttachmentURL,
 		Notes:         notes,
 		CreatedBy:     &creatorID,
 	}
@@ -633,6 +636,7 @@ func (uc *customerInvoiceDownPaymentUsecase) updateDraftDownPaymentInTx(
 		"due_date":       dueDate,
 		"amount":         req.Amount,
 		"subtotal":       req.Amount,
+		"attachment_url": req.AttachmentURL,
 		"notes":          notes,
 		"updated_at":     apptime.Now(),
 	}).Error; err != nil {

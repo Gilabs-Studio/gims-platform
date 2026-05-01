@@ -60,6 +60,7 @@ export interface CustomerInvoiceDPListItem {
   amount: number;
   remaining_amount?: number;
   status: CustomerInvoiceDPStatus;
+  attachment_url?: string | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;
@@ -106,6 +107,7 @@ export interface CreateCustomerInvoiceDPInput {
   invoice_date: string;
   due_date: string;
   amount: number;
+  attachment_url?: string | null;
   notes?: string | null;
 }
 

@@ -407,6 +407,8 @@ func handlePurchaseOrderError(c *gin.Context, err error) {
 		errors.NotFoundResponse(c, "purchase_order", c.Param("id"))
 	case err == usecase.ErrPurchaseOrderConflict:
 		errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+	case err == usecase.ErrInvalidStatus:
+		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": "Purchase order cannot be approved or rejected in its current status. Only submitted purchase orders can be approved or rejected."}, nil)
 	default:
 		errors.InternalServerErrorResponse(c, err.Error())
 	}

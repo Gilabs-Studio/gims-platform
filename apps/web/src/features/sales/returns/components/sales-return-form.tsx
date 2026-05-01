@@ -241,6 +241,10 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesRetu
       return;
     }
 
+    if (eligibleItems.length === 0) {
+      return;
+    }
+
     form.reset({
       invoice_id: defaultInvoiceId ?? "",
       delivery_id: selectedDeliveryId,

@@ -488,7 +488,11 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			}
 		}
 		if fullyReceived {
-			// Only close PO if all supplier invoices are also paid or cancelled (#276)
+			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			var totalInvoiceCount3 int64
+			tx.Model(&models.SupplierInvoice{}).
+				Where("purchase_order_id = ?", po.ID).
+				Count(&totalInvoiceCount3)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
@@ -498,7 +502,7 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 					models.SupplierInvoiceStatusRejected,
 				}).
 				Count(&pendingInvoiceCount)
-			if pendingInvoiceCount == 0 {
+			if totalInvoiceCount3 > 0 && pendingInvoiceCount == 0 {
 				_ = tx.Model(&po).Update("status", models.PurchaseOrderStatusClosed).Error
 			}
 		}
@@ -971,7 +975,11 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			}
 		}
 		if fullyReceived {
-			// Only close PO if all supplier invoices are also paid or cancelled (#276)
+			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			var totalInvoiceCount int64
+			tx.Model(&models.SupplierInvoice{}).
+				Where("purchase_order_id = ?", po.ID).
+				Count(&totalInvoiceCount)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
@@ -981,7 +989,7 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 					models.SupplierInvoiceStatusRejected,
 				}).
 				Count(&pendingInvoiceCount)
-			if pendingInvoiceCount == 0 {
+			if totalInvoiceCount > 0 && pendingInvoiceCount == 0 {
 				_ = tx.Model(&po).Update("status", models.PurchaseOrderStatusClosed).Error
 			}
 		}

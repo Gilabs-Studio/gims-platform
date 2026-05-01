@@ -504,7 +504,7 @@ export function InvoiceList() {
                       {t("print")}
                     </DropdownMenuItem>
                   )}
-                  {canDelete && (normalizedStatus === "draft" || normalizedStatus === "unpaid" || normalizedStatus === "cancelled") && (
+                  {canDelete && normalizedStatus === "draft" && (
                     <DropdownMenuItem
                       onClick={() => setDeletingId(invoice.id)}
                       className="text-destructive cursor-pointer"

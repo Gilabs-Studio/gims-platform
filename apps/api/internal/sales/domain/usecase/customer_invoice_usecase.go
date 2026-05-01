@@ -761,8 +761,8 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 
 	beforeSnapshot := customerInvoiceAuditSnapshot(invoice)
 
-	// Allow deletion of draft or unpaid invoices only
-	if invoice.Status != models.CustomerInvoiceStatusDraft && invoice.Status != models.CustomerInvoiceStatusUnpaid {
+	// Allow deletion of draft invoices only
+	if invoice.Status != models.CustomerInvoiceStatusDraft {
 		return ErrInvalidInvoiceStatus
 	}
 
@@ -1157,20 +1157,20 @@ func (uc *customerInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 	totalAmount := subtotal + taxAmount + req.DeliveryCost + req.OtherCost
 
 	tempInvoice := &models.CustomerInvoice{
-		Code:             "PREVIEW",
-		InvoiceDate:      parsePreviewInvoiceDate(req.InvoiceDate),
-		Type:             models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
-		SalesOrderID:     req.SalesOrderID,
+		Code:              "PREVIEW",
+		InvoiceDate:       parsePreviewInvoiceDate(req.InvoiceDate),
+		Type:              models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
+		SalesOrderID:      req.SalesOrderID,
 		DeliveryOrderID:   req.DeliveryOrderID,
-		TaxRate:          taxRate,
-		TaxAmount:        taxAmount,
-		DeliveryCost:     req.DeliveryCost,
-		OtherCost:        req.OtherCost,
-		Subtotal:         subtotal,
-		Amount:           totalAmount,
-		RemainingAmount:  totalAmount,
+		TaxRate:           taxRate,
+		TaxAmount:         taxAmount,
+		DeliveryCost:      req.DeliveryCost,
+		OtherCost:         req.OtherCost,
+		Subtotal:          subtotal,
+		Amount:            totalAmount,
+		RemainingAmount:   totalAmount,
 		DownPaymentAmount: 0,
-		Items:            items,
+		Items:             items,
 	}
 	if tempInvoice.Type == "" {
 		tempInvoice.Type = models.CustomerInvoiceTypeRegular

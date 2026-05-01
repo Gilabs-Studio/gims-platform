@@ -580,7 +580,7 @@ func (uc *purchaseOrderUsecase) Approve(ctx context.Context, id string) (*dto.Pu
 		return nil, err
 	}
 	if existing.Status != models.PurchaseOrderStatusSubmitted {
-		return nil, ErrPurchaseOrderConflict
+		return nil, ErrInvalidStatus
 	}
 	before := poAuditSnapshot(existing)
 	now := apptime.Now()
@@ -606,7 +606,7 @@ func (uc *purchaseOrderUsecase) Reject(ctx context.Context, id string) (*dto.Pur
 		return nil, err
 	}
 	if existing.Status != models.PurchaseOrderStatusSubmitted {
-		return nil, ErrPurchaseOrderConflict
+		return nil, ErrInvalidStatus
 	}
 	before := poAuditSnapshot(existing)
 	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusRejected, map[string]interface{}{
@@ -764,7 +764,7 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 		return nil, 0, ErrPurchaseOrderNotFound
 	}
 
-	tx := database.GetDB(ctx, uc.db).Model(&coreModels.AuditLog{}).
+	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "purchase_order.%")
 

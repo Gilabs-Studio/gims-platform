@@ -15,7 +15,7 @@ export function getPurchaseRequisitionSchema() {
 	return z.object({
 		supplier_id: uuidLike(),
 		supplier_contact_id: uuidLike().optional().nullable(),
-		payment_terms_id: uuidLike().optional().nullable(),
+		payment_terms_id: uuidLike().nullable().refine((v) => v != null && v !== "", { message: "Payment terms is required" }),
 		business_unit_id: uuidLike().optional().nullable(),
 		employee_id: uuidLike().optional().nullable(),
 

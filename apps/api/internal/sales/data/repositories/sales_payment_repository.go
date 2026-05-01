@@ -68,8 +68,8 @@ func (r *salesPaymentRepository) List(ctx context.Context, params SalesPaymentLi
 		like := "%" + s + "%"
 		q = q.Joins("LEFT JOIN customer_invoices ON customer_invoices.id = sales_payments.customer_invoice_id").
 			Where(
-				"sales_payments.reference_number ILIKE ? OR sales_payments.notes ILIKE ? OR sales_payments.method ILIKE ? OR customer_invoices.code ILIKE ?",
-				like, like, like, like,
+				"sales_payments.reference_number ILIKE ? OR sales_payments.notes ILIKE ? OR sales_payments.method ILIKE ? OR customer_invoices.code ILIKE ? OR customer_invoices.invoice_number ILIKE ?",
+				like, like, like, like, like,
 			)
 	}
 	if st := strings.TrimSpace(params.Status); st != "" {

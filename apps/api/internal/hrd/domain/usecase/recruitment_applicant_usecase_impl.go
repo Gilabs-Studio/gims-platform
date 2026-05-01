@@ -164,6 +164,11 @@ func (u *recruitmentApplicantUsecase) Create(ctx context.Context, req *dto.Creat
 		return nil, errors.New("recruitment request not found")
 	}
 
+	// Only allow adding applicants to open recruitment requests
+	if recruitment.Status != models.RecruitmentStatusOpen {
+		return nil, errors.New("applicants can only be added to open recruitment requests")
+	}
+
 	// Validate stage exists
 	stage, err := u.stageRepo.FindByID(ctx, req.StageID)
 	if err != nil {

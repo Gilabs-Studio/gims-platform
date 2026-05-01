@@ -4,20 +4,22 @@ import "time"
 
 // CreateCustomerInvoiceDownPaymentRequest represents the request to create a down payment
 type CreateCustomerInvoiceDownPaymentRequest struct {
-	SalesOrderID string  `json:"sales_order_id" binding:"required,uuid"`
-	InvoiceDate  string  `json:"invoice_date" binding:"required"`
-	DueDate      string  `json:"due_date" binding:"required"`
-	Amount       float64 `json:"amount" binding:"required,gt=0"`
-	Notes        *string `json:"notes"`
+	SalesOrderID  string  `json:"sales_order_id" binding:"required,uuid"`
+	InvoiceDate   string  `json:"invoice_date" binding:"required"`
+	DueDate       string  `json:"due_date" binding:"required"`
+	Amount        float64 `json:"amount" binding:"required,gt=0"`
+	AttachmentURL *string `json:"attachment_url"`
+	Notes         *string `json:"notes"`
 }
 
 // UpdateCustomerInvoiceDownPaymentRequest represents the request to update a down payment
 type UpdateCustomerInvoiceDownPaymentRequest struct {
-	SalesOrderID string  `json:"sales_order_id" binding:"required,uuid"`
-	InvoiceDate  string  `json:"invoice_date" binding:"required"`
-	DueDate      string  `json:"due_date" binding:"required"`
-	Amount       float64 `json:"amount" binding:"required,gt=0"`
-	Notes        *string `json:"notes"`
+	SalesOrderID  string  `json:"sales_order_id" binding:"required,uuid"`
+	InvoiceDate   string  `json:"invoice_date" binding:"required"`
+	DueDate       string  `json:"due_date" binding:"required"`
+	Amount        float64 `json:"amount" binding:"required,gt=0"`
+	AttachmentURL *string `json:"attachment_url"`
+	Notes         *string `json:"notes"`
 }
 
 // CustomerInvoiceDownPaymentDetailResponse represents a detailed down payment response
@@ -34,6 +36,7 @@ type CustomerInvoiceDownPaymentDetailResponse struct {
 	Amount             float64                               `json:"amount"`
 	RemainingAmount    float64                               `json:"remaining_amount"`
 	Status             string                                `json:"status"`
+	AttachmentURL      *string                               `json:"attachment_url,omitempty"`
 	Notes              *string                               `json:"notes"`
 	CreatedBy          *string                               `json:"created_by"`
 	CreatedAt          time.Time                             `json:"created_at"`
@@ -53,6 +56,7 @@ type CustomerInvoiceDownPaymentListResponse struct {
 	Amount             float64                               `json:"amount"`
 	RemainingAmount    float64                               `json:"remaining_amount"`
 	Status             string                                `json:"status"`
+	AttachmentURL      *string                               `json:"attachment_url,omitempty"`
 	CreatedAt          time.Time                             `json:"created_at"`
 }
 
