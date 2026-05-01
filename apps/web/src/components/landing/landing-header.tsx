@@ -35,8 +35,6 @@ export function LandingHeader() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 select-none">
             <span className="text-2xl font-bold tracking-tight text-primary">SalesView</span>
-            <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
-            </span>
           </Link>
 
           {/* Desktop nav */}
