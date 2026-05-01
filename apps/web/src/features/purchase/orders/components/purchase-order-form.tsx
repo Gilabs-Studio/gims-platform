@@ -433,10 +433,8 @@ export function PurchaseOrderForm({
     }
   };
 
-  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (errs) => {
-    const paths = collectErrorPaths(errs);
-    console.warn("PurchaseOrderForm invalid", { paths, errs });
-    toast.error(paths.length ? `${t("form.invalid")}: ${paths.join(", ")}` : t("form.invalid"));
+  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (_errs) => {
+    toast.error(t("form.invalid"));
   };
 
   const subtotal = useMemo(() =>

@@ -46,57 +46,23 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	var results []*models.PurchaseRequisition
 	var total int64
 
-	baseQuery := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
+	query := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
 	var err error
-	baseQuery, err = applyTenantFilter(ctx, baseQuery, "purchase_requisitions.tenant_id")
+	query, err = applyTenantFilter(ctx, query, "purchase_requisitions.tenant_id")
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	baseQuery = security.ApplyScopeFilter(baseQuery, ctx, security.PurchaseScopeQueryOptions())
-
-	if params.Status != "" {
-		baseQuery = baseQuery.Where("status = ?", params.Status)
-	}
-
-	if s := strings.TrimSpace(params.Search); s != "" {
-		pattern := "%" + s + "%"
-		baseQuery = baseQuery.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
-		baseQuery, err = applyTenantFilter(ctx, baseQuery, "employees.tenant_id")
-		if err != nil {
-			return nil, 0, err
-		}
-		baseQuery = baseQuery.Where(
-			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
-			pattern,
-			pattern,
-			pattern,
-			pattern,
-			pattern,
-		)
-	}
-
-	if err := baseQuery.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	query := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
-	query, err = applyTenantFilter(ctx, query, "purchase_requisitions.tenant_id")
-	if err != nil {
-		return nil, 0, err
-	}
 	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
+
 	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
+		query = query.Where("purchase_requisitions.status = ?", params.Status)
 	}
+
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
-		query, err = applyTenantFilter(ctx, query, "employees.tenant_id")
-		if err != nil {
-			return nil, 0, err
-		}
 		query = query.Where(
 			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
 			pattern,
@@ -107,20 +73,24 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 		)
 	}
 
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"code":         "code",
-		"request_date": "request_date",
-		"status":       "status",
-		"total_amount": "total_amount",
-		"created_at":   "created_at",
-		"updated_at":   "updated_at",
+		"code":         "purchase_requisitions.code",
+		"request_date": "purchase_requisitions.request_date",
+		"status":       "purchase_requisitions.status",
+		"total_amount": "purchase_requisitions.total_amount",
+		"created_at":   "purchase_requisitions.created_at",
+		"updated_at":   "purchase_requisitions.updated_at",
 	}
 
 	sortByFromReq := strings.ToLower(strings.TrimSpace(params.SortBy))
 	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
-		sortBy = "created_at"
+		sortBy = "purchase_requisitions.created_at"
 	}
 
 	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"

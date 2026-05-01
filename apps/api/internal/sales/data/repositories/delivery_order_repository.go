@@ -114,20 +114,20 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("delivery_orders.status = ?", req.Status)
 	}
 
 	// Apply date range filter
 	if req.DateFrom != "" {
-		query = query.Where("delivery_date >= ?", req.DateFrom)
+		query = query.Where("delivery_orders.delivery_date >= ?", req.DateFrom)
 	}
 	if req.DateTo != "" {
-		query = query.Where("delivery_date <= ?", req.DateTo)
+		query = query.Where("delivery_orders.delivery_date <= ?", req.DateTo)
 	}
 
 	// Apply sales order filter
 	if req.SalesOrderID != "" {
-		query = query.Where("sales_order_id = ?", req.SalesOrderID)
+		query = query.Where("delivery_orders.sales_order_id = ?", req.SalesOrderID)
 	}
 
 	// Count total
@@ -151,17 +151,17 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"code":          "code",
-		"delivery_date": "delivery_date",
-		"status":        "status",
-		"created_at":    "created_at",
-		"updated_at":    "updated_at",
+		"code":          "delivery_orders.code",
+		"delivery_date": "delivery_orders.delivery_date",
+		"status":        "delivery_orders.status",
+		"created_at":    "delivery_orders.created_at",
+		"updated_at":    "delivery_orders.updated_at",
 	}
 
 	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
 	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
-		sortBy = "delivery_date"
+		sortBy = "delivery_orders.delivery_date"
 	}
 
 	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"

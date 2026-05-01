@@ -485,6 +485,11 @@ func (u *stockOpnameUsecase) SubmitApproval(ctx context.Context, id string) (*dt
 		return nil, ErrInvalidStatus
 	}
 
+	// Require at least one item before submission (#287)
+	if len(opname.Items) == 0 {
+		return nil, errors.New("cannot submit stock opname without any product items")
+	}
+
 	// Ensure journal is generated for non-zero variance scenarios.
 	// For zero-variance opname, journal generation is a no-op and submission should still proceed.
 	if opname.JournalID == nil || *opname.JournalID == "" {

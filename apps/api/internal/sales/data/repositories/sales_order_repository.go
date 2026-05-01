@@ -177,6 +177,17 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		)`)
 	}
 
+	// Exclude SOs that already have a non-cancelled regular/proforma invoice (#239)
+	if req.AvailableForInvoice {
+		query = query.Where(`NOT EXISTS (
+			SELECT 1 FROM customer_invoices ci
+			WHERE ci.sales_order_id = sales_orders.id
+			AND ci.type IN ('regular', 'proforma')
+			AND ci.status NOT IN ('CANCELLED', 'VOID')
+			AND ci.deleted_at IS NULL
+		)`)
+	}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

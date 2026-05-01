@@ -95,7 +95,10 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     quotationCombobox,
     productCombobox,
     customerCreditInfo,
+    watchedQuotationId,
   } = useOrderForm({ order, open, onClose });
+
+  const isItemsLocked = !!watchedQuotationId;
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -549,7 +552,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                         >
                           <div className="absolute top-2 right-2 flex items-center gap-2">
                             <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
-                            {fields.length > 1 && (
+                            {fields.length > 1 && !isItemsLocked && (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -683,7 +686,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <FieldError>{errors.items.message}</FieldError>
                     )}
 
-                    {/* Add Item Button - Positioned below last item */}
+                    {/* Add Item Button - hidden when items are locked from quotation */}
+                    {!isItemsLocked && (
                     <Button
                       type="button"
                       variant="outline"
@@ -694,6 +698,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <Plus className="h-4 w-4 mr-2" />
                       {t("addItem")}
                     </Button>
+                    )}
                   </div>
                 </div>
 

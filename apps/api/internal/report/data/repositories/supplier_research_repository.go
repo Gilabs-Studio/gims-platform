@@ -284,7 +284,7 @@ func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params S
 		"startDate":      params.StartDate.Format("2006-01-02"),
 		"endDate":        params.EndDate.Format("2006-01-02"),
 		"search":         strings.TrimSpace(params.Search),
-		"searchPrefix":   strings.TrimSpace(params.Search) + "%",
+		"searchPrefix":   "%" + strings.TrimSpace(params.Search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
 		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
 	}, tenantID, tenantFilter)
@@ -388,7 +388,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams, tenant
 		"startDate":      params.StartDate.Format("2006-01-02"),
 		"endDate":        params.EndDate.Format("2006-01-02"),
 		"search":         strings.TrimSpace(params.Search),
-		"searchPrefix":   strings.TrimSpace(params.Search) + "%",
+		"searchPrefix":   "%" + strings.TrimSpace(params.Search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
 		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
 		"minFilter":      params.MinPurchaseValue > 0,

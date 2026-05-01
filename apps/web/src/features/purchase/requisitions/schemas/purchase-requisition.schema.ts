@@ -19,7 +19,11 @@ export function getPurchaseRequisitionSchema() {
 		business_unit_id: uuidLike().optional().nullable(),
 		employee_id: uuidLike().optional().nullable(),
 
-		request_date: z.string().min(1),
+		request_date: z.string().min(1).refine((val) => {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			return new Date(val) >= today;
+		}, "Requisition date cannot be in the past"),
 		address: z.string().optional().nullable(),
 		notes: z.string().optional().default(""),
 

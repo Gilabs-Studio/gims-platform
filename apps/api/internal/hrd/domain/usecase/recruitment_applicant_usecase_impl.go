@@ -230,6 +230,11 @@ func (u *recruitmentApplicantUsecase) Update(ctx context.Context, id string, req
 		return nil, errors.New("applicant not found")
 	}
 
+	// Cannot edit applicant after conversion to employee (#296)
+	if applicant.EmployeeID != nil && *applicant.EmployeeID != "" {
+		return nil, errors.New("APPLICANT_ALREADY_CONVERTED: Cannot edit applicant after conversion to employee")
+	}
+
 	// Apply updates
 	if req.FullName != nil {
 		applicant.FullName = *req.FullName
@@ -301,6 +306,11 @@ func (u *recruitmentApplicantUsecase) Delete(ctx context.Context, id string) err
 	}
 	if applicant == nil {
 		return errors.New("applicant not found")
+	}
+
+	// Cannot delete applicant after conversion to employee (#296)
+	if applicant.EmployeeID != nil && *applicant.EmployeeID != "" {
+		return errors.New("APPLICANT_ALREADY_CONVERTED: Cannot delete applicant after conversion to employee")
 	}
 
 	return u.applicantRepo.Delete(ctx, id)

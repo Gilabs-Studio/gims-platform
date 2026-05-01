@@ -209,11 +209,6 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		return nil, err
 	}
 
-	code, err := uc.invoiceRepo.GetNextInvoiceNumber(ctx, "INV")
-	if err != nil {
-		return nil, err
-	}
-
 	invoiceType := parseCustomerInvoiceType(req.Type)
 	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
 	if err != nil {
@@ -221,7 +216,6 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	}
 
 	invoice := &models.CustomerInvoice{
-		Code:                 code,
 		Type:                 invoiceType,
 		InvoiceDate:          invoiceDate,
 		SalesOrderID:         req.SalesOrderID,
@@ -678,6 +672,10 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 
 	// Update items if provided
 	if req.Items != nil {
+		// Prevent editing items if invoice is sourced from a Sales Order
+		if invoice.SalesOrderID != nil && strings.TrimSpace(*invoice.SalesOrderID) != "" {
+			return nil, fmt.Errorf("cannot modify items on a Sales Order-linked invoice")
+		}
 		// Rollback old invoiced quantities on SO items before replacing
 		for _, item := range invoice.Items {
 			if item.SalesOrderItemID != nil {

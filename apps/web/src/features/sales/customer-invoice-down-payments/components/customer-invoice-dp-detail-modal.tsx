@@ -44,7 +44,7 @@ import { OrderDetailModal } from "@/features/sales/order/components/order-detail
 import type { SalesOrder } from "@/features/sales/order/types";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
-import { usePendingCustomerInvoiceDP, useApproveCustomerInvoiceDP } from "../hooks/use-customer-invoice-dp";
+import { usePendingCustomerInvoiceDP, useApproveCustomerInvoiceDP, useCancelCustomerInvoiceDP } from "../hooks/use-customer-invoice-dp";
 import {
   useCustomerInvoiceDP,
   useCustomerInvoiceDPAuditTrail,
@@ -153,6 +153,7 @@ export function CustomerInvoiceDPDetailModal({
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canPrint = useUserPermission("customer_invoice_dp.print");
   const canApprove = useUserPermission("customer_invoice_dp.approve");
+  const canCancel = useUserPermission("customer_invoice_dp.cancel");
 
   const { data, isLoading, isError } = useCustomerInvoiceDP(activeId, {
     enabled: !!activeId && open,
@@ -206,6 +207,7 @@ export function CustomerInvoiceDPDetailModal({
 
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
+  const cancelMutation = useCancelCustomerInvoiceDP();
 
   const CustomerInvoiceDPFormDialog = dynamic(
     () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
@@ -287,7 +289,7 @@ export function CustomerInvoiceDPDetailModal({
                     if (!row?.id) return;
                     customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
                   }}
-                  className="cursor-pointer text-accent hover:text-accent hover:bg-violet-50"
+                  className="cursor-pointer text-primary hover:text-primary hover:bg-primary/10"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -314,6 +316,26 @@ export function CustomerInvoiceDPDetailModal({
                 </Button>
               ) : null}
 
+              {row && canCancel &&
+                (normalizeStatus(row.status) === "draft" || normalizeStatus(row.status) === "submitted") ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    if (!row?.id) return;
+                    try {
+                      await cancelMutation.mutateAsync(row.id);
+                      toast.success(t("toast.cancelled"));
+                    } catch {
+                      toast.error(t("toast.failed"));
+                    }
+                  }}
+                  className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
+                  title={t("actions.cancel")}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              ) : null}
               {/* Delete action removed from detail modal (use list view for deletion) */}
             </div>
           </div>

@@ -26,6 +26,16 @@ type CreateDeliveryOrderItemRequest struct {
 	IsEquipment      bool    `json:"is_equipment"`
 }
 
+// UpdateDeliveryOrderItemRequest represents an item in the update delivery order
+type UpdateDeliveryOrderItemRequest struct {
+	SalesOrderItemID *string `json:"sales_order_item_id"`
+	ProductID        string  `json:"product_id" binding:"required,uuid"`
+	InventoryBatchID *string `json:"inventory_batch_id" binding:"omitempty,uuid"`
+	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
+	Price            float64 `json:"price" binding:"omitempty,gte=0"`
+	IsEquipment      bool    `json:"is_equipment"`
+}
+
 // UpdateDeliveryOrderRequest represents the request to update a delivery order
 type UpdateDeliveryOrderRequest struct {
 	DeliveryDate    *string                          `json:"delivery_date"`
@@ -37,7 +47,7 @@ type UpdateDeliveryOrderRequest struct {
 	ReceiverPhone   *string                          `json:"receiver_phone"`
 	DeliveryAddress *string                          `json:"delivery_address"`
 	Notes           *string                          `json:"notes"`
-	Items           []CreateDeliveryOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
+	Items           []UpdateDeliveryOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
 }
 
 // ListDeliveryOrdersRequest represents the request to list delivery orders

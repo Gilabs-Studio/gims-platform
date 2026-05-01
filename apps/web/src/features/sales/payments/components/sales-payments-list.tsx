@@ -312,7 +312,7 @@ export function SalesPaymentsList() {
                                 {t("actions.print")}
                               </DropdownMenuItem>
                             )}
-                            {canDelete && (
+                            {canDelete && item.status !== "CONFIRMED" && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
                                 className="cursor-pointer text-destructive"

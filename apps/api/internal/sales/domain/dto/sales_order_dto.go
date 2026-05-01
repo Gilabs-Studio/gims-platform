@@ -55,20 +55,21 @@ type UpdateSalesOrderRequest struct {
 
 // ListSalesOrdersRequest represents the request to list sales orders
 type ListSalesOrdersRequest struct {
-	Page             int    `form:"page" binding:"omitempty,min=1"`
-	PerPage          int    `form:"per_page" binding:"omitempty,min=1,max=100"`
-	Search           string `form:"search"`
-	Status           string `form:"status"`
-	SourceType       string `form:"source_type"`
-	DateFrom         string `form:"date_from"`
-	DateTo           string `form:"date_to"`
-	SalesRepID       string `form:"sales_rep_id"`
-	BusinessUnitID   string `form:"business_unit_id"`
-	SalesQuotationID string `form:"sales_quotation_id"`
-	CustomerID       string `form:"customer_id"`
-	UnfulfilledOnly  bool   `form:"unfulfilled_only"`
-	SortBy           string `form:"sort_by"`
-	SortDir          string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
+	Page                int    `form:"page" binding:"omitempty,min=1"`
+	PerPage             int    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search              string `form:"search"`
+	Status              string `form:"status"`
+	SourceType          string `form:"source_type"`
+	DateFrom            string `form:"date_from"`
+	DateTo              string `form:"date_to"`
+	SalesRepID          string `form:"sales_rep_id"`
+	BusinessUnitID      string `form:"business_unit_id"`
+	SalesQuotationID    string `form:"sales_quotation_id"`
+	CustomerID          string `form:"customer_id"`
+	UnfulfilledOnly     bool   `form:"unfulfilled_only"`
+	AvailableForInvoice bool   `form:"available_for_invoice"`
+	SortBy              string `form:"sort_by"`
+	SortDir             string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
 }
 
 // ListSalesOrderItemsRequest represents the request to list order items with pagination

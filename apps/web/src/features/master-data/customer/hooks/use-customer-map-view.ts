@@ -46,7 +46,7 @@ export function useCustomerMapView() {
   });
 
   // Fetch filter options from server (customer types)
-  const { data: typesData } = useCustomerTypes({ per_page: 20 });
+  const { data: typesData } = useCustomerTypes({ per_page: 20, active_only: true });
   const customerTypes = typesData?.data ?? [];
 
   const deleteCustomer = useDeleteCustomer();

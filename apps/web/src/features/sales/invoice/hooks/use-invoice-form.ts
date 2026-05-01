@@ -138,6 +138,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       orderService.list({
         ...params,
         status: "approved",
+        available_for_invoice: true,
         sort_by: "order_date",
         sort_dir: "desc",
       }),

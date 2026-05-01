@@ -176,6 +176,11 @@ export function CustomerInvoiceDPFormDialog({
 
   async function onSubmit(values: CustomerInvoiceDPFormData) {
     try {
+      // Validate amount does not exceed SO total (#241)
+      if (selectedSO && values.amount > (selectedSO.total_amount ?? 0)) {
+        form.setError("amount", { message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})` });
+        return;
+      }
       if (isEdit && invoiceId) {
         const response = await updateMutation.mutateAsync({ id: invoiceId, data: values });
         if (!response.success) throw new Error(response.error ?? "update_failed");

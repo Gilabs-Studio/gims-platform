@@ -580,7 +580,7 @@ export function CustomerInvoiceDPList() {
                           ) : null}
                           {canPrint ? (
                             <DropdownMenuItem
-                              className="cursor-pointer text-accent focus:text-accent"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => setPrintingDPId(row.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />

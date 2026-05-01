@@ -69,8 +69,43 @@ func (uc *customerInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	if err != nil {
 		return nil, err
 	}
+
+	// Get IDs of SOs that already have an active down payment invoice
+	var soIDsWithDP []string
+	database.GetDB(ctx, uc.db).Model(&models.CustomerInvoice{}).
+		Where("type = ? AND sales_order_id IS NOT NULL AND status NOT IN ?",
+			models.CustomerInvoiceTypeDownPayment,
+			[]string{"CANCELLED", "VOID"}).
+		Distinct("sales_order_id").
+		Pluck("sales_order_id", &soIDsWithDP)
+	soIDsWithDPSet := make(map[string]struct{}, len(soIDsWithDP))
+	for _, id := range soIDsWithDP {
+		soIDsWithDPSet[id] = struct{}{}
+	}
+
+	// Get IDs of SOs that already have a paid regular invoice (#243)
+	var soIDsPaid []string
+	database.GetDB(ctx, uc.db).Model(&models.CustomerInvoice{}).
+		Where("type = ? AND sales_order_id IS NOT NULL AND status = ?",
+			models.CustomerInvoiceTypeRegular,
+			models.CustomerInvoiceStatusPaid).
+		Distinct("sales_order_id").
+		Pluck("sales_order_id", &soIDsPaid)
+	soIDsPaidSet := make(map[string]struct{}, len(soIDsPaid))
+	for _, id := range soIDsPaid {
+		soIDsPaidSet[id] = struct{}{}
+	}
+
 	soRes := make([]dto.CustomerInvoiceAddSalesOrder, 0, len(sos))
 	for _, so := range sos {
+		// Skip SOs that already have an active down payment invoice (#252)
+		if _, hasDP := soIDsWithDPSet[so.ID]; hasDP {
+			continue
+		}
+		// Skip SOs that already have a fully paid regular invoice (#243)
+		if _, isPaid := soIDsPaidSet[so.ID]; isPaid {
+			continue
+		}
 		items := make([]dto.CustomerInvoiceAddSalesOrderItem, 0, len(so.Items))
 		for _, it := range so.Items {
 			var prod *dto.CustomerInvoiceAddProductMini
@@ -522,6 +557,11 @@ func (uc *customerInvoiceDownPaymentUsecase) createDraftDownPaymentInTx(
 	}
 	if so.Status != models.SalesOrderStatusApproved {
 		return nil, ErrCustomerInvoiceInvalid
+	}
+
+	// Validate amount does not exceed SO total (#241)
+	if req.Amount > so.TotalAmount {
+		return nil, errors.New("down payment amount cannot exceed sales order total")
 	}
 
 	code, err := uc.repo.GetNextInvoiceNumber(ctx, "CIDP")
