@@ -75,13 +75,13 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: \"SalesView Pricing\",
+    name: "SalesView Pricing",
     description: isId
-      ? \"Halaman pricing resmi SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance.\"
-      : \"Official SalesView pricing page for ERP, CRM, HRIS, POS, and Finance plans.\",
+      ? "Halaman pricing resmi SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance."
+      : "Official SalesView pricing page for ERP, CRM, HRIS, POS, and Finance plans.",
     brand: {
-      \"@type\": \"Brand\",
-      name: \"SalesView\",
+      "@type": "Brand",
+      name: "SalesView",
     },
     category: "Business Software",
     offers: {
