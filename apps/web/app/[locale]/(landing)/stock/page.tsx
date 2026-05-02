@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -14,7 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Aplikasi inventory pintar untuk memantau stok, melacak pergerakan gudang, dan sinkronisasi laporan otomatis tanpa perhitungan manual.`
     : `Smart inventory app to monitor stock, track warehouse movements, and sync auto-reports without manual counting.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/stock",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Sistem Gudang Indonesia`, 
       `Software Stok Barang`,
       `Warehouse Management System`
-    ]
-  };
+    ],
+    imageAlt: "SalesView inventory and stock overview",
+  });
 }
 
 export default async function StockLandingPage({ params }: { params: Promise<{ locale: string }> }) {

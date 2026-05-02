@@ -20,7 +20,11 @@ export function LandingHeader() {
   const { scrollY } = useScroll();
   const headerBg = useTransform(scrollY, [0, 80], ["rgba(0,0,0,0)", "rgba(0,0,0,0.01)"]);
 
-  const navLinks = [{ href: "/pricing", label: t("pricing") }] as const;
+  const navLinks = [
+    { href: "/templates", label: locale === "id" ? "Template" : "Templates" },
+    { href: "/about", label: locale === "id" ? "Tentang" : "About" },
+    { href: "/pricing", label: t("pricing") },
+  ] as const;
 
 
 

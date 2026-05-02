@@ -3,6 +3,7 @@ import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -15,7 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Sistem Point of Sale (POS) antijam otomatis tersinkronisasi ke inventori dan akuntansi. Sempurna untuk kafe, resto, dan retail.`
     : `Fast, reliable Point of Sale (POS) software natively synced with inventory and accounting. Ideal for retail and F&B.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/pos",
     title,
     description: desc,
     keywords: [
@@ -23,8 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Sistem Kasir Cafe`, 
       `Software POS Retail`,
       `Mesin Kasir Online`
-    ]
-  };
+    ],
+    imageAlt: "SalesView point-of-sale overview",
+  });
 }
 
 export default async function PosLandingPage({ params }: { params: Promise<{ locale: string }> }) {

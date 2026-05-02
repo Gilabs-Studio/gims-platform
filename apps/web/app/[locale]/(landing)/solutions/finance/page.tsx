@@ -3,6 +3,7 @@ import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -15,7 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Sistem keuangan, akuntansi, dan faktur terintegrasi. Buat laporan real-time tanpa pusing. Semua metrik finansial dalam satu tempat.`
     : `Integrated finance, accounting, and invoicing system. Generate real-time reports effortlessly. All financial metrics in one single place.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/solutions/finance",
     title,
     description: desc,
     keywords: [
@@ -24,8 +27,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Aplikasi Faktur`,
       `Finance software Indonesia`,
       `Software Laporan Keuangan`
-    ]
-  };
+    ],
+    imageAlt: "SalesView finance and accounting overview",
+  });
 }
 
 export default async function FinanceLandingPage({ params }: { params: Promise<{ locale: string }> }) {

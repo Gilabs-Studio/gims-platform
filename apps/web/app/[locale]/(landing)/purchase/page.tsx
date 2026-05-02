@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -14,7 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Pesan inventaris otomatis. Pantau purchase order, permintaan pembelian, dan integrasi penagihan dengan alur supplier otomatis.`
     : `Order inventory automatically. Track purchase orders, requisitions, and vendor billing via automatic flows.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/purchase",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Aplikasi Procurement Indonesia`, 
       `Sistem Purchase Order`,
       `B2B Procurement System`
-    ]
-  };
+    ],
+    imageAlt: "SalesView purchase and procurement overview",
+  });
 }
 
 export default async function PurchaseLandingPage({ params }: { params: Promise<{ locale: string }> }) {

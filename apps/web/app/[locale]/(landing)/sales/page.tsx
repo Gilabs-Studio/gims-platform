@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -14,7 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Bawa Sales Anda ke level berikutnya. Buat Sales Order dalam sekejap, kirim faktur cantik, dan integrasikan pembayaran online.`
     : `Take your sales to the next level. Craft Sales Orders instantly, send beautiful invoices, and accept online payments.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/sales",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Sistem Penjualan Perusahaan`, 
       `Software Pembukuan Penjualan`,
       `Aplikasi Pembuat Invoice`
-    ]
-  };
+    ],
+    imageAlt: "SalesView sales module overview",
+  });
 }
 
 export default async function SalesLandingPage({ params }: { params: Promise<{ locale: string }> }) {

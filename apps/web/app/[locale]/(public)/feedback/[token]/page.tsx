@@ -3,6 +3,18 @@ import { CircleCheckBig, CircleX } from "lucide-react";
 import { feedbackService } from "@/features/pos/feedback/services/feedback-service";
 import { PublicFeedbackForm } from "@/features/pos/feedback/components/public-feedback-form";
 import type { FormSchema } from "@/features/pos/feedback/types";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
+};
 
 interface PageProps {
   params: Promise<{ locale: string; token: string }>;

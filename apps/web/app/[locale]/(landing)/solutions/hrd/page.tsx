@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -14,7 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `Manajemen SDM dan Payroll otomatis tanpa sakit kepala. Kelola kehadiran, cuti, dan evaluasi dalam satu platform sentral.`
     : `Automated HR and Payroll management without the headaches. Handle attendance, leave drops, and evaluations centrally.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/solutions/hrd",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Sistem Payroll Indonesia`, 
       `Software Absensi Karyawan`,
       `HR Management Software`
-    ]
-  };
+    ],
+    imageAlt: "SalesView HRIS and payroll overview",
+  });
 }
 
 export default async function HrdLandingPage({ params }: { params: Promise<{ locale: string }> }) {

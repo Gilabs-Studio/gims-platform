@@ -1,5 +1,45 @@
 import Script from "next/script";
+import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/landing-header";
+import { buildLandingMetadata } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+
+  const isId = locale === "id";
+  return buildLandingMetadata({
+    locale,
+    path: "/",
+    title: isId
+      ? "SalesView: ERP, CRM, HRIS, POS & Finance untuk Bisnis Indonesia"
+      : "SalesView: ERP, CRM, HRIS, POS & Finance for Modern Teams",
+    description: isId
+      ? "Platform all-in-one untuk penjualan, pembelian, stok, SDM, dan keuangan. Jalankan operasional bisnis lebih cepat dengan SalesView."
+      : "An all-in-one platform for sales, purchasing, inventory, HR, and finance. Run your business operations faster with SalesView.",
+    keywords: isId
+      ? [
+          "erp indonesia",
+          "software crm",
+          "hris indonesia",
+          "aplikasi kasir pos",
+          "software akuntansi",
+          "salesview",
+        ]
+      : [
+          "erp software",
+          "crm software",
+          "hris platform",
+          "point of sale software",
+          "accounting software",
+          "salesview",
+        ],
+    imageAlt: "SalesView platform overview",
+  });
+}
 
 export default function MarketingLayout({
   children,

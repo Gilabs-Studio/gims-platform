@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 import { PricingSection } from "@/components/landing/pricing-section";
-
-const BASE_URL = "https://salesview.id";
+import { buildLandingMetadata, SEO_BASE_URL } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -14,9 +13,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const description = isId
     ? "Lihat harga SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular dan pilih paket sesuai skala bisnis Anda."
     : "See SalesView pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular plans and choose the best fit for your business scale.";
-  const canonicalPath = `/${locale}/pricing`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/pricing",
     title,
     description,
     keywords: isId
@@ -37,34 +37,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
           "pos pricing",
           "business software plans",
         ],
-    alternates: {
-      canonical: canonicalPath,
-      languages: {
-        id: "/id/pricing",
-        en: "/en/pricing",
-      },
-    },
-    openGraph: {
-      type: "website",
-      url: `${BASE_URL}${canonicalPath}`,
-      title,
-      description,
-      images: [
-        {
-          url: "/screenshot/dashboard.webp",
-          width: 1920,
-          height: 1080,
-          alt: "SalesView pricing overview",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: ["/screenshot/dashboard.webp"],
-    },
-  };
+    imageAlt: "SalesView pricing overview",
+  });
 }
 
 export default async function PricingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -90,7 +64,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
       lowPrice: "79000",
       highPrice: "175000",
       offerCount: "6",
-      url: `${BASE_URL}/${locale}/pricing`,
+      url: `${SEO_BASE_URL}/${locale}/pricing`,
       availability: "https://schema.org/InStock",
     },
   };

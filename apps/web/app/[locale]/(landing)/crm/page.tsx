@@ -5,6 +5,7 @@ import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -17,7 +18,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
     : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/crm",
     title,
     description: desc,
     keywords: [
@@ -26,8 +29,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Software CRM Perusahaan`,
       `Aplikasi Sales dan Marketing`,
       `CRM B2B`
-    ]
-  };
+    ],
+    imageAlt: "SalesView CRM overview",
+  });
 }
 
 export default async function CrmLandingPage({ params }: { params: Promise<{ locale: string }> }) {
