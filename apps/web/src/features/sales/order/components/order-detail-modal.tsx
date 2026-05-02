@@ -356,7 +356,8 @@ export function OrderDetailModal({
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
-                {displayOrder?.status === "approved" && canCreateDO && (
+                {displayOrder?.status === "approved" && canCreateDO &&
+                  !(displayOrder?.delivery_orders?.some((do_) => do_.status !== "cancelled")) && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -367,7 +368,8 @@ export function OrderDetailModal({
                     <Truck className="h-4 w-4" />
                   </Button>
                 )}
-                {displayOrder?.status === "approved" && canCreateInvoice && (
+                {displayOrder?.status === "approved" && canCreateInvoice &&
+                  !(displayOrder?.customer_invoices?.some((ci) => !["cancelled", "void"].includes(ci.status))) && (
                   <Button
                     variant="ghost"
                     size="icon"

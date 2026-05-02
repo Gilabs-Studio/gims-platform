@@ -564,6 +564,7 @@ export function DeliveryForm({
                                 Maybe allow deleting if partial delivery of LINES. 
                                 Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
                             */}
+															{!watchedSalesOrderId && (
 															<Button
 																type="button"
 																variant="ghost"
@@ -573,6 +574,7 @@ export function DeliveryForm({
 															>
 																<Trash2 className="h-4 w-4" />
 															</Button>
+															)}
 														</div>
 
 														<div className="grid grid-cols-2 gap-3 mt-6">

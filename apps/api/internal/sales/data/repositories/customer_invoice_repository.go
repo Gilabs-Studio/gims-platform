@@ -83,7 +83,7 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 		query = r.db.WithContext(ctx).Model(&models.CustomerInvoice{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
-		
+
 		// Apply tenant filter manually since we are using joins
 		var err error
 		query, err = applyTenantFilter(ctx, query, "customer_invoices.tenant_id", "sales_orders.tenant_id")
@@ -106,28 +106,28 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("customer_invoices.status = ?", req.Status)
 	}
 
 	// Apply type filter
 	if req.Type != "" {
-		query = query.Where("type = ?", req.Type)
+		query = query.Where("customer_invoices.type = ?", req.Type)
 	}
 
 	// Apply date range filter
 	if req.DateFrom != "" {
-		query = query.Where("invoice_date >= ?", req.DateFrom)
+		query = query.Where("customer_invoices.invoice_date >= ?", req.DateFrom)
 	}
 	if req.DateTo != "" {
-		query = query.Where("invoice_date <= ?", req.DateTo)
+		query = query.Where("customer_invoices.invoice_date <= ?", req.DateTo)
 	}
 
 	// Apply due date range filter
 	if req.DueDateFrom != "" {
-		query = query.Where("due_date >= ?", req.DueDateFrom)
+		query = query.Where("customer_invoices.due_date >= ?", req.DueDateFrom)
 	}
 	if req.DueDateTo != "" {
-		query = query.Where("due_date <= ?", req.DueDateTo)
+		query = query.Where("customer_invoices.due_date <= ?", req.DueDateTo)
 	}
 
 	// Apply sales order filter
@@ -156,13 +156,13 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"invoice_number": "invoice_number",
-		"invoice_date":   "invoice_date",
-		"due_date":       "due_date",
-		"amount":         "amount",
-		"status":         "status",
-		"created_at":     "created_at",
-		"updated_at":     "updated_at",
+		"invoice_number": "customer_invoices.invoice_number",
+		"invoice_date":   "customer_invoices.invoice_date",
+		"due_date":       "customer_invoices.due_date",
+		"amount":         "customer_invoices.amount",
+		"status":         "customer_invoices.status",
+		"created_at":     "customer_invoices.created_at",
+		"updated_at":     "customer_invoices.updated_at",
 	}
 
 	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
@@ -194,13 +194,40 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 
 func (r *customerInvoiceRepository) Create(ctx context.Context, invoice *models.CustomerInvoice) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Store items temporarily
+		// Generate code inside the transaction with advisory lock to prevent duplicates under concurrency.
+		if invoice.Code == "" {
+			code, err := r.getNextCodeLocked(ctx, tx, "INV")
+			if err != nil {
+				return err
+			}
+			invoice.Code = code
+		}
+
+		// Retry loop with savepoint to handle rare race conditions on unique constraint.
 		items := invoice.Items
 		invoice.Items = nil
 
-		// Create invoice without items
-		if err := tx.Create(invoice).Error; err != nil {
-			return err
+		for attempt := 0; attempt < 3; attempt++ {
+			sp := fmt.Sprintf("sp_inv_create_%d", attempt)
+			if err := tx.SavePoint(sp).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Create(invoice).Error; err != nil {
+				if rbErr := tx.RollbackTo(sp).Error; rbErr != nil {
+					return rbErr
+				}
+				if isInvoiceUniqueCodeConflict(err) {
+					code, genErr := r.getNextCodeLocked(ctx, tx, "INV")
+					if genErr != nil {
+						return genErr
+					}
+					invoice.Code = code
+					continue
+				}
+				return err
+			}
+			break
 		}
 
 		// Create items with the invoice ID
@@ -211,10 +238,40 @@ func (r *customerInvoiceRepository) Create(ctx context.Context, invoice *models.
 					return err
 				}
 			}
+			invoice.Items = items
 		}
 
 		return nil
 	})
+}
+
+func isInvoiceUniqueCodeConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "duplicate key value") && strings.Contains(s, "idx_customer_invoices_code")
+}
+
+func (r *customerInvoiceRepository) getNextCodeLocked(ctx context.Context, tx *gorm.DB, prefix string) (string, error) {
+	now := database.GetDB(ctx, r.db).NowFunc()
+	dateStr := now.Format("20060102")
+	codePrefix := prefix + "-" + dateStr
+
+	// Use advisory lock to serialize code generation per day
+	lockKey := "customer_invoice_code:" + codePrefix
+	if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+		return "", err
+	}
+
+	var count int64
+	if err := tx.WithContext(ctx).Model(&models.CustomerInvoice{}).
+		Where("code LIKE ?", codePrefix+"-%").
+		Count(&count).Error; err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s-%04d", codePrefix, count+1), nil
 }
 
 func (r *customerInvoiceRepository) Update(ctx context.Context, invoice *models.CustomerInvoice) error {

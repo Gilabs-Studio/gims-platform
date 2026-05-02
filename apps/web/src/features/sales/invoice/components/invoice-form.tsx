@@ -76,7 +76,8 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
-  const isSalesOrderLocked = !isEdit && !!defaultSalesOrderId;
+  const watchedSalesOrderId = form.watch("sales_order_id");
+  const isSalesOrderLocked = (!!defaultSalesOrderId || (isEdit && !!watchedSalesOrderId));
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>

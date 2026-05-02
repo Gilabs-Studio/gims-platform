@@ -85,7 +85,7 @@ export function SupplierMapView() {
     supplier_type_id: typeFilter !== "all" ? typeFilter : undefined,
   });
 
-  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20 });
+  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20, active_only: true });
   const supplierTypes = supplierTypesData?.data ?? [];
 
   const deleteSupplier = useDeleteSupplier();

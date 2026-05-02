@@ -3,7 +3,7 @@ package dto
 // CreateCustomerInvoiceRequest represents the request to create a customer invoice
 type CreateCustomerInvoiceRequest struct {
 	InvoiceDate          string                             `json:"invoice_date" binding:"required"`
-	DueDate              *string                            `json:"due_date"`
+	DueDate              *string                            `json:"due_date" binding:"required"`
 	Type                 string                             `json:"type" binding:"omitempty,oneof=regular proforma down_payment"`
 	SalesOrderID         *string                            `json:"sales_order_id" binding:"omitempty,uuid"`
 	DeliveryOrderID      *string                            `json:"delivery_order_id" binding:"omitempty,uuid"`

@@ -444,27 +444,29 @@ export function ApplicantDetailSheet({
                 <span>{t("applicants.alreadyConverted")}</span>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => onEdit?.(applicant)}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                {t("common.edit")}
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={() => {
-                  onDelete?.(applicant.id);
-                  onOpenChange(false);
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {t("common.delete")}
-              </Button>
-            </div>
+            {!applicant.employee_id && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onEdit?.(applicant)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  {t("common.edit")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    onDelete?.(applicant.id);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("common.delete")}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

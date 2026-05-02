@@ -43,7 +43,7 @@ export function useCustomerList() {
     customer_type_id: typeFilter === "all" ? undefined : typeFilter,
   });
 
-  const { data: typesData } = useCustomerTypes({ per_page: 20 });
+  const { data: typesData } = useCustomerTypes({ per_page: 20, active_only: true });
   const customerTypes = typesData?.data ?? [];
 
   const deleteMutation = useDeleteCustomer();

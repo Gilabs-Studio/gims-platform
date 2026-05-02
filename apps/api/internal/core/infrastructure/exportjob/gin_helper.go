@@ -9,6 +9,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// contextKeysToPropagate are string keys copied from request context into async job context.
+var contextKeysToPropagate = []string{
+	"tenant_id",
+	"user_id",
+	"user_email",
+	"user_role",
+	"user_permissions",
+	"user_permissions_scope",
+	"is_system_admin",
+}
+
+// propagateRequestContext copies important values from the gin request context
+// into a new background context so async jobs have proper tenant/auth context.
+func propagateRequestContext(c *gin.Context) context.Context {
+	ctx := context.Background()
+	reqCtx := c.Request.Context()
+	for _, key := range contextKeysToPropagate {
+		if val := reqCtx.Value(key); val != nil {
+			ctx = context.WithValue(ctx, key, val)
+		}
+	}
+	return ctx
+}
+
 func IsAsyncRequested(c *gin.Context) bool {
 	flag := strings.TrimSpace(strings.ToLower(c.Query("async")))
 	return flag == "1" || flag == "true" || flag == "yes"
@@ -39,8 +63,17 @@ func QueueIfRequestedWithProgress(c *gin.Context, generator ProgressGenerator) b
 		}
 	}
 
+	// Capture request context values before the request ends
+	baseCtx := propagateRequestContext(c)
+
 	var jobID string
 	job := DefaultManager.Enqueue(userID, func(ctx context.Context) (*GeneratedFile, error) {
+		// Merge propagated request context values into the job's timeout context
+		for _, key := range contextKeysToPropagate {
+			if val := baseCtx.Value(key); val != nil {
+				ctx = context.WithValue(ctx, key, val)
+			}
+		}
 		setProgress := func(progress int) {
 			if jobID == "" {
 				return

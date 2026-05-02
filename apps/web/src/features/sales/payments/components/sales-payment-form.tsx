@@ -271,31 +271,8 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               });
 
               const createdPaymentId = createResponse?.data?.id;
-              if (canConfirmPayment && createdPaymentId) {
-                try {
-                  await confirmMutation.mutateAsync(createdPaymentId);
-                  toast.success(t("toast.confirmed"));
-                } catch (confirmError) {
-                  toast.success(t("toast.created"));
-
-                  if (isAccountingMappingError(confirmError)) {
-                    toast.error(t("errors.mappingRequired"), {
-                      action: {
-                        label: t("actions.openMapping"),
-                        onClick: () => router.push("/finance/settings/accounting-mapping"),
-                      },
-                    });
-                    onClose();
-                    return;
-                  }
-
-                  toast.error(getSalesErrorMessage(confirmError, t("toast.failed") ?? "Failed to confirm payment"));
-                  onClose();
-                  return;
-                }
-              } else {
-                toast.success(t("toast.created"));
-              }
+              void createdPaymentId; // payment created as pending; confirmation requires explicit action
+              toast.success(t("toast.created"));
 
               onClose();
             } catch (error) {

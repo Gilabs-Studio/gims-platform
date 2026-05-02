@@ -12,7 +12,11 @@ export const productSchema = z.object({
   // Basic Info
   name: z.string().min(2, "Name is required").max(200),
   code: z.string().optional(),
-  manufacturer_part_number: z.string().max(100).optional(),
+  manufacturer_part_number: z
+    .string()
+    .max(100)
+    .regex(/^[A-Za-z0-9\-\.\/]*$/, "MPN may only contain letters, digits, hyphens, dots, or slashes")
+    .optional(),
   description: z.string().max(1000).optional(),
   image_url: z.string().optional().nullable(),
 

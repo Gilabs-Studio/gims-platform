@@ -31,6 +31,8 @@ import (
 var (
 	ErrPurchaseReturnNotFound = errors.New("purchase return not found")
 	ErrPurchaseReturnInvalid  = errors.New("invalid purchase return request")
+	// ErrStockValidation is returned when return quantities violate stock constraints (#280)
+	ErrStockValidation = errors.New("stock validation failed")
 )
 
 const errPurchaseReturnDBNil = "db is nil"
@@ -284,6 +286,11 @@ func (u *purchaseReturnUsecase) Update(ctx context.Context, id string, req *dto.
 		u.logWarehouseMismatchAttempt(ctx, row.GoodsReceiptID, sourceWarehouseID, warehouseID, "allowed")
 	}
 
+	// Enforce that all updated items belong to the original goods receipt (#279)
+	if err := u.validateItemsBelongToGoodsReceipt(goodsReceipt, mapUpdateItemsToCreateItems(req.Items)); err != nil {
+		return nil, err
+	}
+
 	// Validate quantities: add back current return quantities so user can reallocate them
 	if err := u.validateRequestedQtyForUpdate(ctx, row, req.Items); err != nil {
 		return nil, err
@@ -361,7 +368,8 @@ func (u *purchaseReturnUsecase) validateRequestedQtyForUpdate(
 	for productID, requestedQty := range requestedQtyByProduct {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
-			return errors.New("return quantity exceeds available quantity from goods receipt")
+			return fmt.Errorf("%w: return quantity %.4g for product %s exceeds available quantity %.4g from goods receipt",
+				ErrStockValidation, requestedQty, productID, availableQty)
 		}
 	}
 
@@ -602,6 +610,11 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 		return nil, err
 	}
 
+	// Enforce that all return items must belong to the goods receipt (#279)
+	if err := u.validateItemsBelongToGoodsReceipt(goodsReceipt, req.Items); err != nil {
+		return nil, err
+	}
+
 	if err := u.validateRequestedQty(ctx, goodsReceiptID, req.Items); err != nil {
 		return nil, err
 	}
@@ -752,6 +765,29 @@ func normalizeOptionalString(value *string) *string {
 	return &trimmed
 }
 
+// validateItemsBelongToGoodsReceipt enforces that all return items reference products
+// that exist in the given goods receipt (#279).
+func (u *purchaseReturnUsecase) validateItemsBelongToGoodsReceipt(
+	goodsReceipt *models.GoodsReceipt,
+	items []dto.CreatePurchaseReturnItemRequest,
+) error {
+	grProductIDs := make(map[string]struct{}, len(goodsReceipt.Items))
+	for _, item := range goodsReceipt.Items {
+		grProductIDs[strings.TrimSpace(item.ProductID)] = struct{}{}
+	}
+
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		if _, ok := grProductIDs[productID]; !ok {
+			return fmt.Errorf("%w: product %s is not part of the goods receipt", ErrStockValidation, productID)
+		}
+	}
+	return nil
+}
+
 func (u *purchaseReturnUsecase) validateRequestedQty(
 	ctx context.Context,
 	goodsReceiptID string,
@@ -771,7 +807,8 @@ func (u *purchaseReturnUsecase) validateRequestedQty(
 	for productID, requestedQty := range requestedQtyByProduct {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
-			return errors.New("return quantity exceeds available quantity from goods receipt")
+			return fmt.Errorf("%w: return quantity %.4g for product %s exceeds available quantity %.4g from goods receipt",
+				ErrStockValidation, requestedQty, productID, availableQty)
 		}
 	}
 
@@ -807,7 +844,8 @@ func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStock(
 	for productID, requestedQty := range requestedQtyByProduct {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty > availableQty+0.0001 {
-			return fmt.Errorf("return quantity exceeds available warehouse stock for product %s", productID)
+			return fmt.Errorf("%w: return quantity %.4g for product %s exceeds available warehouse stock %.4g",
+				ErrStockValidation, requestedQty, productID, availableQty)
 		}
 	}
 
@@ -853,7 +891,8 @@ func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStockForUpda
 	for productID, requestedQty := range requestedQtyByProduct {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty > availableQty+0.0001 {
-			return fmt.Errorf("return quantity exceeds available warehouse stock for product %s", productID)
+			return fmt.Errorf("%w: return quantity %.4g for product %s exceeds available warehouse stock %.4g",
+				ErrStockValidation, requestedQty, productID, availableQty)
 		}
 	}
 

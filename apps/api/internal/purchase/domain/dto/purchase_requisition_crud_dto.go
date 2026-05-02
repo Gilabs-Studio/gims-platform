@@ -10,7 +10,7 @@ type PurchaseRequisitionItemRequest struct {
 
 type CreatePurchaseRequisitionRequest struct {
 	SupplierID     *string `json:"supplier_id" validate:"omitempty,uuid"`
-	PaymentTermsID *string `json:"payment_terms_id" validate:"omitempty,uuid"`
+	PaymentTermsID *string `json:"payment_terms_id" validate:"required,uuid"`
 	BusinessUnitID *string `json:"business_unit_id" validate:"omitempty,uuid"`
 	EmployeeID     *string `json:"employee_id" validate:"omitempty,uuid"`
 
@@ -27,7 +27,7 @@ type CreatePurchaseRequisitionRequest struct {
 
 type UpdatePurchaseRequisitionRequest struct {
 	SupplierID     *string `json:"supplier_id" validate:"omitempty,uuid"`
-	PaymentTermsID *string `json:"payment_terms_id" validate:"omitempty,uuid"`
+	PaymentTermsID *string `json:"payment_terms_id" validate:"required,uuid"`
 	BusinessUnitID *string `json:"business_unit_id" validate:"omitempty,uuid"`
 	EmployeeID     *string `json:"employee_id" validate:"omitempty,uuid"`
 

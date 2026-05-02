@@ -45,7 +45,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
   // Fetch Lookup Data conditionally when form is open
   const fetchOptions = { enabled: open };
   
-  const { data: categoriesData } = useProductCategories({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: categoriesData } = useProductCategories({ per_page: 20, sort: "name", active_only: true }, fetchOptions);
   const { data: brandsData } = useProductBrands({ per_page: 20, sort: "name" }, fetchOptions);
   const { data: segmentsData } = useProductSegments({ per_page: 20, sort: "name" }, fetchOptions);
   const { data: typesData } = useProductTypes({ per_page: 20, sort: "name" }, fetchOptions);

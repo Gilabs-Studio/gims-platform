@@ -258,14 +258,14 @@ export function EmployeeForm({
           ? new Date(employeeData.date_of_birth)
           : undefined,
         place_of_birth: employeeData.place_of_birth ?? "",
-        gender: employeeData.gender ?? undefined,
+        gender: employeeData.gender || undefined,
         religion: employeeData.religion ?? "",
         address: employeeData.address ?? "",
         nik: employeeData.nik ?? "",
         npwp: employeeData.npwp ?? "",
         bpjs: employeeData.bpjs ?? "",
         total_leave_quota: employeeData.total_leave_quota ?? 12,
-        ptkp_status: employeeData.ptkp_status ?? undefined,
+        ptkp_status: employeeData.ptkp_status || undefined,
         is_active: employeeData.is_active,
       };
       reset(formData, {
@@ -508,8 +508,11 @@ export function EmployeeForm({
           </DialogTitle>
         </DialogHeader>
         <form
-          onSubmit={handleSubmit(onSubmit, () => {
-            toast.error("Please fix form errors before saving");
+          onSubmit={handleSubmit(onSubmit, (fieldErrors) => {
+            const fieldNames = Object.keys(fieldErrors).join(", ");
+            toast.error("Please fix form errors before saving", {
+              description: fieldNames ? `Fields with errors: ${fieldNames}` : undefined,
+            });
           })}
           className="space-y-6"
         >

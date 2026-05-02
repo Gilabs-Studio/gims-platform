@@ -83,6 +83,18 @@ interface ProductInterestItem {
   answers: { question_id: string; option_id: string; answer?: boolean }[];
 }
 
+function normalizePhoneInput(value: string): string {
+  const trimmed = value.replace(/\s+/g, "");
+  const hasPlusPrefix = trimmed.startsWith("+");
+  const digitsOnly = trimmed.replace(/\D/g, "");
+
+  if (!digitsOnly) {
+    return hasPlusPrefix ? "+" : "";
+  }
+
+  return hasPlusPrefix ? `+${digitsOnly}` : digitsOnly;
+}
+
 export function LogVisitDialog({
   open,
   onClose,
@@ -166,7 +178,7 @@ export function LogVisitDialog({
       setSelectedTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
       setCalendarOpen(false);
       setContactPerson(defaultContactPerson ?? "");
-      setContactPhone(defaultContactPhone ?? "");
+      setContactPhone(normalizePhoneInput(defaultContactPhone ?? ""));
       setSelectedContactId("");
     }
   }, [open, defaultContactPerson, defaultContactPhone]);
@@ -299,7 +311,7 @@ export function LogVisitDialog({
     const contact = contacts?.find((c) => c.id === id);
     if (contact) {
       setContactPerson(contact.name);
-      setContactPhone(contact.phone);
+      setContactPhone(normalizePhoneInput(contact.phone));
     }
   }, [contacts]);
 
@@ -534,9 +546,37 @@ export function LogVisitDialog({
                     type="tel"
                     inputMode="tel"
                     value={contactPhone}
-                    onChange={(e) =>
-                      setContactPhone(e.target.value.replace(/[^0-9+]/g, ""))
-                    }
+                    onChange={(e) => setContactPhone(normalizePhoneInput(e.target.value))}
+                    onKeyDown={(e) => {
+                      const allowedKeys = [
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Tab",
+                        "Home",
+                        "End",
+                      ];
+
+                      if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
+                        return;
+                      }
+
+                      if (/^[0-9]$/.test(e.key)) {
+                        return;
+                      }
+
+                      if (e.key === "+") {
+                        const input = e.currentTarget;
+                        const selectionStart = input.selectionStart ?? 0;
+                        const hasPlus = input.value.includes("+");
+                        if (!hasPlus && selectionStart === 0) {
+                          return;
+                        }
+                      }
+
+                      e.preventDefault();
+                    }}
                     placeholder={t("form.contactPhonePlaceholder")}
                   />
                 </div>
