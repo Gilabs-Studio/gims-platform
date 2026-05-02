@@ -289,7 +289,7 @@ export function CustomerInvoiceDPDetailModal({
                     if (!row?.id) return;
                     customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
                   }}
-                  className="cursor-pointer text-primary hover:text-primary hover:bg-primary/10"
+                  className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />

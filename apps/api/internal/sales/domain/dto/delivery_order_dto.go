@@ -20,9 +20,9 @@ type CreateDeliveryOrderRequest struct {
 type CreateDeliveryOrderItemRequest struct {
 	SalesOrderItemID *string `json:"sales_order_item_id"`
 	ProductID        string  `json:"product_id" binding:"required,uuid"`
-	InventoryBatchID *string `json:"inventory_batch_id" binding:"required,uuid"`
+	InventoryBatchID *string `json:"inventory_batch_id" binding:"omitempty,uuid"`
 	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
-	Price            float64 `json:"price" binding:"required,gt=0"`
+	Price            float64 `json:"price" binding:"omitempty,gte=0"`
 	IsEquipment      bool    `json:"is_equipment"`
 }
 

@@ -102,7 +102,10 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	// Use fully-qualified column name to prevent ambiguity when JOINs are active (search path)
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OwnerUserIDColumn: "customer_invoices.created_by",
+	})
 
 	// Apply status filter
 	if req.Status != "" {
@@ -168,7 +171,7 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
 	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
-		sortBy = "invoice_date"
+		sortBy = "customer_invoices.invoice_date"
 	}
 
 	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"

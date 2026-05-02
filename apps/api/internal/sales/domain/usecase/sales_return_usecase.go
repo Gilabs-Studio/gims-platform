@@ -642,13 +642,16 @@ func (u *salesReturnUsecase) validateRequestedQty(
 		return err
 	}
 
-	requestedQtyByProduct := make(map[string]float64)
+	requestQtyByProduct := make(map[string]float64)
 	for _, item := range items {
 		productID := strings.TrimSpace(item.ProductID)
-		requestedQtyByProduct[productID] += item.Qty
+		if _, ok := availableQtyByProduct[productID]; !ok {
+			return errors.New("product not found in delivery order")
+		}
+		requestQtyByProduct[productID] += item.Qty
 	}
 
-	for productID, requestedQty := range requestedQtyByProduct {
+	for productID, requestedQty := range requestQtyByProduct {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
 			return errors.New("return quantity exceeds available quantity from delivery order")
@@ -675,13 +678,16 @@ func (u *salesReturnUsecase) validateRequestedQtyForUpdate(
 		availableQtyByProduct[productID] += item.Quantity
 	}
 
-	requestedQtyByProduct := make(map[string]float64)
+	requestQtyByProductUpdate := make(map[string]float64)
 	for _, item := range requestedItems {
 		productID := strings.TrimSpace(item.ProductID)
-		requestedQtyByProduct[productID] += item.Qty
+		if _, ok := availableQtyByProduct[productID]; !ok {
+			return errors.New("product not found in delivery order")
+		}
+		requestQtyByProductUpdate[productID] += item.Qty
 	}
 
-	for productID, requestedQty := range requestedQtyByProduct {
+	for productID, requestedQty := range requestQtyByProductUpdate {
 		availableQty := availableQtyByProduct[productID]
 		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
 			return errors.New("return quantity exceeds available quantity from delivery order")

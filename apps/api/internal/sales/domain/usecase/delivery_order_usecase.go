@@ -375,12 +375,11 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 				item.Price = product.SellingPrice
 			}
 
-			// Validate batch exists and has sufficient stock
-			if item.InventoryBatchID == nil {
-				return nil, errors.New("inventory_batch_id is required")
-			}
-			if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
-				return nil, err
+			// Validate batch exists and has sufficient stock (only when batch ID is provided)
+			if item.InventoryBatchID != nil {
+				if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
