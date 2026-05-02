@@ -1236,10 +1236,7 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
 		}
@@ -1286,10 +1283,7 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
 		}
@@ -1327,10 +1321,7 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
 		}

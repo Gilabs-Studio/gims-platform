@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -16,6 +17,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// mpnPattern enforces that MPN only contains safe printable characters (#353)
+var mpnPattern = regexp.MustCompile(`^[A-Za-z0-9\-\.\/]+$`)
 
 // ProductUsecase defines the interface for product business logic
 type ProductUsecase interface {
@@ -52,6 +56,11 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
+	}
+
+	// Validate MPN format (#353)
+	if req.ManufacturerPartNumber != "" && !mpnPattern.MatchString(req.ManufacturerPartNumber) {
+		return dto.ProductResponse{}, errors.New("manufacturer_part_number may only contain letters, digits, hyphens, dots, or slashes")
 	}
 
 	// Generate Product Code
@@ -187,6 +196,11 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	product, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return dto.ProductResponse{}, err
+	}
+
+	// Validate MPN format (#353)
+	if req.ManufacturerPartNumber != "" && !mpnPattern.MatchString(req.ManufacturerPartNumber) {
+		return dto.ProductResponse{}, errors.New("manufacturer_part_number may only contain letters, digits, hyphens, dots, or slashes")
 	}
 
 	if req.Code != "" {

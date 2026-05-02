@@ -2,6 +2,7 @@ export interface SystemAdmin {
   id: string;
   email: string;
   name: string;
+  username?: string;
   status: string;
 }
 
@@ -23,7 +24,31 @@ export interface SystemAdminMeResponse {
   data: {
     id: string;
     email: string;
+    name: string;
+    username: string;
     role: string;
+  };
+}
+
+export interface SystemAdminUpdateProfileRequest {
+  username: string;
+  email: string;
+}
+
+export interface SystemAdminUpdateProfileResponse {
+  success: boolean;
+  data: SystemAdmin;
+}
+
+export interface SystemAdminChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface SystemAdminChangePasswordResponse {
+  success: boolean;
+  data: {
+    message: string;
   };
 }
 

@@ -26,10 +26,9 @@ export function MarketingHeader() {
           className="group flex items-center gap-2 transition-opacity hover:opacity-75"
         >
           <span className="text-lg font-semibold tracking-tight text-foreground">
-            GIMS
+            SalesView
           </span>
           <span className="hidden text-xs font-medium text-muted-foreground sm:inline-block">
-            by GILABS
           </span>
         </Link>
 

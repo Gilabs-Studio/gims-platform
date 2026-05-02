@@ -241,6 +241,10 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesRetu
       return;
     }
 
+    if (eligibleItems.length === 0) {
+      return;
+    }
+
     form.reset({
       invoice_id: defaultInvoiceId ?? "",
       delivery_id: selectedDeliveryId,
@@ -605,7 +609,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesRetu
               <div key={field.id} className="space-y-4 rounded-lg border bg-card p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Item #{index + 1}</p>
-                  {fields.length > 1 && (
+                  {fields.length > 1 && !selectedDeliveryId && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -730,10 +734,13 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesRetu
             );
           })}
 
-          <Button type="button" variant="outline" className="w-full cursor-pointer border-dashed" onClick={handleAddItem}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Item
-          </Button>
+          {/* Only allow adding arbitrary items when no DO is selected (#234) */}
+          {!selectedDeliveryId && (
+            <Button type="button" variant="outline" className="w-full cursor-pointer border-dashed" onClick={handleAddItem}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Item
+            </Button>
+          )}
 
           {errors.items?.message && <FieldError>{errors.items.message}</FieldError>}
         </div>

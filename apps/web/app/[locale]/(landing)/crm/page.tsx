@@ -5,19 +5,22 @@ import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi CRM Terbaik | GIMS by GILABS` 
-    : `Best CRM Software | GIMS by GILABS`;
+    ? `Aplikasi CRM Terbaik | SalesView` 
+    : `Best CRM Software | SalesView`;
     
   const desc = locale === 'id'
     ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
     : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/crm",
     title,
     description: desc,
     keywords: [
@@ -26,8 +29,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Software CRM Perusahaan`,
       `Aplikasi Sales dan Marketing`,
       `CRM B2B`
-    ]
-  };
+    ],
+    imageAlt: "SalesView CRM overview",
+  });
 }
 
 export default async function CrmLandingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -38,7 +42,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/crm#business`,
+    "@id": `https://salesview.id/${locale}/crm#business`,
     "name": locale === 'id' ? "Sistem CRM Terbaik Terintegrasi" : "Best Integrated CRM System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -56,7 +60,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/crm`,
+    "url": `https://salesview.id/${locale}/crm`,
     "telephone": "+628111222333"
   };
 
@@ -70,7 +74,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
         {/* APPLE-LIKE HERO (Super Minimalist) */}
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS CRM
+            SalesView CRM
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Customer Relationship` : `Customer Relationship`}
@@ -171,8 +175,8 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Jadwalkan panggilan, rapat, email, atau penawaran, dan GIMS AI secara otomatis merencanakan aktivitas Anda berikutnya.`
-                      : `Schedule calls, meetings, mailings, or quotations, and GIMS AI automatically plans your next activity.`
+                      ? `Jadwalkan panggilan, rapat, email, atau penawaran, dan SalesView AI secara otomatis merencanakan aktivitas Anda berikutnya.`
+                      : `Schedule calls, meetings, mailings, or quotations, and SalesView AI automatically plans your next activity.`
                     }
                   </p>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
@@ -213,8 +217,8 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan GIMS yang akan menangani sisanya.`
-                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let GIMS handle the rest.`
+                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan SalesView yang akan menangani sisanya.`
+                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let SalesView handle the rest.`
                     }
                   </p>
                 </div>

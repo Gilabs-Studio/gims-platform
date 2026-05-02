@@ -46,6 +46,7 @@ import {
   useCustomerInvoiceDP,
   useUpdateCustomerInvoiceDP,
 } from "../hooks/use-customer-invoice-dp";
+import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import {
   getCustomerInvoiceDPSchema,
   type CustomerInvoiceDPFormData,
@@ -84,6 +85,7 @@ export function CustomerInvoiceDPFormDialog({
       invoice_date: "",
       due_date: "",
       amount: 0,
+      attachment_url: null,
       notes: null,
     },
   });
@@ -100,6 +102,7 @@ export function CustomerInvoiceDPFormDialog({
         invoice_date: format(new Date(), "yyyy-MM-dd"),
         due_date: "",
         amount: defaultAmount ?? 0,
+        attachment_url: null,
         notes: null,
       });
       return;
@@ -113,6 +116,7 @@ export function CustomerInvoiceDPFormDialog({
       invoice_date: detail.invoice_date,
       due_date: detail.due_date ?? "",
       amount: detail.amount,
+      attachment_url: detail.attachment_url ?? null,
       notes: detail.notes ?? null,
     });
   }, [open, isEdit, detailQuery.data, form, defaultSalesOrderId, defaultAmount]);
@@ -127,6 +131,11 @@ export function CustomerInvoiceDPFormDialog({
     enabled: open,
     lazyLoad: true,
     queryFn: (params) => orderService.list(params),
+    baseParams: {
+      status: "approved",
+      exclude_with_active_cidp: true,
+      exclude_with_paid_ci: true,
+    },
     mapOption: (order) => ({
       value: order.id,
       label: `${order.code} - ${formatCurrency(order.total_amount ?? 0)}`,
@@ -176,12 +185,29 @@ export function CustomerInvoiceDPFormDialog({
 
   async function onSubmit(values: CustomerInvoiceDPFormData) {
     try {
+      // Validate amount does not exceed SO total (#241)
+      if (selectedSO && values.amount > (selectedSO.total_amount ?? 0)) {
+        form.setError("amount", { message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})` });
+        return;
+      }
+
+      let attachmentUrl = values.attachment_url ?? null;
+      if (attachments.length > 0) {
+        const uploadResult = await customerInvoiceDPService.uploadAttachment(attachments[0]);
+        attachmentUrl = uploadResult.data?.url ?? null;
+      }
+
+      const payload: CustomerInvoiceDPFormData = {
+        ...values,
+        attachment_url: attachmentUrl,
+      };
+
       if (isEdit && invoiceId) {
-        const response = await updateMutation.mutateAsync({ id: invoiceId, data: values });
+        const response = await updateMutation.mutateAsync({ id: invoiceId, data: payload });
         if (!response.success) throw new Error(response.error ?? "update_failed");
         toast.success(t("toast.updated"));
       } else {
-        const response = await createMutation.mutateAsync(values);
+        const response = await createMutation.mutateAsync(payload);
         if (!response.success) throw new Error(response.error ?? "create_failed");
         toast.success(t("toast.created"));
       }

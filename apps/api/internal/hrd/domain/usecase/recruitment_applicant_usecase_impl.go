@@ -164,6 +164,11 @@ func (u *recruitmentApplicantUsecase) Create(ctx context.Context, req *dto.Creat
 		return nil, errors.New("recruitment request not found")
 	}
 
+	// Only allow adding applicants to open recruitment requests
+	if recruitment.Status != models.RecruitmentStatusOpen {
+		return nil, errors.New("applicants can only be added to open recruitment requests")
+	}
+
 	// Validate stage exists
 	stage, err := u.stageRepo.FindByID(ctx, req.StageID)
 	if err != nil {
@@ -228,6 +233,11 @@ func (u *recruitmentApplicantUsecase) Update(ctx context.Context, id string, req
 	}
 	if applicant == nil {
 		return nil, errors.New("applicant not found")
+	}
+
+	// Cannot edit applicant after conversion to employee (#296)
+	if applicant.EmployeeID != nil && *applicant.EmployeeID != "" {
+		return nil, errors.New("APPLICANT_ALREADY_CONVERTED: Cannot edit applicant after conversion to employee")
 	}
 
 	// Apply updates
@@ -301,6 +311,11 @@ func (u *recruitmentApplicantUsecase) Delete(ctx context.Context, id string) err
 	}
 	if applicant == nil {
 		return errors.New("applicant not found")
+	}
+
+	// Cannot delete applicant after conversion to employee (#296)
+	if applicant.EmployeeID != nil && *applicant.EmployeeID != "" {
+		return errors.New("APPLICANT_ALREADY_CONVERTED: Cannot delete applicant after conversion to employee")
 	}
 
 	return u.applicantRepo.Delete(ctx, id)

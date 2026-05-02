@@ -110,7 +110,7 @@ export function ProductFnbCreateDialog({
 
   const fetchOptions = { enabled: open };
   const { data: categoriesData, isLoading: categoriesLoading } = useProductCategories(
-    { per_page: 100, sort: "name" },
+    { per_page: 100, sort: "name", active_only: true },
     fetchOptions
   );
   const { data: outletsData } = useOutlets(

@@ -715,6 +715,11 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				return "", err
 			}
 
+			// Pre-check: ensure available stock covers the requested quantity (#283)
+			if currentStock < qty {
+				return "", ErrInsufficientStock
+			}
+
 			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
 			if err != nil {
 				return "", err

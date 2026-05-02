@@ -27,9 +27,13 @@ type SupplierRepository interface {
 	CreateContact(ctx context.Context, phone *models.SupplierContact) error
 	UpdateContact(ctx context.Context, phone *models.SupplierContact) error
 	DeleteContact(ctx context.Context, id string) error
+	ClearPrimaryContacts(ctx context.Context, supplierID string) error
+	ClearPrimaryContactsExcept(ctx context.Context, contactID string) error
 	CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	UpdateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	DeleteBankAccount(ctx context.Context, id string) error
+	ClearPrimaryBankAccounts(ctx context.Context, supplierID string) error
+	ClearPrimaryBankAccountsExcept(ctx context.Context, bankID string) error
 }
 
 type supplierRepository struct {
@@ -219,6 +223,17 @@ func (r *supplierRepository) DeleteContact(ctx context.Context, id string) error
 	return database.GetDB(ctx, r.db).Delete(&models.SupplierContact{}, "id = ?", id).Error
 }
 
+func (r *supplierRepository) ClearPrimaryContacts(ctx context.Context, supplierID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierContact{}).Where("supplier_id = ? AND is_primary = true", supplierID).Update("is_primary", false).Error
+}
+
+func (r *supplierRepository) ClearPrimaryContactsExcept(ctx context.Context, contactID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierContact{}).Where(
+		"supplier_id = (SELECT supplier_id FROM supplier_contacts WHERE id = ?) AND id != ? AND is_primary = true",
+		contactID, contactID,
+	).Update("is_primary", false).Error
+}
+
 // Nested Bank Account operations
 func (r *supplierRepository) CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error {
 	return database.GetDB(ctx, r.db).Create(bank).Error
@@ -230,4 +245,15 @@ func (r *supplierRepository) UpdateBankAccount(ctx context.Context, bank *models
 
 func (r *supplierRepository) DeleteBankAccount(ctx context.Context, id string) error {
 	return database.GetDB(ctx, r.db).Delete(&models.SupplierBank{}, "id = ?", id).Error
+}
+
+func (r *supplierRepository) ClearPrimaryBankAccounts(ctx context.Context, supplierID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierBank{}).Where("supplier_id = ? AND is_primary = true", supplierID).Update("is_primary", false).Error
+}
+
+func (r *supplierRepository) ClearPrimaryBankAccountsExcept(ctx context.Context, bankID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierBank{}).Where(
+		"supplier_id = (SELECT supplier_id FROM supplier_banks WHERE id = ?) AND id != ? AND is_primary = true",
+		bankID, bankID,
+	).Update("is_primary", false).Error
 }

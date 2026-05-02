@@ -17,7 +17,7 @@ export const aiChatEn = {
     typing: "AI is typing...",
     today: "Today",
     yesterday: "Yesterday",
-    poweredBy: "Powered by GIMS AI",
+    poweredBy: "Powered by SalesView AI",
     status: {
       active: "Active",
       archived: "Archived",

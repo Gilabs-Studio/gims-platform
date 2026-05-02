@@ -39,7 +39,7 @@
       }
     },
     "onboarding": {
-      "welcome": "Welcome to GIMS!",
+      "welcome": "Welcome to SalesView!",
       "chooseTypePrompt": "Let's get you set up. What type of business are you running?",
       "setupChecklist": "Setup Checklist",
       "checklistPrompt": "Complete these steps to get your workspace ready ({done}/{total} done)",

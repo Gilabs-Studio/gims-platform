@@ -1,6 +1,6 @@
-# GIMS Web
+# SalesView Web
 
-Frontend application untuk GIMS (GILABS Integrated Management System) menggunakan Next.js 16.
+Frontend application untuk SalesView menggunakan Next.js 16.
 
 ## Tech Stack
 

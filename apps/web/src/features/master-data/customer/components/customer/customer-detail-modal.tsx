@@ -57,7 +57,7 @@ export function CustomerDetailModal({
 
   // Resolve geographic hierarchy from nested village or direct FK fields
   const village = entity.village;
-  const villageName = village?.name ?? entity.village_name ?? null;
+  const villageName = village?.name || entity.village_name || null;
   const districtVillage = village?.district;
   const cityVillage = districtVillage?.city;
   const provinceVillage = cityVillage?.province;

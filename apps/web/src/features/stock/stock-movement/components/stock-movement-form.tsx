@@ -188,7 +188,13 @@ export function StockMovementForm() {
   const handleQuantityChange = (productId: string, value: string) => {
     const num = parseFloat(value);
     if (!isNaN(num) && num > 0) {
-      setQuantities((prev) => ({ ...prev, [productId]: num }));
+      if (type !== "IN") {
+        const product = rawProducts.find((p) => p.product_id === productId);
+        const max = product?.available ?? Infinity;
+        setQuantities((prev) => ({ ...prev, [productId]: Math.min(num, max) }));
+      } else {
+        setQuantities((prev) => ({ ...prev, [productId]: num }));
+      }
     }
   };
 
@@ -197,8 +203,16 @@ export function StockMovementForm() {
     if (type === "TRANSFER" && !targetWarehouseId) return false;
     if (type === "TRANSFER" && sourceWarehouseId === targetWarehouseId) return false;
     if (selectedIds.size === 0) return false;
-    return Array.from(selectedIds).every((id) => (quantities[id] ?? 0) > 0);
-  }, [sourceWarehouseId, targetWarehouseId, selectedIds, quantities, type]);
+    return Array.from(selectedIds).every((id) => {
+      const qty = quantities[id] ?? 0;
+      if (qty <= 0) return false;
+      if (type !== "IN") {
+        const product = rawProducts.find((p) => p.product_id === id);
+        if (product && qty > product.available) return false;
+      }
+      return true;
+    });
+  }, [sourceWarehouseId, targetWarehouseId, selectedIds, quantities, type, rawProducts]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;

@@ -485,6 +485,11 @@ func (u *stockOpnameUsecase) SubmitApproval(ctx context.Context, id string) (*dt
 		return nil, ErrInvalidStatus
 	}
 
+	// Require at least one item before submission (#287)
+	if len(opname.Items) == 0 {
+		return nil, errors.New("cannot submit stock opname without any product items")
+	}
+
 	// Ensure journal is generated for non-zero variance scenarios.
 	// For zero-variance opname, journal generation is a no-op and submission should still proceed.
 	if opname.JournalID == nil || *opname.JournalID == "" {
@@ -526,10 +531,30 @@ func (u *stockOpnameUsecase) Submit(ctx context.Context, id string) (*dto.StockO
 }
 
 func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error) {
+	opname, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStockOpnameNotFound
+		}
+		return nil, err
+	}
+	if opname.Status != models.StockOpnameStatusPending {
+		return nil, ErrInvalidStatus
+	}
 	return u.updateStatus(ctx, id, models.StockOpnameStatusApproved, approvedBy)
 }
 
 func (u *stockOpnameUsecase) Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error) {
+	opname, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStockOpnameNotFound
+		}
+		return nil, err
+	}
+	if opname.Status != models.StockOpnameStatusPending {
+		return nil, ErrInvalidStatus
+	}
 	return u.updateStatus(ctx, id, models.StockOpnameStatusRejected, rejectedBy)
 }
 
@@ -763,5 +788,5 @@ func (u *stockOpnameUsecase) buildStockOpnameJournalLinesWithAccounts(opname *mo
 
 // GetMyWarehouses returns the warehouses assigned to the given user via user_warehouses.
 func (u *stockOpnameUsecase) GetMyWarehouses(ctx context.Context, userID string) ([]dto.UserWarehouseInfo, error) {
-return u.repo.GetMyWarehouses(ctx, userID)
+	return u.repo.GetMyWarehouses(ctx, userID)
 }

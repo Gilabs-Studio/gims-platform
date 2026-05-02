@@ -288,6 +288,7 @@ export function SalesPaymentsList() {
 
                             {canReverse && isConfirmed && (
                               <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
                                 onClick={async () => {
                                   try {
                                     await reverseMutation.mutateAsync(item.id);
@@ -312,7 +313,7 @@ export function SalesPaymentsList() {
                                 {t("actions.print")}
                               </DropdownMenuItem>
                             )}
-                            {canDelete && (
+                            {canDelete && isPending && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
                                 className="cursor-pointer text-destructive"

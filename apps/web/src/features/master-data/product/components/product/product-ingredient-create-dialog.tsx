@@ -94,7 +94,7 @@ export function ProductIngredientCreateDialog({
   const fetchOptions = { enabled: open };
 
   const { data: categoriesData, isLoading: categoriesLoading } = useProductCategories(
-    { per_page: 200, sort: "name" },
+    { per_page: 200, sort: "name", active_only: true },
     fetchOptions
   );
   const { data: uomsData } = useUnitsOfMeasure(

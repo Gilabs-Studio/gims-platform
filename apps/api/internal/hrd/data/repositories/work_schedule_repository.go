@@ -154,6 +154,9 @@ func (r *workScheduleRepository) SetDefault(ctx context.Context, id string) erro
 		return err
 	}
 
-	// Then set the new default
-	return db.Model(&models.WorkSchedule{}).Where("id = ?", id).Update("is_default", true).Error
+	// Then set the new default and ensure it is active
+	return db.Model(&models.WorkSchedule{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"is_default": true,
+		"is_active":  true,
+	}).Error
 }

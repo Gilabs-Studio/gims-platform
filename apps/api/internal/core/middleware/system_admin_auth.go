@@ -64,13 +64,15 @@ func SystemAdminAuthMiddleware(jwtManager *jwt.JWTManager, sysAdminRepo reposito
 
 		// Set system admin context
 		c.Set("user_id", claims.UserID)
-		c.Set("user_email", claims.Email)
+		c.Set("user_email", admin.Email)
+		c.Set("user_name", admin.Name)
 		c.Set("user_role", "system_admin")
 		c.Set(IsSystemAdminKey, true)
 
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "user_id", claims.UserID)
-		reqCtx = context.WithValue(reqCtx, "user_email", claims.Email)
+		reqCtx = context.WithValue(reqCtx, "user_email", admin.Email)
+		reqCtx = context.WithValue(reqCtx, "user_name", admin.Name)
 		reqCtx = context.WithValue(reqCtx, "user_role", "system_admin")
 		reqCtx = context.WithValue(reqCtx, IsSystemAdminKey, true)
 		c.Request = c.Request.WithContext(reqCtx)

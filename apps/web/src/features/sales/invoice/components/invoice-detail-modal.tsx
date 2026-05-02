@@ -235,7 +235,7 @@ export function InvoiceDetailModal({
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && status === "unpaid" && (
+                {canDelete && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"

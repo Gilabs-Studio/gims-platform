@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -32,20 +31,20 @@ func NewEmployeeContractRepository(db *gorm.DB) EmployeeContractRepository {
 }
 
 func (r *employeeContractRepository) Create(ctx context.Context, contract *models.EmployeeContract) error {
-	return database.GetDB(ctx, r.db).Create(contract).Error
+	return r.db.WithContext(ctx).Create(contract).Error
 }
 
 func (r *employeeContractRepository) Update(ctx context.Context, contract *models.EmployeeContract) error {
-	return database.GetDB(ctx, r.db).Save(contract).Error
+	return r.db.WithContext(ctx).Save(contract).Error
 }
 
 func (r *employeeContractRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return database.GetDB(ctx, r.db).Delete(&models.EmployeeContract{}, "id = ?", id).Error
+	return r.db.WithContext(ctx).Delete(&models.EmployeeContract{}, "id = ?", id).Error
 }
 
 func (r *employeeContractRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeContract, error) {
 	var contract models.EmployeeContract
-	err := database.GetDB(ctx, r.db).Where("id = ?", id).First(&contract).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&contract).Error
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +53,7 @@ func (r *employeeContractRepository) FindByID(ctx context.Context, id uuid.UUID)
 
 func (r *employeeContractRepository) FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeContract, error) {
 	var contracts []*models.EmployeeContract
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Where("employee_id = ?", employeeID).
 		Order("start_date DESC").
 		Find(&contracts).Error
@@ -63,7 +62,7 @@ func (r *employeeContractRepository) FindByEmployeeID(ctx context.Context, emplo
 
 func (r *employeeContractRepository) FindActiveByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeContract, error) {
 	var contract models.EmployeeContract
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.ContractStatusActive).
 		Order("start_date DESC").
@@ -82,7 +81,7 @@ func (r *employeeContractRepository) FindActiveByEmployeeIDs(ctx context.Context
 	}
 
 	var contracts []*models.EmployeeContract
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Where("employee_id IN ?", employeeIDs).
 		Where("status = ?", models.ContractStatusActive).
 		Order("start_date DESC").
@@ -103,7 +102,7 @@ func (r *employeeContractRepository) FindActiveByEmployeeIDs(ctx context.Context
 
 func (r *employeeContractRepository) FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error) {
 	var contract models.EmployeeContract
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Where("contract_number = ?", contractNumber).
 		First(&contract).Error
 	if err != nil {
@@ -116,7 +115,7 @@ func (r *employeeContractRepository) FindAll(ctx context.Context, employeeID *uu
 	var contracts []*models.EmployeeContract
 	var total int64
 
-	query := database.GetDB(ctx, r.db).Model(&models.EmployeeContract{})
+	query := r.db.WithContext(ctx).Model(&models.EmployeeContract{})
 
 	if employeeID != nil {
 		query = query.Where("employee_id = ?", *employeeID)
@@ -144,7 +143,7 @@ func (r *employeeContractRepository) FindAll(ctx context.Context, employeeID *uu
 
 func (r *employeeContractRepository) CountByEmployee(ctx context.Context, employeeID uuid.UUID) (int64, error) {
 	var count int64
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Model(&models.EmployeeContract{}).
 		Where("employee_id = ?", employeeID).
 		Count(&count).Error
@@ -153,7 +152,7 @@ func (r *employeeContractRepository) CountByEmployee(ctx context.Context, employ
 
 func (r *employeeContractRepository) HasActiveContract(ctx context.Context, employeeID uuid.UUID) (bool, error) {
 	var count int64
-	err := database.GetDB(ctx, r.db).
+	err := r.db.WithContext(ctx).
 		Model(&models.EmployeeContract{}).
 		Where("employee_id = ?", employeeID).
 		Where("status = ?", models.ContractStatusActive).

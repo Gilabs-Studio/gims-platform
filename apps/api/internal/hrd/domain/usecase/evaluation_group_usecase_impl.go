@@ -11,6 +11,7 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -20,7 +21,7 @@ import (
 )
 
 type evaluationGroupUsecase struct {
-	db          *gorm.DB
+	db           *gorm.DB
 	groupRepo    repositories.EvaluationGroupRepository
 	criteriaRepo repositories.EvaluationCriteriaRepository
 	auditService audit.AuditService
@@ -48,7 +49,7 @@ func NewEvaluationGroupUsecase(
 	auditService audit.AuditService,
 ) EvaluationGroupUsecase {
 	return &evaluationGroupUsecase{
-		db:          db,
+		db:           db,
 		groupRepo:    groupRepo,
 		criteriaRepo: criteriaRepo,
 		auditService: auditService,
@@ -103,6 +104,9 @@ func (u *evaluationGroupUsecase) GetByID(ctx context.Context, id string) (*dto.E
 func (u *evaluationGroupUsecase) Create(ctx context.Context, req *dto.CreateEvaluationGroupRequest) (*dto.EvaluationGroupResponse, error) {
 	id := uuid.New().String()
 	group := mapper.ToEvaluationGroupModel(req, id)
+
+	// Set tenant_id from request context
+	group.TenantID = middleware.TenantFromContext(ctx)
 
 	if err := u.groupRepo.Create(ctx, group); err != nil {
 		return nil, fmt.Errorf("failed to create evaluation group: %w", err)

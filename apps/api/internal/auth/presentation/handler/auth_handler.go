@@ -132,12 +132,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Security: Set HttpOnly Cookies
+	// Determine root domain for production (e.g., .gilabs.id or .salesview.id)
+	// In production, use RootDomain so cookies work across all subdomains
+	domain := ""
+	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+		domain = config.AppConfig.Server.RootDomain
+	}
+
 	// Access Token
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
+		Domain:   domain,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
@@ -149,6 +157,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Domain:   domain,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,

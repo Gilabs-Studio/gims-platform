@@ -967,5 +967,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     quotationCombobox,
     productCombobox,
     customerCreditInfo,
+    watchedQuotationId,
   };
 }

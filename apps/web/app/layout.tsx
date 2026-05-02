@@ -28,21 +28,20 @@ const accentFont = Newsreader({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gims.gilabs.co.id"),
+  metadataBase: new URL("https://salesview.id"),
   title: {
-    template: "%s | GIMS by GILABS",
-    default: "GIMS by GILABS - ERP, CRM, HRIS, POS & Finance",
+    template: "%s | SalesView",
+    default: "SalesView - ERP, CRM, HRIS, POS & Finance",
   },
   description:
-    "GIMS by GILABS adalah software all-in-one ERP, CRM, HRIS, POS, dan Finance untuk bisnis Indonesia. Satu platform untuk operasional, penjualan, stok, HR, dan laporan keuangan.",
+    "SalesView adalah software all-in-one ERP, CRM, HRIS, POS, dan Finance untuk bisnis Indonesia. Satu platform untuk operasional, penjualan, stok, HR, dan laporan keuangan.",
   keywords: [
     "ERP Indonesia",
     "Aplikasi CRM",
     "Sistem HRIS",
     "Aplikasi Kasir POS",
     "Software Finance",
-    "GIMS",
-    "GILABS",
+    "SalesView",
     "Manajemen Bisnis Terintegrasi",
     "All-in-one Software",
     "Vendor ERP",
@@ -50,32 +49,32 @@ export const metadata: Metadata = {
     "Custom ERP Indonesia",
     "ERP Indonesia Murah",
   ],
-  authors: [{ name: "GILABS" }],
-  creator: "GILABS",
-  publisher: "GILABS",
+  authors: [{ name: "SalesView" }],
+  creator: "SalesView",
+  publisher: "SalesView",
   openGraph: {
     type: "website",
     locale: "id_ID",
-    url: "https://gims.gilabs.co.id",
-    title: "GIMS by GILABS - ERP, CRM, HRIS, POS & Finance",
+    url: "https://salesview.id",
+    title: "SalesView - ERP, CRM, HRIS, POS & Finance",
     description:
-      "GIMS by GILABS adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
-    siteName: "GIMS by GILABS",
+      "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
+    siteName: "SalesView",
     images: [
       {
         url: "/screenshot/dashboard.webp",
         width: 1920,
         height: 1080,
-        alt: "GIMS by GILABS dashboard preview",
+        alt: "SalesView dashboard preview",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "GIMS by GILABS - ERP, CRM, HRIS, POS & Finance",
+    title: "SalesView - ERP, CRM, HRIS, POS & Finance",
     description:
-      "GIMS by GILABS adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
-    creator: "@gilabs",
+      "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
+    creator: "@salesview",
     images: ["/screenshot/dashboard.webp"],
   },
   robots: {
@@ -90,7 +89,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "https://gims.gilabs.co.id",
+    canonical: "https://salesview.id",
   },
 };
 

@@ -42,7 +42,12 @@ export const getVisitReportSchema = (t?: TranslationFn) =>
     deal_id: z.string().uuid().optional().nullable(),
     lead_id: z.string().uuid().optional().nullable(),
     contact_person: z.string().max(200).optional(),
-    contact_phone: z.string().max(20).optional(),
+    contact_phone: z
+      .string()
+      .max(20)
+      .regex(/^\+?[0-9]+$/, getMsg(t, "validation.contactPhoneInvalid", "Contact phone must be numeric"))
+      .optional()
+      .or(z.literal("")),
     address: z.string().optional(),
     village_id: z.string().uuid().optional().nullable(),
     purpose: z.string().optional(),

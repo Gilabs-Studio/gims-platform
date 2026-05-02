@@ -386,10 +386,11 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, purchaseReturn
           }),
         });
       }
-    } catch {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Stock in selected warehouse changed. Please review available quantity and try again.";
       form.setError("items", {
         type: "manual",
-        message: "Stock in selected warehouse changed. Please review available quantity and try again.",
+        message: errorMsg,
       });
       return;
     }
@@ -564,7 +565,7 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, purchaseReturn
               <div key={field.id} className="space-y-4 rounded-lg border bg-card p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Item #{index + 1}</p>
-                  {fields.length > 1 && (
+                  {fields.length > 1 && !selectedGoodsReceiptId && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -691,10 +692,13 @@ export function PurchaseReturnForm({ open, defaultGoodsReceiptId, purchaseReturn
             );
           })}
 
-          <Button type="button" variant="outline" className="w-full cursor-pointer border-dashed" onClick={handleAddItem}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Item
-          </Button>
+          {/* Only allow adding arbitrary items when no goods receipt is selected (#279) */}
+          {!selectedGoodsReceiptId && (
+            <Button type="button" variant="outline" className="w-full cursor-pointer border-dashed" onClick={handleAddItem}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Item
+            </Button>
+          )}
 
           {errors.items?.message && <FieldError>{errors.items.message}</FieldError>}
         </div>

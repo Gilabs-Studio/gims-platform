@@ -380,6 +380,13 @@ func (u *supplierUsecase) AddContact(ctx context.Context, supplierID string, req
 		phone.IsActive = true
 	}
 
+	// Enforce single primary contact per supplier (#343)
+	if req.IsPrimary {
+		if err := u.repo.ClearPrimaryContacts(ctx, supplierID); err != nil {
+			return dto.ContactResponse{}, err
+		}
+	}
+
 	if err := u.repo.CreateContact(ctx, phone); err != nil {
 		return dto.ContactResponse{}, err
 	}
@@ -424,6 +431,13 @@ func (u *supplierUsecase) UpdateContact(ctx context.Context, id string, req dto.
 		phone.IsActive = *req.IsActive
 	}
 
+	// Enforce single primary contact per supplier (#343)
+	if req.IsPrimary != nil && *req.IsPrimary {
+		if err := u.repo.ClearPrimaryContactsExcept(ctx, id); err != nil {
+			return dto.ContactResponse{}, err
+		}
+	}
+
 	if err := u.repo.UpdateContact(ctx, phone); err != nil {
 		return dto.ContactResponse{}, err
 	}
@@ -455,6 +469,13 @@ func (u *supplierUsecase) AddBankAccount(ctx context.Context, supplierID string,
 		AccountName:   req.AccountName,
 		Branch:        req.Branch,
 		IsPrimary:     req.IsPrimary,
+	}
+
+	// Enforce single primary bank account per supplier (#343)
+	if req.IsPrimary {
+		if err := u.repo.ClearPrimaryBankAccounts(ctx, supplierID); err != nil {
+			return dto.SupplierBankResponse{}, err
+		}
 	}
 
 	if err := u.repo.CreateBankAccount(ctx, bank); err != nil {
@@ -494,6 +515,13 @@ func (u *supplierUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 	}
 	if req.IsPrimary != nil {
 		bank.IsPrimary = *req.IsPrimary
+	}
+
+	// Enforce single primary bank account per supplier (#343)
+	if req.IsPrimary != nil && *req.IsPrimary {
+		if err := u.repo.ClearPrimaryBankAccountsExcept(ctx, id); err != nil {
+			return dto.SupplierBankResponse{}, err
+		}
 	}
 
 	if err := u.repo.UpdateBankAccount(ctx, bank); err != nil {

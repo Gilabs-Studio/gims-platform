@@ -107,7 +107,14 @@ export function useDeliveryForm({
 						label: selectedDelivery.sales_order.code,
 					},
 				]
-			: undefined,
+			: selectedDelivery?.sales_order_id
+				? [
+						{
+							value: selectedDelivery.sales_order_id,
+							label: selectedDelivery.sales_order_id,
+						},
+					]
+				: undefined,
 	});
 
 	const employeesCombobox = usePaginatedComboboxOptions({

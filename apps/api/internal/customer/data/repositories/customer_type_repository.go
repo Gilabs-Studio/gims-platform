@@ -51,6 +51,10 @@ func (r *customerTypeRepository) List(ctx context.Context, params ListParams) ([
 		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
 	}
 
+	if params.ActiveOnly != nil {
+		query = query.Where("is_active = ?", *params.ActiveOnly)
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

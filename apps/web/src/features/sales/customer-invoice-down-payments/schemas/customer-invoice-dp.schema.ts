@@ -13,6 +13,7 @@ export const getCustomerInvoiceDPSchema = (t?: TranslationFn) => z.object({
   invoice_date: z.string().min(1, getMsg(t, "validation.required", "Invoice date is required")),
   due_date: z.string().min(1, getMsg(t, "validation.required", "Due date is required")),
   amount: z.number().positive(getMsg(t, "validation.amountPositive", "Amount must be greater than 0")),
+  attachment_url: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
 });
 

@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const t = await getTranslations({ locale, namespace: "financeBankAccounts" });
 
   return {
-    title: `${t("detail.title")} | GIMS`,
+    title: `${t("detail.title")} | SalesView`,
     description: t("description"),
   };
 }

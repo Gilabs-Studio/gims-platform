@@ -127,6 +127,7 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 		Where("status IN ?", []models.CustomerInvoiceStatus{
 			models.CustomerInvoiceStatusApproved,
 			models.CustomerInvoiceStatusUnpaid,
+			models.CustomerInvoiceStatusOverdue,
 			models.CustomerInvoiceStatusPartial,
 		}).
 		Order("created_at DESC").
@@ -301,7 +302,7 @@ func lockInvoiceForSalesPaymentCreate(tx *gorm.DB, invoiceID string) (*models.Cu
 		return nil, err
 	}
 
-	if inv.Status != models.CustomerInvoiceStatusUnpaid && inv.Status != models.CustomerInvoiceStatusPartial && inv.Status != models.CustomerInvoiceStatusApproved {
+	if inv.Status != models.CustomerInvoiceStatusUnpaid && inv.Status != models.CustomerInvoiceStatusPartial && inv.Status != models.CustomerInvoiceStatusApproved && inv.Status != models.CustomerInvoiceStatusOverdue {
 		log.Printf("sales_payment_conflict: invalid invoice status %s for invoice %s", inv.Status, inv.ID)
 		return nil, fmt.Errorf("invoice status is %s (only APPROVED/UNPAID/PARTIAL allowed)", inv.Status)
 	}

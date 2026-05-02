@@ -63,7 +63,7 @@ export function MovementList() {
   const [journalId, setJournalId] = useState<string | null>(null);
 
   const handleExport = () => {
-    const rows = data?.data ?? [];
+    const rows: StockMovement[] = data?.data?.data ?? [];
     if (rows.length === 0) return;
 
     const headers = ["Date", "Type", "Product", "Warehouse", "Qty In", "Qty Out", "Balance", "Source", "Reference Type", "Reference ID"];
@@ -223,7 +223,7 @@ export function MovementList() {
           </Alert>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
-          <Button variant="outline" className="cursor-pointer w-full sm:w-auto" onClick={handleExport} disabled={!data?.data?.length}>
+          <Button variant="outline" className="cursor-pointer w-full sm:w-auto" onClick={handleExport} disabled={!movements.length}>
               <Download className="h-4 w-4 mr-2" />
               Export
           </Button>

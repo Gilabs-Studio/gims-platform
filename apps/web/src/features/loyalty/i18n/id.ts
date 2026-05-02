@@ -181,7 +181,7 @@ export const loyaltyId = {
         alreadyMember: "Anda sudah menjadi anggota!",
       },
       error: "Pendaftaran gagal. Silakan coba lagi.",
-      poweredBy: "Powered by GIMS",
+      poweredBy: "Powered by SalesView",
     },
   },
 };

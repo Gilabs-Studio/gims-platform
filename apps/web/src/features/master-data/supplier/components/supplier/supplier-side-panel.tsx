@@ -84,7 +84,7 @@ export function SupplierSidePanel({
   );
   const fullSupplier = detailRes?.data ?? supplier;
 
-  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20 }, { enabled: isOpen });
+  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20, active_only: true }, { enabled: isOpen });
   const supplierTypes = supplierTypesData?.data ?? [];
   const { data: paymentTermsData } = usePaymentTerms({ per_page: 20 }, { enabled: isOpen });
   const paymentTerms = paymentTermsData?.data ?? [];

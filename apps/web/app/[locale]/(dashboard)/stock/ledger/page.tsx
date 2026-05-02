@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "stock_ledger" });
   return {
-    title: `${t("title")} | GIMS`,
+    title: `${t("title")} | SalesView`,
   };
 }
 

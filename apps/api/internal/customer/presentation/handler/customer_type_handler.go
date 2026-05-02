@@ -79,6 +79,12 @@ func (h *CustomerTypeHandler) List(c *gin.Context) {
 		SortDir: c.DefaultQuery("sort_dir", "asc"),
 	}
 
+	if activeOnlyStr := c.Query("active_only"); activeOnlyStr != "" {
+		if activeOnly, err := strconv.ParseBool(activeOnlyStr); err == nil {
+			params.ActiveOnly = &activeOnly
+		}
+	}
+
 	// Parse pagination with max enforcement
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
@@ -113,6 +119,9 @@ func (h *CustomerTypeHandler) List(c *gin.Context) {
 
 	if params.Search != "" {
 		meta.Filters["search"] = params.Search
+	}
+	if params.ActiveOnly != nil {
+		meta.Filters["active_only"] = *params.ActiveOnly
 	}
 
 	response.SuccessResponse(c, results, meta)

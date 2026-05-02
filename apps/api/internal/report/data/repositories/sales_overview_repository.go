@@ -767,19 +767,22 @@ func (r *salesOverviewRepository) GetSalesRepYearlyTarget(ctx context.Context, e
 		return 0, tenantErr
 	}
 
-	// Find target through employee's area assignments
+	// Find target through employee's area assignments, or fall back to global targets (area_id IS NULL)
 	query := `
 		SELECT COALESCE(SUM(yt.total_target), 0)
 		FROM yearly_targets yt
-		INNER JOIN (
-			SELECT DISTINCT area_id
-			FROM employee_areas
-			WHERE employee_id = @employeeID
-		) ea ON ea.area_id = yt.area_id
-		WHERE yt.area_id IS NOT NULL
-			AND yt.year = @year
+		WHERE yt.year = @year
 			AND yt.deleted_at IS NULL
 			AND (@tenantFilter = false OR yt.tenant_id = @tenantID)
+			AND (
+				yt.area_id IS NULL
+				OR yt.area_id IN (
+					SELECT DISTINCT area_id
+					FROM employee_areas
+					WHERE employee_id = @employeeID
+						AND deleted_at IS NULL
+				)
+			)
 	`
 	var target float64
 	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{

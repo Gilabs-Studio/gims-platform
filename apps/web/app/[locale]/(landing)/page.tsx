@@ -252,7 +252,7 @@ export default function LandingPage() {
               <div className="relative aspect-video w-full">
                 <Image
                   src="/screenshot/dashboard.webp"
-                  alt="GIMS Dashboard"
+                  alt="SalesView Dashboard"
                   fill
                   className="object-cover object-top"
                   sizes="(max-width: 1200px) 100vw, 1200px"
@@ -475,7 +475,7 @@ export default function LandingPage() {
                   <div className="h-3 w-3 rounded-full bg-destructive/50" />
                   <div className="h-3 w-3 rounded-full bg-chart-3/50" />
                   <div className="h-3 w-3 rounded-full bg-chart-2/50" />
-                  <span className="ml-3 font-mono text-xs text-muted-foreground">GIMS AI Assistant</span>
+                  <span className="ml-3 font-mono text-xs text-muted-foreground">SalesView AI Assistant</span>
                 </div>
                 <div className="space-y-5 p-6 font-mono text-sm">
                   <div className="space-y-1.5">

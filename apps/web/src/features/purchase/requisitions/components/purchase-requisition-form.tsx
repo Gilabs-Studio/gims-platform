@@ -340,9 +340,8 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		} catch { toast.error(t("toast.failed")); }
 	};
 
-	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = (errs) => {
-		const paths = collectErrorPaths(errs);
-		toast.error(paths.length ? `${t("form.invalid")}: ${paths.join(", ")}` : t("form.invalid"));
+	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = (_errs) => {
+		toast.error(t("form.invalid"));
 	};
 
 	return (
@@ -478,8 +477,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 													isLoading={addDataQuery.isFetching}
 												/>
 											)}
-										/>
-									</Field>
+										/>									{errors.supplier_id && <FieldError>{t("validation.required")}</FieldError>}									</Field>
 
 									<Field orientation="vertical">
 										<FieldLabel>{t("fields.supplierContact") || "Supplier Contact"}</FieldLabel>
@@ -498,7 +496,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 													<SelectContent>
 														{supplierContacts.map((contact) => (
 															<SelectItem key={contact.id} value={contact.id} className="cursor-pointer">
-																{contact.phone}{contact.is_primary ? " - Primary" : ""}
+																{"name" in contact ? contact.name : contact.label ?? contact.phone}{contact.phone ? ` (${contact.phone})` : ""}{contact.is_primary ? " - Primary" : ""}
 															</SelectItem>
 														))}
 													</SelectContent>
@@ -685,6 +683,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<Controller control={control} name={`items.${idx}.quantity`}
 																render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
 															/>
+															{errors.items?.[idx]?.quantity && <FieldError>{t("validation.required")}</FieldError>}
 														</Field>
 
 														<Field orientation="vertical">
@@ -692,13 +691,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<Controller control={control} name={`items.${idx}.purchase_price`}
 																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
 															/>
-														</Field>
-
-														<Field orientation="vertical">
-															<FieldLabel>{t("fields.discount")}</FieldLabel>
-															<Controller control={control} name={`items.${idx}.discount`}
-																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
-															/>
+															{errors.items?.[idx]?.purchase_price && <FieldError>{t("validation.required")}</FieldError>}
 														</Field>
 
 														<Field orientation="vertical" className="col-span-2">
