@@ -83,6 +83,27 @@ func isPublicFeedbackSubmit(method, path string) bool {
 	return method == http.MethodPost && strings.HasPrefix(path, "/api/v1/public/feedback/") && strings.HasSuffix(path, "/submit")
 }
 
+func isPublicAuthEndpoint(path string) bool {
+	// Public auth endpoints don't require CSRF validation because they're accessed
+	// without an established browser session. Client-side CSRF isn't applicable until
+	// after successful login when browser cookies are set.
+	publicAuthPaths := []string{
+		"/api/v1/auth/csrf",
+		"/api/v1/auth/plans",
+		"/api/v1/auth/plans/compute-price",
+		"/api/v1/auth/register",
+		"/api/v1/auth/register/confirm",
+		"/api/v1/auth/coupons/validate",
+		"/api/v1/auth/check-availability",
+	}
+	for _, p := range publicAuthPaths {
+		if path == p {
+			return true
+		}
+	}
+	return false
+}
+
 func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
 	if isCRMLeadUpsertWebhookRequest(c.Request.Method, path) {
 		return true
@@ -90,6 +111,12 @@ func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
 
 	// System admin login/logout uses separate cookie auth flow.
 	if strings.HasPrefix(path, "/internal/sys-login") || strings.HasPrefix(path, "/internal/sys-logout") {
+		return true
+	}
+
+	// Public auth endpoints (registration, plans, csrf token fetch) bypass CSRF
+	// since they're accessed before a session is established.
+	if isPublicAuthEndpoint(path) {
 		return true
 	}
 
