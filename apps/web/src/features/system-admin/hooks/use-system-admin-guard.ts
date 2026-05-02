@@ -27,7 +27,8 @@ export function useSystemAdminGuard() {
           setAdmin({
             id: res.data.id,
             email: res.data.email,
-            name: res.data.email,
+            name: res.data.name || res.data.username || res.data.email,
+            username: res.data.username,
             status: "active",
           });
         } else {

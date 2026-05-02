@@ -214,7 +214,7 @@ export function SystemAdminDashboard() {
               <div className="flex flex-wrap gap-2 pt-2">
                 {TOP_NAV.map((item, index) => (
                   <Badge
-                    key={item}
+                    key={`${item}-${index}`}
                     variant={index === 0 ? "default" : "outline"}
                     className={cn(
                       "rounded-2xl px-4 py-2 text-sm font-medium",
@@ -241,7 +241,7 @@ export function SystemAdminDashboard() {
           <SectionHeading title="Business Health" icon={TrendingUp} />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-            <MetricCard key={card.label} {...card} />
+            <MetricCard key={`${card.label}-${card.note}`} {...card} />
             ))}
           </div>
         </section>
@@ -272,8 +272,9 @@ export function SystemAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tenantRows.map((tenant) => {
+                    {tenantRows.map((tenant, index) => {
                       const isOverviewRow = "tenant_name" in tenant;
+                      const tenantID = "id" in tenant ? tenant.id : "";
                       const name = isOverviewRow ? tenant.tenant_name : tenant.name;
                       const plan = isOverviewRow ? tenant.plan : tenant.plan;
                       const seat = isOverviewRow ? tenant.seat : tenant.max_users;
@@ -283,7 +284,7 @@ export function SystemAdminDashboard() {
                         : tenant.created_at ?? new Date().toISOString();
 
                       return (
-                        <TableRow key={name}>
+                        <TableRow key={tenantID || `${name}-${plan}-${index}`}>
                           <TableCell className="font-medium">{name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="rounded-full border-indigo-200 bg-indigo-50 text-indigo-700">
@@ -418,7 +419,7 @@ function PlanMixCard({ planMix }: { planMix: PlanMixItem[] }) {
           <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">Belum ada data plan mix.</div>
         ) : (
           planMix.slice(0, 3).map((item, index) => (
-            <div key={item.plan} className="space-y-2">
+            <div key={`${item.plan}-${item.label}-${index}`} className="space-y-2">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <div>
                   <div className="font-medium">{item.label}</div>
@@ -466,8 +467,8 @@ function BillingActivityCard({ billingActivity }: { billingActivity?: BillingAct
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between border-b border-border/60 pb-2 last:border-b-0 last:pb-0">
+        {rows.map((row, index) => (
+          <div key={`${row.label}-${index}`} className="flex items-center justify-between border-b border-border/60 pb-2 last:border-b-0 last:pb-0">
             <div className="text-sm text-muted-foreground">{row.label}</div>
             <Badge
               variant={row.tone === "success" ? "success" : row.tone === "danger" ? "destructive" : row.tone === "warning" ? "warning" : "info"}

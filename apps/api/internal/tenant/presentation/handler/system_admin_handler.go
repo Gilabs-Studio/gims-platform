@@ -19,6 +19,62 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+func resolveSystemAdminCookieOptions() (string, http.SameSite, bool) {
+	if config.AppConfig == nil {
+		return "", http.SameSiteLaxMode, true
+	}
+
+	env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+	if env == "production" || env == "prod" {
+		return config.AppConfig.Server.RootDomain, http.SameSiteNoneMode, true
+	}
+
+	return "", http.SameSiteLaxMode, true
+}
+
+func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
+	domain, sameSite, secure := resolveSystemAdminCookieOptions()
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_sys_access_token",
+		Value:    token,
+		Path:     "/internal",
+		Domain:   domain,
+		MaxAge:   maxAge,
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: sameSite,
+	})
+}
+
+func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain string) {
+	_, sameSite, secure := resolveSystemAdminCookieOptions()
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_sys_access_token",
+		Value:    "",
+		Path:     path,
+		Domain:   domain,
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: sameSite,
+	})
+}
+
+func clearSystemAdminAccessTokenCookies(c *gin.Context) {
+	domain, _, _ := resolveSystemAdminCookieOptions()
+	paths := []string{"/internal", "/"}
+	domains := []string{"", domain}
+
+	for _, p := range paths {
+		for _, d := range domains {
+			expireSystemAdminAccessTokenCookie(c, p, d)
+		}
+	}
+}
+
 // SystemAdminHandler handles system admin HTTP requests.
 type SystemAdminHandler struct {
 	sysAdminUC usecase.SystemAdminUsecase
@@ -50,20 +106,20 @@ type dashboardPlanMixRow struct {
 }
 
 type dashboardBillingActivity struct {
-	SuccessCount   int64 `json:"success_count"`
-	FailedRetry    int64 `json:"failed_retry"`
-	RefundProcess  int64 `json:"refund_process"`
-	UpgradePlan    int64 `json:"upgrade_plan"`
-	AddSeat        int64 `json:"add_seat"`
+	SuccessCount  int64 `json:"success_count"`
+	FailedRetry   int64 `json:"failed_retry"`
+	RefundProcess int64 `json:"refund_process"`
+	UpgradePlan   int64 `json:"upgrade_plan"`
+	AddSeat       int64 `json:"add_seat"`
 }
 
 type dashboardSupportSummary struct {
-	OpenTickets    int64   `json:"open_tickets"`
-	SLABreach      int64   `json:"sla_breach"`
-	CSATAverage    float64 `json:"csat_average"`
+	OpenTickets     int64   `json:"open_tickets"`
+	SLABreach       int64   `json:"sla_breach"`
+	CSATAverage     float64 `json:"csat_average"`
 	ActiveIncidents int64   `json:"active_incidents"`
-	TodoNote       string  `json:"todo_note"`
-	IsTodo         bool    `json:"is_todo"`
+	TodoNote        string  `json:"todo_note"`
+	IsTodo          bool    `json:"is_todo"`
 }
 
 type dashboardTenantRow struct {
@@ -76,12 +132,12 @@ type dashboardTenantRow struct {
 }
 
 type dashboardInfrastructureSummary struct {
-	Uptime30DPercent  float64 `json:"uptime_30d_percent"`
-	APILatencyAvgMs   float64 `json:"api_latency_avg_ms"`
-	ErrorRatePercent   float64 `json:"error_rate_percent"`
-	DBSizeBytes       int64   `json:"db_size_bytes"`
-	DBSizeLabel       string  `json:"db_size_label"`
-	ObservationNote   string  `json:"observation_note"`
+	Uptime30DPercent float64 `json:"uptime_30d_percent"`
+	APILatencyAvgMs  float64 `json:"api_latency_avg_ms"`
+	ErrorRatePercent float64 `json:"error_rate_percent"`
+	DBSizeBytes      int64   `json:"db_size_bytes"`
+	DBSizeLabel      string  `json:"db_size_label"`
+	ObservationNote  string  `json:"observation_note"`
 }
 
 type dashboardPaymentRow struct {
@@ -144,16 +200,10 @@ func (h *SystemAdminHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Set HttpOnly cookie for system admin (separate cookie name from tenant)
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_sys_access_token",
-		Value:    loginResp.AccessToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	clearSystemAdminAccessTokenCookies(c)
+	setSystemAdminAccessTokenCookie(c, loginResp.AccessToken, config.AppConfig.JWT.AccessTokenTTL*3600)
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
 
 	// Clear access token from response body
 	loginResp.AccessToken = ""
@@ -164,15 +214,9 @@ func (h *SystemAdminHandler) Login(c *gin.Context) {
 
 // Logout handles system admin logout
 func (h *SystemAdminHandler) Logout(c *gin.Context) {
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_sys_access_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	clearSystemAdminAccessTokenCookies(c)
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
 
 	response.SuccessResponse(c, gin.H{"message": "logged out"}, nil)
 }
@@ -181,15 +225,109 @@ func (h *SystemAdminHandler) Logout(c *gin.Context) {
 func (h *SystemAdminHandler) Me(c *gin.Context) {
 	adminID, _ := c.Get("user_id")
 	adminEmail, _ := c.Get("user_email")
+	adminName, _ := c.Get("user_name")
 
 	id, _ := adminID.(string)
 	email, _ := adminEmail.(string)
+	name, _ := adminName.(string)
+	if strings.TrimSpace(name) == "" {
+		name = email
+	}
 
 	response.SuccessResponse(c, gin.H{
-		"id":    id,
-		"email": email,
-		"role":  "system_admin",
+		"id":       id,
+		"email":    email,
+		"name":     name,
+		"username": name,
+		"role":     "system_admin",
 	}, nil)
+}
+
+// UpdateProfile updates system admin username/email.
+func (h *SystemAdminHandler) UpdateProfile(c *gin.Context) {
+	adminID, _ := c.Get("user_id")
+	id, _ := adminID.(string)
+	if strings.TrimSpace(id) == "" {
+		errors.UnauthorizedResponse(c, "token missing")
+		return
+	}
+
+	var req dto.SystemAdminUpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	updated, err := h.sysAdminUC.UpdateProfile(c.Request.Context(), id, &req)
+	if err != nil {
+		switch err {
+		case usecase.ErrSysAdminNotFound:
+			errors.NotFoundResponse(c, "system admin", id)
+		case usecase.ErrSysAdminEmailAlreadyTaken:
+			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", nil, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	response.SuccessResponse(c, updated, nil)
+}
+
+// ChangePassword changes the current system admin password.
+func (h *SystemAdminHandler) ChangePassword(c *gin.Context) {
+	adminID, _ := c.Get("user_id")
+	id, _ := adminID.(string)
+	if strings.TrimSpace(id) == "" {
+		errors.UnauthorizedResponse(c, "token missing")
+		return
+	}
+
+	var req dto.SystemAdminChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if strings.TrimSpace(req.CurrentPassword) == strings.TrimSpace(req.NewPassword) {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", nil, []response.FieldError{
+			{
+				Field:   "new_password",
+				Code:    "SAME_AS_CURRENT",
+				Message: "new password must be different from current password",
+			},
+		})
+		return
+	}
+
+	err := h.sysAdminUC.ChangePassword(c.Request.Context(), id, &req)
+	if err != nil {
+		switch err {
+		case usecase.ErrSysAdminNotFound:
+			errors.NotFoundResponse(c, "system admin", id)
+		case usecase.ErrSysAdminInvalidCredentials:
+			errors.ErrorResponse(c, "INVALID_CREDENTIALS", nil, []response.FieldError{
+				{
+					Field:   "current_password",
+					Code:    "INVALID_CURRENT_PASSWORD",
+					Message: "current password is invalid",
+				},
+			})
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"message": "password updated"}, nil)
 }
 
 // ListTenants returns all tenants with pagination and search (system admin only)
@@ -238,18 +376,18 @@ func (h *SystemAdminHandler) Dashboard(c *gin.Context) {
 	businessHealth, planMix, billingActivity, supportSummary, tenantOverview, infrastructure := h.loadDashboardSummary(c.Request.Context(), tenants)
 
 	response.SuccessResponse(c, gin.H{
-		"total_tenants":          len(tenants),
-		"tenants":                tenants,
-		"business_health":        businessHealth,
-		"plan_mix":               planMix,
-		"billing_activity":       billingActivity,
-		"support_incidents":      supportSummary,
-		"tenant_overview":           tenantOverview,
+		"total_tenants":              len(tenants),
+		"tenants":                    tenants,
+		"business_health":            businessHealth,
+		"plan_mix":                   planMix,
+		"billing_activity":           billingActivity,
+		"support_incidents":          supportSummary,
+		"tenant_overview":            tenantOverview,
 		"infrastructure_performance": infrastructure,
 	}, nil)
 }
 
-	func (h *SystemAdminHandler) loadDashboardSummary(ctx context.Context, tenants []dto.TenantListResponse) (dashboardBusinessHealth, []dashboardPlanMixRow, dashboardBillingActivity, dashboardSupportSummary, []dashboardTenantRow, dashboardInfrastructureSummary) {
+func (h *SystemAdminHandler) loadDashboardSummary(ctx context.Context, tenants []dto.TenantListResponse) (dashboardBusinessHealth, []dashboardPlanMixRow, dashboardBillingActivity, dashboardSupportSummary, []dashboardTenantRow, dashboardInfrastructureSummary) {
 	now := time.Now()
 	thirtyDaysAgo := now.AddDate(0, 0, -30)
 	previousThirtyDaysAgo := now.AddDate(0, 0, -60)
@@ -483,7 +621,7 @@ func (h *SystemAdminHandler) loadInfrastructureSummary(ctx context.Context) dash
 	return dashboardInfrastructureSummary{
 		Uptime30DPercent: uptimePercentFromMetrics(metrics),
 		APILatencyAvgMs:  metrics.AvgDurationMs,
-		ErrorRatePercent:  errorRatePercentFromMetrics(metrics),
+		ErrorRatePercent: errorRatePercentFromMetrics(metrics),
 		DBSizeBytes:      dbSizeBytes,
 		DBSizeLabel:      humanizeBytes(dbSizeBytes),
 		ObservationNote:  "Live metrics from request middleware and PostgreSQL storage size.",

@@ -110,8 +110,8 @@ func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
 		return true
 	}
 
-	// System admin login/logout uses separate cookie auth flow.
-	if strings.HasPrefix(path, "/internal/sys-login") || strings.HasPrefix(path, "/internal/sys-logout") {
+	// System admin login is pre-session and does not require CSRF.
+	if strings.HasPrefix(path, "/internal/sys-login") {
 		return true
 	}
 
