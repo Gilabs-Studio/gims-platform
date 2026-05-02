@@ -10,6 +10,10 @@ import type {
   SystemAdminLoginRequest,
   SystemAdminLoginResponse,
   SystemAdminMeResponse,
+  SystemAdminUpdateProfileRequest,
+  SystemAdminUpdateProfileResponse,
+  SystemAdminChangePasswordRequest,
+  SystemAdminChangePasswordResponse,
   SystemAdminDashboardResponse,
   TenantListResponse,
   TenantDetailResponse,
@@ -201,6 +205,26 @@ export const systemAdminService = {
 
   async me(): Promise<SystemAdminMeResponse> {
     const { data } = await sysAdminClient.get<SystemAdminMeResponse>("/me");
+    return data;
+  },
+
+  async updateProfile(
+    payload: SystemAdminUpdateProfileRequest,
+  ): Promise<SystemAdminUpdateProfileResponse> {
+    const { data } = await sysAdminClient.patch<SystemAdminUpdateProfileResponse>(
+      "/me",
+      payload,
+    );
+    return data;
+  },
+
+  async changePassword(
+    payload: SystemAdminChangePasswordRequest,
+  ): Promise<SystemAdminChangePasswordResponse> {
+    const { data } = await sysAdminClient.patch<SystemAdminChangePasswordResponse>(
+      "/me/password",
+      payload,
+    );
     return data;
   },
 

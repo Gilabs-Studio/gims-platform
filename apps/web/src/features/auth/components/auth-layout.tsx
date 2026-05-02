@@ -35,7 +35,7 @@ export function AuthLayout({ children, compact = false }: AuthLayoutProps) {
         <div className="relative h-full w-full overflow-hidden rounded-lg shadow-lg">
           <Image
             src={bgImageSrc}
-            alt="GIMS Platform"
+            alt="SalesView Platform"
             fill
             className="object-cover"
             priority

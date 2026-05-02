@@ -5,7 +5,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { StockMovementForm } from "@/features/stock/stock-movement/components/stock-movement-form";
 
 export const metadata: Metadata = {
-  title: "Create Stock Movement | GIMS",
+  title: "Create Stock Movement | SalesView",
   description: "Create a new manual stock movement",
 };
 

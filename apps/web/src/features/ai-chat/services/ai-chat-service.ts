@@ -116,7 +116,7 @@ export const aiChatService = {
     );
 
     return {
-      source: "gims-ai-devkit",
+      source: "salesview-ai-devkit",
       exported_at: new Date().toISOString(),
       session_count: details.length,
       sessions: details,

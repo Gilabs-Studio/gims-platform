@@ -33,7 +33,7 @@ export function emitAuthTelemetry(
 ): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(
-      new CustomEvent("gims:auth-telemetry", {
+      new CustomEvent("salesview:auth-telemetry", {
         detail: {
           event,
           details,
@@ -253,7 +253,7 @@ export function getCSRFToken(): string | null {
   if (memoryCsrfToken) return memoryCsrfToken;
   if (typeof document === "undefined") return null;
   // Fallback to cookie if same-origin scenario
-  const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)salesview_csrf_token=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 

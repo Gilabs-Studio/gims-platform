@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /** Read CSRF token from cookie (same as api-client). Required for POST to API when CSRF is enabled. */
 function getCSRFToken(): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)salesview_csrf_token=([^;]*)/);;
   return match ? decodeURIComponent(match[1]) : null;
 }
 

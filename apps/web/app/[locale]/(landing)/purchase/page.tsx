@@ -2,19 +2,22 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi Procurement & Purchase Terbaik | GIMS` 
-    : `Best Procurement & Purchase Software | GIMS`;
+    ? `Aplikasi Procurement & Purchase Terbaik | SalesView` 
+    : `Best Procurement & Purchase Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Pesan inventaris otomatis. Pantau purchase order, permintaan pembelian, dan integrasi penagihan dengan alur supplier otomatis.`
     : `Order inventory automatically. Track purchase orders, requisitions, and vendor billing via automatic flows.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/purchase",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Aplikasi Procurement Indonesia`, 
       `Sistem Purchase Order`,
       `B2B Procurement System`
-    ]
-  };
+    ],
+    imageAlt: "SalesView purchase and procurement overview",
+  });
 }
 
 export default async function PurchaseLandingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -33,7 +37,7 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/purchase#business`,
+    "@id": `https://salesview.id/${locale}/purchase#business`,
     "name": locale === 'id' ? "Sistem Procurement Terbaik" : "Best Procurement System",
     // Base localized schemas logic identically applied
     "applicationCategory": "BusinessApplication",
@@ -52,7 +56,7 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/purchase`,
+    "url": `https://salesview.id/${locale}/purchase`,
     "telephone": "+628111222333"
   };
 
@@ -64,7 +68,7 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Purchase
+            SalesView Purchase
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Pengadaan Barang` : `Smart Procurement`}

@@ -20,7 +20,7 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "stock_opname" });
   return {
-    title: t("detail.title") + " | GIMS",
+    title: t("detail.title") + " | SalesView",
   };
 }
 

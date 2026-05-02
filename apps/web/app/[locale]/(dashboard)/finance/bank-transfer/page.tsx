@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: GenerateMetadataProps): Promi
   const t = await getTranslations({ locale, namespace: "financeBankTransfer" });
 
   return {
-    title: `${t("title")} | GIMS`,
+    title: `${t("title")} | SalesView`,
     description: t("description"),
   };
 }

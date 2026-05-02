@@ -2,19 +2,22 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Software HRIS & Payroll Terbaik | GIMS` 
-    : `Best HRIS & Payroll Software | GIMS`;
+    ? `Software HRIS & Payroll Terbaik | SalesView` 
+    : `Best HRIS & Payroll Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Manajemen SDM dan Payroll otomatis tanpa sakit kepala. Kelola kehadiran, cuti, dan evaluasi dalam satu platform sentral.`
     : `Automated HR and Payroll management without the headaches. Handle attendance, leave drops, and evaluations centrally.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/solutions/hrd",
     title,
     description: desc,
     keywords: [
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Sistem Payroll Indonesia`, 
       `Software Absensi Karyawan`,
       `HR Management Software`
-    ]
-  };
+    ],
+    imageAlt: "SalesView HRIS and payroll overview",
+  });
 }
 
 export default async function HrdLandingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -33,7 +37,7 @@ export default async function HrdLandingPage({ params }: { params: Promise<{ loc
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/solutions/hrd#business`,
+    "@id": `https://salesview.id/${locale}/solutions/hrd#business`,
     "name": locale === 'id' ? "Sistem HRIS Terbaik" : "Best HRIS System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -51,7 +55,7 @@ export default async function HrdLandingPage({ params }: { params: Promise<{ loc
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/solutions/hrd`,
+    "url": `https://salesview.id/${locale}/solutions/hrd`,
     "telephone": "+628111222333"
   };
 
@@ -63,7 +67,7 @@ export default async function HrdLandingPage({ params }: { params: Promise<{ loc
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS HRD
+            SalesView HRD
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Sumber Daya Manusia,` : `Human Resources,`}
