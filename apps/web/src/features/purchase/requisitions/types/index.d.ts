@@ -135,7 +135,8 @@ export interface PurchaseRequisitionAddProduct {
 
 export interface PurchaseRequisitionAddSupplierContact {
   id: string;
-  phone: string;
+  name: string;
+  phone_number: string;
   label?: string;
   is_primary: boolean;
 }

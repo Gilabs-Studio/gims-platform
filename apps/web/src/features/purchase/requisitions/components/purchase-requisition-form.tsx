@@ -44,6 +44,12 @@ import {
 	type PurchaseRequisitionFormData,
 } from "../schemas/purchase-requisition.schema";
 import {
+	applyPurchaseFormErrors,
+	extractPurchaseFieldErrors,
+	getPurchaseErrorMessage,
+	getPurchaseFieldLabel,
+} from "@/features/purchase/utils/error-utils";
+import {
 	useCreatePurchaseRequisition,
 	usePurchaseRequisition,
 	useUpdatePurchaseRequisition,
@@ -96,6 +102,27 @@ function collectErrorPaths(errs: FieldErrors, prefix = ""): string[] {
 	return Array.from(new Set(out));
 }
 
+function getContactDisplayName(contact: Record<string, unknown>): string {
+	const name = typeof contact.name === "string" ? contact.name.trim() : "";
+	if (name) return name;
+	const label = typeof contact.label === "string" ? contact.label.trim() : "";
+	if (label) return label;
+	const position = typeof contact.position === "string" ? contact.position.trim() : "";
+	if (position) return position;
+	const phoneNumber = typeof contact.phone_number === "string" ? contact.phone_number.trim() : "";
+	if (phoneNumber) return phoneNumber;
+	const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
+	if (phone) return phone;
+	return "-";
+}
+
+function getContactPhone(contact: Record<string, unknown>): string {
+	const phoneNumber = typeof contact.phone_number === "string" ? contact.phone_number.trim() : "";
+	if (phoneNumber) return phoneNumber;
+	const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
+	return phone;
+}
+
 type QuickCreateType = "supplier" | "paymentTerm" | "businessUnit" | "employee" | "product" | null;
 
 interface PurchaseRequisitionFormProps {
@@ -134,7 +161,9 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		register,
 		handleSubmit,
 		control,
+		getFieldState,
 		reset,
+		setError,
 		setValue,
 		trigger,
 		formState: { errors },
@@ -293,6 +322,36 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		return formatCurrency(value ?? 0);
 	}, []);
 
+	const fieldLabels = useMemo<Record<string, string>>(() => ({
+		supplier_id: t("fields.supplier"),
+		payment_terms_id: t("fields.paymentTerms"),
+		request_date: t("fields.requestDate"),
+		"items.*.product_id": t("fields.product"),
+		"items.*.quantity": t("fields.quantity"),
+		"items.*.purchase_price": t("fields.purchasePrice"),
+	}), [t]);
+
+	const openTabForPaths = useCallback((paths: string[]) => {
+		if (paths.some((path) => path.startsWith("items"))) {
+			setActiveTab("items");
+			return;
+		}
+
+		setActiveTab("basic");
+	}, []);
+
+	const showInvalidToast = useCallback((paths: string[]) => {
+		if (paths.length === 0) {
+			toast.error(t("form.invalid"));
+			return;
+		}
+
+		const labels = Array.from(
+			new Set(paths.map((path) => getPurchaseFieldLabel(path, fieldLabels))),
+		);
+		toast.error(`${t("form.invalid")}: ${labels.join(", ")}`);
+	}, [fieldLabels, t]);
+
 	const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
 		setValue("supplier_id", item.id); closeQuickCreate();
 	}, [setValue, closeQuickCreate]);
@@ -313,10 +372,16 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
 	const handleNext = async () => {
-		const isValid = await trigger(["supplier_id", "request_date"]);
+		const fieldsToValidate: Array<keyof PurchaseRequisitionFormData> = ["supplier_id", "payment_terms_id", "request_date"];
+		const isValid = await trigger(fieldsToValidate);
 		if (isValid) {
 			setActiveTab("items");
+			return;
 		}
+
+		const invalidFields = fieldsToValidate.filter((fieldName) => getFieldState(fieldName).invalid);
+		openTabForPaths(invalidFields.map((fieldName) => String(fieldName)));
+		showInvalidToast(invalidFields.map((fieldName) => String(fieldName)));
 	};
 
 	const onSubmit = async (formData: PurchaseRequisitionFormData) => {
@@ -337,11 +402,31 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 				toast.success(t("toast.created"));
 			}
 			onClose();
-		} catch { toast.error(t("toast.failed")); }
+		} catch (error) {
+			const hasFieldErrors = applyPurchaseFormErrors<PurchaseRequisitionFormData>(
+				error,
+				setError,
+				fieldLabels,
+				t("validation.required"),
+			);
+
+			if (hasFieldErrors) {
+				const paths = extractPurchaseFieldErrors(error)
+					.map((fieldError) => fieldError.field?.trim())
+					.filter((field): field is string => Boolean(field));
+				openTabForPaths(paths);
+				showInvalidToast(paths);
+				return;
+			}
+
+			toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
+		}
 	};
 
-	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = (_errs) => {
-		toast.error(t("form.invalid"));
+	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = (formErrors) => {
+		const paths = collectErrorPaths(formErrors);
+		openTabForPaths(paths);
+		showInvalidToast(paths);
 	};
 
 	return (
@@ -412,6 +497,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														<Calendar
 															mode="single"
 															selected={field.value ? new Date(field.value) : undefined}
+															disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
 															onSelect={(date: Date | undefined) => {
 																field.onChange(date ? date.toISOString().slice(0, 10) : "");
 																setRequestDateOpen(false);
@@ -421,7 +507,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												</Popover>
 											)}
 										/>
-										{errors.request_date && <FieldError>{t("validation.required")}</FieldError>}
+										{errors.request_date && <FieldError>{errors.request_date.message ?? t("validation.required")}</FieldError>}
 									</Field>
 										</div>
 									</div>
@@ -494,11 +580,19 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 														<SelectValue placeholder={t("placeholders.select")} />
 													</SelectTrigger>
 													<SelectContent>
-														{supplierContacts.map((contact) => (
-															<SelectItem key={contact.id} value={contact.id} className="cursor-pointer">
-																{"name" in contact ? contact.name : contact.label ?? contact.phone}{contact.phone ? ` (${contact.phone})` : ""}{contact.is_primary ? " - Primary" : ""}
-															</SelectItem>
-														))}
+														{supplierContacts.map((contact) => {
+															const contactRecord = contact as unknown as Record<string, unknown>;
+															const displayName = getContactDisplayName(contactRecord);
+															const phone = getContactPhone(contactRecord);
+
+															return (
+																<SelectItem key={contact.id} value={contact.id} className="cursor-pointer">
+																	{displayName}
+																	{phone ? ` (${phone})` : ""}
+																	{contact.is_primary ? " - Primary" : ""}
+																</SelectItem>
+															);
+														})}
 													</SelectContent>
 												</Select>
 											)}
@@ -527,6 +621,9 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												/>
 											)}
 										/>
+										{errors.payment_terms_id && (
+											<FieldError>{errors.payment_terms_id.message ?? t("validation.required")}</FieldError>
+										)}
 									</Field>
 
 									<Field orientation="vertical">

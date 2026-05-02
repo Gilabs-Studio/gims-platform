@@ -15,19 +15,20 @@ type PurchaseRequisitionAddProduct struct {
 
 type PurchaseRequisitionAddSupplierContact struct {
 	ID          string `json:"id"`
+	Name        string `json:"name"`
 	PhoneNumber string `json:"phone_number"`
 	Label       string `json:"label"`
 	IsPrimary   bool   `json:"is_primary"`
 }
 
 type PurchaseRequisitionAddSupplier struct {
-	ID             string                                      `json:"id"`
-	Code           string                                      `json:"code"`
-	Name           string                                      `json:"name"`
-	PaymentTermsID *string                                     `json:"payment_terms_id"`
-	BusinessUnitID *string                                     `json:"business_unit_id"`
-	Contacts   []PurchaseRequisitionAddSupplierContact `json:"contacts"`
-	Products       []PurchaseRequisitionAddProduct             `json:"products"`
+	ID             string                                  `json:"id"`
+	Code           string                                  `json:"code"`
+	Name           string                                  `json:"name"`
+	PaymentTermsID *string                                 `json:"payment_terms_id"`
+	BusinessUnitID *string                                 `json:"business_unit_id"`
+	Contacts       []PurchaseRequisitionAddSupplierContact `json:"contacts"`
+	Products       []PurchaseRequisitionAddProduct         `json:"products"`
 }
 
 type PurchaseRequisitionAddPaymentTerms struct {

@@ -47,6 +47,12 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { productService } from "@/features/master-data/product/services/product-service";
 import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
 import type { PurchaseOrderAddSupplierContact } from "../types";
+import {
+  applyPurchaseFormErrors,
+  extractPurchaseFieldErrors,
+  getPurchaseErrorMessage,
+  getPurchaseFieldLabel,
+} from "@/features/purchase/utils/error-utils";
 
 type ProductOption = { id: string; code?: string; name: string; cost_price?: number };
 
@@ -170,6 +176,8 @@ export function PurchaseOrderForm({
     register,
     handleSubmit,
     control,
+    getFieldState,
+    setError,
     setValue,
     reset,
     watch,
@@ -364,6 +372,35 @@ export function PurchaseOrderForm({
   const isProductOptionsLoading =
     shouldLoadProductOptions && productCombobox.isLoading;
 
+  const fieldLabels = useMemo<Record<string, string>>(() => ({
+    supplier_id: t("fields.supplier"),
+    order_date: t("fields.orderDate"),
+    purchase_requisitions_id: t("fields.purchaseRequisitionId"),
+    sales_order_id: t("fields.salesOrderId"),
+    "items.*.product_id": t("items.fields.product"),
+    "items.*.quantity": t("items.fields.quantity"),
+    "items.*.price": t("items.fields.price"),
+  }), [t]);
+
+  const openTabForPaths = useCallback((paths: string[]) => {
+    if (paths.some((path) => path.startsWith("items"))) {
+      setActiveTab("items");
+      return;
+    }
+
+    setActiveTab("basic");
+  }, []);
+
+  const showInvalidToast = useCallback((paths: string[]) => {
+    if (paths.length === 0) {
+      toast.error(t("form.invalid"));
+      return;
+    }
+
+    const labels = Array.from(new Set(paths.map((path) => getPurchaseFieldLabel(path, fieldLabels))));
+    toast.error(`${t("form.invalid")}: ${labels.join(", ")}`);
+  }, [fieldLabels, t]);
+
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });
     closeQuickCreate();
@@ -428,13 +465,31 @@ export function PurchaseOrderForm({
         toast.success(t("toast.created"));
       }
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      const hasFieldErrors = applyPurchaseFormErrors<PurchaseOrderFormData>(
+        error,
+        setError,
+        fieldLabels,
+        t("validation.required"),
+      );
+
+      if (hasFieldErrors) {
+        const paths = extractPurchaseFieldErrors(error)
+          .map((fieldError) => fieldError.field?.trim())
+          .filter((field): field is string => Boolean(field));
+        openTabForPaths(paths);
+        showInvalidToast(paths);
+        return;
+      }
+
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
-  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (_errs) => {
-    toast.error(t("form.invalid"));
+  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (formErrors) => {
+    const paths = collectErrorPaths(formErrors);
+    openTabForPaths(paths);
+    showInvalidToast(paths);
   };
 
   const subtotal = useMemo(() =>
@@ -463,19 +518,10 @@ export function PurchaseOrderForm({
     if (isValid) {
       setActiveTab("items");
     } else {
-        const fieldNameMap: Record<string, string> = {
-        order_date: t("fields.orderDate") || "Order Date",
-        purchase_requisitions_id: t("fields.purchaseRequisitionId") || "Purchase Requisition ID",
-        sales_order_id: t("fields.salesOrderId") || "Sales Order ID",
-      };
-      const fieldNames = fieldsToValidate
-        .filter((f) => errors[f])
-        .map((f) => fieldNameMap[f] || f);
-      toast.error(
-        fieldNames.length
-          ? `${t("validation.required") || "Required"}: ${fieldNames.join(", ")}`
-          : t("validation.required") || "Please fill all required fields"
-      );
+      const invalidFields = fieldsToValidate.filter((fieldName) => getFieldState(fieldName).invalid);
+      const invalidPaths = invalidFields.map((fieldName) => String(fieldName));
+      openTabForPaths(invalidPaths);
+      showInvalidToast(invalidPaths);
     }
   };
 
@@ -742,6 +788,7 @@ export function PurchaseOrderForm({
                       />
                     )}
                   />
+                  {errors.supplier_id && <FieldError>{errors.supplier_id.message ?? t("validation.required")}</FieldError>}
                 </Field>
 
                 <Field orientation="vertical">
@@ -948,6 +995,7 @@ export function PurchaseOrderForm({
                               <Controller control={control} name={`items.${idx}.quantity`}
                                 render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
                               />
+                              {errors.items?.[idx]?.quantity && <FieldError>{errors.items[idx]?.quantity?.message ?? t("validation.required")}</FieldError>}
                             </Field>
 
                             <Field orientation="vertical">
@@ -955,6 +1003,7 @@ export function PurchaseOrderForm({
                               <Controller control={control} name={`items.${idx}.price`}
                                 render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
                               />
+                              {errors.items?.[idx]?.price && <FieldError>{errors.items[idx]?.price?.message ?? t("validation.required")}</FieldError>}
                             </Field>
 
                             <Field orientation="vertical">

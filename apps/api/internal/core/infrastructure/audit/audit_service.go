@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/data/models"
@@ -55,23 +56,23 @@ func (s *databaseAuditService) LogWithChangesFull(ctx context.Context, action st
 		userAgent = fmt.Sprintf("%v", v)
 	}
 
-	// Permission Code is often "resource.action". 
+	// Permission Code is often "resource.action".
 	// We can infer it or pass it. Using action as PermissionCode for now.
-	
+
 	if metadata == nil {
 		metadata = map[string]interface{}{}
 	}
 
 	metaJSON, _ := json.Marshal(metadata)
-	
-	var changesStr string
+
+	changesStr := "null"
 	if changes != nil {
 		if cBytes, err := json.Marshal(changes); err == nil {
 			changesStr = string(cBytes)
 		}
 	}
 
-	log := &models.AuditLog{
+	auditLog := &models.AuditLog{
 		ActorID:        actorID,
 		PermissionCode: action, // Using action name as permission code ref
 		TargetID:       targetID,
@@ -88,5 +89,7 @@ func (s *databaseAuditService) LogWithChangesFull(ctx context.Context, action st
 	// Synchronous write to ensure audit trail consistency.
 	// Use a background context to avoid request cancellation dropping audit entries.
 	dbCtx := context.Background()
-	s.db.WithContext(dbCtx).Create(log)
+	if err := s.db.WithContext(dbCtx).Create(auditLog).Error; err != nil {
+		log.Printf("[audit] failed to write audit log: action=%s target_id=%s err=%v", action, targetID, err)
+	}
 }

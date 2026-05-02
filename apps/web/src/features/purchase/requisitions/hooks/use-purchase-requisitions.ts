@@ -15,7 +15,16 @@ export const purchaseRequisitionKeys = {
     [...purchaseRequisitionKeys.lists(), params] as const,
   details: () => [...purchaseRequisitionKeys.all, "detail"] as const,
   detail: (id: string) => [...purchaseRequisitionKeys.details(), id] as const,
+  auditTrails: () => [...purchaseRequisitionKeys.all, "audit-trail"] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...purchaseRequisitionKeys.auditTrails(), id, params] as const,
 };
+
+function invalidateRequisitionAuditTrail(queryClient: ReturnType<typeof useQueryClient>, id: string) {
+  queryClient.invalidateQueries({
+    queryKey: [...purchaseRequisitionKeys.auditTrails(), id],
+  });
+}
 
 export function usePurchaseRequisitions(
   params?: PurchaseRequisitionListParams,
@@ -42,10 +51,14 @@ export function useCreatePurchaseRequisition() {
   return useMutation({
     mutationFn: (data: CreatePurchaseRequisitionInput) =>
       purchaseRequisitionsService.create(data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
         queryKey: purchaseRequisitionKeys.lists(),
       });
+      const createdID = response?.data?.id;
+      if (createdID) {
+        invalidateRequisitionAuditTrail(queryClient, createdID);
+      }
     },
   });
 }
@@ -61,6 +74,7 @@ export function useUpdatePurchaseRequisition() {
       queryClient.invalidateQueries({
         queryKey: purchaseRequisitionKeys.detail(variables.id),
       });
+      invalidateRequisitionAuditTrail(queryClient, variables.id);
     },
   });
 }
@@ -70,10 +84,11 @@ export function useDeletePurchaseRequisition() {
 
   return useMutation({
     mutationFn: (id: string) => purchaseRequisitionsService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({
         queryKey: purchaseRequisitionKeys.lists(),
       });
+      invalidateRequisitionAuditTrail(queryClient, id);
     },
   });
 }
@@ -95,6 +110,7 @@ export function useApprovePurchaseRequisition() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
+      invalidateRequisitionAuditTrail(queryClient, id);
     },
   });
 }
@@ -106,6 +122,7 @@ export function useRejectPurchaseRequisition() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
+      invalidateRequisitionAuditTrail(queryClient, id);
     },
   });
 }
@@ -117,6 +134,7 @@ export function useSubmitPurchaseRequisition() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
+      invalidateRequisitionAuditTrail(queryClient, id);
     },
   });
 }
@@ -128,6 +146,7 @@ export function useConvertPurchaseRequisition() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
+      invalidateRequisitionAuditTrail(queryClient, id);
     },
   });
 }
@@ -138,7 +157,7 @@ export function usePurchaseRequisitionAuditTrail(
   options?: { enabled?: boolean },
 ) {
   return useQuery({
-    queryKey: [...purchaseRequisitionKeys.all, "audit-trail", id, params] as const,
+    queryKey: purchaseRequisitionKeys.auditTrail(id, params),
     queryFn: () => purchaseRequisitionsService.auditTrail(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
