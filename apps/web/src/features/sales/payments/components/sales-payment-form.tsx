@@ -140,7 +140,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     queryKey: ["sales-payment", "bank-account-options"],
     enabled: open && method === "BANK",
     lazyLoad: true,
-    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true }),
+    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true, owner_type: "company" }),
     mapOption: (acc) => ({
       value: acc.id,
       label: `${acc.name} - ${acc.account_number}`,

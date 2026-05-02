@@ -793,7 +793,11 @@ func (uc *salesPaymentUsecase) prepareConfirmSalesPayment(
 }
 
 func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error {
-	if status == models.CustomerInvoiceStatusApproved || status == models.CustomerInvoiceStatusUnpaid || status == models.CustomerInvoiceStatusPartial || status == models.CustomerInvoiceStatusWaitingPayment {
+	if status == models.CustomerInvoiceStatusApproved ||
+		status == models.CustomerInvoiceStatusUnpaid ||
+		status == models.CustomerInvoiceStatusPartial ||
+		status == models.CustomerInvoiceStatusWaitingPayment ||
+		status == models.CustomerInvoiceStatusOverdue {
 		return nil
 	}
 

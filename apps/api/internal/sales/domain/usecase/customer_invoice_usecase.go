@@ -229,7 +229,9 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		Status:               models.CustomerInvoiceStatusDraft,
 		CreatedBy:            createdBy,
 	}
-	applyInvoiceDueDate(invoice, req.DueDate)
+	if err := applyInvoiceDueDate(invoice, req.DueDate); err != nil {
+		return nil, err
+	}
 
 	items, subtotal, err := uc.buildCreateInvoiceItems(ctx, req, soItemMap)
 	if err != nil {
@@ -280,15 +282,17 @@ func parseCustomerInvoiceType(raw string) models.CustomerInvoiceType {
 	return models.CustomerInvoiceType(raw)
 }
 
-func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) {
+func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) error {
 	if invoice == nil || dueDateRaw == nil || strings.TrimSpace(*dueDateRaw) == "" {
-		return
+		return fmt.Errorf("due_date is required")
 	}
 
 	dueDate, err := time.Parse(dateFormat, *dueDateRaw)
-	if err == nil {
-		invoice.DueDate = &dueDate
+	if err != nil {
+		return fmt.Errorf("invalid due_date format, expected YYYY-MM-DD")
 	}
+	invoice.DueDate = &dueDate
+	return nil
 }
 
 func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(

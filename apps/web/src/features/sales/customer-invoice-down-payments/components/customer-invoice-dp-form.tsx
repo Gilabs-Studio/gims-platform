@@ -194,7 +194,12 @@ export function CustomerInvoiceDPFormDialog({
       let attachmentUrl = values.attachment_url ?? null;
       if (attachments.length > 0) {
         const uploadResult = await customerInvoiceDPService.uploadAttachment(attachments[0]);
-        attachmentUrl = uploadResult.data?.url ?? null;
+        const uploadedUrl = uploadResult.data?.url;
+        if (!uploadedUrl) {
+          toast.error(t("toast.uploadFailed") || "Attachment upload failed. Please try again.");
+          return;
+        }
+        attachmentUrl = uploadedUrl;
       }
 
       const payload: CustomerInvoiceDPFormData = {
@@ -457,6 +462,33 @@ export function CustomerInvoiceDPFormDialog({
             </p>
 
             <div className="space-y-2">
+              {/* Show existing attachment in edit mode when no new file is selected */}
+              {isEdit && form.watch("attachment_url") && attachments.length === 0 ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded border bg-muted/20">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <a
+                      href={form.watch("attachment_url") ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm truncate text-primary hover:underline"
+                    >
+                      {form.watch("attachment_url")?.split("/").pop() ?? "attachment"}
+                    </a>
+                    <span className="text-xs text-muted-foreground shrink-0">(existing)</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 cursor-pointer text-destructive hover:text-destructive"
+                    onClick={() => form.setValue("attachment_url", null)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : null}
+
               {attachments.map((file, idx) => (
                 <div key={`${file.name}-${idx}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded border bg-muted/20">
                   <div className="flex items-center gap-2 min-w-0">

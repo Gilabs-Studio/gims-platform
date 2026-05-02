@@ -625,6 +625,10 @@ func (uc *customerInvoiceDownPaymentUsecase) updateDraftDownPaymentInTx(
 		return nil, ErrCustomerInvoiceInvalid
 	}
 
+	if req.Amount > so.TotalAmount {
+		return nil, fmt.Errorf("down payment amount cannot exceed sales order total")
+	}
+
 	notes := ""
 	if req.Notes != nil {
 		notes = *req.Notes
