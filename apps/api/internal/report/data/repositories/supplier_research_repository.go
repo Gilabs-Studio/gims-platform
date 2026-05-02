@@ -384,11 +384,12 @@ func (r *supplierResearchRepository) listAnalytics(ctx context.Context, params S
 }
 
 func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams, tenantID string, tenantFilter bool) (string, map[string]interface{}) {
+	search := strings.TrimSpace(params.Search)
 	queryParams := withReportTenantParams(map[string]interface{}{
 		"startDate":      params.StartDate.Format("2006-01-02"),
 		"endDate":        params.EndDate.Format("2006-01-02"),
-		"search":         strings.TrimSpace(params.Search),
-		"searchPrefix":   "%" + strings.TrimSpace(params.Search) + "%",
+		"hasSearch":      search != "",
+		"searchPrefix":   "%" + escapeLikePattern(search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
 		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
 		"minFilter":      params.MinPurchaseValue > 0,
@@ -462,7 +463,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams, tenant
 		WHERE s.deleted_at IS NULL
 			AND (@tenantFilter = false OR s.tenant_id = @tenantID)
 			AND s.is_active = true
-			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
+			AND (NOT @hasSearch OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
 			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(string_to_array(@categoryIDsCSV, ',')))
 			AND (@minFilter = false OR COALESCE(inv.total_purchase_value, 0) >= @minValue)
 			AND (@maxFilter = false OR COALESCE(inv.total_purchase_value, 0) <= @maxValue)
@@ -486,4 +487,12 @@ func cleanCategoryIDs(categoryIDs []string) []string {
 
 	slices.Sort(cleaned)
 	return slices.Compact(cleaned)
+}
+
+// escapeLikePattern escapes PostgreSQL LIKE/ILIKE metacharacters in the search term (#295).
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
