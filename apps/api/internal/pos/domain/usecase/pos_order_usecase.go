@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -12,6 +13,8 @@ import (
 	invModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
+	orgMapper "github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -36,6 +39,7 @@ var (
 	ErrPOSSessionAlreadyOpen  = errors.New("cashier already has an open session")
 	ErrPOSInvalidPayment      = errors.New("invalid payment data")
 	ErrPOSItemAlreadyServed   = errors.New("order item has already been served")
+	ErrPOSOutletForbidden     = errors.New("forbidden: outlet is outside cashier scope")
 )
 
 // ---------------------------------------------------------------------------
@@ -62,6 +66,8 @@ type POSOrderUsecase interface {
 	MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error)
 	// MarkItemServed marks a single item as served; auto-transitions order to PARTIAL_SERVED or SERVED.
 	MarkItemServed(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error)
+	// ListOutlets returns all outlets available for POS, filtered by current scope.
+	ListOutlets(ctx context.Context) ([]*orgDto.OutletResponse, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +105,15 @@ func NewPOSOrderUsecase(
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderRequest, userID string) (*dto.POSOrderResponse, error) {
+	allowedOutletIDs, err := resolveScopedPOSOutletIDs(ctx, u.outletRepo)
+	if err != nil {
+		return nil, err
+	}
+	if allowedOutletIDs != nil && !isOutletAllowed(allowedOutletIDs, req.OutletID) {
+		log.Printf("[pos][order.create] forbidden user_id=%s outlet_id=%s allowed_outlets=%d", userID, req.OutletID, len(allowedOutletIDs))
+		return nil, ErrPOSOutletForbidden
+	}
+
 	if req.TableID != nil && *req.TableID != "" {
 		existing, findErr := u.orderRepo.FindActiveByOutletAndTable(ctx, req.OutletID, *req.TableID)
 		if findErr == nil {
@@ -151,12 +166,35 @@ func (u *posOrderUsecase) GetByID(ctx context.Context, id string) (*dto.POSOrder
 		}
 		return nil, err
 	}
+	allowedOutletIDs, err := resolveScopedPOSOutletIDs(ctx, u.outletRepo)
+	if err != nil {
+		return nil, err
+	}
+	if allowedOutletIDs != nil && !isOutletAllowed(allowedOutletIDs, order.OutletID) {
+		log.Printf("[pos][order.get] forbidden user_id=%s order_id=%s outlet_id=%s allowed_outlets=%d", scopeString(ctx, "user_id"), id, order.OutletID, len(allowedOutletIDs))
+		return nil, ErrPOSOutletForbidden
+	}
 	return mapper.ToPOSOrderResponse(order), nil
 }
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
 func (u *posOrderUsecase) List(ctx context.Context, params repositories.POSOrderListParams) ([]dto.POSOrderResponse, int64, error) {
+	allowedOutletIDs, err := resolveScopedPOSOutletIDs(ctx, u.outletRepo)
+	if err != nil {
+		return nil, 0, err
+	}
+	if allowedOutletIDs != nil {
+		if strings.TrimSpace(params.OutletID) == "" {
+			log.Printf("[pos][order.list] empty result user_id=%s reason=missing_outlet_filter allowed_outlets=%d", scopeString(ctx, "user_id"), len(allowedOutletIDs))
+			return []dto.POSOrderResponse{}, 0, nil
+		}
+		if !isOutletAllowed(allowedOutletIDs, params.OutletID) {
+			log.Printf("[pos][order.list] forbidden user_id=%s outlet_id=%s allowed_outlets=%d", scopeString(ctx, "user_id"), params.OutletID, len(allowedOutletIDs))
+			return []dto.POSOrderResponse{}, 0, nil
+		}
+	}
+
 	orders, total, err := u.orderRepo.ListByParams(ctx, params)
 	if err != nil {
 		return nil, 0, err
@@ -353,6 +391,15 @@ func (u *posOrderUsecase) RemoveItem(ctx context.Context, orderID, itemID string
 // ─── GetCatalog ──────────────────────────────────────────────────────────────
 
 func (u *posOrderUsecase) GetCatalog(ctx context.Context, outletID string) ([]dto.POSCatalogItem, error) {
+	allowedOutletIDs, err := resolveScopedPOSOutletIDs(ctx, u.outletRepo)
+	if err != nil {
+		return nil, err
+	}
+	if allowedOutletIDs != nil && !isOutletAllowed(allowedOutletIDs, outletID) {
+		log.Printf("[pos][catalog] forbidden user_id=%s outlet_id=%s allowed_outlets=%d", scopeString(ctx, "user_id"), outletID, len(allowedOutletIDs))
+		return nil, ErrPOSOutletForbidden
+	}
+
 	warehouseID := ""
 	if outlet, err := u.outletRepo.GetByID(ctx, outletID); err == nil && outlet != nil && outlet.WarehouseID != nil {
 		warehouseID = *outlet.WarehouseID
@@ -378,6 +425,20 @@ func (u *posOrderUsecase) GetCatalog(ctx context.Context, outletID string) ([]dt
 		})
 	}
 	return items, nil
+}
+
+func (u *posOrderUsecase) ListOutlets(ctx context.Context) ([]*orgDto.OutletResponse, error) {
+	isActive := true
+	outlets, _, err := u.outletRepo.List(ctx, orgRepos.OutletListParams{
+		IsActive: &isActive,
+		Limit:    100,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	m := orgMapper.NewOutletMapper()
+	return m.ToResponseList(outlets), nil
 }
 
 // ─── AssignTable ─────────────────────────────────────────────────────────────

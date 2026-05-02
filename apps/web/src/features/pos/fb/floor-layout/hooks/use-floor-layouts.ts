@@ -75,8 +75,10 @@ export function useCreateFloorLayout() {
     mutationFn: (data: CreateFloorPlanData) =>
       floorLayoutService.create(data),
     onSuccess: () => {
+      // Use exact: false to invalidate all list queries with any params
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.lists(),
+        exact: false,
       });
     },
   });
@@ -90,8 +92,10 @@ export function useUpdateFloorLayout(id: string) {
       floorLayoutService.update(id, data),
     onSuccess: (data) => {
       queryClient.setQueryData(floorLayoutKeys.detail(id), data);
+      // Use exact: false to invalidate all list queries with any params
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.lists(),
+        exact: false,
       });
     },
   });
@@ -105,8 +109,10 @@ export function useSaveLayoutData(id: string) {
       floorLayoutService.saveLayoutData(id, layoutData),
     onSuccess: (data) => {
       queryClient.setQueryData(floorLayoutKeys.detail(id), data);
+      // Use exact: false to invalidate all list queries with any params
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.lists(),
+        exact: false,
       });
     },
   });
@@ -118,8 +124,10 @@ export function useDeleteFloorLayout() {
   return useMutation({
     mutationFn: (id: string) => floorLayoutService.delete(id),
     onSuccess: () => {
+      // Use exact: false to invalidate all list queries with any params
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.lists(),
+        exact: false,
       });
     },
   });
@@ -133,8 +141,10 @@ export function usePublishFloorLayout() {
     onSuccess: (data) => {
       const id = data.data.id;
       queryClient.setQueryData(floorLayoutKeys.detail(id), data);
+      // Use exact: false to invalidate all list queries with any params
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.lists(),
+        exact: false,
       });
       queryClient.invalidateQueries({
         queryKey: floorLayoutKeys.versions(id),

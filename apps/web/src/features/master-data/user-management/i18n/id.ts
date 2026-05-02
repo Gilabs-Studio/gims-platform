@@ -192,6 +192,10 @@ export const userManagementId: UserManagementTranslations = {
     cancel: "Batal",
     save: "Simpan Permission",
     saving: "Menyimpan...",
+      protected: "Terlindungi",
+      protectedPermissionTooltip: "Permission ini tidak dapat dihapus",
+      protectedPermissionsError: "Beberapa permission terlindungi dan tidak dapat dihapus. Harap tetap pilih mereka.",
+      saveFailed: "Gagal menyimpan permission",
     scope: {
       label: "Cakupan",
       notApplicable: "N/A",

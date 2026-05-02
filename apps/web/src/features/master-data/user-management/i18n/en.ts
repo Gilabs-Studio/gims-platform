@@ -190,6 +190,10 @@ export const userManagementEn = {
     cancel: "Cancel",
     save: "Save Permissions",
     saving: "Saving...",
+      protected: "Protected",
+      protectedPermissionTooltip: "This permission cannot be removed",
+      protectedPermissionsError: "Some permissions are protected and cannot be removed. Please keep them checked.",
+      saveFailed: "Failed to save permissions",
     scope: {
       label: "Scope",
       notApplicable: "N/A",

@@ -29,6 +29,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	companyRepo := orgRepositories.NewCompanyRepository(db)
 	employeeRepo := orgRepositories.NewEmployeeRepository(db)
 	employeeAreaRepo := orgRepositories.NewEmployeeAreaRepository(db)
+	employeeOutletRepo := orgRepositories.NewEmployeeOutletRepository(db)
+	employeeWarehouseRepo := orgRepositories.NewEmployeeWarehouseRepository(db)
 	employeeContractRepo := orgRepositories.NewEmployeeContractRepository(db)
 	educationHistoryRepo := orgRepositories.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := orgRepositories.NewEmployeeCertificationRepository(db)
@@ -57,7 +59,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	outletRepo := orgRepositories.NewOutletRepository(db)
 	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
 	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, employeeOutletRepo, employeeWarehouseRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, outletRepo, warehouseRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)
@@ -75,6 +77,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Create organization group under API with auth middleware
 	group := api.Group("/organization")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+	group.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterDivisionRoutes(group, divisionH)

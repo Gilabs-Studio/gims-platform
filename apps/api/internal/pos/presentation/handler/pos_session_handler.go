@@ -4,12 +4,12 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
+	"github.com/gin-gonic/gin"
 )
 
 // POSSessionHandler handles POS shift sessions
@@ -43,7 +43,7 @@ func (h *POSSessionHandler) Open(c *gin.Context) {
 	response.SuccessResponse(c, session, nil)
 }
 
-// Close closes the given session  
+// Close closes the given session
 func (h *POSSessionHandler) Close(c *gin.Context) {
 	_, ok := extractUserContext(c)
 	if !ok {
@@ -116,8 +116,14 @@ func (h *POSSessionHandler) List(c *gin.Context) {
 	hasNext := page < totalPages
 	hasPrev := page > 1
 	var nextPage, prevPage *int
-	if hasNext { n := page + 1; nextPage = &n }
-	if hasPrev { p := page - 1; prevPage = &p }
+	if hasNext {
+		n := page + 1
+		nextPage = &n
+	}
+	if hasPrev {
+		p := page - 1
+		prevPage = &p
+	}
 
 	meta := &response.Meta{
 		Pagination: &response.PaginationMeta{
@@ -135,6 +141,8 @@ func handlePOSSessionError(c *gin.Context, err error) {
 		coreErrors.NotFoundResponse(c, "pos_session", "")
 	case usecase.ErrPOSSessionAlreadyOpen:
 		coreErrors.ErrorResponse(c, "POS_SESSION_ALREADY_OPEN", nil, nil)
+	case usecase.ErrPOSOutletForbidden:
+		coreErrors.ForbiddenResponse(c, "pos.order.read", nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}

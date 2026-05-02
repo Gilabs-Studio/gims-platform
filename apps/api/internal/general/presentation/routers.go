@@ -35,6 +35,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	group.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
-	router.RegisterDashboardRoutes(group, dashboardHandler)
+	router.RegisterDashboardRoutes(group, dashboardHandler, db)
 	router.RegisterOnboardingRoutes(group, onboardingHandler)
 }

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"context"
 	"fmt"
 	"time"
@@ -74,7 +75,16 @@ func (r *posSessionRepository) List(ctx context.Context, outletID string, page, 
 	var sessions []models.PosSession
 	var total int64
 
-	query := r.getDB(ctx).Model(&models.PosSession{}).Where("outlet_id = ?", outletID)
+	query := r.getDB(ctx).Model(&models.PosSession{})
+
+	// Apply dynamic scope filter
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OutletIDColumn: "outlet_id",
+	})
+
+	if outletID != "" {
+		query = query.Where("outlet_id = ?", outletID)
+	}
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -114,6 +124,12 @@ func (r *posSessionRepository) ListByParams(ctx context.Context, params POSSessi
 	var total int64
 
 	query := r.getDB(ctx).Model(&models.PosSession{})
+
+	// Apply dynamic scope filter
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OutletIDColumn: "outlet_id",
+	})
+
 	if params.OutletID != "" {
 		query = query.Where("outlet_id = ?", params.OutletID)
 	}

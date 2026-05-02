@@ -330,127 +330,148 @@ export interface EmployeeArea {
 	created_at: string;
 }
 
+export interface EmployeeOutlet {
+  outlet_id: string;
+  outlet_name: string;
+  code: string;
+  address: string;
+}
+
+export interface EmployeeWarehouse {
+  warehouse_id: string;
+  warehouse_name: string;
+  code: string;
+  address: string;
+  is_auto: boolean;
+}
+
 export interface Employee {
-	id: string;
-	employee_code: string;
-	name: string;
-	email?: string;
-	phone?: string;
-	user_id?: string;
-	user?: {
-		id: string;
-		name: string;
-		email: string;
-	};
-	division_id?: string;
-	division?: Division;
-	job_position_id?: string;
-	job_position?: JobPosition;
-	company_id?: string;
-	company?: {
-		id: string;
-		name: string;
-	};
-	date_of_birth?: string;
-	place_of_birth?: string;
-	gender?: Gender;
-	religion?: string;
-	address?: string;
-	village_id?: string;
-	village?: {
-		id: string;
-		name: string;
-		district?: {
-			id: string;
-			name: string;
-			city?: {
-				id: string;
-				name: string;
-				province?: {
-					id: string;
-					name: string;
-				};
-			};
-		};
-	};
-	nik?: string;
-	npwp?: string;
-	bpjs?: string;
-	total_leave_quota?: number;
-	current_contract?: EmployeeContract;
-	latest_education?: EmployeeEducationBrief;
-	latest_certification?: EmployeeCertificationBrief;
-	signature?: EmployeeSignature | null;
-	ptkp_status?: PTKPStatus;
-	is_disability?: boolean;
-	replacement_for_id?: string;
-	replacement_for?: {
-		id: string;
-		employee_code: string;
-		name: string;
-	};
-	areas?: EmployeeArea[];
-	is_area_supervisor: boolean;
-	created_by?: string;
-	is_active: boolean;
-	created_at: string;
-	updated_at: string;
+  id: string;
+  employee_code: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  user_id?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  division_id?: string;
+  division?: Division;
+  job_position_id?: string;
+  job_position?: JobPosition;
+  company_id?: string;
+  company?: {
+    id: string;
+    name: string;
+  };
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: Gender;
+  religion?: string;
+  address?: string;
+  village_id?: string;
+  village?: {
+    id: string;
+    name: string;
+    district?: {
+      id: string;
+      name: string;
+      city?: {
+        id: string;
+        name: string;
+        province?: {
+          id: string;
+          name: string;
+        };
+      };
+    };
+  };
+  nik?: string;
+  npwp?: string;
+  bpjs?: string;
+  total_leave_quota?: number;
+  current_contract?: EmployeeContract;
+  latest_education?: EmployeeEducationBrief;
+  latest_certification?: EmployeeCertificationBrief;
+  signature?: EmployeeSignature | null;
+  ptkp_status?: PTKPStatus;
+  is_disability?: boolean;
+  replacement_for_id?: string;
+  replacement_for?: {
+    id: string;
+    employee_code: string;
+    name: string;
+  };
+  areas?: EmployeeArea[];
+  outlets?: EmployeeOutlet[];
+  warehouses?: EmployeeWarehouse[];
+  is_area_supervisor: boolean;
+  created_by?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateEmployeeData {
-	employee_code?: string;
-	name: string;
-	email?: string;
-	phone?: string;
-	user_id?: string;
-	division_id?: string;
-	job_position_id?: string;
-	company_id?: string;
-	date_of_birth?: string;
-	place_of_birth?: string;
-	gender?: Gender;
-	religion?: string;
-	address?: string;
-	village_id?: string;
-	nik?: string;
-	npwp?: string;
-	bpjs?: string;
-	total_leave_quota?: number;
-	ptkp_status?: PTKPStatus;
-	is_disability?: boolean;
-	replacement_for_id?: string;
-	area_ids?: string[];
-	supervised_area_ids?: string[];
-	is_active?: boolean;
-	// Optional initial contract when creating employee
-	initial_contract?: CreateEmployeeContractData;
+  employee_code?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  user_id?: string;
+  division_id?: string;
+  job_position_id?: string;
+  company_id?: string;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: Gender;
+  religion?: string;
+  address?: string;
+  village_id?: string;
+  nik?: string;
+  npwp?: string;
+  bpjs?: string;
+  total_leave_quota?: number;
+  ptkp_status?: PTKPStatus;
+  is_disability?: boolean;
+  replacement_for_id?: string;
+  area_ids?: string[];
+  supervised_area_ids?: string[];
+  outlet_ids?: string[];
+  warehouse_ids?: string[];
+  is_active?: boolean;
+  // Optional initial contract when creating employee
+  initial_contract?: CreateEmployeeContractData;
 }
 
 export interface UpdateEmployeeData {
-	employee_code?: string;
-	name?: string;
-	email?: string;
-	phone?: string;
-	user_id?: string;
-	division_id?: string;
-	job_position_id?: string;
-	company_id?: string;
-	date_of_birth?: string;
-	place_of_birth?: string;
-	gender?: Gender;
-	religion?: string;
-	address?: string;
-	village_id?: string;
-	nik?: string;
-	npwp?: string;
-	bpjs?: string;
-	total_leave_quota?: number;
-	ptkp_status?: PTKPStatus;
-	is_disability?: boolean;
-	replacement_for_id?: string;
-	area_ids?: string[];
-	supervised_area_ids?: string[];
-	is_active?: boolean;
+  employee_code?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  user_id?: string;
+  division_id?: string;
+  job_position_id?: string;
+  company_id?: string;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: Gender;
+  religion?: string;
+  address?: string;
+  village_id?: string;
+  nik?: string;
+  npwp?: string;
+  bpjs?: string;
+  total_leave_quota?: number;
+  ptkp_status?: PTKPStatus;
+  is_disability?: boolean;
+  replacement_for_id?: string;
+  area_ids?: string[];
+  supervised_area_ids?: string[];
+  outlet_ids?: string[];
+  warehouse_ids?: string[];
+  is_active?: boolean;
 }
 
 export interface AssignEmployeeAreasData {
@@ -464,6 +485,31 @@ export interface AreaAssignment {
 
 export interface BulkUpdateEmployeeAreasData {
 	assignments: AreaAssignment[];
+}
+
+export interface AssignEmployeeOutletsData {
+  outlet_ids: string[];
+}
+
+export interface OutletAssignment {
+  outlet_id: string;
+}
+
+export interface BulkUpdateEmployeeOutletsData {
+  assignments: OutletAssignment[];
+}
+
+export interface AssignEmployeeWarehousesData {
+  warehouse_ids: string[];
+}
+
+export interface WarehouseAssignment {
+  warehouse_id: string;
+  is_auto?: boolean;
+}
+
+export interface BulkUpdateEmployeeWarehousesData {
+  assignments: WarehouseAssignment[];
 }
 
 export interface AvailableUser {
@@ -485,10 +531,12 @@ export interface FormOption {
 }
 
 export interface EmployeeFormData {
-	divisions: FormOption[];
-	job_positions: FormOption[];
-	companies: FormOption[];
-	areas: FormOption[];
+  divisions: FormOption[];
+  job_positions: FormOption[];
+  companies: FormOption[];
+  areas: FormOption[];
+  outlets: FormOption[];
+  warehouses: FormOption[];
 }
 
 export interface EmployeeFormDataResponse {

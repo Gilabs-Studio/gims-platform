@@ -122,9 +122,13 @@ func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanR
 		return nil, ErrFloorPlanAlreadyExists
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	companyID := *outlet.CompanyID
 	plan := &models.FloorPlan{
 		ID:          uuid.New().String(),
+		TenantID:    tenantID,
 		OutletID:    outlet.ID,
 		CompanyID:   &companyID,
 		Name:        req.Name,
@@ -285,6 +289,9 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 		return nil, ErrFloorPlanAlreadyPublished
 	}
 
+	// Extract tenant_id from context for version record
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	now := apptime.Now()
 	plan.Version++
 	plan.Status = models.FloorPlanStatusPublished
@@ -294,6 +301,7 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 	// Create immutable version snapshot
 	version := &models.LayoutVersion{
 		ID:          uuid.New().String(),
+		TenantID:    tenantID,
 		FloorPlanID: plan.ID,
 		Version:     plan.Version,
 		LayoutData:  plan.LayoutData,

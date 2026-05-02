@@ -2,6 +2,8 @@
   "dashboard": {
     "title": "Dasbor",
     "error": "Gagal memuat data dasbor. Silakan coba lagi.",
+    "scopeRestrictedTitle": "Scope dibatasi",
+    "scopeRestrictedDescription": "Widget ini disembunyikan untuk scope izin saat ini.",
     "loading": "Memuat...",
     "noData": "Tidak ada data tersedia",
     "customize": "Kustomisasi",

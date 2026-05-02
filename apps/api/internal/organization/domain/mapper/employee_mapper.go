@@ -153,6 +153,49 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 		resp.Areas = areas
 	}
 
+	if len(e.Outlets) > 0 {
+		outlets := make([]dto.EmployeeOutletResponse, 0, len(e.Outlets))
+		for _, eo := range e.Outlets {
+			outletName := eo.OutletID
+			code := eo.OutletID
+			address := ""
+			if eo.Outlet != nil {
+				outletName = eo.Outlet.Name
+				code = eo.Outlet.Code
+				address = eo.Outlet.Address
+			}
+			outlets = append(outlets, dto.EmployeeOutletResponse{
+				OutletID:   eo.OutletID,
+				OutletName: outletName,
+				Code:       code,
+				Address:    address,
+			})
+		}
+		resp.Outlets = outlets
+	}
+
+	if len(e.Warehouses) > 0 {
+		warehouses := make([]dto.EmployeeWarehouseResponse, 0, len(e.Warehouses))
+		for _, ew := range e.Warehouses {
+			warehouseName := ew.WarehouseID
+			code := ew.WarehouseID
+			address := ""
+			if ew.Warehouse != nil {
+				warehouseName = ew.Warehouse.Name
+				code = ew.Warehouse.Code
+				address = ew.Warehouse.Address
+			}
+			warehouses = append(warehouses, dto.EmployeeWarehouseResponse{
+				WarehouseID:   ew.WarehouseID,
+				WarehouseName: warehouseName,
+				Code:          code,
+				Address:       address,
+				IsAuto:        ew.IsAuto,
+			})
+		}
+		resp.Warehouses = warehouses
+	}
+
 	return resp
 }
 

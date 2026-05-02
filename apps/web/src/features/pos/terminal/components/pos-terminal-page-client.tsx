@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
 import type { Outlet } from "@/features/master-data/outlet/types";
 import { useFloorLayouts } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
 import { Link, useRouter } from "@/i18n/routing";
@@ -44,7 +44,7 @@ export function POSTerminalPageClient() {
     data: outletsData,
     isLoading: outletsLoading,
     isError: outletsError,
-  } = useOutlets({ is_active: true, per_page: 50 });
+  } = usePOSOutlets();
 
   const allOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
   const outlets = useMemo(

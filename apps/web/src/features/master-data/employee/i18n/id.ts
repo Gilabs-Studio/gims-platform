@@ -35,6 +35,7 @@ export const employeeId: EmployeeTranslations = {
     certifications: "Sertifikasi",
     assets: "Aset",
     areas: "Area",
+    scope: "Outlet & Gudang",
   },
   sections: {
     personalInfo: "Informasi Pribadi",
@@ -44,6 +45,7 @@ export const employeeId: EmployeeTranslations = {
     taxInfo: "Informasi Pajak & Cuti",
     areasInfo: "Penugasan Area",
     userInfo: "Akun Pengguna",
+    scopeInfo: "Penugasan Outlet & Gudang",
   },
   filters: {
     all: "Semua",
@@ -138,6 +140,16 @@ export const employeeId: EmployeeTranslations = {
     member: "Anggota",
     setSupervisor: "Jadikan Supervisor",
     setMember: "Jadikan Anggota",
+    outletsLabel: "Outlet",
+    selectOutlet: "Pilih outlet",
+    noOutletsAssigned: "Tidak ada outlet yang ditetapkan",
+    warehousesLabel: "Gudang",
+    selectWarehouse: "Pilih gudang",
+    noWarehousesAssigned: "Tidak ada gudang yang ditetapkan",
+    auto: "Otomatis",
+    manual: "Manual",
+    scopeDescription:
+      "Tetapkan outlet dan gudang karyawan. Gudang yang terkait dengan outlet yang dipilih akan ditambahkan secara otomatis setelah disimpan.",
     isActive: "Aktif",
     rejectReason: "Alasan Penolakan",
     rejectReasonPlaceholder: "Masukkan alasan penolakan (opsional)",

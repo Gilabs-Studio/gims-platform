@@ -26,7 +26,7 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 		g.DELETE("/:id", middleware.RequirePermission("user.delete"), h.Delete)
 
 		// Add permissions route
-		g.GET("/:id/permissions", middleware.RequirePermission("user.read"), ph.GetUserPermissions)
+		g.GET("/:id/permissions", ph.GetUserPermissions)
 	}
 
 	// Profile routes - separate from /users CRUD to avoid conflict with /:id and clearer intent

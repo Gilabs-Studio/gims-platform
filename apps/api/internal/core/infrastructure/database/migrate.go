@@ -126,6 +126,8 @@ func AutoMigrate() error {
 		// Employee entities (Sprint 3)
 		&organization.Employee{},
 		&organization.EmployeeArea{},
+		&organization.EmployeeOutlet{},
+		&organization.EmployeeWarehouse{},
 		// Supplier entities (Sprint 4)
 		&supplier.SupplierType{},
 		&supplier.Bank{},

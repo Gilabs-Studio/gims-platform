@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/permission/domain/usecase"
@@ -51,6 +53,13 @@ func (h *PermissionHandler) GetByID(c *gin.Context) {
 // GetUserPermissions handles get user permissions request
 func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 	userID := c.Param("id")
+	currentUserID, _ := c.Get("user_id")
+	currentUserIDStr, _ := currentUserID.(string)
+
+	if currentUserIDStr != userID && !hasPermissionCode(c, "user.read") {
+		errors.ForbiddenResponse(c, "Missing permission: user.read", nil)
+		return
+	}
 
 	permissions, err := h.permissionUC.GetUserPermissions(c.Request.Context(), userID)
 	if err != nil {
@@ -65,6 +74,30 @@ func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, permissions, nil)
+}
+
+func hasPermissionCode(c *gin.Context, permissionCode string) bool {
+	perms, exists := c.Get("user_permissions")
+	if !exists {
+		return false
+	}
+
+	permMap, ok := perms.(map[string]bool)
+	if !ok {
+		return false
+	}
+
+	if permMap[permissionCode] {
+		return true
+	}
+
+	for code := range permMap {
+		if strings.EqualFold(code, permissionCode) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // GetMenuCategories handles get menu categories request for dynamic grouping

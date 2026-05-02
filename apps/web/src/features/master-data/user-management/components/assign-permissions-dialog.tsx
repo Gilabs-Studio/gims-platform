@@ -122,7 +122,6 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
-  "dashboard.",
   "profile.",
   "setting",
   "billing.",
@@ -140,6 +139,11 @@ const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency
 
 function isSystemAdminOnlyPermission(permission: Permission): boolean {
   return SYSTEM_ADMIN_ONLY_PERMISSION_CODES.has(permission.code.trim().toLowerCase());
+}
+
+function isAlwaysSafePermissionCode(code: string): boolean {
+  const lower = code.trim().toLowerCase();
+  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }
 
 function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
@@ -696,23 +700,41 @@ const TreeResourceRow = memo(function TreeResourceRow({
         {perms.map((perm) => {
           const { action } = parsePermissionCode(perm.code);
           const isChecked = perm.id in selected;
+          const isProtected = isAlwaysSafePermissionCode(perm.code);
+          
           return (
-            <label
-              key={perm.id}
-              className="inline-flex items-center gap-1 cursor-pointer select-none"
-            >
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={() => onToggle(perm.id)}
-                className="size-3.5"
-              />
-              <Badge
-                variant={getActionBadgeVariant(action ?? "")}
-                className="text-[10px] px-1.5 py-0 capitalize leading-5"
-              >
-                {action}
-              </Badge>
-            </label>
+            <Tooltip key={perm.id}>
+              <TooltipTrigger asChild>
+                <label className={cn(
+                  "inline-flex items-center gap-1 select-none",
+                  !isProtected && "cursor-pointer",
+                  isProtected && "cursor-not-allowed opacity-75"
+                )}>
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => !isProtected && onToggle(perm.id)}
+                    disabled={isProtected}
+                    className={cn("size-3.5", isProtected && "cursor-not-allowed")}
+                  />
+                  <Badge
+                    variant={getActionBadgeVariant(action ?? "")}
+                    className="text-[10px] px-1.5 py-0 capitalize leading-5"
+                  >
+                    {action}
+                  </Badge>
+                  {isProtected && (
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-4">
+                      {t("protected") || "Protected"}
+                    </Badge>
+                  )}
+                </label>
+              </TooltipTrigger>
+              {isProtected && (
+                <TooltipContent side="top" className="text-xs">
+                  {t("protectedPermissionTooltip") || "This permission cannot be removed"}
+                </TooltipContent>
+              )}
+            </Tooltip>
           );
         })}
       </div>
@@ -1283,78 +1305,56 @@ function PermissionsSelector({
         }
       }
 
-      // Compute DIFF: only send what changed, not the full state
-      const currentPermSet = new Set((role.permissions ?? []).map(p => p.id));
-      const nextPermSet = new Set(Object.keys(nextSelected));
+      const nextAssignments = Object.entries(nextSelected).map(([permissionId, scope]) => ({
+        permission_id: permissionId,
+        scope,
+      }));
 
-      const added: string[] = [];
-      const removed: string[] = [];
+      const currentScopeById = new Map(
+        (role.permissions ?? []).map((permission) => [permission.id, permission.scope ?? "ALL"]),
+      );
+      const hasScopeChanges = nextAssignments.some(({ permission_id, scope }) => {
+        return (currentScopeById.get(permission_id) ?? "ALL") !== scope;
+      });
+      const hasPermissionChanges =
+        (role.permissions ?? []).length !== nextAssignments.length ||
+        nextAssignments.some(({ permission_id }) => !currentScopeById.has(permission_id));
 
-      // Find added permissions (in nextSelected but not in current)
-      for (const permId of nextPermSet) {
-        if (!currentPermSet.has(permId)) {
-          added.push(permId);
-        }
-      }
-
-      // Find removed permissions (in current but not in nextSelected)
-      for (const permId of currentPermSet) {
-        if (!nextPermSet.has(permId)) {
-          removed.push(permId);
-        }
-      }
-
-      // If no changes, just close the dialog
-      if (added.length === 0 && removed.length === 0) {
+      if (!hasScopeChanges && !hasPermissionChanges) {
         toast.success(t("save") || "No changes to save");
         onClose();
         return;
       }
 
-      // Build scope-aware assignments for added permissions
-      const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
-      for (const permId of added) {
-        const scope = nextSelected[permId] ?? "ALL";
-        if (!permissionByID.has(permId)) {
-          console.error("AssignPermissions Debug: building addedWithScope but permission not found in permissionByID:", permId);
-        }
-        addedWithScope.push({
-          permission_id: permId,
-          scope,
-        });
-      }
-
-      try {
-        console.groupCollapsed("AssignPermissions Debug: payload");
-        const payload = {
-          roleId,
-          permissionIds: [...added, ...removed],
-          diff: {
-            added,
-            added_with_scope: addedWithScope,
-            removed,
-          },
-        };
-        console.log(payload);
-        console.groupEnd();
-      } catch { /* noop */ }
-
       await assignPermissions.mutateAsync({
         roleId,
-        permissionIds: [...added, ...removed],
-        diff: {
-          added,
-          added_with_scope: addedWithScope,
-          removed,
-        },
+        permissionIds: [],
+        assignments: nextAssignments,
       });
       setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");
       onClose();
-    } catch {
-      // Error handled by api-client interceptor
+    } catch (error: unknown) {
+      // Display error without closing dialog - user can retry
+      const errorMessage = 
+        error instanceof Error 
+          ? error.message 
+          : t("saveFailed") || "Failed to save permissions";
+      
+      // Check if error mentions protected/mandatory permissions or role requirements
+      if (errorMessage.toLowerCase().includes("always safe") || 
+          errorMessage.toLowerCase().includes("mandatory") ||
+          errorMessage.toLowerCase().includes("protected") ||
+          errorMessage.toLowerCase().includes("requires")) {
+        toast.error(
+          t("protectedPermissionsError") || 
+          "Some permissions are protected and cannot be removed. Please keep them checked."
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     }
-  }, [selectedPermissions, role.permissions, permissionByID, assignPermissions, roleId, t, onClose]);
+  }, [selectedPermissions, role.permissions, assignPermissions, roleId, t, onClose]);
 
   return (
     <div className="flex flex-col h-full">

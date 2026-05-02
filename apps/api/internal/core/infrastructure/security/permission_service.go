@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -227,9 +228,29 @@ func (s *cachedPermissionService) GetPermissionsWithScopeForTenant(roleCode stri
 }
 
 func (s *cachedPermissionService) InvalidateCache(roleCode string) error {
-	// Clear L1 (both caches)
-	s.l1Cache.Delete(roleCode)
-	s.l1ScopeCache.Delete(roleCode)
+	// Clear L1 (both caches), including tenant-scoped entries stored as
+	// "tenant-id::roleCode". This keeps permission changes visible immediately
+	// after role updates in multi-tenant sessions.
+	s.l1Cache.Range(func(key, _ any) bool {
+		keyStr, ok := key.(string)
+		if !ok {
+			return true
+		}
+		if keyStr == roleCode || strings.HasSuffix(keyStr, "::"+roleCode) {
+			s.l1Cache.Delete(keyStr)
+		}
+		return true
+	})
+	s.l1ScopeCache.Range(func(key, _ any) bool {
+		keyStr, ok := key.(string)
+		if !ok {
+			return true
+		}
+		if keyStr == roleCode || strings.HasSuffix(keyStr, "::"+roleCode) {
+			s.l1ScopeCache.Delete(keyStr)
+		}
+		return true
+	})
 
 	// Clear L2
 	redisClient := redis.GetClient()
@@ -238,7 +259,25 @@ func (s *cachedPermissionService) InvalidateCache(roleCode string) error {
 		scopeCacheKey := fmt.Sprintf("permissions_scope:%s", roleCode)
 		ctx, cancel := s.redisContext()
 		defer cancel()
-		return redisClient.Del(ctx, cacheKey, scopeCacheKey).Err()
+		if err := redisClient.Del(ctx, cacheKey, scopeCacheKey).Err(); err != nil {
+			return err
+		}
+
+		for _, pattern := range []string{
+			fmt.Sprintf("permissions:*:%s", roleCode),
+			fmt.Sprintf("permissions_scope:*:%s", roleCode),
+		} {
+			iter := redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+			for iter.Next(ctx) {
+				if err := redisClient.Del(ctx, iter.Val()).Err(); err != nil {
+					return err
+				}
+			}
+			if err := iter.Err(); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return nil
 }

@@ -8,6 +8,10 @@ import type {
   UpdateEmployeeData,
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
+  AssignEmployeeOutletsData,
+  BulkUpdateEmployeeOutletsData,
+  AssignEmployeeWarehousesData,
+  BulkUpdateEmployeeWarehousesData,
   CreateEmployeeContractData,
   UpdateEmployeeContractData,
   TerminateEmployeeContractData,
@@ -113,6 +117,73 @@ export function useBulkUpdateEmployeeAreas() {
       id: string;
       data: BulkUpdateEmployeeAreasData;
     }) => employeeService.bulkUpdateAreas(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
+    },
+  });
+}
+
+export function useAssignEmployeeOutlets() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AssignEmployeeOutletsData }) =>
+      employeeService.assignOutlets(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
+    },
+  });
+}
+
+export function useBulkUpdateEmployeeOutlets() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: BulkUpdateEmployeeOutletsData;
+    }) => employeeService.bulkUpdateOutlets(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
+    },
+  });
+}
+
+export function useAssignEmployeeWarehouses() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: AssignEmployeeWarehousesData;
+    }) => employeeService.assignWarehouses(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
+    },
+  });
+}
+
+export function useBulkUpdateEmployeeWarehouses() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: BulkUpdateEmployeeWarehousesData;
+    }) => employeeService.bulkUpdateWarehouses(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });

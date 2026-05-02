@@ -721,6 +721,24 @@ func SeedPermissions() error {
 		{"/pos/feedback", "feedback.delete", "Delete Feedback Forms", "DELETE", "feedback"},
 	}
 
+	// Dashboard widget visibility is now derived from menu permissions.
+	// Widgets only show if the user has access to the related menu URL.
+	// No separate dashboard_widget.*.view permissions are created.
+	//
+	// Widget-to-menu mapping (frontend):
+	// - POS widgets (/pos): pos_outlet_sales, pos_live_table_overview, pos_cash_control
+	// - Sales widgets (/sales/orders): total_orders, sales_performance, track_orders, best_selling, revenue_bar_chart, stat_summary_orders, stat_summary_revenue
+	// - Finance/Journal widgets (/finance/journals/*): costs_chart, revenue_vs_costs, balance_overview, costs_by_category, revenue_chart, kpi_*, stat_summary_balance, stat_summary_expense
+	// - Inventory widgets (/stock/inventory): warehouse_overview, kpi_dio, kpi_inventory_turnover
+	// - Customer Invoice widgets (/sales/invoices): invoices_summary, recent_invoices, kpi_ar_days
+	// - Purchase widgets (/purchase/purchase-orders): track_purchase_orders, pending_approvals_purchase
+	// - Delivery widgets (/sales/delivery-orders): delivery_status, kpi_cost_per_delivery, kpi_utilization_rate, kpi_otd_rate
+	// - Employee widgets (/master-data/employees): employee_count
+	// - Customer widgets (/master-data/customers): total_customers
+	// - CRM widgets (/crm/*): crm_total_contacts, crm_active_leads, crm_deals_overview, crm_activity_summary
+	// - Travel Planner widgets (/travel/*): travel_planner_overview
+	// - HR widgets (/hrd/*): hr_attendance_today, hr_pending_leaves
+
 	// Build menu URL to ID map
 	menuMap := make(map[string]string)
 	var allMenus []permission.Menu

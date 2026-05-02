@@ -37,7 +37,11 @@ type CreateEmployeeRequest struct {
 	AreaIDs []string `json:"area_ids"`
 	// SupervisedAreaIDs assigns the employee as a supervisor of the specified areas.
 	SupervisedAreaIDs []string `json:"supervised_area_ids"`
-	IsActive          *bool    `json:"is_active"`
+	// OutletIDs assigns outlets to the employee. Associated warehouses are auto-selected.
+	OutletIDs []string `json:"outlet_ids"`
+	// WarehouseIDs assigns warehouses to the employee (optional, auto-populated from outlets).
+	WarehouseIDs []string `json:"warehouse_ids"`
+	IsActive     *bool    `json:"is_active"`
 	// InitialContract creates a contract along with the employee (optional)
 	InitialContract *EmployeeContractInput `json:"initial_contract,omitempty"`
 }
@@ -68,7 +72,13 @@ type UpdateEmployeeRequest struct {
 	AreaIDs []string `json:"area_ids"`
 	// SupervisedAreaIDs replaces all supervisor area assignments when provided (nil = no change).
 	SupervisedAreaIDs []string `json:"supervised_area_ids"`
-	IsActive          *bool    `json:"is_active"`
+	// OutletIDs replaces all outlet assignments when provided (nil = no change).
+	// Associated warehouses are auto-selected from outlets.
+	OutletIDs []string `json:"outlet_ids"`
+	// WarehouseIDs replaces all warehouse assignments when provided (nil = no change).
+	// Can include manual warehouse assignments beyond those auto-selected from outlets.
+	WarehouseIDs []string `json:"warehouse_ids"`
+	IsActive     *bool    `json:"is_active"`
 }
 
 // ApproveEmployeeRequest represents the request to approve/reject an employee
@@ -104,6 +114,8 @@ type EmployeeFormDataResponse struct {
 	JobPositions []FormOption `json:"job_positions"`
 	Companies    []FormOption `json:"companies"`
 	Areas        []FormOption `json:"areas"`
+	Outlets      []FormOption `json:"outlets"`
+	Warehouses   []FormOption `json:"warehouses"`
 }
 
 // FormOption is a generic id+label pair for select dropdowns.
@@ -175,6 +187,10 @@ type EmployeeResponse struct {
 	ReplacementFor   *EmployeeBriefResponse     `json:"replacement_for,omitempty"`
 	// Areas contains all assigned areas with their role (supervisor or member).
 	Areas []EmployeeAreaSummary `json:"areas,omitempty"`
+	// Outlets contains all assigned outlets.
+	Outlets []EmployeeOutletResponse `json:"outlets,omitempty"`
+	// Warehouses contains all assigned warehouses (manual and auto-selected).
+	Warehouses []EmployeeWarehouseResponse `json:"warehouses,omitempty"`
 	// IsAreaSupervisor is true when the employee supervises at least one area.
 	IsAreaSupervisor bool    `json:"is_area_supervisor"`
 	CreatedBy        *string `json:"created_by"`
@@ -274,4 +290,53 @@ type EmployeeListItemResponse struct {
 	CurrentContract *EmployeeContractBriefResponse `json:"current_contract,omitempty"`
 	Status          string                         `json:"status"`
 	IsActive        bool                           `json:"is_active"`
+}
+
+// OutletAssignment represents a single outlet assignment.
+type OutletAssignment struct {
+	OutletID string `json:"outlet_id" binding:"required,uuid"`
+}
+
+// WarehouseAssignment represents a single warehouse assignment.
+type WarehouseAssignment struct {
+	WarehouseID string `json:"warehouse_id" binding:"required,uuid"`
+	IsAuto      bool   `json:"is_auto"` // true if auto-created from outlet assignment
+}
+
+// AssignEmployeeOutletsRequest represents the request to assign outlets to an employee.
+// When outlets are assigned, their associated warehouses are auto-selected.
+type AssignEmployeeOutletsRequest struct {
+	OutletIDs []string `json:"outlet_ids" binding:"required,dive,uuid"`
+}
+
+// BulkUpdateEmployeeOutletsRequest replaces all outlet assignments for an employee atomically.
+type BulkUpdateEmployeeOutletsRequest struct {
+	Assignments []OutletAssignment `json:"assignments" binding:"required,dive"`
+}
+
+// AssignEmployeeWarehousesRequest represents the request to assign warehouses to an employee.
+type AssignEmployeeWarehousesRequest struct {
+	WarehouseIDs []string `json:"warehouse_ids" binding:"required,dive,uuid"`
+}
+
+// BulkUpdateEmployeeWarehousesRequest replaces all warehouse assignments for an employee atomically.
+type BulkUpdateEmployeeWarehousesRequest struct {
+	Assignments []WarehouseAssignment `json:"assignments" binding:"required,dive"`
+}
+
+// EmployeeOutletResponse represents an outlet assignment for an employee
+type EmployeeOutletResponse struct {
+	OutletID string `json:"outlet_id"`
+	OutletName string `json:"outlet_name"`
+	Code string `json:"code"`
+	Address string `json:"address"`
+}
+
+// EmployeeWarehouseResponse represents a warehouse assignment for an employee
+type EmployeeWarehouseResponse struct {
+	WarehouseID string `json:"warehouse_id"`
+	WarehouseName string `json:"warehouse_name"`
+	Code string `json:"code"`
+	Address string `json:"address"`
+	IsAuto bool `json:"is_auto"` // true if auto-created from outlet assignment
 }

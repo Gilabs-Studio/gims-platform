@@ -2,6 +2,8 @@
   "dashboard": {
     "title": "Dashboard",
     "error": "Failed to load dashboard data. Please try again.",
+    "scopeRestrictedTitle": "Scope restricted",
+    "scopeRestrictedDescription": "This widget is hidden for the current permission scope.",
     "loading": "Loading...",
     "noData": "No data available",
     "customize": "Customize",

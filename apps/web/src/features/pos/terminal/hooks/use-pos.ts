@@ -44,6 +44,15 @@ export function usePOSCatalog(outletId: string, options?: { enabled?: boolean })
   });
 }
 
+export function usePOSOutlets(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...posKeys.all, "outlets"],
+    queryFn: () => posOrderService.listOutlets(),
+    enabled: options?.enabled !== false,
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ─── Order hooks ─────────────────────────────────────────────────────────────
 
 export function usePOSOrder(

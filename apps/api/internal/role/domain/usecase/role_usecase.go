@@ -64,7 +64,6 @@ func roleByIDCacheKey(ctx context.Context, roleID string) string {
 }
 
 var alwaysSafePermissionPrefixes = []string{
-	"dashboard.",
 	"profile.",
 	"setting",
 	"billing.",
@@ -587,50 +586,74 @@ func (u *roleUsecase) UpdatePermissionsDiff(ctx context.Context, roleID string, 
 		}
 	}
 
-	// Preserve always-safe permissions (check using Permission.Code from preloaded data)
-	for permID, rp := range existingSet {
-		if rp.Permission != nil && isAlwaysSafePermissionCode(rp.Permission.Code) {
-			nextSet[permID] = rp
+	// Preserve always-safe permissions (conditionally based on role type)
+	// Special roles (owner, admin, managers) must keep protected permissions.
+	// Regular roles can freely remove them.
+	var attemptedToRemoveProtected []string
+	if isSpecialRole(role.Code) {
+		// For special roles, preserve and protect always-safe permissions
+		for permID, rp := range existingSet {
+			if rp.Permission != nil && isAlwaysSafePermissionCode(rp.Permission.Code) {
+				// Check if user tried to remove this protected permission
+				for _, removedID := range diff.Removed {
+					if removedID == permID {
+						attemptedToRemoveProtected = append(attemptedToRemoveProtected, rp.Permission.Code)
+						break
+					}
+				}
+				nextSet[permID] = rp
+			}
 		}
 	}
+	// For non-special roles, allow removal of always-safe permissions (don't re-add them to nextSet)
 
-	// Guarantee minimum required permissions (query database if needed)
-	minimumCodes := map[string]bool{
-		"user.read":       true,
-		"role.read":       true,
-		"permission.read": true,
+	// If user tried to remove protected permissions, return error
+	if len(attemptedToRemoveProtected) > 0 {
+		sort.Strings(attemptedToRemoveProtected)
+		log.Printf("[RoleUsecase] UpdatePermissionsDiff attempt_remove_protected tenant_id=%s role_id=%s role_code=%s codes=%v", tenantID, roleID, role.Code, attemptedToRemoveProtected)
+		return fmt.Errorf("this role (%s) requires certain permissions to remain enabled: %s", role.Code, strings.Join(attemptedToRemoveProtected, ", "))
 	}
 
-	// Get existing permission IDs for minimum codes from current set
-	for _, rp := range nextSet {
-		if rp.Permission != nil && minimumCodes[rp.Permission.Code] {
-			delete(minimumCodes, rp.Permission.Code) // Already have it
-		}
-	}
-
-	// If we're missing any minimum permissions, query database to find their IDs.
-	// Must use u.db directly (not GetDB) because permissions is a global/shared table with no tenant_id.
-	if len(minimumCodes) > 0 {
-		var perms []struct {
-			ID   string
-			Code string
+	// Guarantee minimum required permissions for special roles only (query database if needed)
+	// Non-special roles can remove all permissions, even mandatory ones.
+	if isSpecialRole(role.Code) {
+		minimumCodes := map[string]bool{
+			"user.read":       true,
+			"role.read":       true,
+			"permission.read": true,
 		}
 
-		codesToFind := make([]string, 0, len(minimumCodes))
-		for code := range minimumCodes {
-			codesToFind = append(codesToFind, code)
+		// Get existing permission IDs for minimum codes from current set
+		for _, rp := range nextSet {
+			if rp.Permission != nil && minimumCodes[rp.Permission.Code] {
+				delete(minimumCodes, rp.Permission.Code) // Already have it
+			}
 		}
 
-		if err := u.db.WithContext(ctx).
-			Table("permissions").
-			Select("id, code").
-			Where("code IN ?", codesToFind).
-			Scan(&perms).Error; err == nil {
-			for _, p := range perms {
-				nextSet[p.ID] = models.RolePermission{
-					RoleID:       roleID,
-					PermissionID: p.ID,
-					Scope:        models.ScopeAll,
+		// If we're missing any minimum permissions, query database to find their IDs.
+		// Must use u.db directly (not GetDB) because permissions is a global/shared table with no tenant_id.
+		if len(minimumCodes) > 0 {
+			var perms []struct {
+				ID   string
+				Code string
+			}
+
+			codesToFind := make([]string, 0, len(minimumCodes))
+			for code := range minimumCodes {
+				codesToFind = append(codesToFind, code)
+			}
+
+			if err := u.db.WithContext(ctx).
+				Table("permissions").
+				Select("id, code").
+				Where("code IN ?", codesToFind).
+				Scan(&perms).Error; err == nil {
+				for _, p := range perms {
+					nextSet[p.ID] = models.RolePermission{
+						RoleID:       roleID,
+						PermissionID: p.ID,
+						Scope:        models.ScopeAll,
+					}
 				}
 			}
 		}
@@ -850,6 +873,9 @@ func (u *roleUsecase) UpdateMenuAccess(ctx context.Context, roleID string, assig
 		if err := u.roleRepo.AssignPermissionsWithScope(txCtx, roleID, roleAssignments); err != nil {
 			return err
 		}
+
+		// Invalidate caches after successful update
+		u.invalidatePermissionCaches(txCtx, roleID, role.Code)
 
 		return nil
 	})
@@ -1483,6 +1509,24 @@ func isAlwaysSafePermissionCode(code string) bool {
 		}
 	}
 	return false
+}
+
+// isSpecialRole returns true if the role should have protected "always safe" permissions.
+// Special roles (owner, admin, managers) must keep mandatory permissions enabled.
+// Regular roles can freely remove permissions.
+func isSpecialRole(roleCode string) bool {
+	specialRoles := map[string]bool{
+		"tenant_owner":    true, // Account owner
+		"admin":           true, // Full system admin
+		"outlet_manager":  true, // Outlet manager
+		"manager":         true, // Generic manager
+		"sales_manager":   true, // Sales department manager
+		"finance_manager": true, // Finance department manager
+		"hr_manager":      true, // HR department manager
+		"area_supervisor": true, // Area supervisor
+		"sales_director":  true, // Sales director
+	}
+	return specialRoles[roleCode]
 }
 
 func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, roleID string, permissionIDs []string) ([]string, error) {

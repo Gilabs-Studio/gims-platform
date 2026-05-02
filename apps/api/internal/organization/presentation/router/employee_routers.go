@@ -56,4 +56,12 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.GET("/:id/signature", middleware.RequirePermission("employee.read"), h.GetEmployeeSignature)
 	g.POST("/:id/signature", middleware.RequirePermission("employee.update"), h.UploadEmployeeSignature)
 	g.DELETE("/:id/signature", middleware.RequirePermission("employee.update"), h.DeleteEmployeeSignature)
+
+	// Employee outlet assignment routes
+	g.POST("/:id/outlets", middleware.RequirePermission("employee.update"), h.AssignOutlets)
+	g.PUT("/:id/outlets", middleware.RequirePermission("employee.update"), h.BulkUpdateOutlets)
+
+	// Employee warehouse assignment routes
+	g.POST("/:id/warehouses", middleware.RequirePermission("employee.update"), h.AssignWarehouses)
+	g.PUT("/:id/warehouses", middleware.RequirePermission("employee.update"), h.BulkUpdateWarehouses)
 }
