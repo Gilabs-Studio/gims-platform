@@ -55,8 +55,8 @@ func listAuditTrailEntries(
 	rows := make([]salesAuditRow, 0)
 	if err := tx.
 		Select("audit_logs.id, audit_logs.actor_id, audit_logs.permission_code, audit_logs.target_id, audit_logs.action, audit_logs.metadata, audit_logs.created_at, users.email as actor_email, COALESCE(users.name, employees.name, users.email, audit_logs.actor_id::text) as actor_name").
-		Joins("LEFT JOIN users ON users.id = audit_logs.actor_id").
-		Joins("LEFT JOIN employees ON employees.user_id = audit_logs.actor_id").
+		Joins("LEFT JOIN employees ON employees.id = audit_logs.actor_id OR employees.user_id = audit_logs.actor_id").
+		Joins("LEFT JOIN users ON users.id = audit_logs.actor_id OR users.id = employees.user_id").
 		Order("audit_logs.created_at DESC").
 		Limit(perPage).
 		Offset((page - 1) * perPage).

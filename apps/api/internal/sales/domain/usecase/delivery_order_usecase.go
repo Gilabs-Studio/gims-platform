@@ -27,15 +27,16 @@ import (
 )
 
 var (
-	ErrDeliveryOrderNotFound           = errors.New("delivery order not found")
-	ErrDeliveryOrderAlreadyExists      = errors.New("delivery order with this code already exists")
-	ErrDeliveryOrderAlreadyPosted      = errors.New("delivery order has already been posted")
-	ErrInvalidDeliveryStatusTransition = errors.New("invalid delivery status transition")
-	ErrDeliveryProductNotFound         = errors.New("product not found in delivery")
-	ErrInvalidDeliveryOrderStatus      = errors.New("cannot modify delivery order in current status")
-	ErrDeliverySalesOrderNotFound      = errors.New("sales order not found for delivery")
-	ErrInsufficientBatchStock          = errors.New("insufficient stock in selected batch")
-	ErrBatchNotFound                   = errors.New("inventory batch not found")
+	ErrDeliveryOrderNotFound                = errors.New("delivery order not found")
+	ErrDeliveryOrderAlreadyExists           = errors.New("delivery order with this code already exists")
+	ErrDeliveryOrderAlreadyPosted           = errors.New("delivery order has already been posted")
+	ErrInvalidDeliveryStatusTransition      = errors.New("invalid delivery status transition")
+	ErrDeliveryProductNotFound              = errors.New("product not found in delivery")
+	ErrInvalidDeliveryOrderStatus           = errors.New("cannot modify delivery order in current status")
+	ErrDeliverySalesOrderNotFound           = errors.New("sales order not found for delivery")
+	ErrInsufficientBatchStock               = errors.New("insufficient stock in selected batch")
+	ErrBatchNotFound                        = errors.New("inventory batch not found")
+	ErrDuplicateActiveDeliveryForSalesOrder = errors.New("an active delivery order already exists for this sales order")
 )
 
 const (
@@ -202,6 +203,14 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 			return nil, ErrDeliverySalesOrderNotFound
 		}
 		return nil, err
+	}
+
+	hasActiveDelivery, err := u.hasActiveDeliveryOrderForSalesOrder(ctx, req.SalesOrderID)
+	if err != nil {
+		return nil, err
+	}
+	if hasActiveDelivery {
+		return nil, ErrDuplicateActiveDeliveryForSalesOrder
 	}
 
 	// Auto-fill receiver info from sales order customer if not provided
@@ -756,6 +765,27 @@ func (u *deliveryOrderUsecase) ListAuditTrail(ctx context.Context, id string, pa
 	}
 
 	return listAuditTrailEntries(ctx, u.db, id, "delivery_order.", page, perPage)
+}
+
+func (u *deliveryOrderUsecase) hasActiveDeliveryOrderForSalesOrder(ctx context.Context, salesOrderID string) (bool, error) {
+	if strings.TrimSpace(salesOrderID) == "" {
+		return false, nil
+	}
+
+	var count int64
+	err := database.GetDB(ctx, u.db).
+		Model(&models.DeliveryOrder{}).
+		Where("sales_order_id = ?", salesOrderID).
+		Where("status NOT IN ?", []string{
+			string(models.DeliveryOrderStatusCancelled),
+			string(models.DeliveryOrderStatusRejected),
+		}).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.DeliverDeliveryOrderRequest, userID *string) (*dto.DeliveryOrderResponse, error) {

@@ -117,6 +117,12 @@ export function DeliveryForm({
 		warehousesCombobox,
 	} = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
+	const watchedItems = useWatch({ control: form.control, name: "items" });
+	const hasLockedSalesOrderItems = useMemo(
+		() => (watchedItems ?? []).some((item) => !!item?.sales_order_item_id),
+		[watchedItems],
+	);
+
 	const {
 		register,
 		handleSubmit,
@@ -564,7 +570,7 @@ export function DeliveryForm({
                                 Maybe allow deleting if partial delivery of LINES. 
                                 Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
                             */}
-															{!watchedSalesOrderId && !currentItem?.sales_order_item_id && (
+																{!currentItem?.sales_order_item_id && (
 															<Button
 																type="button"
 																variant="ghost"
@@ -651,7 +657,7 @@ export function DeliveryForm({
 													<FieldError>{errors.items.message}</FieldError>
 												)}
 
-											{!watchedSalesOrderId && (
+															{!hasLockedSalesOrderItems && (
 												<Button
 													type="button"
 													variant="outline"

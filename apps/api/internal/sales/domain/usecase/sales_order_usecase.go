@@ -33,6 +33,7 @@ var (
 	ErrInvalidOrderStatusTransition = errors.New("invalid order status transition")
 	ErrOrderProductNotFound         = errors.New("product not found in order")
 	ErrInvalidOrderStatus           = errors.New("cannot modify order in current status")
+	ErrOrderItemsLockedByQuotation  = errors.New("sales order items are locked because this order is sourced from a quotation")
 	ErrQuotationNotFound            = errors.New("sales quotation not found")
 	ErrQuotationNotApproved         = errors.New("quotation must be approved before converting to order")
 	ErrInsufficientStock            = errors.New("insufficient stock available")
@@ -307,6 +308,10 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	beforeSnapshot := salesOrderAuditSnapshot(order)
+
+	if order.SalesQuotationID != nil && len(req.Items) > 0 {
+		return nil, ErrOrderItemsLockedByQuotation
+	}
 
 	// Validate products if items are being updated
 	productMap := make(map[string]*productModels.Product)

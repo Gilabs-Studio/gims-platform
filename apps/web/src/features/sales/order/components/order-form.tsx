@@ -592,6 +592,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     options={productCombobox.options}
                                     isLoading={isProductsLoading}
                                     placeholder={t("item.selectProduct")}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -622,6 +623,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0.001}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -642,6 +644,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0.01}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -662,6 +665,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
