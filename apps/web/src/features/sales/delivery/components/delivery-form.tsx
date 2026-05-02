@@ -564,7 +564,7 @@ export function DeliveryForm({
                                 Maybe allow deleting if partial delivery of LINES. 
                                 Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
                             */}
-															{!watchedSalesOrderId && (
+															{!watchedSalesOrderId && !currentItem?.sales_order_item_id && (
 															<Button
 																type="button"
 																variant="ghost"

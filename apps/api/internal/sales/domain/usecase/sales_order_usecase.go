@@ -517,6 +517,11 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 		}); err != nil {
 			fmt.Printf("failed to create sales order approval notification: %v\n", err)
 		}
+
+		logSalesAudit(u.auditService, ctx, "sales_order.submit", id, map[string]interface{}{
+			"before_status": previousStatus,
+			"after_status":  updated.Status,
+		})
 	}
 
 	logSalesAudit(u.auditService, ctx, "sales_order.status_change", id, map[string]interface{}{

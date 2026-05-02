@@ -89,7 +89,7 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 		query = r.db.WithContext(ctx).Model(&models.DeliveryOrder{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = delivery_orders.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
-		
+
 		// Apply tenant filter manually since we are using joins
 		var err error
 		query, err = applyTenantFilter(ctx, query, "delivery_orders.tenant_id", "sales_orders.tenant_id")
@@ -110,7 +110,9 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OwnerUserIDColumn: "delivery_orders.created_by",
+	})
 
 	// Apply status filter
 	if req.Status != "" {
@@ -189,8 +191,6 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 		if err := tx.Create(do).Error; err != nil {
 			return err
 		}
-
-
 
 		return nil
 	})
@@ -274,7 +274,7 @@ func (r *deliveryOrderRepository) GetNextDeliveryNumber(ctx context.Context, pre
 
 	// Format sequence with 4 digits
 	code := prefixWithDate + "-" + formatSequence(sequence)
-	
+
 	return code, nil
 }
 
@@ -300,9 +300,9 @@ func (r *deliveryOrderRepository) UpdateStatus(ctx context.Context, id string, s
 func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *string, trackingNumber string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
-		"status":         models.DeliveryOrderStatusShipped,
-		"shipped_by":     userID,
-		"shipped_at":     now,
+		"status":          models.DeliveryOrderStatusShipped,
+		"shipped_by":      userID,
+		"shipped_at":      now,
 		"tracking_number": trackingNumber,
 	}
 
@@ -314,8 +314,8 @@ func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *s
 func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
-		"status":            models.DeliveryOrderStatusDelivered,
-		"delivered_at":      now,
+		"status":             models.DeliveryOrderStatusDelivered,
+		"delivered_at":       now,
 		"receiver_signature": receiverSignature,
 		"receiver_name":      receiverName,
 	}
@@ -363,7 +363,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 		Limit(perPage).
 		Offset(offset).
 		Find(&items).Error
-	
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -381,7 +381,7 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 
 	var results []result
 	query := r.db.WithContext(ctx).Table("delivery_order_items doi")
-	
+
 	// Apply tenant filter with prefix
 	var err error
 	query, err = applyTenantFilter(ctx, query, "doi.tenant_id")

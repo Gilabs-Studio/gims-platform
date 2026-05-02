@@ -382,34 +382,37 @@ export function useDeliveryForm({
 			return;
 		}
 
-		if (isEdit && fullDeliveryData?.data) {
+		if (isEdit) {
+			if (!fullDeliveryData?.data) {
+				// Keep existing values while detail data is loading to avoid intermittent empty SO field.
+				return;
+			}
+
 			const deliveryData = fullDeliveryData.data;
-			setTimeout(() => {
-				reset({
-					delivery_date: deliveryData.delivery_date,
-					warehouse_id: deliveryData.warehouse_id ?? "",
-					sales_order_id: deliveryData.sales_order_id,
-					delivered_by_id: deliveryData.delivered_by_id ?? "",
-					courier_agency_id: deliveryData.courier_agency_id ?? "",
-					tracking_number: deliveryData.tracking_number ?? "",
-					receiver_name: deliveryData.receiver_name ?? "",
-					receiver_phone: deliveryData.receiver_phone ?? "",
-					delivery_address: deliveryData.delivery_address ?? "",
-					notes: deliveryData.notes ?? "",
-					items:
-						deliveryData.items?.map((item) => ({
-							product_id: item.product_id,
-							warehouse_id: deliveryData.warehouse_id ?? "",
-							sales_order_item_id: item.sales_order_item_id ?? "",
-							inventory_batch_id: item.inventory_batch_id ?? "",
-							quantity: item.quantity,
-							price: item.price || 0,
-							installation_status: item.installation_status ?? "",
-							function_test_status: item.function_test_status ?? "",
-							product_name: `${item.product?.code} - ${item.product?.name}`,
-						})) ?? [],
-				});
-			}, 10);
+			reset({
+				delivery_date: deliveryData.delivery_date,
+				warehouse_id: deliveryData.warehouse_id ?? "",
+				sales_order_id: deliveryData.sales_order_id,
+				delivered_by_id: deliveryData.delivered_by_id ?? "",
+				courier_agency_id: deliveryData.courier_agency_id ?? "",
+				tracking_number: deliveryData.tracking_number ?? "",
+				receiver_name: deliveryData.receiver_name ?? "",
+				receiver_phone: deliveryData.receiver_phone ?? "",
+				delivery_address: deliveryData.delivery_address ?? "",
+				notes: deliveryData.notes ?? "",
+				items:
+					deliveryData.items?.map((item) => ({
+						product_id: item.product_id,
+						warehouse_id: deliveryData.warehouse_id ?? "",
+						sales_order_item_id: item.sales_order_item_id ?? "",
+						inventory_batch_id: item.inventory_batch_id ?? "",
+						quantity: item.quantity,
+						price: item.price || 0,
+						installation_status: item.installation_status ?? "",
+						function_test_status: item.function_test_status ?? "",
+						product_name: `${item.product?.code} - ${item.product?.name}`,
+					})) ?? [],
+			});
 			return;
 		}
 

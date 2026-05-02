@@ -25,10 +25,9 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useRouter } from "@/i18n/routing";
-import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { salesPaymentSchema } from "../schemas/sales-payment.schema";
-import { useConfirmSalesPayment, useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
+import { useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
 import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
 import {
@@ -75,8 +74,6 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
   const isLockedToDP = !!defaultDPId;
 
   const createMutation = useCreateSalesPayment();
-  const confirmMutation = useConfirmSalesPayment();
-  const canConfirmPayment = useUserPermission("sales_payment.confirm");
 
   // Fetch DP detail when locked to a specific down payment
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useCustomerInvoiceDP(defaultDPId ?? "", {
@@ -221,7 +218,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     }
   }, [computedAmount, amount, method, setValue]);
 
-  const submitting = createMutation.isPending || confirmMutation.isPending;
+  const submitting = createMutation.isPending;
   const isFetchingReference = (!isLockedToDP && paymentAddDataQuery.isFetching) || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 

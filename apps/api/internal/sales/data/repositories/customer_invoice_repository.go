@@ -269,6 +269,7 @@ func (r *customerInvoiceRepository) getNextCodeLocked(ctx context.Context, tx *g
 
 	var count int64
 	if err := tx.WithContext(ctx).Model(&models.CustomerInvoice{}).
+		Unscoped().
 		Where("code LIKE ?", codePrefix+"-%").
 		Count(&count).Error; err != nil {
 		return "", err
