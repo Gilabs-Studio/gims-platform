@@ -2,12 +2,21 @@ package mapper
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
 
 type PurchasePaymentMapper struct{}
+
+// formatDateToISO formats a time.Time to ISO8601 date string (YYYY-MM-DD)
+func formatDateToISO_PurchasePayment(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02")
+}
 
 func NewPurchasePaymentMapper() *PurchasePaymentMapper {
 	return &PurchasePaymentMapper{}
@@ -21,8 +30,8 @@ func (m *PurchasePaymentMapper) toInvoiceSummary(si *models.SupplierInvoice) *dt
 		ID:              si.ID,
 		Code:            si.Code,
 		InvoiceNumber:   si.InvoiceNumber,
-		InvoiceDate:     si.InvoiceDate,
-		DueDate:         si.DueDate,
+		InvoiceDate:     formatDateToISO_PurchasePayment(si.InvoiceDate),
+		DueDate:         formatDateToISO_PurchasePayment(si.DueDate),
 		TaxRate:         si.TaxRate,
 		TaxAmount:       si.TaxAmount,
 		Amount:          si.Amount,
@@ -63,7 +72,7 @@ func (m *PurchasePaymentMapper) ToListResponse(p *models.PurchasePayment) *dto.P
 		FiscalYearID: p.FiscalYearID,
 		Invoice:      m.toInvoiceSummary(p.SupplierInvoice),
 		BankAccount:  bankSummary,
-		PaymentDate:  p.PaymentDate,
+		PaymentDate:  formatDateToISO_PurchasePayment(p.PaymentDate),
 		Amount:       p.Amount,
 		Method:       string(p.Method),
 		Status:       string(p.Status),

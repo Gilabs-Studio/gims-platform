@@ -31,11 +31,11 @@ import (
 )
 
 var (
-	ErrSupplierInvoiceNotFound = errors.New("supplier invoice not found")
-	ErrSupplierInvoiceConflict = errors.New("supplier invoice conflict")
-	ErrSupplierInvoiceInvalid  = errors.New("invalid supplier invoice")
+	ErrSupplierInvoiceNotFound         = errors.New("supplier invoice not found")
+	ErrSupplierInvoiceConflict         = errors.New("supplier invoice conflict")
+	ErrSupplierInvoiceInvalid          = errors.New("invalid supplier invoice")
 	ErrSupplierInvoiceQuantityExceeded = errors.New("supplier invoice quantity exceeds received quantity")
-	ErrPaymentTermsNotFound    = errors.New("payment terms not found")
+	ErrPaymentTermsNotFound            = errors.New("payment terms not found")
 )
 
 type SupplierInvoiceUsecase interface {
@@ -291,8 +291,8 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 				PurchaseOrder: poMini,
 				Code:          dp.Code,
 				InvoiceNumber: dp.InvoiceNumber,
-				InvoiceDate:   dp.InvoiceDate,
-				DueDate:       dp.DueDate,
+				InvoiceDate:   dp.InvoiceDate.Format("2006-01-02"),
+				DueDate:       dp.DueDate.Format("2006-01-02"),
 				Amount:        dp.Amount,
 				PaidAmount:    dp.PaidAmount,
 				Status:        string(dp.Status),
@@ -415,6 +415,17 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		remainingAmount := math.Max(0, grossAmount-dpAmount)
 
 		creatorID, _ := ctx.Value("user_id").(string)
+
+		invoiceDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		grID := gr.ID
 		si := models.SupplierInvoice{
 			Type:                 models.SupplierInvoiceTypeNormal,
@@ -424,8 +435,8 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			PaymentTermsID:       &pt.ID,
 			Code:                 code,
 			InvoiceNumber:        req.InvoiceNumber,
-			InvoiceDate:          req.InvoiceDate,
-			DueDate:              req.DueDate,
+			InvoiceDate:          invoiceDateParsed,
+			DueDate:              dueDateParsed,
 			TaxRate:              req.TaxRate,
 			TaxAmount:            tax,
 			DeliveryCost:         req.DeliveryCost,
@@ -613,6 +624,16 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		remainingAmount := math.Max(0, grossAmount-dpAmount)
 		grID := gr.ID
 
+		invoiceDateUpdateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateUpdateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		updatedDraft := &models.SupplierInvoice{
 			ID:                si.ID,
 			Type:              si.Type,
@@ -622,8 +643,8 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			PaymentTermsID:    &pt.ID,
 			Code:              si.Code,
 			InvoiceNumber:     req.InvoiceNumber,
-			InvoiceDate:       req.InvoiceDate,
-			DueDate:           req.DueDate,
+			InvoiceDate:       invoiceDateUpdateParsed,
+			DueDate:           dueDateUpdateParsed,
 			TaxRate:           req.TaxRate,
 			TaxAmount:         tax,
 			DeliveryCost:      req.DeliveryCost,
@@ -928,11 +949,7 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 	// --- Budget Guard ---
 	extraCost := si.DeliveryCost + si.OtherCost
 	if extraCost > 0 {
-		parsedDate, err := time.Parse("2006-01-02", si.InvoiceDate)
-		if err != nil {
-			return fmt.Errorf("invalid invoice date %q: %w", si.InvoiceDate, err)
-		}
-
+		// si.InvoiceDate is already time.Time, no need to parse
 		expenseCOAID := ""
 		if uc.engine != nil {
 			if mappedCOAID, resolveErr := uc.engine.ResolveCOAID(ctx, "coa.purchase_expense"); resolveErr == nil {
@@ -948,7 +965,7 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 		}
 
 		if expenseCOAID != "" {
-			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, parsedDate, extraCost); err != nil {
+			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, si.InvoiceDate, extraCost); err != nil {
 				// Do not block supplier invoice approval when the mapped extra-cost account
 				// is not budgeted for the period. Budget overrun remains enforced.
 				if !finUsecase.IsBudgetAccountNotConfiguredForPeriod(err) {
@@ -1167,7 +1184,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		return nil
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate.Format("2006-01-02"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve supplier invoice journal scope: %w", err)
 	}
@@ -1177,7 +1194,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		ReferenceID:     si.ID,
 		CompanyID:       companyID,
 		FiscalYearID:    fiscalYearID,
-		EntryDate:       si.InvoiceDate,
+		EntryDate:       si.InvoiceDate.Format("2006-01-02"),
 		Description:     fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
 		TotalAmount:     si.Amount,
 		SubTotal:        si.SubTotal,
@@ -1202,7 +1219,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 				Where("id = ?", si.ID).
 				Updates(map[string]interface{}{
 					"journal_entry_id": postedJournal.ID,
-					"is_posted":       true,
+					"is_posted":        true,
 				}).Error; err != nil {
 				return fmt.Errorf("failed to link supplier invoice journal: %w", err)
 			}
@@ -1240,7 +1257,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 			Where("id = ?", si.ID).
 			Updates(map[string]interface{}{
 				"journal_entry_id": postedJournal.ID,
-				"is_posted":       true,
+				"is_posted":        true,
 			}).Error; err != nil {
 			return fmt.Errorf("failed to link supplier invoice journal: %w", err)
 		}

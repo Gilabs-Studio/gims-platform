@@ -184,7 +184,7 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		DueDate:               req.DueDate,
 		Notes:                 req.Notes,
 		Status:                models.PurchaseOrderStatusDraft,
-		TaxRate:               clampPO(req.TaxRate, 0, 100),
+		TaxRate:               clamp(req.TaxRate, 0, 100),
 		DeliveryCost:          math.Max(0, req.DeliveryCost),
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
@@ -197,7 +197,7 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	po.FiscalYearID = &fiscalYearID
 
 	for _, it := range req.Items {
-		discount := clampPO(it.Discount, 0, 100)
+		discount := clamp(it.Discount, 0, 100)
 		qty := math.Max(0, it.Quantity)
 		price := math.Max(0, it.Price)
 		subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -356,7 +356,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 			DueDate:               nil,
 			Notes:                 pr.Notes,
 			Status:                models.PurchaseOrderStatusDraft,
-			TaxRate:               clampPO(pr.TaxRate, 0, 100),
+			TaxRate:               clamp(pr.TaxRate, 0, 100),
 			DeliveryCost:          math.Max(0, pr.DeliveryCost),
 			OtherCost:             math.Max(0, pr.OtherCost),
 			Items:                 make([]models.PurchaseOrderItem, 0, len(pr.Items)),
@@ -369,7 +369,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		po.FiscalYearID = &fiscalYearID
 
 		for _, it := range pr.Items {
-			discount := clampPO(it.Discount, 0, 100)
+			discount := clamp(it.Discount, 0, 100)
 			qty := math.Max(0, it.Quantity)
 			price := math.Max(0, it.PurchasePrice)
 			subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -467,14 +467,14 @@ func (uc *purchaseOrderUsecase) Update(ctx context.Context, id string, req *dto.
 		RevisionComment:       existing.RevisionComment,
 		Notes:                 req.Notes,
 		Status:                existing.Status,
-		TaxRate:               clampPO(req.TaxRate, 0, 100),
+		TaxRate:               clamp(req.TaxRate, 0, 100),
 		DeliveryCost:          math.Max(0, req.DeliveryCost),
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
 	}
 
 	for _, it := range req.Items {
-		discount := clampPO(it.Discount, 0, 100)
+		discount := clamp(it.Discount, 0, 100)
 		qty := math.Max(0, it.Quantity)
 		price := math.Max(0, it.Price)
 		subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -875,22 +875,12 @@ func poAuditItems(items []models.PurchaseOrderItem) []map[string]interface{} {
 	return out
 }
 
-func clampPO(v, min, max float64) float64 {
-	if v < min {
-		return min
-	}
-	if v > max {
-		return max
-	}
-	return v
-}
-
 func calcPOItemSubtotal(qty, price, discount float64) float64 {
 	raw := qty * price
 	if discount <= 0 {
-		return math.Round(raw*100) / 100
+		return roundTo2Decimals(raw)
 	}
-	return math.Round((raw-(raw*(discount/100)))*100) / 100
+	return roundTo2Decimals(raw - (raw * (discount / 100)))
 }
 
 func calcPOTotals(items []models.PurchaseOrderItem, taxRate, deliveryCost, otherCost float64) (subTotal, taxAmount, total float64) {

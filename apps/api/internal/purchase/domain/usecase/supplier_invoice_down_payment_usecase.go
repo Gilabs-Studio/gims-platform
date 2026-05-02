@@ -176,14 +176,25 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		invNo := fmt.Sprintf("SUP-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "SIDP-"))
 
 		creatorID, _ := ctx.Value("user_id").(string)
+
+		invoiceDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		si := models.SupplierInvoice{
 			Type:            models.SupplierInvoiceTypeDownPayment,
 			PurchaseOrderID: po.ID,
 			SupplierID:      *po.SupplierID,
 			Code:            code,
 			InvoiceNumber:   invNo,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
+			InvoiceDate:     invoiceDateParsed,
+			DueDate:         dueDateParsed,
 			Amount:          req.Amount,
 			Status:          models.SupplierInvoiceStatusDraft,
 			Notes:           req.Notes,
@@ -591,7 +602,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		return nil
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate.Format("2006-01-02"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve supplier invoice DP journal scope: %w", err)
 	}
@@ -601,7 +612,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		ReferenceID:     si.ID,
 		CompanyID:       companyID,
 		FiscalYearID:    fiscalYearID,
-		EntryDate:       si.InvoiceDate,
+		EntryDate:       si.InvoiceDate.Format("2006-01-02"),
 		Description:     fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
 		TotalAmount:     si.Amount,
 		DescriptionArgs: []interface{}{si.InvoiceNumber, si.Code},

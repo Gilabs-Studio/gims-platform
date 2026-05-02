@@ -633,9 +633,9 @@ func prAuditItems(items []models.PurchaseRequisitionItem) []map[string]interface
 func calcItemSubtotal(qty, price, discount float64) float64 {
 	raw := qty * price
 	if discount <= 0 {
-		return raw
+		return roundTo2Decimals(raw)
 	}
-	return raw - (raw * (discount / 100))
+	return roundTo2Decimals(raw - (raw * (discount / 100)))
 }
 
 func calcTotals(items []models.PurchaseRequisitionItem, taxRate, deliveryCost, otherCost float64) (subtotal, taxAmount, total float64) {
@@ -646,14 +646,4 @@ func calcTotals(items []models.PurchaseRequisitionItem, taxRate, deliveryCost, o
 	taxAmount = subtotal * (clamp(taxRate, 0, 100) / 100)
 	total = subtotal + taxAmount + math.Max(0, deliveryCost) + math.Max(0, otherCost)
 	return
-}
-
-func clamp(val, minVal, maxVal float64) float64 {
-	if val < minVal {
-		return minVal
-	}
-	if val > maxVal {
-		return maxVal
-	}
-	return val
 }
