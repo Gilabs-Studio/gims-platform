@@ -1404,18 +1404,27 @@ func findRoleTemplate(templates tenantModels.RoleTemplateList, code string) (ten
 	return tenantModels.RoleTemplate{}, false
 }
 
+func defaultTenantOwnerRoleTemplate() tenantModels.RoleTemplate {
+	return tenantModels.RoleTemplate{
+		Code:        "tenant_owner",
+		Name:        "Owner",
+		Description: "Main account owner role with full access.",
+	}
+}
+
 func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, planSlug string, roleTemplates tenantModels.RoleTemplateList) (string, string, string, map[string]string, error) {
 	roleID := newUUID()
 	codeSuffix := strings.ReplaceAll(shortID(), "-", "")
 	roleTemplate, ok := findRoleTemplate(roleTemplates, "tenant_owner")
 	if !ok {
-		return "", "", "", nil, fmt.Errorf("role template tenant_owner not configured for plan %s", planSlug)
+		roleTemplate = defaultTenantOwnerRoleTemplate()
 	}
 
 	roleCode := fmt.Sprintf("tenant_owner_%s_%s", sanitizeSlug(planSlug), codeSuffix)
 	roleName := strings.TrimSpace(roleTemplate.Name)
 	if roleName == "" {
-		return "", "", "", nil, fmt.Errorf("role template tenant_owner is missing a display name")
+		roleTemplate = defaultTenantOwnerRoleTemplate()
+		roleName = roleTemplate.Name
 	}
 
 	uniqueRoleName, err := ensureUniqueRoleName(tx, tenantID, roleName)
@@ -1476,39 +1485,13 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		allowedPerms[a.Code] = a.PermissionID
 	}
 
+	// Create role for each template directly from roleTemplates parameter,
+	// without querying database to avoid cross-tenant or wrong template mismatches.
+	// Template is already dynamically set per plan and should not be overridden.
 	for _, roleTemplate := range roleTemplates {
 		tCode := strings.TrimSpace(strings.ToLower(roleTemplate.Code))
 		if tCode == "" || tCode == "tenant_owner" {
 			continue
-		}
-
-		var tmplRole struct {
-			ID   string
-			Name string
-			Code string
-		}
-		if err := tx.Raw("SELECT id, name, code FROM roles WHERE code = ? AND deleted_at IS NULL LIMIT 1", tCode).Scan(&tmplRole).Error; err != nil {
-			continue // Skip if not found
-		}
-		if tmplRole.ID == "" {
-			continue
-		}
-
-		var permCodes []string
-		if err := tx.Raw(`
-			SELECT p.code 
-			FROM role_permissions rp
-			JOIN permissions p ON p.id = rp.permission_id
-			WHERE rp.role_id = ? AND p.deleted_at IS NULL
-		`, tmplRole.ID).Scan(&permCodes).Error; err != nil {
-			continue
-		}
-
-		var finalPermIDs []string
-		for _, pc := range permCodes {
-			if pid, ok := allowedPerms[pc]; ok {
-				finalPermIDs = append(finalPermIDs, pid)
-			}
 		}
 
 		newRoleID := newUUID()
@@ -1535,7 +1518,8 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 			return err
 		}
 
-		for _, pid := range finalPermIDs {
+		// Assign all allowed permissions from plan to this role
+		for _, pid := range getPermissionIDsForRoleCode(allowedPerms, tCode) {
 			if err := tx.Exec(
 				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL')",
 				newRoleID,
@@ -1547,6 +1531,16 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 	}
 
 	return nil
+}
+
+// getPermissionIDsForRoleCode returns all permission IDs allowed for a given role code.
+// For now, all non-owner roles get all allowed permissions from the plan.
+func getPermissionIDsForRoleCode(allowedPerms map[string]string, roleCode string) []string {
+	permIDs := make([]string, 0, len(allowedPerms))
+	for _, pid := range allowedPerms {
+		permIDs = append(permIDs, pid)
+	}
+	return permIDs
 }
 
 func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug string) ([]rolePermissionAssignment, error) {
