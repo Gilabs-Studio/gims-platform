@@ -50,7 +50,9 @@ import { PosOutletSalesWidget } from "./pos-outlet-sales-widget";
 import { PosLiveTableWidget } from "./pos-live-table-widget";
 import { PosCashControlWidget } from "./pos-cash-control-widget";
 import { HrWidget } from "./hr-widget";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
+import { isDashboardWidgetRestrictedByScope } from "../config/scope-guard";
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -92,11 +94,13 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
   const tAuthBlock = useTranslations("auth.block");
   const { data: permissionsData, isLoading: isPermissionsLoading } = useUserPermissions();
   const registry = WIDGET_REGISTRY[widget.type];
+  const permissionScope = usePermissionScope(registry?.permission ?? "");
   const accessibleMenuUrls = useMemo(
     () => collectAccessibleMenuUrls(permissionsData?.data.menus ?? []),
     [permissionsData?.data.menus],
   );
   const canView = isWidgetVisibleByAccessibleMenus(widget.type, accessibleMenuUrls);
+  const isScopeRestricted = isDashboardWidgetRestrictedByScope(widget.type, permissionScope);
 
   if (isPermissionsLoading) {
     return (
@@ -117,11 +121,11 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     isError,
     refetch,
   } = useDashboardWidgetOverview(widget.type, {
-    enabled: canView && isOverviewWidget(widget.type) && !isOwnerKpiWidget(widget.type),
+    enabled: canView && !isScopeRestricted && isOverviewWidget(widget.type) && !isOwnerKpiWidget(widget.type),
   });
 
   const ownerKpi = useOwnerKpi({
-    enabled: canView && isOwnerKpiWidget(widget.type),
+    enabled: canView && !isScopeRestricted && isOwnerKpiWidget(widget.type),
   });
 
   const costItems = data?.costs_by_category ?? [];
@@ -160,6 +164,18 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
         <CardContent className="flex min-h-40 flex-col items-center justify-center gap-2 p-6 text-center">
           <Lock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <p className="text-xs text-muted-foreground">{tAuthBlock("description")}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isScopeRestricted) {
+    return (
+      <Card className="h-full border-dashed">
+        <CardContent className="flex min-h-40 flex-col items-center justify-center gap-2 p-6 text-center">
+          <Lock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-medium">{t("scopeRestrictedTitle")}</p>
+          <p className="text-xs text-muted-foreground">{t("scopeRestrictedDescription")}</p>
         </CardContent>
       </Card>
     );

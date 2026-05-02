@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
@@ -103,6 +104,11 @@ func (r *warehouseRepository) List(ctx context.Context, params WarehouseListPara
 
 	query := database.GetDB(ctx, r.db).Model(&models.Warehouse{}).
 		Select("warehouses.*, EXISTS(SELECT 1 FROM inventory_batches WHERE warehouse_id = warehouses.id AND current_quantity > 0 AND deleted_at IS NULL) AS has_stock")
+
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		WarehouseIDColumn: "id",
+		OutletIDColumn:    "outlet_id",
+	})
 
 	// Apply filters
 	if params.Search != "" {

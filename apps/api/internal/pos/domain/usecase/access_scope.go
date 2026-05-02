@@ -26,12 +26,6 @@ func hasPOSScopedFullAccess(ctx context.Context) bool {
 		return true
 	}
 
-	role := strings.ToLower(strings.TrimSpace(scopeString(ctx, "user_role")))
-	if role == "admin" || role == "superadmin" || role == "tenant_owner" || role == "owner" ||
-		strings.HasPrefix(role, "tenant_owner_") || strings.HasSuffix(role, "_owner") {
-		return true
-	}
-
 	return currentPermissionScope(ctx) == "ALL"
 }
 

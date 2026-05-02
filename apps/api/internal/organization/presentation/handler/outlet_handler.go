@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"log"
 	"strconv"
-	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -32,21 +30,6 @@ func getOutletUserID(c *gin.Context) string {
 		}
 	}
 	return ""
-}
-
-func shouldFilterOutletByUserWarehouse(c *gin.Context) bool {
-	scopeVal, exists := c.Get("permission_scope")
-	if !exists {
-		return false
-	}
-
-	scope, ok := scopeVal.(string)
-	if !ok {
-		return false
-	}
-
-	normalized := strings.ToUpper(strings.TrimSpace(scope))
-	return normalized == "OUTLET" || normalized == "WAREHOUSE"
 }
 
 // Create handles POST /outlets
@@ -100,24 +83,12 @@ func (h *OutletHandler) GetByID(c *gin.Context) {
 
 // List handles GET /outlets
 func (h *OutletHandler) List(c *gin.Context) {
-	userID := ""
-	if shouldFilterOutletByUserWarehouse(c) {
-		userID = getOutletUserID(c)
-	}
-
-	if scopedOutlets, ok := c.Request.Context().Value("scope_outlet_ids").([]string); ok {
-		if scopedWarehouses, ok := c.Request.Context().Value("scope_warehouse_ids").([]string); ok {
-			log.Printf("[outlet.list] user_id=%s permission_scope=%s outlet_ids=%d warehouse_ids=%d", getOutletUserID(c), c.GetString("permission_scope"), len(scopedOutlets), len(scopedWarehouses))
-		}
-	}
-
 	params := repositories.OutletListParams{
 		Search:      c.Query("search"),
 		SortBy:      c.DefaultQuery("sort_by", "name"),
 		SortDir:     c.DefaultQuery("sort_dir", "asc"),
 		CompanyID:   c.Query("company_id"),
 		WarehouseID: c.Query("warehouse_id"),
-		UserID:      userID,
 	}
 
 	// Parse is_active filter

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -64,6 +65,11 @@ func (r *floorPlanRepository) List(ctx context.Context, params FloorPlanListPara
 	// Use WithContext (not GetDB) because CompanyID filter JOINs outlets which has tenant_id.
 	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
 	query := r.db.WithContext(ctx).Model(&models.FloorPlan{})
+
+	// Apply dynamic scope filter
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OutletIDColumn: "outlet_id",
+	})
 
 	// Company-level filtering (RBAC scoping)
 	if params.OutletID != "" {

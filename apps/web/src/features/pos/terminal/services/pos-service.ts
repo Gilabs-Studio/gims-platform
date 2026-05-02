@@ -126,6 +126,12 @@ export const posOrderService = {
       .get<ApiResponse<POSCatalogItem[]>>(`${BASE}/catalog/outlet/${outletId}`)
       .then((r) => r.data);
   },
+
+  listOutlets() {
+    return apiClient
+      .get<ApiResponse<any[]>>(`${BASE}/outlets`)
+      .then((r) => r.data);
+  },
 };
 
 // ─── Payments ─────────────────────────────────────────────────────────────────

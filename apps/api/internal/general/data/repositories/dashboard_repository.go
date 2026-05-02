@@ -94,6 +94,23 @@ func (r *dashboardRepository) GetRevenueKPI(ctx context.Context, start, end time
 			Select("COALESCE(SUM(total_amount), 0)").Scan(&previous)
 		return dto.KPICard{Value: current, ChangePercent: calcChange(previous, current)}, nil
 	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		var current float64
+		if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
+			Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).
+			Where(scopeWhere, scopeParams...).
+			Select("COALESCE(SUM(total_amount), 0)").Scan(&current).Error; err != nil {
+			return dto.KPICard{}, err
+		}
+		duration := end.Sub(start)
+		prevStart, prevEnd := start.Add(-duration), start.Add(-time.Second)
+		var previous float64
+		r.scoped(ctx, "sales_orders").Table("sales_orders").
+			Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", prevStart, prevEnd).
+			Where(scopeWhere, scopeParams...).
+			Select("COALESCE(SUM(total_amount), 0)").Scan(&previous)
+		return dto.KPICard{Value: current, ChangePercent: calcChange(previous, current)}, nil
+	}
 
 	var current float64
 	if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
@@ -135,6 +152,23 @@ func (r *dashboardRepository) GetOrdersKPI(ctx context.Context, start, end time.
 			Count(&previous)
 		return dto.KPICard{Value: float64(current), ChangePercent: calcChange(float64(previous), float64(current))}, nil
 	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		var current int64
+		if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
+			Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).
+			Where(scopeWhere, scopeParams...).
+			Count(&current).Error; err != nil {
+			return dto.KPICard{}, err
+		}
+		duration := end.Sub(start)
+		prevStart, prevEnd := start.Add(-duration), start.Add(-time.Second)
+		var previous int64
+		r.scoped(ctx, "sales_orders").Table("sales_orders").
+			Where("order_date BETWEEN ? AND ? AND deleted_at IS NULL", prevStart, prevEnd).
+			Where(scopeWhere, scopeParams...).
+			Count(&previous)
+		return dto.KPICard{Value: float64(current), ChangePercent: calcChange(float64(previous), float64(current))}, nil
+	}
 
 	var current int64
 	if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
@@ -171,6 +205,18 @@ func (r *dashboardRepository) GetCustomersKPI(ctx context.Context) (dto.KPICard,
 		}
 		return dto.KPICard{Value: float64(count)}, nil
 	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		var count int64
+		if err := r.scoped(ctx, "customers").Table("customers").
+			Joins("JOIN sales_orders ON sales_orders.customer_id = customers.id AND sales_orders.deleted_at IS NULL").
+			Where("customers.deleted_at IS NULL").
+			Where(scopeWhere, scopeParams...).
+			Distinct("customers.id").
+			Count(&count).Error; err != nil {
+			return dto.KPICard{}, err
+		}
+		return dto.KPICard{Value: float64(count)}, nil
+	}
 
 	var count int64
 	if err := r.scoped(ctx, "customers").Table("customers").
@@ -199,6 +245,17 @@ func (r *dashboardRepository) GetProductsKPI(ctx context.Context) (dto.KPICard, 
 		}
 		return dto.KPICard{Value: float64(count)}, nil
 	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		var count int64
+		if err := r.scoped(ctx, "sales_order_items").Table("sales_order_items").
+			Joins("JOIN sales_orders ON sales_orders.id = sales_order_items.sales_order_id AND sales_orders.deleted_at IS NULL").
+			Where(scopeWhere, scopeParams...).
+			Distinct("sales_order_items.product_id").
+			Count(&count).Error; err != nil {
+			return dto.KPICard{}, err
+		}
+		return dto.KPICard{Value: float64(count)}, nil
+	}
 
 	var count int64
 	if err := r.scoped(ctx, "products").Table("products").
@@ -222,6 +279,17 @@ func (r *dashboardRepository) GetEmployeeCountKPI(ctx context.Context) (dto.KPIC
 			Joins("JOIN employee_outlets ON employee_outlets.employee_id = employees.id AND employee_outlets.deleted_at IS NULL").
 			Where("employee_outlets.outlet_id IN ?", outletIDs).
 			Where("employees.is_active = ? AND employees.deleted_at IS NULL", true).
+			Distinct("employees.id").
+			Count(&count).Error; err != nil {
+			return dto.KPICard{}, err
+		}
+		return dto.KPICard{Value: float64(count)}, nil
+	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "employees"); scopeWhere != "" {
+		var count int64
+		if err := r.scoped(ctx, "employees").Table("employees").
+			Where("employees.is_active = ? AND employees.deleted_at IS NULL", true).
+			Where(scopeWhere, scopeParams...).
 			Distinct("employees.id").
 			Count(&count).Error; err != nil {
 			return dto.KPICard{}, err
@@ -264,6 +332,20 @@ func (r *dashboardRepository) GetRevenueChart(ctx context.Context, start, end ti
 		}
 		return points, nil
 	}
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
+			Select("TO_CHAR(order_date, 'YYYY-MM') as period, COALESCE(SUM(total_amount), 0) as amount").
+			Where(approvedClosedWhere, approvedStatuses, start, end).
+			Where(scopeWhere, scopeParams...).
+			Group("period").Order("period ASC").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		points := make([]dto.PeriodChartPoint, 0, len(rows))
+		for _, row := range rows {
+			points = append(points, dto.PeriodChartPoint{Period: row.Period, Revenue: row.Amount})
+		}
+		return points, nil
+	}
 	if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
 		Select("TO_CHAR(order_date, 'YYYY-MM') as period, COALESCE(SUM(total_amount), 0) as amount").
 		Where(approvedClosedWhere, approvedStatuses, start, end).
@@ -283,6 +365,21 @@ func (r *dashboardRepository) GetCostsChart(ctx context.Context, start, end time
 		Amount float64
 	}
 	var rows []row
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "journal_entries"); scopeWhere != "" {
+		if err := r.scoped(ctx, "journal_lines").Table("journal_lines").
+			Joins(journalJoinEntries).Joins(journalJoinAccounts).
+			Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit), 0) as amount").
+			Where(expenseWhere, "EXPENSE", start, end, "posted").
+			Where(scopeWhere, scopeParams...).
+			Group("period").Order("period ASC").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		points := make([]dto.PeriodChartPoint, 0, len(rows))
+		for _, row := range rows {
+			points = append(points, dto.PeriodChartPoint{Period: row.Period, Costs: row.Amount})
+		}
+		return points, nil
+	}
 	if err := r.scoped(ctx, "journal_lines").Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit), 0) as amount").
@@ -329,24 +426,44 @@ func (r *dashboardRepository) GetRevenueVsCosts(ctx context.Context, start, end 
 
 func (r *dashboardRepository) GetBalance(ctx context.Context, start, end time.Time) (dto.BalanceData, error) {
 	var current float64
-	r.scoped(ctx, "journal_lines").Table("journal_lines").
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "journal_entries"); scopeWhere != "" {
+		r.scoped(ctx, "journal_lines").Table("journal_lines").
+			Joins(journalJoinEntries).Joins(journalJoinAccounts).
+			Select("COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0)").
+			Where("chart_of_accounts.type IN ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
+				[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, "posted").
+			Where(scopeWhere, scopeParams...).
+			Scan(&current)
+	} else {
+		r.scoped(ctx, "journal_lines").Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0)").
 		Where("chart_of_accounts.type IN ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
 			[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, "posted").
-		Scan(&current)
+			Scan(&current)
+	}
 
 	type row struct {
 		Period string
 		Amount float64
 	}
 	var rows []row
-	r.scoped(ctx, "journal_lines").Table("journal_lines").
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "journal_entries"); scopeWhere != "" {
+		r.scoped(ctx, "journal_lines").Table("journal_lines").
+			Joins(journalJoinEntries).Joins(journalJoinAccounts).
+			Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0) as amount").
+			Where("chart_of_accounts.type IN ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
+				[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, start, end, "posted").
+			Where(scopeWhere, scopeParams...).
+			Group("period").Order("period ASC").Scan(&rows)
+	} else {
+		r.scoped(ctx, "journal_lines").Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("TO_CHAR(journal_entries.entry_date, 'YYYY-MM') as period, COALESCE(SUM(journal_lines.debit) - SUM(journal_lines.credit), 0) as amount").
 		Where("chart_of_accounts.type IN ? AND journal_entries.entry_date BETWEEN ? AND ? AND journal_entries.deleted_at IS NULL AND journal_entries.status = ?",
 			[]string{"CASH_BANK", "ASSET", "CURRENT_ASSET"}, start, end, "posted").
-		Group("period").Order("period ASC").Scan(&rows)
+			Group("period").Order("period ASC").Scan(&rows)
+	}
 
 	trend := make([]dto.PeriodChartPoint, 0, len(rows))
 	for _, row := range rows {
@@ -361,11 +478,15 @@ func (r *dashboardRepository) GetCostsByCategory(ctx context.Context, start, end
 		Amount   float64
 	}
 	var rows []row
-	if err := r.scoped(ctx, "journal_lines").Table("journal_lines").
+	query := r.scoped(ctx, "journal_lines").Table("journal_lines").
 		Joins(journalJoinEntries).Joins(journalJoinAccounts).
 		Select("chart_of_accounts.name as category, COALESCE(SUM(journal_lines.debit), 0) as amount").
 		Where(expenseWhere, "EXPENSE", start, end, "posted").
-		Group("chart_of_accounts.name").Order("amount DESC").Limit(10).Scan(&rows).Error; err != nil {
+		Group("chart_of_accounts.name").Order("amount DESC").Limit(10)
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "journal_entries"); scopeWhere != "" {
+		query = query.Where(scopeWhere, scopeParams...)
+	}
+	if err := query.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	var total float64
@@ -406,6 +527,18 @@ func (r *dashboardRepository) GetInvoiceSummary(ctx context.Context, start, end 
 		base.Where("invoice_date BETWEEN ? AND ? AND status NOT IN (?) AND due_date < NOW()",
 			start, end, []string{"paid", "cancelled"}).Count(&overdue)
 	} else {
+		scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders")
+		if scopeWhere != "" {
+			base := r.scoped(ctx, "customer_invoices").Table("customer_invoices").
+				Joins("JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
+				Where("customer_invoices.deleted_at IS NULL").
+				Where(scopeWhere, scopeParams...)
+			base.Where("invoice_date BETWEEN ? AND ?", start, end).Count(&total)
+			base.Where("invoice_date BETWEEN ? AND ? AND status = ?", start, end, "paid").Count(&paid)
+			base.Where("invoice_date BETWEEN ? AND ? AND status IN (?)", start, end, []string{"unpaid", "draft", "sent", "approved"}).Count(&unpaid)
+			base.Where("invoice_date BETWEEN ? AND ? AND status NOT IN (?) AND due_date < NOW()",
+				start, end, []string{"paid", "cancelled"}).Count(&overdue)
+		} else {
 		r.scoped(ctx, "customer_invoices").Table("customer_invoices").
 			Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL", start, end).Count(&total)
 		r.scoped(ctx, "customer_invoices").Table("customer_invoices").
@@ -415,6 +548,7 @@ func (r *dashboardRepository) GetInvoiceSummary(ctx context.Context, start, end 
 		r.scoped(ctx, "customer_invoices").Table("customer_invoices").
 			Where("invoice_date BETWEEN ? AND ? AND deleted_at IS NULL AND status NOT IN (?) AND due_date < NOW()",
 				start, end, []string{"paid", "cancelled"}).Count(&overdue)
+		}
 	}
 	summary.Total = int(total)
 	summary.Paid = int(paid)
@@ -627,12 +761,16 @@ func (r *dashboardRepository) GetGeoOverview(ctx context.Context, start, end tim
 		Value float64
 	}
 	var rows []row
-	if err := r.scoped(ctx, "sales_orders").Table("sales_orders").
+	query := r.scoped(ctx, "sales_orders").Table("sales_orders").
 		Joins("JOIN customers ON customers.id = sales_orders.customer_id").
 		Joins("LEFT JOIN provinces ON provinces.id = customers.province_id").
 		Select("COALESCE(provinces.id::text, 'unknown') as code, COALESCE(provinces.name, 'Unknown') as name, COUNT(sales_orders.id) as count, COALESCE(SUM(sales_orders.total_amount), 0) as value").
 		Where(salesOrderWhere, approvedStatuses, start, end).
-		Group("provinces.id, provinces.name").Order("value DESC").Scan(&rows).Error; err != nil {
+		Group("provinces.id, provinces.name").Order("value DESC")
+	if scopeWhere, scopeParams := buildScopeWhereClause(ctx, "sales_orders"); scopeWhere != "" {
+		query = query.Where(scopeWhere, scopeParams...)
+	}
+	if err := query.Scan(&rows).Error; err != nil {
 		return dto.GeoOverviewData{}, err
 	}
 	regions := make([]dto.GeoRegionData, 0, len(rows))
@@ -792,22 +930,47 @@ func isOutletOrWarehouseScope(ctx context.Context) bool {
 }
 
 func resolveDashboardOutletIDs(ctx context.Context, db *gorm.DB) ([]string, error) {
-	if !isOutletOrWarehouseScope(ctx) {
+	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+	if middleware.IsSystemAdmin(ctx) || hasFullPOSAccess(ctx) {
 		return nil, nil
 	}
 
-	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
-	if currentRequestScope(ctx) == "OUTLET" {
-		return outletIDs, nil
-	}
-
+	// Prefer the resolved employee scope whenever it exists. Dashboard requests
+	// are authorized by `dashboard.view`, whose permission scope is often ALL,
+	// but the actual outlet restriction still needs to come from scope_context.
 	if len(outletIDs) > 0 {
 		return outletIDs, nil
 	}
 
+	// Fallback: if scope is OUTLET and scope_outlet_ids was empty, try to resolve from employee_outlets
+	requestScope := currentRequestScope(ctx)
+	if requestScope == "OUTLET" && len(outletIDs) == 0 {
+		userID := contextString(ctx, "user_id")
+		if userID != "" {
+			var fallbackOutletIDs []string
+			if err := db.WithContext(ctx).
+				Table("employee_outlets").
+				Joins("JOIN employees ON employees.id = employee_outlets.employee_id").
+				Where("employees.user_id = ? AND employee_outlets.deleted_at IS NULL", userID).
+				Pluck("employee_outlets.outlet_id::text", &fallbackOutletIDs).Error; err != nil {
+				return nil, err
+			}
+			if len(fallbackOutletIDs) > 0 {
+				log.Printf("[dashboard][scope] fallback employee_outlets resolved outlet_ids=%d user_id=%s", len(fallbackOutletIDs), userID)
+				return fallbackOutletIDs, nil
+			}
+			log.Printf("[dashboard][scope] fallback employee_outlets returned empty user_id=%s", userID)
+			return []string{}, nil
+		}
+	}
+
 	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
 	if len(warehouseIDs) == 0 {
-		return []string{}, nil
+		if currentRequestScope(ctx) == "OUTLET" || currentRequestScope(ctx) == "WAREHOUSE" {
+			// Scoped users without resolved assignments should see no outlet data.
+			return []string{}, nil
+		}
+		return nil, nil
 	}
 
 	var resolved []string
@@ -848,59 +1011,114 @@ func buildScopeWhereClause(ctx context.Context, tableAlias string) (whereClause 
 		return "", nil
 	}
 
-	// Check for outlet scope (explicit employee->outlet assignments)
 	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
-	if requestScope == "OUTLET" {
-		if len(outletIDs) == 0 {
-			log.Printf("[dashboard][scope] table=%s strategy=outlet-empty role=%s", tableAlias, contextString(ctx, "user_role"))
-			return "1 = 0", nil
-		}
-		log.Printf("[dashboard][scope] table=%s strategy=outlet outlet_ids=%d", tableAlias, len(outletIDs))
-		return fmt.Sprintf("%s.outlet_id IN ?", tableAlias), []any{outletIDs}
-	}
-
-	// Check for warehouse scope
 	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
-	if requestScope == "WAREHOUSE" {
-		if len(warehouseIDs) == 0 {
-			log.Printf("[dashboard][scope] table=%s strategy=warehouse-empty role=%s", tableAlias, contextString(ctx, "user_role"))
-			return "1 = 0", nil
-		}
-		log.Printf("[dashboard][scope] table=%s strategy=warehouse warehouse_ids=%d", tableAlias, len(warehouseIDs))
-		return fmt.Sprintf("%s.warehouse_id IN ?", tableAlias), []any{warehouseIDs}
-	}
-
-	// Check for area scope
 	areaIDs, _ := ctx.Value("scope_area_ids").([]string)
-	if requestScope == "AREA" {
-		if len(areaIDs) == 0 {
-			log.Printf("[dashboard][scope] table=%s strategy=area-empty role=%s", tableAlias, contextString(ctx, "user_role"))
-			return "1 = 0", nil
-		}
-		log.Printf("[dashboard][scope] table=%s strategy=area area_ids=%d", tableAlias, len(areaIDs))
-		return fmt.Sprintf("%s.area_id IN ?", tableAlias), []any{areaIDs}
-	}
-
-	// Check for division scope
 	divisionID := contextString(ctx, "scope_division_id")
-	if requestScope == "DIVISION" {
-		if divisionID == "" {
-			log.Printf("[dashboard][scope] table=%s strategy=division-empty role=%s", tableAlias, contextString(ctx, "user_role"))
-			return "1 = 0", nil
-		}
-		log.Printf("[dashboard][scope] table=%s strategy=division division_id=%s", tableAlias, divisionID)
-		return fmt.Sprintf("%s.division_id = ?", tableAlias), []any{divisionID}
-	}
-
-	// Check for own/employee scope
 	employeeID := contextString(ctx, "scope_employee_id")
-	if requestScope == "OWN" {
-		if employeeID == "" {
-			log.Printf("[dashboard][scope] table=%s strategy=own-empty role=%s", tableAlias, contextString(ctx, "user_role"))
-			return "1 = 0", nil
+	userID := contextString(ctx, "user_id")
+
+	log.Printf("[dashboard][scope] table=%s request_scope=%s outlet_ids=%d warehouse_ids=%d area_ids=%d division_id=%s employee_id=%s role=%s",
+		tableAlias,
+		requestScope,
+		len(outletIDs),
+		len(warehouseIDs),
+		len(areaIDs),
+		divisionID,
+		employeeID,
+		contextString(ctx, "user_role"),
+	)
+
+	switch tableAlias {
+	case "sales_orders":
+		switch requestScope {
+		case "OUTLET", "WAREHOUSE":
+			if len(outletIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return fmt.Sprintf("%s.outlet_id IN ?", tableAlias), []any{outletIDs}
+		case "AREA":
+			if len(areaIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return fmt.Sprintf("%s.delivery_area_id IN ?", tableAlias), []any{areaIDs}
+		case "DIVISION":
+			if divisionID == "" {
+				return "1 = 0", nil
+			}
+			return fmt.Sprintf("%s.sales_rep_id IN (SELECT id FROM employees WHERE division_id = ? AND deleted_at IS NULL)", tableAlias), []any{divisionID}
+		case "OWN":
+			conditions := make([]string, 0, 2)
+			params := make([]any, 0, 2)
+			if userID != "" {
+				conditions = append(conditions, fmt.Sprintf("%s.created_by = ?", tableAlias))
+				params = append(params, userID)
+			}
+			if employeeID != "" {
+				conditions = append(conditions, fmt.Sprintf("%s.sales_rep_id = ?", tableAlias))
+				params = append(params, employeeID)
+			}
+			if len(conditions) == 0 {
+				return "1 = 0", nil
+			}
+			return "(" + strings.Join(conditions, " OR ") + ")", params
 		}
-		log.Printf("[dashboard][scope] table=%s strategy=own employee_id=%s", tableAlias, employeeID)
-		return fmt.Sprintf("%s.employee_id = ?", tableAlias), []any{employeeID}
+	case "employees":
+		switch requestScope {
+		case "OUTLET":
+			if len(outletIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "employees.id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL)", []any{outletIDs}
+		case "WAREHOUSE":
+			if len(warehouseIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "employees.id IN (SELECT employee_id FROM employee_warehouses WHERE warehouse_id IN ? AND deleted_at IS NULL)", []any{warehouseIDs}
+		case "AREA":
+			if len(areaIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "employees.area_id IN ?", []any{areaIDs}
+		case "DIVISION":
+			if divisionID == "" {
+				return "1 = 0", nil
+			}
+			return "employees.division_id = ?", []any{divisionID}
+		case "OWN":
+			if employeeID == "" {
+				return "1 = 0", nil
+			}
+			return "employees.id = ?", []any{employeeID}
+		}
+	case "journal_entries":
+		switch requestScope {
+		case "OUTLET":
+			if len(outletIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "journal_entries.created_by IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL)", []any{outletIDs}
+		case "WAREHOUSE":
+			if len(warehouseIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "journal_entries.created_by IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_warehouses WHERE warehouse_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL)", []any{warehouseIDs}
+		case "AREA":
+			if len(areaIDs) == 0 {
+				return "1 = 0", nil
+			}
+			return "journal_entries.created_by IN (SELECT user_id FROM employees WHERE area_id IN ? AND user_id IS NOT NULL)", []any{areaIDs}
+		case "DIVISION":
+			if divisionID == "" {
+				return "1 = 0", nil
+			}
+			return "journal_entries.created_by IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)", []any{divisionID}
+		case "OWN":
+			if userID == "" {
+				return "1 = 0", nil
+			}
+			return "journal_entries.created_by = ?", []any{userID}
+		}
 	}
 
 	log.Printf("[dashboard][scope] table=%s strategy=none request_scope=%s role=%s", tableAlias, requestScope, contextString(ctx, "user_role"))
@@ -908,7 +1126,25 @@ func buildScopeWhereClause(ctx context.Context, tableAlias string) (whereClause 
 }
 
 func resolveAccessiblePOSOutletIDs(ctx context.Context, db *gorm.DB, userID string) ([]string, error) {
-	if userID == "" || hasFullPOSAccess(ctx) {
+	if userID == "" {
+		return nil, nil
+	}
+
+	// Check if scope_outlet_ids was injected by dashboard middleware.
+	// If so, use it regardless of hasFullPOSAccess() — menu-level scope overrides permission-level scope.
+	if ctxOutletIDs, ok := ctx.Value("scope_outlet_ids").([]string); ok && len(ctxOutletIDs) > 0 {
+		log.Printf("[dashboard][pos] using injected scope_outlet_ids from context user_id=%s count=%d", userID, len(ctxOutletIDs))
+		return ctxOutletIDs, nil
+	}
+
+	// Check if requestScope is OUTLET. If so, do not bypass via hasFullPOSAccess.
+	requestScope := currentRequestScope(ctx)
+	if requestScope == "" {
+		requestScope = permissionScopeFromContext(ctx, "dashboard.view")
+	}
+
+	// If hasFullPOSAccess AND NOT scoped to OUTLET, grant full access.
+	if hasFullPOSAccess(ctx) && requestScope != "OUTLET" {
 		return nil, nil
 	}
 
@@ -1108,7 +1344,16 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COUNT(*) FILTER (WHERE obj.value->>'type' = 'table') AS tables_total
 			FROM pos_floor_plans fp
 			JOIN outlet_scope oscope ON oscope.id = fp.outlet_id
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) obj
+			-- Safely iterate over layout_data: if it's an array use it, if it's an object wrap it into an array,
+			-- otherwise fall back to an empty array. This prevents "cannot extract elements from a scalar" errors
+			-- when layout_data is a JSON object or other non-array JSON value.
+			CROSS JOIN LATERAL jsonb_array_elements(
+				CASE
+					WHEN jsonb_typeof(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) = 'array' THEN fp.layout_data::jsonb
+					WHEN jsonb_typeof(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) = 'object' THEN jsonb_build_array(fp.layout_data::jsonb)
+					ELSE '[]'::jsonb
+				END
+			) obj
 			WHERE fp.deleted_at IS NULL
 			GROUP BY fp.outlet_id
 		), published_floor_plan AS (

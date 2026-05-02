@@ -8,6 +8,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func RequireSystemAdmin() gin.HandlerFunc {
@@ -164,3 +165,88 @@ func RoleMiddleware(roles ...string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// InjectDashboardScope is a dashboard-specific middleware that queries role_menu_access
+// to resolve the menu-level scope override and injects it into context.
+// This must be called BEFORE RequirePermission to set permission_scope based on menu scope,
+// not just permission-level scope.
+func InjectDashboardScope(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Admin users always get full access; skip middleware
+		if IsSystemAdmin(c.Request.Context()) {
+			c.Next()
+			return
+		}
+
+		roleID := c.GetString("role_id")
+		userID := c.GetString("user_id")
+		tenantID := TenantFromContext(c.Request.Context())
+
+		if roleID == "" || tenantID == "" {
+			// Not authenticated or role not set; proceed normally
+			c.Next()
+			return
+		}
+
+		// Query the dashboard menu by URL
+		var dashboardMenuID string
+		if err := db.WithContext(c.Request.Context()).
+			Table("menus").
+			Where("url = ? AND deleted_at IS NULL", "/dashboard").
+			Pluck("id", &dashboardMenuID).Error; err != nil {
+			log.Printf("[dashboard][scope] failed to query menu: %v", err)
+			c.Next()
+			return
+		}
+
+		if dashboardMenuID == "" {
+			log.Printf("[dashboard][scope] dashboard menu not found")
+			c.Next()
+			return
+		}
+
+		// Query role_menu_access to get the menu-level scope override
+		var menuScope string
+		if err := db.WithContext(c.Request.Context()).
+			Table("role_menu_access").
+			Where("role_id = ? AND menu_id = ? AND is_enabled = ? AND deleted_at IS NULL", roleID, dashboardMenuID, true).
+			Pluck("scope", &menuScope).Error; err != nil {
+			log.Printf("[dashboard][scope] failed to query role_menu_access: %v", err)
+			c.Next()
+			return
+		}
+
+		// If menu-level scope is found, inject it into context
+		if menuScope != "" {
+			menuScope = strings.ToUpper(strings.TrimSpace(menuScope))
+			log.Printf("[dashboard][scope] menu-level override found menu_id=%s role_id=%s scope=%s user_id=%s", dashboardMenuID, roleID, menuScope, userID)
+
+			// Inject permission_scope from menu-level override
+			c.Set("permission_scope", menuScope)
+			reqCtx := c.Request.Context()
+			reqCtx = context.WithValue(reqCtx, "permission_scope", menuScope)
+			c.Request = c.Request.WithContext(reqCtx)
+
+			// If scope is OUTLET, also query and inject scope_outlet_ids
+			if menuScope == "OUTLET" && userID != "" {
+				var outletIDs []string
+				if err := db.WithContext(c.Request.Context()).
+					Table("employee_outlets").
+					Joins("JOIN employees ON employees.id = employee_outlets.employee_id").
+					Where("employees.user_id = ? AND employee_outlets.deleted_at IS NULL", userID).
+					Pluck("employee_outlets.outlet_id::text", &outletIDs).Error; err != nil {
+					log.Printf("[dashboard][scope] failed to query outlet ids: %v", err)
+				} else if len(outletIDs) > 0 {
+					log.Printf("[dashboard][scope] injected scope_outlet_ids from menu-level override count=%d user_id=%s", len(outletIDs), userID)
+					c.Set("scope_outlet_ids", outletIDs)
+					reqCtx = c.Request.Context()
+					reqCtx = context.WithValue(reqCtx, "scope_outlet_ids", outletIDs)
+					c.Request = c.Request.WithContext(reqCtx)
+				}
+			}
+		}
+
+		c.Next()
+	}
+}
+

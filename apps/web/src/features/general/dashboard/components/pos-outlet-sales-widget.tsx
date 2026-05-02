@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePosOutletOverview } from "../hooks/use-pos-outlet-overview";
 import { Button } from "@/components/ui/button";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 
 interface PosOutletSalesWidgetProps {
   readonly widget: WidgetConfig;
@@ -28,6 +29,8 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
   const pageSize = 6;
   const registry = WIDGET_REGISTRY[widget.type];
   const canView = useUserPermission(registry?.permission ?? "");
+  const permissionScope = usePermissionScope(registry?.permission ?? "");
+  const allowAllOutlets = permissionScope?.trim().toUpperCase() === "ALL";
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const {
     posSummary: pos,
@@ -36,12 +39,13 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
     selectedOutletId,
     setSelectedOutletId,
     hasOutletFilter,
+    allowAllOutlets: canSelectAllOutlets,
     isSingleOutletScope,
     focusedOutlet,
     isLoading,
     isError,
     refetch,
-  } = usePosOutletOverview(widget.type, canView);
+  } = usePosOutletOverview(widget.type, canView, { allowAllOutlets });
 
   useEffect(() => {
     setVisibleCount(pageSize);
@@ -106,7 +110,9 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("widgets.pos_outlet_sales.allOutlets")}</SelectItem>
+                  {canSelectAllOutlets && (
+                    <SelectItem value="all">{t("widgets.pos_outlet_sales.allOutlets")}</SelectItem>
+                  )}
                   {visibleOutlets.map((o) => (
                     <SelectItem key={o.outlet_id} value={o.outlet_id}>
                       {o.outlet_name}

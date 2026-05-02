@@ -874,6 +874,9 @@ func (u *roleUsecase) UpdateMenuAccess(ctx context.Context, roleID string, assig
 			return err
 		}
 
+		// Invalidate caches after successful update
+		u.invalidatePermissionCaches(txCtx, roleID, role.Code)
+
 		return nil
 	})
 }

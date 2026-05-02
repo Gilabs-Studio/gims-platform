@@ -257,3 +257,13 @@ func (h *POSOrderHandler) ServeItem(c *gin.Context) {
 	}
 	response.SuccessResponse(c, order, nil)
 }
+
+// ListOutlets returns all outlets available for POS, filtered by current scope.
+func (h *POSOrderHandler) ListOutlets(c *gin.Context) {
+	outlets, err := h.uc.ListOutlets(c.Request.Context())
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, outlets, nil)
+}

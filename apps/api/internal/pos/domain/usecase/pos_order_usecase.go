@@ -13,6 +13,8 @@ import (
 	invModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
+	orgMapper "github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -64,6 +66,8 @@ type POSOrderUsecase interface {
 	MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error)
 	// MarkItemServed marks a single item as served; auto-transitions order to PARTIAL_SERVED or SERVED.
 	MarkItemServed(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error)
+	// ListOutlets returns all outlets available for POS, filtered by current scope.
+	ListOutlets(ctx context.Context) ([]*orgDto.OutletResponse, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +425,20 @@ func (u *posOrderUsecase) GetCatalog(ctx context.Context, outletID string) ([]dt
 		})
 	}
 	return items, nil
+}
+
+func (u *posOrderUsecase) ListOutlets(ctx context.Context) ([]*orgDto.OutletResponse, error) {
+	isActive := true
+	outlets, _, err := u.outletRepo.List(ctx, orgRepos.OutletListParams{
+		IsActive: &isActive,
+		Limit:    100,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	m := orgMapper.NewOutletMapper()
+	return m.ToResponseList(outlets), nil
 }
 
 // ─── AssignTable ─────────────────────────────────────────────────────────────
