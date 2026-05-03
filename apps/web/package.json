@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env WATCHPACK_POLLING=false CHOKIDAR_USEPOLLING=false NODE_OPTIONS=--max-old-space-size=4096 next dev --turbo",
+    "dev": "cross-env WATCHPACK_POLLING=false CHOKIDAR_USEPOLLING=false NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
