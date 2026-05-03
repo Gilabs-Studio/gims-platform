@@ -1,9 +1,52 @@
 import type { NextConfig } from "next";
+import type { RemotePattern } from "next/dist/shared/lib/image-config";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const isDevelopment = process.env.NODE_ENV === "development";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+const remoteImagePatterns: RemotePattern[] = [
+  {
+    protocol: "http",
+    hostname: "localhost",
+    pathname: "/uploads/**",
+  },
+  {
+    protocol: "http",
+    hostname: "127.0.0.1",
+    pathname: "/uploads/**",
+  },
+  {
+    protocol: "https",
+    hostname: "source.unsplash.com",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "images.unsplash.com",
+    pathname: "/**",
+  },
+  ...(apiBaseUrl
+    ? (() => {
+        try {
+          const parsed = new URL(apiBaseUrl);
+          return [
+            {
+              protocol: parsed.protocol.replace(":", "") as "http" | "https",
+              hostname: parsed.hostname,
+              ...(parsed.port ? { port: parsed.port } : {}),
+              pathname: "/**",
+            } satisfies RemotePattern,
+          ];
+        } catch {
+          return [];
+        }
+      })()
+    : []),
+];
 
 // Bundle Analyzer - only load when ANALYZE=true
 let withBundleAnalyzer = (config: NextConfig) => config;
@@ -106,7 +149,8 @@ const nextConfig: NextConfig = {
 
       // static asset caching
       {
-        source: "/:path*.(ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)",
+        source:
+          "/:path*.(ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)",
         headers: [
           {
             key: "Cache-Control",
@@ -116,30 +160,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
   images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        // allow any port and any file under /uploads
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "https",
-        hostname: "source.unsplash.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-        pathname: "/**",
-      },
-    ],
+    remotePatterns: remoteImagePatterns,
   },
 
   poweredByHeader: false,

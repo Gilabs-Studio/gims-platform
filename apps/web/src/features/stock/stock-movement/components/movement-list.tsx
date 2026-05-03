@@ -134,7 +134,7 @@ export function MovementList() {
   const products = productData?.data ?? [];
 
   const stockResponse = data?.data;
-  const movements = stockResponse?.data ?? [];
+  const movements = useMemo(() => stockResponse?.data ?? [], [stockResponse?.data]);
 
   const displayMovements = useMemo(() => {
     const groupedTransfers = new Map<string, StockMovement>();

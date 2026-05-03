@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem, InventoryBatchesResponse, InventoryMetrics, InventoryTreeProductsResponse } from "../types";
+import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchesResponse, InventoryMetrics, InventoryTreeProductsResponse } from "../types";
 
 const BASE_URL = "/inventory/stock";
 
