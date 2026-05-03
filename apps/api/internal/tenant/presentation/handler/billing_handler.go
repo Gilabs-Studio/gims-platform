@@ -28,6 +28,7 @@ type BillingHandler struct {
 type billingChangeUsecase interface {
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
 	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
+	CancelSubscription(ctx context.Context, tenantID string) error
 }
 
 type confirmBillingChangeRequest struct {
@@ -348,4 +349,38 @@ func canModifyBilling(c *gin.Context) bool {
 		return true
 	}
 	return strings.HasPrefix(role, "tenant_owner_") || role == "owner" || strings.HasSuffix(role, "_owner")
+}
+
+// CancelSubscription cancels the tenant's active subscription.
+// The recurring plan is deactivated in Xendit and the subscription status is set
+// to "cancelled". Access continues until the current ExpiresAt (end of paid period).
+//
+// DELETE /api/v1/billing/subscription
+func (h *BillingHandler) CancelSubscription(c *gin.Context) {
+	tenantID, ok := c.Get("tenant_id")
+	if !ok || tenantID == "" {
+		coreErrors.UnauthorizedResponse(c, missingTenantContextMessage)
+		return
+	}
+	if !canModifyBilling(c) {
+		coreErrors.ForbiddenResponse(c, "billing.change", nil)
+		return
+	}
+
+	if h.billingChangeUC == nil {
+		coreErrors.InternalServerErrorResponse(c, "billing change service unavailable")
+		return
+	}
+
+	tenantIDStr := tenantID.(string)
+	if err := h.billingChangeUC.CancelSubscription(c.Request.Context(), tenantIDStr); err != nil {
+		if errors.Is(err, authUsecase.ErrSubscriptionNotFound) {
+			coreErrors.ErrorResponse(c, "SUBSCRIPTION_NOT_FOUND", nil, nil)
+			return
+		}
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"status": "cancelled"}, nil)
 }

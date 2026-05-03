@@ -94,6 +94,7 @@ func AutoMigrate() error {
 		&tenant.PlanPermissionEntitlement{},
 		&tenant.TenantSubscription{},
 		&tenant.PaymentTransaction{},
+		&tenant.TenantPaymentMethod{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},

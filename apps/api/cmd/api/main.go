@@ -95,6 +95,7 @@ import (
 	tenantRouter "github.com/gilabs/gims/api/internal/tenant/presentation/router"
 
 	tenantScope "github.com/gilabs/gims/api/internal/core/infrastructure/tenant"
+	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
 )
 
 func initInfrastructure() {
@@ -293,6 +294,24 @@ func main() {
 
 	billingH := tenantHandler.NewBillingHandler(subUC, paymentTxnUC, subscriptionPlanRepository, authUC)
 
+	// Payment method: saved card token management for auto-renewal.
+	paymentMethodRepo := tenantRepos.NewPaymentMethodRepository(database.DB)
+	paymentMethodUC := tenantUsecase.NewPaymentMethodUsecase(paymentMethodRepo, xenditClient.NewClient(
+		func() string {
+			if config.AppConfig != nil {
+				return config.AppConfig.Xendit.SecretKey
+			}
+			return ""
+		}(),
+		func() string {
+			if config.AppConfig != nil {
+				return config.AppConfig.Xendit.BaseURL
+			}
+			return ""
+		}(),
+	))
+	paymentMethodH := tenantHandler.NewPaymentMethodHandler(paymentMethodUC)
+
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
 	rtWorker := refreshTokenWorker.NewRefreshTokenCleanupWorker(
@@ -386,6 +405,12 @@ func main() {
 			billing.GET("/payment-history", billingH.GetMyPaymentHistory)
 			billing.POST("/change", billingH.ChangeSubscription)
 			billing.POST("/change/confirm", billingH.ConfirmSubscriptionChange)
+			billing.DELETE("/subscription", billingH.CancelSubscription)
+			// Payment method (saved card tokens for auto-renewal)
+			billing.GET("/payment-methods", paymentMethodH.ListPaymentMethods)
+			billing.POST("/payment-methods", paymentMethodH.AddPaymentMethod)
+			billing.PATCH("/payment-methods/:id/default", paymentMethodH.SetDefaultPaymentMethod)
+			billing.DELETE("/payment-methods/:id", paymentMethodH.RemovePaymentMethod)
 		}
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)

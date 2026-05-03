@@ -53,6 +53,8 @@ var (
 	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
 	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
 	ErrSubscriptionSuspended          = errors.New("subscription access is suspended")
+	ErrSubscriptionNotFound           = errors.New("no active subscription found")
+	ErrSubscriptionAlreadyCancelled   = errors.New("subscription is already cancelled")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -121,6 +123,9 @@ type AuthUsecase interface {
 	// ConfirmPendingBillingChange allows authenticated tenants to reconcile a paid
 	// billing change when webhook processing is delayed.
 	ConfirmPendingBillingChange(ctx context.Context, token, tenantID string) error
+	// CancelSubscription cancels the active recurring plan and marks the subscription
+	// as cancelled. Access remains until the current ExpiresAt (end of paid period).
+	CancelSubscription(ctx context.Context, tenantID string) error
 }
 
 type authUsecase struct {

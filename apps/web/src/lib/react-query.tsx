@@ -1,8 +1,15 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import dynamic from "next/dynamic";
 import { useState } from "react";
+
+// Load React Query Devtools dynamically (module scope to avoid creating
+// a component during render which would reset state every render).
+const ReactQueryDevtools = dynamic(
+  () => import("@tanstack/react-query-devtools").then((m) => m.ReactQueryDevtools),
+  { ssr: false, loading: () => null },
+);
 
 export function ReactQueryProvider({
   children,

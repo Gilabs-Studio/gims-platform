@@ -523,6 +523,7 @@ export function BillingTab() {
   const [activeBillingTabState, setActiveBillingTabState] = useState<"seat" | "plan">("seat");
   const [isSeatDowngradeDialogOpen, setIsSeatDowngradeDialogOpen] = useState(false);
   const [pendingSeatDowngradeTarget, setPendingSeatDowngradeTarget] = useState<number | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const requestedBillingTab = useMemo<"seat" | "plan" | null>(() => {
     const requestedTab = searchParams.get("billing_tab");
@@ -584,6 +585,17 @@ export function BillingTab() {
     },
     onError: () => {
       toast.error("Failed to update billing. Please try again.");
+    },
+  });
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: () => billingService.cancelSubscription(),
+    onSuccess: async () => {
+      toast.success(t("billing.cancelSubscriptionSuccess"));
+      await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+    },
+    onError: () => {
+      toast.error(t("billing.cancelSubscriptionError"));
     },
   });
 
@@ -817,6 +829,33 @@ export function BillingTab() {
         </div>
       )}
 
+      {/* Cancel subscription — only visible for active/trial non-lifetime subscriptions */}
+      {subscription &&
+        (subscription.status === "active" || subscription.status === "trial") &&
+        subscription.billing_period !== "lifetime" && (
+          <div className="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-4">
+            <div className="text-sm">
+              <p className="font-semibold text-foreground">{t("billing.cancelSubscriptionTitle")}</p>
+              <p className="mt-0.5 text-muted-foreground">
+                {t("billing.cancelSubscriptionDescription", {
+                  date: subscription.expires_at
+                    ? new Date(subscription.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
+                    : t("billing.endOfBillingPeriod"),
+                })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setIsCancelDialogOpen(true)}
+            >
+              {t("billing.cancelSubscriptionAction")}
+            </Button>
+          </div>
+        )}
+
       {subscription && (
         <Tabs value={activeBillingTab} onValueChange={(tab) => setActiveBillingTabState(tab as "seat" | "plan")} className="space-y-6">
           <TabsList className="h-10">
@@ -1049,12 +1088,12 @@ export function BillingTab() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                  </>
+                </>
               )}
             </div>
 
             {modularPlans.length > 0 && (
-              <div className="space-y-3">
+              <>
                 <div>
                   <h4 className="text-sm font-semibold">{t("billing.modularTitle")}</h4>
                   <p className="text-xs text-muted-foreground">{t("billing.modularSeatInfo")}</p>
@@ -1087,7 +1126,7 @@ export function BillingTab() {
                     );
                   })}
                 </div>
-              </div>
+              </>
             )}
           </TabsContent>
 
@@ -1148,6 +1187,42 @@ export function BillingTab() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Cancel subscription confirmation */}
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("billing.cancelSubscriptionDialogTitle")}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  {t("billing.cancelSubscriptionDialogDescription", {
+                    date: subscription?.expires_at
+                      ? new Date(subscription.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
+                      : t("billing.endOfBillingPeriod"),
+                  })}
+                </p>
+                <p>{t("billing.cancelSubscriptionDialogWarning")}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelSubscriptionMutation.isPending}>
+              {t("billing.keepSubscription")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { void cancelSubscriptionMutation.mutateAsync(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelSubscriptionMutation.isPending}
+            >
+              {cancelSubscriptionMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {cancelSubscriptionMutation.isPending ? t("billing.cancellingSubscription") : t("billing.confirmCancelSubscription")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

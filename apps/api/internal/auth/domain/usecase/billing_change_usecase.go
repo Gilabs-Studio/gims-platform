@@ -822,3 +822,48 @@ func applyCouponToRecurringAmount(coupon *models.Coupon, baseAmount int64, billi
 func ptrTime(t time.Time) *time.Time {
 	return &t
 }
+
+// CancelSubscription cancels the active subscription for a tenant.
+// If a Xendit recurring plan is linked, it is deactivated to stop future charges.
+// The subscription status is set to "cancelled" but ExpiresAt is preserved so
+// access continues until the end of the already-paid billing period.
+func (u *authUsecase) CancelSubscription(ctx context.Context, tenantID string) error {
+	var sub models.TenantSubscription
+	err := u.db.WithContext(ctx).
+		Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", tenantID,
+			[]string{string(models.SubscriptionActive), string(models.SubscriptionTrial)}).
+		Order("starts_at DESC").
+		First(&sub).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrSubscriptionNotFound
+		}
+		return fmt.Errorf("cancel subscription: lookup failed: %w", err)
+	}
+
+	// Deactivate the Xendit recurring plan when present to stop future auto-charges.
+	if sub.XenditSubscriptionID != nil && *sub.XenditSubscriptionID != "" {
+		if u.xendit != nil && u.xendit.IsConfigured() {
+			if _, xenditErr := u.xendit.CancelRecurringPlan(ctx, *sub.XenditSubscriptionID); xenditErr != nil {
+				// Log and continue — the DB record must still be updated even if
+				// the Xendit call fails (e.g. plan already inactive on their side).
+				fmt.Printf("[cancel_subscription] xendit deactivate plan=%s tenant=%s err=%v\n",
+					*sub.XenditSubscriptionID, tenantID, xenditErr)
+			}
+		}
+	}
+
+	updates := map[string]any{
+		"status":                 models.SubscriptionCancelled,
+		"xendit_subscription_id": nil,
+		"next_billing_at":        nil,
+	}
+	if dbErr := u.db.WithContext(ctx).
+		Model(&models.TenantSubscription{}).
+		Where("id = ?", sub.ID).
+		Updates(updates).Error; dbErr != nil {
+		return fmt.Errorf("cancel subscription: update failed: %w", dbErr)
+	}
+
+	return nil
+}

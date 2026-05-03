@@ -66,6 +66,19 @@ export interface BillingConfirmResponse {
   status: "synced" | "already_synced";
 }
 
+export interface TenantPaymentMethod {
+  id: string;
+  tenant_id: string;
+  xendit_token_id: string;
+  masked_card_number: string;
+  card_brand: string;
+  card_holder_name: string;
+  expiry_month: number;
+  expiry_year: number;
+  is_default: boolean;
+  created_at: string;
+}
+
 export const billingService = {
   getMySubscription: async (): Promise<TenantSubscription | null> => {
     const response = await apiClient.get<{ success: boolean; data: TenantSubscription | null }>(
@@ -99,5 +112,35 @@ export const billingService = {
       { token },
     );
     return response.data.data;
+  },
+
+  cancelSubscription: async (): Promise<{ status: string }> => {
+    const response = await apiClient.delete<{ success: boolean; data: { status: string } }>(
+      "/billing/subscription",
+    );
+    return response.data.data;
+  },
+
+  listPaymentMethods: async (): Promise<TenantPaymentMethod[]> => {
+    const response = await apiClient.get<{ success: boolean; data: TenantPaymentMethod[] }>(
+      "/billing/payment-methods",
+    );
+    return response.data.data ?? [];
+  },
+
+  addPaymentMethod: async (xenditTokenId: string): Promise<TenantPaymentMethod> => {
+    const response = await apiClient.post<{ success: boolean; data: TenantPaymentMethod }>(
+      "/billing/payment-methods",
+      { xendit_token_id: xenditTokenId },
+    );
+    return response.data.data;
+  },
+
+  setDefaultPaymentMethod: async (id: string): Promise<void> => {
+    await apiClient.patch(`/billing/payment-methods/${id}/default`, {});
+  },
+
+  removePaymentMethod: async (id: string): Promise<void> => {
+    await apiClient.delete(`/billing/payment-methods/${id}`);
   },
 };
