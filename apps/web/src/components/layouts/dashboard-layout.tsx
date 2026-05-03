@@ -38,6 +38,8 @@ import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
 import { cn } from "@/lib/utils";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardMobileSidebar } from "./dashboard-mobile-sidebar";
+import { useQuery } from "@tanstack/react-query";
+import { billingService } from "@/features/settings/services/billing-service";
 
 const DETAIL_SIDEBAR_STORAGE_KEY = "detail_sidebar_state";
 const ACTIVE_PARENT_STORAGE_KEY = "active_parent_id";
@@ -148,7 +150,20 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   const userName = user?.name ?? "User";
   const tenantName = user?.tenant_name ?? "";
-  const subscriptionPlan = user?.subscription_plan;
+  // Prefer authoritative subscription from billing API so that cancelled-but-not-expired
+  // subscriptions still show until `expires_at`. Fall back to `user.subscription_plan`.
+  const { data: mySubscription } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: billingService.getMySubscription,
+  });
+
+  let subscriptionPlan = user?.subscription_plan;
+  if (mySubscription) {
+    const expiresAt = mySubscription.expires_at ? new Date(mySubscription.expires_at) : null;
+    const notExpired = !expiresAt || expiresAt.getTime() > Date.now();
+    if (notExpired) subscriptionPlan = mySubscription.plan;
+    else subscriptionPlan = undefined;
+  }
   const primaryAvatarUrl =
     user?.avatar_url && user.avatar_url.trim() !== ""
       ? user.avatar_url
