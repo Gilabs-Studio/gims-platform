@@ -43,7 +43,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     isFormLoading,
     fields,
     remove,
-    products,
     contacts,
     selectedContactId,
     calculations,

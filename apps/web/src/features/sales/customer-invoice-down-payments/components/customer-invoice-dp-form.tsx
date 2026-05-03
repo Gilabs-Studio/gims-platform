@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { CalendarIcon, FileText, ShoppingCart, DollarSign, Paperclip, X, Upload } from "lucide-react";
 import { format } from "date-fns";
@@ -121,7 +121,7 @@ export function CustomerInvoiceDPFormDialog({
     });
   }, [open, isEdit, detailQuery.data, form, defaultSalesOrderId, defaultAmount]);
 
-  const selectedSOId = form.watch("sales_order_id");
+  const selectedSOId = useWatch({ control: form.control, name: "sales_order_id" });
   const selectedSOQuery = useOrder(selectedSOId ?? "", {
     enabled: open && !!selectedSOId,
   });
@@ -144,7 +144,7 @@ export function CustomerInvoiceDPFormDialog({
 
   const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
 
-  const dpAmount = form.watch("amount");
+  const dpAmount = useWatch({ control: form.control, name: "amount" });
 
   // Invoice summary computations
   const invoiceSummary = useMemo(() => {
@@ -246,7 +246,7 @@ export function CustomerInvoiceDPFormDialog({
           <Field orientation="vertical">
             <FieldLabel>{t("fields.salesOrder")}</FieldLabel>
             <Select
-              value={form.watch("sales_order_id")}
+              value={selectedSOId ?? ""}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
               onOpenChange={salesOrderOptions.onOpenChange}
               onSearchChange={salesOrderOptions.onSearchChange}

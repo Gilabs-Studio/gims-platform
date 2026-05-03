@@ -26,7 +26,7 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import type { DeliveryOrder, DeliveryOrderStatus } from "../types";
 import type { SalesOrder } from "../../order/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 

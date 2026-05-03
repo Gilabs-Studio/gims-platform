@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
@@ -179,7 +178,6 @@ export function CustomerInvoiceDPList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
-  const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenCustomerInvoiceDPFromURL);
 
   const [deletingRow, setDeletingRow] = useState<CustomerInvoiceDPListItem | null>(null);
@@ -208,12 +206,6 @@ export function CustomerInvoiceDPList() {
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -440,7 +432,9 @@ export function CustomerInvoiceDPList() {
                   <TableCell className="font-medium">
                     <button
                       className="font-mono font-medium text-primary hover:underline cursor-pointer"
-                      onClick={() => { setDetailId(row.id); setDetailOpen(true); }}
+                      onClick={() => {
+                        setDetailId(row.id);
+                      }}
                     >
                       {row.code}
                     </button>
@@ -529,7 +523,6 @@ export function CustomerInvoiceDPList() {
                             className="cursor-pointer"
                             onClick={() => {
                               setDetailId(row.id);
-                              setDetailOpen(true);
                             }}
                           >
                             <Eye className="h-4 w-4 mr-2" />
@@ -667,8 +660,12 @@ export function CustomerInvoiceDPList() {
       />
 
       <CustomerInvoiceDPDetailModal
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
+        open={!!detailId}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDetailId(null);
+          }
+        }}
         id={detailId}
       />
 

@@ -16,24 +16,19 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  AlertCircle,
   CheckCircle2,
   Send,
   CreditCard,
   Clock,
   PieChart,
   History,
-  ShieldAlert,
   XCircle,
   Pencil,
   Printer,
-  FileText,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
@@ -51,6 +46,11 @@ import {
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPStatus } from "../types";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
+
+const CustomerInvoiceDPFormDialog = dynamic(
+  () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
+  { ssr: false },
+);
 
 function normalizeStatus(status?: string | null): string {
   const normalized = (status ?? "").toLowerCase();
@@ -208,11 +208,6 @@ export function CustomerInvoiceDPDetailModal({
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
   const cancelMutation = useCancelCustomerInvoiceDP();
-
-  const CustomerInvoiceDPFormDialog = dynamic(
-    () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
-    { ssr: false },
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

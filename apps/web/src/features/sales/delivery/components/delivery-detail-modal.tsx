@@ -42,7 +42,6 @@ import { CreateSalesReturnDialog } from "../../returns/components/create-sales-r
 import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
-import { AlertTriangle } from "lucide-react";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
