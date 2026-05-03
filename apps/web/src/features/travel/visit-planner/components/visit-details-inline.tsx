@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, Loader2, MapPin, Navigation, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -100,40 +100,34 @@ export function VisitDetailsInline({
   const tCommon = useTranslations("common");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Documentation tab
-  const [notes, setNotes] = useState("");
-  const [outcome, setOutcome] = useState("");
-  const [activityType, setActivityType] = useState("");
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const savedDraft = (() => {
+    if (typeof window === "undefined" || !checkpoint?.id) {
+      return null;
+    }
 
-  // Restore draft from sessionStorage on mount (keyed by checkpoint ID).
-  // The component remounts when the checkpoint changes via `key={checkpoint?.id}`,
-  // so this effect reliably loads per-checkpoint drafts.
-  useEffect(() => {
-    if (typeof window === "undefined" || !checkpoint?.id) return;
     try {
       const saved = sessionStorage.getItem(`visit-draft-${checkpoint.id}`);
-      if (!saved) return;
-      const draft = JSON.parse(saved) as {
-        notes?: string;
-        outcome?: string;
-        activityType?: string;
-        photoUrls?: string[];
-        productInterests?: ProductInterestEntry[];
-      };
-      if (draft.notes !== undefined) setNotes(draft.notes);
-      if (draft.outcome !== undefined) setOutcome(draft.outcome);
-      if (draft.activityType !== undefined) setActivityType(draft.activityType);
-      if (draft.photoUrls !== undefined) setPhotoUrls(draft.photoUrls);
-      if (draft.productInterests !== undefined) setProductInterests(draft.productInterests);
+      return saved
+        ? (JSON.parse(saved) as {
+            notes?: string;
+            outcome?: string;
+            activityType?: string;
+            photoUrls?: string[];
+            productInterests?: ProductInterestEntry[];
+          })
+        : null;
     } catch {
-      // Ignore malformed draft data.
+      return null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  })();
 
+  // Documentation tab
+  const [notes, setNotes] = useState(() => savedDraft?.notes ?? "");
+  const [outcome, setOutcome] = useState(() => savedDraft?.outcome ?? "");
+  const [activityType, setActivityType] = useState(() => savedDraft?.activityType ?? "");
+  const [photoUrls, setPhotoUrls] = useState<string[]>(() => savedDraft?.photoUrls ?? []);
   // Product interest tab
-  const [productInterests, setProductInterests] = useState<ProductInterestEntry[]>([]);
+  const [productInterests, setProductInterests] = useState<ProductInterestEntry[]>(() => savedDraft?.productInterests ?? []);
   const [draftProductId, setDraftProductId] = useState("");
   const [draftLevel, setDraftLevel] = useState("3");
   const [draftQty, setDraftQty] = useState("");

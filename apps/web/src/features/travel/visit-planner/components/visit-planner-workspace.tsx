@@ -305,12 +305,6 @@ export function VisitPlannerWorkspace() {
     [effectiveEmployeeId, routeDate],
   );
 
-  useEffect(() => {
-    // Reset to employees list view when date changes
-    setSidebarView("employees");
-    setSelectedRouteId("");
-  }, [routeDate]);
-
   const formDataQuery = useVisitPlannerFormData(queryParams, {
     enabled: canReadVisitPlanner,
   });
@@ -518,12 +512,6 @@ export function VisitPlannerWorkspace() {
       return;
     }
 
-    if (!("geolocation" in navigator)) {
-      toast.error(t("navigation.gpsUnavailable"));
-      setIsNavigating(false);
-      return;
-    }
-
     const activeRouteId = navigationRouteId;
 
     const watchId = navigator.geolocation.watchPosition(
@@ -564,7 +552,6 @@ export function VisitPlannerWorkspace() {
   // Throttled: only re-fetches when the user has moved more than 30 metres from the last fetch position.
   useEffect(() => {
     if (!isNavigating || !currentGpsPosition) {
-      setNavigationPolyline(null);
       return;
     }
 
@@ -584,7 +571,6 @@ export function VisitPlannerWorkspace() {
     )[0];
 
     if (!nextCheckpoint) {
-      setNavigationPolyline(null);
       return;
     }
 
@@ -628,7 +614,6 @@ export function VisitPlannerWorkspace() {
     return () => {
       controller.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNavigating, currentGpsPosition, ownRouteSortedCheckpoints]);
 
   const handleToggleNavigation = useCallback(async () => {
@@ -651,6 +636,11 @@ export function VisitPlannerWorkspace() {
       } catch {
         toast.error(tCommon("error"));
       }
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      toast.error(t("navigation.gpsUnavailable"));
       return;
     }
 
@@ -1041,7 +1031,11 @@ export function VisitPlannerWorkspace() {
           {/* Date Picker */}
           <DatePicker
             value={routeDate}
-            onChange={setRouteDate}
+            onChange={(nextRouteDate) => {
+              setRouteDate(nextRouteDate);
+              setSidebarView("employees");
+              setSelectedRouteId("");
+            }}
             placeholder={t("filters.routeDate")}
           />
 
