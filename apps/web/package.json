@@ -32,7 +32,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-leaflet/core": "^3.0.0",
     "@tanstack/react-query": "^5.90.10",
-    "@tanstack/react-query-devtools": "^5.91.0",
     "@tanstack/react-virtual": "^3.13.13",
     "@types/leaflet": "^1.9.21",
     "axios": "^1.15.0",
@@ -68,6 +67,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.9",
+    "@tanstack/react-query-devtools": "^5.91.0",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@swc/helpers": "^0.5.17",
