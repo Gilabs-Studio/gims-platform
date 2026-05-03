@@ -84,7 +84,7 @@ export const billingService = {
     const response = await apiClient.get<{ success: boolean; data: TenantSubscription | null }>(
       "/billing/subscription",
     );
-    return response.data.data;
+    return response.data.data ?? null;
   },
 
   getMyEntitlements: async (): Promise<TenantEntitlements> => {

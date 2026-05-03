@@ -42,9 +42,15 @@ func (r *subscriptionRepository) Create(ctx context.Context, sub *models.TenantS
 
 func (r *subscriptionRepository) FindActiveByTenantID(ctx context.Context, tenantID string) (*models.TenantSubscription, error) {
 	var sub models.TenantSubscription
+	now := time.Now()
 	err := r.getDB(ctx).
 		Preload("Coupon").
-		Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", tenantID, []string{"active", "trial", "past_due", "suspended"}).
+		Where(
+			"tenant_id = ? AND deleted_at IS NULL AND status IN ? AND (expires_at IS NULL OR expires_at > ?)",
+			tenantID,
+			[]string{"active", "trial", "past_due", "suspended", "cancelled"},
+			now,
+		).
 		Order("starts_at DESC").
 		First(&sub).Error
 	if err != nil {
