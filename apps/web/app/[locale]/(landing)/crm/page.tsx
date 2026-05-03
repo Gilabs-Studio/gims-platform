@@ -1,9 +1,8 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
+// ArrowRight not used — removed
 import { Link } from "@/i18n/routing";
 import { buildLandingMetadata } from "@/lib/seo";
 

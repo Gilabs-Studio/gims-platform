@@ -1,7 +1,6 @@
 "use client";
 
 import { PageMotion } from "@/components/motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { useAssetDisposal } from "@/features/finance/fixed-assets/hooks/use-asset-disposal";
 import { AssetDisposalForm } from "@/features/finance/fixed-assets/components/asset-disposal-form";

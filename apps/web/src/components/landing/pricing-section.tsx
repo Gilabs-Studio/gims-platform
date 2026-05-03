@@ -219,8 +219,8 @@ export function PricingSection() {
   const [pricingTab, setPricingTab] = useState<PlanTab>("bundle");
   const [pricingBilling, setPricingBilling] = useState<BillingPeriod>("monthly");
   const [pricingUsers, setPricingUsers] = useState(1);
-  const [selectedBundle, setSelectedBundle] = useState<string>("ultimate_suite");
-  const [selectedModular, setSelectedModular] = useState<string>("pos_growth");
+  const [selectedBundle] = useState<string>("ultimate_suite");
+  const [selectedModular] = useState<string>("pos_growth");
 
   const { data: apiPlans } = useQuery({
     queryKey: ["landing-subscription-plans"],

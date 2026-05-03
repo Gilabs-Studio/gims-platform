@@ -207,8 +207,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
-  const [_attendanceDrawerTab, setAttendanceDrawerTab] =
-    useState<AttendanceDrawerTab>("calendar");
+  const [, setAttendanceDrawerTab] = useState<AttendanceDrawerTab>("calendar");
 
   // Separate drawer states for Leave Request and Overtime
   const [isLeaveRequestDrawerOpen, setIsLeaveRequestDrawerOpen] =

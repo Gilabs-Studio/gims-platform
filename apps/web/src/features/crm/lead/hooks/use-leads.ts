@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { leadService } from "../services/lead-service";
 import { activityKeys } from "../../activity/hooks/use-activities";
 import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest } from "../types";

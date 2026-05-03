@@ -113,7 +113,6 @@ export default function RegisterSuccessPage() {
         };
 
         const statusCode = maybeAxios?.response?.status;
-        const errorCode = maybeAxios?.response?.data?.error?.code;
 
         // Only retry transient failures. Business conflicts/validation errors
         // (4xx, including SLUG_ALREADY_TAKEN/EMAIL_ALREADY_TAKEN) should fail fast.
