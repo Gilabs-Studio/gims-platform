@@ -930,47 +930,29 @@ func isOutletOrWarehouseScope(ctx context.Context) bool {
 }
 
 func resolveDashboardOutletIDs(ctx context.Context, db *gorm.DB) ([]string, error) {
-	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
-	if middleware.IsSystemAdmin(ctx) || hasFullPOSAccess(ctx) {
+	if !isOutletOrWarehouseScope(ctx) {
 		return nil, nil
 	}
 
-	// Prefer the resolved employee scope whenever it exists. Dashboard requests
-	// are authorized by `dashboard.view`, whose permission scope is often ALL,
-	// but the actual outlet restriction still needs to come from scope_context.
+	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+	if currentRequestScope(ctx) == "OUTLET" {
+		// When the request scope is explicitly OUTLET we must enforce outlet-only
+		// results. Return an explicit empty slice when no outlets are present so
+		// calling code treats this as "no access to any outlet" instead of
+		// falling back to tenant/global queries.
+		if outletIDs == nil || len(outletIDs) == 0 {
+			return []string{}, nil
+		}
+		return outletIDs, nil
+	}
+
 	if len(outletIDs) > 0 {
 		return outletIDs, nil
 	}
 
-	// Fallback: if scope is OUTLET and scope_outlet_ids was empty, try to resolve from employee_outlets
-	requestScope := currentRequestScope(ctx)
-	if requestScope == "OUTLET" && len(outletIDs) == 0 {
-		userID := contextString(ctx, "user_id")
-		if userID != "" {
-			var fallbackOutletIDs []string
-			if err := db.WithContext(ctx).
-				Table("employee_outlets").
-				Joins("JOIN employees ON employees.id = employee_outlets.employee_id").
-				Where("employees.user_id = ? AND employee_outlets.deleted_at IS NULL", userID).
-				Pluck("employee_outlets.outlet_id::text", &fallbackOutletIDs).Error; err != nil {
-				return nil, err
-			}
-			if len(fallbackOutletIDs) > 0 {
-				log.Printf("[dashboard][scope] fallback employee_outlets resolved outlet_ids=%d user_id=%s", len(fallbackOutletIDs), userID)
-				return fallbackOutletIDs, nil
-			}
-			log.Printf("[dashboard][scope] fallback employee_outlets returned empty user_id=%s", userID)
-			return []string{}, nil
-		}
-	}
-
 	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
 	if len(warehouseIDs) == 0 {
-		if currentRequestScope(ctx) == "OUTLET" || currentRequestScope(ctx) == "WAREHOUSE" {
-			// Scoped users without resolved assignments should see no outlet data.
-			return []string{}, nil
-		}
-		return nil, nil
+		return []string{}, nil
 	}
 
 	var resolved []string
@@ -1126,25 +1108,7 @@ func buildScopeWhereClause(ctx context.Context, tableAlias string) (whereClause 
 }
 
 func resolveAccessiblePOSOutletIDs(ctx context.Context, db *gorm.DB, userID string) ([]string, error) {
-	if userID == "" {
-		return nil, nil
-	}
-
-	// Check if scope_outlet_ids was injected by dashboard middleware.
-	// If so, use it regardless of hasFullPOSAccess() — menu-level scope overrides permission-level scope.
-	if ctxOutletIDs, ok := ctx.Value("scope_outlet_ids").([]string); ok && len(ctxOutletIDs) > 0 {
-		log.Printf("[dashboard][pos] using injected scope_outlet_ids from context user_id=%s count=%d", userID, len(ctxOutletIDs))
-		return ctxOutletIDs, nil
-	}
-
-	// Check if requestScope is OUTLET. If so, do not bypass via hasFullPOSAccess.
-	requestScope := currentRequestScope(ctx)
-	if requestScope == "" {
-		requestScope = permissionScopeFromContext(ctx, "dashboard.view")
-	}
-
-	// If hasFullPOSAccess AND NOT scoped to OUTLET, grant full access.
-	if hasFullPOSAccess(ctx) && requestScope != "OUTLET" {
+	if userID == "" || hasFullPOSAccess(ctx) {
 		return nil, nil
 	}
 
@@ -1344,16 +1308,7 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COUNT(*) FILTER (WHERE obj.value->>'type' = 'table') AS tables_total
 			FROM pos_floor_plans fp
 			JOIN outlet_scope oscope ON oscope.id = fp.outlet_id
-			-- Safely iterate over layout_data: if it's an array use it, if it's an object wrap it into an array,
-			-- otherwise fall back to an empty array. This prevents "cannot extract elements from a scalar" errors
-			-- when layout_data is a JSON object or other non-array JSON value.
-			CROSS JOIN LATERAL jsonb_array_elements(
-				CASE
-					WHEN jsonb_typeof(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) = 'array' THEN fp.layout_data::jsonb
-					WHEN jsonb_typeof(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) = 'object' THEN jsonb_build_array(fp.layout_data::jsonb)
-					ELSE '[]'::jsonb
-				END
-			) obj
+			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) obj
 			WHERE fp.deleted_at IS NULL
 			GROUP BY fp.outlet_id
 		), published_floor_plan AS (
