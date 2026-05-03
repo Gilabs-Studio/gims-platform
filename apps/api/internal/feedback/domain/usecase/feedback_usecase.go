@@ -529,6 +529,7 @@ func (u *feedbackUsecase) SubmitFeedback(ctx context.Context, token string, req 
 
 	resp := &models.FeedbackResponse{
 		ID:           uuid.New().String(),
+		TenantID:     t.TenantID,
 		FormID:       t.FormID,
 		TokenID:      t.ID,
 		OutletID:     t.OutletID,
@@ -589,6 +590,7 @@ func (u *feedbackUsecase) ListResponses(ctx context.Context, req *dto.ListFeedba
 	}
 	items := mapper.ToFeedbackResponseItemList(responses)
 	u.populateOutletNames(ctx, items)
+	u.filterVisibleSalesOrderIDs(ctx, items)
 	return items, pagination, nil
 }
 
@@ -606,7 +608,10 @@ func (u *feedbackUsecase) GetResponse(ctx context.Context, id string) (*dto.Feed
 	}
 
 	item := mapper.ToFeedbackResponseItem(resp)
-	u.populateOutletNames(ctx, []dto.FeedbackResponseItem{item})
+	items := []dto.FeedbackResponseItem{item}
+	u.populateOutletNames(ctx, items)
+	u.filterVisibleSalesOrderIDs(ctx, items)
+	item = items[0]
 	return &item, nil
 }
 
@@ -696,6 +701,100 @@ func (u *feedbackUsecase) populateOutletNames(ctx context.Context, items []dto.F
 		cache[items[i].OutletID] = outlet.Name
 		items[i].OutletName = outlet.Name
 	}
+}
+
+func (u *feedbackUsecase) filterVisibleSalesOrderIDs(ctx context.Context, items []dto.FeedbackResponseItem) {
+	if len(items) == 0 {
+		return
+	}
+
+	permissions, _ := ctx.Value("user_permissions").(map[string]bool)
+	if permissions == nil || !permissions["sales_order.read"] {
+		for i := range items {
+			items[i].SalesOrderID = nil
+		}
+		return
+	}
+
+	permissionScopes, _ := ctx.Value("user_permissions_scope").(map[string]string)
+	salesOrderScope := ""
+	if permissionScopes != nil {
+		salesOrderScope = strings.ToUpper(strings.TrimSpace(permissionScopes["sales_order.read"]))
+	}
+
+	switch salesOrderScope {
+	case "", "NONE":
+		for i := range items {
+			items[i].SalesOrderID = nil
+		}
+		return
+	case "ALL", "OWN", "DIVISION", "AREA":
+		// Keep IDs visible; sales order detail endpoint still enforces record-level access.
+		return
+	case "OUTLET":
+		allowedOutletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+		u.applySalesOrderOutletFilter(items, allowedOutletIDs)
+		return
+	case "WAREHOUSE":
+		warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
+		allowedOutletIDs, err := u.resolveOutletIDsByWarehouseIDs(ctx, warehouseIDs)
+		if err != nil {
+			for i := range items {
+				items[i].SalesOrderID = nil
+			}
+			return
+		}
+		u.applySalesOrderOutletFilter(items, allowedOutletIDs)
+		return
+	default:
+		for i := range items {
+			items[i].SalesOrderID = nil
+		}
+		return
+	}
+}
+
+func (u *feedbackUsecase) applySalesOrderOutletFilter(items []dto.FeedbackResponseItem, allowedOutletIDs []string) {
+	if len(allowedOutletIDs) == 0 {
+		for i := range items {
+			items[i].SalesOrderID = nil
+		}
+		return
+	}
+
+	for i := range items {
+		if !containsString(allowedOutletIDs, items[i].OutletID) {
+			items[i].SalesOrderID = nil
+		}
+	}
+}
+
+func (u *feedbackUsecase) resolveOutletIDsByWarehouseIDs(ctx context.Context, warehouseIDs []string) ([]string, error) {
+	if len(warehouseIDs) == 0 {
+		return nil, nil
+	}
+
+	outlets, _, err := u.outletRepo.List(ctx, orgRepos.OutletListParams{Limit: 0, Offset: 0})
+	if err != nil {
+		return nil, err
+	}
+
+	whIDSet := make(map[string]struct{}, len(warehouseIDs))
+	for _, id := range warehouseIDs {
+		whIDSet[id] = struct{}{}
+	}
+
+	outletIDs := make([]string, 0, len(outlets))
+	for _, outlet := range outlets {
+		if outlet == nil || outlet.ID == "" || outlet.WarehouseID == nil {
+			continue
+		}
+		if _, exists := whIDSet[*outlet.WarehouseID]; exists {
+			outletIDs = append(outletIDs, outlet.ID)
+		}
+	}
+
+	return deduplicateStrings(outletIDs), nil
 }
 
 func containsString(items []string, needle string) bool {

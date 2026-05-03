@@ -17,6 +17,8 @@ type FeedbackResponse struct {
 	TokenID      string         `gorm:"type:uuid;not null;uniqueIndex" json:"token_id"`
 	OutletID     string         `gorm:"type:uuid;not null;index" json:"outlet_id"`
 	PosOrderID   *string        `gorm:"type:uuid;index" json:"pos_order_id,omitempty"`
+	// SalesOrderID is a read-only projection populated via JOIN on sales_orders.source_pos_order_id.
+	SalesOrderID *string        `gorm:"->;column:sales_order_id" json:"sales_order_id,omitempty"`
 	CustomerName *string        `gorm:"type:varchar(255)" json:"customer_name,omitempty"`
 	// Answers holds the submitted answers keyed by question ID.
 	Answers      datatypes.JSON `gorm:"type:jsonb;not null" json:"answers"`
