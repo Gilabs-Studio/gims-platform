@@ -119,7 +119,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
                   </p>
                 </div>
                 <div className="lg:w-1/2 w-full">
-                  <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                      <div className="w-full flex items-end gap-3 h-full pt-16">
                        <div className="flex-1 bg-primary/20 rounded-t-lg h-1/3" />
                        <div className="flex-1 bg-primary/40 rounded-t-lg h-1/2" />

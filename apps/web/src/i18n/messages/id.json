@@ -429,9 +429,9 @@
     "supplierResearch": "Riset Pemasok",
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
-    "travelPlanner": "Travel Planner",
-    "visitPlanner": "Visit Planner",
-    "plannerWorkspace": "Workspace Planner",
+    "travelPlanner": "Perencana Perjalanan",
+    "visitPlanner": "Perencana Kunjungan",
+    "plannerWorkspace": "Ruang Kerja Planner",
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
