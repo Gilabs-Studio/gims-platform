@@ -111,9 +111,6 @@ type receiptTemplateData struct {
 	LoyaltyPointsEarned int64
 	LoyaltyTotalBalance int64
 	ShowLoyaltySection  bool
-	// ShowLoyaltyInvite is true when the customer is not yet a member.
-	ShowLoyaltyInvite  bool
-	LoyaltyRegisterURL string
 }
 
 // ─── HTML template ────────────────────────────────────────────────────────────
@@ -228,13 +225,10 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 
 	// ── Feedback QR code ─────────────────────────────────────────────────────
 	// Generate a one-time token so the customer can scan the QR code on the
-	// receipt and submit feedback without logging in. We do this lazily per
-	// receipt render; if no active form is configured we silently skip.
-	// When the loyalty invite section will be shown (non-member), we omit the
-	// feedback QR to keep the receipt to a single QR code.
-	loyaltyWillInvite := h.loyaltyUC != nil && orderResp.LoyaltyMemberID == nil
+	// receipt and submit feedback without logging in. Public feedback is always
+	// available, regardless of loyalty member status.
 	frontendBaseURL := resolveFrontendBaseURL(c)
-	if h.feedbackUC != nil && !loyaltyWillInvite {
+	if h.feedbackUC != nil {
 		tokenReq := &feedbackDTO.GenerateTokenRequest{
 			OutletID:   orderResp.OutletID,
 			PosOrderID: &orderResp.ID,
@@ -254,8 +248,7 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	}
 
 	// ── Loyalty section ───────────────────────────────────────────────────────
-	// Show member tier + points earned when the order is linked to a loyalty member,
-	// or show a "join loyalty" invite when the customer is not yet a member.
+	// Show member tier + points earned when the order is linked to a loyalty member.
 	if h.loyaltyUC != nil && orderResp.LoyaltyMemberID != nil {
 		if memberResp, errLoyalty := h.loyaltyUC.GetMember(c.Request.Context(), *orderResp.LoyaltyMemberID); errLoyalty == nil {
 			data.ShowLoyaltySection = true
@@ -264,11 +257,6 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 			data.LoyaltyBadgeColor = memberResp.TierBadgeColor
 			data.LoyaltyTotalBalance = memberResp.PointBalance
 		}
-	} else if h.loyaltyUC != nil {
-		// Invite non-members to self-register via QR code on the public page.
-		data.ShowLoyaltyInvite = true
-		data.LoyaltyRegisterURL = fmt.Sprintf("%s/en/public/loyalty/register?order=%s&outlet=%s",
-			frontendBaseURL, orderResp.ID, orderResp.OutletID)
 	}
 
 	// ── Render ───────────────────────────────────────────────────────────────
