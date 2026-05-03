@@ -32,7 +32,9 @@ import type {
 } from "../types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
+  typeof window === "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087"
+    : "";
 
 const SYS_ADMIN_CSRF_BOOTSTRAP_COOLDOWN_MS = 2000;
 
