@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { type ProfileFormData, profileSchema } from "../../schemas/profile.schema";
