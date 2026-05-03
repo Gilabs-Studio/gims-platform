@@ -19,6 +19,7 @@ import type {
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
 } from "../types";
+import type { Outlet, OutletListResponse } from "@/features/master-data/outlet/types";
 
 const BASE = "/pos";
 const API_BASE_URL_FALLBACK = "http://localhost:8087";
@@ -129,7 +130,7 @@ export const posOrderService = {
 
   listOutlets() {
     return apiClient
-      .get<ApiResponse<any[]>>(`${BASE}/outlets`)
+      .get<OutletListResponse<Outlet>>(`${BASE}/outlets`)
       .then((r) => r.data);
   },
 };

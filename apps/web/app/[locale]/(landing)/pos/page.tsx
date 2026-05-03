@@ -108,7 +108,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
                 </p>
               </div>
               <div className="lg:w-1/2 w-full">
-                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-8 flex items-center justify-center">
+                <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-8 flex items-center justify-center">
                    <div className="w-full h-full border border-border/50 rounded-lg p-4 grid grid-cols-3 gap-4">
                      <div className="col-span-2 space-y-2">
                         {[1,2,3].map(i => (

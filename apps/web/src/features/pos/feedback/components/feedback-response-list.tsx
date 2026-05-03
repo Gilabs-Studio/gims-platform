@@ -11,7 +11,6 @@ import {
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import {
@@ -44,7 +43,7 @@ import {
   useFeedbackResponse,
   useFeedbackResponses,
 } from "../hooks/use-feedback";
-import type { AnswerValue, FeedbackResponseItem } from "../types";
+import type { FeedbackResponseItem } from "../types";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import type { SalesOrder } from "@/features/sales/order/types";
@@ -57,7 +56,6 @@ export function FeedbackResponseList() {
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [filterOutletId, setFilterOutletId] = useState<string | undefined>();
   const [filterFormId, setFilterFormId] = useState<string | undefined>();
 
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -68,7 +66,6 @@ export function FeedbackResponseList() {
   const { data, isLoading, isError, refetch } = useFeedbackResponses({
     page,
     per_page: pageSize,
-    outlet_id: filterOutletId,
     form_id: filterFormId,
     search: debouncedSearch || undefined,
   });
@@ -92,11 +89,6 @@ export function FeedbackResponseList() {
   function openSalesOrder(orderId: string) {
     setSelectedSalesOrderId(orderId);
     setIsSalesOrderDetailOpen(true);
-  }
-
-  function formatAnswerValue(val: AnswerValue): string {
-    if (Array.isArray(val)) return val.join(", ");
-    return String(val);
   }
 
   if (isError) {

@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatCurrency, resolveImageUrl, cn } from "@/lib/utils";
+import { formatCurrency, resolveImageUrl } from "@/lib/utils";
 import { PosLoyaltyLookup } from "@/features/loyalty/components/pos-loyalty-lookup";
 import type { CartItem, POSConfig } from "../types";
 import type { LoyaltyMemberLookup } from "@/features/loyalty/types";
@@ -22,11 +22,6 @@ function formatRatePercent(rate: number): string {
   const percent = rate * 100;
   if (Number.isInteger(percent)) return `${percent}`;
   return percent.toFixed(2).replace(/\.?0+$/, "");
-}
-
-function truncateProductName(name: string, maxLength = 24): string {
-  if (name.length <= maxLength) return name;
-  return `${name.slice(0, maxLength)}...`;
 }
 
 interface POSCartPanelProps {
