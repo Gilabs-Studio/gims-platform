@@ -1,9 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"database/sql"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"sort"
 	"strings"
 	"time"
@@ -101,7 +101,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 			'CUSTOMER_INVOICE' as source_type,
 			ci.code, 
 			ci.invoice_number, 
-			COALESCE(so.customer_id, '') as customer_id,
+			COALESCE(so.customer_id::text, '') as customer_id,
 			COALESCE(c.name, so.customer_name, 'Customer') as customer_name,
 			ci.invoice_date, 
 			COALESCE(ci.due_date, ci.invoice_date) as due_date, 
@@ -319,7 +319,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0) as paid_amount,
 			GREATEST(ntp.amount - COALESCE((
 				SELECT SUM(je.debit_total)
@@ -327,7 +327,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0), 0) as remaining_amount
 		FROM non_trade_payables ntp
 		WHERE ntp.deleted_at IS NULL
@@ -345,7 +345,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0), 0) > 0
 		ORDER BY COALESCE(ntp.due_date, ntp.transaction_date) ASC, ntp.code ASC
 	`

@@ -126,3 +126,10 @@ export interface AgingQueryParams {
   customer_id?: string;
   supplier_id?: string;
 }
+
+export interface AgingBucketConfigPayload {
+  report_type: "ar" | "ap";
+  buckets: AgingBucketDefinition[];
+}
+
+export type AgingReportType = "ar" | "ap";

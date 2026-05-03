@@ -291,9 +291,15 @@ func SeedFinanceSettings() error {
 			Category:    "valuation",
 		},
 		{
-			SettingKey:  models.SettingAgingBucketConfig,
+			SettingKey:  models.AgingBucketConfigSettingKey(models.AgingReportTypeAR),
 			Value:       `[{"key":"current","label":"Current","min_days":null,"max_days":0},{"key":"days_1_30","label":"1-30 Days","min_days":1,"max_days":30},{"key":"days_31_60","label":"31-60 Days","min_days":31,"max_days":60},{"key":"days_61_90","label":"61-90 Days","min_days":61,"max_days":90},{"key":"over_90","label":">90 Days","min_days":91,"max_days":null}]`,
-			Description: "Aging bucket configuration in JSON array format for AR/AP aging reports",
+			Description: "Aging bucket configuration in JSON array format for AR aging reports",
+			Category:    "report",
+		},
+		{
+			SettingKey:  models.AgingBucketConfigSettingKey(models.AgingReportTypeAP),
+			Value:       `[{"key":"current","label":"Current","min_days":null,"max_days":0},{"key":"days_1_30","label":"1-30 Days","min_days":1,"max_days":30},{"key":"days_31_60","label":"31-60 Days","min_days":31,"max_days":60},{"key":"days_61_90","label":"61-90 Days","min_days":61,"max_days":90},{"key":"over_90","label":">90 Days","min_days":91,"max_days":null}]`,
+			Description: "Aging bucket configuration in JSON array format for AP aging reports",
 			Category:    "report",
 		},
 	}

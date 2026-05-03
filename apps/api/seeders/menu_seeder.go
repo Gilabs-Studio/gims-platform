@@ -627,7 +627,7 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Journal Entries", "file-text", "/finance/accounting/journal-entries", 1},
-		{"Sales Journal", "receipt", "/finance/ar/customer-invoices", 2},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
 		{"Purchase Journal", "shopping-cart", "/finance/accounting/journal-entries/purchase", 3},
 		{"Adjustment Journal", "edit-3", "/finance/accounting/journal-entries/adjustment", 4},
 	}
@@ -643,13 +643,21 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Customer Invoices", "receipt", "/finance/ar/customer-invoices", 1},
-		{"Customer Payments", "credit-card", "/finance/ar/customer-payments", 2},
-		{"Credit Notes", "rotate-ccw", "/finance/ar/credit-notes", 3},
-		{"AR Aging Reports", "clock", "/finance/ar/aging-reports", 4},
+		{"AR Aging Reports", "clock", "/finance/ar/aging-reports", 1},
 	}
 	for _, child := range arChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &arMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	removedARChildrenURLs := []string{
+		"/finance/ar/customer-invoices",
+		"/finance/ar/customer-payments",
+		"/finance/ar/credit-notes",
+	}
+	for _, url := range removedARChildrenURLs {
+		if err := deactivateMenuURLByParent(url, &arMenu.ID); err != nil {
 			return err
 		}
 	}
@@ -660,14 +668,22 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Supplier Invoices", "receipt", "/finance/ap/supplier-invoices", 1},
-		{"Supplier Payments", "credit-card", "/finance/ap/supplier-payments", 2},
-		{"Debit Notes", "rotate-ccw", "/finance/ap/debit-notes", 3},
-		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 4},
-		{"AP Aging Reports", "clock", "/finance/ap/aging-reports", 5},
+		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 1},
+		{"AP Aging Reports", "clock", "/finance/ap/aging-reports", 2},
 	}
 	for _, child := range apChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &apMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	removedAPChildrenURLs := []string{
+		"/finance/ap/supplier-invoices",
+		"/finance/ap/supplier-payments",
+		"/finance/ap/debit-notes",
+	}
+	for _, url := range removedAPChildrenURLs {
+		if err := deactivateMenuURLByParent(url, &apMenu.ID); err != nil {
 			return err
 		}
 	}
