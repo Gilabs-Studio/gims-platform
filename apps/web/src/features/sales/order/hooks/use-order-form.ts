@@ -244,15 +244,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         : undefined,
   });
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setShouldLoadReferenceOptions(true);
-    setShouldLoadProductOptions(true);
-  }, [open]);
-
   const products = useMemo(
     () => sortOptions(productCombobox.items, (a) => (a.code ? `${a.code} - ${a.name}` : a.name)),
     [productCombobox.items],
@@ -429,7 +420,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       return;
     }
 
-    setSelectedContactId(selectedMainContact.id);
+    queueMicrotask(() => setSelectedContactId(selectedMainContact.id));
     setValue("customer_contact_id", selectedMainContact.id, { shouldValidate: true, shouldDirty: true });
     setValue("customer_contact", selectedMainContact.name, { shouldValidate: true, shouldDirty: true });
     setValue("customer_phone", selectedMainContact.phone ?? "", { shouldValidate: true, shouldDirty: true });
@@ -438,18 +429,18 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
   useEffect(() => {
     if (!watchedCustomerId) {
-      setCustomerDefaultPins({
+      queueMicrotask(() => setCustomerDefaultPins({
         paymentTerm: null,
         businessType: null,
         area: null,
         salesRep: null,
-      });
+      }));
       return;
     }
     const detailCustomer = selectedCustomerData?.data;
     if (!detailCustomer) return;
 
-    setCustomerDefaultPins({
+    queueMicrotask(() => setCustomerDefaultPins({
       paymentTerm: detailCustomer.default_payment_terms?.id
         ? {
             value: detailCustomer.default_payment_terms.id,
@@ -474,7 +465,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
             label: `${detailCustomer.default_sales_rep.employee_code} - ${detailCustomer.default_sales_rep.name}`,
           }
         : null,
-    });
+    }));
 
     applyCustomerDefaults(detailCustomer);
   }, [watchedCustomerId, selectedCustomerData?.data, applyCustomerDefaults]);
@@ -509,7 +500,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       setValue("customer_contact", q.customer_contact ?? "", { shouldValidate: true });
       setValue("customer_phone", q.customer_phone ?? "", { shouldValidate: true });
       setValue("customer_email", q.customer_email ?? "", { shouldValidate: true });
-      setSelectedContactId(q.customer_contact_id ?? "");
+      queueMicrotask(() => setSelectedContactId(q.customer_contact_id ?? ""));
 
       // --- Financial summary ---
       setValue("tax_rate", q.tax_rate ?? 11, { shouldValidate: true });
@@ -570,14 +561,14 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   useEffect(() => {
     if (!open) {
       localStorage.removeItem(STORAGE_KEY);
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
       return;
     }
 
     if (isEdit) {
       if (fullOrderData?.data) {
         const orderData = fullOrderData.data;
-        setSelectedContactId(orderData.customer_contact_id ?? "");
+        queueMicrotask(() => setSelectedContactId(orderData.customer_contact_id ?? ""));
         
         setTimeout(() => {
           reset({
@@ -616,7 +607,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       try {
         const parsedData = JSON.parse(cached);
         reset(parsedData);
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       } catch {
         reset({
           order_date: new Date().toISOString().split("T")[0],
@@ -638,7 +629,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           notes: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       }
     } else {
       reset({
@@ -661,7 +652,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         notes: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
     }
   }, [open, isEdit, fullOrderData, reset]);
 

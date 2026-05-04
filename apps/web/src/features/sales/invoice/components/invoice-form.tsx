@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, Receipt, CheckCircle2 } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -76,7 +76,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
-  const watchedSalesOrderId = form.watch("sales_order_id");
+  const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
   const isSalesOrderLocked = (!!defaultSalesOrderId || (isEdit && !!watchedSalesOrderId));
 
   return (

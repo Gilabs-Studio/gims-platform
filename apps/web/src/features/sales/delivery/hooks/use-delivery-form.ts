@@ -190,14 +190,6 @@ export function useDeliveryForm({
 			: undefined,
 	});
 
-	useEffect(() => {
-		if (!open) {
-			return;
-		}
-
-		setShouldLoadReferenceOptions(true);
-	}, [open]);
-
 	const salesOrders = useMemo(
 		() => sortOptions(salesOrdersCombobox.items, (item) => item.code),
 		[salesOrdersCombobox.items],

@@ -31,8 +31,8 @@ import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
 import type { DeliveryOrder } from "../../delivery/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { useMemo } from "react";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
@@ -143,7 +143,7 @@ export function InvoiceList() {
   const updateStatus = useUpdateInvoiceStatus();
   const approveInvoice = useApproveInvoice();
   const queryClient = useQueryClient();
-  const invoices = data?.data ?? [];
+  const invoices = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
   useEffect(() => {
@@ -250,7 +250,7 @@ export function InvoiceList() {
           },
         );
       }
-    } catch (e) {
+    } catch {
       // noop
     }
     setCreatePaymentForInvoiceId(invoice.id);

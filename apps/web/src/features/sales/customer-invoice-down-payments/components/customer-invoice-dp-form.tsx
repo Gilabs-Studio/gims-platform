@@ -90,9 +90,14 @@ export function CustomerInvoiceDPFormDialog({
     },
   });
 
+  const invoiceDate = useWatch({ control: form.control, name: "invoice_date" });
+  const dueDate = useWatch({ control: form.control, name: "due_date" });
+  const amount = useWatch({ control: form.control, name: "amount" });
+  const notes = useWatch({ control: form.control, name: "notes" });
+
   useEffect(() => {
     if (!open) {
-      setAttachments([]);
+      queueMicrotask(() => setAttachments([]));
       return;
     }
 
@@ -350,19 +355,19 @@ export function CustomerInvoiceDPFormDialog({
                     disabled={isBusy}
                     className={cn(
                       "w-full justify-start text-left font-normal cursor-pointer",
-                      !form.watch("invoice_date") && "text-muted-foreground",
+                      !invoiceDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch("invoice_date")
-                      ? format(new Date(form.watch("invoice_date")), "dd MMM yyyy")
+                      {invoiceDate
+                        ? format(new Date(invoiceDate), "dd MMM yyyy")
                       : t("placeholders.pickDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={form.watch("invoice_date") ? new Date(form.watch("invoice_date")) : undefined}
+                      selected={invoiceDate ? new Date(invoiceDate) : undefined}
                     onSelect={(date: Date | undefined) =>
                       form.setValue("invoice_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
@@ -384,19 +389,19 @@ export function CustomerInvoiceDPFormDialog({
                     disabled={isBusy}
                     className={cn(
                       "w-full justify-start text-left font-normal cursor-pointer",
-                      !form.watch("due_date") && "text-muted-foreground",
+                      !dueDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch("due_date")
-                      ? format(new Date(form.watch("due_date")), "dd MMM yyyy")
+                      {dueDate
+                        ? format(new Date(dueDate), "dd MMM yyyy")
                       : t("placeholders.pickDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={form.watch("due_date") ? new Date(form.watch("due_date")) : undefined}
+                      selected={dueDate ? new Date(dueDate) : undefined}
                     onSelect={(date: Date | undefined) =>
                       form.setValue("due_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
@@ -411,7 +416,7 @@ export function CustomerInvoiceDPFormDialog({
             <Field orientation="vertical" className="col-span-2">
               <FieldLabel>{t("fields.amount")}</FieldLabel>
               <NumericInput
-                value={form.watch("amount")}
+                value={amount}
                 onChange={(value) => form.setValue("amount", value ?? 0, { shouldValidate: true })}
                 disabled={isBusy}
               />
@@ -496,7 +501,7 @@ export function CustomerInvoiceDPFormDialog({
           <Field orientation="vertical">
             <FieldLabel>{t("fields.notes")}</FieldLabel>
             <Textarea
-              value={form.watch("notes") ?? ""}
+              value={notes ?? ""}
               onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
               disabled={isBusy}
               rows={3}

@@ -155,13 +155,15 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   useEffect(() => {
     if (!open) {
-      setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
+      queueMicrotask(() => setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId));
       return;
     }
 
-    setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
-    setShouldLoadReferenceOptions(true);
-    setShouldLoadProductOptions(true);
+    queueMicrotask(() => {
+      setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
+      setShouldLoadReferenceOptions(true);
+      setShouldLoadProductOptions(true);
+    });
   }, [open, defaultSalesOrderId]);
 
   const products = useMemo(
@@ -356,7 +358,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     }
 
     if (defaultSalesOrderId && watchedSalesOrderId === defaultSalesOrderId) {
-      setIsDefaultSalesOrderPrefillReady(true);
+      queueMicrotask(() => setIsDefaultSalesOrderPrefillReady(true));
     }
   }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace, defaultSalesOrderId]);
 
