@@ -144,12 +144,12 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       }),
     mapOption: (item) => ({
       value: item.id,
-      label: item.code,
+      label: item.customer_name ? `${item.code} - ${item.customer_name}` : item.code,
     }),
     enabled: referenceOptionsEnabled,
     pinnedOptions:
       selectedInvoice?.sales_order?.id
-        ? [{ value: selectedInvoice.sales_order.id, label: selectedInvoice.sales_order.code }]
+        ? [{ value: selectedInvoice.sales_order.id, label: selectedInvoice.sales_order.customer_name ? `${selectedInvoice.sales_order.code} - ${selectedInvoice.sales_order.customer_name}` : selectedInvoice.sales_order.code }]
         : undefined,
   });
 
@@ -250,6 +250,13 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
     { enabled: open && !!watchedSalesOrderId },
   );
+
+  const selectedSalesOrderLabel = useMemo(() => {
+    const salesOrder = selectedOrderData?.data ?? selectedInvoice?.sales_order ?? null;
+    if (!salesOrder) return "";
+    const customerName = salesOrder.customer?.name ?? salesOrder.customer_name;
+    return customerName ? `${salesOrder.code} - ${customerName}` : salesOrder.code;
+  }, [selectedOrderData?.data, selectedInvoice?.sales_order]);
 
   // Compute detected down payments and financial summary
   const detectedDownPayments = useMemo(() => {
@@ -703,6 +710,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     productsCombobox,
     paymentTermsCombobox,
     ordersCombobox,
+    selectedSalesOrderLabel,
     journalPreview,
     isPreviewing,
   };

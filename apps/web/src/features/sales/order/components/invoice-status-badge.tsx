@@ -11,6 +11,7 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
   const t = useTranslations("invoice");
   const rawStatus = (status ?? "").toLowerCase();
   const normalizedStatus = rawStatus === "approved" ? "unpaid" : rawStatus;
+  const fallbackLabel = rawStatus ? rawStatus.replace(/_/g, " ") : "-";
 
   switch (normalizedStatus) {
     case "draft":
@@ -70,8 +71,6 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
         </Badge>
       );
     default:
-      // Try to resolve a localized label first, fallback to raw status
-      const label = t(`status.${normalizedStatus}`) || status;
-      return <Badge variant="outline" className={className}>{label}</Badge>;
+      return <Badge variant="outline" className={className}>{fallbackLabel}</Badge>;
   }
 }

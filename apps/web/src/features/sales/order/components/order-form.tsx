@@ -89,6 +89,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     productCombobox,
     customerCreditInfo,
     watchedQuotationId,
+    selectedQuotationLabel,
+    getProductLabel,
   } = useOrderForm({ order, open, onClose });
 
   const isItemsLocked = !!watchedQuotationId;
@@ -146,7 +148,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       disabled={isEdit} 
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={t("salesQuotation")} />
+                        <SelectValue placeholder={t("salesQuotation")} selectedLabel={selectedQuotationLabel} />
                       </SelectTrigger>
                       <SelectContent
                         onLoadMore={quotationCombobox.onLoadMore}
@@ -567,6 +569,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 render={({ field }) => (
                                   <CreatableCombobox
                                     value={field.value || ""}
+                                    selectedLabel={getProductLabel(field.value || "")}
                                     onValueChange={(value) => {
                                       field.onChange(value);
                                       handleProductChange(index, value);

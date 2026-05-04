@@ -79,6 +79,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   );
 
   const selectedOrder = fullOrderData?.data ?? order ?? null;
+  const selectedQuotationLabel = useMemo(() => {
+    const quotation = selectedOrder?.sales_quotation ?? null;
+    if (!quotation) return "";
+    const customerName = quotation.customer?.name ?? quotation.customer_name;
+    return customerName ? `${quotation.code} - ${customerName}` : quotation.code;
+  }, [selectedOrder?.sales_quotation]);
   const referenceOptionsEnabled = open && shouldLoadReferenceOptions;
   const productOptionsEnabled = open && shouldLoadProductOptions;
 
@@ -157,12 +163,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       }),
     mapOption: (item) => ({
       value: item.id,
-      label: item.code,
+      label: item.customer_name ? `${item.code} - ${item.customer_name}` : item.code,
     }),
     enabled: referenceOptionsEnabled,
     pinnedOptions:
       selectedOrder?.sales_quotation?.id
-        ? [{ value: selectedOrder.sales_quotation.id, label: selectedOrder.sales_quotation.code }]
+        ? [{ value: selectedOrder.sales_quotation.id, label: selectedOrder.sales_quotation.customer_name ? `${selectedOrder.sales_quotation.code} - ${selectedOrder.sales_quotation.customer_name}` : selectedOrder.sales_quotation.code }]
         : undefined,
   });
 
@@ -532,6 +538,27 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const deliveryCost = useWatch({ control, name: "delivery_cost" }) ?? 0;
   const otherCost = useWatch({ control, name: "other_cost" }) ?? 0;
   const discountAmount = useWatch({ control, name: "discount_amount" }) ?? 0;
+  const productLabelById = useMemo(() => {
+    const entries = new Map<string, string>();
+
+    for (const item of selectedOrder?.items ?? []) {
+      if (!item.product?.id) continue;
+      entries.set(
+        item.product.id,
+        item.product.code ? `${item.product.code} - ${item.product.name}` : item.product.name,
+      );
+    }
+
+    for (const item of quotationItemsData?.data ?? []) {
+      if (!item.product?.id) continue;
+      entries.set(
+        item.product.id,
+        item.product.code ? `${item.product.code} - ${item.product.name}` : item.product.name,
+      );
+    }
+
+    return entries;
+  }, [quotationItemsData?.data, selectedOrder?.items]);
 
   // Calculate totals
   const calculations = useMemo(() => {
@@ -858,6 +885,8 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
+  const getProductLabel = useCallback((productId: string) => productLabelById.get(productId) ?? "", [productLabelById]);
+
   // Derive customer credit info for display
   const customerCreditInfo = useMemo(() => {
     const customer = selectedCustomerData?.data;
@@ -959,5 +988,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     productCombobox,
     customerCreditInfo,
     watchedQuotationId,
+    selectedQuotationLabel,
+    getProductLabel,
   };
 }

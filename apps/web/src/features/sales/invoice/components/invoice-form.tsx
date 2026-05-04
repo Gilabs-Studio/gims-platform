@@ -73,6 +73,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     productsCombobox,
     paymentTermsCombobox,
     ordersCombobox,
+    selectedSalesOrderLabel,
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
@@ -128,6 +129,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                       value={field.value}
                       onValueChange={field.onChange}
                       disabled={isSalesOrderLocked}
+                      selectedLabel={selectedSalesOrderLabel}
                       onOpenChange={(isOpen) => {
                         if (isSalesOrderLocked) return;
                         if (isOpen) {
