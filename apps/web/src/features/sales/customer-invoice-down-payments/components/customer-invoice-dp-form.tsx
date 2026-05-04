@@ -61,12 +61,14 @@ export function CustomerInvoiceDPFormDialog({
   onOpenChange,
   invoiceId,
   defaultSalesOrderId,
+  defaultSalesOrderLabel,
   defaultAmount,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
   defaultSalesOrderId?: string;
+  defaultSalesOrderLabel?: string;
   defaultAmount?: number;
 }) {
   const t = useTranslations("customerInvoiceDP");
@@ -138,6 +140,25 @@ export function CustomerInvoiceDPFormDialog({
     { enabled: open && !!selectedSOId },
   );
 
+  const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
+  const pinnedSalesOrderOption = useMemo(() => {
+    if (selectedSO) {
+      return {
+        value: selectedSO.id,
+        label: `${selectedSO.code} - ${formatCurrency(selectedSO.total_amount ?? 0)}`,
+      };
+    }
+
+    if (defaultSalesOrderId && defaultSalesOrderLabel) {
+      return {
+        value: defaultSalesOrderId,
+        label: defaultSalesOrderLabel,
+      };
+    }
+
+    return undefined;
+  }, [selectedSO, defaultSalesOrderId, defaultSalesOrderLabel]);
+
   const salesOrderOptions = usePaginatedComboboxOptions({
     queryKey: ["customer-invoice-dp", "sales-order-options"],
     enabled: open,
@@ -152,9 +173,8 @@ export function CustomerInvoiceDPFormDialog({
       value: order.id,
       label: `${order.code} - ${formatCurrency(order.total_amount ?? 0)}`,
     }),
+    pinnedOptions: pinnedSalesOrderOption ? [pinnedSalesOrderOption] : undefined,
   });
-
-  const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
 
   const dpAmount = useWatch({ control: form.control, name: "amount" });
 

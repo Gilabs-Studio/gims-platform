@@ -820,13 +820,24 @@ func closeRelatedSalesOrderIfPaid(tx *gorm.DB, invoice *models.CustomerInvoice, 
 	}
 
 	orderID := strings.TrimSpace(*invoice.SalesOrderID)
-	if !isSalesOrderFullySettled(tx, orderID) || !isSalesOrderFullyFulfilled(tx, orderID) {
+	closeSalesOrderWhenSettledAndFulfilled(tx, orderID)
+}
+
+func closeSalesOrderWhenSettledAndFulfilled(tx *gorm.DB, orderID string) {
+	trimmedOrderID := strings.TrimSpace(orderID)
+	if trimmedOrderID == "" {
+		return
+	}
+
+	if !isSalesOrderFullySettled(tx, trimmedOrderID) || !isSalesOrderFullyFulfilled(tx, trimmedOrderID) {
 		return
 	}
 
 	var so models.SalesOrder
-	if err := tx.First(&so, salesPaymentQueryByID, *invoice.SalesOrderID).Error; err == nil {
-		_ = tx.Model(&so).Update("status", models.SalesOrderStatusClosed).Error
+	if err := tx.First(&so, salesPaymentQueryByID, trimmedOrderID).Error; err == nil {
+		if so.Status != models.SalesOrderStatusClosed {
+			_ = tx.Model(&so).Update("status", models.SalesOrderStatusClosed).Error
+		}
 	}
 }
 

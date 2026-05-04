@@ -172,9 +172,11 @@ export function useUpdateOrderStatus() {
       onSuccess: (_data, variables) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.id) });
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: ["customer-invoice-dp", "add"] });
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: ["customer-invoice-dp", "add"] });
       },
     }
   );
@@ -207,9 +209,11 @@ export function useApproveOrder() {
       onSuccess: (_data, id) => {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: ["customer-invoice-dp", "add"] });
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: ["customer-invoice-dp", "add"] });
       },
     }
   );

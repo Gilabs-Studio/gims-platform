@@ -372,7 +372,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 }
 
 // GetPendingDeliveryQtyBySalesOrder returns a map of sales_order_item_id -> total pending quantity
-// from all non-cancelled delivery orders for the given sales order.
+// from active (non-finalized) delivery orders for the given sales order.
 func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.Context, salesOrderID string) (map[string]float64, error) {
 	type result struct {
 		SalesOrderItemID string  `json:"sales_order_item_id"`
@@ -393,7 +393,11 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 		Select("doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
 		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
 		Where("dord.sales_order_id = ?", salesOrderID).
-		Where("dord.status != ?", models.DeliveryOrderStatusCancelled).
+		Where("dord.status NOT IN ?", []models.DeliveryOrderStatus{
+			models.DeliveryOrderStatusCancelled,
+			models.DeliveryOrderStatusDelivered,
+			models.DeliveryOrderStatusRejected,
+		}).
 		Where("dord.deleted_at IS NULL").
 		Where("doi.deleted_at IS NULL").
 		Where("doi.sales_order_item_id IS NOT NULL").
