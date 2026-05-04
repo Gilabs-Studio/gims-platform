@@ -885,7 +885,13 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
-  const getProductLabel = useCallback((productId: string) => productLabelById.get(productId) ?? "", [productLabelById]);
+  const getProductLabel = useCallback((productId: string) => {
+    if (!productId) return "";
+
+    return productCombobox.options.find((option) => option.value === productId)?.label
+      ?? productLabelById.get(productId)
+      ?? "";
+  }, [productCombobox.options, productLabelById]);
 
   // Derive customer credit info for display
   const customerCreditInfo = useMemo(() => {

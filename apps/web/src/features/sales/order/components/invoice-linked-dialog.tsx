@@ -55,6 +55,13 @@ function DPStatusBadge({ status, className }: { status?: string; className?: str
           {t("status.unpaid") || "Unpaid"}
         </Badge>
       );
+    case "waiting_approval":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_approval") || "Waiting Approval"}
+        </Badge>
+      );
     case "waiting_payment":
       return (
         <Badge variant="info" className={className}>

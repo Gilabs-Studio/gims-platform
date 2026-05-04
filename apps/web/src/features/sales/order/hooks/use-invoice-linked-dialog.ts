@@ -64,7 +64,7 @@ export function useInvoiceLinkedDialog({ open, salesOrderId }: UseInvoiceLinkedD
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
+    return normalized === "waiting_approval" || normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
   };
 
   return {

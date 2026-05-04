@@ -72,6 +72,7 @@ export const customerInvoiceDPId = {
     approved: "Disetujui",
     rejected: "Ditolak",
     unpaid: "Belum Dibayar",
+    waiting_approval: "Menunggu Persetujuan",
     waiting_payment: "Menunggu Pembayaran",
     partial: "Sebagian",
     paid: "Lunas",

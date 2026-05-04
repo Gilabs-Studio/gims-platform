@@ -98,6 +98,7 @@ function normalizeStatus(status?: string | null): string {
 function isPaymentStatus(status?: string | null): boolean {
   const normalized = normalizeStatus(status);
   return (
+    normalized === "waiting_approval" ||
     normalized === "waiting_payment" ||
     normalized === "paid" ||
     normalized === "partial" ||
@@ -293,6 +294,13 @@ export function CustomerInvoiceDPList() {
         return (
           <Badge variant="warning" className="text-xs font-medium">
             <CreditCard className="h-3 w-3 mr-1.5" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "waiting_approval":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -586,42 +594,6 @@ export function CustomerInvoiceDPList() {
                             <DropdownMenuItem
                               className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => {
-                                try {
-                                  queryClient.cancelQueries({ queryKey: customerInvoiceDPKeys.lists() });
-                                  queryClient.setQueriesData({ queryKey: customerInvoiceDPKeys.lists() }, (old: unknown) => {
-                                    if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
-                                      return old;
-                                    }
-
-                                    const previous = old as QueryListData<CustomerInvoiceDPListItem>;
-                                    return {
-                                      ...previous,
-                                      data: previous.data.map((dp) => (dp.id === row.id ? { ...dp, status: "waiting_payment" } : dp)),
-                                    };
-                                  });
-
-                                  const soId = row.sales_order?.id;
-                                  if (soId) {
-                                    queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: unknown) => {
-                                      if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
-                                        return old;
-                                      }
-
-                                      const previous = old as QueryListData<CachedOrderLike>;
-                                      return {
-                                        ...previous,
-                                        data: previous.data.map((order) => {
-                                          if (order.id !== soId) return order;
-                                          const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
-                                          return {
-                                            ...order,
-                                            customer_invoices: existing.map((ci) => (ci.id === row.id ? { ...ci, status: "waiting_payment" } : ci)),
-                                          };
-                                        }),
-                                      };
-                                    });
-                                  }
-                                } catch {}
                                 setCreatePaymentForDPId(row.id);
                               }}
                             >

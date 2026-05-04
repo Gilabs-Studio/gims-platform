@@ -95,6 +95,13 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
           {t("status.unpaid")}
         </Badge>
       );
+    case "waiting_approval":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_approval")}
+        </Badge>
+      );
     case "waiting_payment":
       return (
         <Badge variant="warning" className="text-xs font-medium">

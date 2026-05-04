@@ -216,49 +216,12 @@ export function InvoiceList() {
   };
 
   const handleOpenCreatePayment = (invoice: CustomerInvoice) => {
-    try {
-      queryClient.cancelQueries({ queryKey: invoiceKeys.lists() });
-      queryClient.setQueriesData({ queryKey: invoiceKeys.lists() }, (old: CustomerInvoiceListResponse | undefined) => {
-        if (!old?.data) return old;
-        return {
-          ...old,
-          data: old.data.map((inv) =>
-            inv.id === invoice.id ? { ...inv, status: "waiting_payment" } : inv,
-          ),
-        };
-      });
-
-      const soId = invoice.sales_order?.id;
-      if (soId) {
-        queryClient.setQueriesData(
-          { queryKey: orderKeys.lists() },
-          (old: SalesOrderListResponse | undefined) => {
-            if (!old?.data) return old;
-            return {
-              ...old,
-              data: old.data.map((order) => {
-                if (order.id !== soId) return order;
-                const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
-                return {
-                  ...order,
-                  customer_invoices: existing.map((ci) =>
-                    ci.id === invoice.id ? { ...ci, status: "waiting_payment" } : ci,
-                  ),
-                };
-              }),
-            };
-          },
-        );
-      }
-    } catch {
-      // noop
-    }
     setCreatePaymentForInvoiceId(invoice.id);
   };
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
+    return normalized === "waiting_approval" || normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
   };
 
   const isOverdue = (invoice: CustomerInvoice) => {
@@ -567,6 +530,7 @@ export function InvoiceList() {
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
+            <SelectItem value="waiting_approval">{t("status.waiting_approval")}</SelectItem>
             <SelectItem value="waiting_payment">{t("status.waiting_payment")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>

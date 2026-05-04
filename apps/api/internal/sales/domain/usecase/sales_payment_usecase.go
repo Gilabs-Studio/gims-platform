@@ -267,7 +267,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 			return err
 		}
 
-		if err := markInvoiceWaitingPayment(tx, inv); err != nil {
+		if err := markInvoiceWaitingApproval(tx, inv); err != nil {
 			return err
 		}
 
@@ -500,9 +500,9 @@ func appliedSalesPaymentAmount(payment *models.SalesPayment) float64 {
 	return 0
 }
 
-func markInvoiceWaitingPayment(tx *gorm.DB, inv *models.CustomerInvoice) error {
+func markInvoiceWaitingApproval(tx *gorm.DB, inv *models.CustomerInvoice) error {
 	return tx.Model(inv).Updates(map[string]interface{}{
-		"status":     models.CustomerInvoiceStatusWaitingPayment,
+		"status":     models.CustomerInvoiceStatusWaitingApproval,
 		"updated_at": apptime.Now(),
 	}).Error
 }
@@ -792,7 +792,7 @@ func (uc *salesPaymentUsecase) prepareConfirmSalesPayment(
 }
 
 func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error {
-	if status == models.CustomerInvoiceStatusApproved || status == models.CustomerInvoiceStatusUnpaid || status == models.CustomerInvoiceStatusPartial || status == models.CustomerInvoiceStatusWaitingPayment {
+	if status == models.CustomerInvoiceStatusApproved || status == models.CustomerInvoiceStatusUnpaid || status == models.CustomerInvoiceStatusPartial || status == models.CustomerInvoiceStatusWaitingPayment || status == models.CustomerInvoiceStatusWaitingApproval {
 		return nil
 	}
 
@@ -819,10 +819,80 @@ func closeRelatedSalesOrderIfPaid(tx *gorm.DB, invoice *models.CustomerInvoice, 
 		return
 	}
 
+	orderID := strings.TrimSpace(*invoice.SalesOrderID)
+	if !isSalesOrderFullySettled(tx, orderID) || !isSalesOrderFullyFulfilled(tx, orderID) {
+		return
+	}
+
 	var so models.SalesOrder
 	if err := tx.First(&so, salesPaymentQueryByID, *invoice.SalesOrderID).Error; err == nil {
-		_ = tx.Model(&so).Update("status", "closed").Error
+		_ = tx.Model(&so).Update("status", models.SalesOrderStatusClosed).Error
 	}
+}
+
+func isSalesOrderFullyFulfilled(tx *gorm.DB, orderID string) bool {
+	trimmedOrderID := strings.TrimSpace(orderID)
+	if trimmedOrderID == "" {
+		return false
+	}
+
+	var order models.SalesOrder
+	if err := tx.Preload("Items").First(&order, salesPaymentQueryByID, trimmedOrderID).Error; err != nil {
+		return false
+	}
+
+	if order.Status != models.SalesOrderStatusApproved || len(order.Items) == 0 {
+		return false
+	}
+
+	for _, item := range order.Items {
+		if item.Quantity <= 0 {
+			return false
+		}
+		if item.DeliveredQuantity+0.0001 < item.Quantity {
+			return false
+		}
+		if item.InvoicedQuantity+0.0001 < item.Quantity {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isSalesOrderFullySettled(tx *gorm.DB, orderID string) bool {
+	trimmedOrderID := strings.TrimSpace(orderID)
+	if trimmedOrderID == "" {
+		return false
+	}
+
+	type paymentTotalRow struct {
+		Total float64
+	}
+
+	var row paymentTotalRow
+	if err := tx.Model(&models.CustomerInvoice{}).
+		Select("COALESCE(SUM(COALESCE(paid_amount, 0)), 0) AS total").
+		Where("sales_order_id = ?", trimmedOrderID).
+		Where("deleted_at IS NULL").
+		Where("status NOT IN ?", []models.CustomerInvoiceStatus{
+			models.CustomerInvoiceStatusCancelled,
+			models.CustomerInvoiceStatusReversed,
+		}).
+		Scan(&row).Error; err != nil {
+		return false
+	}
+
+	var order models.SalesOrder
+	if err := tx.Select("id", "total_amount").First(&order, salesPaymentQueryByID, trimmedOrderID).Error; err != nil {
+		return false
+	}
+
+	if order.TotalAmount <= 0 {
+		return false
+	}
+
+	return row.Total+0.0001 >= order.TotalAmount
 }
 
 func (uc *salesPaymentUsecase) applyDownPaymentRecalculationIfNeeded(

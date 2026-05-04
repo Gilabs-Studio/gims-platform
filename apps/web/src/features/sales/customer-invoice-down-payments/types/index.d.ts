@@ -37,6 +37,7 @@ export type CustomerInvoiceDPStatus =
   | "APPROVED"
   | "REJECTED"
   | "UNPAID"
+  | "WAITING_APPROVAL"
   | "WAITING_PAYMENT"
   | "PARTIAL"
   | "PAID"

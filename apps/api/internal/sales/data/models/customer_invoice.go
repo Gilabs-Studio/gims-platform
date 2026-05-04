@@ -19,6 +19,7 @@ const (
 	CustomerInvoiceStatusRejected       CustomerInvoiceStatus = "REJECTED"
 	CustomerInvoiceStatusUnpaid         CustomerInvoiceStatus = "UNPAID"
 	CustomerInvoiceStatusOverdue        CustomerInvoiceStatus = "OVERDUE"
+	CustomerInvoiceStatusWaitingApproval CustomerInvoiceStatus = "WAITING_APPROVAL"
 	CustomerInvoiceStatusWaitingPayment CustomerInvoiceStatus = "WAITING_PAYMENT"
 	CustomerInvoiceStatusPartial        CustomerInvoiceStatus = "PARTIAL"
 	CustomerInvoiceStatusPaid           CustomerInvoiceStatus = "PAID"

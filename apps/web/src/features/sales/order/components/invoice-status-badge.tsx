@@ -42,6 +42,13 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
           {t("status.unpaid")}
         </Badge>
       );
+    case "waiting_approval":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_approval")}
+        </Badge>
+      );
     case "waiting_payment":
       return (
         <Badge variant="info" className={className}>
