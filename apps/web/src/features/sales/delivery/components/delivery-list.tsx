@@ -97,8 +97,8 @@ export function DeliveryList() {
       });
       toast.success(t("statusUpdated"));
       setShipDeliveryId(null);
-    } catch {
-      toast.error(t("common.error"));
+    } catch (error) {
+      console.error("Failed to ship delivery order:", error);
     }
   };
 
@@ -142,8 +142,8 @@ export function DeliveryList() {
         await deleteDelivery.mutateAsync(deletingId);
         toast.success(t("deleted"));
         setDeletingId(null);
-      } catch {
-        toast.error(t("common.error"));
+      } catch (error) {
+        console.error("Failed to delete delivery order:", error);
       }
     }
   };
@@ -164,8 +164,8 @@ export function DeliveryList() {
         data: { status, cancellation_reason: cancellationReason },
       });
       toast.success(t("statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
+    } catch (error) {
+      console.error("Failed to update delivery status:", error);
     }
   };
 
@@ -176,8 +176,8 @@ export function DeliveryList() {
         data: { status: "prepared" },
       });
       toast.success(t("statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
+    } catch (error) {
+      console.error("Failed to prepare delivery:", error);
     }
   };
 
@@ -199,8 +199,8 @@ export function DeliveryList() {
       });
       toast.success(t("statusUpdated"));
       setDeliverDeliveryId(null);
-    } catch {
-      toast.error(t("common.error"));
+    } catch (error) {
+      console.error("Failed to deliver delivery order:", error);
     }
   };
 
@@ -442,7 +442,7 @@ export function DeliveryList() {
                             <>
                               {canApprove && (
                                 <DropdownMenuItem
-                                  onClick={() => approveDelivery.mutateAsync(delivery.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  onClick={() => approveDelivery.mutateAsync(delivery.id).then(() => toast.success(t("statusUpdated"))).catch((error) => console.error("Failed to approve delivery order:", error))}
                                   className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />

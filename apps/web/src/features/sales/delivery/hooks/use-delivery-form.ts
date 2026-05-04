@@ -32,7 +32,6 @@ import type { SalesOrderItem } from "../../order/types";
 import { sortOptions } from "@/lib/utils";
 import {
 	getFirstFormErrorMessage,
-	getSalesErrorMessage,
 	toOptionalString,
 } from "../../utils/error-utils";
 
@@ -607,7 +606,6 @@ export function useDeliveryForm({
 			onClose();
 		} catch (error) {
 			console.error("Failed to save delivery order:", error);
-			toast.error(getSalesErrorMessage(error, t("common.error")));
 		}
 	};
 

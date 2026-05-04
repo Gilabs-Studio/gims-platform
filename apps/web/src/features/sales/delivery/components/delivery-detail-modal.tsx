@@ -295,7 +295,6 @@ export function DeliveryDetailModal({
                         onClose();
                       } catch (error) {
                         console.error("Failed to submit delivery:", error);
-                        toast.error(t("common.error"));
                       }
                     }}
                     className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
@@ -319,7 +318,6 @@ export function DeliveryDetailModal({
                             onClose();
                           } catch (error) {
                             console.error("Failed to approve delivery:", error);
-                            toast.error(t("common.error"));
                           }
                         }}
                         className="cursor-pointer text-success hover:text-success hover:bg-green-50"
@@ -341,7 +339,6 @@ export function DeliveryDetailModal({
                             onClose();
                           } catch (error) {
                             console.error("Failed to reject delivery:", error);
-                            toast.error(t("common.error"));
                           }
                         }}
                         className="cursor-pointer text-destructive hover:text-destructive"
@@ -365,7 +362,6 @@ export function DeliveryDetailModal({
                         onClose();
                       } catch (error) {
                         console.error("Failed to prepare delivery:", error);
-                        toast.error(t("common.error"));
                       }
                     }}
                     className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
