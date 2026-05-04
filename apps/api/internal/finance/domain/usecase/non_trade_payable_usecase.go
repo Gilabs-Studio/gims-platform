@@ -131,7 +131,7 @@ func (uc *nonTradePayableUsecase) getPaidAmount(ctx context.Context, payableID s
 	`
 
 	var paid float64
-	if err := database.GetDB(ctx, uc.db).WithContext(ctx).Raw(query, payableID, payableID).Scan(&paid).Error; err != nil {
+	if err := uc.db.WithContext(ctx).Raw(query, payableID, payableID).Scan(&paid).Error; err != nil {
 		return 0, err
 	}
 	if math.IsNaN(paid) || paid < 0 {
@@ -155,7 +155,7 @@ func (uc *nonTradePayableUsecase) resolvePaymentCOAID(ctx context.Context, req *
 	}
 
 	var bankAccount coreModels.BankAccount
-	if err := database.GetDB(ctx, uc.db).WithContext(ctx).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
+	if err := uc.db.WithContext(ctx).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return "", errors.New("bank account not found")
 		}

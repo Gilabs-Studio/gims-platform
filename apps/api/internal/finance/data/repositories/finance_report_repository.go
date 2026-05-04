@@ -8,6 +8,7 @@ import (
 	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"gorm.io/gorm"
 )
 
@@ -96,7 +97,7 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 		result[id] = GLAccountBalance{ChartOfAccountID: id}
 	}
 
-	query := database.GetDB(ctx, r.db).
+	query := r.db.WithContext(ctx).
 		Table("journal_lines jl").
 		Select(`
 			jl.chart_of_account_id as coa_id,
@@ -130,6 +131,9 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 	if fiscalYearID != nil {
 		query = query.Where("je.fiscal_year_id = ?", *fiscalYearID)
 	}
+
+	// Apply qualified tenant filter to avoid unqualified `tenant_id` ambiguity on JOINs
+	query = applyQualifiedTenantFilter(ctx, query, "jl.tenant_id", "je.tenant_id", "coa.tenant_id")
 
 	type row struct {
 		CoAID          string  `gorm:"column:coa_id"`
@@ -210,7 +214,7 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 	}
 
 	var lines []financeModels.JournalLine
-	query := database.GetDB(ctx, r.db).
+	query := r.db.WithContext(ctx).
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
@@ -225,6 +229,9 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 	if fiscalYearID != nil {
 		query = query.Where("journal_entries.fiscal_year_id = ?", *fiscalYearID)
 	}
+	// Apply qualified tenant filter so tenant scoping remains enforced with qualified column
+	query = applyQualifiedTenantFilter(ctx, query, "journal_lines.tenant_id", "journal_entries.tenant_id")
+
 	err := query.
 		Order("journal_entries.entry_date asc, journal_entries.id asc, journal_lines.id asc").
 		Find(&lines).Error
@@ -274,7 +281,14 @@ func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, e
 	}
 
 	var row result
-	if err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&row).Error; err != nil {
+	// Append tenant filter to raw SQL to keep tenant isolation
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID != "" {
+		query += " AND je.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&row).Error; err != nil {
 		return 0, err
 	}
 

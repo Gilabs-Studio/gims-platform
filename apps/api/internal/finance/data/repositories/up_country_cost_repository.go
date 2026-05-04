@@ -154,13 +154,18 @@ func (r *upCountryCostRepository) GetStats(ctx context.Context) (*UpCountryCostS
 	}
 
 	var rows []row
-	if err := database.GetDB(ctx, r.db).
+	q := r.db.WithContext(ctx).
 		Model(&financeModels.UpCountryCost{}).
 		Select("status, COUNT(*) as count, COALESCE(SUM(ucci.total), 0) as amount").
 		Joins("LEFT JOIN (SELECT up_country_cost_id, SUM(amount) as total FROM up_country_cost_items WHERE deleted_at IS NULL GROUP BY up_country_cost_id) ucci ON ucci.up_country_cost_id = up_country_costs.id").
-		Where("up_country_costs.deleted_at IS NULL").
-		Group("status").
-		Scan(&rows).Error; err != nil {
+		Where("up_country_costs.deleted_at IS NULL")
+
+	// Ensure tenant scoping is applied with qualified columns to avoid ambiguous tenant_id in JOINs
+	q = applyQualifiedTenantFilter(ctx, q, "up_country_costs.tenant_id", "up_country_cost_items.tenant_id")
+
+	q = q.Group("status")
+
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
