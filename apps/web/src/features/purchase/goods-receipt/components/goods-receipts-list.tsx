@@ -63,7 +63,7 @@ import type { GoodsReceiptListItem } from "../types";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
-import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { goodsReceiptsService } from "../services/goods-receipts-service";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
@@ -91,7 +91,7 @@ export function GoodsReceiptsList() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
+
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
@@ -450,7 +450,7 @@ export function GoodsReceiptsList() {
                           {canPrint && (
                             <DropdownMenuItem
                               className="cursor-pointer text-purple focus:text-purple"
-                              onClick={() => setPrintingId(it.id)}
+                              onClick={() => { goodsReceiptsService.openPrintWindow(it.id).catch(() => toast.error("Print failed")); }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("actions.print")}
@@ -507,14 +507,6 @@ export function GoodsReceiptsList() {
           setDetailId(null);
         }}
       />
-
-      {printingId && (
-        <GoodsReceiptPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          receiptId={printingId}
-        />
-      )}
 
       <SupplierDetailModal
         open={isSupplierOpen}

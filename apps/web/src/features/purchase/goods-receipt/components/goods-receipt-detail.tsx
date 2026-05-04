@@ -64,7 +64,7 @@ import {
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
-import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { goodsReceiptsService } from "../services/goods-receipts-service";
 import { SILinkedDialog } from "./si-linked-dialog";
 
 interface GoodsReceiptDetailProps {
@@ -78,7 +78,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
@@ -219,7 +219,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (goodsReceiptId) goodsReceiptsService.openPrintWindow(goodsReceiptId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -622,14 +622,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         description={t("detail.title")}
         isLoading={deleteMutation.isPending}
       />
-
-      {goodsReceiptId && (
-        <GoodsReceiptPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          receiptId={goodsReceiptId}
-        />
-      )}
 
       <PurchaseOrderDetail
         open={isPurchaseOrderOpen}

@@ -33,7 +33,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { SalesQuotation } from "../types";
-import { QuotationPrintDialog } from "./quotation-print-dialog";
+import { quotationService } from "../services/quotation-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
@@ -53,7 +53,7 @@ export function QuotationDetailModal({
   const updateStatus = useUpdateQuotationStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
@@ -302,7 +302,7 @@ export function QuotationDetailModal({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintDialogOpen(true)}
+                    onClick={() => { quotationService.openPrintWindow(quotation!.id).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -737,13 +737,6 @@ export function QuotationDetailModal({
         />
       )}
 
-      {quotation?.id && (
-        <QuotationPrintDialog
-          open={isPrintDialogOpen}
-          onClose={() => setIsPrintDialogOpen(false)}
-          quotationId={quotation.id}
-        />
-      )}
     </>
   );
 }

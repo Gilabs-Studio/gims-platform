@@ -55,7 +55,7 @@ import {
   useSupplierInvoiceDPAuditTrail,
 } from "../hooks/use-supplier-invoice-dp";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
-import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
+import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
 
@@ -130,7 +130,6 @@ function SupplierInvoiceDPDetailView({
   const canViewPO = useUserPermission("purchase_order.read");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
@@ -338,15 +337,6 @@ function SupplierInvoiceDPDetailView({
         </TabsContent>
       </Tabs>
 
-      {/* Print dialog */}
-      {printOpen && (
-        <SupplierInvoiceDPPrintDialog
-          open={printOpen}
-          onClose={() => setPrintOpen(false)}
-          invoiceId={data.id}
-        />
-      )}
-
       {/* Purchase payment form (match customer flow) */}
       {data && (
         <PurchasePaymentForm
@@ -466,7 +456,6 @@ export function SupplierInvoiceDPDetailModal({
 
   const submitMutation = useSubmitSupplierInvoiceDP();
   const approveMutation = useApproveSupplierInvoiceDP();
-  const [printOpen, setPrintOpen] = useState(false);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const normalizedDetailStatus = (detail?.status ?? "").toLowerCase() === "approved"
@@ -540,7 +529,7 @@ export function SupplierInvoiceDPDetailModal({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setPrintOpen(true)}
+                  onClick={() => { if (detail?.id) supplierInvoiceDPService.openPrintWindow(detail.id).catch(() => toast.error(t("toast.failed"))); }}
                   className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >

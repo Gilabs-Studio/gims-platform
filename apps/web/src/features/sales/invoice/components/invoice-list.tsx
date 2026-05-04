@@ -17,7 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useQueryClient } from "@tanstack/react-query";
 import { invoiceKeys } from "../hooks/use-invoices";
 import { orderKeys } from "../../order/hooks/use-orders";
-import { InvoicePrintDialog } from "./invoice-print-dialog";
+import { invoiceService } from "../services/invoice-service";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import { InvoiceForm } from "./invoice-form";
@@ -133,7 +133,7 @@ export function InvoiceList() {
   const canViewCustomer = useUserPermission("customer.read");
   const canPrint = useUserPermission("customer_invoice.print");
 
-  const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
+
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
   const exportProgress = useExportProgress();
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
@@ -497,7 +497,7 @@ export function InvoiceList() {
                   )}
                   {canPrint && (
                     <DropdownMenuItem
-                      onClick={() => setPrintingInvoiceId(invoice.id)}
+                      onClick={() => { invoiceService.openPrintWindow(invoice.id).catch(() => toast.error("Print failed")); }}
                       className="cursor-pointer text-purple focus:text-purple"
                     >
                       <Printer className="h-4 w-4 mr-2" />
@@ -709,14 +709,6 @@ export function InvoiceList() {
           description={t("deleteDesc")}
           itemName={t("common.invoice")}
           isLoading={deleteInvoice.isPending}
-        />
-      )}
-
-      {printingInvoiceId && (
-        <InvoicePrintDialog
-          open={!!printingInvoiceId}
-          onClose={() => setPrintingInvoiceId(null)}
-          invoiceId={printingInvoiceId}
         />
       )}
 

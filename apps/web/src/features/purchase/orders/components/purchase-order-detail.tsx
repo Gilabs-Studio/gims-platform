@@ -47,7 +47,7 @@ import {
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderAuditTrailContent } from "./purchase-order-audit-trail";
 import { PurchaseOrderForm } from "./purchase-order-form";
-import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { purchaseOrdersService } from "../services/purchase-orders-service";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 
@@ -66,7 +66,6 @@ export function PurchaseOrderDetail({
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isSIFormOpen, setIsSIFormOpen] = useState(false);
   const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
@@ -175,10 +174,9 @@ export function PurchaseOrderDetail({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (purchaseOrderId) purchaseOrdersService.openPrintWindow(purchaseOrderId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
-                    title={t("print")}
-                  >
+                    title={t("print")}>
                     <Printer className="h-4 w-4" />
                   </Button>
                 )}
@@ -532,14 +530,6 @@ export function PurchaseOrderDetail({
         description={t("deleteDesc")}
         isLoading={deleteMutation.isPending}
       />
-
-      {purchaseOrderId && (
-        <PurchaseOrderPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          orderId={purchaseOrderId}
-        />
-      )}
 
       <SupplierInvoiceFormDialog
         open={isSIFormOpen}

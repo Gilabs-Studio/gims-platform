@@ -44,7 +44,7 @@ import {
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
-import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
+import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
@@ -181,7 +181,7 @@ export function CustomerInvoiceDPList() {
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenCustomerInvoiceDPFromURL);
 
   const [deletingRow, setDeletingRow] = useState<CustomerInvoiceDPListItem | null>(null);
-  const [printingDPId, setPrintingDPId] = useState<string | null>(null);
+
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [createPaymentForDPId, setCreatePaymentForDPId] = useState<string | null>(null);
@@ -574,7 +574,7 @@ export function CustomerInvoiceDPList() {
                           {canPrint ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-primary focus:text-primary"
-                              onClick={() => setPrintingDPId(row.id)}
+                              onClick={() => { customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error("Print failed")); }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {tCommon("print")}
@@ -679,14 +679,6 @@ export function CustomerInvoiceDPList() {
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
       />
-
-      {printingDPId && (
-        <CustomerInvoiceDPPrintDialog
-          open={!!printingDPId}
-          onClose={() => setPrintingDPId(null)}
-          invoiceDpId={printingDPId}
-        />
-      )}
 
       {selectedCustomer && (
         <CustomerDetailModal

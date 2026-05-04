@@ -51,7 +51,7 @@ import {
   useSupplierInvoiceAuditTrail,
 } from "../hooks/use-supplier-invoices";
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
-import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
+import { supplierInvoicesService } from "../services/supplier-invoices-service";
 
 const PurchaseOrderDetail = dynamic(
   () =>
@@ -133,7 +133,6 @@ function SupplierInvoiceDetailView({
   const canViewSupplier = useUserPermission("supplier.read");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isProductOpen, setIsProductOpen] = useState(false);
@@ -549,15 +548,6 @@ function SupplierInvoiceDetailView({
         </TabsContent>
       </Tabs>
 
-      {/* Print dialog */}
-      {printOpen && (
-        <SupplierInvoicePrintDialog
-          open={printOpen}
-          onClose={() => setPrintOpen(false)}
-          invoiceId={data.id}
-        />
-      )}
-
       {/* Supplier detail */}
       {isSupplierOpen && selectedSupplierId && (
         <SupplierDetailModal
@@ -677,7 +667,6 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
   const canDelete = useUserPermission("supplier_invoice.delete");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   const submitMutation = useSubmitSupplierInvoice();
@@ -807,7 +796,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     size="icon"
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("actions.print")}
-                    onClick={() => setPrintOpen(true)}
+                    onClick={() => { if (detail?.id) supplierInvoicesService.openPrintWindow(detail.id).catch(() => toast.error("Print failed")); }}
                   >
                     <Printer className="h-4 w-4" />
                   </Button>
@@ -849,15 +838,6 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
           <div className="text-sm text-destructive">{t("detail.failed")}</div>
         ) : (
           <SupplierInvoiceDetailView data={detail} onClose={onClose} />
-        )}
-
-        {/* Print — hoisted to wrapper so it works even before detail view mounts */}
-        {printOpen && detail && (
-          <SupplierInvoicePrintDialog
-            open={printOpen}
-            onClose={() => setPrintOpen(false)}
-            invoiceId={detail.id}
-          />
         )}
 
         {/* Payment form — hoisted to wrapper */}

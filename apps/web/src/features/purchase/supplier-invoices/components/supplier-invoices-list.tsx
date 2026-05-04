@@ -61,7 +61,7 @@ import { SupplierInvoiceDetail } from "./supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
-import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
+import { supplierInvoicesService } from "../services/supplier-invoices-service";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { GoodsReceiptDetail } from "../../goods-receipt/components/goods-receipt-detail";
 
@@ -163,7 +163,6 @@ export function SupplierInvoicesList() {
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
-  const [printingId, setPrintingId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
@@ -609,7 +608,7 @@ export function SupplierInvoicesList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-purple focus:text-purple"
-                                onClick={() => setPrintingId(row.id)}
+                                onClick={() => { supplierInvoicesService.openPrintWindow(row.id).catch(() => toast.error("Print failed")); }}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
@@ -667,14 +666,6 @@ export function SupplierInvoicesList() {
           setDetailId(null);
         }}
       />
-
-      {printingId && (
-        <SupplierInvoicePrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          invoiceId={printingId}
-        />
-      )}
 
       {createPaymentForInvoiceId && (
         <PurchasePaymentForm

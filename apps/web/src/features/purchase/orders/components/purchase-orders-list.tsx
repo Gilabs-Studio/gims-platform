@@ -71,7 +71,7 @@ import { SILinkedDialog } from "./si-linked-dialog";
 import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
-import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { purchaseOrdersService } from "../services/purchase-orders-service";
 import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
@@ -104,7 +104,6 @@ export function PurchaseOrdersList() {
   const [detailOpen, setDetailOpen] = useState(Boolean(initialOpenPurchaseOrderId));
   const [detailId, setDetailId] = useState<string | null>(initialOpenPurchaseOrderId);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
   const exportProgress = useExportProgress();
 
   // Supplier detail dialog
@@ -613,7 +612,7 @@ export function PurchaseOrdersList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-purple focus:text-purple"
-                                onClick={() => setPrintingId(it.id)}
+                                onClick={() => { purchaseOrdersService.openPrintWindow(it.id).catch(() => toast.error("Print failed")); }}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
@@ -719,15 +718,6 @@ export function PurchaseOrdersList() {
         }}
         defaultPurchaseOrderId={siDPFormPOId}
       />
-
-      {printingId && (
-        <PurchaseOrderPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          orderId={printingId}
-        />
-      )}
-
 
       <SupplierDetailModal
         open={isSupplierDialogOpen}

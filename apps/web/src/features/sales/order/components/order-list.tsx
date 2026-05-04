@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
-import { OrderPrintDialog } from "./order-print-dialog";
+import { orderService } from "../services/order-service";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
@@ -105,7 +105,7 @@ export function OrderList() {
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
   const [createInvoiceDPForOrderId, setCreateInvoiceDPForOrderId] = useState<string | null>(null);
   const [createInvoiceDPDefaultAmount, setCreateInvoiceDPDefaultAmount] = useState<number | undefined>(undefined);
-  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+
   const exportProgress = useExportProgress();
 
   const deleteOrder = useDeleteOrder();
@@ -491,7 +491,7 @@ export function OrderList() {
                           )}
                           {canPrint && (
                             <DropdownMenuItem
-                              onClick={() => setPrintingOrderId(order.id)}
+                              onClick={() => { orderService.openPrintWindow(order.id).catch(() => toast.error("Print failed")); }}
                               className="cursor-pointer text-purple focus:text-purple"
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -632,13 +632,6 @@ export function OrderList() {
         />
       )}
 
-      {printingOrderId && (
-        <OrderPrintDialog
-          open={!!printingOrderId}
-          onClose={() => setPrintingOrderId(null)}
-          orderId={printingOrderId}
-        />
-      )}
     </div>
   );
 }

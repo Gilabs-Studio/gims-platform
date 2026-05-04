@@ -52,7 +52,7 @@ import {
 import { PurchaseRequisitionStatusBadge } from "./purchase-requisition-status-badge";
 import { PurchaseRequisitionAuditTrailContent } from "./purchase-requisition-audit-trail";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
-import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
+import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
 
 interface PurchaseRequisitionDetailProps {
   readonly open: boolean;
@@ -65,7 +65,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
@@ -193,7 +192,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (requisitionId) purchaseRequisitionsService.openPrintWindow(requisitionId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -570,13 +569,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
         isLoading={deleteMutation.isPending}
       />
 
-      {requisitionId && (
-        <PurchaseRequisitionPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          requisitionId={requisitionId}
-        />
-      )}
     </>
   );
 }

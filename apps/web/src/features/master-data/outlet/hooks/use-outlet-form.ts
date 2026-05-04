@@ -21,7 +21,6 @@ export const outletFormSchema = z.object({
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   manager_id: z.string().optional(),
-  company_id: z.string().optional(),
   is_active: z.boolean(),
   create_warehouse: z.boolean(),
 });
@@ -72,7 +71,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
       latitude: null,
       longitude: null,
       manager_id: undefined,
-      company_id: undefined,
       is_active: true,
       create_warehouse: true,
     },
@@ -101,7 +99,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
           manager_id: entity.manager_id ?? undefined,
-          company_id: entity.company_id ?? undefined,
           is_active: entity.is_active,
           create_warehouse: false,
         });
@@ -120,7 +117,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
         latitude: null,
         longitude: null,
         manager_id: undefined,
-        company_id: undefined,
         is_active: true,
         create_warehouse: true,
       });
@@ -145,7 +141,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
             latitude: data.latitude,
             longitude: data.longitude,
             manager_id: data.manager_id || null,
-            company_id: data.company_id || null,
             is_active: data.is_active,
           },
         });
@@ -164,7 +159,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
           latitude: data.latitude,
           longitude: data.longitude,
           manager_id: data.manager_id || undefined,
-          company_id: data.company_id || undefined,
           is_active: data.is_active,
           create_warehouse: data.create_warehouse,
         });

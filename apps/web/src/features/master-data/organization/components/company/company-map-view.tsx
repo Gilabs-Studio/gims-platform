@@ -5,13 +5,13 @@ import { useMemo } from "react";
 import { Link } from "@/i18n/routing";
 import L from "leaflet";
 import {
-  Plus,
   Search,
   Building,
   Menu,
   X,
   Loader2,
   ChevronLeft,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,6 @@ import { cn } from "@/lib/utils";
 import { CompanyCard } from "./company-card";
 import { CompanySidePanel } from "./company-side-panel";
 import { CompanyDetailDialog } from "./company-detail-dialog";
-import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 import { useCompanyMapView } from "../../hooks/use-company-map-view";
@@ -186,18 +185,25 @@ export function CompanyMapView() {
                   <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                 </SelectContent>
               </Select>
-              {permissions.canCreate && (
-                <Button
-                  onClick={actions.handleCreate}
-                  className={
-                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-40 cursor-pointer"
-                  }
+              <Button
+                asChild
+                variant="outline"
+                className="w-full sm:w-auto cursor-pointer whitespace-nowrap"
+              >
+                <a
+                  href="https://wa.me/6289607700028?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("company.contactSales.ariaLabel")}
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("common.create")}
-                </Button>
-              )}
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  {t("company.contactSales.button")}
+                </a>
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {t("company.contactSales.description")}
+            </p>
           </div>
         </div>
 
@@ -217,16 +223,22 @@ export function CompanyMapView() {
             <div className="p-8 text-center text-muted-foreground">
               <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-sm">{t("company.empty")}</p>
-              {permissions.canCreate && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4 cursor-pointer"
-                  onClick={actions.handleCreate}
+              <p className="text-xs mt-1 mb-4">{t("company.contactSales.description")}</p>
+              <Button
+                asChild
+                variant="outline"
+                className="cursor-pointer"
+              >
+                <a
+                  href="https://wa.me/6289607700028?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("company.contactSales.ariaLabel")}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("common.create")}
-                </Button>
-              )}
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  {t("company.contactSales.buttonWithNumber")}
+                </a>
+              </Button>
             </div>
           ) : (
             <>
@@ -245,7 +257,6 @@ export function CompanyMapView() {
                   t={t}
                   onDetail={() => actions.handleView(company)}
                   onEdit={() => actions.handleEdit(company)}
-                  onDelete={() => actions.setDeletingId(company.id)}
                   onStatusChange={permissions.canUpdate ? (isActive) => {
                     updateCompany.mutate(
                       { id: company.id, data: { is_active: isActive } },
@@ -264,7 +275,6 @@ export function CompanyMapView() {
                     );
                   } : undefined}
                   canUpdate={permissions.canUpdate}
-                  canDelete={permissions.canDelete}
                   isStatusChanging={updateCompany.isPending}
                 />
               ))}
@@ -323,16 +333,6 @@ export function CompanyMapView() {
         mode={state.panelMode ?? "create"}
         company={state.editingCompany}
         onSuccess={() => actions.refetch()}
-      />
-
-      {/* Delete Dialog */}
-      <DeleteDialog
-        open={!!state.deletingId}
-        onOpenChange={(open) => !open && actions.setDeletingId(null)}
-        onConfirm={actions.handleDelete}
-        isLoading={data.isDeleting}
-        title={t("company.deleteTitle")}
-        description={t("company.deleteConfirm")}
       />
 
       {/* Detail Dialog */}

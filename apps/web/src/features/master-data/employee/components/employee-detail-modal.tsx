@@ -164,22 +164,28 @@ export function EmployeeDetailModal({
           </div>
         ) : (
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList>
-              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
-              <TabsTrigger value="employment">
+            <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden">
+              <TabsTrigger value="overview" className="flex-1">
+                {t("tabs.overview")}
+              </TabsTrigger>
+              <TabsTrigger value="employment" className="flex-1">
                 {t("tabs.employment")}
               </TabsTrigger>
-              <TabsTrigger value="contract-history">
+              <TabsTrigger value="contract-history" className="flex-1">
                 {t("tabs.contractHistory")}
               </TabsTrigger>
-              <TabsTrigger value="signature">{t("tabs.signature")}</TabsTrigger>
-              <TabsTrigger value="education-history">
+              <TabsTrigger value="signature" className="flex-1">
+                {t("tabs.signature")}
+              </TabsTrigger>
+              <TabsTrigger value="education-history" className="flex-1">
                 {t("tabs.educationHistory")}
               </TabsTrigger>
-              <TabsTrigger value="certifications">
+              <TabsTrigger value="certifications" className="flex-1">
                 {t("tabs.certifications")}
               </TabsTrigger>
-              <TabsTrigger value="assets">{t("tabs.assets")}</TabsTrigger>
+              <TabsTrigger value="assets" className="flex-1">
+                {t("tabs.assets")}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 py-4">
