@@ -343,11 +343,7 @@ func SeedSubscriptionPlans() error {
 		"/finance/journals/purchase",
 		"/finance/journals/adjustment",
 		"/finance/closing",
-		"/finance/ar/customer-payments",
-		"/finance/ar/credit-notes",
 		"/finance/ar/aging-reports",
-		"/finance/ap/supplier-payments",
-		"/finance/ap/debit-notes",
 		"/finance/ap/non-trade-payables",
 		"/finance/ap/aging-reports",
 		"/finance/bank-accounts",
@@ -505,13 +501,7 @@ func SeedSubscriptionPlans() error {
 		"/finance/journals/purchase",
 		"/finance/journals/adjustment",
 		"/finance/closing",
-		"/finance/ar/customer-invoices",
-		"/finance/ar/customer-payments",
-		"/finance/ar/credit-notes",
 		"/finance/ar/aging-reports",
-		"/finance/ap/supplier-invoices",
-		"/finance/ap/supplier-payments",
-		"/finance/ap/debit-notes",
 		"/finance/ap/non-trade-payables",
 		"/finance/ap/aging-reports",
 		"/finance/bank-accounts",
@@ -595,8 +585,8 @@ func SeedSubscriptionPlans() error {
 		permissionCodes []string
 	}{
 		"pos_growth": {
-			menuURLs:        append(posExactMenuURLs, masterDataExactMenuURLs...),
-			menuPrefixes:    []string{},
+			menuURLs:     append(posExactMenuURLs, masterDataExactMenuURLs...),
+			menuPrefixes: []string{},
 			permissionCodes: []string{
 				posPaymentManagePermission,
 				// Chart of Accounts (full CRUD)

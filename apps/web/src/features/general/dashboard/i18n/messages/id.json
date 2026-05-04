@@ -39,7 +39,7 @@
       }
     },
     "onboarding": {
-      "welcome": "Selamat datang di SalesView!",
+      "welcome": "Selamat datang di GIMS!",
       "chooseTypePrompt": "Mari siapkan akun Anda. Bisnis apa yang sedang Anda jalankan?",
       "setupChecklist": "Daftar Periksa Setup",
       "checklistPrompt": "Selesaikan langkah-langkah berikut untuk menyiapkan workspace Anda ({done}/{total} selesai)",

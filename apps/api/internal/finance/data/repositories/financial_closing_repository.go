@@ -35,7 +35,8 @@ func NewFinancialClosingRepository(db *gorm.DB) FinancialClosingRepository {
 
 func (r *financialClosingRepository) FindByID(ctx context.Context, id string) (*financeModels.FinancialClosing, error) {
 	var item financeModels.FinancialClosing
-	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", id).Error; err != nil {
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.FinancialClosing{}), ctx, security.FinanceScopeQueryOptions())
+	if err := q.First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -93,7 +94,7 @@ func (r *financialClosingRepository) List(ctx context.Context, params FinancialC
 
 func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*financeModels.FinancialClosing, error) {
 	var item financeModels.FinancialClosing
-	if err := database.GetDB(ctx, r.db).
+	if err := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.FinancialClosing{}), ctx, security.FinanceScopeQueryOptions()).
 		Where("status = ?", financeModels.FinancialClosingStatusApproved).
 		Order("period_end_date desc").
 		First(&item).Error; err != nil {
@@ -102,5 +103,6 @@ func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*finan
 	return &item, nil
 }
 func (r *financialClosingRepository) Delete(ctx context.Context, id string) error {
-	return database.GetDB(ctx, r.db).Delete(&financeModels.FinancialClosing{}, "id = ?", id).Error
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.FinancialClosing{}), ctx, security.FinanceScopeQueryOptions())
+	return q.Delete(&financeModels.FinancialClosing{}, "id = ?", id).Error
 }

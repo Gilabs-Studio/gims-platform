@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -22,6 +22,10 @@ const paySchema = z.object({
   payment_date: z.string().min(1),
   bank_account_id: z.string().min(1),
   bank_reference: z.string().optional(),
+  amount: z.preprocess((v) => {
+    if (typeof v === "string") return v === "" ? NaN : Number(v);
+    return v;
+  }, z.number().min(0.01)),
 });
 
 type PayValues = z.infer<typeof paySchema>;
@@ -44,16 +48,23 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
       payment_date: new Date().toISOString().slice(0, 10),
       bank_account_id: "",
       bank_reference: "",
+      amount: 0,
     }),
     [],
   );
 
   const form = useForm<PayValues>({
-    resolver: zodResolver(paySchema),
+    resolver: zodResolver(paySchema) as any,
     defaultValues,
   });
 
-  const onSubmit = async (values: PayValues) => {
+  useEffect(() => {
+    if (item) {
+      form.setValue("amount", item.remaining_amount ?? item.amount ?? 0, { shouldDirty: true });
+    }
+  }, [item]);
+
+  const onSubmit = async (values: any) => {
     if (!item) return;
     try {
       await payMutation.mutateAsync({
@@ -107,6 +118,16 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
           <div className="space-y-2">
             <Label>{t("fields.referenceNo")}</Label>
             <Input {...form.register("bank_reference")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t("fields.amount")}</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              {...form.register("amount")}
+            />
           </div>
 
           <DialogFooter>

@@ -516,8 +516,8 @@ func SeedPermissions() error {
 		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
 		{"/finance/reports/cash-flow-statement", "cash_flow_statement.read", "View Cash Flow Statement", "VIEW", "cash_flow_statement"},
 
-		{"/finance/ar/customer-invoices", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
-		{"/finance/ar/customer-invoices", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
+		{"/finance/journals/sales", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/journals/sales", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
 		{"/finance/ar/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
 		{"/finance/reports/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
 		// HYBRID POLICY: hidden in frontend navigation for now, kept in backend seeder for research.
