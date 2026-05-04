@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	"gorm.io/gorm"
@@ -150,7 +151,11 @@ func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListPa
 
 func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, days []models.TravelPlanDay) error {
 	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("travel_plan_id = ?", planID).Delete(&models.TravelPlanDay{}).Error; err != nil {
+		// Hard-delete is required here: TravelPlanDay uses GORM soft-delete, and the
+		// unique index idx_travel_plan_day_order is on (travel_plan_id, day_index).
+		// A soft-delete leaves the old rows visible to the index, so re-inserting
+		// days with the same day_index values would trigger a constraint violation.
+		if err := tx.Unscoped().Where("travel_plan_id = ?", planID).Delete(&models.TravelPlanDay{}).Error; err != nil {
 			return err
 		}
 
@@ -167,7 +172,11 @@ func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, d
 
 func (r *travelPlanRepository) ListExpenses(ctx context.Context, planID string) ([]models.TravelPlanExpense, error) {
 	expenses := make([]models.TravelPlanExpense, 0)
-	err := database.GetDB(ctx, r.db).
+	// travel_plan_expenses has no tenant_id column; use plain db to avoid
+	// GetDB injecting WHERE tenant_id = ? which causes SQLSTATE 42703.
+	// Access is already tenant-scoped: the caller verifies the parent plan
+	// belongs to the tenant before calling this method.
+	err := r.db.WithContext(ctx).
 		Where("travel_plan_id = ?", planID).
 		Order("expense_date ASC").
 		Order("created_at ASC").
@@ -179,11 +188,13 @@ func (r *travelPlanRepository) ListExpenses(ctx context.Context, planID string) 
 }
 
 func (r *travelPlanRepository) CreateExpense(ctx context.Context, expense *models.TravelPlanExpense) error {
-	return database.GetDB(ctx, r.db).Create(expense).Error
+	// travel_plan_expenses has no tenant_id; use plain db to avoid SQLSTATE 42703.
+	return r.db.WithContext(ctx).Create(expense).Error
 }
 
 func (r *travelPlanRepository) DeleteExpense(ctx context.Context, planID string, expenseID string) error {
-	return database.GetDB(ctx, r.db).
+	// travel_plan_expenses has no tenant_id; use plain db to avoid SQLSTATE 42703.
+	return r.db.WithContext(ctx).
 		Where("id = ? AND travel_plan_id = ?", expenseID, planID).
 		Delete(&models.TravelPlanExpense{}).Error
 }

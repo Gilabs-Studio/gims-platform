@@ -420,6 +420,35 @@ func (h *TravelPlanHandler) ExportPDF(c *gin.Context) {
 	exportjob.WriteSyncFile(c, file)
 }
 
+func (h *TravelPlanHandler) ExportReportHTML(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		htmlBytes, filename, err := h.uc.ExportReportHTML(ctx, planID)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    filename,
+			ContentType: "text/html; charset=utf-8",
+			Bytes:       htmlBytes,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	c.Header("Cache-Control", "no-store")
+	exportjob.WriteSyncFile(c, file)
+}
+
 func (h *TravelPlanHandler) ListExpenses(c *gin.Context) {
 	planID := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.ListExpenses(c.Request.Context(), planID)

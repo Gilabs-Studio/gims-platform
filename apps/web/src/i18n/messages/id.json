@@ -138,7 +138,7 @@
       "brandName": "SalesView",
       "brandBy": "",
       "companyLabel": "Nama Perusahaan",
-        "companyRequired": "Wajib diisi",
+      "companyOptional": "Opsional",
       "companyPlaceholder": "Nama perusahaan atau usaha Anda",
       "back": "Kembali",
       "continue": "Lanjut",
@@ -220,7 +220,6 @@
         "passwordTooShort": "Minimal 8 karakter",
         "emailTaken": "Email ini sudah terdaftar",
         "companyTaken": "Nama perusahaan ini sudah digunakan",
-        "companyRequired": "Nama perusahaan wajib diisi",
         "availabilityCheckFailed": "Gagal memverifikasi ketersediaan akun. Silakan coba lagi.",
         "registrationFailed": "Pendaftaran gagal. Silakan coba lagi.",
         "couponUserLimitExceeded": "Jumlah pengguna yang dipilih melebihi batas kupon."

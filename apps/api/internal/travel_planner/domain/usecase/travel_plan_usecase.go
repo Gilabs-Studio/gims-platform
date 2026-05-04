@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"math"
 	"math/big"
 	"net/http"
@@ -27,6 +29,9 @@ import (
 	"github.com/go-pdf/fpdf"
 	"gorm.io/gorm"
 )
+
+//go:embed travel_plan_report.html
+var travelPlanReportHTMLTemplate string
 
 var (
 	ErrTravelPlanNotFound    = errors.New("travel plan not found")
@@ -60,6 +65,7 @@ type TravelPlanUsecase interface {
 	OptimizeRouteForVisit(ctx context.Context, req *dto.OptimizeNavigationRequest) (*dto.OptimizeNavigationResponse, error)
 	GetGoogleMapsLinks(ctx context.Context, planID string) ([]dto.DayGoogleMapsLink, error)
 	ExportPDF(ctx context.Context, planID string, dayIndex *int) ([]byte, string, error)
+	ExportReportHTML(ctx context.Context, planID string) ([]byte, string, error)
 	ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error)
 	CreateExpense(ctx context.Context, planID string, req *dto.CreateTravelExpenseRequest) (*dto.TravelExpenseResponse, error)
 	DeleteExpense(ctx context.Context, planID string, expenseID string) error
@@ -813,6 +819,237 @@ func (uc *travelPlanUsecase) ExportPDF(ctx context.Context, planID string, dayIn
 	}
 
 	return buffer.Bytes(), filename, nil
+}
+
+func (uc *travelPlanUsecase) ExportReportHTML(ctx context.Context, planID string) ([]byte, string, error) {
+	planID = strings.TrimSpace(planID)
+	plan, err := uc.repo.FindByID(ctx, planID, true)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", ErrTravelPlanNotFound
+		}
+		return nil, "", err
+	}
+
+	expenses, err := uc.repo.ListExpenses(ctx, planID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// ── Template data types ─────────────────────────────────────────────────
+
+	type reportStop struct {
+		PlaceName string
+		Note      string
+		Time      string
+		Category  string
+	}
+
+	type reportDay struct {
+		DayIndex int
+		DayDate  string
+		Summary  string
+		Stops    []reportStop
+	}
+
+	type reportExpense struct {
+		No          int
+		Description string
+		Type        string
+		Date        string
+		Amount      float64
+	}
+
+	type reportData struct {
+		Code          string
+		CompanyName   string
+		CompanyAddress string
+		CompanyPhone  string
+		CompanyEmail  string
+		PlanType      string
+		Mode          string
+		Status        string
+		StartDate     string
+		EndDate       string
+		BudgetAmount  float64
+		Notes         string
+		PrintDate     string
+		Days          []reportDay
+		Expenses      []reportExpense
+		TotalExpense  float64
+		Remaining     float64
+	}
+
+	// ── Format helpers ──────────────────────────────────────────────────────
+
+	formatDateStr := func(t time.Time) string {
+		return t.Format("02 Jan 2006")
+	}
+
+	titleCase := func(s string) string {
+		if s == "" {
+			return s
+		}
+		parts := strings.Split(strings.ReplaceAll(s, "_", " "), " ")
+		for i, p := range parts {
+			if len(p) > 0 {
+				parts[i] = strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+			}
+		}
+		return strings.Join(parts, " ")
+	}
+
+	// ── Build days with stops ───────────────────────────────────────────────
+
+	sortedDays := append([]models.TravelPlanDay{}, plan.Days...)
+	sort.SliceStable(sortedDays, func(i, j int) bool {
+		return sortedDays[i].DayIndex < sortedDays[j].DayIndex
+	})
+
+	days := make([]reportDay, 0, len(sortedDays))
+	for _, day := range sortedDays {
+		sortedStops := append([]models.TravelPlanStop{}, day.Stops...)
+		sort.SliceStable(sortedStops, func(i, j int) bool {
+			return sortedStops[i].OrderIndex < sortedStops[j].OrderIndex
+		})
+
+		stops := make([]reportStop, 0, len(sortedStops))
+		for _, stop := range sortedStops {
+			// Extract ETA time from note if present (format: "ETA HH:MM ...")
+			eta := ""
+			noteText := strings.TrimSpace(stop.Note)
+			if strings.HasPrefix(noteText, "ETA ") {
+				parts := strings.SplitN(noteText[4:], " ", 2)
+				eta = parts[0]
+				if len(parts) > 1 {
+					noteText = strings.TrimPrefix(strings.TrimSpace(parts[1]), "— ")
+				} else {
+					noteText = ""
+				}
+			}
+
+			stops = append(stops, reportStop{
+				PlaceName: stop.PlaceName,
+				Note:      noteText,
+				Time:      eta,
+				Category:  titleCase(string(stop.Category)),
+			})
+		}
+
+		dayDate := ""
+		if !day.DayDate.IsZero() {
+			dayDate = formatDateStr(day.DayDate)
+		}
+
+		days = append(days, reportDay{
+			DayIndex: day.DayIndex,
+			DayDate:  dayDate,
+			Summary:  strings.TrimSpace(day.Summary),
+			Stops:    stops,
+		})
+	}
+
+	// ── Build expense rows ──────────────────────────────────────────────────
+
+	expenseRows := make([]reportExpense, 0, len(expenses))
+	totalExpense := 0.0
+	for i, exp := range expenses {
+		totalExpense += exp.Amount
+		desc := strings.TrimSpace(exp.Description)
+		if desc == "" {
+			desc = titleCase(string(exp.ExpenseType))
+		}
+		expenseRows = append(expenseRows, reportExpense{
+			No:          i + 1,
+			Description: desc,
+			Type:        titleCase(string(exp.ExpenseType)),
+			Date:        exp.ExpenseDate.Format("02 Jan 2006"),
+			Amount:      exp.Amount,
+		})
+	}
+
+	if len(expenseRows) == 0 {
+		expenseRows = append(expenseRows, reportExpense{
+			No:          1,
+			Description: "No expenses recorded",
+			Type:        "-",
+			Date:        "-",
+			Amount:      0,
+		})
+	}
+
+	remaining := plan.BudgetAmount - totalExpense
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	// ── Template functions ──────────────────────────────────────────────────
+
+	funcMap := template.FuncMap{
+		"formatMoney": func(v float64) string {
+			// Format as "Rp 1.234.567"
+			abs := math.Abs(v)
+			intPart := int64(abs)
+			s := fmt.Sprintf("%d", intPart)
+			n := len(s)
+			var out []byte
+			for i, c := range s {
+				if i > 0 && (n-i)%3 == 0 {
+					out = append(out, '.')
+				}
+				out = append(out, byte(c))
+			}
+			if v < 0 {
+				return "Rp -" + string(out)
+			}
+			return "Rp " + string(out)
+		},
+		"inc": func(i int) int { return i + 1 },
+		"gt": func(a, b float64) bool { return a > b },
+		"len": func(v interface{}) int {
+			switch val := v.(type) {
+			case []reportDay:
+				return len(val)
+			case []reportExpense:
+				return len(val)
+			default:
+				return 0
+			}
+		},
+	}
+
+	tpl, err := template.New("travel_report").Funcs(funcMap).Parse(travelPlanReportHTMLTemplate)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to parse travel report template: %w", err)
+	}
+
+	data := reportData{
+		Code:          plan.Code,
+		CompanyName:   "GIMS",
+		CompanyAddress: "GiLabs Integrated Management Suite",
+		CompanyPhone:  "-",
+		CompanyEmail:  "-",
+		PlanType:      titleCase(string(plan.PlanType)),
+		Mode:          titleCase(string(plan.Mode)),
+		Status:        titleCase(string(plan.Status)),
+		StartDate:     formatDateStr(plan.StartDate),
+		EndDate:       formatDateStr(plan.EndDate),
+		BudgetAmount:  plan.BudgetAmount,
+		Notes:         strings.TrimSpace(plan.Notes),
+		PrintDate:     apptime.Now().Format("02 Jan 2006 15:04"),
+		Days:          days,
+		Expenses:      expenseRows,
+		TotalExpense:  totalExpense,
+		Remaining:     remaining,
+	}
+
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, data); err != nil {
+		return nil, "", fmt.Errorf("failed to render travel report: %w", err)
+	}
+
+	filename := fmt.Sprintf("travel-plan-%s-report.html", strings.ToLower(plan.Code))
+	return buf.Bytes(), filename, nil
 }
 
 func (uc *travelPlanUsecase) ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error) {
