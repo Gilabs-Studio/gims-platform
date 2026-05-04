@@ -54,7 +54,6 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const [isValidating, setIsValidating] = useState(false);
   const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
   const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
-  const [isDefaultSalesOrderPrefillReady, setIsDefaultSalesOrderPrefillReady] = useState(!defaultSalesOrderId);
 
   type QuickCreateType = "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
@@ -154,17 +153,13 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   });
 
   useEffect(() => {
-    if (!open) {
-      queueMicrotask(() => setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId));
-      return;
-    }
+    if (!open) return;
 
     queueMicrotask(() => {
-      setIsDefaultSalesOrderPrefillReady(!defaultSalesOrderId);
       setShouldLoadReferenceOptions(true);
       setShouldLoadProductOptions(true);
     });
-  }, [open, defaultSalesOrderId]);
+  }, [open]);
 
   const products = useMemo(
     () => sortOptions(productsCombobox.items, (a) => `${a.code} - ${a.name}`),
@@ -201,6 +196,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
           items:
             invoice.items?.map((item) => ({
               product_id: item.product_id,
+              sales_order_item_id: item.sales_order_item_id ?? undefined,
               quantity: item.quantity,
               price: item.price,
               discount: item.discount ?? 0,
@@ -219,7 +215,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
           other_cost: 0,
           items: defaultSalesOrderId
             ? []
-            : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+            : [{ product_id: "", sales_order_item_id: undefined, quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
         },
   });
 
@@ -257,6 +253,58 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     const customerName = salesOrder.customer?.name ?? salesOrder.customer_name;
     return customerName ? `${salesOrder.code} - ${customerName}` : salesOrder.code;
   }, [selectedOrderData?.data, selectedInvoice?.sales_order]);
+
+  const watchedPaymentTermsId = useWatch({ control, name: "payment_terms_id" });
+
+  const selectedPaymentTermsLabel = useMemo(() => {
+    if (!watchedPaymentTermsId) return "";
+
+    const optionLabel = paymentTermsCombobox.options.find((option) => option.value === watchedPaymentTermsId)?.label;
+    if (optionLabel) return optionLabel;
+
+    if (selectedInvoice?.payment_terms?.id === watchedPaymentTermsId) {
+      const term = selectedInvoice.payment_terms;
+      return term.code ? `${term.code} - ${term.name}` : term.name;
+    }
+
+    if (selectedOrderData?.data?.payment_terms?.id === watchedPaymentTermsId) {
+      const term = selectedOrderData.data.payment_terms;
+      return term.code ? `${term.code} - ${term.name}` : term.name;
+    }
+
+    return "";
+  }, [paymentTermsCombobox.options, selectedInvoice, selectedOrderData, watchedPaymentTermsId]);
+
+  const productLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const option of productsCombobox.options) {
+      map.set(option.value, option.label);
+    }
+
+    for (const item of selectedInvoice?.items ?? []) {
+      if (!item.product_id) continue;
+      const label = item.product?.code ? `${item.product.code} - ${item.product.name}` : (item.product?.name ?? item.product_id);
+      map.set(item.product_id, label);
+    }
+
+    for (const item of selectedOrderData?.data?.items ?? []) {
+      if (!item.product_id) continue;
+      const label = item.product?.code ? `${item.product.code} - ${item.product.name}` : (item.product?.name ?? item.product_id);
+      map.set(item.product_id, label);
+    }
+
+    return map;
+  }, [productsCombobox.options, selectedInvoice?.items, selectedOrderData?.data?.items]);
+
+  const remainingQuantityBySOItemId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of selectedOrderData?.data?.items ?? []) {
+      const remaining = Math.max(0, (item.quantity ?? 0) - (item.invoiced_quantity ?? 0));
+      map.set(item.id, remaining);
+    }
+    return map;
+  }, [selectedOrderData?.data?.items]);
 
   // Compute detected down payments and financial summary
   const detectedDownPayments = useMemo(() => {
@@ -344,7 +392,11 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       setValue("delivery_cost", order.delivery_cost);
     }
     if (order.items && order.items.length > 0) {
-      const normalizedItems = order.items.map((item) => {
+      const normalizedItems = order.items
+        .map((item) => {
+          const remainingQuantity = Math.max(0, (item.quantity ?? 0) - (item.invoiced_quantity ?? 0));
+          if (remainingQuantity <= 0) return null;
+
         const candidate = (item.product_id ?? "").trim();
         const fallback = (item.product?.id ?? "").trim();
         const resolvedProductId: string = isUuidLike(candidate) ? candidate : (isUuidLike(fallback) ? fallback : "");
@@ -352,20 +404,17 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
         return {
           product_id: resolvedProductId,
           sales_order_item_id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          discount: item.discount ?? 0,
-          hpp_amount: 0,
-        };
-      });
+            quantity: remainingQuantity,
+            price: item.price,
+            discount: 0,
+            hpp_amount: 0,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
 
       replace(normalizedItems);
 
       hasAutoPopulatedRef.current = true;
-    }
-
-    if (defaultSalesOrderId && watchedSalesOrderId === defaultSalesOrderId) {
-      queueMicrotask(() => setIsDefaultSalesOrderPrefillReady(true));
     }
   }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace, defaultSalesOrderId]);
 
@@ -438,6 +487,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
             items:
               invoiceData.items?.map((item) => ({
                 product_id: item.product_id,
+                sales_order_item_id: item.sales_order_item_id ?? undefined,
                 quantity: item.quantity,
                 price: item.price,
                 discount: item.discount ?? 0,
@@ -468,7 +518,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
           other_cost: 0,
           items: defaultSalesOrderId
             ? []
-            : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+            : [{ product_id: "", sales_order_item_id: undefined, quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
         });
       }
     } else {
@@ -484,7 +534,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
         other_cost: 0,
         items: defaultSalesOrderId
           ? []
-          : [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
+          : [{ product_id: "", sales_order_item_id: undefined, quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
       });
     }
   }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId, defaultDeliveryOrderId]);
@@ -529,11 +579,6 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const handleFormSubmit = async (
     data: CreateInvoiceFormData | UpdateInvoiceFormData
   ) => {
-    if (!isEdit && defaultSalesOrderId && !isDefaultSalesOrderPrefillReady) {
-      toast.error("Sales order is still loading. Please wait a moment.");
-      return;
-    }
-
     const invalidItemProductIds = (data.items ?? [])
       .map((item, index) => ({ index, product_id: item.product_id }))
       .filter((item) => !isUuidLike(item.product_id));
@@ -589,7 +634,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   };
 
   const handleAddItem = () => {
-    append({ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 });
+    append({ product_id: "", sales_order_item_id: undefined, quantity: 1, price: 0, discount: 0, hpp_amount: 0 });
   };
 
   const handlePreviewJournal = async () => {
@@ -622,7 +667,17 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const isLoading = createInvoice.isPending || updateInvoice.isPending;
   const isFormLoading = (
     isEdit && (isLoadingInvoice || isFetchingInvoice) && !fullInvoiceData?.data
-  ) || (!isEdit && !!defaultSalesOrderId && !isDefaultSalesOrderPrefillReady);
+  );
+
+  const getItemProductLabel = useCallback((productId: string | undefined) => {
+    if (!productId) return "";
+    return productLabelById.get(productId) ?? "";
+  }, [productLabelById]);
+
+  const getItemMaxQuantity = useCallback((salesOrderItemId: string | undefined, fallback: number | undefined) => {
+    if (!salesOrderItemId) return fallback;
+    return remainingQuantityBySOItemId.get(salesOrderItemId) ?? fallback;
+  }, [remainingQuantityBySOItemId]);
 
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -711,6 +766,9 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     paymentTermsCombobox,
     ordersCombobox,
     selectedSalesOrderLabel,
+    selectedPaymentTermsLabel,
+    getItemProductLabel,
+    getItemMaxQuantity,
     journalPreview,
     isPreviewing,
   };

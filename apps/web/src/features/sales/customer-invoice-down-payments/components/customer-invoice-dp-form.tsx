@@ -44,6 +44,7 @@ import { orderService } from "@/features/sales/order/services/order-service";
 import {
   useCreateCustomerInvoiceDP,
   useCustomerInvoiceDP,
+  useCustomerInvoiceDPs,
   useUpdateCustomerInvoiceDP,
 } from "../hooks/use-customer-invoice-dp";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
@@ -131,6 +132,12 @@ export function CustomerInvoiceDPFormDialog({
     enabled: open && !!selectedSOId,
   });
 
+  // Fetch existing DP invoices for the selected SO to compute available amount
+  const dpInvoicesQuery = useCustomerInvoiceDPs(
+    selectedSOId ? { sales_order_id: selectedSOId, limit: 1000 } : undefined,
+    { enabled: open && !!selectedSOId },
+  );
+
   const salesOrderOptions = usePaginatedComboboxOptions({
     queryKey: ["customer-invoice-dp", "sales-order-options"],
     enabled: open,
@@ -155,11 +162,41 @@ export function CustomerInvoiceDPFormDialog({
   const invoiceSummary = useMemo(() => {
     if (!selectedSO) return null;
     const orderTotal = selectedSO.total_amount ?? 0;
-    const dpApplied = dpAmount ?? 0;
-    const remaining = Math.max(0, orderTotal - dpApplied);
-    const dpPercentage = orderTotal > 0 ? ((dpApplied / orderTotal) * 100).toFixed(1) : "0.0";
-    return { orderTotal, dpApplied, remaining, dpPercentage };
-  }, [selectedSO, dpAmount]);
+    
+    // Compute regular invoices amount
+    const regularInvoiced =
+      (selectedSO.customer_invoices ?? [])
+        .filter((inv) => {
+          const status = (inv.status ?? "").toLowerCase();
+          return status !== "cancelled" && status !== "rejected";
+        })
+        .reduce((sum, inv) => sum + (inv.amount ?? 0), 0) ?? 0;
+    
+    // Compute DP invoices amount
+    const dpInvoiced =
+      (dpInvoicesQuery.data?.data ?? [])
+        .filter((dp) => {
+          const status = (dp.status ?? "").toLowerCase();
+          return status !== "cancelled" && status !== "rejected";
+        })
+        .reduce((sum, dp) => sum + (dp.amount ?? 0), 0) ?? 0;
+    
+    // Total already invoiced (regular + DP, excluding edit item if in edit mode)
+    const totalInvoiced = isEdit ? regularInvoiced + (dpInvoiced - (dpAmount ?? 0)) : regularInvoiced + dpInvoiced;
+    const availableAmount = Math.max(0, orderTotal - totalInvoiced);
+    const dpPercentage = orderTotal > 0 ? ((dpAmount ?? 0) / orderTotal * 100).toFixed(1) : "0.0";
+    const availablePercentage = orderTotal > 0 ? (availableAmount / orderTotal * 100).toFixed(1) : "0.0";
+    
+    return {
+      orderTotal,
+      regularInvoiced,
+      dpInvoiced,
+      totalInvoiced,
+      availableAmount,
+      dpPercentage,
+      availablePercentage,
+    };
+  }, [selectedSO, dpAmount, dpInvoicesQuery.data, isEdit]);
 
   const handleFileAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -185,14 +222,25 @@ export function CustomerInvoiceDPFormDialog({
 
   const isBusy =
     detailQuery.isLoading ||
+    dpInvoicesQuery.isLoading ||
     createMutation.isPending ||
     updateMutation.isPending;
 
   async function onSubmit(values: CustomerInvoiceDPFormData) {
     try {
-      // Validate amount does not exceed SO total (#241)
+      // Validate amount does not exceed SO total
       if (selectedSO && values.amount > (selectedSO.total_amount ?? 0)) {
-        form.setError("amount", { message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})` });
+        form.setError("amount", {
+          message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})`,
+        });
+        return;
+      }
+
+      // Validate amount does not exceed available amount (total - already invoiced)
+      if (invoiceSummary && values.amount > invoiceSummary.availableAmount) {
+        form.setError("amount", {
+          message: `Amount cannot exceed available amount (${formatCurrency(invoiceSummary.availableAmount)})`,
+        });
         return;
       }
 
@@ -438,15 +486,41 @@ export function CustomerInvoiceDPFormDialog({
                   <span className="text-muted-foreground">Order Total</span>
                   <span className="font-medium">{formatCurrency(invoiceSummary.orderTotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-primary">
-                  <span>Down Payment ({invoiceSummary.dpPercentage}%)</span>
-                  <span className="font-medium">{formatCurrency(invoiceSummary.dpApplied)}</span>
+                {invoiceSummary.regularInvoiced > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Regular Invoices</span>
+                    <span>{formatCurrency(invoiceSummary.regularInvoiced)}</span>
+                  </div>
+                )}
+                {invoiceSummary.dpInvoiced > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>DP Invoices</span>
+                    <span>{formatCurrency(invoiceSummary.dpInvoiced)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-primary border-t pt-1.5 mt-1.5">
+                  <span>This Down Payment ({invoiceSummary.dpPercentage}%)</span>
+                  <span className="font-medium">{formatCurrency(dpAmount ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
-                  <span>Remaining After DP</span>
-                  <span className="text-muted-foreground">{formatCurrency(invoiceSummary.remaining)}</span>
+                  <span>Available for Invoice</span>
+                  <span
+                    className={invoiceSummary.availableAmount <= 0 ? "text-destructive" : "text-muted-foreground"}
+                  >
+                    {formatCurrency(invoiceSummary.availableAmount)}
+                  </span>
                 </div>
               </div>
+              {invoiceSummary.availableAmount <= 0 && (
+                <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  This sales order is fully invoiced. No additional invoices can be created.
+                </div>
+              )}
+              {dpAmount > invoiceSummary.availableAmount && (
+                <div className="mt-3 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                  DP amount exceeds available invoice amount by {formatCurrency(dpAmount - invoiceSummary.availableAmount)}
+                </div>
+              )}
             </div>
           )}
 

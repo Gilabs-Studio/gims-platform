@@ -17,6 +17,7 @@ import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Package, Truck, Send, Receipt, Printer, Banknote, Download } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
+import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -31,6 +32,7 @@ import { EmployeeDetailModal } from "@/features/master-data/employee/components/
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
 import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
+import type { CustomerInvoiceDPListItem } from "../../customer-invoice-down-payments/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { getSalesErrorMessage } from "../../utils/error-utils";
@@ -94,7 +96,7 @@ export function OrderList() {
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
-  const canCreateInvoiceDP = useUserPermission("customer_invoice_down_payment.create");
+  const canCreateInvoiceDP = useUserPermission("customer_invoice_dp.create");
   const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
@@ -105,8 +107,15 @@ export function OrderList() {
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
   const [createInvoiceDPForOrderId, setCreateInvoiceDPForOrderId] = useState<string | null>(null);
   const [createInvoiceDPDefaultAmount, setCreateInvoiceDPDefaultAmount] = useState<number | undefined>(undefined);
+  const [activeDPOrderId, setActiveDPOrderId] = useState<string | null>(null);
 
   const exportProgress = useExportProgress();
+
+  // Fetch DP invoices for the order being checked for DP action
+  const dpInvoicesQuery = useCustomerInvoiceDPs(
+    activeDPOrderId ? { sales_order_id: activeDPOrderId, limit: 1000 } : undefined,
+    { enabled: !!activeDPOrderId },
+  );
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -168,6 +177,80 @@ export function OrderList() {
       toast.success(t("exportSuccess"));
     } catch {
       toast.error(t("common.error"));
+    }
+  };
+
+  const getInvoicedAmount = (order: SalesOrder): number => {
+    const invoices = order.customer_invoices ?? [];
+    return invoices
+      .filter((invoice) => {
+        const status = (invoice.status ?? "").toLowerCase();
+        return status !== "cancelled" && status !== "rejected";
+      })
+      .reduce((sum, invoice) => sum + (invoice.amount ?? 0), 0);
+  };
+
+  // Compute total invoiced amount including both regular and DP invoices
+  const getTotalInvoicedAmount = (order: SalesOrder, dpInvoices?: CustomerInvoiceDPListItem[]): number => {
+    const regularInvoiced = getInvoicedAmount(order);
+    const dpInvoiced =
+      dpInvoices
+        ?.filter((dp) => {
+          const status = (dp.status ?? "").toLowerCase();
+          return status !== "cancelled" && status !== "rejected";
+        })
+        .reduce((sum, dp) => sum + (dp.amount ?? 0), 0) ?? 0;
+    return regularInvoiced + dpInvoiced;
+  };
+
+  const canCreateInvoiceForOrder = (order: SalesOrder): boolean => {
+    if (!canCreateInvoice || order.status !== "approved") return false;
+    const totalAmount = order.total_amount ?? 0;
+    if (totalAmount <= 0) return false;
+    const invoicedAmount = getInvoicedAmount(order);
+    return invoicedAmount + 0.0001 < totalAmount;
+  };
+
+  const canCreateInvoiceDPForOrder = (order: SalesOrder): boolean => {
+    if (!canCreateInvoiceDP || order.status !== "approved") return false;
+    const totalAmount = order.total_amount ?? 0;
+    if (totalAmount <= 0) return false;
+    // Use cached DP invoices if we have them, otherwise assume can create
+    if (activeDPOrderId === order.id && dpInvoicesQuery.data?.data) {
+      const totalInvoiced = getTotalInvoicedAmount(order, dpInvoicesQuery.data.data);
+      return totalInvoiced + 0.0001 < totalAmount;
+    }
+    return true; // Allow click if not loaded yet, will compute on dialog open
+  };
+
+  const handleOpenCreateInvoiceDP = async (order: SalesOrder) => {
+    // Fetch DP invoices if not already cached
+    if (activeDPOrderId !== order.id) {
+      setActiveDPOrderId(order.id);
+      // Wait a tick to let query execute, then open dialog
+      const checkAndOpen = () => {
+        if (dpInvoicesQuery.data?.data) {
+          const totalInvoiced = getTotalInvoicedAmount(order, dpInvoicesQuery.data.data);
+          const availableAmount = (order.total_amount ?? 0) - totalInvoiced;
+          setCreateInvoiceDPForOrderId(order.id);
+          setCreateInvoiceDPDefaultAmount(Math.max(0, availableAmount));
+        }
+      };
+      // Retry a few times if data not ready yet
+      let retries = 0;
+      const retryInterval = setInterval(() => {
+        if (dpInvoicesQuery.data?.data || retries > 5) {
+          clearInterval(retryInterval);
+          checkAndOpen();
+        }
+        retries++;
+      }, 100);
+    } else if (dpInvoicesQuery.data?.data) {
+      // Already have DP data, compute and open
+      const totalInvoiced = getTotalInvoicedAmount(order, dpInvoicesQuery.data.data);
+      const availableAmount = (order.total_amount ?? 0) - totalInvoiced;
+      setCreateInvoiceDPForOrderId(order.id);
+      setCreateInvoiceDPDefaultAmount(Math.max(0, availableAmount));
     }
   };
 
@@ -468,21 +551,20 @@ export function OrderList() {
                               {t("actions.createDelivery")}
                             </DropdownMenuItem>
                           )}
-                          {canCreateInvoice && order.status === "approved" && (
+                          {canCreateInvoiceForOrder(order) && (
                             <DropdownMenuItem
-                              onClick={() => setCreateInvoiceForOrderId(order.id)}
+                              onClick={() => {
+                                setCreateInvoiceForOrderId((current) => (current === order.id ? current : order.id));
+                              }}
                               className="cursor-pointer text-success focus:text-success"
                             >
                               <Receipt className="h-4 w-4 mr-2" />
                               {t("actions.createInvoice")}
                             </DropdownMenuItem>
                           )}
-                          {canCreateInvoiceDP && order.status === "approved" && (
+                          {canCreateInvoiceDPForOrder(order) && (
                             <DropdownMenuItem
-                              onClick={() => {
-                                setCreateInvoiceDPForOrderId(order.id);
-                                setCreateInvoiceDPDefaultAmount(order.total_amount ?? 0);
-                              }}
+                              onClick={() => handleOpenCreateInvoiceDP(order)}
                               className="cursor-pointer text-success focus:text-success"
                             >
                               <Banknote className="h-4 w-4 mr-2" />
@@ -616,6 +698,7 @@ export function OrderList() {
       {/* Create Invoice from approved SO */}
       {createInvoiceForOrderId && (
         <InvoiceForm
+          key={`create-invoice-${createInvoiceForOrderId}`}
           open={!!createInvoiceForOrderId}
           onClose={() => setCreateInvoiceForOrderId(null)}
           defaultSalesOrderId={createInvoiceForOrderId}
@@ -626,7 +709,13 @@ export function OrderList() {
       {createInvoiceDPForOrderId && (
         <CustomerInvoiceDPFormDialog
           open={!!createInvoiceDPForOrderId}
-          onOpenChange={(open) => { if (!open) { setCreateInvoiceDPForOrderId(null); setCreateInvoiceDPDefaultAmount(undefined); } }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateInvoiceDPForOrderId(null);
+              setCreateInvoiceDPDefaultAmount(undefined);
+              setActiveDPOrderId(null);
+            }
+          }}
           defaultSalesOrderId={createInvoiceDPForOrderId}
           defaultAmount={createInvoiceDPDefaultAmount}
         />
