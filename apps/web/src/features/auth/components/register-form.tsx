@@ -375,6 +375,9 @@ export default function RegisterForm() {
     } else if (account.password.length < 8) {
       errs.password = t("errors.passwordTooShort");
     }
+    if (!account.company.trim()) {
+      errs.company = t("errors.companyRequired");
+    }
     setAccountErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -388,7 +391,7 @@ export default function RegisterForm() {
     try {
       const availability = await authService.checkAvailability({
         email: account.email.trim(),
-        company_name: account.company.trim() || undefined,
+        company_name: account.company.trim(),
       });
 
       const errs: AccountErrors = {};
@@ -490,7 +493,7 @@ export default function RegisterForm() {
         name: account.name,
         email: account.email,
         password: account.password,
-        company_name: account.company.trim() || undefined,
+        company_name: account.company.trim(),
       };
 
       const payload = {
@@ -718,11 +721,11 @@ export default function RegisterForm() {
                     {accountErrors.password && <p className="text-xs text-destructive">{accountErrors.password}</p>}
                   </div>
 
-                  {/* Company (optional) */}
+                  {/* Company (required) */}
                   <div className="space-y-1.5">
                     <label htmlFor="company" className="text-sm font-medium">
                       {t("companyLabel")}
-                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t("companyOptional")}</span>
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t("companyRequired")}</span>
                     </label>
                     <Input
                       id="company"
@@ -730,15 +733,20 @@ export default function RegisterForm() {
                       autoComplete="organization"
                       placeholder={t("companyPlaceholder")}
                       value={account.company}
-                      onChange={(e) => setAccount((p) => ({ ...p, company: e.target.value }))}
+                      onChange={(e) => {
+                        setAccount((p) => ({ ...p, company: e.target.value }));
+                        if (accountErrors.company) setAccountErrors((p) => ({ ...p, company: undefined }));
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
                           handleContinue();
                         }
                       }}
+                      aria-invalid={!!accountErrors.company}
                       className="h-11"
                     />
+                    {accountErrors.company && <p className="text-xs text-destructive">{accountErrors.company}</p>}
                   </div>
                 </div>
 

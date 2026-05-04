@@ -138,7 +138,7 @@
       "brandName": "SalesView",
       "brandBy": "",
       "companyLabel": "Company name",
-      "companyOptional": "Optional",
+      "companyRequired": "Required",
       "companyPlaceholder": "Your company or business name",
       "back": "Back",
       "continue": "Continue",
@@ -224,6 +224,7 @@
         "passwordTooShort": "At least 8 characters required",
         "emailTaken": "This email is already registered",
         "companyTaken": "This company name is already taken",
+        "companyRequired": "Company name is required",
         "availabilityCheckFailed": "Unable to verify account availability. Please try again.",
         "registrationFailed": "Registration failed. Please try again.",
         "couponUserLimitExceeded": "Selected user count exceeds coupon limit."

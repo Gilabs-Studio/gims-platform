@@ -46,6 +46,7 @@ var (
 	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
 	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
 	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
+	ErrCompanyNameRequired            = errors.New("company name is required")
 	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
 	ErrPendingBillingChangeNotFound   = errors.New("pending billing change not found or expired")
@@ -651,7 +652,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 
 	companyName := strings.TrimSpace(req.CompanyName)
 	if companyName == "" {
-		companyName = req.Name
+		return nil, ErrCompanyNameRequired
 	}
 
 	// Generate a unique registration token (used as Xendit external_id and Redis key).
@@ -1133,7 +1134,7 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 
 		companyName := strings.TrimSpace(req.CompanyName)
 		if companyName == "" {
-			companyName = req.Name
+			return ErrCompanyNameRequired
 		}
 
 		slug := buildUniqueTenantSlug(companyName)
