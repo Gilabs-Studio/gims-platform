@@ -1425,6 +1425,9 @@ func (uc *travelPlanUsecase) buildDays(dayRequests []dto.TravelPlanDayRequest) (
 	sort.SliceStable(days, func(i, j int) bool {
 		return days[i].DayIndex < days[j].DayIndex
 	})
+	for dayIndex := range days {
+		days[dayIndex].DayIndex = dayIndex + 1
+	}
 
 	return days, nil
 }

@@ -64,7 +64,19 @@ func (r *travelPlanRepository) Create(ctx context.Context, plan *models.TravelPl
 }
 
 func (r *travelPlanRepository) Update(ctx context.Context, plan *models.TravelPlan) error {
-	return database.GetDB(ctx, r.db).Save(plan).Error
+	return database.GetDB(ctx, r.db).
+		Model(&models.TravelPlan{}).
+		Where("id = ?", plan.ID).
+		Updates(map[string]any{
+			"title":         plan.Title,
+			"plan_type":     plan.PlanType,
+			"mode":          plan.Mode,
+			"start_date":    plan.StartDate,
+			"end_date":      plan.EndDate,
+			"status":        plan.Status,
+			"budget_amount": plan.BudgetAmount,
+			"notes":         plan.Notes,
+		}).Error
 }
 
 func (r *travelPlanRepository) Delete(ctx context.Context, id string) error {
@@ -151,12 +163,12 @@ func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListPa
 
 func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, days []models.TravelPlanDay) error {
 	return database.GetDB(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// Hard-delete is required here: TravelPlanDay uses GORM soft-delete, and the
-		// unique index idx_travel_plan_day_order is on (travel_plan_id, day_index).
-		// A soft-delete leaves the old rows visible to the index, so re-inserting
-		// days with the same day_index values would trigger a constraint violation.
-		if err := tx.Unscoped().Where("travel_plan_id = ?", planID).Delete(&models.TravelPlanDay{}).Error; err != nil {
+		if err := tx.Exec("DELETE FROM travel_plan_days WHERE travel_plan_id = ?", planID).Error; err != nil {
 			return err
+		}
+
+		if len(days) == 0 {
+			return nil
 		}
 
 		for i := range days {
