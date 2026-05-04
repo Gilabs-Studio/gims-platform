@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import type { Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
@@ -73,27 +73,6 @@ function normalizeEmployeeId(
 		(e) => e.id === employeeId || e.employee_code === employeeId,
 	);
 	return match?.id && isUUIDLike(match.id) ? match.id : null;
-}
-
-function collectErrorPaths(errs: FieldErrors, prefix = ""): string[] {
-	const out: string[] = [];
-	for (const [key, value] of Object.entries(errs)) {
-		const path = prefix ? `${prefix}.${key}` : key;
-		if (!value) continue;
-		if (Array.isArray(value)) {
-			value.forEach((child, idx) => {
-				if (child) out.push(...collectErrorPaths(child as FieldErrors, `${path}[${idx}]`));
-			});
-			continue;
-		}
-		const maybeLeaf = value as { message?: unknown };
-		if (typeof maybeLeaf.message === "string" && maybeLeaf.message.length > 0) {
-			out.push(path);
-			continue;
-		}
-		out.push(...collectErrorPaths(value as FieldErrors, path));
-	}
-	return Array.from(new Set(out));
 }
 
 type QuickCreateType = "supplier" | "paymentTerm" | "businessUnit" | "employee" | "product" | null;
@@ -340,7 +319,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		} catch { toast.error(t("toast.failed")); }
 	};
 
-	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = (_errs) => {
+	const onInvalid: SubmitErrorHandler<PurchaseRequisitionFormData> = () => {
 		toast.error(t("form.invalid"));
 	};
 

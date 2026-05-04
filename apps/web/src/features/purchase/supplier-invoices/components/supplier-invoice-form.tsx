@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { CalendarIcon, CheckCircle2, DollarSign, FileText, Receipt, ShoppingCart } from "lucide-react";
@@ -41,15 +41,6 @@ import type { SupplierInvoiceJournalPreview } from "../types";
 // Local narrow types to avoid `any` casts
 type PaymentTermOption = { id: string; name: string; code?: string };
 type ProductRef = { id?: string; name?: string; code?: string };
-
-// Purchase Order item shape (narrowed) used when mapping PO -> invoice items
-type POItem = {
-  product_id: string;
-  product?: ProductRef | null;
-  quantity: number;
-  price: number;
-  discount?: number | null;
-};
 
 type InvoiceItem = SupplierInvoiceFormData["items"][number];
 
@@ -113,6 +104,8 @@ export function SupplierInvoiceFormDialog({
     },
   });
 
+  const { control } = form;
+
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
   const paymentTerms = useMemo<PaymentTermOption[]>(() => addData?.payment_terms ?? [], [addData?.payment_terms]);
@@ -123,15 +116,15 @@ export function SupplierInvoiceFormDialog({
     return list;
   }, [paymentTerms, detailQuery.data?.data?.payment_terms]);
 
-  const selectedGRId = form.watch("goods_receipt_id");
+  const selectedGRId = useWatch({ control, name: "goods_receipt_id" });
   const setFormValue = form.setValue;
 
   useEffect(() => {
     if (!open) {
-      setJournalPreview(null);
+      queueMicrotask(() => setJournalPreview(null));
       return;
     }
-    setShouldLoadSelectData(true);
+    queueMicrotask(() => setShouldLoadSelectData(true));
   }, [open]);
 
   const filteredGRs = useMemo(() => {
@@ -140,14 +133,16 @@ export function SupplierInvoiceFormDialog({
     return all.filter((gr) => gr.purchase_order?.id === defaultPurchaseOrderId);
   }, [addData?.goods_receipts, defaultPurchaseOrderId]);
 
+  const goodsReceipts = useMemo(() => addData?.goods_receipts ?? [], [addData?.goods_receipts]);
+
   const selectedGR = useMemo(() => {
-    if (!addData?.goods_receipts?.length || !selectedGRId) return null;
-    return addData.goods_receipts.find((gr) => gr.id === selectedGRId) ?? null;
-  }, [addData?.goods_receipts, selectedGRId]);
+    if (!goodsReceipts.length || !selectedGRId) return null;
+    return goodsReceipts.find((gr) => gr.id === selectedGRId) ?? null;
+  }, [goodsReceipts, selectedGRId]);
 
   useEffect(() => {
     if (!open) return;
-    setActiveTab("basic");
+    queueMicrotask(() => setActiveTab("basic"));
 
     if (!isEdit) {
       // Base initial values
@@ -281,13 +276,15 @@ export function SupplierInvoiceFormDialog({
 
   const isBusy = detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
 
-  const watchedItems = form.watch("items");
-  const taxRate = form.watch("tax_rate") ?? 0;
-  const deliveryCost = form.watch("delivery_cost") ?? 0;
-  const otherCost = form.watch("other_cost") ?? 0;
+  const watchedItems = useWatch({ control, name: "items" });
+  const watchedInvoiceNumber = useWatch({ control, name: "invoice_number" }) ?? "";
+  const taxRate = useWatch({ control, name: "tax_rate" }) ?? 0;
+  const deliveryCost = useWatch({ control, name: "delivery_cost" }) ?? 0;
+  const otherCost = useWatch({ control, name: "other_cost" }) ?? 0;
+  const watchedNotes = useWatch({ control, name: "notes" }) ?? "";
 
   const subtotal = useMemo(() =>
-    (watchedItems ?? []).reduce((sum, it) => {
+    (watchedItems ?? []).reduce((sum: number, it: InvoiceItem) => {
       const qty = Number(it?.quantity ?? 0);
       const price = Number(it?.price ?? 0);
       const disc = Number(it?.discount ?? 0);
@@ -565,7 +562,7 @@ export function SupplierInvoiceFormDialog({
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.invoiceNumber")}</FieldLabel>
                   <Input
-                    value={form.watch("invoice_number")}
+                    value={watchedInvoiceNumber}
                     onChange={(e) => setFormValue("invoice_number", e.target.value, { shouldValidate: true })}
                     disabled={isBusy}
                   />
@@ -584,7 +581,7 @@ export function SupplierInvoiceFormDialog({
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.taxRate")}</FieldLabel>
                   <NumericInput
-                    value={form.watch("tax_rate")}
+                    value={taxRate}
                     onChange={(v) => setFormValue("tax_rate", Number(v), { shouldValidate: true })}
                     disabled={isBusy}
                   />
@@ -592,7 +589,7 @@ export function SupplierInvoiceFormDialog({
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.deliveryCost")}</FieldLabel>
                   <NumericInput
-                    value={form.watch("delivery_cost")}
+                    value={deliveryCost}
                     onChange={(v) => setFormValue("delivery_cost", Number(v), { shouldValidate: true })}
                     disabled={isBusy}
                   />
@@ -600,7 +597,7 @@ export function SupplierInvoiceFormDialog({
                 <Field orientation="vertical">
                   <FieldLabel>{t("fields.otherCost")}</FieldLabel>
                   <NumericInput
-                    value={form.watch("other_cost")}
+                    value={otherCost}
                     onChange={(v) => setFormValue("other_cost", Number(v), { shouldValidate: true })}
                     disabled={isBusy}
                   />
@@ -610,7 +607,7 @@ export function SupplierInvoiceFormDialog({
               <Field orientation="vertical">
                 <FieldLabel>{t("fields.notes")}</FieldLabel>
                 <Textarea
-                  value={form.watch("notes") ?? ""}
+                  value={watchedNotes}
                   onChange={(e) => setFormValue("notes", e.target.value, { shouldValidate: true })}
                   disabled={isBusy}
                 />
@@ -676,7 +673,7 @@ export function SupplierInvoiceFormDialog({
                         </div>
 
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                            {watchedItems.map((row, idx) => {
+                            {watchedItems.map((row: InvoiceItem, idx: number) => {
                                 const itemSubtotal = (row.quantity ?? 0) * (row.price ?? 0) * (1 - ((row.discount ?? 0) / 100));
                                 return (
                                     <div

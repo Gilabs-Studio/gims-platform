@@ -96,7 +96,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const canEdit = useUserPermission("goods_receipt.update");
-  const canDelete = useUserPermission("goods_receipt.delete");
   const canSubmit = useUserPermission("goods_receipt.submit");
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");

@@ -75,7 +75,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
   const canEdit = useUserPermission("purchase_requisition.update");
-  const canDelete = useUserPermission("purchase_requisition.delete");
   const canSubmit = useUserPermission("purchase_requisition.submit");
   const canApprove = useUserPermission("purchase_requisition.approve");
   const canReject = useUserPermission("purchase_requisition.reject");

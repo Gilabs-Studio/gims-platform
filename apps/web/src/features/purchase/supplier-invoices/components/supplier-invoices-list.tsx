@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDebounce } from "@/hooks/use-debounce";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -195,7 +194,7 @@ export function SupplierInvoicesList() {
 
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 

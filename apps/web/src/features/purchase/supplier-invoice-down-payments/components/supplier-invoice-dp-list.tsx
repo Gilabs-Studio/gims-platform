@@ -173,7 +173,7 @@ export function SupplierInvoiceDPList() {
 
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 

@@ -50,7 +50,6 @@ import {
   useSupplierInvoice,
   useSupplierInvoiceAuditTrail,
 } from "../hooks/use-supplier-invoices";
-import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { supplierInvoicesService } from "../services/supplier-invoices-service";
 
 const PurchaseOrderDetail = dynamic(
@@ -648,7 +647,6 @@ interface SupplierInvoiceDetailProps {
 
 export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvoiceDetailProps) {
   const t = useTranslations("supplierInvoice");
-  const tCommon = useTranslations("common");
   const id = invoiceId ?? "";
 
   const { data, isLoading, isError } = useSupplierInvoice(id, {
@@ -664,7 +662,6 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
   const canCancel = useUserPermission("supplier_invoice.cancel");
   const canPending = useUserPermission("supplier_invoice.pending");
   const canPrint = useUserPermission("supplier_invoice.print");
-  const canDelete = useUserPermission("supplier_invoice.delete");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);

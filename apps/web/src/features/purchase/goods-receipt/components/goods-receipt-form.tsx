@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { FieldErrors, SubmitErrorHandler } from "react-hook-form";
 import { toast } from "sonner";
 import { FileText, ShoppingCart } from "lucide-react";
@@ -107,7 +107,8 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     mode: "onSubmit",
   });
 
-  const itemsArray = useFieldArray({ control: form.control, name: "items" });
+  const { control } = form;
+  const itemsArray = useFieldArray({ control, name: "items" });
 
   const addDataQuery = useGoodsReceiptAddData({ enabled: open && !isEdit && shouldLoadPurchaseOrderOptions });
   const detailQuery = useGoodsReceipt(goodsReceiptId ?? "", { enabled: open && isEdit });
@@ -123,11 +124,11 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
   const [poLoading, setPoLoading] = useState(false);
 
   const eligiblePOs = addDataQuery.data?.data?.eligible_purchase_orders ?? [];
-  const warehouseOptions = warehousesQuery.data?.data ?? [];
+  const warehouseOptions = useMemo(() => warehousesQuery.data?.data ?? [], [warehousesQuery.data?.data]);
   const grDetail = detailQuery.data?.data;
   const grDetailSnapshot = useMemo(() => grDetail ?? null, [grDetail]);
 
-  const selectedPOId = form.watch("purchase_order_id");
+  const selectedPOId = useWatch({ control, name: "purchase_order_id" });
   const resetForm = form.reset;
   const getFormValues = form.getValues;
   const setFormValue = form.setValue;
@@ -144,13 +145,15 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     if (!open) {
       return;
     }
-    setShouldLoadPurchaseOrderOptions(true);
-    setShouldLoadWarehouseOptions(true);
+    queueMicrotask(() => {
+      setShouldLoadPurchaseOrderOptions(true);
+      setShouldLoadWarehouseOptions(true);
+    });
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    setActiveTab("basic");
+    queueMicrotask(() => setActiveTab("basic"));
     if (!isEdit) {
       resetForm({
         purchase_order_id: defaultPurchaseOrderId ?? "",
@@ -161,7 +164,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
       });
       replaceItems([]);
       // Do not clear poDetail here — the PO-watch effect will load it when defaultPurchaseOrderId is set.
-      if (!defaultPurchaseOrderId) setPoDetail(null);
+      if (!defaultPurchaseOrderId) queueMicrotask(() => setPoDetail(null));
       return;
     }
     if (!grDetailSnapshot) return;
@@ -225,7 +228,13 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     };
     if (!open || isEdit) return;
     const poId = selectedPOId;
-    if (!poId) { setPoDetail(null); replaceItems([]); return; }
+    if (!poId) {
+      queueMicrotask(() => {
+        setPoDetail(null);
+        replaceItems([]);
+      });
+      return;
+    }
     void loadPO(poId);
   }, [open, isEdit, selectedPOId, replaceItems]);
 
@@ -277,7 +286,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
   };
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
-  const watchedItems = form.watch("items");
+  const watchedItems = useWatch({ control, name: "items" });
   const hasNoReceivableItems = !isEdit && !!selectedPOId && !poLoading && itemsArray.fields.length === 0;
 
   const onInvalid: SubmitErrorHandler<GoodsReceiptFormData> = (errs) => {

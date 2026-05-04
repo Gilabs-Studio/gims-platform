@@ -118,7 +118,7 @@ export function PurchaseRequisitionsList() {
   // Auto-open detail modal when detailId is set from URL query param
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 
@@ -331,7 +331,7 @@ export function PurchaseRequisitionsList() {
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.requestedBy")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
+              <TableHead className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right">
                 {t("totalAmount")}
               </TableHead>
               <TableHead className="w-[70px]" />
@@ -346,7 +346,7 @@ export function PurchaseRequisitionsList() {
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                  <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
+                  <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
@@ -414,7 +414,7 @@ export function PurchaseRequisitionsList() {
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(item)}</TableCell>
-                    <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
+                    <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right">
                       {formatCurrency(item.total_amount)}
                     </TableCell>
                     <TableCell>

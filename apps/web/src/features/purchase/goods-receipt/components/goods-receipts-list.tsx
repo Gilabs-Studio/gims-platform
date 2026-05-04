@@ -136,7 +136,7 @@ export function GoodsReceiptsList() {
 
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 

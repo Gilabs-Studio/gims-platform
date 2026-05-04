@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import {
 	CalendarIcon,
@@ -107,6 +107,8 @@ export function SupplierInvoiceDPFormDialog({
 		},
 	});
 
+	const { control } = form;
+
 	const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", {
 		enabled: open && !!defaultPurchaseOrderId && !isEdit,
 	});
@@ -156,7 +158,7 @@ export function SupplierInvoiceDPFormDialog({
 		createMutation.isPending ||
 		updateMutation.isPending;
 
-	const watchedPOId = form.watch("purchase_order_id");
+	const watchedPOId = useWatch({ control, name: "purchase_order_id" });
 	const selectedPOQuery = usePurchaseOrder(watchedPOId ?? "", {
 		enabled: open && !!watchedPOId,
 	});
@@ -164,7 +166,8 @@ export function SupplierInvoiceDPFormDialog({
 	const selectedPO = selectedPOQuery.data?.success
 		? selectedPOQuery.data.data
 		: null;
-	const dpAmount = form.watch("amount");
+	const dpAmount = useWatch({ control, name: "amount" });
+	const watchedNotes = useWatch({ control, name: "notes" }) ?? "";
 
 	useEffect(() => {
 		if (!open || isEdit || !selectedPO) return;
@@ -528,7 +531,7 @@ export function SupplierInvoiceDPFormDialog({
 					<Field orientation="vertical">
 						<FieldLabel>{t("fields.notes")}</FieldLabel>
 						<Textarea
-							value={form.watch("notes") ?? ""}
+							value={watchedNotes}
 							onChange={(e) =>
 								form.setValue("notes", e.target.value, { shouldValidate: true })
 							}
