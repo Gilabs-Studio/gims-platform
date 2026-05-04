@@ -143,6 +143,7 @@ export function OnboardingWizard() {
           completedCount={completedCount}
           allDone={allDone}
           isCompleting={isCompleting}
+          businessType={businessType}
           onComplete={() => markComplete()}
         />
       )}
@@ -233,6 +234,7 @@ interface StepChecklistProps {
   completedCount: number;
   allDone: boolean;
   isCompleting: boolean;
+  businessType: string;
   onComplete: () => void;
 }
 
@@ -243,6 +245,7 @@ function StepChecklist({
   completedCount,
   allDone,
   isCompleting,
+  businessType,
   onComplete,
 }: StepChecklistProps) {
   return (
@@ -312,6 +315,35 @@ function StepChecklist({
             </motion.div>
           );
         })}
+      </div>
+
+      <div className="mt-5 rounded-lg border bg-muted/20 p-3">
+        <p className="text-sm font-medium">
+          {t("onboarding.accessSetup.title")}
+        </p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("onboarding.accessSetup.description")}
+        </p>
+        <div className="mt-3 space-y-1.5">
+          <Link href="/master-data/users?tab=roles">
+            <div className="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 hover:bg-accent">
+              <Circle className="text-muted-foreground h-4 w-4" />
+              <span className="text-sm">{t("onboarding.accessSetup.rolePermissions")}</span>
+              <ChevronRight className="text-muted-foreground ml-auto h-4 w-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </div>
+          </Link>
+          <Link href="/master-data/employees">
+            <div className="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 hover:bg-accent">
+              <Circle className="text-muted-foreground h-4 w-4" />
+              <span className="text-sm">
+                {businessType === "fnb"
+                  ? t("onboarding.accessSetup.employeeAccessFnb")
+                  : t("onboarding.accessSetup.employeeAccessOther")}
+              </span>
+              <ChevronRight className="text-muted-foreground ml-auto h-4 w-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </div>
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 space-y-2 text-center">

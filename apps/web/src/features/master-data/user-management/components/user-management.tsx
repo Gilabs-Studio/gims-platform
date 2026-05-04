@@ -2,6 +2,7 @@
 
 import { Users, Shield, Key } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { UserList } from "./user-list";
 import { RoleList } from "./role-list";
@@ -12,9 +13,16 @@ export function UserManagement() {
   const hasRolesPermission = useHasPermission("role.read");
   const hasPermissionsPermission = useHasPermission("permission.read");
   const t = useTranslations("userManagement.tabs");
+  const searchParams = useSearchParams();
 
-  // Determine default tab - use first available tab
-  const defaultTab = "users";
+  const requestedTab = (searchParams.get("tab") ?? "").trim().toLowerCase();
+
+  let defaultTab = "users";
+  if (requestedTab === "roles" && hasRolesPermission) {
+    defaultTab = "roles";
+  } else if (requestedTab === "permissions" && hasPermissionsPermission) {
+    defaultTab = "permissions";
+  }
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">

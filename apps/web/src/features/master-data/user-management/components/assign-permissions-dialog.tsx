@@ -122,18 +122,9 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
-  "profile.",
-  "setting",
-  "billing.",
-  "user.",
   "role.",
   "permission.",
   "company.",
-  "warehouse.",
-  "product.",
-  "customer.",
-  "supplier.",
-  "employee.",
 ] as const;
 const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
 
@@ -178,9 +169,6 @@ function normalizeModuleSlug(module?: string): string {
 function isAlwaysAllowedPermission(permissionCode: string): boolean {
   const code = permissionCode.trim().toLowerCase();
   if (!code) {
-    return true;
-  }
-  if (code === "pos.payment.manage") {
     return true;
   }
   return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => code.startsWith(prefix));
@@ -1225,10 +1213,19 @@ function PermissionsSelector({
             if (!permission || !isPermissionAllowedByPlan(permission)) {
               continue;
             }
+            if (isAlwaysSafePermissionCode(permission.code)) {
+              continue;
+            }
             if (!(id in next)) next[id] = "ALL";
           }
         } else {
-          for (const id of ids) delete next[id];
+          for (const id of ids) {
+            const permission = permissionByID.get(id);
+            if (permission && isAlwaysSafePermissionCode(permission.code)) {
+              continue;
+            }
+            delete next[id];
+          }
         }
         return next;
       });
