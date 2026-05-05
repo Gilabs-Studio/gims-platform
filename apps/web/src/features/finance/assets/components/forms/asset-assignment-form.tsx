@@ -25,7 +25,7 @@ import {
 
 // Service import - adjust path as needed for your project structure
 const employeeService = {
-  list: async () => ({ data: [] as EmployeeOption[] }),
+  list: async (_params?: unknown) => ({ data: [] as EmployeeOption[] }),
 };
 
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";

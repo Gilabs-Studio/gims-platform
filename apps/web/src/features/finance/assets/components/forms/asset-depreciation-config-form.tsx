@@ -132,7 +132,7 @@ export function AssetDepreciationConfigForm({
   } | null>(null);
 
   // Fetch category to get defaults
-  const { data: categoryData } = useFinanceAssetCategory(asset?.category_id ?? "", {
+  const { data: categoryData, isLoading: isCategoryLoading } = useFinanceAssetCategory(asset?.category_id ?? "", {
     enabled: !!asset?.category_id,
   });
   const category = categoryData?.data;
@@ -175,6 +175,7 @@ export function AssetDepreciationConfigForm({
   }, [defaultValues, form]);
 
   const useCategoryDefaults = useWatch({ control: form.control, name: "use_category_defaults" });
+  const selectedMethod = useWatch({ control: form.control, name: "depreciation_method" });
   const usefulLifeMonths = useWatch({ control: form.control, name: "useful_life_months" });
   const usefulLifeYears = useWatch({ control: form.control, name: "useful_life_years" });
 

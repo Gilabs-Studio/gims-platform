@@ -64,9 +64,9 @@ interface InvoiceOption {
 }
 
 // Placeholder services (keep or replace with real services)
-const purchaseOrderService = { list: async () => ({ data: [] as PurchaseOrderOption[] }) };
-const supplierInvoiceService = { list: async () => ({ data: [] as InvoiceOption[] }) };
-const supplierService = { list: async () => ({ data: [] as SupplierOption[] }) };
+const purchaseOrderService = { list: async (_params?: unknown) => ({ data: [] as PurchaseOrderOption[] }) };
+const supplierInvoiceService = { list: async (_params?: unknown) => ({ data: [] as InvoiceOption[] }) };
+const supplierService = { list: async (_params?: unknown) => ({ data: [] as SupplierOption[] }) };
 
 export default function AssetAcquisitionForm({ asset, onSubmit, isSubmitting = false, isLoading = false }: AssetAcquisitionFormProps) {
   const t = useTranslations();

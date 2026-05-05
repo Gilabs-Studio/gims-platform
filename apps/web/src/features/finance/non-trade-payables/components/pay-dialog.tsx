@@ -28,7 +28,8 @@ const paySchema = z.object({
   }, z.number().min(0.01)),
 });
 
-type PayValues = z.infer<typeof paySchema>;
+type PayFormValues = z.input<typeof paySchema>;
+type PayValues = z.output<typeof paySchema>;
 
 type Props = {
   open: boolean;
@@ -43,7 +44,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
   const { data: bankAccountsData } = useFinanceBankAccounts({ page: 1, per_page: 100 });
   const bankAccounts = bankAccountsData?.data ?? [];
 
-  const defaultValues: PayValues = useMemo(
+  const defaultValues: PayFormValues = useMemo(
     () => ({
       payment_date: new Date().toISOString().slice(0, 10),
       bank_account_id: "",
@@ -53,7 +54,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
     [],
   );
 
-  const form = useForm<PayValues>({
+  const form = useForm<PayFormValues, unknown, PayValues>({
     resolver: zodResolver(paySchema),
     defaultValues,
   });

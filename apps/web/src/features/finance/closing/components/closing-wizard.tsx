@@ -149,21 +149,18 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
         <div className="min-h-[400px] flex flex-col">
           {step === "precheck" && (
             <StepPreCheck
-              analysis={analysis}
               isLoading={analysisLoading}
               summary={summary}
               closing={closing}
               t={t}
-              tCommon={tCommon}
             />
           )}
 
           {step === "review" && (
             <StepReview
-              analysis={analysis}
               isLoading={analysisLoading}
               summary={summary}
-              closing={closing}
+              analysis={analysis}
               t={t}
               tCommon={tCommon}
             />
@@ -171,7 +168,6 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
 
           {step === "execute" && (
             <StepExecute
-              closing={closing}
               isLoading={approveMutation.isPending}
               t={t}
             />
@@ -295,6 +291,7 @@ function StepIndicator({
 function StepPreCheck({
   isLoading,
   summary,
+  closing,
   t,
 }: {
   isLoading: boolean;
@@ -304,6 +301,7 @@ function StepPreCheck({
     totalOpeningBalance: number;
     totalDifference: number;
   };
+  closing?: FinancialClosing;
   t: ReturnType<typeof useTranslations>;
 }) {
   if (isLoading) {
@@ -385,6 +383,7 @@ function StepPreCheck({
 function StepReview({
   isLoading,
   summary,
+  analysis,
   t,
   tCommon,
 }: {
@@ -395,6 +394,7 @@ function StepReview({
     totalOpeningBalance: number;
     totalDifference: number;
   };
+  analysis?: FinancialClosingAnalysisResponse;
   t: ReturnType<typeof useTranslations>;
   tCommon: ReturnType<typeof useTranslations>;
 }) {
