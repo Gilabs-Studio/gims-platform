@@ -6,7 +6,6 @@ import { AlertCircle, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -294,14 +293,10 @@ function StepIndicator({
 }
 
 function StepPreCheck({
-  analysis,
   isLoading,
   summary,
-  closing,
   t,
-  tCommon,
 }: {
-  analysis?: FinancialClosingAnalysisResponse;
   isLoading: boolean;
   summary: {
     totalAccounts: number;
@@ -309,9 +304,7 @@ function StepPreCheck({
     totalOpeningBalance: number;
     totalDifference: number;
   };
-  closing?: FinancialClosing;
   t: ReturnType<typeof useTranslations>;
-  tCommon: ReturnType<typeof useTranslations>;
 }) {
   if (isLoading) {
     return (
@@ -390,14 +383,11 @@ function StepPreCheck({
 }
 
 function StepReview({
-  analysis,
   isLoading,
   summary,
-  closing,
   t,
   tCommon,
 }: {
-  analysis?: FinancialClosingAnalysisResponse;
   isLoading: boolean;
   summary: {
     totalAccounts: number;
@@ -405,7 +395,6 @@ function StepReview({
     totalOpeningBalance: number;
     totalDifference: number;
   };
-  closing?: FinancialClosing;
   t: ReturnType<typeof useTranslations>;
   tCommon: ReturnType<typeof useTranslations>;
 }) {
@@ -520,11 +509,9 @@ function StepReview({
 }
 
 function StepExecute({
-  closing,
   isLoading,
   t,
 }: {
-  closing?: FinancialClosing;
   isLoading: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {

@@ -153,7 +153,7 @@ export function ValuationJournalsList() {
 
   const selectedRun = useValuationRunDetail(selectedRunID);
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
   const runs = runsData?.data ?? [];
 

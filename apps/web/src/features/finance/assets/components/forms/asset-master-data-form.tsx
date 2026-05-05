@@ -3,14 +3,13 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { QrCode, RefreshCw, Building2, Briefcase, Layers } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -130,6 +129,8 @@ export function AssetMasterDataForm({
     resolver: zodResolver(assetMasterDataFormSchema),
     defaultValues,
   });
+
+  const watchedQrCode = useWatch({ control: form.control, name: "qr_code" });
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -260,7 +261,7 @@ export function AssetMasterDataForm({
         </div>
 
         {/* QR Code Preview */}
-        {form.watch("qr_code") && (
+        {watchedQrCode && (
           <Card className="bg-muted/50">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="bg-white p-3 rounded-lg">
@@ -269,7 +270,7 @@ export function AssetMasterDataForm({
               <div>
                 <p className="font-medium">{t("fields.qrCode")}</p>
                 <p className="text-sm text-muted-foreground font-mono">
-                  {form.watch("qr_code")}
+                  {watchedQrCode}
                 </p>
               </div>
             </CardContent>

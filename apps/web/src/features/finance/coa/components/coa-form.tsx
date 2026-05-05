@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, type Resolver, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,11 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
     }
   }, [open, defaultValues, form]);
 
+  const watchedParentId = useWatch({ control: form.control, name: "parent_id" });
+  const watchedType = useWatch({ control: form.control, name: "type" });
+  const watchedIsActive = useWatch({ control: form.control, name: "is_active" });
+  const watchedIsPostable = useWatch({ control: form.control, name: "is_postable" });
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: CoaFormValues) => {
@@ -139,10 +144,10 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
             <Input
               id="code"
               {...form.register("code")}
-              disabled={isProtected || (mode === "create" && (form.watch("parent_id") ?? null) !== null)}
-              placeholder={mode === "create" && (form.watch("parent_id") ?? null) !== null ? t("messages.autoCodeFromParent") : undefined}
+              disabled={isProtected || (mode === "create" && (watchedParentId ?? null) !== null)}
+              placeholder={mode === "create" && (watchedParentId ?? null) !== null ? t("messages.autoCodeFromParent") : undefined}
             />
-            {mode === "create" && (form.watch("parent_id") ?? null) !== null && (
+            {mode === "create" && (watchedParentId ?? null) !== null && (
               <p className="text-xs text-muted-foreground">{t("messages.autoCodeHint")}</p>
             )}
             {form.formState.errors.code && (
@@ -162,7 +167,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
             <div className="space-y-2">
               <Label>{t("fields.type")}</Label>
               <Select
-                value={form.watch("type")}
+                value={watchedType}
                 onValueChange={(v) => {
                   form.setValue("type", v as CoaType, { shouldDirty: true });
                 }}
@@ -187,7 +192,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
             <div className="space-y-2">
               <Label>{t("fields.parent")}</Label>
               <Select
-                value={form.watch("parent_id") ?? "__none__"}
+                value={watchedParentId ?? "__none__"}
                 onValueChange={(v) => {
                   form.setValue("parent_id", v === "__none__" ? null : v, { shouldDirty: true });
                   if (mode === "create" && v !== "__none__") {
@@ -223,7 +228,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
               <div className="text-sm font-medium">{t("fields.isActive")}</div>
             </div>
             <Switch
-              checked={form.watch("is_active") ?? true}
+              checked={watchedIsActive ?? true}
               onCheckedChange={(checked) => {
                 form.setValue("is_active", checked, { shouldDirty: true });
               }}
@@ -237,11 +242,11 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">{t("fields.isPostable")}</div>
                 <div className="text-xs text-muted-foreground">
-                  {(form.watch("is_postable") ?? true) ? t("status.postable") : t("status.nonPostable")}
+                  {(watchedIsPostable ?? true) ? t("status.postable") : t("status.nonPostable")}
                 </div>
               </div>
               <Switch
-                checked={form.watch("is_postable") ?? true}
+                checked={watchedIsPostable ?? true}
                 onCheckedChange={(checked) => {
                   form.setValue("is_postable", checked, { shouldDirty: true });
                 }}

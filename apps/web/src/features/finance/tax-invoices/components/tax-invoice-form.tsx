@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,8 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const selectedSIId = form.watch("supplier_invoice_id");
+  const selectedSIId = useWatch({ control: form.control, name: "supplier_invoice_id" });
+  const vatAmount = useWatch({ control: form.control, name: "vat_amount" });
   const { data: selectedSIReponse } = useSupplierInvoice(selectedSIId ?? "", { enabled: !!selectedSIId });
   const selectedSI = selectedSIReponse?.data;
 
@@ -236,7 +237,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
                   />
                 )}
               />
-              {selectedSI && Math.abs((selectedSI?.tax_amount ?? 0) - (form.watch("vat_amount") ?? 0)) > 1 && (
+              {selectedSI && Math.abs((selectedSI?.tax_amount ?? 0) - (vatAmount ?? 0)) > 1 && (
                 <p className="text-[10px] text-destructive font-medium">{t("fields.discrepancy")}</p>
               )}
             </div>

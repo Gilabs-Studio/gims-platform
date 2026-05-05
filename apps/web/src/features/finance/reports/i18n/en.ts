@@ -18,6 +18,7 @@ export const financeReportsEn = {
   description: "Description",
   debit: "Debit",
   credit: "Credit",
+  amount: "Amount",
   balance: "Balance",
   no_transactions: "No transactions in this period.",
   export: "Export Excel",

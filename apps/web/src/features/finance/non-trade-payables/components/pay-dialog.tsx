@@ -3,7 +3,7 @@
 import { useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 
@@ -54,7 +54,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
   );
 
   const form = useForm<PayValues>({
-    resolver: zodResolver(paySchema) as any,
+    resolver: zodResolver(paySchema),
     defaultValues,
   });
 
@@ -62,9 +62,12 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
     if (item) {
       form.setValue("amount", item.remaining_amount ?? item.amount ?? 0, { shouldDirty: true });
     }
-  }, [item]);
+  }, [item, form]);
 
-  const onSubmit = async (values: any) => {
+  const paymentDate = useWatch({ control: form.control, name: "payment_date" });
+  const bankAccountId = useWatch({ control: form.control, name: "bank_account_id" });
+
+  const onSubmit = async (values: PayValues) => {
     if (!item) return;
     try {
       await payMutation.mutateAsync({
@@ -90,7 +93,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
           <div className="space-y-2">
             <Label>{t("fields.paymentDate")}</Label>
             <DatePicker
-              value={form.watch("payment_date")}
+              value={paymentDate}
               onChange={(value) => form.setValue("payment_date", value, { shouldDirty: true })}
               placeholder={t("fields.paymentDate")}
             />
@@ -100,7 +103,7 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
             <Label>{t("fields.bankAccount")}</Label>
             <Select
               onValueChange={(v) => form.setValue("bank_account_id", v)}
-              value={form.watch("bank_account_id")}
+              value={bankAccountId}
             >
               <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder={t("placeholders.selectBank")} />

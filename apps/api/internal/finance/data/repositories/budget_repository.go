@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"context"
 	"strings"
 	"time"
@@ -143,5 +144,15 @@ func (r *budgetRepository) SyncActuals(ctx context.Context, budgetID string) err
 		WHERE bi.budget_id = b.id
 		  AND b.id = ?
 	`
-	return database.GetDB(ctx, r.db).Exec(query, budgetID).Error
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	args := []interface{}{budgetID}
+	// inject tenant filter into query when tenant present
+	if tenantID != "" {
+		// restrict journal_lines and budgets/budget_items to the tenant
+		query = strings.Replace(query, "WHERE jl.chart_of_account_id = bi.chart_of_account_id", "WHERE jl.chart_of_account_id = bi.chart_of_account_id AND jl.tenant_id = ?", 1)
+		query += " AND bi.tenant_id = ? AND b.tenant_id = ?"
+		args = append(args, tenantID, tenantID, tenantID)
+		// note: we appended tenantID three times to match the three placeholders above
+	}
+	return r.db.WithContext(ctx).Exec(query, args...).Error
 }

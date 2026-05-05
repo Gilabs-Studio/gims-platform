@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useTranslations } from "next-intl";
 import type { BatchDepreciationPreviewResponse } from "../types";
 import { Loader2 } from "lucide-react";
 
@@ -50,7 +49,6 @@ export function BatchDepreciationPreview({
   isLoadingPreview,
   isRunning,
 }: BatchDepreciationPreviewProps) {
-  const t = useTranslations("financeFixedAssets");
   const currentYear = new Date().getFullYear();
   const previewLines = previewData?.preview_lines ?? [];
   const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);

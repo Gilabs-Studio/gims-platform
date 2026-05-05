@@ -69,6 +69,7 @@ function computeSummaryBucketStats(
 export function ARAgingReportsView() {
   const t = useTranslations("financeAgingReports");
   const tCommon = useTranslations("common");
+  const [activeTab, setActiveTab] = useState("report");
 
   const [date, setDate] = useState<Date>(new Date());
   const [search, setSearch] = useState("");
@@ -84,7 +85,7 @@ export function ARAgingReportsView() {
     include_current: true,
   });
 
-  const rows = query.data?.data?.rows ?? [];
+  const rows = useMemo(() => query.data?.data?.rows ?? [], [query.data?.data?.rows]);
   const summary = query.data?.data?.summary;
   const totals = query.data?.data?.totals;
   const bucketConfig = query.data?.data?.bucket_config;
@@ -100,8 +101,6 @@ export function ARAgingReportsView() {
 
   const totalOutstanding = summary?.total_outstanding ?? totals?.remaining ?? 0;
   const summaryBuckets = computeSummaryBucketStats(summary?.buckets ?? totals?.buckets, bucketConfig);
-
-  const [activeTab, setActiveTab] = useState("report");
 
   return (
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,12 +39,7 @@ function toDraft(bucket: AgingBucketDefinition): BucketDraft {
 }
 
 function normalizeKey(raw: string, fallbackIndex: number): string {
-  const normalized = raw
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s_-]/g, "")
-    .replace(/[\s-]+/g, "_");
-
+  const normalized = raw.trim().toLowerCase().replace(/[^a-z0-9\s_-]/g, "").replace(/[\s-]+/g, "_");
   return normalized || `bucket_${fallbackIndex + 1}`;
 }
 
@@ -65,31 +60,16 @@ function reportTypeKeyPrefix(reportType: AgingReportType): string {
   return reportType === "ar" ? "ar" : "ap";
 }
 
-export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportType }) {
-  const { user } = useAuthStore();
-  const permissions = user?.permissions ?? {};
-  const canManage = hasPermissionCode(permissions, "finance_settings.update");
+type AgingBucketDraftEditorProps = {
+  reportType: AgingReportType;
+  sourceBuckets: AgingBucketDefinition[];
+  isSaving: boolean;
+  onSave: (buckets: AgingBucketDefinition[]) => void;
+};
 
-  const configQuery = useFinanceAgingBucketConfig(reportType, { enabled: canManage });
-  const updateMutation = useUpdateFinanceAgingBucketConfig(reportType);
-
-  const sourceBuckets = useMemo(() => {
-    return configQuery.data?.data?.buckets?.length
-      ? configQuery.data.data.buckets
-      : defaultAgingBucketConfig;
-  }, [configQuery.data?.data?.buckets]);
-
-  const [drafts, setDrafts] = useState<BucketDraft[]>([]);
+function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }: AgingBucketDraftEditorProps) {
+  const [drafts, setDrafts] = useState<BucketDraft[]>(() => sourceBuckets.map(toDraft));
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!canManage) return;
-    setDrafts(sourceBuckets.map(toDraft));
-  }, [canManage, sourceBuckets]);
-
-  if (!canManage) {
-    return null;
-  }
 
   const onUpdateDraft = (index: number, field: keyof BucketDraft, value: string) => {
     setValidationError(null);
@@ -195,8 +175,7 @@ export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportT
 
   const activeLabel = reportTypeLabel(reportType);
 
-  const onSave = () => {
-    setValidationError(null);
+  const handleSave = () => {
     const validation = validateDrafts(drafts);
     if (validation.error) {
       setValidationError(validation.error);
@@ -204,8 +183,62 @@ export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportT
       return;
     }
 
-    updateMutation.mutate({ buckets: validation.buckets });
+    onSave(validation.buckets);
   };
+
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">Sedang mengatur {activeLabel}.</p>
+      <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
+        <p className="font-medium">Panduan key</p>
+        <p className="text-muted-foreground">
+          Key boleh dikosongkan agar sistem membuat otomatis. Jika diisi, gunakan huruf kecil, angka, dan underscore.
+          Contoh: <span className="font-mono">ar_current</span>, <span className="font-mono">ar_1_30</span>, <span className="font-mono">ap_current</span>, <span className="font-mono">ap_1_30</span>.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {drafts.map((draft, index) => (
+          <div key={`aging-bucket-${index}`} className="grid grid-cols-12 gap-2 items-center">
+            <Input className="col-span-3" placeholder="Key" value={draft.key} onChange={(event) => onUpdateDraft(index, "key", event.target.value)} />
+            <Input className="col-span-4" placeholder="Label" value={draft.label} onChange={(event) => onUpdateDraft(index, "label", event.target.value)} />
+            <Input className="col-span-2" placeholder="Min" inputMode="numeric" value={draft.min_days} onChange={(event) => onUpdateDraft(index, "min_days", event.target.value)} />
+            <Input className="col-span-2" placeholder="Max" inputMode="numeric" value={draft.max_days} onChange={(event) => onUpdateDraft(index, "max_days", event.target.value)} />
+            <div className="col-span-1 flex justify-end">
+              <Button type="button" variant="outline" size="icon" className="cursor-pointer" onClick={() => onRemoveBucket(index)}>
+                -
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {validationError ? <p className="text-sm text-destructive">{validationError}</p> : null}
+      <div className="flex gap-2 pt-2">
+        <Button type="button" variant="outline" className="cursor-pointer" onClick={onAddBucket}>
+          Tambah bucket
+        </Button>
+        <Button type="button" className="cursor-pointer" onClick={handleSave} disabled={isSaving}>
+          Simpan konfigurasi
+        </Button>
+      </div>
+    </>
+  );
+}
+
+export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportType }) {
+  const { user } = useAuthStore();
+  const permissions = user?.permissions ?? {};
+  const canManage = hasPermissionCode(permissions, "finance_settings.update");
+
+  const configQuery = useFinanceAgingBucketConfig(reportType, { enabled: canManage });
+  const updateMutation = useUpdateFinanceAgingBucketConfig(reportType);
+
+  const sourceBuckets = useMemo(() => {
+    return configQuery.data?.data?.buckets?.length ? configQuery.data.data.buckets : defaultAgingBucketConfig;
+  }, [configQuery.data?.data?.buckets]);
+
+  if (!canManage) {
+    return null;
+  }
 
   return (
     <Card>
@@ -213,67 +246,13 @@ export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportT
         <CardTitle>Konfigurasi Umur Aging</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">Sedang mengatur {activeLabel}.</p>
-        <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
-          <p className="font-medium">Panduan key</p>
-          <p className="text-muted-foreground">
-            Key boleh dikosongkan agar sistem membuat otomatis. Jika diisi, gunakan huruf kecil, angka, dan underscore.
-            Contoh: <span className="font-mono">ar_current</span>, <span className="font-mono">ar_1_30</span>, <span className="font-mono">ap_current</span>, <span className="font-mono">ap_1_30</span>.
-          </p>
-        </div>
-        <div className="space-y-2">
-          {drafts.map((draft, index) => (
-            <div key={`aging-bucket-${index}`} className="grid grid-cols-12 gap-2 items-center">
-              <Input
-                className="col-span-3"
-                placeholder="Key"
-                value={draft.key}
-                onChange={(event) => onUpdateDraft(index, "key", event.target.value)}
-              />
-              <Input
-                className="col-span-4"
-                placeholder="Label"
-                value={draft.label}
-                onChange={(event) => onUpdateDraft(index, "label", event.target.value)}
-              />
-              <Input
-                className="col-span-2"
-                type="number"
-                min={0}
-                placeholder="Min"
-                value={draft.min_days}
-                onChange={(event) => onUpdateDraft(index, "min_days", event.target.value)}
-              />
-              <Input
-                className="col-span-2"
-                type="number"
-                min={0}
-                placeholder="Max"
-                value={draft.max_days}
-                onChange={(event) => onUpdateDraft(index, "max_days", event.target.value)}
-              />
-              <Button
-                variant="ghost"
-                className="col-span-1"
-                onClick={() => onRemoveBucket(index)}
-                disabled={drafts.length <= 1}
-              >
-                Hapus
-              </Button>
-            </div>
-          ))}
-        </div>
-        {validationError ? (
-          <p className="text-sm text-destructive">{validationError}</p>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onAddBucket}>
-            Tambah Bucket
-          </Button>
-          <Button onClick={onSave} disabled={updateMutation.isPending || configQuery.isFetching}>
-            Simpan
-          </Button>
-        </div>
+        <AgingBucketDraftEditor
+          key={JSON.stringify(sourceBuckets)}
+          reportType={reportType}
+          sourceBuckets={sourceBuckets}
+          isSaving={updateMutation.isPending || configQuery.isFetching}
+          onSave={(buckets) => updateMutation.mutate({ buckets })}
+        />
       </CardContent>
     </Card>
   );

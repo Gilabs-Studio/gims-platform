@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -23,7 +23,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -34,7 +33,7 @@ import {
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { useGeneralLedger } from "../hooks/use-general-ledger";
-import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import type { GeneralLedgerAccount, GLTransactionRow } from "../types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
@@ -48,17 +47,6 @@ import { AccountLedgerDetailDialog } from "./account-ledger-detail-dialog";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
 import type { UnifiedJournalRow } from "@/features/finance/journals/components/journal-table";
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function toApiDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -70,7 +58,7 @@ export function GeneralLedgerView() {
   const canExport = useUserPermission("general_ledger_report.export");
   const exportProgress = useExportProgress();
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: new Date(now.getFullYear(), 0, 1),
     to: now,
@@ -282,7 +270,7 @@ export function GeneralLedgerView() {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-            {metrics.map(({ label, value, Icon, desc, valueClass }, i) => (
+            {metrics.map(({ label, value, Icon, desc, valueClass }) => (
               <Card
                 key={label}
                 className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl"

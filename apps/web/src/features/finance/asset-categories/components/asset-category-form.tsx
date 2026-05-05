@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,14 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
     if (open) form.reset(defaultValues);
   }, [open, defaultValues, form]);
 
+  const watchedType = useWatch({ control: form.control, name: "type" });
+  const watchedIsDepreciable = useWatch({ control: form.control, name: "is_depreciable" });
+  const watchedDepreciationMethod = useWatch({ control: form.control, name: "depreciation_method" });
+  const watchedAssetAccountId = useWatch({ control: form.control, name: "asset_account_id" });
+  const watchedAccumulatedAccountId = useWatch({ control: form.control, name: "accumulated_depreciation_account_id" });
+  const watchedExpenseAccountId = useWatch({ control: form.control, name: "depreciation_expense_account_id" });
+  const watchedIsActive = useWatch({ control: form.control, name: "is_active" });
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: AssetCategoryFormValues) => {
@@ -127,7 +135,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <div className="space-y-2">
               <Label>{t("fields.type")}</Label>
               <Select
-                value={form.watch("type")}
+                value={watchedType}
                 onValueChange={(v) => form.setValue("type", v as AssetCategoryType, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -146,7 +154,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="text-sm font-medium">{t("fields.isDepreciable")}</div>
               <Switch
-                checked={form.watch("is_depreciable") ?? true}
+                checked={watchedIsDepreciable ?? true}
                 onCheckedChange={(checked) => {
                   form.setValue("is_depreciable", checked, { shouldDirty: true });
                   if (!checked) {
@@ -161,13 +169,13 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             </div>
           </div>
 
-          {form.watch("is_depreciable") && (
+          {watchedIsDepreciable && (
           <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t("fields.method")}</Label>
               <Select
-                value={form.watch("depreciation_method")}
+                value={watchedDepreciationMethod}
                 onValueChange={(v) => form.setValue("depreciation_method", v as DepreciationMethod, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -209,7 +217,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <div className="space-y-2">
               <Label>{t("fields.assetAccount")}</Label>
               <Select
-                value={form.watch("asset_account_id") || ""}
+                value={watchedAssetAccountId || ""}
                 onValueChange={(v) => form.setValue("asset_account_id", v, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -228,7 +236,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <div className="space-y-2">
               <Label>{t("fields.accumulatedAccount")}</Label>
               <Select
-                value={form.watch("accumulated_depreciation_account_id") || ""}
+                value={watchedAccumulatedAccountId || ""}
                 onValueChange={(v) => form.setValue("accumulated_depreciation_account_id", v, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -247,7 +255,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
             <div className="space-y-2">
               <Label>{t("fields.expenseAccount")}</Label>
               <Select
-                value={form.watch("depreciation_expense_account_id") || ""}
+                value={watchedExpenseAccountId || ""}
                 onValueChange={(v) => form.setValue("depreciation_expense_account_id", v, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -267,7 +275,7 @@ export function AssetCategoryForm({ open, onOpenChange, mode, initialData }: Pro
           <div className="flex items-center justify-between rounded-md border p-3">
             <div className="text-sm font-medium">{t("fields.isActive")}</div>
             <Switch
-              checked={form.watch("is_active") ?? true}
+              checked={watchedIsActive ?? true}
               onCheckedChange={(checked) => form.setValue("is_active", checked, { shouldDirty: true })}
               className="cursor-pointer"
             />

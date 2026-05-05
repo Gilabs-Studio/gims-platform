@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { fixedAssetsService } from "../services/fixed-assets-service";
-import type { BatchDepreciationPreviewResponse, BatchDepreciationRunResponse } from "../types";
+import type { BatchDepreciationPreviewResponse } from "../types";
 
 export const fixedAssetsKeys = {
   all: ["fixed-assets"] as const,
@@ -26,7 +26,7 @@ export function useBatchDepreciation() {
   const run = useMutation({
     mutationFn: ({ month, year }: { month: number; year: number }) =>
       fixedAssetsService.runBatchDepreciation(month, year),
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: fixedAssetsKeys.batchDepreciation() });
     },
   });

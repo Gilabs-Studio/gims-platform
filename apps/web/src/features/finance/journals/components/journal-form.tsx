@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useFieldArray, useForm, type Resolver } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -148,7 +148,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
     name: "lines",
   });
 
-  const watchedLines = form.watch("lines");
+  const watchedLines = useWatch({ control: form.control, name: "lines" });
   const totals = useMemo(() => {
     const debit = (watchedLines ?? []).reduce((acc, line) => acc + (line.debit ?? 0), 0);
     const credit = (watchedLines ?? []).reduce((acc, line) => acc + (line.credit ?? 0), 0);
@@ -424,7 +424,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                     <div className="md:col-span-4 space-y-1">
                       <Label>{t("fields.account")}</Label>
                       <Select
-                        value={form.watch(`lines.${idx}.chart_of_account_id`) || ""}
+                        value={watchedLines?.[idx]?.chart_of_account_id || ""}
                         onValueChange={(v) => form.setValue(`lines.${idx}.chart_of_account_id`, v, { shouldDirty: true })}
                         disabled={isLockedJournal}
                       >

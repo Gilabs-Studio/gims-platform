@@ -141,8 +141,8 @@ export function AgingReportsView() {
   const arQuery = useFinanceARAging(baseParams);
   const apQuery = useFinanceAPAging(baseParams);
 
-  const arRows = arQuery.data?.data?.rows ?? [];
-  const apRows = apQuery.data?.data?.rows ?? [];
+  const arRows = useMemo(() => arQuery.data?.data?.rows ?? [], [arQuery.data?.data?.rows]);
+  const apRows = useMemo(() => apQuery.data?.data?.rows ?? [], [apQuery.data?.data?.rows]);
 
   const arSummary = arQuery.data?.data?.summary;
   const apSummary = apQuery.data?.data?.summary;
