@@ -25,6 +25,7 @@ export interface GoodsReceiptListParams {
   per_page?: number;
   search?: string;
   status?: string;
+  warehouse_id?: string;
   sort_by?: string;
   sort_dir?: string;
   limit?: number;
@@ -133,6 +134,7 @@ export interface GoodsReceiptItemInput {
 export interface CreateGoodsReceiptInput {
   purchase_order_id: string;
   warehouse_id: string;
+  receipt_date?: string | null;
   notes?: string | null;
   proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];
@@ -140,6 +142,7 @@ export interface CreateGoodsReceiptInput {
 
 export interface UpdateGoodsReceiptInput {
   warehouse_id: string;
+  receipt_date?: string | null;
   notes?: string | null;
   proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];

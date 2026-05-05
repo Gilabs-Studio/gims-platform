@@ -13,6 +13,7 @@ export const goodsReceiptSchema = z
   .object({
     purchase_order_id: z.string().uuid(),
     warehouse_id: z.string().uuid(),
+    receipt_date: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     proof_image_url: z.string().nullable().optional(),
     items: z.array(goodsReceiptItemSchema).min(1),

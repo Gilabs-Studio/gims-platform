@@ -326,6 +326,12 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                         <TableCell>{gr.receipt_date ? formatDate(gr.receipt_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("columns.warehouse")}</TableCell>
+                        <TableCell>{gr.warehouse?.name || "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("fields.receiptDate")}</TableCell>
+                        <TableCell>{gr.receipt_date ? formatDate(gr.receipt_date) : "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.status")}</TableCell>
                         <TableCell>
                           {hasPurchaseReturn ? (

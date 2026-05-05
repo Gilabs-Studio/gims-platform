@@ -22,12 +22,13 @@ type GoodsReceiptRepository interface {
 }
 
 type GoodsReceiptListParams struct {
-	Search  string
-	Status  string
-	SortBy  string
-	SortDir string
-	Limit   int
-	Offset  int
+	Search      string
+	Status      string
+	WarehouseID string
+	SortBy      string
+	SortDir     string
+	Limit       int
+	Offset      int
 }
 
 type goodsReceiptRepository struct {
@@ -58,6 +59,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	if strings.TrimSpace(params.Status) != "" {
 		base = base.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
 	}
+	if strings.TrimSpace(params.WarehouseID) != "" {
+		base = base.Where("warehouse_id = ?", strings.TrimSpace(params.WarehouseID))
+	}
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -70,6 +74,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Where("goods_receipts.supplier_name_snapshot ILIKE ? OR goods_receipts.code ILIKE ? OR goods_receipts.notes ILIKE ?", pattern, pattern, pattern)
+	}
+	if strings.TrimSpace(params.WarehouseID) != "" {
+		query = query.Where("warehouse_id = ?", strings.TrimSpace(params.WarehouseID))
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))

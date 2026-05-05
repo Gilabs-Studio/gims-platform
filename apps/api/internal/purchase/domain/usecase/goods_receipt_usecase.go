@@ -175,12 +175,21 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			return err
 		}
 
+		var receiptDate *time.Time
+		if req.ReceiptDate != nil && strings.TrimSpace(*req.ReceiptDate) != "" {
+			parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.ReceiptDate))
+			if err != nil {
+				return fmt.Errorf("invalid receipt_date format: %w", err)
+			}
+			receiptDate = &parsed
+		}
+
 		gr := &models.GoodsReceipt{
 			Code:            code,
 			PurchaseOrderID: po.ID,
 			WarehouseID:     &warehouseID,
 			SupplierID:      supplierID,
-			ReceiptDate:     nil,
+			ReceiptDate:     receiptDate,
 			Notes:           req.Notes,
 			ProofImageURL:   req.ProofImageURL,
 			Status:          models.GoodsReceiptStatusDraft,
@@ -295,13 +304,22 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 	before := grAuditSnapshot(existing)
 
+	receiptDate := existing.ReceiptDate
+	if req.ReceiptDate != nil && strings.TrimSpace(*req.ReceiptDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.ReceiptDate))
+		if err != nil {
+			return nil, fmt.Errorf("invalid receipt_date format: %w", err)
+		}
+		receiptDate = &parsed
+	}
+
 	gr := &models.GoodsReceipt{
 		ID:              existing.ID,
 		Code:            existing.Code,
 		PurchaseOrderID: existing.PurchaseOrderID,
 		WarehouseID:     &warehouseID,
 		SupplierID:      existing.SupplierID,
-		ReceiptDate:     existing.ReceiptDate,
+		ReceiptDate:     receiptDate,
 		Notes:           req.Notes,
 		ProofImageURL:   req.ProofImageURL,
 		Status:          existing.Status,

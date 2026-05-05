@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { FieldErrors, SubmitErrorHandler } from "react-hook-form";
 import { toast } from "sonner";
-import { FileText, ShoppingCart } from "lucide-react";
+import { FileText, ShoppingCart, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +18,8 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ButtonLoading } from "@/components/loading";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -103,7 +105,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
-    defaultValues: { purchase_order_id: "", warehouse_id: "", notes: null, proof_image_url: null, items: [] },
+    defaultValues: { purchase_order_id: "", warehouse_id: "", receipt_date: null, notes: null, proof_image_url: null, items: [] },
     mode: "onSubmit",
   });
 
@@ -155,9 +157,12 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     if (!open) return;
     queueMicrotask(() => setActiveTab("basic"));
     if (!isEdit) {
+      const today = new Date();
+      const dateStr = today.toISOString().split("T")[0];
       resetForm({
         purchase_order_id: defaultPurchaseOrderId ?? "",
         warehouse_id: "",
+        receipt_date: dateStr,
         notes: null,
         proof_image_url: null,
         items: [],
@@ -171,6 +176,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     resetForm({
       purchase_order_id: grDetailSnapshot.purchase_order?.id ?? "",
       warehouse_id: grDetailSnapshot.warehouse_id ?? grDetailSnapshot.warehouse?.id ?? "",
+      receipt_date: grDetailSnapshot.receipt_date ?? null,
       notes: grDetailSnapshot.notes ?? null,
       proof_image_url: grDetailSnapshot.proof_image_url ?? null,
       items: grDetailSnapshot.items.map((it) => ({
@@ -258,6 +264,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
           id: goodsReceiptId,
           data: {
             warehouse_id: values.warehouse_id,
+            receipt_date: values.receipt_date ?? null,
             notes: values.notes ?? null,
             proof_image_url: values.proof_image_url ?? null,
             items: normalizedItems,
@@ -268,6 +275,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
         const result = await createMutation.mutateAsync({
           purchase_order_id: values.purchase_order_id,
           warehouse_id: values.warehouse_id,
+          receipt_date: values.receipt_date ?? null,
           notes: values.notes ?? null,
           proof_image_url: values.proof_image_url ?? null,
           items: normalizedItems,
@@ -409,6 +417,53 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                     />
                     {form.formState.errors.warehouse_id?.message ? (
                       <FieldError>{String(form.formState.errors.warehouse_id.message)}</FieldError>
+                    ) : null}
+                  </Field>
+
+                  <Field data-invalid={!!form.formState.errors.receipt_date} orientation="vertical">
+                    <FieldLabel>{t("fields.receiptDate")}</FieldLabel>
+                    <Controller
+                      name="receipt_date"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground",
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value
+                                ? new Date(field.value + "T00:00:00").toLocaleDateString()
+                                : t("placeholders.selectDate") || "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={
+                                field.value
+                                  ? new Date(field.value + "T00:00:00")
+                                  : undefined
+                              }
+                              onSelect={(date: Date | undefined) => {
+                                field.onChange(
+                                  date
+                                    ? date.toISOString().split("T")[0]
+                                    : null,
+                                );
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    />
+                    {form.formState.errors.receipt_date?.message ? (
+                      <FieldError>{String(form.formState.errors.receipt_date.message)}</FieldError>
                     ) : null}
                   </Field>
                 </div>

@@ -84,6 +84,7 @@ export function GoodsReceiptsList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -122,6 +123,7 @@ export function GoodsReceiptsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
+    warehouse_id: warehouseFilter === "all" ? undefined : warehouseFilter,
     sort_by: "created_at",
     sort_dir: "desc",
   });
@@ -226,6 +228,34 @@ export function GoodsReceiptsList() {
           </SelectContent>
         </Select>
 
+        {/* Warehouse filter */}
+        <Select
+          value={warehouseFilter}
+          onValueChange={(v) => {
+            setWarehouseFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder={t("columns.warehouse") || "Warehouse"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tCommon("all")}</SelectItem>
+            {items.reduce((wh, gr) => {
+              if (gr.warehouse && !wh.find((w) => w?.id === gr.warehouse?.id)) {
+                wh.push(gr.warehouse);
+              }
+              return wh;
+            }, [] as (typeof items[0]["warehouse"] | undefined)[]).map((warehouse) => (
+              warehouse && (
+                <SelectItem key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </SelectItem>
+              )
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="flex-1" />
 
         {canExport && (
@@ -260,8 +290,7 @@ export function GoodsReceiptsList() {
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
-              <TableHead>{t("columns.supplier")}</TableHead>
-              <TableHead>{t("columns.receiptDate")}</TableHead>
+              <TableHead>{t("columns.supplier")}</TableHead>                <TableHead>{t("columns.warehouse") || "Warehouse"}</TableHead>              <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
@@ -329,6 +358,9 @@ export function GoodsReceiptsList() {
                         <span>{it.supplier.name}</span>
                       )
                     ) : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {it.warehouse?.name || "-"}
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
