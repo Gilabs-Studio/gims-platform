@@ -2,7 +2,7 @@ export { AssetMasterDataForm } from "./asset-master-data-form";
 export type { AssetMasterDataFormValues } from "./asset-master-data-form";
 export { assetMasterDataFormSchema } from "./asset-master-data-form";
 
-export { AssetAcquisitionForm } from "./asset-acquisition-form";
+export { default as AssetAcquisitionForm } from "./asset-acquisition-form";
 export type { AssetAcquisitionFormValues } from "./asset-acquisition-form";
 export { assetAcquisitionFormSchema } from "./asset-acquisition-form";
 
