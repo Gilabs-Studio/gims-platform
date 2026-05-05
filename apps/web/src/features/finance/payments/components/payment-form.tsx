@@ -4,7 +4,7 @@ import { useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -226,6 +226,8 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "allocations" });
+  const watchedBankAccountId = useWatch({ control: form.control, name: "bank_account_id" });
+  const watchedAllocations = useWatch({ control: form.control, name: "allocations" });
 
   useEffect(() => {
     if (open) {
@@ -304,7 +306,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
               <div className="space-y-2">
                 <Label>{t("fields.bankAccount")}</Label>
                 <Select
-                  value={form.watch("bank_account_id") || ""}
+                  value={watchedBankAccountId || ""}
                   onValueChange={(v) => form.setValue("bank_account_id", v, { shouldDirty: true })}
                 >
                   <SelectTrigger className="cursor-pointer">
@@ -337,7 +339,8 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
 
               <div className="p-3 space-y-6">
                 {fields.map((f, idx) => {
-                  const currentRefType = form.watch(`allocations.${idx}.reference_type`);
+                  const currentAllocation = watchedAllocations?.[idx];
+                  const currentRefType = currentAllocation?.reference_type;
                   
                   return (
                     <div key={f.id} className="space-y-4 p-4 border rounded-xl bg-card/50 relative shadow-sm border-muted-foreground/10 transition-all hover:border-primary/20">
@@ -367,7 +370,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.selectDocument")}</Label>
                           <DocumentFetcher
                             refType={currentRefType}
-                            value={form.watch(`allocations.${idx}.reference_id`)}
+                            value={currentAllocation?.reference_id}
                             onChange={(v, item) => {
                               form.setValue(`allocations.${idx}.reference_id`, v, { shouldValidate: true });
                               if (item?.balance) {
@@ -412,7 +415,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                             <Badge variant="secondary" className="text-[10px] font-medium h-4 py-0 leading-none">SYSTEM MAPPED</Badge>
                           </Label>
                           <Select
-                            value={form.watch(`allocations.${idx}.chart_of_account_id`) || ""}
+                            value={currentAllocation?.chart_of_account_id || ""}
                             disabled
                           >
                             <SelectTrigger className="h-10 bg-muted/50 border-dashed opacity-80 cursor-not-allowed">

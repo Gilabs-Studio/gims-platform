@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -18,14 +17,12 @@ import { useExportProgress } from "@/lib/use-export-progress";
 
 interface ExportDialogProps {
   valuationRunId: string | null;
-  valuationType?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ExportDialog({
   valuationRunId,
-  valuationType,
   open,
   onOpenChange,
 }: ExportDialogProps) {

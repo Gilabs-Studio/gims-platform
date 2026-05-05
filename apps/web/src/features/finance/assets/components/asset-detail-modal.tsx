@@ -27,9 +27,6 @@ import {
   RotateCcw,
   Shield,
   ShieldCheck,
-  ShoppingCart,
-  Settings,
-  Package,
 } from "lucide-react";
 
 import {
@@ -1223,7 +1220,7 @@ export function AssetDetailModal({
                   asset={asset}
                   category={asset.category || undefined}
                   isLoading={isLoading}
-                  onUpdateConfig={async (config) => {
+                  onUpdateConfig={async () => {
                     // TODO: Implement API call to update depreciation config
                     toast.success(t("toast.depreciationConfigUpdated"));
                   }}
@@ -1235,11 +1232,11 @@ export function AssetDetailModal({
                 <AssetComponentsTab
                   asset={asset}
                   isLoading={isLoading}
-                  onAddComponent={async (componentId) => {
+                  onAddComponent={async () => {
                     // TODO: Implement API call to add component
                     toast.success(t("toast.componentAdded"));
                   }}
-                  onRemoveComponent={async (componentId) => {
+                  onRemoveComponent={async () => {
                     // TODO: Implement API call to remove component
                     toast.success(t("toast.componentRemoved"));
                   }}

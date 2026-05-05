@@ -25,9 +25,6 @@ function HalfCircleProgress({ percent }: { readonly percent: number }) {
   const cx = 70;
   const cy = 70;
   // Arc from 180° to 0° (left to right across the top, i.e. the top semicircle)
-  const startAngle = Math.PI; // 180°
-  const endAngle = 0; // 0°
-
   // For a half circle, we sweep from 180° (left) through 270° (bottom) to 0°/360° (right)
   // Actually for a gauge from left to right (top), we go from 180° to 360°
   const gaugeStart = Math.PI; // 180°

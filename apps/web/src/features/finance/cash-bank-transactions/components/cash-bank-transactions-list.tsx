@@ -67,7 +67,7 @@ export function CashBankTransactionsList() {
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: companiesData } = useCompanies({ page: 1, per_page: 100, is_active: true });
-  const companies = companiesData?.data ?? [];
+  const companies = useMemo(() => companiesData?.data ?? [], [companiesData?.data]);
 
   const { data: formData } = useCashBankTransactionFormData(companyId || undefined, {
     enabled: isCreateOpen,

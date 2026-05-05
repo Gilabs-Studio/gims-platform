@@ -32,7 +32,7 @@ export function BalanceSheetView() {
   const tCommon = useTranslations("common");
   const canExport = useUserPermission("balance_sheet_report.export");
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: new Date(now.getFullYear(), 0, 1),
     to: now,
@@ -57,25 +57,30 @@ export function BalanceSheetView() {
     setExpanded((prev) => ({ ...prev, [accountID]: !prev[accountID] }));
   };
 
-  const flattenRows = (rows: BSReportRow[], parentVisible = true): Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> => {
-    const out: Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> = [];
-    for (const row of rows) {
-      const children = row.children ?? [];
-      const hasChildren = children.length > 0;
-      const rowVisible = parentVisible;
-      out.push({ row, hasChildren, visible: rowVisible });
-      const isOpen = row.account_id ? expanded[row.account_id] ?? true : true;
-      const childVisible = rowVisible && (!hasChildren || isOpen);
-      out.push(...flattenRows(children, childVisible));
-    }
-    return out;
-  };
+  const sectionRows = useMemo(() => {
+    const flattenRows = (
+      rows: BSReportRow[],
+      parentVisible = true,
+    ): Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> => {
+      const out: Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> = [];
+      for (const row of rows) {
+        const children = row.children ?? [];
+        const hasChildren = children.length > 0;
+        const rowVisible = parentVisible;
+        out.push({ row, hasChildren, visible: rowVisible });
+        const isOpen = row.account_id ? expanded[row.account_id] ?? true : true;
+        const childVisible = rowVisible && (!hasChildren || isOpen);
+        out.push(...flattenRows(children, childVisible));
+      }
+      return out;
+    };
 
-  const sectionRows = useMemo(() => ({
-    assets: flattenRows(report?.assets ?? []),
-    liabilities: flattenRows(report?.liabilities ?? []),
-    equities: flattenRows(report?.equities ?? []),
-  }), [report?.assets, report?.liabilities, report?.equities, expanded]);
+    return {
+      assets: flattenRows(report?.assets ?? []),
+      liabilities: flattenRows(report?.liabilities ?? []),
+      equities: flattenRows(report?.equities ?? []),
+    };
+  }, [report?.assets, report?.liabilities, report?.equities, expanded]);
 
   const isBalanced = report?.is_balanced ?? true;
   const imbalanceAmount = report?.imbalance_amount ?? 0;
@@ -155,7 +160,7 @@ export function BalanceSheetView() {
 
       {/* Summary metrics */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-        {metrics.map(({ label, value, Icon, desc }, i) => (
+        {metrics.map(({ label, value, Icon, desc }) => (
           <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-primary/10 rounded-full text-primary">

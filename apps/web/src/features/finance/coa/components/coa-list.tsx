@@ -117,7 +117,7 @@ export function CoaList() {
   const deleteMutation = useDeleteFinanceCoa();
   const updateMutation = useUpdateFinanceCoa();
 
-  const tree = data?.data ?? [];
+  const tree = useMemo(() => data?.data ?? [], [data?.data]);
   const flat = useMemo(() => flatten(tree), [tree]);
   const parentRows = useMemo(() => tree.map((node) => toFlatNode(node, 0)), [tree]);
 

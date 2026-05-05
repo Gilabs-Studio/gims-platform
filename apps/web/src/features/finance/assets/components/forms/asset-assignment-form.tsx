@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { User, Building2, MapPin, CalendarDays, FileText } from "lucide-react";
@@ -25,7 +25,7 @@ import {
 
 // Service import - adjust path as needed for your project structure
 const employeeService = {
-  list: async (params?: unknown) => ({ data: [] as EmployeeOption[] }),
+  list: async () => ({ data: [] as EmployeeOption[] }),
 };
 
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
@@ -126,6 +126,8 @@ export function AssetAssignmentForm({
     defaultValues,
     mode: "onChange",
   });
+
+  const notesValue = useWatch({ control: form.control, name: "notes" }) ?? "";
 
   useEffect(() => {
     form.reset(defaultValues);
@@ -471,7 +473,7 @@ export function AssetAssignmentForm({
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
             <span>{t("fields.optional")}</span>
-            <span>{(form.watch("notes") || "").length}/500</span>
+            <span>{notesValue.length}/500</span>
           </div>
           {form.formState.errors.notes && (
             <FieldError>{form.formState.errors.notes.message}</FieldError>

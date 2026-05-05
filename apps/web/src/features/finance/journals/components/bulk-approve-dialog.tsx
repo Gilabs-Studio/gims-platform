@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";

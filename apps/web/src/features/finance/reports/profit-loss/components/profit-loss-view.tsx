@@ -6,7 +6,7 @@ import { ChevronDown, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -92,7 +92,7 @@ export function ProfitLossView() {
 
       {/* Summary metrics */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-        {metrics.map(({ label, value, Icon, desc, valueClass }, i) => (
+        {metrics.map(({ label, value, Icon, desc, valueClass }) => (
           <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-primary/10 rounded-full text-primary">

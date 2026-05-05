@@ -17,7 +17,6 @@ import { Link } from "@/i18n/routing";
 import { formatCurrency } from "@/lib/utils";
 
 import { useCashFlowStatement } from "../hooks/use-cash-flow-statement";
-import type { CashFlowSection } from "../types";
 
 function toApiDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -27,7 +26,7 @@ export function CashFlowStatementView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: new Date(now.getFullYear(), 0, 1),
     to: now,

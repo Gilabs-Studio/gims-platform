@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,11 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
     }
   }, [open, defaultValues, form]);
 
+  const companyId = useWatch({ control: form.control, name: "company_id" });
+  const currencyId = useWatch({ control: form.control, name: "currency_id" });
+  const chartOfAccountId = useWatch({ control: form.control, name: "chart_of_account_id" });
+  const isActive = useWatch({ control: form.control, name: "is_active" });
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: BankAccountFormValues) => {
@@ -133,7 +138,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
           <div className="space-y-2">
             <Label>{t("fields.company")}</Label>
             <Select
-              value={form.watch("company_id") || ""}
+              value={companyId || ""}
               onValueChange={(value) => form.setValue("company_id", value, { shouldDirty: true, shouldValidate: true })}
             >
               <SelectTrigger className="cursor-pointer">
@@ -174,7 +179,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
             <div className="space-y-2">
               <Label>{t("fields.currency")}</Label>
               <Select
-                value={form.watch("currency_id") || ""}
+                value={currencyId || ""}
                 onValueChange={(value) => form.setValue("currency_id", value, { shouldDirty: true, shouldValidate: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -203,7 +208,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
           <div className="space-y-2">
             <Label>{t("fields.coa")}</Label>
             <Select
-              value={form.watch("chart_of_account_id") ?? "__none__"}
+              value={chartOfAccountId ?? "__none__"}
               onValueChange={(v) => form.setValue("chart_of_account_id", v === "__none__" ? null : v, { shouldDirty: true })}
             >
               <SelectTrigger className="cursor-pointer">
@@ -227,7 +232,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
               <div className="text-sm font-medium">{t("fields.status")}</div>
             </div>
             <Switch
-              checked={form.watch("is_active") ?? true}
+              checked={isActive ?? true}
               onCheckedChange={(checked) => form.setValue("is_active", checked, { shouldDirty: true })}
               className="cursor-pointer"
             />

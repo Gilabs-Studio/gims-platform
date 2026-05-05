@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -17,7 +18,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -39,7 +39,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceAssetCategory } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
-import type { Asset, AssetCategoryLite } from "@/features/finance/assets/types";
+import type { Asset } from "@/features/finance/assets/types";
 import { DatePicker } from "../date-picker";
 
 export type DepreciationMethod = "SL" | "DB" | "SYD" | "UOP" | "NONE";
@@ -132,10 +132,9 @@ export function AssetDepreciationConfigForm({
   } | null>(null);
 
   // Fetch category to get defaults
-  const { data: categoryData, isLoading: isCategoryLoading } =
-    useFinanceAssetCategory(asset?.category_id ?? "", {
-      enabled: !!asset?.category_id,
-    });
+  const { data: categoryData } = useFinanceAssetCategory(asset?.category_id ?? "", {
+    enabled: !!asset?.category_id,
+  });
   const category = categoryData?.data;
 
   const defaultValues: AssetDepreciationConfigFormValues = useMemo(
@@ -175,11 +174,9 @@ export function AssetDepreciationConfigForm({
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
-  const useCategoryDefaults = form.watch("use_category_defaults");
-  const selectedMethod = form.watch("depreciation_method");
-  const usefulLifeMonths = form.watch("useful_life_months");
-  const usefulLifeYears = form.watch("useful_life_years");
-  const salvageValue = form.watch("salvage_value") || 0;
+  const useCategoryDefaults = useWatch({ control: form.control, name: "use_category_defaults" });
+  const usefulLifeMonths = useWatch({ control: form.control, name: "useful_life_months" });
+  const usefulLifeYears = useWatch({ control: form.control, name: "useful_life_years" });
 
   // Auto-sync months and years
   useEffect(() => {
@@ -189,7 +186,7 @@ export function AssetDepreciationConfigForm({
         shouldValidate: false,
       });
     }
-  }, [usefulLifeMonths, form]);
+  }, [usefulLifeMonths, usefulLifeYears, form]);
 
   // Handle years change
   const handleYearsChange = (years: number) => {

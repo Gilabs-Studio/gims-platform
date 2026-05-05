@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,9 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
     if (open) form.reset(defaultValues);
   }, [open, defaultValues, form]);
 
+  const categoryId = useWatch({ control: form.control, name: "category_id" });
+  const locationId = useWatch({ control: form.control, name: "location_id" });
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: AssetFormValues) => {
@@ -140,7 +143,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
             <div className="space-y-2">
               <Label>{t("fields.category")}</Label>
               <Select
-                value={form.watch("category_id") || ""}
+                value={categoryId || ""}
                 onValueChange={(v) =>
                   form.setValue("category_id", v, { shouldDirty: true })
                 }
@@ -164,7 +167,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
             <div className="space-y-2">
               <Label>{t("fields.location")}</Label>
               <Select
-                value={form.watch("location_id") || ""}
+                value={locationId || ""}
                 onValueChange={(v) =>
                   form.setValue("location_id", v, { shouldDirty: true })
                 }

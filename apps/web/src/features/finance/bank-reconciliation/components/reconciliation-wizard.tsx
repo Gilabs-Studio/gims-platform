@@ -58,7 +58,7 @@ export function BankReconciliationWizard() {
   const lockMutation = useLockBankReconciliation();
 
   const detail = detailData?.data;
-  const lines = detail?.bank_statement_lines ?? [];
+  const lines = useMemo(() => detail?.bank_statement_lines ?? [], [detail?.bank_statement_lines]);
 
   const transactionDateRange = useMemo(() => {
     if (!statementDate) {
