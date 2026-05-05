@@ -52,6 +52,7 @@ func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) 
 			plans.POST("/:id/optimize-route", middleware.RequirePermission(travelPlannerUpdatePermission), h.OptimizeRoute)
 			plans.GET("/:id/google-maps-links", middleware.RequirePermission(travelPlannerReadPermission), h.GetGoogleMapsLinks)
 			plans.GET("/:id/export/pdf", middleware.RequirePermission(travelPlannerReadPermission), h.ExportPDF)
+			plans.GET("/:id/export/report-html", middleware.RequirePermission(travelPlannerReadPermission), h.ExportReportHTML)
 
 			plans.GET("/:id/expenses", middleware.RequirePermission(travelPlannerReadPermission), h.ListExpenses)
 			plans.POST("/:id/expenses", middleware.RequirePermission(travelPlannerUpdatePermission), h.CreateExpense)

@@ -391,6 +391,11 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			errors.ErrorResponse(c, "COMPANY_NAME_TAKEN", map[string]interface{}{
 				"field": "company_name",
 			}, nil)
+		case usecase.ErrCompanyNameRequired:
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+				"field":   "company_name",
+				"message": "Company name is required",
+			}, nil)
 		case usecase.ErrPaymentRequired:
 			errors.ErrorResponse(c, "PAYMENT_REQUIRED", map[string]interface{}{
 				"message": "A valid coupon or subscription plan is required to register",

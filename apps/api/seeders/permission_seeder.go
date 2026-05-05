@@ -45,10 +45,7 @@ func SeedPermissions() error {
 
 		// Master Data - Organization
 		{"/master-data/company", "company.read", "View Company", "VIEW", "company"},
-		{"/master-data/company", "company.create", "Create Company", "CREATE", "company"},
 		{"/master-data/company", "company.update", "Edit Company", "EDIT", "company"},
-		{"/master-data/company", "company.delete", "Delete Company", "DELETE", "company"},
-		{"/master-data/company", "company.approve", "Approve Company", "APPROVE", "company"},
 
 		{"/master-data/divisions", "division.read", "View Divisions", "VIEW", "division"},
 		{"/master-data/divisions", "division.create", "Create Divisions", "CREATE", "division"},
@@ -798,6 +795,8 @@ func SeedPermissions() error {
 
 	// Remove legacy permissions whose pages were removed from dashboard.
 	removeDeprecatedPermissions([]string{
+		"company.create",
+		"company.delete",
 		"sales_estimation.read",
 		"sales_estimation.create",
 		"sales_estimation.update",

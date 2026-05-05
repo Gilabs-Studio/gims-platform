@@ -45,6 +45,13 @@
       "checklistPrompt": "Complete these steps to get your workspace ready ({done}/{total} done)",
       "dismiss": "Skip for now",
       "markDone": "Complete setup",
+      "accessSetup": {
+        "title": "Role & employee access setup",
+        "description": "Set role permissions and employee access scope before your team starts using the workspace.",
+        "rolePermissions": "Configure role permissions",
+        "employeeAccessFnb": "Set employee access for outlets and cashier flow",
+        "employeeAccessOther": "Set employee access for warehouse and operations"
+      },
       "types": {
         "fnb": {
           "label": "Food & Beverage",

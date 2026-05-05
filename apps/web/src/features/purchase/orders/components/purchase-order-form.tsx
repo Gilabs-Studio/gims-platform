@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import type { Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
@@ -61,27 +61,6 @@ function todayISO(): string {
 }
 
 const NONE_VALUE = "__none__";
-
-function collectErrorPaths(errs: FieldErrors, prefix = ""): string[] {
-  const out: string[] = [];
-  for (const [key, value] of Object.entries(errs)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (!value) continue;
-    if (Array.isArray(value)) {
-      value.forEach((child, idx) => {
-        if (child) out.push(...collectErrorPaths(child as FieldErrors, `${path}[${idx}]`));
-      });
-      continue;
-    }
-    const maybeLeaf = value as { message?: unknown };
-    if (typeof maybeLeaf.message === "string" && maybeLeaf.message.length > 0) {
-      out.push(path);
-      continue;
-    }
-    out.push(...collectErrorPaths(value as FieldErrors, path));
-  }
-  return Array.from(new Set(out));
-}
 
 interface PurchaseOrderFormProps {
   readonly open: boolean;
@@ -172,7 +151,6 @@ export function PurchaseOrderForm({
     control,
     setValue,
     reset,
-    watch,
     trigger,
     formState: { errors },
   } = useForm<PurchaseOrderFormData>({
@@ -197,7 +175,7 @@ export function PurchaseOrderForm({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const source = watch("source");
+  const source = useWatch({ control, name: "source" });
 
   const approvedPRsQuery = useApprovedPurchaseRequisitions({ enabled: open && !isEdit && source === "pr" });
   const approvedSOsQuery = useApprovedSalesOrders({ enabled: open && !isEdit && source === "so" });
@@ -206,14 +184,16 @@ export function PurchaseOrderForm({
     if (!open) {
       return;
     }
-    setShouldLoadSelectData(false);
-    setShouldLoadProductOptions(false);
+    queueMicrotask(() => {
+      setShouldLoadSelectData(false);
+      setShouldLoadProductOptions(false);
+    });
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     if (isEdit) return;
-    setActiveTab("basic");
+    queueMicrotask(() => setActiveTab("basic"));
     reset({
       source: "manual",
       supplier_id: null,
@@ -234,35 +214,37 @@ export function PurchaseOrderForm({
 
   useEffect(() => {
     if (!open || !isEdit || !po) return;
-    setActiveTab("basic");
-    reset(
-      {
-        source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
-        supplier_id: po.supplier_id ?? null,
-        supplier_contact_id: null,
-        payment_terms_id: po.payment_terms_id ?? null,
-        business_unit_id: po.business_unit_id ?? null,
-        purchase_requisitions_id: po.purchase_requisitions_id ?? null,
-        sales_order_id: po.sales_order_id ?? null,
-        order_date: po.order_date,
-        due_date: po.due_date ?? null,
-        tax_rate: po.tax_rate ?? 0,
-        delivery_cost: po.delivery_cost ?? 0,
-        other_cost: po.other_cost ?? 0,
-        notes: po.notes ?? "",
-        items:
-          po.items?.length > 0
-            ? po.items.map((it) => ({
-              product_id: it.product_id,
-              quantity: it.quantity,
-              price: it.price,
-              discount: it.discount ?? 0,
-              notes: it.notes ?? null,
-            }))
-            : [{ product_id: "", quantity: 1, price: 0, discount: 0, notes: null }],
-      },
-      { keepDefaultValues: false },
-    );
+    queueMicrotask(() => {
+      setActiveTab("basic");
+      reset(
+        {
+          source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
+          supplier_id: po.supplier_id ?? null,
+          supplier_contact_id: null,
+          payment_terms_id: po.payment_terms_id ?? null,
+          business_unit_id: po.business_unit_id ?? null,
+          purchase_requisitions_id: po.purchase_requisitions_id ?? null,
+          sales_order_id: po.sales_order_id ?? null,
+          order_date: po.order_date,
+          due_date: po.due_date ?? null,
+          tax_rate: po.tax_rate ?? 0,
+          delivery_cost: po.delivery_cost ?? 0,
+          other_cost: po.other_cost ?? 0,
+          notes: po.notes ?? "",
+          items:
+            po.items?.length > 0
+              ? po.items.map((it) => ({
+                  product_id: it.product_id,
+                  quantity: it.quantity,
+                  price: it.price,
+                  discount: it.discount ?? 0,
+                  notes: it.notes ?? null,
+                }))
+              : [{ product_id: "", quantity: 1, price: 0, discount: 0, notes: null }],
+        },
+        { keepDefaultValues: false },
+      );
+    });
   }, [open, isEdit, po, reset]);
 
   const selectedSupplierId = useWatch<PurchaseOrderFormData, "supplier_id">({ control, name: "supplier_id" });
@@ -300,15 +282,12 @@ export function PurchaseOrderForm({
       return;
     }
 
-    if (!selectedSupplierWithDetail) return;
-
-    // Keep source-derived values when PO is loaded from PR/SO.
     // This prevents supplier defaults from overriding PR/SO payment terms or business unit.
     const keepSourceDerivedValues =
       (source === "pr" && !!selectedPurchaseRequisitionId) ||
       (source === "so" && !!selectedSalesOrderId);
 
-    if (!keepSourceDerivedValues) {
+    if (!keepSourceDerivedValues && selectedSupplierWithDetail) {
       setValue("payment_terms_id", selectedSupplierWithDetail.payment_terms_id ?? null, {
         shouldValidate: true,
         shouldDirty: true,
@@ -319,7 +298,7 @@ export function PurchaseOrderForm({
       });
     }
 
-    const contacts = (selectedSupplierWithDetail.contacts ?? []) as PurchaseOrderAddSupplierContact[];
+    const contacts = (selectedSupplierWithDetail?.contacts ?? []) as PurchaseOrderAddSupplierContact[];
     const defaultContact = contacts.find((ct) => ct.is_primary) ?? contacts[0];
     setValue("supplier_contact_id", defaultContact?.id ?? null, {
       shouldValidate: true,
@@ -433,7 +412,7 @@ export function PurchaseOrderForm({
     }
   };
 
-  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (_errs) => {
+  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = () => {
     toast.error(t("form.invalid"));
   };
 
@@ -446,9 +425,12 @@ export function PurchaseOrderForm({
     }, 0),
     [watchedItems],
   );
-  const taxRate = watch("tax_rate") ?? 0;
-  const deliveryCost = watch("delivery_cost") ?? 0;
-  const otherCost = watch("other_cost") ?? 0;
+  const watchedTaxRate = useWatch({ control, name: "tax_rate" }) ?? 0;
+  const watchedDeliveryCost = useWatch({ control, name: "delivery_cost" }) ?? 0;
+  const watchedOtherCost = useWatch({ control, name: "other_cost" }) ?? 0;
+  const taxRate = watchedTaxRate;
+  const deliveryCost = watchedDeliveryCost;
+  const otherCost = watchedOtherCost;
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
   const formatMoney = useCallback((v: number) => formatCurrency(v), []);
@@ -928,7 +910,11 @@ export function PurchaseOrderForm({
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })).filter((o) => {
+                                      const currentVal = watchedItems?.[idx]?.product_id;
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     createPermission="product.create"
                                     onCreateClick={() => {
                                       setPendingProductItemIdx(idx);
@@ -1011,7 +997,7 @@ export function PurchaseOrderForm({
                         <span className="font-medium ml-auto">{formatMoney(subtotal)}</span>
                       </div>
                       <div className="flex flex-wrap items-end gap-1">
-                        <span className="text-muted-foreground text-sm">{t("summary.taxAmount")} ({taxRate}%):</span>
+                        <span className="text-muted-foreground text-sm">{t("summary.taxAmount")} ({Number(taxRate)}%):</span>
                         <span className="font-medium ml-auto">{formatMoney(taxAmount)}</span>
                       </div>
                       <div className="flex flex-wrap items-end gap-1">

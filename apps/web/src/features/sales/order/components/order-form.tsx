@@ -52,15 +52,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     isFormLoading,
     fields,
     remove,
-    paymentTerms,
-    businessUnits,
-    businessTypes,
-    quotations,
-    customers,
     contacts,
     selectedContactId,
-    employees,
-    products,
     isProductsLoading,
     calculations,
     handleNext,
@@ -96,6 +89,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     productCombobox,
     customerCreditInfo,
     watchedQuotationId,
+    selectedQuotationLabel,
+    getProductLabel,
   } = useOrderForm({ order, open, onClose });
 
   const isItemsLocked = !!watchedQuotationId;
@@ -153,7 +148,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       disabled={isEdit} 
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={t("salesQuotation")} />
+                        <SelectValue placeholder={t("salesQuotation")} selectedLabel={selectedQuotationLabel} />
                       </SelectTrigger>
                       <SelectContent
                         onLoadMore={quotationCombobox.onLoadMore}
@@ -574,6 +569,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 render={({ field }) => (
                                   <CreatableCombobox
                                     value={field.value || ""}
+                                    selectedLabel={getProductLabel(field.value || "")}
                                     onValueChange={(value) => {
                                       field.onChange(value);
                                       handleProductChange(index, value);
@@ -589,7 +585,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productCombobox.options}
+                                    options={productCombobox.options.filter((o) => {
+                                      const currentVal = field.value || "";
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     isLoading={isProductsLoading}
                                     placeholder={t("item.selectProduct")}
                                   />

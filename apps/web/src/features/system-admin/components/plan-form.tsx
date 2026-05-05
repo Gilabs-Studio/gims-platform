@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
-  Minus,
   RotateCcw,
   Save,
   Search,
@@ -39,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
 import { systemAdminService } from "../services/system-admin-service";
-import type { PlanBillingType, PlanCategory, SubscriptionPlanConfig } from "../types";
+import type { PlanBillingType, PlanCategory, UpsertPlanRequest } from "../types";
 import {
   expandMasterDataMenuURLs,
   getDefaultMenuURLsForPlan,
@@ -163,15 +162,6 @@ const MenuTreeRow = memo(function MenuTreeRow({
   
   const allSelected = leafUrls.length > 0 && selectedInBranch === leafUrls.length;
   const someSelected = selectedInBranch > 0 && !allSelected;
-
-  const handleToggle = (e: React.MouseEvent | React.ChangeEvent) => {
-    e.stopPropagation();
-    if (hasChildren) {
-      onToggleAll(leafUrls, !allSelected);
-    } else if (node.url) {
-      onToggle(node.url);
-    }
-  };
 
   const paddingLeft = 12 + depth * 20;
 
@@ -374,19 +364,24 @@ export function PlanForm() {
   }, [currentPlan, isNew, reset, slug, plansData]);
 
   const mutation = useMutation({
-    mutationFn: (payload: PlanFormValues) => systemAdminService.upsertPlan(payload as any),
+    mutationFn: (payload: PlanFormValues) => {
+      const { is_active, ...request } = payload;
+      void is_active;
+      return systemAdminService.upsertPlan(request as UpsertPlanRequest);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-admin", "plans"] });
       toast.success("Plan saved successfully");
       router.push("/system/plans");
     },
-    onError: (err: any) => {
-      const message = err.response?.data?.error?.message ?? "Failed to save plan";
+    onError: (err: unknown) => {
+      const response = err as { response?: { data?: { error?: { message?: string } } } };
+      const message = response.response?.data?.error?.message ?? "Failed to save plan";
       toast.error(message);
     },
   });
 
-  const onSubmit = (data: PlanFormValues) => {
+  const onSubmit: SubmitHandler<PlanFormValues> = (data) => {
     mutation.mutate(data);
   };
 
@@ -473,7 +468,7 @@ export function PlanForm() {
 
   return (
     <PageMotion className="p-4 md:p-6">
-      <form onSubmit={handleSubmit(onSubmit as any, onInvalid)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -672,7 +667,7 @@ export function PlanForm() {
                   <Label htmlFor="billing_type" className="text-sm font-semibold ml-1">Pricing Model</Label>
                   <Select 
                     value={(watchedValues.billing_type as string) || ""} 
-                    onValueChange={(val: string) => setValue("billing_type", val as any, { shouldValidate: true })}
+                    onValueChange={(val: string) => setValue("billing_type", val as PlanBillingType, { shouldValidate: true })}
                   >
                     <SelectTrigger id="billing_type" className={cn("h-11 rounded-xl bg-muted/30 border-border/50", errors.billing_type && "border-destructive")}>
                       <SelectValue placeholder="Select Billing Type" />
@@ -935,7 +930,7 @@ export function PlanForm() {
                       <Search className="size-8 text-muted-foreground/20" />
                     </div>
                     <p className="text-lg font-semibold text-foreground/70">No matching menu titles</p>
-                    <p className="text-sm text-muted-foreground mt-1">Try searching for other keywords like "finance" or "/pos"</p>
+                    <p className="text-sm text-muted-foreground mt-1">Try searching for other keywords like &quot;finance&quot; or &quot;/pos&quot;</p>
                     <Button variant="outline" onClick={() => setSearch("")} className="mt-6 rounded-xl">Clear Search</Button>
                   </div>
                 ) : (

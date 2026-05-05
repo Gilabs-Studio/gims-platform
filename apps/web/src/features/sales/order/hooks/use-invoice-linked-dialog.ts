@@ -25,12 +25,12 @@ export function useInvoiceLinkedDialog({ open, salesOrderId }: UseInvoiceLinkedD
     null,
   );
 
-  const { data: invoiceData, isLoading: isInvoiceLoading } = useInvoices(
+  const { data: invoiceData, isLoading: isInvoiceLoading, error: invoiceError } = useInvoices(
     { sales_order_id: salesOrderId, per_page: 20 },
     { enabled: open && !!salesOrderId && canViewInvoice && activeTab === "invoices" },
   );
 
-  const { data: dpData, isLoading: isDPLoading } = useCustomerInvoiceDPs(
+  const { data: dpData, isLoading: isDPLoading, error: dpError } = useCustomerInvoiceDPs(
     { sales_order_id: salesOrderId, per_page: 20 },
     { enabled: open && !!salesOrderId && canViewDP && activeTab === "dp" },
   );
@@ -64,7 +64,7 @@ export function useInvoiceLinkedDialog({ open, salesOrderId }: UseInvoiceLinkedD
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
+    return normalized === "waiting_approval" || normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
   };
 
   return {
@@ -77,6 +77,8 @@ export function useInvoiceLinkedDialog({ open, salesOrderId }: UseInvoiceLinkedD
     dpInvoices,
     isInvoiceLoading,
     isDPLoading,
+    invoiceError,
+    dpError,
     totalDPAmount,
     totalInvoiceAmount,
     selectedInvoiceId,

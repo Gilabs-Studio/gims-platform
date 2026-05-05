@@ -721,7 +721,18 @@ export function AuditTrailTable({
               <TableRow key={entry.id}>
                 <TableCell className="font-medium text-xs">{actionLabel(entry.action)}</TableCell>
                 <TableCell className="text-sm">
-                  {entry.user?.name ?? entry.user?.email ?? "-"}
+                  {entry.user?.name ?? entry.user?.email ? (
+                    <div>
+                      <p>{entry.user.name ?? entry.user.email}</p>
+                      {entry.user?.id && (
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {entry.user.id.substring(0, 8)}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {safeDateTime(entry.created_at)}

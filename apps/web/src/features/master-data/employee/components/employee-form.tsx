@@ -67,7 +67,6 @@ import { useDivisions, useCreateDivision } from "@/features/master-data/organiza
 import { useJobPositions, useCreateJobPosition } from "@/features/master-data/organization/hooks/use-job-positions";
 import { DivisionForm } from "@/features/master-data/organization/components/division/division-form";
 import { JobPositionForm } from "@/features/master-data/organization/components/job-position/job-position-form";
-import { useCompanies, useCreateCompany } from "@/features/master-data/organization/hooks/use-companies";
 import { useCreateUser, useRoles } from "@/features/master-data/user-management/hooks/use-users";
 import { useUserLimit } from "@/features/master-data/user-management/hooks/use-user-limit";
 import { ButtonLoading } from "@/components/loading";
@@ -136,10 +135,6 @@ export function EmployeeForm({
     { per_page: 20 },
     { enabled: open },
   );
-  const { data: companiesData } = useCompanies(
-    { per_page: 20 },
-    { enabled: open },
-  );
   const { data: availableUsersData, refetch: refetchAvailableUsers } = useAvailableUsers(
     undefined,
     employee?.id,
@@ -155,7 +150,6 @@ export function EmployeeForm({
 
   const createDivision = useCreateDivision();
   const createJobPosition = useCreateJobPosition();
-  const createCompany = useCreateCompany();
 
   const createUser = useCreateUser();
   const { data: rolesData } = useRoles({ enabled: open });
@@ -163,7 +157,6 @@ export function EmployeeForm({
 
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
-  const companies = sortOptions(companiesData?.data ?? [], (c) => c.name);
   const roles = sortOptions(rolesData?.data ?? [], (r) => r.name);
 
   const availableUsers = useMemo(
@@ -533,8 +526,7 @@ export function EmployeeForm({
     bulkUpdateOutlets.isPending ||
     bulkUpdateWarehouses.isPending ||
     createDivision.isPending ||
-    createJobPosition.isPending ||
-    createCompany.isPending;
+    createJobPosition.isPending;
 
   const handleAddArea = () => {
     if (!selectedAreaId) {
@@ -600,7 +592,7 @@ export function EmployeeForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("editTitle") : t("createTitle")}
@@ -617,27 +609,27 @@ export function EmployeeForm({
         >
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
-              className={cn(
-                "grid w-full",
-                isEditing ? "grid-cols-4" : "grid-cols-5",
-              )}
+              className="flex w-full justify-start overflow-x-auto overflow-y-hidden"
             >
-              <TabsTrigger value="basic" className="cursor-pointer">
+              <TabsTrigger value="basic" className="flex-1 cursor-pointer">
                 {t("tabs.basic")}
               </TabsTrigger>
-              <TabsTrigger value="employment" className="cursor-pointer">
+              <TabsTrigger value="employment" className="flex-1 cursor-pointer">
                 {t("tabs.employment")}
               </TabsTrigger>
               {!isEditing && (
-                <TabsTrigger value="contract" className="cursor-pointer">
+                <TabsTrigger value="contract" className="flex-1 cursor-pointer">
                   {t("tabs.contract")}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="areas" className="cursor-pointer">
+              <TabsTrigger value="areas" className="flex-1 cursor-pointer">
                 {t("tabs.areas")}
               </TabsTrigger>
-              <TabsTrigger value="scope" className="cursor-pointer">
-                {t("tabs.scope")}
+              <TabsTrigger value="outlets" className="flex-1 cursor-pointer">
+                {t("form.outletsLabel")}
+              </TabsTrigger>
+              <TabsTrigger value="warehouses" className="flex-1 cursor-pointer">
+                {t("form.warehousesLabel")}
               </TabsTrigger>
             </TabsList>
 
@@ -963,39 +955,6 @@ export function EmployeeForm({
                   />
                 </Field>
               </div>
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.company")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="company_id"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      options={companies.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                      }))}
-                      value={field.value || ""}
-                      onValueChange={field.onChange}
-                      placeholder={t("form.companyPlaceholder")}
-                      createPermission="company.create"
-                      onCreateClick={async (query) => {
-                        try {
-                          const res = await createCompany.mutateAsync({
-                            name: query,
-                            is_active: true,
-                          });
-                          field.onChange(res.data.id);
-                          toast.success(t("createSuccess"));
-                        } catch {
-                          toast.error("Failed to create company");
-                        }
-                      }}
-                      isLoading={createCompany.isPending}
-                      disabled={createCompany.isPending}
-                    />
-                  )}
-                />
-              </Field>
               <Field orientation="vertical">
                 <FieldLabel>{t("form.totalLeaveQuota")}</FieldLabel>
                 <Input
@@ -1354,7 +1313,7 @@ export function EmployeeForm({
               )}
             </TabsContent>
 
-            <TabsContent value="scope" className="space-y-4 mt-4">
+            <TabsContent value="outlets" className="space-y-4 mt-4">
               <p className="text-sm text-muted-foreground">
                 {t("form.scopeDescription")}
               </p>
@@ -1417,7 +1376,9 @@ export function EmployeeForm({
                   </div>
                 )}
               </div>
+            </TabsContent>
 
+            <TabsContent value="warehouses" className="space-y-4 mt-4">
               <div className="space-y-3">
                 <p className="text-sm font-medium">{t("form.warehousesLabel")}</p>
                 <div className="flex gap-2">

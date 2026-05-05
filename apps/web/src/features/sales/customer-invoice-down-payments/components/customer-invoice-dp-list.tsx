@@ -43,9 +43,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
-import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
+import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
@@ -99,6 +98,7 @@ function normalizeStatus(status?: string | null): string {
 function isPaymentStatus(status?: string | null): boolean {
   const normalized = normalizeStatus(status);
   return (
+    normalized === "waiting_approval" ||
     normalized === "waiting_payment" ||
     normalized === "paid" ||
     normalized === "partial" ||
@@ -179,11 +179,10 @@ export function CustomerInvoiceDPList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
-  const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenCustomerInvoiceDPFromURL);
 
   const [deletingRow, setDeletingRow] = useState<CustomerInvoiceDPListItem | null>(null);
-  const [printingDPId, setPrintingDPId] = useState<string | null>(null);
+
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [createPaymentForDPId, setCreatePaymentForDPId] = useState<string | null>(null);
@@ -208,12 +207,6 @@ export function CustomerInvoiceDPList() {
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -301,6 +294,13 @@ export function CustomerInvoiceDPList() {
         return (
           <Badge variant="warning" className="text-xs font-medium">
             <CreditCard className="h-3 w-3 mr-1.5" />
+            {statusLabel(t, status)}
+          </Badge>
+        );
+      case "waiting_approval":
+        return (
+          <Badge variant="info" className="text-xs font-medium">
+            <Clock className="h-3 w-3 mr-1.5" />
             {statusLabel(t, status)}
           </Badge>
         );
@@ -440,7 +440,9 @@ export function CustomerInvoiceDPList() {
                   <TableCell className="font-medium">
                     <button
                       className="font-mono font-medium text-primary hover:underline cursor-pointer"
-                      onClick={() => { setDetailId(row.id); setDetailOpen(true); }}
+                      onClick={() => {
+                        setDetailId(row.id);
+                      }}
                     >
                       {row.code}
                     </button>
@@ -529,7 +531,6 @@ export function CustomerInvoiceDPList() {
                             className="cursor-pointer"
                             onClick={() => {
                               setDetailId(row.id);
-                              setDetailOpen(true);
                             }}
                           >
                             <Eye className="h-4 w-4 mr-2" />
@@ -581,7 +582,7 @@ export function CustomerInvoiceDPList() {
                           {canPrint ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-primary focus:text-primary"
-                              onClick={() => setPrintingDPId(row.id)}
+                              onClick={() => { customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error("Print failed")); }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {tCommon("print")}
@@ -593,42 +594,6 @@ export function CustomerInvoiceDPList() {
                             <DropdownMenuItem
                               className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => {
-                                try {
-                                  queryClient.cancelQueries({ queryKey: customerInvoiceDPKeys.lists() });
-                                  queryClient.setQueriesData({ queryKey: customerInvoiceDPKeys.lists() }, (old: unknown) => {
-                                    if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
-                                      return old;
-                                    }
-
-                                    const previous = old as QueryListData<CustomerInvoiceDPListItem>;
-                                    return {
-                                      ...previous,
-                                      data: previous.data.map((dp) => (dp.id === row.id ? { ...dp, status: "waiting_payment" } : dp)),
-                                    };
-                                  });
-
-                                  const soId = row.sales_order?.id;
-                                  if (soId) {
-                                    queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: unknown) => {
-                                      if (!old || typeof old !== "object" || !Array.isArray((old as QueryListData<unknown>).data)) {
-                                        return old;
-                                      }
-
-                                      const previous = old as QueryListData<CachedOrderLike>;
-                                      return {
-                                        ...previous,
-                                        data: previous.data.map((order) => {
-                                          if (order.id !== soId) return order;
-                                          const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
-                                          return {
-                                            ...order,
-                                            customer_invoices: existing.map((ci) => (ci.id === row.id ? { ...ci, status: "waiting_payment" } : ci)),
-                                          };
-                                        }),
-                                      };
-                                    });
-                                  }
-                                } catch {}
                                 setCreatePaymentForDPId(row.id);
                               }}
                             >
@@ -667,8 +632,12 @@ export function CustomerInvoiceDPList() {
       />
 
       <CustomerInvoiceDPDetailModal
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
+        open={!!detailId}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setDetailId(null);
+          }
+        }}
         id={detailId}
       />
 
@@ -682,14 +651,6 @@ export function CustomerInvoiceDPList() {
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
       />
-
-      {printingDPId && (
-        <CustomerInvoiceDPPrintDialog
-          open={!!printingDPId}
-          onClose={() => setPrintingDPId(null)}
-          invoiceDpId={printingDPId}
-        />
-      )}
 
       {selectedCustomer && (
         <CustomerDetailModal

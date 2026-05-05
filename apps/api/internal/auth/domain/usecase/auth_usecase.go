@@ -46,6 +46,7 @@ var (
 	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
 	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
 	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
+	ErrCompanyNameRequired            = errors.New("company name is required")
 	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
 	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
 	ErrPendingBillingChangeNotFound   = errors.New("pending billing change not found or expired")
@@ -651,7 +652,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 
 	companyName := strings.TrimSpace(req.CompanyName)
 	if companyName == "" {
-		companyName = req.Name
+		return nil, ErrCompanyNameRequired
 	}
 
 	// Generate a unique registration token (used as Xendit external_id and Redis key).
@@ -1133,7 +1134,7 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 
 		companyName := strings.TrimSpace(req.CompanyName)
 		if companyName == "" {
-			companyName = req.Name
+			return ErrCompanyNameRequired
 		}
 
 		slug := buildUniqueTenantSlug(companyName)
@@ -1480,19 +1481,11 @@ func (u *authUsecase) createTenantOwnerRole(tx *gorm.DB, tenantID, companyName, 
 }
 
 func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planSlug, tenantID string, roleTemplates tenantModels.RoleTemplateList) error {
-	assignments, err := u.collectPlanPermissionAssignments(tx, planSlug)
-	if err != nil {
-		return err
-	}
-
-	allowedPerms := make(map[string]string)
-	for _, a := range assignments {
-		allowedPerms[a.Code] = a.PermissionID
-	}
-
 	// Create role for each template directly from roleTemplates parameter,
 	// without querying database to avoid cross-tenant or wrong template mismatches.
 	// Template is already dynamically set per plan and should not be overridden.
+	// Non-owner roles are intentionally created empty so onboarding can assign
+	// permissions explicitly instead of inheriting the plan-wide permission set.
 	for _, roleTemplate := range roleTemplates {
 		tCode := strings.TrimSpace(strings.ToLower(roleTemplate.Code))
 		if tCode == "" || tCode == "tenant_owner" {
@@ -1522,30 +1515,9 @@ func (u *authUsecase) generateDefaultTenantRoles(tx *gorm.DB, companyName, planS
 		); err != nil {
 			return err
 		}
-
-		// Assign all allowed permissions from plan to this role
-		for _, pid := range getPermissionIDsForRoleCode(allowedPerms, tCode) {
-			if err := tx.Exec(
-				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, 'ALL')",
-				newRoleID,
-				pid,
-			).Error; err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
-}
-
-// getPermissionIDsForRoleCode returns all permission IDs allowed for a given role code.
-// For now, all non-owner roles get all allowed permissions from the plan.
-func getPermissionIDsForRoleCode(allowedPerms map[string]string, roleCode string) []string {
-	permIDs := make([]string, 0, len(allowedPerms))
-	for _, pid := range allowedPerms {
-		permIDs = append(permIDs, pid)
-	}
-	return permIDs
 }
 
 func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug string) ([]rolePermissionAssignment, error) {

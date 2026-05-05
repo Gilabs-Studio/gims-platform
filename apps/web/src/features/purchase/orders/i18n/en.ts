@@ -174,4 +174,11 @@ export const purchaseOrderEn = {
   printConfirm: "Print",
   printCancel: "Cancel",
   printError: "Something went wrong",
+  paymentOverview: {
+    title: "Payment Overview",
+    orderTotal: "Order Total",
+    downPayment: "Down Payment",
+    invoiced: "Invoiced",
+    remaining: "Remaining",
+  },
 };

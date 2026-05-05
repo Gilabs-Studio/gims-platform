@@ -30,6 +30,7 @@ function upsertInvoiceSummaryAtFront(
     status: string;
     goods_receipt_id?: string | null;
     goods_receipt_code?: string | null;
+    created_at: string;
   },
 ): NonNullable<PurchaseOrderListItem["supplier_invoices"]> {
   const withoutCurrent = invoices.filter((entry) => entry.id !== next.id);
@@ -59,6 +60,7 @@ function applyInvoiceToPurchaseOrderLists(
           status: si.status ?? found?.status ?? "DRAFT",
           goods_receipt_id: si.goods_receipt?.id ?? found?.goods_receipt_id ?? null,
           goods_receipt_code: si.goods_receipt?.code ?? found?.goods_receipt_code ?? null,
+          created_at: found?.created_at ?? new Date().toISOString(),
         };
         return {
           ...po,

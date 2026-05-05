@@ -21,7 +21,7 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { QuotationForm } from "./quotation-form";
 import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
-import { QuotationPrintDialog } from "./quotation-print-dialog";
+import { quotationService } from "../services/quotation-service";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
@@ -56,7 +56,7 @@ export function QuotationList() {
   const [editingQuotation, setEditingQuotation] = useState<SalesQuotation | null>(null);
   const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(getInitialOpenQuotationFromURL);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [printingQuotationId, setPrintingQuotationId] = useState<string | null>(null);
+
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -419,7 +419,7 @@ export function QuotationList() {
                           )}
                           {canPrint && (
                             <DropdownMenuItem
-                              onClick={() => setPrintingQuotationId(quotation.id)}
+                              onClick={() => { quotationService.openPrintWindow(quotation.id).catch(() => toast.error("Print failed")); }}
                               className="cursor-pointer text-purple focus:text-purple"
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -500,13 +500,6 @@ export function QuotationList() {
         order={selectedOrderId ? ({ id: selectedOrderId } as SalesOrder) : null}
       />
 
-      {printingQuotationId && (
-        <QuotationPrintDialog
-          open={!!printingQuotationId}
-          onClose={() => setPrintingQuotationId(null)}
-          quotationId={printingQuotationId}
-        />
-      )}
     </div>
   );
 }

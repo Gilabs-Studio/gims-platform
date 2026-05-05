@@ -7,6 +7,16 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const isDevelopment = process.env.NODE_ENV === "development";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const apiProxyDestination = apiBaseUrl
+  ? (() => {
+      try {
+        const parsed = new URL(apiBaseUrl);
+        return `${parsed.origin}`;
+      } catch {
+        return null;
+      }
+    })()
+  : null;
 
 const remoteImagePatterns: RemotePattern[] = [
   {
@@ -59,6 +69,23 @@ if (process.env.ANALYZE === "true") {
 }
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    if (!apiProxyDestination) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${apiProxyDestination}/api/v1/:path*`,
+      },
+      {
+        source: "/internal/:path*",
+        destination: `${apiProxyDestination}/internal/:path*`,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

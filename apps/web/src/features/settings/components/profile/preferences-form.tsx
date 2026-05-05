@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useRouter, usePathname } from "next/navigation";
-import { Check, Globe, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

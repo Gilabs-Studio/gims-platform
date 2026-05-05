@@ -79,6 +79,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   );
 
   const selectedOrder = fullOrderData?.data ?? order ?? null;
+  const selectedQuotationLabel = useMemo(() => {
+    const quotation = selectedOrder?.sales_quotation ?? null;
+    if (!quotation) return "";
+    const customerName = quotation.customer?.name ?? quotation.customer_name;
+    return customerName ? `${quotation.code} - ${customerName}` : quotation.code;
+  }, [selectedOrder?.sales_quotation]);
   const referenceOptionsEnabled = open && shouldLoadReferenceOptions;
   const productOptionsEnabled = open && shouldLoadProductOptions;
 
@@ -157,12 +163,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       }),
     mapOption: (item) => ({
       value: item.id,
-      label: item.code,
+      label: item.customer_name ? `${item.code} - ${item.customer_name}` : item.code,
     }),
     enabled: referenceOptionsEnabled,
     pinnedOptions:
       selectedOrder?.sales_quotation?.id
-        ? [{ value: selectedOrder.sales_quotation.id, label: selectedOrder.sales_quotation.code }]
+        ? [{ value: selectedOrder.sales_quotation.id, label: selectedOrder.sales_quotation.customer_name ? `${selectedOrder.sales_quotation.code} - ${selectedOrder.sales_quotation.customer_name}` : selectedOrder.sales_quotation.code }]
         : undefined,
   });
 
@@ -243,15 +249,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
             }))
         : undefined,
   });
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setShouldLoadReferenceOptions(true);
-    setShouldLoadProductOptions(true);
-  }, [open]);
 
   const products = useMemo(
     () => sortOptions(productCombobox.items, (a) => (a.code ? `${a.code} - ${a.name}` : a.name)),
@@ -429,7 +426,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       return;
     }
 
-    setSelectedContactId(selectedMainContact.id);
+    queueMicrotask(() => setSelectedContactId(selectedMainContact.id));
     setValue("customer_contact_id", selectedMainContact.id, { shouldValidate: true, shouldDirty: true });
     setValue("customer_contact", selectedMainContact.name, { shouldValidate: true, shouldDirty: true });
     setValue("customer_phone", selectedMainContact.phone ?? "", { shouldValidate: true, shouldDirty: true });
@@ -438,18 +435,18 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
   useEffect(() => {
     if (!watchedCustomerId) {
-      setCustomerDefaultPins({
+      queueMicrotask(() => setCustomerDefaultPins({
         paymentTerm: null,
         businessType: null,
         area: null,
         salesRep: null,
-      });
+      }));
       return;
     }
     const detailCustomer = selectedCustomerData?.data;
     if (!detailCustomer) return;
 
-    setCustomerDefaultPins({
+    queueMicrotask(() => setCustomerDefaultPins({
       paymentTerm: detailCustomer.default_payment_terms?.id
         ? {
             value: detailCustomer.default_payment_terms.id,
@@ -474,7 +471,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
             label: `${detailCustomer.default_sales_rep.employee_code} - ${detailCustomer.default_sales_rep.name}`,
           }
         : null,
-    });
+    }));
 
     applyCustomerDefaults(detailCustomer);
   }, [watchedCustomerId, selectedCustomerData?.data, applyCustomerDefaults]);
@@ -509,7 +506,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       setValue("customer_contact", q.customer_contact ?? "", { shouldValidate: true });
       setValue("customer_phone", q.customer_phone ?? "", { shouldValidate: true });
       setValue("customer_email", q.customer_email ?? "", { shouldValidate: true });
-      setSelectedContactId(q.customer_contact_id ?? "");
+      queueMicrotask(() => setSelectedContactId(q.customer_contact_id ?? ""));
 
       // --- Financial summary ---
       setValue("tax_rate", q.tax_rate ?? 11, { shouldValidate: true });
@@ -541,6 +538,27 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const deliveryCost = useWatch({ control, name: "delivery_cost" }) ?? 0;
   const otherCost = useWatch({ control, name: "other_cost" }) ?? 0;
   const discountAmount = useWatch({ control, name: "discount_amount" }) ?? 0;
+  const productLabelById = useMemo(() => {
+    const entries = new Map<string, string>();
+
+    for (const item of selectedOrder?.items ?? []) {
+      if (!item.product?.id) continue;
+      entries.set(
+        item.product.id,
+        item.product.code ? `${item.product.code} - ${item.product.name}` : item.product.name,
+      );
+    }
+
+    for (const item of quotationItemsData?.data ?? []) {
+      if (!item.product?.id) continue;
+      entries.set(
+        item.product.id,
+        item.product.code ? `${item.product.code} - ${item.product.name}` : item.product.name,
+      );
+    }
+
+    return entries;
+  }, [quotationItemsData?.data, selectedOrder?.items]);
 
   // Calculate totals
   const calculations = useMemo(() => {
@@ -570,14 +588,14 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   useEffect(() => {
     if (!open) {
       localStorage.removeItem(STORAGE_KEY);
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
       return;
     }
 
     if (isEdit) {
       if (fullOrderData?.data) {
         const orderData = fullOrderData.data;
-        setSelectedContactId(orderData.customer_contact_id ?? "");
+        queueMicrotask(() => setSelectedContactId(orderData.customer_contact_id ?? ""));
         
         setTimeout(() => {
           reset({
@@ -616,7 +634,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       try {
         const parsedData = JSON.parse(cached);
         reset(parsedData);
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       } catch {
         reset({
           order_date: new Date().toISOString().split("T")[0],
@@ -638,7 +656,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           notes: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       }
     } else {
       reset({
@@ -661,7 +679,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         notes: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
     }
   }, [open, isEdit, fullOrderData, reset]);
 
@@ -867,6 +885,14 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
+  const getProductLabel = useCallback((productId: string) => {
+    if (!productId) return "";
+
+    return productCombobox.options.find((option) => option.value === productId)?.label
+      ?? productLabelById.get(productId)
+      ?? "";
+  }, [productCombobox.options, productLabelById]);
+
   // Derive customer credit info for display
   const customerCreditInfo = useMemo(() => {
     const customer = selectedCustomerData?.data;
@@ -968,5 +994,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     productCombobox,
     customerCreditInfo,
     watchedQuotationId,
+    selectedQuotationLabel,
+    getProductLabel,
   };
 }

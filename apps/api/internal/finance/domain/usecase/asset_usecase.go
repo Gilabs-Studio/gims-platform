@@ -1319,6 +1319,8 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 		parsedDate = apptime.Now()
 	}
 
+	// Initialize all fields with proper zero values to avoid GORM type reflection issues
+	// Especially important for pointer fields which must be explicitly nil, not uninitialized
 	asset := financeModels.Asset{
 		Code:            req.Code,
 		Name:            req.Name,
@@ -1326,7 +1328,51 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 		LocationID:      locID,
 		AcquisitionDate: parsedDate,
 		AcquisitionCost: req.AcquisitionCost,
+		SalvageValue:    0,
 		Status:          financeModels.AssetStatusActive,
+		LifecycleStage:  financeModels.AssetLifecycleDraft,
+		// Cost breakdown (initialize to zero to prevent GORM reflection panic)
+		ShippingCost:            0,
+		InstallationCost:        0,
+		TaxAmount:               0,
+		OtherCosts:              0,
+		// Depreciation fields
+		AccumulatedDepreciation: 0,
+		BookValue:               0,
+		// Nullable pointer fields - explicitly set to nil to avoid reflection issues
+		SerialNumber:             nil,
+		Barcode:                  nil,
+		QRCode:                   nil,
+		AssetTag:                 nil,
+		CompanyID:                nil,
+		BusinessUnitID:           nil,
+		DepartmentID:             nil,
+		AssignedToEmployeeID:     nil,
+		AssignmentDate:           nil,
+		SupplierID:               nil,
+		PurchaseOrderID:          nil,
+		SupplierInvoiceID:        nil,
+		DepreciationMethod:       nil,
+		UsefulLifeMonths:         nil,
+		DepreciationStartDate:    nil,
+		ParentAssetID:            nil,
+		WarrantyStart:            nil,
+		WarrantyEnd:              nil,
+		WarrantyProvider:         nil,
+		WarrantyTerms:            nil,
+		InsurancePolicyNumber:    nil,
+		InsuranceProvider:        nil,
+		InsuranceStart:           nil,
+		InsuranceEnd:             nil,
+		InsuranceValue:           nil,
+		ApprovedBy:               nil,
+		ApprovedAt:               nil,
+		CreatedBy:                nil,
+		// Boolean fields - set to false defaults
+		IsCapitalized:      false,
+		IsDepreciable:      true,
+		IsFullyDepreciated: false,
+		IsParent:           false,
 	}
 
 	if err := tx.Create(&asset).Error; err != nil {

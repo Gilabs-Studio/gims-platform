@@ -25,6 +25,7 @@ const SelectContext = React.createContext<{
   resetItemCount: () => void;
   showSearch: boolean;
   selectedValue: string | undefined;
+  selectedLabel?: string;
 } | null>(null);
 
 function Select({
@@ -34,10 +35,12 @@ function Select({
   onOpenChange,
   onSearchChange,
   searchDebounceMs = 300,
+  selectedLabel,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root> & {
   onSearchChange?: (query: string) => void;
   searchDebounceMs?: number;
+  selectedLabel?: string;
 }) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [itemCount, setItemCount] = React.useState(0);
@@ -94,6 +97,7 @@ function Select({
         resetItemCount,
         showSearch,
         selectedValue,
+        selectedLabel,
       }}
     >
       <SelectPrimitive.Root
@@ -115,9 +119,29 @@ function SelectGroup({
 }
 
 function SelectValue({
+  className,
+  selectedLabel,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />;
+}: React.ComponentProps<typeof SelectPrimitive.Value> & {
+  selectedLabel?: string;
+}) {
+  const context = React.useContext(SelectContext);
+
+  const label = selectedLabel ?? context?.selectedLabel;
+
+  if (label) {
+    return (
+      <span
+        data-slot="select-value"
+        className={cn("line-clamp-1 flex items-center gap-2", className)}
+        {...props}
+      >
+        {label}
+      </span>
+    );
+  }
+
+  return <SelectPrimitive.Value data-slot="select-value" className={className} {...props} />;
 }
 
 function SelectTrigger({
@@ -206,10 +230,10 @@ function SelectContent({
   React.useEffect(() => {
     if (onLoadMore) return;
     if (isSearching) {
-      setLocalVisibleCount(childArray.length);
+      queueMicrotask(() => setLocalVisibleCount(childArray.length));
       return;
     }
-    setLocalVisibleCount(LOCAL_SELECT_PAGE_SIZE);
+    queueMicrotask(() => setLocalVisibleCount(LOCAL_SELECT_PAGE_SIZE));
   }, [childArray.length, isSearching, onLoadMore]);
 
   // Auto focus search input when content opens and search is enabled

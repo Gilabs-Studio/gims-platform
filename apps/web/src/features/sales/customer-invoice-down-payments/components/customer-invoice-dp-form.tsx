@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { CalendarIcon, FileText, ShoppingCart, DollarSign, Paperclip, X, Upload } from "lucide-react";
 import { format } from "date-fns";
@@ -44,6 +44,7 @@ import { orderService } from "@/features/sales/order/services/order-service";
 import {
   useCreateCustomerInvoiceDP,
   useCustomerInvoiceDP,
+  useCustomerInvoiceDPs,
   useUpdateCustomerInvoiceDP,
 } from "../hooks/use-customer-invoice-dp";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
@@ -60,12 +61,14 @@ export function CustomerInvoiceDPFormDialog({
   onOpenChange,
   invoiceId,
   defaultSalesOrderId,
+  defaultSalesOrderLabel,
   defaultAmount,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
   defaultSalesOrderId?: string;
+  defaultSalesOrderLabel?: string;
   defaultAmount?: number;
 }) {
   const t = useTranslations("customerInvoiceDP");
@@ -90,9 +93,14 @@ export function CustomerInvoiceDPFormDialog({
     },
   });
 
+  const invoiceDate = useWatch({ control: form.control, name: "invoice_date" });
+  const dueDate = useWatch({ control: form.control, name: "due_date" });
+  const amount = useWatch({ control: form.control, name: "amount" });
+  const notes = useWatch({ control: form.control, name: "notes" });
+
   useEffect(() => {
     if (!open) {
-      setAttachments([]);
+      queueMicrotask(() => setAttachments([]));
       return;
     }
 
@@ -121,10 +129,35 @@ export function CustomerInvoiceDPFormDialog({
     });
   }, [open, isEdit, detailQuery.data, form, defaultSalesOrderId, defaultAmount]);
 
-  const selectedSOId = form.watch("sales_order_id");
+  const selectedSOId = useWatch({ control: form.control, name: "sales_order_id" });
   const selectedSOQuery = useOrder(selectedSOId ?? "", {
     enabled: open && !!selectedSOId,
   });
+
+  // Fetch existing DP invoices for the selected SO to compute available amount
+  const dpInvoicesQuery = useCustomerInvoiceDPs(
+    selectedSOId ? { sales_order_id: selectedSOId, limit: 1000 } : undefined,
+    { enabled: open && !!selectedSOId },
+  );
+
+  const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
+  const pinnedSalesOrderOption = useMemo(() => {
+    if (selectedSO) {
+      return {
+        value: selectedSO.id,
+        label: `${selectedSO.code} - ${formatCurrency(selectedSO.total_amount ?? 0)}`,
+      };
+    }
+
+    if (defaultSalesOrderId && defaultSalesOrderLabel) {
+      return {
+        value: defaultSalesOrderId,
+        label: defaultSalesOrderLabel,
+      };
+    }
+
+    return undefined;
+  }, [selectedSO, defaultSalesOrderId, defaultSalesOrderLabel]);
 
   const salesOrderOptions = usePaginatedComboboxOptions({
     queryKey: ["customer-invoice-dp", "sales-order-options"],
@@ -140,21 +173,50 @@ export function CustomerInvoiceDPFormDialog({
       value: order.id,
       label: `${order.code} - ${formatCurrency(order.total_amount ?? 0)}`,
     }),
+    pinnedOptions: pinnedSalesOrderOption ? [pinnedSalesOrderOption] : undefined,
   });
 
-  const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
-
-  const dpAmount = form.watch("amount");
+  const dpAmount = useWatch({ control: form.control, name: "amount" });
 
   // Invoice summary computations
   const invoiceSummary = useMemo(() => {
     if (!selectedSO) return null;
     const orderTotal = selectedSO.total_amount ?? 0;
-    const dpApplied = dpAmount ?? 0;
-    const remaining = Math.max(0, orderTotal - dpApplied);
-    const dpPercentage = orderTotal > 0 ? ((dpApplied / orderTotal) * 100).toFixed(1) : "0.0";
-    return { orderTotal, dpApplied, remaining, dpPercentage };
-  }, [selectedSO, dpAmount]);
+    
+    // Compute regular invoices amount
+    const regularInvoiced =
+      (selectedSO.customer_invoices ?? [])
+        .filter((inv) => {
+          const status = (inv.status ?? "").toLowerCase();
+          return status !== "cancelled" && status !== "rejected";
+        })
+        .reduce((sum, inv) => sum + (inv.amount ?? 0), 0) ?? 0;
+    
+    // Compute DP invoices amount
+    const dpInvoiced =
+      (dpInvoicesQuery.data?.data ?? [])
+        .filter((dp) => {
+          const status = (dp.status ?? "").toLowerCase();
+          return status !== "cancelled" && status !== "rejected";
+        })
+        .reduce((sum, dp) => sum + (dp.amount ?? 0), 0) ?? 0;
+    
+    // Total already invoiced (regular + DP, excluding edit item if in edit mode)
+    const totalInvoiced = isEdit ? regularInvoiced + (dpInvoiced - (dpAmount ?? 0)) : regularInvoiced + dpInvoiced;
+    const availableAmount = Math.max(0, orderTotal - totalInvoiced);
+    const dpPercentage = orderTotal > 0 ? ((dpAmount ?? 0) / orderTotal * 100).toFixed(1) : "0.0";
+    const availablePercentage = orderTotal > 0 ? (availableAmount / orderTotal * 100).toFixed(1) : "0.0";
+    
+    return {
+      orderTotal,
+      regularInvoiced,
+      dpInvoiced,
+      totalInvoiced,
+      availableAmount,
+      dpPercentage,
+      availablePercentage,
+    };
+  }, [selectedSO, dpAmount, dpInvoicesQuery.data, isEdit]);
 
   const handleFileAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -180,14 +242,25 @@ export function CustomerInvoiceDPFormDialog({
 
   const isBusy =
     detailQuery.isLoading ||
+    dpInvoicesQuery.isLoading ||
     createMutation.isPending ||
     updateMutation.isPending;
 
   async function onSubmit(values: CustomerInvoiceDPFormData) {
     try {
-      // Validate amount does not exceed SO total (#241)
+      // Validate amount does not exceed SO total
       if (selectedSO && values.amount > (selectedSO.total_amount ?? 0)) {
-        form.setError("amount", { message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})` });
+        form.setError("amount", {
+          message: `Amount cannot exceed SO total (${formatCurrency(selectedSO.total_amount ?? 0)})`,
+        });
+        return;
+      }
+
+      // Validate amount does not exceed available amount (total - already invoiced)
+      if (invoiceSummary && values.amount > invoiceSummary.availableAmount) {
+        form.setError("amount", {
+          message: `Amount cannot exceed available amount (${formatCurrency(invoiceSummary.availableAmount)})`,
+        });
         return;
       }
 
@@ -246,7 +319,7 @@ export function CustomerInvoiceDPFormDialog({
           <Field orientation="vertical">
             <FieldLabel>{t("fields.salesOrder")}</FieldLabel>
             <Select
-              value={form.watch("sales_order_id")}
+              value={selectedSOId ?? ""}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
               onOpenChange={salesOrderOptions.onOpenChange}
               onSearchChange={salesOrderOptions.onSearchChange}
@@ -350,19 +423,19 @@ export function CustomerInvoiceDPFormDialog({
                     disabled={isBusy}
                     className={cn(
                       "w-full justify-start text-left font-normal cursor-pointer",
-                      !form.watch("invoice_date") && "text-muted-foreground",
+                      !invoiceDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch("invoice_date")
-                      ? format(new Date(form.watch("invoice_date")), "dd MMM yyyy")
+                      {invoiceDate
+                        ? format(new Date(invoiceDate), "dd MMM yyyy")
                       : t("placeholders.pickDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={form.watch("invoice_date") ? new Date(form.watch("invoice_date")) : undefined}
+                      selected={invoiceDate ? new Date(invoiceDate) : undefined}
                     onSelect={(date: Date | undefined) =>
                       form.setValue("invoice_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
@@ -384,19 +457,19 @@ export function CustomerInvoiceDPFormDialog({
                     disabled={isBusy}
                     className={cn(
                       "w-full justify-start text-left font-normal cursor-pointer",
-                      !form.watch("due_date") && "text-muted-foreground",
+                      !dueDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch("due_date")
-                      ? format(new Date(form.watch("due_date")), "dd MMM yyyy")
+                      {dueDate
+                        ? format(new Date(dueDate), "dd MMM yyyy")
                       : t("placeholders.pickDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={form.watch("due_date") ? new Date(form.watch("due_date")) : undefined}
+                      selected={dueDate ? new Date(dueDate) : undefined}
                     onSelect={(date: Date | undefined) =>
                       form.setValue("due_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true })
                     }
@@ -411,7 +484,7 @@ export function CustomerInvoiceDPFormDialog({
             <Field orientation="vertical" className="col-span-2">
               <FieldLabel>{t("fields.amount")}</FieldLabel>
               <NumericInput
-                value={form.watch("amount")}
+                value={amount}
                 onChange={(value) => form.setValue("amount", value ?? 0, { shouldValidate: true })}
                 disabled={isBusy}
               />
@@ -433,15 +506,41 @@ export function CustomerInvoiceDPFormDialog({
                   <span className="text-muted-foreground">Order Total</span>
                   <span className="font-medium">{formatCurrency(invoiceSummary.orderTotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-primary">
-                  <span>Down Payment ({invoiceSummary.dpPercentage}%)</span>
-                  <span className="font-medium">{formatCurrency(invoiceSummary.dpApplied)}</span>
+                {invoiceSummary.regularInvoiced > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Regular Invoices</span>
+                    <span>{formatCurrency(invoiceSummary.regularInvoiced)}</span>
+                  </div>
+                )}
+                {invoiceSummary.dpInvoiced > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>DP Invoices</span>
+                    <span>{formatCurrency(invoiceSummary.dpInvoiced)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-primary border-t pt-1.5 mt-1.5">
+                  <span>This Down Payment ({invoiceSummary.dpPercentage}%)</span>
+                  <span className="font-medium">{formatCurrency(dpAmount ?? 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
-                  <span>Remaining After DP</span>
-                  <span className="text-muted-foreground">{formatCurrency(invoiceSummary.remaining)}</span>
+                  <span>Available for Invoice</span>
+                  <span
+                    className={invoiceSummary.availableAmount <= 0 ? "text-destructive" : "text-muted-foreground"}
+                  >
+                    {formatCurrency(invoiceSummary.availableAmount)}
+                  </span>
                 </div>
               </div>
+              {invoiceSummary.availableAmount <= 0 && (
+                <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  This sales order is fully invoiced. No additional invoices can be created.
+                </div>
+              )}
+              {dpAmount > invoiceSummary.availableAmount && (
+                <div className="mt-3 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                  DP amount exceeds available invoice amount by {formatCurrency(dpAmount - invoiceSummary.availableAmount)}
+                </div>
+              )}
             </div>
           )}
 
@@ -496,7 +595,7 @@ export function CustomerInvoiceDPFormDialog({
           <Field orientation="vertical">
             <FieldLabel>{t("fields.notes")}</FieldLabel>
             <Textarea
-              value={form.watch("notes") ?? ""}
+              value={notes ?? ""}
               onChange={(e) => form.setValue("notes", e.target.value, { shouldValidate: true })}
               disabled={isBusy}
               rows={3}

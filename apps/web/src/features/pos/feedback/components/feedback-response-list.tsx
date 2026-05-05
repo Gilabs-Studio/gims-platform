@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarIcon,
   Eye,
@@ -37,6 +37,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 import {
   useFeedbackForms,
@@ -51,6 +52,7 @@ import type { SalesOrder } from "@/features/sales/order/types";
 export function FeedbackResponseList() {
   const t = useTranslations("feedback.responses");
   const tCommon = useTranslations("common");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -63,7 +65,7 @@ export function FeedbackResponseList() {
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
   const [isSalesOrderDetailOpen, setIsSalesOrderDetailOpen] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useFeedbackResponses({
+  const { data, error, isLoading, isError, refetch } = useFeedbackResponses({
     page,
     per_page: pageSize,
     form_id: filterFormId,
@@ -80,6 +82,8 @@ export function FeedbackResponseList() {
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
   const forms = formsData?.data ?? [];
+
+  // Removed debug logging for feedback responses
 
   function openDetail(id: string) {
     setDetailId(id);
@@ -160,7 +164,7 @@ export function FeedbackResponseList() {
               <TableHead>{t("orderId")}</TableHead>
               <TableHead>{t("avgScore")}</TableHead>
               <TableHead>{t("submittedAt")}</TableHead>
-              <TableHead className="w-[80px]">{tCommon("actions")}</TableHead>
+              <TableHead className="w-20">{tCommon("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -203,11 +207,15 @@ export function FeedbackResponseList() {
                     <TableCell>{item.customer_name ?? "—"}</TableCell>
                     <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
                     <TableCell>
-                      {item.pos_order_id ? (
+                      {item.sales_order_id && canViewSalesOrder ? (
                         <SalesOrderLink
-                          orderId={item.pos_order_id}
+                          orderId={item.sales_order_id}
                           onOpen={openSalesOrder}
                         />
+                      ) : item.sales_order_id ? (
+                        item.sales_order_id
+                      ) : item.pos_order_id ? (
+                        item.pos_order_id
                       ) : (
                         "—"
                       )}
@@ -336,10 +344,10 @@ function DetailContent({ item }: { item: FeedbackResponseItem }) {
             <TableCell className="text-muted-foreground font-medium">{t("outlet")}</TableCell>
             <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
           </TableRow>
-          {item.pos_order_id && (
+          {(item.sales_order_id || item.pos_order_id) && (
             <TableRow>
               <TableCell className="text-muted-foreground font-medium">{t("orderId")}</TableCell>
-              <TableCell>{item.pos_order_id}</TableCell>
+              <TableCell>{item.sales_order_id ?? item.pos_order_id}</TableCell>
             </TableRow>
           )}
           {item.avg_score != null && (

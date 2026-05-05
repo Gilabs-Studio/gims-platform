@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/feedback/data/models"
 	"gorm.io/gorm"
@@ -35,12 +36,25 @@ func NewFeedbackResponseRepository(db *gorm.DB) FeedbackResponseRepository {
 	return &feedbackResponseRepository{db: db}
 }
 
+func (r *feedbackResponseRepository) scopedQuery(ctx context.Context) *gorm.DB {
+	db := r.db.Session(&gorm.Session{NewDB: true}).WithContext(ctx)
+	if isSystemAdmin, _ := ctx.Value("is_system_admin").(bool); isSystemAdmin {
+		return db.Table("feedback_responses")
+	}
+	if tenantID, _ := ctx.Value("tenant_id").(string); tenantID != "" {
+		return db.Table("feedback_responses").Where("feedback_responses.tenant_id = ?", tenantID)
+	}
+	return db.Table("feedback_responses")
+}
+
 func (r *feedbackResponseRepository) FindByID(ctx context.Context, id string) (*models.FeedbackResponse, error) {
 	var resp models.FeedbackResponse
-	if err := database.GetDB(ctx, r.db).
+	if err := r.scopedQuery(ctx).
+		Select("feedback_responses.*, sales_orders.id AS sales_order_id").
+		Joins("LEFT JOIN sales_orders ON sales_orders.source_pos_order_id = feedback_responses.pos_order_id AND sales_orders.tenant_id = feedback_responses.tenant_id AND sales_orders.deleted_at IS NULL").
 		Preload("Form").
 		Preload("Token").
-		Where("id = ?", id).First(&resp).Error; err != nil {
+		Where("feedback_responses.id = ?", id).First(&resp).Error; err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -62,31 +76,33 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 	}
 	offset := (f.Page - 1) * f.PerPage
 
-	q := database.GetDB(ctx, r.db).Model(&models.FeedbackResponse{})
+	q := r.scopedQuery(ctx).
+		Joins("LEFT JOIN sales_orders ON sales_orders.source_pos_order_id = feedback_responses.pos_order_id AND sales_orders.tenant_id = feedback_responses.tenant_id AND sales_orders.deleted_at IS NULL")
 
 	if len(f.OutletIDs) > 0 {
-		q = q.Where("outlet_id IN ?", f.OutletIDs)
+		q = q.Where("feedback_responses.outlet_id IN ?", f.OutletIDs)
 	} else if f.OutletID != "" {
-		q = q.Where("outlet_id = ?", f.OutletID)
+		q = q.Where("feedback_responses.outlet_id = ?", f.OutletID)
 	}
 	if f.FormID != "" {
-		q = q.Where("form_id = ?", f.FormID)
+		q = q.Where("feedback_responses.form_id = ?", f.FormID)
 	}
 	if f.Search != "" {
-		q = q.Where("customer_name ILIKE ?", "%"+f.Search+"%")
+		q = q.Where("feedback_responses.customer_name ILIKE ?", "%"+f.Search+"%")
 	}
 	if f.StartDate != "" {
-		q = q.Where("submitted_at >= ?", f.StartDate+" 00:00:00")
+		q = q.Where("feedback_responses.submitted_at >= ?", f.StartDate+" 00:00:00")
 	}
 	if f.EndDate != "" {
-		q = q.Where("submitted_at <= ?", f.EndDate+" 23:59:59")
+		q = q.Where("feedback_responses.submitted_at <= ?", f.EndDate+" 23:59:59")
 	}
 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := q.Preload("Form").
-		Order("submitted_at DESC").
+	if err := q.Select("feedback_responses.*, sales_orders.id AS sales_order_id").
+		Preload("Form").
+		Order("feedback_responses.submitted_at DESC").
 		Offset(offset).Limit(f.PerPage).
 		Find(&responses).Error; err != nil {
 		return nil, 0, err
@@ -96,7 +112,7 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 
 func (r *feedbackResponseRepository) ExistsByTokenID(ctx context.Context, tokenID string) (bool, error) {
 	var count int64
-	if err := database.GetDB(ctx, r.db).Model(&models.FeedbackResponse{}).
+	if err := r.scopedQuery(ctx).
 		Where("token_id = ?", tokenID).Count(&count).Error; err != nil {
 		return false, err
 	}

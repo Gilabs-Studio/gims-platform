@@ -99,6 +99,8 @@ export function DeliveryForm({
 		employees,
 		courierAgencies,
 		warehouses,
+		selectedSalesOrderLabel,
+		selectedWarehouseLabel,
 		handleNext,
 		handleFormSubmit,
 		handleAddItem,
@@ -250,6 +252,7 @@ export function DeliveryForm({
 															}}
 															onSearchChange={warehousesCombobox.onSearchChange}
 															searchDebounceMs={300}
+															selectedLabel={selectedWarehouseLabel}
 														>
 															<SelectTrigger>
 																<SelectValue placeholder={t("warehouse")} />
@@ -302,6 +305,7 @@ export function DeliveryForm({
 															}
 															searchDebounceMs={300}
 															disabled={isEdit}
+															selectedLabel={selectedSalesOrderLabel}
 														>
 															<SelectTrigger>
 																<SelectValue placeholder={t("salesOrder")} />

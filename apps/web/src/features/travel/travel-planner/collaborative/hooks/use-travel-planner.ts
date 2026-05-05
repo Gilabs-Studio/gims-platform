@@ -184,6 +184,13 @@ export function useExportTravelPlanPdf() {
   });
 }
 
+export function useExportTravelPlanReportHtml() {
+  return useMutation({
+    mutationFn: ({ planId }: { planId: string }) =>
+      travelPlannerService.exportPlanReportHtml(planId),
+  });
+}
+
 export function useCreateTravelExpense() {
   const queryClient = useQueryClient();
 

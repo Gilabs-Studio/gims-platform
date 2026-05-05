@@ -6,9 +6,7 @@ import (
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
-	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	outletRepository "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -270,16 +268,18 @@ func (u *companyUsecase) SubmitForApproval(ctx context.Context, id string) (*dto
 		return nil, err
 	}
 	actorUserID, _ := ctx.Value("user_id").(string)
-	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
-		PermissionCode: "company.approve",
-		EntityType:     "company",
-		EntityID:       company.ID,
-		Title:          "Company Approval",
-		Message:        "A company record has been submitted and requires your approval.",
-		ActorUserID:    actorUserID,
-	}); err != nil {
-		log.Printf("warning: failed to create company notification: %v", err)
-	}
+	_ = actorUserID
+	// Approval workflow disabled for single-company tenant model
+	// if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+	// 	PermissionCode: "company.approve",
+	// 	EntityType:     "company",
+	// 	EntityID:       company.ID,
+	// 	Title:          "Company Approval",
+	// 	Message:        "A company record has been submitted and requires your approval.",
+	// 	ActorUserID:    actorUserID,
+	// }); err != nil {
+	// 	log.Printf("warning: failed to create company notification: %v", err)
+	// }
 
 	// Reload with village
 	company, err = u.companyRepo.FindByIDWithVillage(ctx, id)

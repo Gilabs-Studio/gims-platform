@@ -105,10 +105,10 @@ export function OutletDialog({
             </div>
           </div>
 
-          {/* Manager & Company */}
+          {/* Manager */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">{t("outlet.sections.management")}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label>{t("outlet.form.manager")}</Label>
                 <Controller
@@ -126,31 +126,6 @@ export function OutletDialog({
                         {formData?.managers?.map((mgr) => (
                           <SelectItem key={mgr.id} value={mgr.id} className="cursor-pointer">
                             {mgr.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("outlet.form.company")}</Label>
-                <Controller
-                  name="company_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? ""}
-                      onValueChange={(v) => field.onChange(v || undefined)}
-                    >
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("outlet.form.companyPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formData?.companies?.map((comp) => (
-                          <SelectItem key={comp.id} value={comp.id} className="cursor-pointer">
-                            {comp.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

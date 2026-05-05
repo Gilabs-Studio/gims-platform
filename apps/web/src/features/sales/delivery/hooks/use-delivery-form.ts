@@ -32,7 +32,6 @@ import type { SalesOrderItem } from "../../order/types";
 import { sortOptions } from "@/lib/utils";
 import {
 	getFirstFormErrorMessage,
-	getSalesErrorMessage,
 	toOptionalString,
 } from "../../utils/error-utils";
 
@@ -97,14 +96,14 @@ export function useDeliveryForm({
 			}),
 		mapOption: (item) => ({
 			value: item.id,
-			label: item.code,
+			label: item.customer_name ? `${item.code} - ${item.customer_name}` : item.code,
 		}),
 		enabled: referenceOptionsEnabled,
 		pinnedOptions: selectedDelivery?.sales_order?.id
 			? [
 					{
 						value: selectedDelivery.sales_order.id,
-						label: selectedDelivery.sales_order.code,
+						label: selectedDelivery.sales_order.customer_name ? `${selectedDelivery.sales_order.code} - ${selectedDelivery.sales_order.customer_name}` : selectedDelivery.sales_order.code,
 					},
 				]
 			: selectedDelivery?.sales_order_id
@@ -190,14 +189,6 @@ export function useDeliveryForm({
 			: undefined,
 	});
 
-	useEffect(() => {
-		if (!open) {
-			return;
-		}
-
-		setShouldLoadReferenceOptions(true);
-	}, [open]);
-
 	const salesOrders = useMemo(
 		() => sortOptions(salesOrdersCombobox.items, (item) => item.code),
 		[salesOrdersCombobox.items],
@@ -282,12 +273,27 @@ export function useDeliveryForm({
 	});
 
 	const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+	const watchedWarehouseId = useWatch({ control, name: "warehouse_id" });
 	const hasAutoPopulatedRef = useRef(false);
 
 	// Fetch sales order details when selected to ensure we have items
 	const { data: selectedSalesOrderData } = useOrder(watchedSalesOrderId ?? "", {
 		enabled: !!watchedSalesOrderId && open,
 	});
+
+	const selectedSalesOrderLabel = useMemo(() => {
+		const salesOrder = selectedSalesOrderData?.data ?? selectedDelivery?.sales_order ?? null;
+		if (!salesOrder) return "";
+		const customerName = salesOrder.customer?.name ?? salesOrder.customer_name;
+		return customerName ? `${salesOrder.code} - ${customerName}` : salesOrder.code;
+	}, [selectedSalesOrderData?.data, selectedDelivery?.sales_order]);
+
+	const selectedWarehouseLabel = useMemo(() => {
+		const selectedWarehouse =
+			selectedDelivery?.warehouse ?? warehouses.find((warehouse) => warehouse.id === watchedWarehouseId) ?? null;
+		if (!selectedWarehouse) return "";
+		return selectedWarehouse.code ? `${selectedWarehouse.code} - ${selectedWarehouse.name}` : selectedWarehouse.name;
+	}, [selectedDelivery?.warehouse, watchedWarehouseId, warehouses]);
 
 	// Auto-populate items when sales order is selected
 	useEffect(() => {
@@ -600,7 +606,6 @@ export function useDeliveryForm({
 			onClose();
 		} catch (error) {
 			console.error("Failed to save delivery order:", error);
-			toast.error(getSalesErrorMessage(error, t("common.error")));
 		}
 	};
 
@@ -706,5 +711,7 @@ export function useDeliveryForm({
 		employeesCombobox,
 		courierAgenciesCombobox,
 		warehousesCombobox,
+		selectedSalesOrderLabel,
+		selectedWarehouseLabel,
 	};
 }

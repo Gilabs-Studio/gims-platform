@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { usePathname } from "@/i18n/routing";
 import { useQueries } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -11,11 +12,15 @@ import {
 	Camera,
 	CheckCircle2,
 	Clock,
+	FileDown,
 	Filter,
 	FileText,
 	Image as ImageIcon,
 	MapPin,
 	MapPinned,
+	Maximize2,
+	Minimize2,
+	Navigation,
 	Package,
 	Plus,
 	Search,
@@ -75,15 +80,17 @@ import {
 	travelPlannerKeys,
 	useCreateTravelExpense,
 	useCreateTravelPlan,
+	useExportTravelPlanReportHtml,
 	useTravelPlan,
 	useTravelPlanExpenses,
 	useTravelPlannerFormData,
 	useTravelPlannerParticipants,
 	useTravelPlans,
+	useUpdateTravelPlan,
 	useUpdateTravelPlanParticipants,
 } from "../hooks/use-travel-planner";
 import { travelPlannerService } from "../services/travel-planner-service";
-import type { TravelPlanInput } from "../types";
+import type { TravelPlan, TravelPlanInput } from "../types";
 import { TravelPlannerCreatePlanDialog } from "./travel-planner-create-plan-dialog";
 import { TravelPlannerMobileToolbar } from "./travel-planner-mobile-toolbar";
 
@@ -94,6 +101,56 @@ const Marker = dynamic(
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
 	ssr: false,
 });
+const Polyline = dynamic(
+	() => import("react-leaflet").then((mod) => mod.Polyline),
+	{ ssr: false },
+);
+const LeafletTooltip = dynamic(
+	() => import("react-leaflet").then((mod) => mod.Tooltip),
+	{ ssr: false },
+);
+const MapClickListener = dynamic(
+	() =>
+		import("react-leaflet").then((mod) => {
+			function Listener({
+				isActive,
+				onMapClick,
+			}: {
+				isActive: boolean;
+				onMapClick: (lat: number, lng: number) => void;
+			}) {
+				mod.useMapEvents({
+					click(e) {
+						if (isActive) {
+							onMapClick(e.latlng.lat, e.latlng.lng);
+						}
+					},
+				});
+				return null;
+			}
+			return { default: Listener };
+		}),
+	{ ssr: false },
+);
+
+type MapWaypoint = {
+	id: string;
+	lat: number;
+	lng: number;
+	time: string;
+	label: string;
+};
+
+type MovementPointCard = {
+	id: string;
+	dayDate: string;
+	placeName: string;
+	lat: number;
+	lng: number;
+	time: string;
+	address: string;
+	note: string;
+};
 
 type PlannerMarkerData = {
 	kind: "stop" | "visit";
@@ -106,6 +163,8 @@ type PlanDetailType = "up_country_cost" | "visit_report";
 
 const PARTICIPANT_META_PREFIX = "[participants:";
 const PARTICIPANT_META_SUFFIX = "]";
+const MOVEMENT_POINTS_PAGE_SIZE = 4;
+const EXPENSE_DETAILS_PAGE_SIZE = 8;
 
 function appendParticipantMeta(
 	notes: string,
@@ -171,6 +230,60 @@ function buildCreatePlanPayload(title: string, mode: string): TravelPlanInput {
 			},
 		],
 	};
+}
+
+function mapPlanToInput(plan: TravelPlan): TravelPlanInput {
+	return {
+		title: plan.title,
+		mode: plan.mode,
+		start_date: plan.start_date,
+		end_date: plan.end_date,
+		status: plan.status,
+		budget_amount: plan.budget_amount,
+		notes: plan.notes,
+		days: (plan.days ?? [])
+			.slice()
+			.sort((a, b) => a.day_index - b.day_index)
+			.map((day) => ({
+				day_index: day.day_index,
+				day_date: day.day_date,
+				summary: day.summary,
+				stops: (day.stops ?? [])
+					.slice()
+					.sort((a, b) => a.order_index - b.order_index)
+					.map((stop, index) => ({
+						place_name: stop.place_name,
+						latitude: stop.latitude,
+						longitude: stop.longitude,
+						category: stop.category,
+						order_index: index + 1,
+						is_locked: stop.is_locked,
+						source: stop.source,
+						photo_url: stop.photo_url,
+						note: stop.note,
+					})),
+				notes: (day.notes ?? [])
+					.slice()
+					.sort((a, b) => a.order_index - b.order_index)
+					.map((note, index) => ({
+						icon_tag: note.icon_tag,
+						note_text: note.note_text,
+						note_time: note.note_time,
+						order_index: index + 1,
+					})),
+			})),
+	};
+}
+
+function downloadBlobFile(blob: Blob, fileName: string): void {
+	const objectUrl = window.URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+	anchor.href = objectUrl;
+	anchor.download = fileName;
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	window.URL.revokeObjectURL(objectUrl);
 }
 
 function parsePhotos(photos: string | null | undefined): string[] {
@@ -242,6 +355,40 @@ function formatLatLng(
 	return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 }
 
+function parseMovementStopNote(note: string | null | undefined): {
+	time: string;
+	address: string;
+	note: string;
+} {
+	if (!note) {
+		return { time: "", address: "", note: "" };
+	}
+
+	const etaMatch = note.match(/ETA\s+(\d{2}:\d{2})/i);
+	const time = etaMatch?.[1] ?? "";
+	const withoutEta = note.replace(/ETA\s+\d{2}:\d{2}\s*/i, "").trim();
+	const cleaned = withoutEta.replace(/^[-—]\s*/, "").trim();
+
+	return {
+		time,
+		address: cleaned,
+		note: cleaned,
+	};
+}
+
+function formatDateCard(value: string): string {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat("en-GB", {
+		day: "2-digit",
+		month: "short",
+		year: "numeric",
+	}).format(date);
+}
+
 export function TravelPlannerMapWorkspace() {
 	const t = useTranslations("travelPlanner.workspace");
 	const { user } = useAuthStore();
@@ -276,9 +423,29 @@ export function TravelPlannerMapWorkspace() {
 	const [selectedPlanId, setSelectedPlanId] = useState("");
 	const [isPlanPanelOpen, setIsPlanPanelOpen] = useState(false);
 	const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
+	const [isDesktopRightPanelExpanded, setIsDesktopRightPanelExpanded] =
+		useState(false);
 	const [planSearch, setPlanSearch] = useState("");
 	const [planTypeFilter, setPlanTypeFilter] = useState<"all" | PlanDetailType>(
 		"all",
+	);
+	const [movementPointDate, setMovementPointDate] = useState(
+		new Date().toISOString().slice(0, 10),
+	);
+	const [movementPointTime, setMovementPointTime] = useState("08:00");
+	const [isMapClickModeActive, setIsMapClickModeActive] = useState(false);
+	const [isEditingExistingWaypoints, setIsEditingExistingWaypoints] =
+		useState(false);
+	const [isAddingNewWaypoints, setIsAddingNewWaypoints] = useState(false);
+	const [draggingWaypointId, setDraggingWaypointId] = useState<string | null>(
+		null,
+	);
+	const [mapWaypoints, setMapWaypoints] = useState<MapWaypoint[]>([]);
+	const [movementVisibleCount, setMovementVisibleCount] = useState(
+		MOVEMENT_POINTS_PAGE_SIZE,
+	);
+	const [expenseVisibleCount, setExpenseVisibleCount] = useState(
+		EXPENSE_DETAILS_PAGE_SIZE,
 	);
 	const [detailExpenseType, setDetailExpenseType] = useState("transport");
 	const [detailExpenseAmount, setDetailExpenseAmount] = useState(0);
@@ -337,8 +504,10 @@ export function TravelPlannerMapWorkspace() {
 	});
 	const formDataQuery = useTravelPlannerFormData();
 	const createPlanMutation = useCreateTravelPlan();
+	const updatePlanMutation = useUpdateTravelPlan();
 	const updateParticipantsMutation = useUpdateTravelPlanParticipants();
 	const createExpenseMutation = useCreateTravelExpense();
+	const exportReportHtmlMutation = useExportTravelPlanReportHtml();
 	const participantPickerQuery = useTravelPlannerParticipants(
 		participantPickerPage,
 		PARTICIPANT_PICKER_PER_PAGE,
@@ -623,7 +792,62 @@ export function TravelPlannerMapWorkspace() {
 	const totalSpent = activePlanExpensesQuery.data?.data?.total_amount ?? 0;
 	const totalBudget = activePlan?.budget_amount ?? 0;
 	const totalRemaining = Math.max(totalBudget - totalSpent, 0);
+	const activePlanExpenseItems = activePlanExpensesQuery.data?.data?.items ?? [];
 	const expenseTypeOptions = formDataQuery.data?.data?.expense_types ?? [];
+	const selectedMovementDate = movementPointDate || activePlan?.start_date || "";
+
+	const movementPointsFromPlan = useMemo<MovementPointCard[]>(() => {
+		if (!activePlan || activePlan.plan_type === "visit_report") {
+			return [];
+		}
+
+		const day = (activePlan.days ?? []).find(
+			(item) => item.day_date === selectedMovementDate,
+		);
+		if (!day) {
+			return [];
+		}
+
+		return (day.stops ?? [])
+			.filter((stop) => stop.category === "checkpoint")
+			.slice()
+			.sort((a, b) => a.order_index - b.order_index)
+			.map((stop, index) => {
+				const parsed = parseMovementStopNote(stop.note);
+				return {
+					id: stop.id || `movement-${day.day_date}-${index + 1}`,
+					dayDate: day.day_date,
+					placeName: stop.place_name || `Point ${index + 1}`,
+					lat: stop.latitude,
+					lng: stop.longitude,
+					time: parsed.time || movementPointTime,
+					address: parsed.address,
+					note: parsed.note,
+				};
+			});
+	}, [activePlan, movementPointTime, selectedMovementDate]);
+
+	const hasPersistedMovementPoints = movementPointsFromPlan.length > 0;
+	const visibleMovementPoints = movementPointsFromPlan.slice(
+		0,
+		movementVisibleCount,
+	);
+	const hasMoreMovementPoints =
+		movementVisibleCount < movementPointsFromPlan.length;
+	const visibleExpenseItems = activePlanExpenseItems.slice(0, expenseVisibleCount);
+	const hasMoreExpenseItems = expenseVisibleCount < activePlanExpenseItems.length;
+
+	useEffect(() => {
+		queueMicrotask(() => {
+			setMovementVisibleCount(MOVEMENT_POINTS_PAGE_SIZE);
+		});
+	}, [activePlanId, selectedMovementDate, movementPointsFromPlan.length]);
+
+	useEffect(() => {
+		queueMicrotask(() => {
+			setExpenseVisibleCount(EXPENSE_DETAILS_PAGE_SIZE);
+		});
+	}, [activePlanId, activePlanExpenseItems.length]);
 
 	const toggleParticipantAssignment = (employeeID: string) => {
 		setSelectedParticipantIDs((current) =>
@@ -692,18 +916,27 @@ export function TravelPlannerMapWorkspace() {
 	};
 
 	const markers = useMemo<MapMarker<PlannerMarkerData>[]>(() => {
-		const stopMarkers = (activePlan?.days ?? []).flatMap((day) =>
-			(day.stops ?? []).map((stop) => ({
-				id: stop.id,
-				latitude: stop.latitude,
-				longitude: stop.longitude,
-				data: {
-					kind: "stop" as const,
-					title: stop.place_name,
-					subtitle: stop.note || `Day ${day.day_index}`,
-				},
-			})),
-		);
+		const shouldHidePersistedStopMarkers =
+			isMapClickModeActive && activePlanDetailType !== "visit_report";
+
+		const stopMarkers = (() => {
+			if (shouldHidePersistedStopMarkers) {
+				return [] as MapMarker<PlannerMarkerData>[];
+			}
+
+			return (activePlan?.days ?? []).flatMap((day) =>
+				(day.stops ?? []).map((stop) => ({
+					id: stop.id,
+					latitude: stop.latitude,
+					longitude: stop.longitude,
+					data: {
+						kind: "stop" as const,
+						title: stop.place_name,
+						subtitle: stop.note || `Day ${day.day_index}`,
+					},
+				})),
+			);
+		})();
 
 		const visitMarkers = detailedVisits.flatMap((visit) => {
 			const checkIn = parseGpsLocation(visit.check_in_location);
@@ -718,7 +951,7 @@ export function TravelPlannerMapWorkspace() {
 					data: {
 						kind: "visit" as const,
 						title: `${visit.code} • Check In`,
-						subtitle: visit.address || visit.purpose || "Visit report",
+							subtitle: visit.address || visit.purpose || t("movementPoints.visitReportLabel"),
 						visitId: visit.id,
 					},
 				});
@@ -732,7 +965,7 @@ export function TravelPlannerMapWorkspace() {
 					data: {
 						kind: "visit" as const,
 						title: `${visit.code} • Check Out`,
-						subtitle: visit.address || visit.purpose || "Visit report",
+							subtitle: visit.address || visit.purpose || t("movementPoints.visitReportLabel"),
 						visitId: visit.id,
 					},
 				});
@@ -754,7 +987,7 @@ export function TravelPlannerMapWorkspace() {
 						data: {
 							kind: "visit" as const,
 							title: visit.code,
-							subtitle: visit.address || visit.purpose || "Visit report",
+							subtitle: visit.address || visit.purpose || t("movementPoints.visitReportLabel"),
 							visitId: visit.id,
 						},
 					},
@@ -765,7 +998,7 @@ export function TravelPlannerMapWorkspace() {
 		});
 
 		return [...stopMarkers, ...visitMarkers];
-	}, [activePlan?.days, detailedVisits]);
+	}, [activePlan?.days, activePlanDetailType, detailedVisits, isMapClickModeActive]);
 
 	const mapCenter = useMemo<[number, number]>(() => {
 		const firstMarker = markers[0];
@@ -907,6 +1140,218 @@ export function TravelPlannerMapWorkspace() {
 
 		setDetailExpenseAmount(0);
 		setDetailExpenseDescription("");
+	};
+
+	const handleConfirmWaypoints = async () => {
+		if (!canUpdateTravelPlanner || !activePlan || activePlan.plan_type === "visit_report") {
+			return;
+		}
+		if (mapWaypoints.length === 0) return;
+
+		const nextPlan = mapPlanToInput(activePlan);
+		const targetDate = movementPointDate || activePlan.start_date;
+		const parsedDate = Number.isNaN(Date.parse(targetDate)) ? activePlan.start_date : targetDate;
+
+		let targetDay = nextPlan.days.find((day) => day.day_date === parsedDate);
+		if (!targetDay) {
+			const maxDayIndex = nextPlan.days.reduce((max, day) => {
+				if (day.day_index > max) {
+					return day.day_index;
+				}
+				return max;
+			}, 0);
+			targetDay = {
+				day_index: maxDayIndex + 1,
+				day_date: parsedDate,
+				summary: "",
+				stops: [],
+				notes: [],
+			};
+			nextPlan.days = [...nextPlan.days, targetDay].sort((a, b) => a.day_index - b.day_index);
+		}
+
+		const nonMovementStops = (targetDay.stops ?? []).filter(
+			(stop) => stop.category !== "checkpoint",
+		);
+		const nextMovementStops = mapWaypoints.map((wp) => ({
+				place_name: wp.label,
+				latitude: wp.lat,
+				longitude: wp.lng,
+				category: "checkpoint",
+				order_index: 0,
+				is_locked: false,
+				source: "manual" as const,
+				photo_url: "",
+				note: wp.time ? `ETA ${wp.time}` : "",
+			}));
+
+		targetDay.stops = [...nonMovementStops, ...nextMovementStops].map(
+			(stop, index) => ({
+				...stop,
+				order_index: index + 1,
+			}),
+		);
+
+		const nonMovementNotes = (targetDay.notes ?? []).filter(
+			(note) => note.icon_tag !== "movement",
+		);
+		const nextMovementNotes = mapWaypoints.map((wp) => ({
+				icon_tag: "movement",
+				note_text: wp.label,
+				note_time: wp.time,
+				order_index: 0,
+			}));
+
+		targetDay.notes = [...nonMovementNotes, ...nextMovementNotes].map(
+			(note, index) => ({
+				...note,
+				order_index: index + 1,
+			}),
+		);
+
+		nextPlan.days = nextPlan.days
+			.slice()
+			.sort((a, b) => a.day_index - b.day_index)
+			.map((day, index) => ({
+				...day,
+				day_index: index + 1,
+			}));
+
+		await updatePlanMutation.mutateAsync({ id: activePlan.id, payload: nextPlan });
+		await Promise.all([activePlanQuery.refetch(), plansQuery.refetch()]);
+		setMapWaypoints([]);
+		setIsMapClickModeActive(false);
+		setIsEditingExistingWaypoints(false);
+		setIsAddingNewWaypoints(false);
+	};
+
+	const handleMapClick = (lat: number, lng: number) => {
+		if (isEditingExistingWaypoints && !isAddingNewWaypoints) {
+			return;
+		}
+
+		const id = `wp-${Date.now()}`;
+		setMapWaypoints((prev) => [
+			...prev,
+			{
+				id,
+				lat,
+				lng,
+				time: movementPointTime,
+				label: `${t("movementPoints.defaultLabel")} ${prev.length + 1}`,
+			},
+		]);
+	};
+
+	const handleUseCurrentLocation = () => {
+		if (!navigator.geolocation) return;
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				const id = `wp-gps-${Date.now()}`;
+				setMapWaypoints((prev) => [
+					...prev,
+					{
+						id,
+						lat: pos.coords.latitude,
+						lng: pos.coords.longitude,
+						time: movementPointTime,
+						label: `${t("movementPoints.defaultLabel")} ${prev.length + 1}`,
+					},
+				]);
+			},
+			() => {
+				// silently ignore geolocation errors
+			},
+			{ enableHighAccuracy: true, timeout: 8000 },
+		);
+	};
+
+	const handleDeleteWaypoint = (id: string) => {
+		setMapWaypoints((prev) => prev.filter((wp) => wp.id !== id));
+	};
+
+	const handleWaypointTimeChange = (id: string, time: string) => {
+		setMapWaypoints((prev) =>
+			prev.map((wp) => (wp.id === id ? { ...wp, time } : wp)),
+		);
+	};
+
+	const handleWaypointDrag = (id: string, lat: number, lng: number) => {
+		setMapWaypoints((prev) =>
+			prev.map((wp) => (wp.id === id ? { ...wp, lat, lng } : wp)),
+		);
+	};
+
+	const handleStartWaypointEditor = () => {
+		if (!canUpdateTravelPlanner || !activePlanId) {
+			return;
+		}
+
+		if (hasPersistedMovementPoints) {
+			setMapWaypoints(
+				movementPointsFromPlan.map((point) => ({
+					id: `edit-${point.id}`,
+					lat: point.lat,
+					lng: point.lng,
+					time: point.time,
+					label: point.placeName,
+				})),
+			);
+			setIsEditingExistingWaypoints(true);
+			setIsAddingNewWaypoints(false);
+		} else {
+			setMapWaypoints([]);
+			setIsEditingExistingWaypoints(false);
+			setIsAddingNewWaypoints(true);
+		}
+
+		setIsMapClickModeActive(true);
+	};
+
+	const handleWaypointDescriptionChange = (id: string, label: string) => {
+		setMapWaypoints((prev) =>
+			prev.map((wp) => (wp.id === id ? { ...wp, label } : wp)),
+		);
+	};
+
+	const handleToggleAddWaypointMode = () => {
+		setIsAddingNewWaypoints((prev) => !prev);
+		setIsMapClickModeActive(true);
+	};
+
+	const handleWaypointReorderDrop = (targetId: string) => {
+		if (!draggingWaypointId || draggingWaypointId === targetId) {
+			setDraggingWaypointId(null);
+			return;
+		}
+
+		setMapWaypoints((prev) => {
+			const fromIndex = prev.findIndex((wp) => wp.id === draggingWaypointId);
+			const toIndex = prev.findIndex((wp) => wp.id === targetId);
+
+			if (fromIndex < 0 || toIndex < 0) {
+				return prev;
+			}
+
+			const next = [...prev];
+			const [moved] = next.splice(fromIndex, 1);
+			next.splice(toIndex, 0, moved);
+			return next;
+		});
+
+		setDraggingWaypointId(null);
+	};
+
+	const handleExportHtmlReport = async () => {
+		if (!activePlanId) {
+			return;
+		}
+
+		const blob = await exportReportHtmlMutation.mutateAsync({
+			planId: activePlanId,
+		});
+		const normalizedCode = (activePlan?.code ?? "travel-plan").toLowerCase();
+		downloadBlobFile(blob, `${normalizedCode}-report.html`);
 	};
 
 	const visitPhotos = parsePhotos(selectedVisitQuery.data?.data?.photos);
@@ -1330,12 +1775,16 @@ export function TravelPlannerMapWorkspace() {
 	};
 
 	const pageMotionClass = isFullPage
-		? "relative h-full w-full min-h-0 overflow-hidden bg-transparent"
-		: "relative h-[calc(100vh-2rem)] min-h-[680px] overflow-hidden rounded-xl border bg-background";
+		? "relative h-full w-full min-h-0 overflow-visible bg-transparent"
+		: "relative h-[calc(100vh-2rem)] min-h-[680px] overflow-visible rounded-xl border bg-background";
 
 	const mainClass = isFullPage
 		? "h-full w-full relative"
 		: "h-full w-full relative bg-muted/30";
+
+	const desktopRightPanelClass = isDesktopRightPanelExpanded
+		? "hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all left-[23rem] right-4 top-4 bottom-4"
+		: "hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all right-4 top-4 bottom-4 w-[32rem] max-w-[calc(100vw-26rem)]";
 
 	return (
 		<PageMotion className={pageMotionClass}>
@@ -1354,17 +1803,79 @@ export function TravelPlannerMapWorkspace() {
 						<Skeleton className="h-full w-full" />
 					</div>
 				) : (
+				<>
 					<MapView
 						markers={markers}
 						renderMarkers={renderMarkers}
-						className="h-full w-full"
+						className={cn("h-full w-full", isMapClickModeActive && "[&_.leaflet-container]:cursor-crosshair")}
 						defaultCenter={mapCenter}
 						defaultZoom={11}
 						selectedMarkerId={null}
 						showLayerControl
-					/>
-				)}
-
+					>
+						<MapClickListener
+							isActive={isMapClickModeActive && (!isEditingExistingWaypoints || isAddingNewWaypoints)}
+							onMapClick={handleMapClick}
+						/>
+						{mapWaypoints.length >= 2 ? (
+							<Polyline
+								positions={mapWaypoints.map((wp) => [wp.lat, wp.lng] as [number, number])}
+								color="#4a5e8a"
+								weight={2}
+								dashArray="6 4"
+							/>
+						) : null}
+						{mapWaypoints.map((wp, i) => (
+							<Marker
+								key={wp.id}
+								position={[wp.lat, wp.lng]}
+								draggable
+								eventHandlers={{
+									dragend(e) {
+										const marker = e.target as { getLatLng(): { lat: number; lng: number } };
+										const { lat, lng } = marker.getLatLng();
+										handleWaypointDrag(wp.id, lat, lng);
+									},
+								}}
+							>
+								<LeafletTooltip permanent direction="top" offset={[0, -15]}>
+									<span style={{ fontWeight: 700, fontSize: "12px" }}>{i + 1}</span>
+								</LeafletTooltip>
+								<Popup>
+									<div style={{ minWidth: 160 }}>
+										<p style={{ fontWeight: 600, marginBottom: 4 }}>{wp.label}</p>
+										<input
+											type="time"
+											value={wp.time}
+											onChange={(e) => handleWaypointTimeChange(wp.id, e.target.value)}
+											style={{ width: "100%", marginBottom: 6 }}
+										/>
+										<button
+											type="button"
+											onClick={() => handleDeleteWaypoint(wp.id)}
+											style={{ color: "red", fontSize: "12px", cursor: "pointer", background: "none", border: "none", padding: 0 }}
+										>
+											{t("movementPoints.removePoint")}
+										</button>
+									</div>
+								</Popup>
+							</Marker>
+						))}
+					</MapView>
+					{isMapClickModeActive ? (
+						<div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-[#4a5e8a] text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-2 pointer-events-none">
+							<Target className="h-3.5 w-3.5 shrink-0" />
+							<span>
+								{isEditingExistingWaypoints
+									? isAddingNewWaypoints
+										? t("movementPoints.addModeHint")
+										: t("movementPoints.editModeHint")
+									: t("movementPoints.addModeHint")}
+							</span>
+						</div>
+					) : null}
+				</>
+			)}
 				<aside className="hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all left-4 top-4 bottom-4 w-84">
 					<div className="p-4 border-b space-y-3">
 						<p className="text-sm font-semibold">{t("planBootstrap.title")}</p>
@@ -1382,12 +1893,11 @@ export function TravelPlannerMapWorkspace() {
 							</Button>
 						) : (
 							<p className="text-xs text-muted-foreground">
-								You do not have permission to create plans.
+								{t("movementPoints.noCreatePermission")}
 							</p>
 						)}
 						<p className="text-[11px] text-muted-foreground">
-							Create Plan is only for Up Country Cost. Visit Report is created
-							via CRM.
+							{t("movementPoints.createPlanNote")}
 						</p>
 					</div>
 
@@ -1403,7 +1913,7 @@ export function TravelPlannerMapWorkspace() {
 							<Input
 								value={planSearch}
 								onChange={(event) => setPlanSearch(event.target.value)}
-								placeholder="Search plans"
+								placeholder={t("movementPoints.searchPlans")}
 								className="pl-9"
 							/>
 						</div>
@@ -1414,17 +1924,17 @@ export function TravelPlannerMapWorkspace() {
 							}
 						>
 							<SelectTrigger className="cursor-pointer">
-								<SelectValue placeholder="Filter type" />
+								<SelectValue placeholder={t("movementPoints.filterType")} />
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all" className="cursor-pointer">
-									All Types
+									{t("movementPoints.allTypes")}
 								</SelectItem>
 								<SelectItem value="up_country_cost" className="cursor-pointer">
-									Up Country Cost / Travel Planner
+									{t("movementPoints.upCountryCostLabel")}
 								</SelectItem>
 								<SelectItem value="visit_report" className="cursor-pointer">
-									Visit Report
+									{t("movementPoints.visitReportLabel")}
 								</SelectItem>
 							</SelectContent>
 						</Select>
@@ -1491,8 +2001,8 @@ export function TravelPlannerMapWorkspace() {
 										</p>
 										<Badge variant="outline" className="mt-2 text-[10px]">
 											{planType === "visit_report"
-												? "Visit Report"
-												: "Up Country Cost"}
+												? t("movementPoints.visitReportLabel")
+												: t("movementPoints.upCountryCostLabel")}
 										</Badge>
 										<div className="mt-2 flex flex-wrap gap-1">
 											{planType !== "visit_report" &&
@@ -1608,8 +2118,37 @@ export function TravelPlannerMapWorkspace() {
 					</ScrollArea>
 				</aside>
 
-				<aside className="hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all right-4 top-4 bottom-4 w-90">
-					<div className="p-4 border-b space-y-3">
+				<aside className={desktopRightPanelClass}>
+					<div className="px-2 pt-2 flex items-center justify-end gap-1 border-b pb-2">
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										className="h-7 w-7 cursor-pointer"
+										onClick={() =>
+											setIsDesktopRightPanelExpanded((prev) => !prev)
+										}
+										aria-label={isDesktopRightPanelExpanded ? "Restore panel" : "Expand panel"}
+									>
+										{isDesktopRightPanelExpanded ? (
+											<Minimize2 className="h-3.5 w-3.5" />
+										) : (
+											<Maximize2 className="h-3.5 w-3.5" />
+										)}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									{isDesktopRightPanelExpanded ? "Restore" : "Expand"}
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					</div>
+					<div className={isDesktopRightPanelExpanded ? "flex flex-row flex-1 min-h-0" : "flex flex-col flex-1 min-h-0"}>
+					<div className={isDesktopRightPanelExpanded ? "w-88 flex flex-col border-r overflow-y-auto shrink-0" : ""}>
+					<div className={isDesktopRightPanelExpanded ? "p-4 space-y-3" : "p-4 border-b space-y-3"}>
 						<div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
 							<div className="flex items-center gap-3">
 								<Tooltip>
@@ -1760,7 +2299,7 @@ export function TravelPlannerMapWorkspace() {
 													!canUpdateTravelPlanner ||
 													updateParticipantsMutation.isPending
 												}
-												aria-label="Add participants"
+												aria-label={t("movementPoints.addParticipants")}
 											>
 												<Plus className="h-3.5 w-3.5" />
 											</Button>
@@ -1772,14 +2311,168 @@ export function TravelPlannerMapWorkspace() {
 
 						{activePlanDetailType === "visit_report" ? (
 							<div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs text-muted-foreground">
-								Visit report mode is simplified for faster reading. Select a
-								card to open full detail.
+								{t("movementPoints.visitReportModeHint")}
 							</div>
 						) : (
 							<div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3 space-y-2">
 								<p className="text-xs uppercase tracking-wide text-muted-foreground">
-									Add Expense Item
+									{t("movementPoints.addExpenseItem")}
 								</p>
+								<Button
+									type="button"
+									variant="secondary"
+									className="w-full cursor-pointer"
+									onClick={handleExportHtmlReport}
+									disabled={exportReportHtmlMutation.isPending || !activePlanId}
+								>
+									<FileDown className="h-4 w-4 mr-2" />
+									{t("export.htmlReport")}
+								</Button>
+								<div className="rounded-lg border border-border/60 p-2 space-y-2">
+									<p className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+										<Navigation className="h-3 w-3" />
+										{t("movementPoints.title")}
+									</p>
+									{isMapClickModeActive ? (
+										<>
+											<div className="flex items-center gap-1.5 text-xs text-primary bg-primary/10 rounded px-2 py-1.5">
+												<Target className="h-3 w-3 shrink-0" />
+												<span>
+													{isEditingExistingWaypoints
+														? isAddingNewWaypoints
+															? t("movementPoints.addModeHint")
+															: t("movementPoints.editModeHint")
+														: t("movementPoints.addModeHint")}
+												</span>
+											</div>
+											<div className="grid grid-cols-2 gap-2">
+												<Input
+													type="date"
+													value={movementPointDate}
+													onChange={(event) => setMovementPointDate(event.target.value)}
+												/>
+												<Input
+													type="time"
+													value={movementPointTime}
+													onChange={(event) => setMovementPointTime(event.target.value)}
+												/>
+											</div>
+											{mapWaypoints.map((wp, index) => (
+												<div
+													key={wp.id}
+													className={cn(
+														"flex items-center gap-2 rounded-md border border-border/60 px-2 py-1",
+														draggingWaypointId === wp.id && "opacity-60",
+													)}
+													draggable={isEditingExistingWaypoints}
+													onDragStart={() => setDraggingWaypointId(wp.id)}
+													onDragEnd={() => setDraggingWaypointId(null)}
+													onDragOver={(event) => event.preventDefault()}
+													onDrop={() => handleWaypointReorderDrop(wp.id)}
+												>
+													<Badge variant="outline" className="h-5 px-1.5 text-[10px]">#{index + 1}</Badge>
+													<MapPin className="h-3 w-3 text-primary shrink-0" />
+												<Input
+													value={wp.label}
+													onChange={(event) =>
+														handleWaypointDescriptionChange(wp.id, event.target.value)
+													}
+													placeholder={t("movementPoints.descriptionPlaceholder")}
+													className="h-6 flex-1 text-xs px-2"
+												/>
+													<Input
+														type="time"
+														value={wp.time}
+														onChange={(event) => handleWaypointTimeChange(wp.id, event.target.value)}
+														className="w-24 h-6 text-xs px-1"
+													/>
+													<Button
+														type="button"
+														variant="ghost"
+														size="icon"
+														className="h-5 w-5 shrink-0 cursor-pointer"
+														onClick={() => handleDeleteWaypoint(wp.id)}
+													>
+														<X className="h-3 w-3" />
+													</Button>
+												</div>
+											))}
+											<div className="flex gap-2">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="flex-1 cursor-pointer"
+													onClick={handleUseCurrentLocation}
+												>
+													<Navigation className="h-3 w-3 mr-1" /> {t("movementPoints.useGps")}
+												</Button>
+												<Button
+													type="button"
+													variant={isAddingNewWaypoints ? "secondary" : "outline"}
+													size="sm"
+													className="flex-1 cursor-pointer"
+													onClick={handleToggleAddWaypointMode}
+												>
+													<Plus className="h-3 w-3 mr-1" />
+													{isAddingNewWaypoints
+														? t("movementPoints.finishAdding")
+														: t("movementPoints.addNewPoint")}
+												</Button>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													className="cursor-pointer"
+													onClick={() => {
+														setIsMapClickModeActive(false);
+														setMapWaypoints([]);
+														setIsEditingExistingWaypoints(false);
+														setIsAddingNewWaypoints(false);
+													}}
+												>
+												{t("movementPoints.cancel")}
+												</Button>
+											</div>
+											<Button
+												type="button"
+												className="w-full cursor-pointer"
+												onClick={handleConfirmWaypoints}
+												disabled={
+													updatePlanMutation.isPending ||
+													mapWaypoints.length === 0 ||
+													!activePlanId
+												}
+											>
+												<Check className="h-4 w-4 mr-2" />
+												{t("movementPoints.confirmPoints", { count: mapWaypoints.length })}
+											</Button>
+										</>
+									) : (
+										<>
+											<Button
+												type="button"
+												variant="outline"
+												className="w-full cursor-pointer"
+												onClick={handleStartWaypointEditor}
+												disabled={
+													!canUpdateTravelPlanner ||
+													!activePlanId
+												}
+											>
+												<MapPinned className="h-4 w-4 mr-2" />
+												{hasPersistedMovementPoints
+													? t("movementPoints.editPointsOnMap")
+													: t("movementPoints.pickPointsOnMap")}
+											</Button>
+											<Input
+												type="date"
+												value={movementPointDate}
+												onChange={(event) => setMovementPointDate(event.target.value)}
+											/>
+										</>
+									)}
+								</div>
 								<Select
 									value={detailExpenseType}
 									onValueChange={setDetailExpenseType}
@@ -1802,14 +2495,14 @@ export function TravelPlannerMapWorkspace() {
 								<NumericInput
 									value={detailExpenseAmount}
 									onChange={(value) => setDetailExpenseAmount(value ?? 0)}
-									placeholder="Amount"
+									placeholder={t("movementPoints.amountPlaceholder")}
 								/>
 								<Input
 									value={detailExpenseDescription}
 									onChange={(event) =>
 										setDetailExpenseDescription(event.target.value)
 									}
-									placeholder="Description"
+									placeholder={t("movementPoints.descriptionPlaceholder")}
 								/>
 								<Button
 									type="button"
@@ -1822,40 +2515,103 @@ export function TravelPlannerMapWorkspace() {
 									}
 								>
 									<Plus className="h-4 w-4 mr-2" />
-									Add Expense
+												{t("movementPoints.addExpense")}
 								</Button>
 							</div>
 						)}
 					</div>
-
-					<div className="px-4 py-2 border-b flex items-center justify-between">
-						<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-							<Filter className="h-3 w-3" />
-							{activePlanDetailType === "visit_report"
-								? "Visit Report Details"
-								: "Expense Details"}
-						</p>
-						<Badge variant="outline">
-							{activePlanDetailType === "visit_report"
-								? filteredVisits.length
-								: (activePlanExpensesQuery.data?.data?.items?.length ?? 0)}
-						</Badge>
 					</div>
+					<div className={isDesktopRightPanelExpanded ? "flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden" : "flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden"}>
+					{isDesktopRightPanelExpanded && activePlanDetailType !== "visit_report" ? (
+						<div className="px-4 py-3 border-b space-y-2 min-w-0 max-w-full overflow-hidden">
+							<div className="flex items-center justify-between">
+								<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+									{t("movementPoints.title")}
+								</p>
+								<Badge variant="outline">{movementPointsFromPlan.length}</Badge>
+							</div>
+							{movementPointsFromPlan.length === 0 ? (
+								<div className="rounded-xl border border-dashed border-border p-3 text-xs text-muted-foreground">
+									{t("movementPoints.empty")}
+								</div>
+								) : (
+									<div className="w-full max-w-full overflow-x-auto rounded-xl border border-border/60 bg-background/40 pb-1">
+										<div className="flex w-max min-w-full gap-4 p-2 pr-4">
+										{visibleMovementPoints.map((point, index) => (
+											<div
+												key={`movement-card-${point.id}`}
+												className="bg-card text-card-foreground flex flex-col gap-2 rounded-xl border border-border shadow-sm min-w-[320px] max-w-[320px] p-4 shrink-0"
+											>
+												<div className="flex items-start justify-between">
+													<div className="flex items-center gap-2">
+														<Badge className="rounded-lg">#{index + 1}</Badge>
+														<MapPin className="h-4 w-4 text-muted-foreground" />
+													</div>
+													<span className="text-xs text-muted-foreground">
+														{formatDateCard(point.dayDate)}
+													</span>
+												</div>
+												<div className="mt-1 font-medium truncate">{point.placeName}</div>
+												{point.address ? (
+													<div className="text-sm text-muted-foreground line-clamp-2">
+														{point.address}
+													</div>
+												) : null}
+												<div className="text-xs text-muted-foreground truncate">
+													{point.note || (point.time ? `${t("movementPoints.etaPrefix")} ${point.time}` : "-")}
+												</div>
+												<div className="text-xs text-muted-foreground font-mono truncate">
+													{formatLatLng(point.lat, point.lng)}
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							)}
+							{hasMoreMovementPoints ? (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="w-full cursor-pointer"
+									onClick={() =>
+										setMovementVisibleCount((prev) => prev + MOVEMENT_POINTS_PAGE_SIZE)
+									}
+								>
+									{t("movementPoints.loadMoreMovementPoints")}
+								</Button>
+							) : null}
+						</div>
+					) : null}
+					<div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+						<div className="px-4 py-2 border-b flex items-center justify-between">
+							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+								<Filter className="h-3 w-3" />
+								{activePlanDetailType === "visit_report"
+									? t("movementPoints.visitReportDetails")
+									: t("movementPoints.expenseDetails")}
+							</p>
+							<Badge variant="outline">
+								{activePlanDetailType === "visit_report"
+									? filteredVisits.length
+									: activePlanExpenseItems.length}
+							</Badge>
+						</div>
 
-					<ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:block!">
-						<div className="p-2 space-y-2">
+						<ScrollArea className="flex-1 min-h-0 min-w-0 max-w-full [&_[data-radix-scroll-area-viewport]>div]:block!">
+							<div className="p-2 space-y-2">
 							{activePlanDetailType === "visit_report" ? (
 								renderVisitReportCards()
 							) : (
 								<>
-									{(activePlanExpensesQuery.data?.data?.items ?? []).length ===
+									{activePlanExpenseItems.length ===
 									0 ? (
 										<div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-center text-sm text-muted-foreground">
 											No expense items yet.
 										</div>
 									) : null}
 
-									{(activePlanExpensesQuery.data?.data?.items ?? []).map(
+									{visibleExpenseItems.map(
 										(expense) => (
 											<div
 												key={expense.id}
@@ -1876,10 +2632,26 @@ export function TravelPlannerMapWorkspace() {
 											</div>
 										),
 									)}
+									{hasMoreExpenseItems ? (
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="w-full cursor-pointer"
+											onClick={() =>
+												setExpenseVisibleCount((prev) => prev + EXPENSE_DETAILS_PAGE_SIZE)
+											}
+										>
+											{t("movementPoints.loadMoreExpenseDetails")}
+										</Button>
+									) : null}
 								</>
 							)}
-						</div>
-					</ScrollArea>
+							</div>
+						</ScrollArea>
+					</div>
+					</div>
+					</div>
 				</aside>
 			</main>
 
@@ -1909,12 +2681,11 @@ export function TravelPlannerMapWorkspace() {
 								</Button>
 							) : (
 								<p className="text-xs text-muted-foreground">
-									You do not have permission to create plans.
+									{t("movementPoints.noCreatePermission")}
 								</p>
 							)}
 							<p className="text-[11px] text-muted-foreground">
-								Create Plan is only for Up Country Cost. Visit Report is created
-								via CRM.
+								{t("movementPoints.createPlanNote")}
 							</p>
 						</div>
 
@@ -1930,7 +2701,7 @@ export function TravelPlannerMapWorkspace() {
 								<Input
 									value={planSearch}
 									onChange={(event) => setPlanSearch(event.target.value)}
-									placeholder="Search plans"
+									placeholder={t("movementPoints.searchPlans")}
 									className="pl-9"
 								/>
 							</div>
@@ -1941,20 +2712,20 @@ export function TravelPlannerMapWorkspace() {
 								}
 							>
 								<SelectTrigger className="cursor-pointer">
-									<SelectValue placeholder="Filter type" />
+									<SelectValue placeholder={t("movementPoints.filterType")} />
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="all" className="cursor-pointer">
-										All Types
+										{t("movementPoints.allTypes")}
 									</SelectItem>
 									<SelectItem
 										value="up_country_cost"
 										className="cursor-pointer"
 									>
-										Up Country Cost / Travel Planner
+										{t("movementPoints.upCountryCostLabel")}
 									</SelectItem>
 									<SelectItem value="visit_report" className="cursor-pointer">
-										Visit Report
+										{t("movementPoints.visitReportLabel")}
 									</SelectItem>
 								</SelectContent>
 							</Select>
@@ -2019,8 +2790,8 @@ export function TravelPlannerMapWorkspace() {
 											</p>
 											<Badge variant="outline" className="mt-2 text-[10px]">
 												{planType === "visit_report"
-													? "Visit Report"
-													: "Up Country Cost"}
+													? t("movementPoints.visitReportLabel")
+													: t("movementPoints.upCountryCostLabel")}
 											</Badge>
 											<div className="mt-2 flex flex-wrap gap-1">
 												{planType !== "visit_report" &&
@@ -2293,7 +3064,7 @@ export function TravelPlannerMapWorkspace() {
 															!canUpdateTravelPlanner ||
 															updateParticipantsMutation.isPending
 														}
-														aria-label="Add participants"
+														aria-label={t("movementPoints.addParticipants")}
 													>
 														<Plus className="h-3.5 w-3.5" />
 													</Button>
@@ -2306,14 +3077,77 @@ export function TravelPlannerMapWorkspace() {
 
 							{activePlanDetailType === "visit_report" ? (
 								<div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs text-muted-foreground">
-									Visit report mode is simplified for faster reading. Select a
-									card to open full detail.
+									{t("movementPoints.visitReportModeHint")}
 								</div>
 							) : (
 								<div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3 space-y-2">
 									<p className="text-xs uppercase tracking-wide text-muted-foreground">
-										Add Expense Item
+										{t("movementPoints.addExpenseItem")}
 									</p>
+									<Button
+										type="button"
+										variant="secondary"
+										className="w-full cursor-pointer"
+										onClick={handleExportHtmlReport}
+										disabled={exportReportHtmlMutation.isPending || !activePlanId}
+									>
+										<FileDown className="h-4 w-4 mr-2" />
+										{t("export.htmlReport")}
+									</Button>
+									<div className="rounded-lg border border-border/60 p-2 space-y-2">
+										<p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+											{t("movementPoints.title")}
+										</p>
+										<div className="grid grid-cols-2 gap-2">
+											<Input
+												type="date"
+												value={movementPointDate}
+												onChange={(event) => setMovementPointDate(event.target.value)}
+											/>
+											<Input
+												type="time"
+												value={movementPointTime}
+												onChange={(event) => setMovementPointTime(event.target.value)}
+											/>
+										</div>
+										{mapWaypoints.map((wp) => (
+											<div key={wp.id} className="flex items-center gap-2">
+												<MapPin className="h-3 w-3 text-primary shrink-0" />
+												<Input
+													value={wp.label}
+													onChange={(event) =>
+														handleWaypointDescriptionChange(wp.id, event.target.value)
+													}
+													placeholder={t("movementPoints.descriptionPlaceholder")}
+													className="h-6 flex-1 text-xs px-2"
+												/>
+												<Input
+													type="time"
+													value={wp.time}
+													onChange={(event) => handleWaypointTimeChange(wp.id, event.target.value)}
+													className="w-24 h-6 text-xs px-1"
+												/>
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													className="h-5 w-5 shrink-0 cursor-pointer"
+													onClick={() => handleDeleteWaypoint(wp.id)}
+												>
+													<X className="h-3 w-3" />
+												</Button>
+											</div>
+										))}
+										<Button
+											type="button"
+											className="w-full cursor-pointer"
+											onClick={handleConfirmWaypoints}
+											disabled={updatePlanMutation.isPending || mapWaypoints.length === 0 || !activePlanId}
+										>
+											<Check className="h-4 w-4 mr-2" />
+											{t("movementPoints.confirmPoints", { count: mapWaypoints.length })}
+										</Button>
+									</div>
 									<Select
 										value={detailExpenseType}
 										onValueChange={setDetailExpenseType}
@@ -2336,14 +3170,14 @@ export function TravelPlannerMapWorkspace() {
 									<NumericInput
 										value={detailExpenseAmount}
 										onChange={(value) => setDetailExpenseAmount(value ?? 0)}
-										placeholder="Amount"
+										placeholder={t("movementPoints.amountPlaceholder")}
 									/>
 									<Input
 										value={detailExpenseDescription}
 										onChange={(event) =>
 											setDetailExpenseDescription(event.target.value)
 										}
-										placeholder="Description"
+										placeholder={t("movementPoints.descriptionPlaceholder")}
 									/>
 									<Button
 										type="button"
@@ -2356,7 +3190,7 @@ export function TravelPlannerMapWorkspace() {
 										}
 									>
 										<Plus className="h-4 w-4 mr-2" />
-										Add Expense
+										{t("movementPoints.addExpense")}
 									</Button>
 								</div>
 							)}
@@ -2366,8 +3200,8 @@ export function TravelPlannerMapWorkspace() {
 							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
 								<Filter className="h-3 w-3" />
 								{activePlanDetailType === "visit_report"
-									? "Visit Report Details"
-									: "Expense Details"}
+									? t("movementPoints.visitReportDetails")
+									: t("movementPoints.expenseDetails")}
 							</p>
 							<Badge variant="outline">
 								{activePlanDetailType === "visit_report"

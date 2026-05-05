@@ -48,6 +48,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
@@ -63,7 +64,7 @@ import type { GoodsReceiptListItem } from "../types";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
-import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { goodsReceiptsService } from "../services/goods-receipts-service";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
@@ -83,6 +84,7 @@ export function GoodsReceiptsList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -91,7 +93,7 @@ export function GoodsReceiptsList() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
+
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export function GoodsReceiptsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
+    warehouse_id: warehouseFilter === "all" ? undefined : warehouseFilter,
     sort_by: "created_at",
     sort_dir: "desc",
   });
@@ -136,7 +139,7 @@ export function GoodsReceiptsList() {
 
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 
@@ -225,6 +228,34 @@ export function GoodsReceiptsList() {
           </SelectContent>
         </Select>
 
+        {/* Warehouse filter */}
+        <Select
+          value={warehouseFilter}
+          onValueChange={(v) => {
+            setWarehouseFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder={t("columns.warehouse") || "Warehouse"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{tCommon("all")}</SelectItem>
+            {items.reduce((wh, gr) => {
+              if (gr.warehouse && !wh.find((w) => w?.id === gr.warehouse?.id)) {
+                wh.push(gr.warehouse);
+              }
+              return wh;
+            }, [] as (typeof items[0]["warehouse"] | undefined)[]).map((warehouse) => (
+              warehouse && (
+                <SelectItem key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </SelectItem>
+              )
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="flex-1" />
 
         {canExport && (
@@ -259,8 +290,7 @@ export function GoodsReceiptsList() {
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
-              <TableHead>{t("columns.supplier")}</TableHead>
-              <TableHead>{t("columns.receiptDate")}</TableHead>
+              <TableHead>{t("columns.supplier")}</TableHead>                <TableHead>{t("columns.warehouse") || "Warehouse"}</TableHead>              <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
@@ -329,6 +359,9 @@ export function GoodsReceiptsList() {
                       )
                     ) : "-"}
                   </TableCell>
+                  <TableCell>
+                    {it.warehouse?.name || "-"}
+                  </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
                     <GoodsReceiptStatusBadge
@@ -379,8 +412,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await submitMutation.mutateAsync(it.id);
                                   toast.success(t("toast.submitted"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >
@@ -420,8 +453,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await approveMutation.mutateAsync(it.id);
                                   toast.success(t("toast.approved"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >
@@ -437,8 +470,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await rejectMutation.mutateAsync(it.id);
                                   toast.success(t("toast.rejected"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >
@@ -450,7 +483,7 @@ export function GoodsReceiptsList() {
                           {canPrint && (
                             <DropdownMenuItem
                               className="cursor-pointer text-purple focus:text-purple"
-                              onClick={() => setPrintingId(it.id)}
+                              onClick={() => { goodsReceiptsService.openPrintWindow(it.id).catch(() => toast.error("Print failed")); }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {t("actions.print")}
@@ -507,14 +540,6 @@ export function GoodsReceiptsList() {
           setDetailId(null);
         }}
       />
-
-      {printingId && (
-        <GoodsReceiptPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          receiptId={printingId}
-        />
-      )}
 
       <SupplierDetailModal
         open={isSupplierOpen}

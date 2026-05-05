@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Package, Truck, PieChart, Clock, XCircle, Send } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface OrderStatusBadgeProps {

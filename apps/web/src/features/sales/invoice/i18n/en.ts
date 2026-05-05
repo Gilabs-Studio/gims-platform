@@ -75,6 +75,7 @@ export const invoiceEn = {
       approved: "Approved",
       rejected: "Rejected",
       unpaid: "Unpaid",
+      waiting_approval: "Waiting Approval",
       waiting_payment: "Waiting Payment",
       partial: "Partial",
       paid: "Paid",

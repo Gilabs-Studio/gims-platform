@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  DeliveryOrder,
   DeliveryOrderListResponse,
   DeliveryOrderSingleResponse,
   ListDeliveryOrdersParams,

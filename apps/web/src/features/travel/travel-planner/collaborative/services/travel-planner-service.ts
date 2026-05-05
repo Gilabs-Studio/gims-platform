@@ -22,6 +22,135 @@ import type {
 
 const BASE_URL = "/travel/travel-planner";
 
+type LegacyExpensePayload =
+  | TravelExpenseListResult
+  | TravelExpense[]
+  | {
+      items?: TravelExpense[];
+      expenses?: TravelExpense[];
+      total_amount?: number;
+      totalAmount?: number;
+    }
+  | null
+  | undefined;
+
+function normalizeExpenseItem(raw: unknown): TravelExpense | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const item = raw as Record<string, unknown>;
+  const id = typeof item.id === "string" ? item.id : "";
+  const travelPlanID =
+    typeof item.travel_plan_id === "string"
+      ? item.travel_plan_id
+      : typeof item.travelPlanId === "string"
+        ? item.travelPlanId
+        : "";
+
+  if (!id || !travelPlanID) {
+    return null;
+  }
+
+  const amountRaw =
+    typeof item.amount === "number"
+      ? item.amount
+      : typeof item.amount === "string"
+        ? Number(item.amount)
+        : 0;
+
+  const amount = Number.isFinite(amountRaw) ? amountRaw : 0;
+
+  return {
+    id,
+    travel_plan_id: travelPlanID,
+    expense_type:
+      typeof item.expense_type === "string"
+        ? item.expense_type
+        : typeof item.expenseType === "string"
+          ? item.expenseType
+          : "other",
+    description: typeof item.description === "string" ? item.description : "",
+    amount,
+    expense_date:
+      typeof item.expense_date === "string"
+        ? item.expense_date
+        : typeof item.expenseDate === "string"
+          ? item.expenseDate
+          : "",
+    receipt_url:
+      typeof item.receipt_url === "string"
+        ? item.receipt_url
+        : typeof item.receiptURL === "string"
+          ? item.receiptURL
+          : "",
+    created_by:
+      typeof item.created_by === "string"
+        ? item.created_by
+        : typeof item.createdBy === "string"
+          ? item.createdBy
+          : null,
+    created_at:
+      typeof item.created_at === "string"
+        ? item.created_at
+        : typeof item.createdAt === "string"
+          ? item.createdAt
+          : "",
+    updated_at:
+      typeof item.updated_at === "string"
+        ? item.updated_at
+        : typeof item.updatedAt === "string"
+          ? item.updatedAt
+          : "",
+  };
+}
+
+function normalizeExpenseListResult(raw: LegacyExpensePayload): TravelExpenseListResult {
+  if (Array.isArray(raw)) {
+    const totalAmount = raw.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    return {
+      items: raw,
+      total_amount: totalAmount,
+    };
+  }
+
+  if (!raw || typeof raw !== "object") {
+    return {
+      items: [],
+      total_amount: 0,
+    };
+  }
+
+  const rawRecord = raw as Record<string, unknown>;
+  const itemsFromItems = rawRecord.items;
+  const itemsFromExpenses = rawRecord.expenses;
+
+  const itemsRaw = Array.isArray(itemsFromItems)
+    ? itemsFromItems
+    : Array.isArray(itemsFromExpenses)
+      ? itemsFromExpenses
+      : [];
+
+  const items: TravelExpense[] = itemsRaw
+    .map((item) => normalizeExpenseItem(item))
+    .filter((item): item is TravelExpense => item !== null);
+
+  const rawTotalAmount = rawRecord.total_amount;
+  const rawTotalAmountCamel = rawRecord.totalAmount;
+
+  const totalAmount =
+    typeof rawTotalAmount === "number"
+      ? rawTotalAmount
+      : typeof rawTotalAmountCamel === "number"
+        ? rawTotalAmountCamel
+        : items.reduce((sum: number, item: TravelExpense) => sum + (item.amount ?? 0), 0);
+
+  return {
+    items,
+    total_amount: totalAmount,
+  };
+}
+
 export const travelPlannerService = {
   listPlans: async (params?: TravelPlanListParams): Promise<ApiEnvelope<TravelPlan[]>> => {
     const response = await apiClient.get<ApiEnvelope<TravelPlan[]>>(`${BASE_URL}/plans`, { params });
@@ -103,7 +232,20 @@ export const travelPlannerService = {
   },
 
   listExpenses: async (planId: string): Promise<ApiEnvelope<TravelExpenseListResult>> => {
-    const response = await apiClient.get<ApiEnvelope<TravelExpenseListResult>>(`${BASE_URL}/plans/${planId}/expenses`);
+    const response = await apiClient.get<ApiEnvelope<LegacyExpensePayload>>(`${BASE_URL}/plans/${planId}/expenses`);
+    return {
+      ...response.data,
+      data: normalizeExpenseListResult(response.data?.data),
+    };
+  },
+
+  exportPlanReportHtml: async (planId: string): Promise<Blob> => {
+    const response = await apiClient.get<Blob>(`${BASE_URL}/plans/${planId}/export/report-html`, {
+      responseType: "blob",
+      headers: {
+        Accept: "text/html",
+      },
+    });
     return response.data;
   },
 

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import {
 	CalendarIcon,
@@ -92,6 +92,10 @@ export function SupplierInvoiceDPFormDialog({
 		() => addDataQuery.data?.data?.purchase_orders ?? [],
 		[addDataQuery.data],
 	);
+	const eligiblePOIds = useMemo(
+		() => new Set(purchaseOrders.map((po) => po.id)),
+		[purchaseOrders],
+	);
 
 	const createMutation = useCreateSupplierInvoiceDP();
 	const updateMutation = useUpdateSupplierInvoiceDP();
@@ -106,6 +110,8 @@ export function SupplierInvoiceDPFormDialog({
 			notes: null,
 		},
 	});
+
+	const { control } = form;
 
 	const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", {
 		enabled: open && !!defaultPurchaseOrderId && !isEdit,
@@ -151,12 +157,24 @@ export function SupplierInvoiceDPFormDialog({
 		poQuery.data,
 	]);
 
+	useEffect(() => {
+		if (!open || isEdit) return;
+		if (addDataQuery.isFetching) return;
+
+		const selectedPOID = form.getValues("purchase_order_id");
+		if (!selectedPOID) return;
+		if (eligiblePOIds.has(selectedPOID)) return;
+
+		form.setValue("purchase_order_id", "", { shouldValidate: true });
+		toast.error("Selected purchase order is no longer eligible for down payment invoice.");
+	}, [addDataQuery.isFetching, eligiblePOIds, form, isEdit, open]);
+
 	const isBusy =
 		detailQuery.isLoading ||
 		createMutation.isPending ||
 		updateMutation.isPending;
 
-	const watchedPOId = form.watch("purchase_order_id");
+	const watchedPOId = useWatch({ control, name: "purchase_order_id" });
 	const selectedPOQuery = usePurchaseOrder(watchedPOId ?? "", {
 		enabled: open && !!watchedPOId,
 	});
@@ -164,7 +182,8 @@ export function SupplierInvoiceDPFormDialog({
 	const selectedPO = selectedPOQuery.data?.success
 		? selectedPOQuery.data.data
 		: null;
-	const dpAmount = form.watch("amount");
+	const dpAmount = useWatch({ control, name: "amount" });
+	const watchedNotes = useWatch({ control, name: "notes" }) ?? "";
 
 	useEffect(() => {
 		if (!open || isEdit || !selectedPO) return;
@@ -528,7 +547,7 @@ export function SupplierInvoiceDPFormDialog({
 					<Field orientation="vertical">
 						<FieldLabel>{t("fields.notes")}</FieldLabel>
 						<Textarea
-							value={form.watch("notes") ?? ""}
+							value={watchedNotes}
 							onChange={(e) =>
 								form.setValue("notes", e.target.value, { shouldValidate: true })
 							}

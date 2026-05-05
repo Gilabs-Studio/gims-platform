@@ -25,7 +25,6 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useRouter } from "@/i18n/routing";
-import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { salesPaymentSchema } from "../schemas/sales-payment.schema";
 import { useConfirmSalesPayment, useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
@@ -76,7 +75,6 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const createMutation = useCreateSalesPayment();
   const confirmMutation = useConfirmSalesPayment();
-  const canConfirmPayment = useUserPermission("sales_payment.confirm");
 
   // Fetch DP detail when locked to a specific down payment
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useCustomerInvoiceDP(defaultDPId ?? "", {

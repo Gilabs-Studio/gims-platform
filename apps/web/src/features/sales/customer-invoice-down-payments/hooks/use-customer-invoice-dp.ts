@@ -76,6 +76,8 @@ export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams, opti
     queryKey: customerInvoiceDPKeys.list(params),
     queryFn: () => customerInvoiceDPService.list(params),
     enabled: options?.enabled !== undefined ? options.enabled : true,
+    retry: 1,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
