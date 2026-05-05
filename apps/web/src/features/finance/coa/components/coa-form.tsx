@@ -129,43 +129,49 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
 
-        <form
-          className="space-y-4"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
+        <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
           {isProtected && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              {t("messages.protectedAccount")}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-100">
+              <p className="font-medium">{t("messages.protectedAccount")}</p>
             </div>
           )}
 
+          {/* Code Field */}
           <div className="space-y-2">
-            <Label htmlFor="code">{t("fields.code")}</Label>
+            <Label htmlFor="code" className="font-medium">{t("fields.code")}</Label>
             <Input
               id="code"
               {...form.register("code")}
               disabled={isProtected || (mode === "create" && (watchedParentId ?? null) !== null)}
-              placeholder={mode === "create" && (watchedParentId ?? null) !== null ? t("messages.autoCodeFromParent") : undefined}
+              placeholder={mode === "create" && (watchedParentId ?? null) !== null ? t("messages.autoCodeFromParent") : t("placeholders.code")}
+              className="font-mono"
             />
             {mode === "create" && (watchedParentId ?? null) !== null && (
               <p className="text-xs text-muted-foreground">{t("messages.autoCodeHint")}</p>
             )}
             {form.formState.errors.code && (
-              <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
+              <p className="text-sm text-destructive font-medium">{form.formState.errors.code.message}</p>
             )}
           </div>
 
+          {/* Name Field */}
           <div className="space-y-2">
-            <Label htmlFor="name">{t("fields.name")}</Label>
-            <Input id="name" {...form.register("name")} disabled={isProtected} />
+            <Label htmlFor="name" className="font-medium">{t("fields.name")}</Label>
+            <Input
+              id="name"
+              {...form.register("name")}
+              disabled={isProtected}
+              placeholder={t("placeholders.name")}
+            />
             {form.formState.errors.name && (
-              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-sm text-destructive font-medium">{form.formState.errors.name.message}</p>
             )}
           </div>
 
+          {/* Type & Parent Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t("fields.type")}</Label>
+              <Label className="font-medium">{t("fields.type")}</Label>
               <Select
                 value={watchedType}
                 onValueChange={(v) => {
@@ -185,12 +191,12 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 </SelectContent>
               </Select>
               {form.formState.errors.type && (
-                <p className="text-sm text-destructive">{form.formState.errors.type.message}</p>
+                <p className="text-sm text-destructive font-medium">{form.formState.errors.type.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>{t("fields.parent")}</Label>
+              <Label className="font-medium">{t("fields.parent")}</Label>
               <Select
                 value={watchedParentId ?? "__none__"}
                 onValueChange={(v) => {
@@ -206,26 +212,30 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__" className="cursor-pointer">
-                    -
+                    {t("messages.noParent")}
                   </SelectItem>
                   {parentOptions
                     .filter((p) => p.id !== (initialData?.id ?? ""))
                     .map((p) => (
                       <SelectItem key={p.id} value={p.id} className="cursor-pointer">
-                        {p.code} - {p.name}
+                        {p.code} {t("fields.parentSeparator")} {p.name}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
               {form.formState.errors.parent_id && (
-                <p className="text-sm text-destructive">{form.formState.errors.parent_id.message}</p>
+                <p className="text-sm text-destructive font-medium">{form.formState.errors.parent_id.message}</p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-md border p-3">
+          {/* Active Toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-4 bg-card">
             <div className="space-y-0.5">
               <div className="text-sm font-medium">{t("fields.isActive")}</div>
+              <div className="text-xs text-muted-foreground">
+                {watchedIsActive ?? true ? t("messages.accountActive") : t("messages.accountInactive")}
+              </div>
             </div>
             <Switch
               checked={watchedIsActive ?? true}
@@ -237,8 +247,9 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
             />
           </div>
 
+          {/* Postable Toggle (Create mode only) */}
           {mode === "create" && (
-            <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-card">
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">{t("fields.isPostable")}</div>
                 <div className="text-xs text-muted-foreground">
