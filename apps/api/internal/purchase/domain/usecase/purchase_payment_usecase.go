@@ -1034,12 +1034,14 @@ func closePurchaseOrderWhenSettledAndFulfilled(ctx context.Context, tx *gorm.DB,
 	}
 }
 
-// isPurchaseOrderFullySettled returns true when the PO has at least one active invoice
-// and all of them are in terminal settled states.
+// isPurchaseOrderFullySettled returns true when the PO has at least one active
+// NORMAL supplier invoice and all active NORMAL invoices are in terminal states.
+// Down payment invoices alone must never mark a PO as financially settled.
 func isPurchaseOrderFullySettled(tx *gorm.DB, orderID string) bool {
 	var totalInvoiceCount int64
 	if err := tx.Model(&models.SupplierInvoice{}).
 		Where("purchase_order_id = ?", orderID).
+		Where("type = ?", models.SupplierInvoiceTypeNormal).
 		Where("deleted_at IS NULL").
 		Count(&totalInvoiceCount).Error; err != nil {
 		return false
@@ -1052,6 +1054,7 @@ func isPurchaseOrderFullySettled(tx *gorm.DB, orderID string) bool {
 	var pendingInvoiceCount int64
 	if err := tx.Model(&models.SupplierInvoice{}).
 		Where("purchase_order_id = ?", orderID).
+		Where("type = ?", models.SupplierInvoiceTypeNormal).
 		Where("status NOT IN ?", []models.SupplierInvoiceStatus{
 			models.SupplierInvoiceStatusPaid,
 			models.SupplierInvoiceStatusCancelled,

@@ -81,6 +81,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	}
 
 	settledPOs := make(map[string]bool)
+	hasActiveDPPOs := make(map[string]bool)
 	if len(pos) > 0 {
 		poIDs := make([]string, 0, len(pos))
 		for _, po := range pos {
@@ -112,11 +113,41 @@ func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 				settledPOs[row.PurchaseOrderID] = true
 			}
 		}
+
+		type poDPRow struct {
+			PurchaseOrderID string `gorm:"column:purchase_order_id"`
+			ActiveDPCount   int64  `gorm:"column:active_dp_count"`
+		}
+
+		dpRows := make([]poDPRow, 0)
+		if err := database.GetDB(ctx, uc.db).
+			Table("supplier_invoices").
+			Select("purchase_order_id, COUNT(*) AS active_dp_count").
+			Where("purchase_order_id IN ?", poIDs).
+			Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+			Where("status NOT IN ?", []models.SupplierInvoiceStatus{
+				models.SupplierInvoiceStatusCancelled,
+				models.SupplierInvoiceStatusRejected,
+			}).
+			Where("deleted_at IS NULL").
+			Group("purchase_order_id").
+			Scan(&dpRows).Error; err != nil {
+			return nil, err
+		}
+
+		for _, row := range dpRows {
+			if row.ActiveDPCount > 0 {
+				hasActiveDPPOs[row.PurchaseOrderID] = true
+			}
+		}
 	}
 
 	poRes := make([]dto.SupplierInvoiceAddPurchaseOrder, 0, len(pos))
 	for _, po := range pos {
 		if settledPOs[po.ID] {
+			continue
+		}
+		if hasActiveDPPOs[po.ID] {
 			continue
 		}
 		items := make([]dto.SupplierInvoiceAddPurchaseOrderItem, 0, len(po.Items))
@@ -237,6 +268,23 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 			si.CompanyID = &companyID
 			si.FiscalYearID = &fiscalYearID
 		}
+
+		var activeDPCount int64
+		if err := tx.Model(&models.SupplierInvoice{}).
+			Where("purchase_order_id = ?", po.ID).
+			Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+			Where("status NOT IN ?", []models.SupplierInvoiceStatus{
+				models.SupplierInvoiceStatusCancelled,
+				models.SupplierInvoiceStatusRejected,
+			}).
+			Where("deleted_at IS NULL").
+			Count(&activeDPCount).Error; err != nil {
+			return err
+		}
+		if activeDPCount > 0 {
+			return ErrSupplierInvoiceConflict
+		}
+
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}

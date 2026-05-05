@@ -95,13 +95,20 @@ func (uc *purchaseOrderUsecase) List(ctx context.Context, params repositories.Pu
 			continue
 		}
 
-		hasInvoice := len(po.SupplierInvoices) > 0
+		normalInvoices := make([]models.SupplierInvoice, 0, len(po.SupplierInvoices))
+		for _, inv := range po.SupplierInvoices {
+			if inv.Type == models.SupplierInvoiceTypeNormal {
+				normalInvoices = append(normalInvoices, inv)
+			}
+		}
+
+		hasInvoice := len(normalInvoices) > 0
 		if !hasInvoice {
 			continue
 		}
 
 		allSettled := true
-		for _, inv := range po.SupplierInvoices {
+		for _, inv := range normalInvoices {
 			status := strings.ToUpper(strings.TrimSpace(string(inv.Status)))
 			if status != string(models.SupplierInvoiceStatusPaid) && status != string(models.SupplierInvoiceStatusCancelled) && status != string(models.SupplierInvoiceStatusRejected) {
 				allSettled = false

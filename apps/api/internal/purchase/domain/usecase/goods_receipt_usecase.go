@@ -488,14 +488,17 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			}
 		}
 		if fullyReceived {
-			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			// Only close PO if at least one NORMAL supplier invoice exists and all NORMAL
+			// invoices are paid/cancelled/rejected. DP-only settlement must not close PO.
 			var totalInvoiceCount3 int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Count(&totalInvoiceCount3)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Where("status NOT IN ?", []models.SupplierInvoiceStatus{
 					models.SupplierInvoiceStatusPaid,
 					models.SupplierInvoiceStatusCancelled,
@@ -975,14 +978,17 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			}
 		}
 		if fullyReceived {
-			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			// Only close PO if at least one NORMAL supplier invoice exists and all NORMAL
+			// invoices are paid/cancelled/rejected. DP-only settlement must not close PO.
 			var totalInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Count(&totalInvoiceCount)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Where("status NOT IN ?", []models.SupplierInvoiceStatus{
 					models.SupplierInvoiceStatusPaid,
 					models.SupplierInvoiceStatusCancelled,
