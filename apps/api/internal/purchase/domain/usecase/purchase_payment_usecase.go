@@ -989,6 +989,13 @@ func (uc *purchasePaymentUsecase) confirmPaymentTx(ctx context.Context, tx *gorm
 		}
 	}
 
+	// Auto-close the PO when all invoices are paid and all items are fully received.
+	// Trigger for both normal invoices paid directly, and when a DP payment causes the linked
+	// normal invoice to be fully settled via deduction.
+	if newStatus == models.SupplierInvoiceStatusPaid && inv.PurchaseOrderID != "" {
+		closePurchaseOrderWhenSettledAndFulfilled(ctx, tx, inv.PurchaseOrderID)
+	}
+
 	// Journal posting is part of the same DB transaction.
 	txCtx := database.WithTx(ctx, tx)
 	loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
@@ -1000,6 +1007,102 @@ func (uc *purchasePaymentUsecase) confirmPaymentTx(ctx context.Context, tx *gorm
 	}
 
 	return pay.ID, nil
+}
+
+// closePurchaseOrderWhenSettledAndFulfilled checks if a PO is both fully invoiced/settled
+// and fully received, then updates its status to CLOSED. This mirrors the sales order pattern.
+func closePurchaseOrderWhenSettledAndFulfilled(ctx context.Context, tx *gorm.DB, orderID string) {
+	trimmedOrderID := strings.TrimSpace(orderID)
+	if trimmedOrderID == "" {
+		return
+	}
+
+	if !isPurchaseOrderFullySettled(tx, trimmedOrderID) || !isPurchaseOrderFullyFulfilled(ctx, tx, trimmedOrderID) {
+		return
+	}
+
+	var po models.PurchaseOrder
+	if err := tx.First(&po, "id = ?", trimmedOrderID).Error; err == nil {
+		if po.Status != models.PurchaseOrderStatusClosed {
+			now := apptime.Now()
+			_ = tx.Model(&po).Updates(map[string]interface{}{
+				"status":     models.PurchaseOrderStatusClosed,
+				"closed_at":  &now,
+				"updated_at": now,
+			}).Error
+		}
+	}
+}
+
+// isPurchaseOrderFullySettled returns true when the PO has at least one active invoice
+// and all of them are in terminal settled states.
+func isPurchaseOrderFullySettled(tx *gorm.DB, orderID string) bool {
+	var totalInvoiceCount int64
+	if err := tx.Model(&models.SupplierInvoice{}).
+		Where("purchase_order_id = ?", orderID).
+		Where("deleted_at IS NULL").
+		Count(&totalInvoiceCount).Error; err != nil {
+		return false
+	}
+
+	if totalInvoiceCount == 0 {
+		return false
+	}
+
+	var pendingInvoiceCount int64
+	if err := tx.Model(&models.SupplierInvoice{}).
+		Where("purchase_order_id = ?", orderID).
+		Where("status NOT IN ?", []models.SupplierInvoiceStatus{
+			models.SupplierInvoiceStatusPaid,
+			models.SupplierInvoiceStatusCancelled,
+			models.SupplierInvoiceStatusRejected,
+		}).
+		Where("deleted_at IS NULL").
+		Count(&pendingInvoiceCount).Error; err != nil {
+		return false
+	}
+
+	return pendingInvoiceCount == 0
+}
+
+// isPurchaseOrderFullyFulfilled returns true when every PO item has been fully received
+// via confirmed goods receipts.
+func isPurchaseOrderFullyFulfilled(ctx context.Context, tx *gorm.DB, orderID string) bool {
+	var po models.PurchaseOrder
+	if err := tx.Preload("Items").First(&po, "id = ?", orderID).Error; err != nil {
+		return false
+	}
+
+	if po.Status != models.PurchaseOrderStatusApproved || len(po.Items) == 0 {
+		return false
+	}
+
+	for _, item := range po.Items {
+		if item.Quantity <= 0 {
+			return false
+		}
+
+		var totalReceived float64
+		if err := tx.Table("goods_receipt_items").
+			Select("COALESCE(SUM(goods_receipt_items.quantity_received), 0)").
+			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+			Where("goods_receipts.purchase_order_id = ?", orderID).
+			Where("goods_receipts.status IN ?", []string{
+				string(models.GoodsReceiptStatusConfirmed),
+				string(models.GoodsReceiptStatusClosed),
+			}).
+			Where("goods_receipt_items.purchase_order_item_id = ?", item.ID).
+			Where("goods_receipts.deleted_at IS NULL").
+			Scan(&totalReceived).Error; err != nil {
+			return false
+		}
+
+		if totalReceived+0.0001 < item.Quantity {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (uc *purchasePaymentUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error) {

@@ -48,6 +48,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
@@ -379,8 +380,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await submitMutation.mutateAsync(it.id);
                                   toast.success(t("toast.submitted"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >
@@ -420,8 +421,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await approveMutation.mutateAsync(it.id);
                                   toast.success(t("toast.approved"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >
@@ -437,8 +438,8 @@ export function GoodsReceiptsList() {
                                 try {
                                   await rejectMutation.mutateAsync(it.id);
                                   toast.success(t("toast.rejected"));
-                                } catch {
-                                  toast.error(t("toast.failed"));
+                                } catch (error) {
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                 }
                               }}
                             >

@@ -53,6 +53,7 @@ function applyInvoiceDPToPurchaseOrderLists(
           id: si.id,
           code: si.code ?? found?.code ?? "",
           status: si.status ?? found?.status ?? "DRAFT",
+          created_at: found?.created_at ?? new Date().toISOString(),
         };
         return {
           ...po,

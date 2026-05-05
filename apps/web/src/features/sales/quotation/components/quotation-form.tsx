@@ -559,7 +559,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 hasMore={productCombobox.hasMore}
                                 isLoadingMore={productCombobox.isLoadingMore}
                                 searchDebounceMs={300}
-                                options={productCombobox.options}
+                                options={productCombobox.options.filter((o) => {
+                                  const currentVal = watchedItems?.[index]?.product_id?.toString();
+                                  if (o.value === currentVal) return true;
+                                  return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id.toString() === o.value);
+                                })}
                                 placeholder={t("item.selectProduct")}
                                 createPermission="product.create"
                                 createLabel={`${t("common.create")} "{query}"`}

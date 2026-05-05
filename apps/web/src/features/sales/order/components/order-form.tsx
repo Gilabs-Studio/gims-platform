@@ -585,7 +585,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productCombobox.options}
+                                    options={productCombobox.options.filter((o) => {
+                                      const currentVal = field.value || "";
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     isLoading={isProductsLoading}
                                     placeholder={t("item.selectProduct")}
                                   />

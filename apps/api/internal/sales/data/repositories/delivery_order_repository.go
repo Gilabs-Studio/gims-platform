@@ -393,10 +393,10 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 		Select("doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
 		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
 		Where("dord.sales_order_id = ?", salesOrderID).
-		Where("dord.status NOT IN ?", []models.DeliveryOrderStatus{
-			models.DeliveryOrderStatusCancelled,
-			models.DeliveryOrderStatusDelivered,
-			models.DeliveryOrderStatusRejected,
+		Where("UPPER(dord.status) NOT IN ?", []string{
+			strings.ToUpper(string(models.DeliveryOrderStatusCancelled)),
+			strings.ToUpper(string(models.DeliveryOrderStatusDelivered)),
+			strings.ToUpper(string(models.DeliveryOrderStatusRejected)),
 		}).
 		Where("dord.deleted_at IS NULL").
 		Where("doi.deleted_at IS NULL").

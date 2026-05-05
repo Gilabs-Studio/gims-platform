@@ -9,6 +9,7 @@ import {
   FileText,
   Send,
   Printer,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -288,10 +289,10 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateReturnOpen(true)}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-warning/10"
                     title={t("actions.createReturn")}
                   >
-                    <FileText className="h-4 w-4" />
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                 )}
               </div>

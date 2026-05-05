@@ -129,8 +129,9 @@ export function SupplierInvoiceFormDialog({
 
   const filteredGRs = useMemo(() => {
     const all = addData?.goods_receipts ?? [];
-    if (!defaultPurchaseOrderId) return all;
-    return all.filter((gr) => gr.purchase_order?.id === defaultPurchaseOrderId);
+    const invoiceable = all.filter((gr) => gr.status === "approved" || gr.status === "partial" || gr.status === "APPROVED" || gr.status === "PARTIAL");
+    if (!defaultPurchaseOrderId) return invoiceable;
+    return invoiceable.filter((gr) => gr.purchase_order?.id === defaultPurchaseOrderId);
   }, [addData?.goods_receipts, defaultPurchaseOrderId]);
 
   const goodsReceipts = useMemo(() => addData?.goods_receipts ?? [], [addData?.goods_receipts]);

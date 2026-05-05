@@ -79,8 +79,46 @@ func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	if err != nil {
 		return nil, err
 	}
+
+	settledPOs := make(map[string]bool)
+	if len(pos) > 0 {
+		poIDs := make([]string, 0, len(pos))
+		for _, po := range pos {
+			poIDs = append(poIDs, po.ID)
+		}
+
+		type poSettlementRow struct {
+			PurchaseOrderID   string `gorm:"column:purchase_order_id"`
+			ActiveInvoiceCnt  int64  `gorm:"column:active_invoice_count"`
+			UnsettledCount    int64  `gorm:"column:unsettled_count"`
+		}
+
+		rows := make([]poSettlementRow, 0)
+		if err := database.GetDB(ctx, uc.db).
+			Table("supplier_invoices").
+			Select(`purchase_order_id,
+				COUNT(*) AS active_invoice_count,
+				SUM(CASE WHEN UPPER(status) IN ('PAID','CANCELLED','REJECTED') THEN 0 ELSE 1 END) AS unsettled_count`).
+			Where("purchase_order_id IN ?", poIDs).
+			Where("type = ?", models.SupplierInvoiceTypeNormal).
+			Where("deleted_at IS NULL").
+			Group("purchase_order_id").
+			Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+
+		for _, row := range rows {
+			if row.ActiveInvoiceCnt > 0 && row.UnsettledCount == 0 {
+				settledPOs[row.PurchaseOrderID] = true
+			}
+		}
+	}
+
 	poRes := make([]dto.SupplierInvoiceAddPurchaseOrder, 0, len(pos))
 	for _, po := range pos {
+		if settledPOs[po.ID] {
+			continue
+		}
 		items := make([]dto.SupplierInvoiceAddPurchaseOrderItem, 0, len(po.Items))
 		for _, it := range po.Items {
 			var prod *dto.SupplierInvoiceAddProductMini

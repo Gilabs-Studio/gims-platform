@@ -645,7 +645,11 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																		hasMore={productsCombobox.hasMore}
 																		isLoadingMore={productsCombobox.isLoadingMore}
 																		searchDebounceMs={300}
-																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })).filter((o) => {
+																			const currentVal = watchedItems?.[idx]?.product_id;
+																			if (o.value === currentVal) return true;
+																			return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+																		})}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
 																		createLabel={t("actions.createNew") || "Create Product"}

@@ -92,6 +92,10 @@ export function SupplierInvoiceDPFormDialog({
 		() => addDataQuery.data?.data?.purchase_orders ?? [],
 		[addDataQuery.data],
 	);
+	const eligiblePOIds = useMemo(
+		() => new Set(purchaseOrders.map((po) => po.id)),
+		[purchaseOrders],
+	);
 
 	const createMutation = useCreateSupplierInvoiceDP();
 	const updateMutation = useUpdateSupplierInvoiceDP();
@@ -152,6 +156,18 @@ export function SupplierInvoiceDPFormDialog({
 		defaultPurchaseOrderId,
 		poQuery.data,
 	]);
+
+	useEffect(() => {
+		if (!open || isEdit) return;
+		if (addDataQuery.isFetching) return;
+
+		const selectedPOID = form.getValues("purchase_order_id");
+		if (!selectedPOID) return;
+		if (eligiblePOIds.has(selectedPOID)) return;
+
+		form.setValue("purchase_order_id", "", { shouldValidate: true });
+		toast.error("Selected purchase order is no longer eligible for down payment invoice.");
+	}, [addDataQuery.isFetching, eligiblePOIds, form, isEdit, open]);
 
 	const isBusy =
 		detailQuery.isLoading ||

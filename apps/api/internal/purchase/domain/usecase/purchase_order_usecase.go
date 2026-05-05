@@ -72,6 +72,57 @@ func (uc *purchaseOrderUsecase) List(ctx context.Context, params repositories.Pu
 	if err != nil {
 		return nil, 0, err
 	}
+
+	for _, po := range items {
+		if po == nil || po.Status != models.PurchaseOrderStatusApproved || len(po.Items) == 0 {
+			continue
+		}
+
+		var totalOrdered, totalReceived float64
+		for _, item := range po.Items {
+			totalOrdered += item.Quantity
+		}
+		for _, gr := range po.GoodsReceipts {
+			s := strings.ToUpper(strings.TrimSpace(string(gr.Status)))
+			if s != string(models.GoodsReceiptStatusApproved) && s != string(models.GoodsReceiptStatusPartial) && s != string(models.GoodsReceiptStatusClosed) && s != string(models.GoodsReceiptStatusConfirmed) {
+				continue
+			}
+			for _, grItem := range gr.Items {
+				totalReceived += grItem.QuantityReceived
+			}
+		}
+		if totalOrdered <= 0 || totalReceived+0.0001 < totalOrdered {
+			continue
+		}
+
+		hasInvoice := len(po.SupplierInvoices) > 0
+		if !hasInvoice {
+			continue
+		}
+
+		allSettled := true
+		for _, inv := range po.SupplierInvoices {
+			status := strings.ToUpper(strings.TrimSpace(string(inv.Status)))
+			if status != string(models.SupplierInvoiceStatusPaid) && status != string(models.SupplierInvoiceStatusCancelled) && status != string(models.SupplierInvoiceStatusRejected) {
+				allSettled = false
+				break
+			}
+		}
+		if !allSettled {
+			continue
+		}
+
+		now := apptime.Now()
+		_ = database.GetDB(ctx, uc.db).Model(&models.PurchaseOrder{}).
+			Where("id = ?", po.ID).
+			Updates(map[string]interface{}{
+				"status":     models.PurchaseOrderStatusClosed,
+				"closed_at":  &now,
+				"updated_at": now,
+			}).Error
+		po.Status = models.PurchaseOrderStatusClosed
+	}
+
 	return uc.mapper.ToListResponseList(items), total, nil
 }
 
@@ -107,7 +158,7 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status IN ?", []string{
+		Where("UPPER(gr.status) IN ?", []string{
 			string(models.GoodsReceiptStatusApproved),
 			string(models.GoodsReceiptStatusPartial),
 			string(models.GoodsReceiptStatusClosed),
@@ -136,7 +187,7 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+		Where("UPPER(gr.status) <> ?", string(models.GoodsReceiptStatusRejected)).
 		Group("goods_receipt_items.purchase_order_item_id").
 		Scan(&reservedRows).Error; err != nil {
 		return nil, err

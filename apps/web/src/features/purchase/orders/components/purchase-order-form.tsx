@@ -910,7 +910,11 @@ export function PurchaseOrderForm({
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })).filter((o) => {
+                                      const currentVal = watchedItems?.[idx]?.product_id;
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     createPermission="product.create"
                                     onCreateClick={() => {
                                       setPendingProductItemIdx(idx);

@@ -48,6 +48,7 @@ function applyGoodsReceiptToPurchaseOrderLists(
             status: goodsReceipt.status ?? found?.status ?? "DRAFT",
             total_items: goodsReceipt.items?.length ?? found?.total_items,
             total_items_received: totalItemsReceived || found?.total_items_received,
+            created_at: found?.created_at ?? new Date().toISOString(),
           };
 
           return {

@@ -980,6 +980,8 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 
 	// Keep approval flow consistent with Customer Invoice flow:
 	// SUBMITTED -> APPROVED -> UNPAID -> payment handling.
+	// IMPORTANT: Only set to PAID if DP fully covers the amount.
+	// DO NOT auto-close - SI must wait for payment confirmation before closing.
 	status := models.SupplierInvoiceStatusUnpaid
 	remainingAmount := math.Max(0, si.Amount-dpAmount)
 	if remainingAmount <= 0.0001 {
