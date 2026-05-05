@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 import {
   AlertTriangle,
   Check,
@@ -380,7 +381,7 @@ export function AssetBulkOperations({
           errors: selectedAssets.map((a) => ({
             assetId: a.id,
             assetName: a.name,
-            error: error instanceof Error ? error.message : t("errors.unknown"),
+              error: getFinanceErrorMessage(error, t("errors.unknown")),
           })),
         },
       }));

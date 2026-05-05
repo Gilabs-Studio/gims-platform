@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 interface ExportDialogProps {
   valuationRunId: string | null;
@@ -43,9 +44,7 @@ export function ExportDialog({
       toast.success(t("export_success", { format: format.toUpperCase() }));
       onOpenChange(false);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("export_failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("export_failed")));
     }
   };
 

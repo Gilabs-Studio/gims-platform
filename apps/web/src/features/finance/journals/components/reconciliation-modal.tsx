@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { useValuationReconciliation } from "../hooks/use-finance-journals";
 
@@ -80,7 +81,7 @@ export function ReconciliationModal({
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
             <p>{t("reconciliation_failed")}</p>
             <p className="text-sm text-red-600">
-              {error instanceof Error ? error.message : t("unknown_error")}
+              {getFinanceErrorMessage(error, t("unknown_error"))}
             </p>
           </div>
         ) : report ? (

@@ -147,6 +147,53 @@ export const useFiscalYears = (params: ListFiscalYearParams) => {
   });
 };
 
+function resolveFiscalYearMutationErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "response" in error) {
+    const response = error as {
+      response?: {
+        data?: {
+          code?: string;
+          error?: string | { code?: string; message?: string };
+          message?: string;
+        };
+      };
+    };
+
+    const payload = response.response?.data;
+    const errorCode =
+      typeof payload?.code === "string"
+        ? payload.code
+        : payload?.error && typeof payload.error === "object" && "code" in payload.error
+          ? (payload.error as { code?: string }).code
+          : undefined;
+
+    if (errorCode === "CONCURRENT_LOCK_CONFLICT") {
+      return "Opening balance must be posted before fiscal year can be locked";
+    }
+
+    if (typeof payload?.error === "string" && payload.error.trim().length > 0) {
+      return payload.error;
+    }
+
+    if (payload?.error && typeof payload.error === "object" && "message" in payload.error) {
+      const nestedMessage = (payload.error as { message?: string }).message;
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+
+    if (payload?.message) {
+      return payload.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "Unable to update fiscal year";
+}
+
 export const useCreateFiscalYear = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -179,6 +226,9 @@ export const useActivateFiscalYear = () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
       toast.success("Fiscal year activated");
     },
+    onError: (error: unknown) => {
+      toast.error(resolveFiscalYearMutationErrorMessage(error));
+    },
   });
 };
 
@@ -190,6 +240,9 @@ export const useLockFiscalYear = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
       toast.success("Fiscal year locked");
+    },
+    onError: (error: unknown) => {
+      toast.error(resolveFiscalYearMutationErrorMessage(error));
     },
   });
 };

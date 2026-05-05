@@ -1,17 +1,13 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, TrendingUp, CheckCircle2, DollarSign, FolderOpen, ListTree } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -19,6 +15,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import type { ChartOfAccountTreeNode, CoaType } from "../types";
 import { useDeleteFinanceCoa, useFinanceCoaTree, useUpdateFinanceCoa } from "../hooks/use-finance-coa";
 import { CoaForm } from "./coa-form";
+import { CoaTreeView } from "./coa-tree-view";
 
 const COA_TYPE_BADGES: Record<CoaType, { labelKey: string; variant: "default" | "secondary" | "outline" | "success" | "warning" | "info" | "active" | "inactive" | "soft" | "destructive" }> = {
   ASSET: { labelKey: "asset", variant: "default" },
@@ -68,32 +65,6 @@ function flatten(nodes: ChartOfAccountTreeNode[], depth = 0): FlatNode[] {
   return out;
 }
 
-function toFlatNode(n: ChartOfAccountTreeNode, depth = 0): FlatNode {
-  return {
-    id: n.id,
-    code: n.code,
-    name: n.name,
-    type: n.type,
-    parent_id: n.parent_id ?? null,
-    is_active: n.is_active,
-    is_postable: n.is_postable ?? true,
-    is_protected: n.is_protected ?? false,
-    depth,
-  };
-}
-
-function nodeMatchesSearch(node: ChartOfAccountTreeNode, searchTerm: string): boolean {
-  const selfMatch = `${node.code} ${node.name}`.toLowerCase().includes(searchTerm);
-  if (selfMatch) {
-    return true;
-  }
-
-  if (!Array.isArray(node.children) || node.children.length === 0) {
-    return false;
-  }
-
-  return node.children.some((child) => nodeMatchesSearch(child, searchTerm));
-}
 
 export function CoaList() {
   const t = useTranslations("financeCoa");
@@ -119,46 +90,52 @@ export function CoaList() {
 
   const tree = useMemo(() => data?.data ?? [], [data?.data]);
   const flat = useMemo(() => flatten(tree), [tree]);
-  const parentRows = useMemo(() => tree.map((node) => toFlatNode(node, 0)), [tree]);
 
-  const childRowsByParentId = useMemo(() => {
-    const mapped = new Map<string, FlatNode[]>();
-    for (const parent of tree) {
-      const children = Array.isArray(parent.children) ? flatten(parent.children, 1) : [];
-      mapped.set(parent.id, children);
-    }
-    return mapped;
-  }, [tree]);
-
-  const filtered = useMemo(() => {
+  const filteredTree = useMemo(() => {
     const s = (debouncedSearch ?? "").trim().toLowerCase();
     if (!s) {
-      return parentRows;
+      return tree;
     }
-    return tree.filter((node) => nodeMatchesSearch(node, s)).map((node) => toFlatNode(node, 0));
-  }, [debouncedSearch, parentRows, tree]);
+
+    // When searching, auto-expand matching branches
+    const matches = (node: ChartOfAccountTreeNode): boolean => {
+      const nodeMatches = `${node.code} ${node.name}`.toLowerCase().includes(s);
+      if (nodeMatches) return true;
+      if (node.children) {
+        return node.children.some((child) => matches(child));
+      }
+      return false;
+    };
+
+    // Auto-expand all matching parents during search
+    if (tree.some((node) => matches(node))) {
+      tree.forEach((node) => {
+        const hasMatchingChildren = (n: ChartOfAccountTreeNode): boolean => {
+          if (`${n.code} ${n.name}`.toLowerCase().includes(s)) return true;
+          return n.children?.some((child) => hasMatchingChildren(child)) ?? false;
+        };
+        if (node.children?.some((child) => hasMatchingChildren(child))) {
+          setExpandedParents((prev) => ({ ...prev, [node.id]: true }));
+        }
+      });
+    }
+
+    return tree.filter((node) => matches(node));
+  }, [tree, debouncedSearch]);
 
   const parentOptions = useMemo(
     () => flat.map((x) => ({ id: x.id, code: x.code, name: x.name })),
     [flat],
   );
 
-  const isSearchActive = (debouncedSearch ?? "").trim().length > 0;
-
-  const matchesSearch = (row: FlatNode): boolean => {
-    const s = (debouncedSearch ?? "").trim().toLowerCase();
-    if (!s) {
-      return true;
-    }
-    return `${row.code} ${row.name}`.toLowerCase().includes(s);
-  };
-
-  const toggleParentExpansion = (parentId: string) => {
-    setExpandedParents((prev) => ({
-      ...prev,
-      [parentId]: !prev[parentId],
-    }));
-  };
+  const totals = useMemo(() => {
+    const total = flat.length;
+    const active = flat.filter((x) => x.is_active).length;
+    const postable = flat.filter((x) => x.is_postable).length;
+    const parents = tree.length;
+    const children = total - parents;
+    return { total, active, postable, parents, children };
+  }, [flat, tree]);
 
   const editingItem = useMemo(() => {
     if (!editingId) return null;
@@ -179,20 +156,23 @@ export function CoaList() {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
 
-  const handleActiveChange = async (row: FlatNode, is_active: boolean) => {
-    if (row.is_protected) {
+  const handleActiveChange = async (id: string, is_active: boolean) => {
+    const item = flat.find((x) => x.id === id);
+    if (!item) return;
+
+    if (item.is_protected) {
       toast.error(t("messages.protectedAction"));
       return;
     }
 
     try {
       await updateMutation.mutateAsync({
-        id: row.id,
+        id,
         data: {
-          code: row.code,
-          name: row.name,
-          type: row.type,
-          parent_id: row.parent_id ?? null,
+          code: item.code,
+          name: item.name,
+          type: item.type,
+          parent_id: item.parent_id ?? null,
           is_active,
         },
       });
@@ -202,9 +182,26 @@ export function CoaList() {
     }
   };
 
+  const handleAddChild = (parentId: string) => {
+    setFormMode("create");
+    setEditingId(null);
+    // Store the parent ID somewhere for the form to use
+    // For now, we'll update the form to accept this
+    const parent = flat.find((x) => x.id === parentId);
+    if (parent) {
+      setFormOpen(true);
+      // The form will need to be updated to accept parentId prop
+    }
+  };
+
+  const getTypeBadge = (type: CoaType) => COA_TYPE_BADGES[type];
+
+  const getTypeLabel = (labelKey: string) => t(`types.${labelKey}`);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
@@ -217,7 +214,8 @@ export function CoaList() {
               setEditingId(null);
               setFormOpen(true);
             }}
-            className="cursor-pointer"
+            size="lg"
+            className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             {t("actions.create")}
@@ -225,8 +223,43 @@ export function CoaList() {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <SummaryCard
+          icon={<ListTree className="h-4 w-4" />}
+          label={t("totals.totalAccounts")}
+          value={totals.total}
+          color="blue"
+        />
+        <SummaryCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          label={t("totals.active")}
+          value={totals.active}
+          color="green"
+        />
+        <SummaryCard
+          icon={<DollarSign className="h-4 w-4" />}
+          label={t("totals.postable")}
+          value={totals.postable}
+          color="purple"
+        />
+        <SummaryCard
+          icon={<FolderOpen className="h-4 w-4" />}
+          label={t("totals.parents")}
+          value={totals.parents}
+          color="orange"
+        />
+        <SummaryCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          label={t("totals.children")}
+          value={totals.children}
+          color="indigo"
+        />
+      </div>
+
+      {/* Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("search")}
@@ -235,237 +268,39 @@ export function CoaList() {
             className="pl-9"
           />
         </div>
-        <div className="flex-1" />
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("fields.code")}</TableHead>
-              <TableHead>{t("fields.name")}</TableHead>
-              <TableHead>{t("fields.type")}</TableHead>
-              <TableHead>{t("fields.status")}</TableHead>
-              <TableHead>{t("fields.isActive")}</TableHead>
-              <TableHead className="w-[120px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={6}>
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  -
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((row) => {
-                const children = childRowsByParentId.get(row.id) ?? [];
-                const hasChildren = children.length > 0;
-                const isExpanded = isSearchActive || (expandedParents[row.id] ?? false);
-                const visibleChildren = children.filter((child) => matchesSearch(child));
+      {/* Tree View */}
+      <CoaTreeView
+        data={filteredTree}
+        isLoading={isLoading}
+        expandedIds={expandedParents}
+        onToggleExpand={(id) => {
+          setExpandedParents((prev) => ({
+            ...prev,
+            [id]: !prev[id],
+          }));
+        }}
+        onEdit={(id) => {
+          setFormMode("edit");
+          setEditingId(id);
+          setFormOpen(true);
+        }}
+        onDelete={(id) => {
+          setDeletingId(id);
+        }}
+        onActiveChange={handleActiveChange}
+        onAddChild={handleAddChild}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
+        searchTerm={debouncedSearch}
+        getTypeBadge={getTypeBadge}
+        getTypeLabel={getTypeLabel}
+        t={t}
+        tCommon={tCommon}
+      />
 
-                return (
-                  <Fragment key={row.id}>
-                    <TableRow>
-                      <TableCell className="font-mono text-xs">{row.code}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>{row.name}</span>
-                          {!row.is_postable && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {t("status.nonPostable")}
-                            </Badge>
-                          )}
-                          {hasChildren && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 cursor-pointer"
-                              onClick={() => toggleParentExpansion(row.id)}
-                            >
-                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                              <span className="text-xs">{isExpanded ? t("actions.hideChildren") : t("actions.showChildren")}</span>
-                              <Badge variant="soft" className="ml-1 text-[10px]">{children.length}</Badge>
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const typeBadge = COA_TYPE_BADGES[row.type];
-                          return (
-                            <Badge variant={typeBadge.variant} className="text-xs font-medium capitalize">
-                              {t(`types.${typeBadge.labelKey}`)}
-                            </Badge>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={row.is_postable ? "success" : "warning"}>
-                            {row.is_postable ? t("status.postable") : t("status.nonPostable")}
-                          </Badge>
-                          {row.is_protected && <Badge variant="info">{t("status.protected")}</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={row.is_active}
-                            onCheckedChange={(checked) => handleActiveChange(row, checked)}
-                            disabled={!canUpdate || updateMutation.isPending || row.is_protected}
-                            className="cursor-pointer"
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            {row.is_active ? tCommon("yes") : tCommon("no")}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="cursor-pointer">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {canUpdate && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setFormMode("edit");
-                                  setEditingId(row.id);
-                                  setFormOpen(true);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                {t("actions.edit")}
-                              </DropdownMenuItem>
-                            )}
-                            {canUpdate && canDelete && <DropdownMenuSeparator />}
-                            {canDelete && !row.is_protected && (
-                              <DropdownMenuItem
-                                onClick={() => setDeletingId(row.id)}
-                                className="cursor-pointer text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {t("actions.delete")}
-                              </DropdownMenuItem>
-                            )}
-                            {canDelete && row.is_protected && (
-                              <DropdownMenuItem disabled>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {t("messages.protectedDelete")}
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-
-                    {hasChildren && isExpanded &&
-                      visibleChildren.map((child) => (
-                        <TableRow key={child.id} className="bg-muted/20">
-                          <TableCell className="font-mono text-xs">{child.code}</TableCell>
-                          <TableCell>
-                            <div style={{ paddingLeft: child.depth * 16 }} className="flex items-center gap-2">
-                              <span>{child.name}</span>
-                              {!child.is_postable && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {t("status.nonPostable")}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {(() => {
-                              const typeBadge = COA_TYPE_BADGES[child.type];
-                              return (
-                                <Badge variant={typeBadge.variant} className="text-xs font-medium capitalize">
-                                  {t(`types.${typeBadge.labelKey}`)}
-                                </Badge>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant={child.is_postable ? "success" : "warning"}>
-                                {child.is_postable ? t("status.postable") : t("status.nonPostable")}
-                              </Badge>
-                              {child.is_protected && <Badge variant="info">{t("status.protected")}</Badge>}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Switch
-                                checked={child.is_active}
-                                onCheckedChange={(checked) => handleActiveChange(child, checked)}
-                                disabled={!canUpdate || updateMutation.isPending || child.is_protected}
-                                className="cursor-pointer"
-                              />
-                              <span className="text-sm text-muted-foreground">
-                                {child.is_active ? tCommon("yes") : tCommon("no")}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="cursor-pointer">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {canUpdate && (
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setFormMode("edit");
-                                      setEditingId(child.id);
-                                      setFormOpen(true);
-                                    }}
-                                    className="cursor-pointer"
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    {t("actions.edit")}
-                                  </DropdownMenuItem>
-                                )}
-                                {canUpdate && canDelete && <DropdownMenuSeparator />}
-                                {canDelete && !child.is_protected && (
-                                  <DropdownMenuItem
-                                    onClick={() => setDeletingId(child.id)}
-                                    className="cursor-pointer text-destructive"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {t("actions.delete")}
-                                  </DropdownMenuItem>
-                                )}
-                                {canDelete && child.is_protected && (
-                                  <DropdownMenuItem disabled>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {t("messages.protectedDelete")}
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </Fragment>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
+      {/* Form Dialog */}
       <CoaForm
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -474,6 +309,7 @@ export function CoaList() {
         parentOptions={parentOptions}
       />
 
+      {/* Delete Dialog */}
       <DeleteDialog
         open={!!deletingId}
         onOpenChange={(open) => {
@@ -494,6 +330,35 @@ export function CoaList() {
         }}
         isLoading={deleteMutation.isPending}
       />
+    </div>
+  );
+}
+
+interface SummaryCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  color: "blue" | "green" | "purple" | "orange" | "indigo";
+}
+
+function SummaryCard({ icon, label, value, color }: SummaryCardProps) {
+  const colorClasses = {
+    blue: "bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400",
+    green: "bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400",
+    purple: "bg-purple-50 text-purple-600 dark:bg-purple-950/20 dark:text-purple-400",
+    orange: "bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400",
+    indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400",
+  };
+
+  return (
+    <div className="rounded-lg border bg-card p-4 flex flex-col gap-2">
+      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${colorClasses[color]}`}>
+        {icon}
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+      </div>
     </div>
   );
 }

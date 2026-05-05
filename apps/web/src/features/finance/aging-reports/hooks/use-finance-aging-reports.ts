@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { financeAgingReportsService } from "../services/finance-aging-reports-service";
 import type { AgingBucketConfigPayload, AgingQueryParams, AgingReportType } from "../types";
 import { toast } from "sonner";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 function resolveMutationErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "response" in error) {
@@ -85,7 +86,7 @@ export function useUpdateFinanceAgingBucketConfig(reportType: AgingReportType) {
       toast.success("Aging bucket berhasil diperbarui");
     },
     onError: (error) => {
-      toast.error(resolveMutationErrorMessage(error));
+      toast.error(getFinanceErrorMessage(error, resolveMutationErrorMessage(error)));
     },
   });
 }

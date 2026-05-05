@@ -10,6 +10,7 @@ import { assetDisposalSchema, type AssetDisposalValues } from "../schemas/fixed-
 import { useAssetDisposal } from "../hooks/use-asset-disposal";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 interface AssetDisposalFormProps {
   onSuccess?: () => void;
@@ -49,7 +50,7 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
         }
       }
     } catch (error) {
-      toast.error("Failed to dispose asset");
+      toast.error(getFinanceErrorMessage(error, "Failed to dispose asset"));
       console.error(error);
     }
   };
