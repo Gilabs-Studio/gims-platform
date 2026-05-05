@@ -11,6 +11,7 @@ import { assetRevaluationSchema, type AssetRevaluationValues } from "../schemas/
 import { useAssetRevaluation } from "../hooks/use-asset-revaluation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 interface AssetRevaluationFormProps {
   onSuccess?: () => void;
@@ -43,7 +44,7 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
         onSuccess?.();
       }
     } catch (error) {
-      toast.error("Failed to process revaluation");
+      toast.error(getFinanceErrorMessage(error, "Failed to process revaluation"));
       console.error(error);
     }
   };

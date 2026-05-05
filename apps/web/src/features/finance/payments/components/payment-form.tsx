@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { useFinanceCoaTree, useFinanceChartOfAccounts } from "@/features/finance/coa/hooks/use-finance-coa";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
@@ -265,11 +266,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
 
       onOpenChange(false);
     } catch (error: unknown) {
-      const message =
-        error && typeof error === "object" && "response" in error
-          ? ((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t("toast.failed"))
-          : t("toast.failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
