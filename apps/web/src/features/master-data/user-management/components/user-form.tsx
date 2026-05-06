@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useController, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { createUserSchema, updateUserSchema, type CreateUserFormData, type UpdateUserFormData } from "../schemas/user.schema";
@@ -37,8 +37,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateUserFormData | UpdateUserFormData>({
     resolver: zodResolver(isEdit ? updateUserSchema : createUserSchema),
@@ -51,7 +50,15 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
       : {},
   });
 
-  const selectedRoleId = watch("role_id");
+  const {
+    field: roleField,
+    fieldState: roleFieldState,
+  } = useController({
+    control,
+    name: "role_id",
+  });
+
+  const selectedRoleId = roleField.value || "";
 
   // Re-sync form values when editing user data finishes loading.
   // defaultValues only runs on mount; this effect handles async fetch timing.
@@ -66,7 +73,13 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
   }, [user, reset]);
 
   const handleFormSubmit = async (data: CreateUserFormData | UpdateUserFormData) => {
-    await onSubmit(data);
+    // role_id is controlled via useController, ensure it's always in submission
+    // with current selected value from the form field
+    const submittedData: CreateUserFormData | UpdateUserFormData = {
+      ...data,
+      role_id: roleField.value, // Always use latest controlled value
+    };
+    await onSubmit(submittedData);
   };
 
   return (
@@ -119,8 +132,8 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
       <Field orientation="vertical">
         <FieldLabel>{t("roleLabel")}</FieldLabel>
         <Select
-          value={selectedRoleId || ""}
-          onValueChange={(value) => setValue("role_id", value)}
+          value={selectedRoleId}
+          onValueChange={roleField.onChange}
         >
           <SelectTrigger>
             <SelectValue placeholder={t("rolePlaceholder")} />
@@ -134,6 +147,9 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
           </SelectContent>
         </Select>
         {errors.role_id && <FieldError>{errors.role_id.message}</FieldError>}
+        {!errors.role_id && roleFieldState.error && (
+          <FieldError>{roleFieldState.error.message}</FieldError>
+        )}
       </Field>
 
       <div className="flex justify-end gap-2 pt-4">
