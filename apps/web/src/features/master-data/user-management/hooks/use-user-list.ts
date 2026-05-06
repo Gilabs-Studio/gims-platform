@@ -6,6 +6,8 @@ import { useUsers, useDeleteUser, useUser, useCreateUser, useUpdateUser } from "
 import { useRoles } from "./use-users";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useHasPermission } from "./use-has-permission";
+import { useUserAddon } from "./use-user-addon";
+import { useUserLimit } from "./use-user-limit";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 
 /** Extracts the API error code from an Axios error response. */
@@ -40,6 +42,7 @@ export function useUserList() {
   const canCreate = useHasPermission("user.create");
   const canUpdate = useHasPermission("user.update");
   const canDelete = useHasPermission("user.delete");
+  const { data: userLimit } = useUserLimit();
 
   const { data, isLoading } = useUsers({ page, per_page: perPage, search: debouncedSearch, status, role_id: roleId });
   const { data: rolesData } = useRoles();
@@ -47,6 +50,10 @@ export function useUserList() {
   const deleteUser = useDeleteUser();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const userAddon = useUserAddon({
+    userLimit,
+    onOpenCreateDialog: () => setIsCreateDialogOpen(true),
+  });
 
   const users = data?.data || [];
   const pagination = data?.meta?.pagination;
@@ -60,6 +67,8 @@ export function useUserList() {
     } catch (err) {
       const code = extractApiErrorCode(err);
       if (code === "USER_LIMIT_REACHED") {
+        setIsCreateDialogOpen(false);
+        userAddon.openAddonDialog();
         toast.error("User limit reached", {
           description:
             extractApiErrorMessage(err) ??
@@ -136,6 +145,7 @@ export function useUserList() {
     setEditingUser,
     deletingUserId,
     setDeletingUserId,
+    userLimit,
     // Data
     users,
     pagination,
@@ -151,6 +161,7 @@ export function useUserList() {
     deleteUser,
     createUser,
     updateUser,
+    ...userAddon,
     permissions: {
       canCreate,
       canUpdate,
