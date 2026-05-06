@@ -24,9 +24,10 @@ interface UserFormProps {
   readonly onSubmit: (data: CreateUserFormData | UpdateUserFormData) => Promise<void>;
   readonly onCancel: () => void;
   readonly isLoading?: boolean;
+  readonly emailErrorMessage?: string;
 }
 
-export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps) {
+export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessage }: UserFormProps) {
   const isEdit = !!user;
   const { data: rolesData } = useRoles();
   const roles = sortOptions(rolesData?.data || [], (role) => role.name);
@@ -46,11 +47,8 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           email: user.email,
           name: user.name,
           role_id: user.role_id,
-          status: user.status,
         }
-      : {
-          status: "active",
-        },
+      : {},
   });
 
   const selectedRoleId = watch("role_id");
@@ -63,7 +61,6 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
         email: user.email,
         name: user.name,
         role_id: user.role_id,
-        status: user.status,
       });
     }
   }, [user, reset]);
@@ -83,6 +80,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           placeholder={t("emailPlaceholder")}
         />
         {errors.email && <FieldError>{errors.email.message}</FieldError>}
+        {!errors.email && emailErrorMessage && <FieldError>{emailErrorMessage}</FieldError>}
       </Field>
 
       {!isEdit && (
@@ -136,23 +134,6 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           </SelectContent>
         </Select>
         {errors.role_id && <FieldError>{errors.role_id.message}</FieldError>}
-      </Field>
-
-      <Field orientation="vertical">
-        <FieldLabel>{t("statusLabel")}</FieldLabel>
-        <Select
-          value={watch("status") || "active"}
-          onValueChange={(value) => setValue("status", value as "active" | "inactive")}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t("statusLabel")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">{t("statusActive")}</SelectItem>
-            <SelectItem value="inactive">{t("statusInactive")}</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.status && <FieldError>{errors.status.message}</FieldError>}
       </Field>
 
       <div className="flex justify-end gap-2 pt-4">

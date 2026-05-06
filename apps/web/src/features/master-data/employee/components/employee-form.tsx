@@ -418,7 +418,6 @@ export function EmployeeForm({
           email: data.email,
           password: data.password,
           role_id: data.role_id,
-          status: "active",
         });
         finalUserId = newUser.data.id;
       }

@@ -5,7 +5,6 @@ export const createUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   name: z.string().min(3, "Name must be at least 3 characters"),
   role_id: z.string().min(1, "Role is required"),
-  status: z.enum(["active", "inactive"]).optional().default("active"),
 });
 
 export const updateUserSchema = z.object({

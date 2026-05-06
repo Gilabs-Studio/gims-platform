@@ -64,6 +64,8 @@ export function UserList() {
     setRoleId,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
+    createConflictMessage,
+    setCreateConflictMessage,
     editingUser,
     setEditingUser,
     users,
@@ -599,8 +601,12 @@ export function UserList() {
               onSubmit={async (data) => {
                 await handleCreate(data as CreateUserFormData);
               }}
-              onCancel={() => setIsCreateDialogOpen(false)}
+              onCancel={() => {
+                setCreateConflictMessage("");
+                setIsCreateDialogOpen(false);
+              }}
               isLoading={createUser.isPending}
+              emailErrorMessage={createConflictMessage}
             />
           </DialogContent>
         </Dialog>
