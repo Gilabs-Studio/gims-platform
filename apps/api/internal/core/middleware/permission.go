@@ -29,6 +29,8 @@ func permissionAliases(requiredPermission string) []string {
 		return []string{"finance_settings.read"}
 	case "fiscal_year.write":
 		return []string{"finance_settings.update"}
+	case "fiscal_year.delete":
+		return nil
 	default:
 		return nil
 	}
@@ -249,4 +251,3 @@ func InjectDashboardScope(db *gorm.DB) gin.HandlerFunc {
 		c.Next()
 	}
 }
-

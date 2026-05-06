@@ -484,6 +484,8 @@
     "defaultCompanyApplied": "Default company applied",
     "activate": "Activate",
     "lock": "Lock",
+    "delete": "Delete",
+    "confirmDeleteFiscalYear": "Delete fiscal year \"{name}\"? This action cannot be undone.",
     "statusValues": {
       "draft": "Draft",
       "active": "Active",

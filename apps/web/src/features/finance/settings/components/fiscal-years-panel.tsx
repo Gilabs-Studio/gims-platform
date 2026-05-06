@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/select";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
-import { CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle2, Lock, Trash2 } from "lucide-react";
 
 import {
   useActivateFiscalYear,
   useCreateFiscalYear,
+  useDeleteFiscalYear,
   useFiscalYears,
   useLockFiscalYear,
 } from "../hooks/use-finance-settings";
@@ -72,10 +73,12 @@ export function FiscalYearsPanel() {
   );
 
   const canWrite = useHasPermission("fiscal_year.write");
+  const canDeletePermission = useHasPermission("fiscal_year.delete");
   const { data, isLoading } = useFiscalYears(params);
   const createMutation = useCreateFiscalYear();
   const activateMutation = useActivateFiscalYear();
   const lockMutation = useLockFiscalYear();
+  const deleteMutation = useDeleteFiscalYear();
 
   const items = (data?.data ?? []) as FiscalYear[];
   const selectedCompany = companies.find((company) => company.id === companyIdValue) ?? null;
@@ -217,6 +220,24 @@ export function FiscalYearsPanel() {
                 items.map((item) => {
                   const canActivate = canWrite && item.status === "draft" && !activateMutation.isPending && companyIdValue.length > 0;
                   const canLock = canWrite && item.status === "active" && !lockMutation.isPending && companyIdValue.length > 0;
+                  const canDelete =
+                    canDeletePermission && item.status === "draft" && !deleteMutation.isPending && companyIdValue.length > 0;
+
+                  const onDelete = () => {
+                    if (!canDelete) {
+                      return;
+                    }
+
+                    const confirmed = window.confirm(
+                      t("confirmDeleteFiscalYear", { name: item.name }),
+                    );
+
+                    if (!confirmed) {
+                      return;
+                    }
+
+                    deleteMutation.mutate({ id: item.id, companyId: companyIdValue });
+                  };
 
                   return (
                     <TableRow key={item.id}>
@@ -265,7 +286,19 @@ export function FiscalYearsPanel() {
                               {t("lock")}
                             </Button>
                           )}
-                          {!canActivate && !canLock && <span className="text-xs text-muted-foreground">-</span>}
+                          {canDelete && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 rounded-full px-3 text-xs cursor-pointer"
+                              onClick={onDelete}
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              {t("delete")}
+                            </Button>
+                          )}
+                          {!canActivate && !canLock && !canDelete && <span className="text-xs text-muted-foreground">-</span>}
                         </div>
                       </TableCell>
                     </TableRow>

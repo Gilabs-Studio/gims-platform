@@ -95,6 +95,19 @@ export const financeSettingsService = {
     return response.data;
   },
 
+  deleteFiscalYear: async (
+    id: string,
+    companyId: string,
+  ): Promise<ApiResponse<{ deleted: boolean; id: string; company_id: string }>> => {
+    const response = await apiClient.delete<ApiResponse<{ deleted: boolean; id: string; company_id: string }>>(
+      `/finance/fiscal-years/${id}`,
+      {
+        params: { company_id: companyId },
+      },
+    );
+    return response.data;
+  },
+
   listTaxConfigurations: async (
     params: ListTaxConfigurationParams,
   ): Promise<ApiResponse<TaxConfiguration[]>> => {

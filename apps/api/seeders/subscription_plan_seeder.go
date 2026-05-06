@@ -601,6 +601,7 @@ func SeedSubscriptionPlans() error {
 				// Fiscal Years (full CRUD)
 				"fiscal_year.read",
 				"fiscal_year.write",
+				"fiscal_year.delete",
 				// Accounting Mapping (read-only)
 				"account_mappings.read",
 			},

@@ -54,6 +54,15 @@ func (r *inMemoryFiscalYearRepo) Update(ctx context.Context, item *financeModels
 	return nil
 }
 
+func (r *inMemoryFiscalYearRepo) Delete(ctx context.Context, id string) error {
+	_ = ctx
+	if _, ok := r.items[id]; !ok {
+		return gorm.ErrRecordNotFound
+	}
+	delete(r.items, id)
+	return nil
+}
+
 func (r *inMemoryFiscalYearRepo) FindByID(ctx context.Context, id string) (*financeModels.FiscalYear, error) {
 	_ = ctx
 	item, ok := r.items[id]
@@ -161,7 +170,7 @@ func TestFiscalYearCreate_ShouldRejectInvalidRange(t *testing.T) {
 		CompanyID: "11111111-1111-1111-1111-111111111111",
 		Name:      "FY 2026",
 		StartDate: "2026-01-01",
-		EndDate:   "2026-11-30",
+		EndDate:   "2025-12-31",
 	}, nil)
 
 	require.ErrorIs(t, err, ErrFiscalYearInvalidRange)
@@ -233,4 +242,59 @@ func TestFiscalYearLock_ShouldRequireOpeningBalanceBeforeLocking(t *testing.T) {
 
 	_, err := uc.Lock(context.Background(), "fy-active", "11111111-1111-1111-1111-111111111111")
 	require.ErrorIs(t, err, ErrFiscalYearOpeningBalanceNotPosted)
+}
+
+func TestFiscalYearDelete_ShouldDeleteDraftOnly(t *testing.T) {
+	t.Parallel()
+
+	repo := newInMemoryFiscalYearRepo(
+		financeModels.FiscalYear{
+			ID:        "fy-draft",
+			CompanyID: "11111111-1111-1111-1111-111111111111",
+			Name:      "FY 2026",
+			StartDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:   time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+			Status:    financeModels.FiscalYearStatusDraft,
+		},
+		financeModels.FiscalYear{
+			ID:        "fy-active",
+			CompanyID: "11111111-1111-1111-1111-111111111111",
+			Name:      "FY 2025",
+			StartDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:   time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC),
+			Status:    financeModels.FiscalYearStatusActive,
+		},
+	)
+
+	uc := NewFiscalYearUsecase(nil, repo, nil)
+
+	err := uc.Delete(context.Background(), "fy-draft", "11111111-1111-1111-1111-111111111111")
+	require.NoError(t, err)
+	_, exists := repo.items["fy-draft"]
+	require.False(t, exists)
+
+	err = uc.Delete(context.Background(), "fy-active", "11111111-1111-1111-1111-111111111111")
+	require.ErrorIs(t, err, ErrFiscalYearDeleteNotDraft)
+}
+
+func TestFiscalYearDelete_ShouldRejectCrossCompany(t *testing.T) {
+	t.Parallel()
+
+	repo := newInMemoryFiscalYearRepo(
+		financeModels.FiscalYear{
+			ID:        "fy-draft",
+			CompanyID: "11111111-1111-1111-1111-111111111111",
+			Name:      "FY 2026",
+			StartDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:   time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
+			Status:    financeModels.FiscalYearStatusDraft,
+		},
+	)
+
+	uc := NewFiscalYearUsecase(nil, repo, nil)
+	err := uc.Delete(context.Background(), "fy-draft", "22222222-2222-2222-2222-222222222222")
+	require.ErrorIs(t, err, ErrFiscalYearCompanyMismatch)
+
+	_, exists := repo.items["fy-draft"]
+	require.True(t, exists)
 }

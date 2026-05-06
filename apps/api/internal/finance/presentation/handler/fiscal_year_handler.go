@@ -99,6 +99,22 @@ func (h *FiscalYearHandler) Update(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *FiscalYearHandler) Delete(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	companyID := strings.TrimSpace(c.Query("company_id"))
+	if companyID == "" {
+		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "company_id is required", nil)
+		return
+	}
+
+	if err := h.uc.Delete(c.Request.Context(), id, companyID); err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, response.ErrCodeBadRequest)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"deleted": true, "id": id, "company_id": companyID}, nil)
+}
+
 func (h *FiscalYearHandler) Activate(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	companyID := strings.TrimSpace(c.Query("company_id"))
