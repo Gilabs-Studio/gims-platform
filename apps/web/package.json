@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env WATCHPACK_POLLING=false CHOKIDAR_USEPOLLING=false NODE_OPTIONS=--max-old-space-size=4096 next dev --turbo",
-    "build": "next build --turbo",
+    "build": "next build --turbo && next start",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
@@ -34,7 +34,7 @@
     "@tanstack/react-query": "^5.90.10",
     "@tanstack/react-virtual": "^3.13.13",
     "@types/leaflet": "^1.9.21",
-    "axios": "^1.15.0",
+    "axios": ">=1.15.2",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
