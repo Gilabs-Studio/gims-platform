@@ -563,7 +563,10 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 
 	if email != "" {
 		var count int64
-		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
+		normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+		// Keep this consistent with provisioning guard in provisionTenantForPaidPlan.
+		// Soft-deleted emails are still treated as reserved.
+		if err := u.db.WithContext(ctx).Table("users").Where("LOWER(email) = ?", normalizedEmail).Count(&count).Error; err != nil {
 			return nil, err
 		}
 		if count > 0 {
