@@ -125,11 +125,7 @@ const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
   "role.",
   "permission.",
   "company.",
-  "finance_settings.",
-  "journal_template.",
-] as const;
-
-const ENTITLEMENT_BYPASS_PERMISSION_PREFIXES = [
+  // Finance Accounting module - never protected by entitlements
   "coa.",
   "journal.",
   "sales_journal.",
@@ -137,21 +133,6 @@ const ENTITLEMENT_BYPASS_PERMISSION_PREFIXES = [
   "adjustment_journal.",
   "financial_closing.",
 ] as const;
-
-function isEntitlementBypassPermission(code: string): boolean {
-  const lower = code.trim().toLowerCase();
-  return ENTITLEMENT_BYPASS_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
-}
-
-const HIDDEN_PERMISSION_PREFIXES = [
-  "finance_settings.",
-  "journal_template.",
-] as const;
-
-function isHiddenPermission(code: string): boolean {
-  const lower = code.trim().toLowerCase();
-  return HIDDEN_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
-}
 const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
 
 function isSystemAdminOnlyPermission(permission: Permission): boolean {
@@ -1029,9 +1010,7 @@ function PermissionsSelector({
   const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
   const upgradeHref = `/${locale}/profile?tab=billing`;
   const visiblePermissions = useMemo(
-    () => permissions
-      .filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission))
-      .filter((permission) => !isHiddenPermission(permission.code)),
+    () => permissions.filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission)),
     [isSystemAdmin, permissions],
   );
 
@@ -1122,9 +1101,6 @@ function PermissionsSelector({
   const isPermissionAllowedByPlan = useCallback(
     (permission: Permission): boolean => {
       if (isAlwaysAllowedPermission(permission.code)) {
-        return true;
-      }
-      if (isEntitlementBypassPermission(permission.code)) {
         return true;
       }
       if (!hasEntitlementRestriction) {

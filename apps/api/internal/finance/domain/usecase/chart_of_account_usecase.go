@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -149,6 +151,9 @@ func (uc *chartOfAccountUsecase) Update(ctx context.Context, id string, req *dto
 		}
 		return nil, err
 	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.ChartOfAccount{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrCOANotFound
+	}
 	if existing.IsProtected {
 		return nil, ErrCOAProtected
 	}
@@ -226,6 +231,9 @@ func (uc *chartOfAccountUsecase) Delete(ctx context.Context, id string) error {
 			return ErrCOANotFound
 		}
 		return err
+	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.ChartOfAccount{}, id, security.FinanceScopeQueryOptions()) {
+		return ErrCOANotFound
 	}
 	if existing.IsProtected {
 		return ErrCOAProtected

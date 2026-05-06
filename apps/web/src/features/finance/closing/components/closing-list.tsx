@@ -75,6 +75,7 @@ export function ClosingList() {
   const canApprove = useUserPermission("financial_closing.approve");
   const canReopen = useUserPermission("financial_closing.reopen");
   const canYearEnd = useUserPermission("financial_closing.year_end");
+  const canDelete = useUserPermission("financial_closing.delete");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -218,7 +219,7 @@ export function ClosingList() {
                             {t("actions.reopen")}
                           </DropdownMenuItem>
                         )}
-                        {canCreate && item.status === "draft" && (
+                        {canDelete && item.status === "draft" && (
                           <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setDeleting(item)}
