@@ -1576,6 +1576,7 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 			strings.HasPrefix(codeLower, "setting") ||
 			strings.HasPrefix(codeLower, "billing.") ||
 			codeLower == "pos.payment.manage" ||
+			strings.HasPrefix(codeLower, "pos.layout.") ||
 			// User and role management: always needed so the owner can manage their team
 			strings.HasPrefix(codeLower, "user.") ||
 			strings.HasPrefix(codeLower, "role.") ||
