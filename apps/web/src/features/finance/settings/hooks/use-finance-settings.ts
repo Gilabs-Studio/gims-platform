@@ -247,6 +247,21 @@ export const useLockFiscalYear = () => {
   });
 };
 
+export const useDeleteFiscalYear = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
+      financeSettingsService.deleteFiscalYear(id, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
+      toast.success("Fiscal year deleted");
+    },
+    onError: (error: unknown) => {
+      toast.error(resolveFiscalYearMutationErrorMessage(error));
+    },
+  });
+};
+
 export const useTaxConfigurations = (params: ListTaxConfigurationParams) => {
   return useQuery({
     queryKey: ["financeSettings", "taxConfigurations", params],

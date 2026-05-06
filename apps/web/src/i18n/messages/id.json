@@ -503,6 +503,8 @@
     "defaultCompanyApplied": "Perusahaan default diterapkan",
     "activate": "Aktifkan",
     "lock": "Kunci",
+    "delete": "Hapus",
+    "confirmDeleteFiscalYear": "Hapus tahun fiskal \"{name}\"? Aksi ini tidak dapat dibatalkan.",
     "statusValues": {
       "draft": "Draft",
       "active": "Aktif",

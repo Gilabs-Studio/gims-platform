@@ -139,8 +139,8 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 	listArgs := []interface{}{asOf, search, like, like, like, params.Limit, params.Offset}
 	if tenantID != "" {
 		listSQL = strings.Replace(listSQL, "WHERE ci.deleted_at IS NULL", "WHERE ci.deleted_at IS NULL AND ci.tenant_id = ?", 1)
-		// insert tenantID before limit/offset
-		listArgs = []interface{}{asOf, search, like, like, like, tenantID, params.Limit, params.Offset}
+		// tenant_id placeholder is injected first in WHERE clause, so args must start with tenantID.
+		listArgs = []interface{}{tenantID, asOf, search, like, like, like, params.Limit, params.Offset}
 	}
 	if err := r.db.WithContext(ctx).Raw(listSQL, listArgs...).Scan(&rows).Error; err != nil {
 		return nil, 0, err
@@ -200,7 +200,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	if tenantID != "" {
 		// inject tenant filter into inner subquery WHERE
 		countSQL = strings.Replace(countSQL, "WHERE si.deleted_at IS NULL", "WHERE si.deleted_at IS NULL AND si.tenant_id = ?", 1)
-		countArgs2 = append(countArgs2, tenantID)
+		countArgs2 = []interface{}{tenantID, asOf, search, like, like}
 	}
 	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs2...).Scan(&total).Error; err != nil {
 		return nil, 0, err
@@ -248,7 +248,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	listArgs2 := []interface{}{asOf, search, like, like, like, params.Limit, params.Offset}
 	if tenantID != "" {
 		listSQL = strings.Replace(listSQL, "WHERE si.deleted_at IS NULL", "WHERE si.deleted_at IS NULL AND si.tenant_id = ?", 1)
-		listArgs2 = []interface{}{asOf, search, like, like, like, tenantID, params.Limit, params.Offset}
+		listArgs2 = []interface{}{tenantID, asOf, search, like, like, like, params.Limit, params.Offset}
 	}
 	if err := r.db.WithContext(ctx).Raw(listSQL, listArgs2...).Scan(&scanRows).Error; err != nil {
 		return nil, 0, err
@@ -380,7 +380,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 	queryArgs := []interface{}{asOf, search, like, like, like}
 	if tenantID != "" {
 		query = strings.Replace(query, "WHERE ntp.deleted_at IS NULL", "WHERE ntp.deleted_at IS NULL AND ntp.tenant_id = ?", 1)
-		queryArgs = append(queryArgs, tenantID)
+		queryArgs = []interface{}{tenantID, asOf, search, like, like, like}
 	}
 	if err := r.db.WithContext(ctx).Raw(query, queryArgs...).Scan(&rows).Error; err != nil {
 		return nil, err

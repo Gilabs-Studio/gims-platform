@@ -41,6 +41,8 @@ func NewCashBankJournalRepository(db *gorm.DB) CashBankJournalRepository {
 func (r *cashBankJournalRepository) FindByID(ctx context.Context, id string, withLines bool) (*financeModels.CashBankJournal, error) {
 	var item financeModels.CashBankJournal
 	q := database.GetDB(ctx, r.db)
+	// Apply tenant + permission scope filtering
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if withLines {
 		q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
 	}

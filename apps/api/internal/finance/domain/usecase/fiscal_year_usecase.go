@@ -16,6 +16,7 @@ import (
 var (
 	ErrFiscalYearNotFound                = errors.New("fiscal year not found")
 	ErrFiscalYearNotDraft                = errors.New("fiscal year can only be edited in draft status")
+	ErrFiscalYearDeleteNotDraft          = errors.New("fiscal year can only be deleted in draft status")
 	ErrFiscalYearInvalidRange            = errors.New("fiscal year end date must be on or after start date")
 	ErrFiscalYearActiveAlreadyUsed       = errors.New("another active fiscal year already exists")
 	ErrFiscalYearLockInvalidStatus       = errors.New("fiscal year can only be locked from active status")
@@ -30,6 +31,7 @@ type FiscalYearUsecase interface {
 	List(ctx context.Context, req *dto.ListFiscalYearsRequest) ([]dto.FiscalYearResponse, int64, error)
 	GetByID(ctx context.Context, id, companyID string) (*dto.FiscalYearResponse, error)
 	Update(ctx context.Context, id, companyID string, req *dto.UpdateFiscalYearRequest) (*dto.FiscalYearResponse, error)
+	Delete(ctx context.Context, id, companyID string) error
 	Activate(ctx context.Context, id, companyID string) (*dto.FiscalYearResponse, error)
 	Lock(ctx context.Context, id, companyID string) (*dto.FiscalYearResponse, error)
 }
@@ -159,6 +161,33 @@ func (uc *fiscalYearUsecase) Update(ctx context.Context, id, companyID string, r
 		return nil, err
 	}
 	return toFiscalYearResponse(item), nil
+}
+
+func (uc *fiscalYearUsecase) Delete(ctx context.Context, id, companyID string) error {
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrFiscalYearNotFound
+		}
+		return err
+	}
+
+	if item.CompanyID != companyID {
+		return ErrFiscalYearCompanyMismatch
+	}
+
+	if item.Status != financeModels.FiscalYearStatusDraft {
+		return ErrFiscalYearDeleteNotDraft
+	}
+
+	if err := uc.repo.Delete(ctx, id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrFiscalYearNotFound
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (uc *fiscalYearUsecase) Activate(ctx context.Context, id, companyID string) (*dto.FiscalYearResponse, error) {

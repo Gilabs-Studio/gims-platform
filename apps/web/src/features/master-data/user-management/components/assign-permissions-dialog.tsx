@@ -125,7 +125,33 @@ const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
   "role.",
   "permission.",
   "company.",
+  "finance_settings.",
+  "journal_template.",
 ] as const;
+
+const ENTITLEMENT_BYPASS_PERMISSION_PREFIXES = [
+  "coa.",
+  "journal.",
+  "sales_journal.",
+  "purchase_journal.",
+  "adjustment_journal.",
+  "financial_closing.",
+] as const;
+
+function isEntitlementBypassPermission(code: string): boolean {
+  const lower = code.trim().toLowerCase();
+  return ENTITLEMENT_BYPASS_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
+const HIDDEN_PERMISSION_PREFIXES = [
+  "finance_settings.",
+  "journal_template.",
+] as const;
+
+function isHiddenPermission(code: string): boolean {
+  const lower = code.trim().toLowerCase();
+  return HIDDEN_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
 const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
 
 function isSystemAdminOnlyPermission(permission: Permission): boolean {
@@ -354,6 +380,15 @@ function buildPermissionTree(
   const getUnmatchedPerms = (perms: Permission[]): Permission[] =>
     perms.filter((perm) => !usedPermissionIds.has(perm.id));
 
+  const getUnmatchedPermsByMenuUrl = (menuUrl: string): Permission[] => {
+    if (!menuUrl) return [];
+
+    return permissions
+      .filter((perm) => !usedPermissionIds.has(perm.id))
+      .filter((perm) => normalizeRoute(perm.menu?.url) === menuUrl)
+      .sort((a, b) => actionSortKey(a) - actionSortKey(b));
+  };
+
   const markUsed = (perms: Permission[]): void => {
     for (const perm of perms) {
       usedPermissionIds.add(perm.id);
@@ -387,14 +422,55 @@ function buildPermissionTree(
       : [];
 
     if (!hasChildren) {
-      if (!navResource || selfPerms.length === 0) return null;
-      markUsed(selfPerms);
+      let resourceToUse = "";
+      let permsToUse: Permission[] = [];
+
+      // Case 1: nav item has permission field with matching permissions
+      if (navResource && selfPerms.length > 0) {
+        resourceToUse = navResource;
+        permsToUse = selfPerms;
+        markUsed(selfPerms);
+      } else if (normalizedUrl) {
+        // Case 2: derive permissions from permission.menu.url
+        const menuMatchedPerms = getUnmatchedPermsByMenuUrl(normalizedUrl);
+        if (menuMatchedPerms.length > 0) {
+          const groupedByResource = new Map<string, Permission[]>();
+          for (const perm of menuMatchedPerms) {
+            const resource = getResourceFromCode(perm.code);
+            if (!resource) continue;
+            if (!groupedByResource.has(resource)) groupedByResource.set(resource, []);
+            groupedByResource.get(resource)!.push(perm);
+          }
+
+          if (groupedByResource.size > 0) {
+            const [primaryResource, primaryPerms] = Array.from(groupedByResource.entries())[0];
+            resourceToUse = primaryResource;
+            permsToUse = primaryPerms;
+
+            // Merge all permissions under primary resource
+            for (const [resource, perms] of groupedByResource) {
+              if (resource !== primaryResource) {
+                permsToUse = [...permsToUse, ...perms];
+              }
+            }
+            permsToUse.sort((a, b) => actionSortKey(a) - actionSortKey(b));
+            markUsed(permsToUse);
+          }
+        }
+      }
+
+      // Case 3: no nav.permission and no menu.url permission match
+      // Still create node to preserve navigation structure, with empty permissions
+      if (!resourceToUse) {
+        resourceToUse = nav.name.toLowerCase().replace(/\s+/g, "_");
+      }
+
       return makeResourceNode(
-        `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+        `resource-${resourceToUse}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
         translatedName,
         nav.icon,
-        navResource,
-        selfPerms,
+        resourceToUse,
+        permsToUse,
         normalizedUrl || undefined,
       );
     }
@@ -953,7 +1029,9 @@ function PermissionsSelector({
   const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
   const upgradeHref = `/${locale}/profile?tab=billing`;
   const visiblePermissions = useMemo(
-    () => permissions.filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission)),
+    () => permissions
+      .filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission))
+      .filter((permission) => !isHiddenPermission(permission.code)),
     [isSystemAdmin, permissions],
   );
 
@@ -1044,6 +1122,9 @@ function PermissionsSelector({
   const isPermissionAllowedByPlan = useCallback(
     (permission: Permission): boolean => {
       if (isAlwaysAllowedPermission(permission.code)) {
+        return true;
+      }
+      if (isEntitlementBypassPermission(permission.code)) {
         return true;
       }
       if (!hasEntitlementRestriction) {
