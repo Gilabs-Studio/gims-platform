@@ -119,6 +119,7 @@ type SubscriptionResponse struct {
 	NextBillingAt   *time.Time `json:"next_billing_at,omitempty"`
 	UserCount       int        `json:"user_count"`
 	SeatLimit       int        `json:"seat_limit,omitempty"`
+	OutletLimit     int        `json:"outlet_limit,omitempty"`
 	ActiveUsers     int        `json:"active_users,omitempty"`
 	AmountPaidIDR   int64      `json:"amount_paid_idr"`
 	CouponCode      string     `json:"coupon_code,omitempty"`
@@ -137,22 +138,24 @@ type SubscriptionListParams struct {
 
 // SubscriptionPlanResponse is the public-facing representation of a plan.
 type SubscriptionPlanResponse struct {
-	Slug            string   `json:"slug"`
-	Name            string   `json:"name"`
-	Category        string   `json:"category"`
-	Description     string   `json:"description,omitempty"`
-	BillingType     string   `json:"billing_type"`
-	PriceMonthlyIDR int64    `json:"price_monthly_idr"`
-	PriceYearlyIDR  int64    `json:"price_yearly_idr"`
-	MinUsers        int      `json:"min_users"`
-	MaxUsers        int      `json:"max_users"`
-	IsActive        bool     `json:"is_active"`
-	IsHighlighted   bool     `json:"is_highlighted"`
-	SortOrder       int      `json:"sort_order"`
-	Features        []string `json:"features"`
-	RoleTemplates   []RoleTemplate `json:"role_templates"`
-	Modules         []string `json:"modules"` // enabled module slugs
-	MenuURLs        []string `json:"menu_urls"`
+	Slug                  string         `json:"slug"`
+	Name                  string         `json:"name"`
+	Category              string         `json:"category"`
+	Description           string         `json:"description,omitempty"`
+	BillingType           string         `json:"billing_type"`
+	PriceMonthlyIDR       int64          `json:"price_monthly_idr"`
+	PriceYearlyIDR        int64          `json:"price_yearly_idr"`
+	OutletAddonMonthlyIDR int64          `json:"outlet_addon_monthly_idr"`
+	OutletAddonYearlyIDR  int64          `json:"outlet_addon_yearly_idr"`
+	MinUsers              int            `json:"min_users"`
+	MaxUsers              int            `json:"max_users"`
+	IsActive              bool           `json:"is_active"`
+	IsHighlighted         bool           `json:"is_highlighted"`
+	SortOrder             int            `json:"sort_order"`
+	Features              []string       `json:"features"`
+	RoleTemplates         []RoleTemplate `json:"role_templates"`
+	Modules               []string       `json:"modules"` // enabled module slugs
+	MenuURLs              []string       `json:"menu_urls"`
 }
 
 // RoleTemplate is a plan-provisioned role template.
@@ -164,21 +167,23 @@ type RoleTemplate struct {
 
 // UpsertPlanRequest is the system-admin payload for creating or updating a plan.
 type UpsertPlanRequest struct {
-	Slug            string   `json:"slug"              binding:"required,min=2,max=64"`
-	Name            string   `json:"name"              binding:"required,min=2,max=128"`
-	Category        string   `json:"category"          binding:"required,oneof=pos erp crm hr bundle"`
-	Description     string   `json:"description"       binding:"omitempty,max=1000"`
-	BillingType     string   `json:"billing_type"      binding:"required,oneof=per_user flat"`
-	PriceMonthlyIDR int64    `json:"price_monthly_idr" binding:"required,min=0"`
-	PriceYearlyIDR  int64    `json:"price_yearly_idr"  binding:"required,min=0"`
-	MinUsers        int      `json:"min_users"         binding:"omitempty,min=1"`
-	MaxUsers        int      `json:"max_users"         binding:"omitempty,min=1"`
-	IsHighlighted   bool     `json:"is_highlighted"`
-	SortOrder       int      `json:"sort_order"`
-	Features        []string `json:"features"          binding:"omitempty"`
-	RoleTemplates   []RoleTemplate `json:"role_templates" binding:"required,min=1"`
-	Modules         []string `json:"modules"           binding:"omitempty"` // module slugs to entitle
-	MenuURLs        []string `json:"menu_urls"         binding:"omitempty"`
+	Slug                  string         `json:"slug"              binding:"required,min=2,max=64"`
+	Name                  string         `json:"name"              binding:"required,min=2,max=128"`
+	Category              string         `json:"category"          binding:"required,oneof=pos erp crm hr bundle"`
+	Description           string         `json:"description"       binding:"omitempty,max=1000"`
+	BillingType           string         `json:"billing_type"      binding:"required,oneof=per_user flat"`
+	PriceMonthlyIDR       int64          `json:"price_monthly_idr" binding:"required,min=0"`
+	PriceYearlyIDR        int64          `json:"price_yearly_idr"  binding:"required,min=0"`
+	OutletAddonMonthlyIDR int64          `json:"outlet_addon_monthly_idr" binding:"omitempty,min=0"`
+	OutletAddonYearlyIDR  int64          `json:"outlet_addon_yearly_idr"  binding:"omitempty,min=0"`
+	MinUsers              int            `json:"min_users"         binding:"omitempty,min=1"`
+	MaxUsers              int            `json:"max_users"         binding:"omitempty,min=1"`
+	IsHighlighted         bool           `json:"is_highlighted"`
+	SortOrder             int            `json:"sort_order"`
+	Features              []string       `json:"features"          binding:"omitempty"`
+	RoleTemplates         []RoleTemplate `json:"role_templates" binding:"required,min=1"`
+	Modules               []string       `json:"modules"           binding:"omitempty"` // module slugs to entitle
+	MenuURLs              []string       `json:"menu_urls"         binding:"omitempty"`
 }
 
 // ComputePriceRequest is the payload for the public price-computation endpoint.
@@ -208,14 +213,16 @@ type BillingChangeAction string
 
 const (
 	BillingChangeActionAddSeat     BillingChangeAction = "add_seat"
+	BillingChangeActionAddOutlet   BillingChangeAction = "add_outlet"
 	BillingChangeActionUpgradePlan BillingChangeAction = "upgrade_plan"
 	BillingChangeActionAddModule   BillingChangeAction = "add_module"
 	BillingChangeActionDowngrade   BillingChangeAction = "downgrade"
+	BillingChangeActionDowngradeOutlet BillingChangeAction = "downgrade_outlet"
 )
 
 // BillingChangeRequest is the tenant-facing payload for requesting a billing change.
 type BillingChangeRequest struct {
-	Action           BillingChangeAction `json:"action" binding:"required,oneof=add_seat upgrade_plan add_module downgrade"`
+	Action           BillingChangeAction `json:"action" binding:"required,oneof=add_seat add_outlet upgrade_plan add_module downgrade downgrade_outlet"`
 	Target           string              `json:"target" binding:"required,min=1,max=128"`
 	ActionDate       string              `json:"action_date" binding:"required,datetime=2006-01-02"`
 	CouponCode       string              `json:"coupon_code,omitempty" binding:"omitempty,max=64"`
@@ -232,6 +239,8 @@ type BillingChangeResponse struct {
 	BillingChange struct {
 		OldSeatLimit          int    `json:"old_seat_limit"`
 		NewSeatLimit          int    `json:"new_seat_limit"`
+		OldOutletLimit        int    `json:"old_outlet_limit"`
+		NewOutletLimit        int    `json:"new_outlet_limit"`
 		OldAmountPerCycle     int64  `json:"old_amount_per_cycle"`
 		NewAmountPerCycle     int64  `json:"new_amount_per_cycle"`
 		ProrationAmount       int64  `json:"proration_amount"`

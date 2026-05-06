@@ -68,24 +68,26 @@ const (
 // SubscriptionPlanConfig stores pricing and metadata for each plan.
 // Replaces the hardcoded planTotalPriceIDR map in auth_usecase.go.
 type SubscriptionPlanConfig struct {
-	ID              string          `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Slug            string          `gorm:"type:varchar(64);uniqueIndex;not null"           json:"slug"` // e.g. "growth_suite"
-	Name            string          `gorm:"type:varchar(128);not null"                      json:"name"`
-	Category        string          `gorm:"type:varchar(64);not null;index"                 json:"category"` // pos, erp, crm, hr, bundle
-	Description     string          `gorm:"type:text"                                       json:"description,omitempty"`
-	BillingType     BillingType     `gorm:"type:varchar(20);not null;default:'per_user'"                    json:"billing_type"`
-	PriceMonthlyIDR int64           `gorm:"column:price_monthly_idr;type:bigint;not null;default:0"         json:"price_monthly_idr"` // per-user or flat
-	PriceYearlyIDR  int64           `gorm:"column:price_yearly_idr;type:bigint;not null;default:0"          json:"price_yearly_idr"`  // per-user or flat
-	MinUsers        int             `gorm:"type:int;not null;default:1"                     json:"min_users"`
-	MaxUsers        int             `gorm:"type:int;not null;default:500"                   json:"max_users"`
-	IsActive        bool            `gorm:"type:boolean;not null;default:true;index"        json:"is_active"`
-	IsHighlighted   bool            `gorm:"type:boolean;not null;default:false"             json:"is_highlighted"` // show as "recommended"
-	SortOrder       int             `gorm:"type:int;not null;default:0"                     json:"sort_order"`
-	Features        PlanFeatureList `gorm:"type:jsonb;not null;default:'[]'"                json:"features"`
-	RoleTemplates   RoleTemplateList `gorm:"type:jsonb;not null;default:'[]'"               json:"role_templates"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt  `gorm:"index"                                           json:"-"`
+	ID                    string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Slug                  string           `gorm:"type:varchar(64);uniqueIndex;not null"           json:"slug"` // e.g. "growth_suite"
+	Name                  string           `gorm:"type:varchar(128);not null"                      json:"name"`
+	Category              string           `gorm:"type:varchar(64);not null;index"                 json:"category"` // pos, erp, crm, hr, bundle
+	Description           string           `gorm:"type:text"                                       json:"description,omitempty"`
+	BillingType           BillingType      `gorm:"type:varchar(20);not null;default:'per_user'"                    json:"billing_type"`
+	PriceMonthlyIDR       int64            `gorm:"column:price_monthly_idr;type:bigint;not null;default:0"         json:"price_monthly_idr"` // per-user or flat
+	PriceYearlyIDR        int64            `gorm:"column:price_yearly_idr;type:bigint;not null;default:0"          json:"price_yearly_idr"`  // per-user or flat
+	OutletAddonMonthlyIDR int64            `gorm:"column:outlet_addon_monthly_idr;type:bigint;not null;default:500000" json:"outlet_addon_monthly_idr"`
+	OutletAddonYearlyIDR  int64            `gorm:"column:outlet_addon_yearly_idr;type:bigint;not null;default:6000000"  json:"outlet_addon_yearly_idr"`
+	MinUsers              int              `gorm:"type:int;not null;default:1"                     json:"min_users"`
+	MaxUsers              int              `gorm:"type:int;not null;default:500"                   json:"max_users"`
+	IsActive              bool             `gorm:"type:boolean;not null;default:true;index"        json:"is_active"`
+	IsHighlighted         bool             `gorm:"type:boolean;not null;default:false"             json:"is_highlighted"` // show as "recommended"
+	SortOrder             int              `gorm:"type:int;not null;default:0"                     json:"sort_order"`
+	Features              PlanFeatureList  `gorm:"type:jsonb;not null;default:'[]'"                json:"features"`
+	RoleTemplates         RoleTemplateList `gorm:"type:jsonb;not null;default:'[]'"               json:"role_templates"`
+	CreatedAt             time.Time        `json:"created_at"`
+	UpdatedAt             time.Time        `json:"updated_at"`
+	DeletedAt             gorm.DeletedAt   `gorm:"index"                                           json:"-"`
 
 	// Associations
 	Entitlements           []PlanModuleEntitlement     `gorm:"foreignKey:PlanSlug;references:Slug" json:"entitlements,omitempty"`
@@ -119,6 +121,24 @@ func (s *SubscriptionPlanConfig) TotalPriceIDR(billingPeriod string, userCount i
 		}
 		return s.PriceMonthlyIDR * int64(userCount)
 	}
+}
+
+// OutletAddonPriceIDR resolves addon price per additional outlet for the billing period.
+func (s *SubscriptionPlanConfig) OutletAddonPriceIDR(billingPeriod string) int64 {
+	if billingPeriod == "yearly" {
+		return s.OutletAddonYearlyIDR
+	}
+	return s.OutletAddonMonthlyIDR
+}
+
+// TotalPriceWithOutletAddonsIDR computes recurring amount including outlet addons.
+// The first outlet is included in base subscription; addon applies from outlet #2.
+func (s *SubscriptionPlanConfig) TotalPriceWithOutletAddonsIDR(billingPeriod string, userCount int, outletLimit int) int64 {
+	base := s.TotalPriceIDR(billingPeriod, userCount)
+	if outletLimit <= 1 {
+		return base
+	}
+	return base + (int64(outletLimit-1) * s.OutletAddonPriceIDR(billingPeriod))
 }
 
 // PlanModuleEntitlement maps a plan slug to a module slug that it grants access to.

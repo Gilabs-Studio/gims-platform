@@ -10,6 +10,7 @@ func RegisterOutletRoutes(rg *gin.RouterGroup, h *handler.OutletHandler) {
 	g := rg.Group("/outlets")
 	{
 		g.GET("/form-data", h.GetFormData)
+		g.GET("/limit", h.GetLimit)
 		g.POST("", h.Create)
 		g.GET("", h.List)
 		g.GET("/:id", h.GetByID)

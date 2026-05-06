@@ -166,8 +166,34 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
       }
       onOpenChange(false);
       onSuccess?.();
-    } catch {
-      toast.error(t("outlet.saveError"));
+    } catch (err: unknown) {
+      // Attempt to surface server error message when available. If the error
+      // indicates the outlet limit has been reached, suggest the addon flow and
+      // open the addon dialog (via window event) so users can increase quota.
+      let serverMessage: string | undefined;
+      if (typeof err === "object" && err !== null) {
+        const maybe = err as Record<string, unknown>;
+        const resp = maybe.response as Record<string, unknown> | undefined;
+        const data = resp?.data as Record<string, unknown> | undefined;
+        serverMessage = (data?.message as string) || (maybe.message as string | undefined);
+      }
+      const message = serverMessage || t("outlet.saveError");
+      toast.error(message);
+
+      // If the server message contains 'limit' or 'outlet limit', request addon dialog
+      try {
+        const lower = String(message).toLowerCase();
+        if (lower.includes("limit") || lower.includes("outlet")) {
+          if (typeof window !== "undefined") {
+            // Set a resume intent so after invoice flow the create can be resumed
+            window.localStorage.setItem("outlet_create_resume_intent", new Date().toISOString().slice(0,10));
+            window.dispatchEvent(new CustomEvent("open-outlet-addon"));
+            onOpenChange(false);
+          }
+        }
+      } catch {
+        // ignore errors from event dispatch
+      }
     }
   };
 

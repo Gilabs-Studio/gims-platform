@@ -75,6 +75,7 @@ type TenantSubscription struct {
 	Status        SubscriptionStatus        `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
 	UserCount     int                       `gorm:"type:int;not null;default:1"                     json:"user_count"`
 	SeatLimit     int                       `gorm:"type:int;not null;default:1"                     json:"seat_limit"`
+	OutletLimit   int                       `gorm:"type:int;not null;default:1"                     json:"outlet_limit"`
 	AmountPaidIDR int64                     `gorm:"type:bigint;not null;default:0"                  json:"amount_paid_idr"`
 	StartsAt      time.Time                 `gorm:"type:timestamptz;not null"                       json:"starts_at"`
 	ExpiresAt     *time.Time                `gorm:"type:timestamptz"                                json:"expires_at"` // nil = lifetime
