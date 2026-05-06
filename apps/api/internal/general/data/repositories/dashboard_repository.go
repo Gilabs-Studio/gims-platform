@@ -1308,7 +1308,13 @@ func (r *dashboardRepository) GetPOSSummary(ctx context.Context, userID, outletI
 				COUNT(*) FILTER (WHERE obj.value->>'type' = 'table') AS tables_total
 			FROM pos_floor_plans fp
 			JOIN outlet_scope oscope ON oscope.id = fp.outlet_id
-			CROSS JOIN LATERAL jsonb_array_elements(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) obj
+			CROSS JOIN LATERAL jsonb_array_elements(
+				CASE
+					WHEN jsonb_typeof(COALESCE(fp.layout_data::jsonb, '[]'::jsonb)) = 'array'
+					THEN COALESCE(fp.layout_data::jsonb, '[]'::jsonb)
+					ELSE '[]'::jsonb
+				END
+			) obj
 			WHERE fp.deleted_at IS NULL
 			GROUP BY fp.outlet_id
 		), published_floor_plan AS (
