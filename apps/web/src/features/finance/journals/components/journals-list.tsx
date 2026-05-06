@@ -79,6 +79,10 @@ export function JournalsList() {
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
 
+  // include company_id from URL if present to scope results
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const companyIdFromURL = searchParams ? searchParams.get("company_id") ?? undefined : undefined;
+
   const { data, isLoading, isError } = useFinanceJournals({
     page,
     per_page: pageSize,
@@ -87,6 +91,7 @@ export function JournalsList() {
     journal_type: typeFilter === "all" ? undefined : typeFilter,
     start_date: startDate || undefined,
     end_date: endDate || undefined,
+    company_id: companyIdFromURL,
     sort_by: "entry_date",
     sort_dir: "desc",
   });

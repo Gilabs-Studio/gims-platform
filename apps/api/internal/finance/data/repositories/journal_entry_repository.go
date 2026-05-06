@@ -50,6 +50,8 @@ func (r *journalEntryRepository) getDB(ctx context.Context) *gorm.DB {
 func (r *journalEntryRepository) FindByID(ctx context.Context, id string, withLines bool) (*financeModels.JournalEntry, error) {
 	var item financeModels.JournalEntry
 	q := r.getDB(ctx)
+	// Apply tenant + permission scope filtering
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if withLines {
 		q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
 	}
@@ -162,6 +164,9 @@ func (r *journalEntryRepository) FindByReferenceID(ctx context.Context, referenc
 		Preload("PostedByUser").
 		Preload("ReversedByUser")
 
+	// Apply tenant + permission scope filtering
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+
 	if err := q.Where("reference_type = ? AND reference_id = ?", strings.ToUpper(referenceType), referenceID).First(&item).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // Explicitly return nil for no record found
@@ -177,6 +182,7 @@ func (r *journalEntryRepository) ExistsByReference(ctx context.Context, referenc
 	var count int64
 	q := r.getDB(ctx).Model(&financeModels.JournalEntry{}).
 		Where("reference_type = ? AND reference_id = ?", strings.ToUpper(referenceType), referenceID)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if err := q.Count(&count).Error; err != nil {
 		return false, err

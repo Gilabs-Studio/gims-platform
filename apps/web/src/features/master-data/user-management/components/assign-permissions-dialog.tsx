@@ -354,6 +354,15 @@ function buildPermissionTree(
   const getUnmatchedPerms = (perms: Permission[]): Permission[] =>
     perms.filter((perm) => !usedPermissionIds.has(perm.id));
 
+  const getUnmatchedPermsByMenuUrl = (menuUrl: string): Permission[] => {
+    if (!menuUrl) return [];
+
+    return permissions
+      .filter((perm) => !usedPermissionIds.has(perm.id))
+      .filter((perm) => normalizeRoute(perm.menu?.url) === menuUrl)
+      .sort((a, b) => actionSortKey(a) - actionSortKey(b));
+  };
+
   const markUsed = (perms: Permission[]): void => {
     for (const perm of perms) {
       usedPermissionIds.add(perm.id);
@@ -387,16 +396,68 @@ function buildPermissionTree(
       : [];
 
     if (!hasChildren) {
-      if (!navResource || selfPerms.length === 0) return null;
-      markUsed(selfPerms);
-      return makeResourceNode(
-        `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
-        translatedName,
-        nav.icon,
-        navResource,
-        selfPerms,
-        normalizedUrl || undefined,
-      );
+      if (navResource && selfPerms.length > 0) {
+        markUsed(selfPerms);
+        return makeResourceNode(
+          `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+          translatedName,
+          nav.icon,
+          navResource,
+          selfPerms,
+          normalizedUrl || undefined,
+        );
+      }
+
+      // Keep leaf menu nodes visible even when nav.permission is omitted,
+      // by deriving resource permissions from permission.menu.url.
+      const menuMatchedPerms = normalizedUrl ? getUnmatchedPermsByMenuUrl(normalizedUrl) : [];
+      if (menuMatchedPerms.length === 0) return null;
+
+      const groupedByResource = new Map<string, Permission[]>();
+      for (const perm of menuMatchedPerms) {
+        const resource = getResourceFromCode(perm.code);
+        if (!resource) continue;
+        if (!groupedByResource.has(resource)) groupedByResource.set(resource, []);
+        groupedByResource.get(resource)!.push(perm);
+      }
+
+      if (groupedByResource.size === 0) return null;
+
+      if (groupedByResource.size === 1) {
+        const [resource, perms] = Array.from(groupedByResource.entries())[0];
+        markUsed(perms);
+        return makeResourceNode(
+          `resource-${resource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+          translatedName,
+          nav.icon,
+          resource,
+          perms,
+          normalizedUrl || undefined,
+        );
+      }
+
+      const children = Array.from(groupedByResource.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([resource, perms]) => {
+          markUsed(perms);
+          return makeResourceNode(
+            `resource-${resource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+            toTitle(resource),
+            nav.icon,
+            resource,
+            perms,
+            normalizedUrl || undefined,
+          );
+        });
+
+      return {
+        id: `group-${translatedName}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+        name: translatedName,
+        icon: nav.icon,
+        url: normalizedUrl || undefined,
+        type: "group",
+        children,
+      };
     }
 
     const children: PermissionTreeNode[] = [];

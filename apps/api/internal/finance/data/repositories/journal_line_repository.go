@@ -232,6 +232,8 @@ func (r *journalLineRepository) SumBeforeDate(ctx context.Context, coaID string,
 
 	// Apply tenant qualification
 	q = applyQualifiedTenantFilter(ctx, q, "jl.tenant_id", "je.tenant_id")
+	// Apply permission-based scope filtering (OWN/DIVISION/AREA/ALL)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if err := q.Scan(&res).Error; err != nil {
 		return 0, 0, err
 	}
