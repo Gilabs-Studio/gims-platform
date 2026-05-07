@@ -4,6 +4,40 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthGuard } from "../hooks/use-auth-guard";
 
+// Permission checking utilities
+export type CurrentUserLike = {
+  id: string;
+  role?: {
+    is_owner?: boolean;
+  } | null;
+} | null | undefined;
+
+export type TargetUserLike = {
+  id: string;
+  role?: {
+    is_protected?: boolean;
+  } | null;
+} | null | undefined;
+
+export function canOwnerManageUser(
+  currentUser: CurrentUserLike,
+  targetUser: TargetUserLike
+): boolean {
+  if (!currentUser || !targetUser) {
+    return false;
+  }
+
+  if (!currentUser.role?.is_owner) {
+    return true;
+  }
+
+  if (currentUser.id === targetUser.id) {
+    return false;
+  }
+
+  return !targetUser.role?.is_protected;
+}
+
 interface AuthGuardProps {
   readonly children: React.ReactNode;
 }
