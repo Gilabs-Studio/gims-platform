@@ -58,14 +58,14 @@ export function AvatarUpload() {
   };
 
   const currentAvatarUrl = previewUrl || user?.avatar_url;
+  const fallbackAvatarUrl = user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : "";
 
   return (
     <Card className="h-fit">
       <CardContent className="flex flex-col items-center gap-6">
         <div className="relative group">
           <Avatar className="h-32 w-32 cursor-pointer ring-4 ring-background shadow-xl transition-all hover:opacity-90" onClick={handleFileClick}>
-             {/* If currentAvatarUrl is a helper that returns null, allow AvatarImage to handle src={undefined} */}
-            <AvatarImage src={currentAvatarUrl || ""} alt={user?.name || "Avatar"} className="object-cover" />
+            <AvatarImage src={currentAvatarUrl || fallbackAvatarUrl} alt={user?.name || "Avatar"} className="object-cover" />
             <AvatarFallback className="text-4xl">
               {user?.name?.charAt(0).toUpperCase() || "U"}
             </AvatarFallback>

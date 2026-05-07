@@ -432,13 +432,8 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 		uploadDir = config.AppConfig.Storage.UploadDir
 	}
 	
-	baseURL := "http://localhost:8080/uploads"
-	// Use Storage.BaseURL if it's set to a full URL, otherwise we might need to construct it.
-	// For now, let's assume if Storage.BaseURL starts with http, use it, otherwise join.
-	if config.AppConfig.Storage.BaseURL != "" && len(config.AppConfig.Storage.BaseURL) > 4 && config.AppConfig.Storage.BaseURL[:4] == "http" {
-		baseURL = config.AppConfig.Storage.BaseURL
-	} else if config.AppConfig.Storage.BaseURL != "" {
-		// Just use what is configured, assuming it might be relative or absolute
+	baseURL := "/uploads"
+	if config.AppConfig.Storage.BaseURL != "" {
 		baseURL = config.AppConfig.Storage.BaseURL
 	}
 
