@@ -16,7 +16,7 @@ interface MarkerClusterGroupProps extends L.MarkerClusterGroupOptions {
 }
 
 const MarkerClusterGroup = createPathComponent<L.MarkerClusterGroup, MarkerClusterGroupProps>(
-  ({ children: _c, mapProfile = "balanced", ...props }, ctx) => {
+  ({ mapProfile = "balanced", ...props }, ctx) => {
     const instance = new L.MarkerClusterGroup({
       ...getMarkerClusterOptions(mapProfile),
       ...props,

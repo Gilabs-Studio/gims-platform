@@ -26,9 +26,12 @@ export function CurrencyList() {
   const tCommon = useTranslations("common");
   const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
 
-  const canCreate = isSystemAdmin && useUserPermission("currency.create");
-  const canUpdate = isSystemAdmin && useUserPermission("currency.update");
-  const canDelete = isSystemAdmin && useUserPermission("currency.delete");
+  const permCreate = useUserPermission("currency.create");
+  const permUpdate = useUserPermission("currency.update");
+  const permDelete = useUserPermission("currency.delete");
+  const canCreate = isSystemAdmin && permCreate;
+  const canUpdate = isSystemAdmin && permUpdate;
+  const canDelete = isSystemAdmin && permDelete;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

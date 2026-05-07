@@ -55,7 +55,7 @@ export function AreaList() {
     search: debouncedSearch || undefined,
   });
   const deleteArea = useDeleteArea();
-  const areas = areasData?.data ?? [];
+  const areas = useMemo(() => areasData?.data ?? [], [areasData?.data]);
   const totalSelected = selectedAreaIds.length + selectedCities.length;
 
   const filteredAreas = useMemo(() => {

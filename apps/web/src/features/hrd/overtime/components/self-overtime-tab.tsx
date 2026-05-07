@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -76,7 +76,7 @@ export function SelfOvertimeTab() {
 
   const cancelMutation = useCancelOvertimeRequest();
 
-  const requests = listData?.data ?? [];
+  const requests = useMemo(() => listData?.data ?? [], [listData?.data]);
 
   // Debug logging
   useEffect(() => {

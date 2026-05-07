@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, startTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -100,7 +100,7 @@ export function LogActivityDialog({
   // Form data for product interest (products list)
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions = formDataRes?.data?.interest_questions ?? [];
+  const questions = useMemo(() => formDataRes?.data?.interest_questions ?? [], [formDataRes?.data?.interest_questions]);
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", {
@@ -154,7 +154,9 @@ export function LogActivityDialog({
   );
 
   useEffect(() => {
-    setActivityTypeOptions(activityTypes);
+    startTransition(() => {
+      setActivityTypeOptions(activityTypes);
+    });
   }, [activityTypes]);
 
   const {
@@ -175,15 +177,17 @@ export function LogActivityDialog({
   // Initialize date/time and reset form when dialog opens
   useEffect(() => {
     if (open) {
-      const { date, time } = getNowParts();
-      setSelectedDate(date);
-      setSelectedTime(time);
-      setCalendarOpen(false);
-      setActiveTab("info");
-      setProductItems([]);
-      reset({
-        activity_type_id: activityTypes[0]?.id ?? "",
-        description: "",
+      startTransition(() => {
+        const { date, time } = getNowParts();
+        setSelectedDate(date);
+        setSelectedTime(time);
+        setCalendarOpen(false);
+        setActiveTab("info");
+        setProductItems([]);
+        reset({
+          activity_type_id: activityTypes[0]?.id ?? "",
+          description: "",
+        });
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,52 +233,54 @@ export function LogActivityDialog({
 
     if (!latestProductMap && !fallbackItems.length) return;
 
-    setProductItems((prev) => {
-      const merged = new Map<string, ProductInterestItem>();
+    startTransition(() => {
+      setProductItems((prev) => {
+        const merged = new Map<string, ProductInterestItem>();
 
-      if (latestProductMap) {
-        // Seed from the latest activity's product list — only these products are "active".
-        for (const [productId, p] of latestProductMap) {
-          // Restore survey answer IDs from leadProductItems (activity only stores display text).
-          const existing = leadProductItemsRes?.data?.find((i) => i.product_id === productId);
-          let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
-          if (existing?.last_survey_answers) {
-            try { restoredAnswers = JSON.parse(existing.last_survey_answers); } catch { /* ignore */ }
+        if (latestProductMap) {
+          // Seed from the latest activity's product list — only these products are "active".
+          for (const [productId, p] of latestProductMap) {
+            // Restore survey answer IDs from leadProductItems (activity only stores display text).
+            const existing = leadProductItemsRes?.data?.find((i) => i.product_id === productId);
+            let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
+            if (existing?.last_survey_answers) {
+              try { restoredAnswers = JSON.parse(existing.last_survey_answers); } catch { /* ignore */ }
+            }
+            merged.set(productId, {
+              product_id: productId,
+              interest_level: p.interest_level ?? existing?.interest_level ?? 0,
+              notes: p.notes ?? existing?.notes ?? "",
+              quantity: p.quantity ?? existing?.quantity ?? 0,
+              price: p.unit_price ?? existing?.unit_price ?? 0,
+              answers: restoredAnswers,
+            });
           }
-          merged.set(productId, {
-            product_id: productId,
-            interest_level: p.interest_level ?? existing?.interest_level ?? 0,
-            notes: p.notes ?? existing?.notes ?? "",
-            quantity: p.quantity ?? existing?.quantity ?? 0,
-            price: p.unit_price ?? existing?.unit_price ?? 0,
-            answers: restoredAnswers,
-          });
-        }
-      } else {
-        // Fallback: accumulated lead product items (skipping soft-deleted entries).
-        for (const item of fallbackItems) {
-          let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
-          if (item.last_survey_answers) {
-            try { restoredAnswers = JSON.parse(item.last_survey_answers); } catch { /* ignore */ }
+        } else {
+          // Fallback: accumulated lead product items (skipping soft-deleted entries).
+          for (const item of fallbackItems) {
+            let restoredAnswers: { question_id: string; option_id: string; answer?: boolean }[] = [];
+            if (item.last_survey_answers) {
+              try { restoredAnswers = JSON.parse(item.last_survey_answers); } catch { /* ignore */ }
+            }
+            merged.set(item.product_id!, {
+              product_id: item.product_id!,
+              interest_level: item.interest_level ?? 0,
+              notes: item.notes ?? "",
+              quantity: item.quantity ?? 0,
+              price: item.unit_price ?? 0,
+              answers: restoredAnswers,
+            });
           }
-          merged.set(item.product_id!, {
-            product_id: item.product_id!,
-            interest_level: item.interest_level ?? 0,
-            notes: item.notes ?? "",
-            quantity: item.quantity ?? 0,
-            price: item.unit_price ?? 0,
-            answers: restoredAnswers,
-          });
         }
-      }
 
-      // Preserve manually-added items from a previous open that aren't in the API data.
-      for (const item of prev) {
-        if (item.product_id && !merged.has(item.product_id)) {
-          merged.set(item.product_id, item);
+        // Preserve manually-added items from a previous open that aren't in the API data.
+        for (const item of prev) {
+          if (item.product_id && !merged.has(item.product_id)) {
+            merged.set(item.product_id, item);
+          }
         }
-      }
-      return Array.from(merged.values());
+        return Array.from(merged.values());
+      });
     });
   }, [open, recentActivitiesRes, leadProductItemsRes]);
 
@@ -282,13 +288,15 @@ export function LogActivityDialog({
   // The pre-populate effect may run before questions are fetched, leaving interest_level = 0
   useEffect(() => {
     if (!questions.length) return;
-    setProductItems((prev) =>
-      prev.map((p) =>
-        p.answers.length > 0
-          ? { ...p, interest_level: calculateInterest(p.answers) }
-          : p,
-      ),
-    );
+    startTransition(() => {
+      setProductItems((prev) =>
+        prev.map((p) =>
+          p.answers.length > 0
+            ? { ...p, interest_level: calculateInterest(p.answers) }
+            : p,
+        ),
+      );
+    });
   // calculateInterest is stable (depends on questions which is the trigger here)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions]);

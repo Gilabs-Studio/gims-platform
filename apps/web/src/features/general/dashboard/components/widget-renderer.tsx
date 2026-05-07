@@ -102,6 +102,19 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
   const canView = isWidgetVisibleByAccessibleMenus(widget.type, accessibleMenuUrls);
   const isScopeRestricted = isDashboardWidgetRestrictedByScope(widget.type, permissionScope);
 
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useDashboardWidgetOverview(widget.type, {
+    enabled: canView && !isScopeRestricted && isOverviewWidget(widget.type) && !isOwnerKpiWidget(widget.type),
+  });
+
+  const ownerKpi = useOwnerKpi({
+    enabled: canView && !isScopeRestricted && isOwnerKpiWidget(widget.type),
+  });
+
   if (isPermissionsLoading) {
     return (
       <Card className="h-full border-dashed">
@@ -115,18 +128,6 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
       </Card>
     );
   }
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-  } = useDashboardWidgetOverview(widget.type, {
-    enabled: canView && !isScopeRestricted && isOverviewWidget(widget.type) && !isOwnerKpiWidget(widget.type),
-  });
-
-  const ownerKpi = useOwnerKpi({
-    enabled: canView && !isScopeRestricted && isOwnerKpiWidget(widget.type),
-  });
 
   const costItems = data?.costs_by_category ?? [];
   const totalExpenseValue = costItems.reduce((sum, item) => sum + item.amount, 0);

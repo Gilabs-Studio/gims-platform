@@ -23,13 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Service import - adjust path as needed for your project structure
-const employeeService = {
-  list: async (_params?: unknown) => ({ data: [] as EmployeeOption[] }),
-};
-
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
+import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 
 import type { Asset } from "@/features/finance/assets/types";
 import { DatePicker } from "../date-picker";
@@ -45,7 +41,9 @@ interface EmployeeLite {
 
 // Schema for assignment form
 export const assetAssignmentFormSchema = z.object({
-  employee_id: z.string().uuid("Employee is required"),
+  employee_id: z.string()
+    .min(1, "Employee is required")
+    .uuid("Must be a valid employee ID"),
   department_id: z.string().uuid().optional().or(z.literal("")),
   location_id: z.string().uuid().optional().or(z.literal("")),
   assignment_date: z.string().min(1, "Assignment date is required"),
@@ -134,26 +132,40 @@ export function AssetAssignmentForm({
   }, [defaultValues, form]);
 
   // Fetch employees for async select
+  const { data: employeesData } = useEmployees({
+    page: 1,
+    per_page: 100,
+    is_active: true,
+  });
+
   const fetchEmployees = async (query: string): Promise<EmployeeOption[]> => {
-    try {
-      const response = await employeeService.list({
-        page: 1,
-        per_page: 20,
-        search: query,
-        is_active: true,
-      });
-      return (response.data ?? []).map((emp: EmployeeOption) => ({
+    if (!query.trim()) {
+      return (employeesData?.data ?? []).map((emp) => ({
         id: emp.id,
         name: emp.name,
         employee_code: emp.employee_code,
-        position: emp.position,
-        avatar_url: emp.avatar_url,
-        department_id: emp.department_id,
-        department_name: emp.department_name,
+        position: emp.job_position?.name,
+        avatar_url: undefined,
+        department_id: emp.division_id,
+        department_name: emp.division?.name,
       }));
-    } catch {
-      return [];
     }
+
+    const filtered = (employeesData?.data ?? []).filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(query.toLowerCase()) ||
+        emp.employee_code?.toLowerCase().includes(query.toLowerCase())
+    );
+
+    return filtered.map((emp) => ({
+      id: emp.id,
+      name: emp.name,
+      employee_code: emp.employee_code,
+      position: emp.job_position?.name,
+      avatar_url: undefined,
+      department_id: emp.division_id,
+      department_name: emp.division?.name,
+    }));
   };
 
   // Handle employee selection - auto-populate department

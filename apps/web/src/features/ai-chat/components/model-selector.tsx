@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ChevronDown, Cpu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export function ModelSelector() {
   const { selectedModel, setSelectedModel } = useAIChatStore();
   const { data: modelsResponse } = useAIModels();
 
-  const models = modelsResponse?.data ?? [];
+  const models = useMemo(() => modelsResponse?.data ?? [], [modelsResponse?.data]);
   const currentModel = models.find((m) => m.id === selectedModel);
   const displayName = currentModel?.display_name ?? "Select Model";
 

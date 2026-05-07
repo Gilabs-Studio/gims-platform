@@ -117,7 +117,7 @@ export function useAreaForm({ open, onClose, onCreateSuccess, area, initialPolyg
         });
       }
     }
-  }, [open, area, initialSelectedCities]);
+  }, [open, area, initialSelectedCities, form]);
 
   const onSubmit: SubmitHandler<AreaFormData> = async (data) => {
     // Clean empty string UUIDs to null for optional foreign keys

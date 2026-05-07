@@ -84,7 +84,9 @@ function SidebarProvider({
         const storedState = stored === "true";
         // Only update if not controlled externally
         if (openProp === undefined && storedState !== defaultOpen) {
-          _setOpen(storedState);
+          React.startTransition(() => {
+            _setOpen(storedState);
+          });
         }
       }
     } catch (error) {

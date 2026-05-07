@@ -44,7 +44,7 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
         } else {
             if (value === undefined) setDisplayValue("");
         }
-    }, [value]);
+    }, [value, displayValue]);
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
