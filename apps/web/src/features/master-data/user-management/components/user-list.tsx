@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, SlidersHorizontal, KeyRound, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -154,12 +154,14 @@ export function UserList() {
     }
 
     const payload = getPasswordResetTokenPrefill();
-    setResetPasswordTarget(targetUser);
-    setResetToken(payload?.userId === resetUserId ? payload.token : "");
-    setNewPassword("");
-    setConfirmPassword("");
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
+    startTransition(() => {
+      setResetPasswordTarget(targetUser);
+      setResetToken(payload?.userId === resetUserId ? payload.token : "");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    });
     clearPasswordResetTokenPrefill();
 
     searchParams.delete("open_change_password");

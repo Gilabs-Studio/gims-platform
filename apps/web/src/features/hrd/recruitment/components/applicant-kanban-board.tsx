@@ -20,7 +20,6 @@ import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
 import { toast } from "sonner";
 import {
   useProgressiveApplicantKanban,
-  useMoveApplicantStage,
 } from "../hooks/use-applicants";
 import { ApplicantCard } from "./applicant-card";
 import { MoveStageDialog } from "./move-stage-dialog";

@@ -63,11 +63,6 @@ interface InvoiceOption {
   invoice_date?: string;
 }
 
-// Placeholder services (keep or replace with real services)
-const purchaseOrderService = { list: async (_params?: unknown) => ({ data: [] as PurchaseOrderOption[] }) };
-const supplierInvoiceService = { list: async (_params?: unknown) => ({ data: [] as InvoiceOption[] }) };
-const supplierService = { list: async (_params?: unknown) => ({ data: [] as SupplierOption[] }) };
-
 export default function AssetAcquisitionForm({ asset, onSubmit, isSubmitting = false, isLoading = false }: AssetAcquisitionFormProps) {
   const t = useTranslations();
   const tCommon = useTranslations("common");
@@ -116,8 +111,8 @@ export default function AssetAcquisitionForm({ asset, onSubmit, isSubmitting = f
 
   const fetchSuppliers = async (query: string): Promise<SupplierOption[]> => {
     try {
-      const response = await supplierService.list({ page: 1, per_page: 20, search: query });
-      return response.data ?? [];
+      void query;
+      return [];
     } catch {
       return [];
     }
@@ -125,8 +120,8 @@ export default function AssetAcquisitionForm({ asset, onSubmit, isSubmitting = f
 
   const fetchPurchaseOrders = async (query: string): Promise<PurchaseOrderOption[]> => {
     try {
-      const response = await purchaseOrderService.list({ page: 1, per_page: 20, search: query });
-      return response.data ?? [];
+      void query;
+      return [];
     } catch {
       return [];
     }
@@ -134,8 +129,8 @@ export default function AssetAcquisitionForm({ asset, onSubmit, isSubmitting = f
 
   const fetchInvoices = async (query: string): Promise<InvoiceOption[]> => {
     try {
-      const response = await supplierInvoiceService.list({ page: 1, per_page: 20, search: query });
-      return response.data ?? [];
+      void query;
+      return [];
     } catch {
       return [];
     }

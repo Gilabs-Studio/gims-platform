@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useMap } from "react-leaflet";
 import type L from "leaflet";
 import dynamic from "next/dynamic";
@@ -38,7 +38,9 @@ export function MapClickHandler({
   }, [map, onCoordinateSelect]);
 
   useEffect(() => {
-    setMarkerPosition(initialPosition);
+    startTransition(() => {
+      setMarkerPosition(initialPosition);
+    });
   }, [initialPosition]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Store, Filter, DollarSign, ShoppingCart } from "lucide-react";
 import type { WidgetConfig, POSOutletItem } from "../types";
@@ -48,7 +48,9 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
   } = usePosOutletOverview(widget.type, canView, { allowAllOutlets });
 
   useEffect(() => {
-    setVisibleCount(pageSize);
+    startTransition(() => {
+      setVisibleCount(pageSize);
+    });
   }, [selectedOutletId]);
 
   const displayedOutlets = useMemo(() => filteredOutlets.slice(0, visibleCount), [filteredOutlets, visibleCount]);

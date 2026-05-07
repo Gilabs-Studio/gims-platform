@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -207,30 +207,31 @@ export function ProductFnbCreateDialog({
   // Pre-fill form when editing an existing recipe product
   useEffect(() => {
     if (open && editingItem) {
-      setName(editingItem.name ?? "");
-      setDescription(editingItem.description ?? "");
-      setImageUrl(editingItem.image_url ?? null);
-      setSellingPrice(editingItem.selling_price ?? 0);
-      setCategoryId(editingItem.category_id ?? "");
-      setPosScope((editingItem.pos_scope ?? "global") as "none" | "global" | "specific");
-      setOutletIds(editingItem.outlet_ids ?? []);
-      // Map existing recipe items to rows
-      if (editingItem.recipe_items && editingItem.recipe_items.length > 0) {
-        setRecipeRows(
-          editingItem.recipe_items.map((ri) => ({
-            row_id: crypto.randomUUID(),
-            ingredient_product_id: ri.ingredient_product_id ?? "",
-            ingredient_name: ri.ingredient?.name ?? "",
-            ingredient_code: ri.ingredient?.code ?? "",
-            quantity: ri.quantity ?? 1,
-            uom_id: ri.uom_id ?? null,
-            uom_symbol: ri.uom?.symbol ?? ri.uom?.name ?? "",
-            ingredient_cost_price: ri.ingredient?.cost_price ?? 0,
-          }))
-        );
-      }
+      startTransition(() => {
+        setName(editingItem.name ?? "");
+        setDescription(editingItem.description ?? "");
+        setImageUrl(editingItem.image_url ?? null);
+        setSellingPrice(editingItem.selling_price ?? 0);
+        setCategoryId(editingItem.category_id ?? "");
+        setPosScope((editingItem.pos_scope ?? "global") as "none" | "global" | "specific");
+        setOutletIds(editingItem.outlet_ids ?? []);
+        // Map existing recipe items to rows
+        if (editingItem.recipe_items && editingItem.recipe_items.length > 0) {
+          setRecipeRows(
+            editingItem.recipe_items.map((ri) => ({
+              row_id: crypto.randomUUID(),
+              ingredient_product_id: ri.ingredient_product_id ?? "",
+              ingredient_name: ri.ingredient?.name ?? "",
+              ingredient_code: ri.ingredient?.code ?? "",
+              quantity: ri.quantity ?? 1,
+              uom_id: ri.uom_id ?? null,
+              uom_symbol: ri.uom?.symbol ?? ri.uom?.name ?? "",
+              ingredient_cost_price: ri.ingredient?.cost_price ?? 0,
+            }))
+          );
+        }
+      });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editingItem]);
 
   const handleCreateIngredientForRow = (rowId: string, query: string) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -97,7 +97,7 @@ export function ApplicantForm({
   const createMutation = useCreateApplicant();
   const updateMutation = useUpdateApplicant();
 
-  const stages = stagesData?.data || [];
+  const stages = useMemo(() => stagesData?.data || [], [stagesData?.data]);
   const isEditing = !!applicant;
   const applicantSources = useApplicantSources(t);
 

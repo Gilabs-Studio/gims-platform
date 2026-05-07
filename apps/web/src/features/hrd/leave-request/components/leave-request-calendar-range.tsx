@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, startTransition } from "react";
 import type { DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -20,7 +20,9 @@ export function LeaveRequestCalendarRange({ range, className }: LeaveRequestCale
   const [month, setMonth] = useState<Date>(initialMonth);
 
   useEffect(() => {
-    setMonth(initialMonth);
+    startTransition(() => {
+      setMonth(initialMonth);
+    });
   }, [initialMonth]);
 
   const handleMonthChange = useCallback((nextMonth: Date | undefined) => {

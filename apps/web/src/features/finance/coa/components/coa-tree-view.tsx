@@ -114,7 +114,7 @@ function CoaTreeNode({
           {(() => {
             const typeBadge = getTypeBadge(node.type);
             return (
-              <Badge variant={typeBadge.variant as any} className="text-xs font-medium">
+              <Badge variant={typeBadge.variant as React.ComponentProps<typeof Badge>["variant"]} className="text-xs font-medium">
                 {getTypeLabel(typeBadge.labelKey)}
               </Badge>
             );

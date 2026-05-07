@@ -206,7 +206,7 @@ export function useMoveApplicantStage() {
         });
       }
     },
-    onSettled: async (_data, _error, variables) => {
+    onSettled: async () => {
       // Always refetch after error or success
       await queryClient.invalidateQueries({ queryKey: applicantKeys.byStage() });
       // Invalidate all recruitment request queries to update filled_count and progress

@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { Plus } from "lucide-react";
 

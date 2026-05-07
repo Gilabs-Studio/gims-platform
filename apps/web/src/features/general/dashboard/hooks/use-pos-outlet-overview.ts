@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { WidgetType, POSOutletItem, POSSummaryData } from "../types";
 import { useDashboardWidgetOverview } from "./use-dashboard";
 
@@ -37,7 +37,9 @@ export function usePosOutletOverview(
     }
 
     didSetInitialOutlet.current = true;
-    setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0].outlet_id);
+    startTransition(() => {
+      setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0].outlet_id);
+    });
   }, [allowAllOutlets, enabled, selectedOutletId, visibleOutlets]);
 
   useEffect(() => {
@@ -47,7 +49,9 @@ export function usePosOutletOverview(
 
     const hasSelectedOutlet = visibleOutlets.some((outlet) => outlet.outlet_id === selectedOutletId);
     if (!hasSelectedOutlet) {
-      setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0]?.outlet_id ?? "");
+      startTransition(() => {
+        setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0]?.outlet_id ?? "");
+      });
     }
   }, [allowAllOutlets, selectedOutletId, visibleOutlets]);
 
@@ -72,7 +76,7 @@ export function usePosOutletOverview(
     }
 
     return undefined;
-  }, [selectedOutletId, visibleOutlets]);
+  }, [allowAllOutlets, selectedOutletId, visibleOutlets]);
 
   const isLoading = overviewQuery.isLoading || (enabled && (!allowAllOutlets || selectedOutletId !== "all") && selectedOutletQuery.isLoading);
   const isError = overviewQuery.isError || selectedOutletQuery.isError;

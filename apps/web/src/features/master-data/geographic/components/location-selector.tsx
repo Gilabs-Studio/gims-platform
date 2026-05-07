@@ -218,7 +218,7 @@ export function LocationSelector({
     } finally {
       setIsLoadingMoreProvinces(false);
     }
-  }, [isLoadingMoreProvinces, isProvincesLoading, pageSize, provinceHasMore]);
+  }, [isLoadingMoreProvinces, isProvincesLoading, pageSize, provinceHasMore, provinceCurrentPage]);
 
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {

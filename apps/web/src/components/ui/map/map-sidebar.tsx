@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { X } from "lucide-react";
 import { Button } from "../button";

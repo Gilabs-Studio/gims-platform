@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { LayoutGrid, Filter, Users, ArrowRight } from "lucide-react";
@@ -51,10 +51,10 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
     refetch,
   } = usePosOutletOverview(widget.type, canView, { allowAllOutlets });
 
-  if (!canView) return null;
-
   useEffect(() => {
-    setVisibleCount(pageSize);
+    startTransition(() => {
+      setVisibleCount(pageSize);
+    });
   }, [selectedOutletId]);
 
   const displayedOutlets = useMemo(() => filteredOutlets.slice(0, visibleCount), [filteredOutlets, visibleCount]);
@@ -145,6 +145,8 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
     visibleOutlets.length,
     widget.type,
   ]);
+
+  if (!canView) return null;
 
   return (
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>

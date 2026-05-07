@@ -222,15 +222,7 @@ function Calendar({
   );
   const [mode, setMode] = React.useState<CalendarMode>("day");
 
-  const month = controlledMonth ?? internalMonth;
   const onMonthChange = controlledOnMonthChange ?? setInternalMonth;
-
-  // Sync internal month when controlled month changes
-  React.useEffect(() => {
-    if (controlledMonth) {
-      setInternalMonth(controlledMonth);
-    }
-  }, [controlledMonth]);
 
   const normalizedSelected = React.useMemo(() => {
     if (typeof rawSelected === "string") {
@@ -245,6 +237,8 @@ function Calendar({
       normalizeSelectedValue(value),
     );
   }, [rawOnSelect]);
+
+  const displayMonth = controlledMonth ?? internalMonth;
 
   const defaultClassNames = {
     months: "relative flex flex-col sm:flex-row gap-4",
@@ -317,8 +311,8 @@ function Calendar({
     [],
   );
 
-  const currentYear = month.getFullYear();
-  const currentMonth = month.getMonth();
+  const currentYear = displayMonth.getFullYear();
+  const currentMonth = displayMonth.getMonth();
   const startYear = currentYear - 10;
   const endYear = currentYear + 10;
   const years = Array.from(
@@ -328,55 +322,55 @@ function Calendar({
 
   const handleMonthSelect = React.useCallback(
     (selectedMonth: number) => {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setMonth(selectedMonth);
       onMonthChange(newDate);
       setMode("day");
     },
-    [month, onMonthChange],
+    [displayMonth, onMonthChange],
   );
 
   const handleYearSelect = React.useCallback(
     (selectedYear: number) => {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setFullYear(selectedYear);
       onMonthChange(newDate);
       setMode("day");
     },
-    [month, onMonthChange],
+    [displayMonth, onMonthChange],
   );
 
   const handlePreviousClick = React.useCallback(() => {
     if (mode === "month") {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setFullYear(newDate.getFullYear() - 1);
       onMonthChange(newDate);
     } else if (mode === "year") {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setFullYear(newDate.getFullYear() - 20);
       onMonthChange(newDate);
     } else {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() - 1);
       onMonthChange(newDate);
     }
-  }, [mode, month, onMonthChange]);
+  }, [mode, displayMonth, onMonthChange]);
 
   const handleNextClick = React.useCallback(() => {
     if (mode === "month") {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setFullYear(newDate.getFullYear() + 1);
       onMonthChange(newDate);
     } else if (mode === "year") {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setFullYear(newDate.getFullYear() + 20);
       onMonthChange(newDate);
     } else {
-      const newDate = new Date(month);
+      const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() + 1);
       onMonthChange(newDate);
     }
-  }, [mode, month, onMonthChange]);
+  }, [mode, displayMonth, onMonthChange]);
 
   const CustomCaption = React.useMemo(
     () =>
@@ -389,7 +383,7 @@ function Calendar({
         },
         handlePreviousClick,
         handleNextClick,
-        month,
+        month: displayMonth,
         setMode,
       }),
     [
@@ -397,7 +391,7 @@ function Calendar({
       mergedClassNames,
       handlePreviousClick,
       handleNextClick,
-      month,
+      displayMonth,
       setMode,
     ],
   );
@@ -431,7 +425,7 @@ function Calendar({
               onClick={() => handleMonthSelect(index)}
               className={cn(
                 "px-4 py-2 text-sm rounded-md transition-colors",
-                index === currentMonth && currentYear === month.getFullYear()
+                 index === currentMonth && currentYear === displayMonth.getFullYear()
                   ? "bg-primary text-primary-foreground font-medium"
                   : "hover:bg-accent hover:text-accent-foreground",
               )}
@@ -472,7 +466,7 @@ function Calendar({
     years,
     currentMonth,
     currentYear,
-    month,
+    displayMonth,
     handleMonthSelect,
     handleYearSelect,
   ]);
@@ -486,7 +480,7 @@ function Calendar({
           className: cn("w-full", className),
           classNames: mergedClassNames,
           components: mergedComponents,
-          month,
+          month: displayMonth,
           onMonthChange,
           selected: normalizedSelected,
           onSelect: rawOnSelect ? handleSelect : undefined,

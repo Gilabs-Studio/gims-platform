@@ -998,7 +998,7 @@ export function TravelPlannerMapWorkspace() {
 		});
 
 		return [...stopMarkers, ...visitMarkers];
-	}, [activePlan?.days, activePlanDetailType, detailedVisits, isMapClickModeActive]);
+	}, [activePlan?.days, activePlanDetailType, detailedVisits, isMapClickModeActive, t]);
 
 	const mapCenter = useMemo<[number, number]>(() => {
 		const firstMarker = markers[0];

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMemo } from "react";
 import { ChevronDown, X, FolderTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -79,7 +80,7 @@ export function CategoryTreePicker({
     { include_count: showProductCount },
   );
 
-  const data = externalData ?? apiData?.data ?? [];
+  const data = useMemo(() => externalData ?? apiData?.data ?? [], [externalData, apiData?.data]);
   const isLoading = externalLoading ?? apiLoading;
 
   // Tree state management

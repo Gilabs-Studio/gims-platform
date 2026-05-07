@@ -44,7 +44,7 @@ export function useUserPermissions() {
   const menuData = useMemo(() => {
     if (!query.data?.data) return null;
     // Prefer server-provided permissions when available (reflects latest role/menu assignments)
-    const serverPermissionsList = (query.data.data as any)?.permissions ?? undefined;
+    const serverPermissionsList = (query.data.data as { permissions?: Array<{ code: string; scope?: string }> } | undefined)?.permissions ?? undefined;
     const serverPermissions: Record<string, string> = {};
     if (Array.isArray(serverPermissionsList)) {
       for (const p of serverPermissionsList) {
@@ -114,7 +114,7 @@ export function useUserPermissions() {
 
   // Sync server-provided permissions into auth store so app stays consistent
   useEffect(() => {
-    const serverPermissionsList = (query.data as any)?.data?.permissions ?? undefined;
+    const serverPermissionsList = (query.data as { data?: { permissions?: Array<{ code: string; scope?: string }> } } | undefined)?.data?.permissions ?? undefined;
     if (!serverPermissionsList || !user) return;
 
     const serverPermissions: Record<string, string> = {};
