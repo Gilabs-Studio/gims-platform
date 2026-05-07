@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LocationPicker } from "../../../geographic/components/location-picker";
-import { useOutletForm, type OutletFormData } from "../../hooks/use-outlet-form";
+import { useOutletForm } from "../../hooks/use-outlet-form";
 import type { Outlet } from "../../types";
 import { Controller } from "react-hook-form";
 

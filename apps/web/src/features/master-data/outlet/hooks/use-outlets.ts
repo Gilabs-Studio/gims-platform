@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { outletService } from "../services/outlet-service";
 import type {
-  Outlet,
   CreateOutletData,
   UpdateOutletData,
   OutletListParams,
@@ -16,6 +15,7 @@ export const outletKeys = {
   details: () => [...outletKeys.all, "detail"] as const,
   detail: (id: string) => [...outletKeys.details(), id] as const,
   formData: () => [...outletKeys.all, "form-data"] as const,
+  limit: () => [...outletKeys.all, "limit"] as const,
 };
 
 export function useOutlets(params?: OutletListParams, options?: { enabled?: boolean }) {
@@ -51,6 +51,7 @@ export function useCreateOutlet() {
     mutationFn: (data: CreateOutletData) => outletService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: outletKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: outletKeys.limit() });
       // Also invalidate warehouse list since a warehouse may have been created
       queryClient.invalidateQueries({ queryKey: ["warehouses"] });
       // Invalidate floor layout form data so new outlets appear in the outlet selector.
@@ -81,6 +82,7 @@ export function useDeleteOutlet() {
     mutationFn: (id: string) => outletService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: outletKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: outletKeys.limit() });
     },
   });
 }

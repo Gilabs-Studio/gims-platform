@@ -33,9 +33,11 @@ type PendingBillingChange struct {
 	CurrentPlan          string `json:"current_plan"`
 	CurrentBillingPeriod string `json:"current_billing_period"`
 	CurrentSeatLimit     int    `json:"current_seat_limit"`
+	CurrentOutletLimit   int    `json:"current_outlet_limit"`
 	ActiveUsers          int    `json:"active_users"`
 	CurrentAmount        int64  `json:"current_amount"`
 	NewSeatLimit         int    `json:"new_seat_limit"`
+	NewOutletLimit       int    `json:"new_outlet_limit"`
 	NewPlan              string `json:"new_plan"`
 	NewAmount            int64  `json:"new_amount"`
 	ProrationAmount      int64  `json:"proration_amount"`
@@ -54,6 +56,7 @@ type billingSubscriptionSnapshot struct {
 	TenantName            string
 	OwnerEmail            string
 	CurrentSeatLimit      int
+	CurrentOutletLimit    int
 	ActiveUsers           int
 	CurrentAmount         int64
 	PlanSlug              string
@@ -90,6 +93,8 @@ func (u *authUsecase) CreateBillingChangeInvoice(ctx context.Context, req *tenan
 	response := &tenantDTO.BillingChangeResponse{Status: "ok", SyncRequired: snapshot.CurrentAmount != billingChange.OldAmountPerCycle}
 	response.BillingChange.OldSeatLimit = billingChange.OldSeatLimit
 	response.BillingChange.NewSeatLimit = billingChange.NewSeatLimit
+	response.BillingChange.OldOutletLimit = billingChange.OldOutletLimit
+	response.BillingChange.NewOutletLimit = billingChange.NewOutletLimit
 	response.BillingChange.OldAmountPerCycle = billingChange.OldAmountPerCycle
 	response.BillingChange.NewAmountPerCycle = billingChange.NewAmountPerCycle
 	response.BillingChange.ProrationAmount = billingChange.ProrationAmount
@@ -165,6 +170,7 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 
 		updates := map[string]any{
 			"seat_limit":        pending.NewSeatLimit,
+			"outlet_limit":      pending.NewOutletLimit,
 			"user_count":        pending.NewSeatLimit,
 			"xendit_invoice_id": pending.InvoiceID,
 		}
@@ -274,6 +280,8 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 type billingChangeDecision struct {
 	OldSeatLimit          int
 	NewSeatLimit          int
+	OldOutletLimit        int
+	NewOutletLimit        int
 	OldAmountPerCycle     int64
 	NewAmountPerCycle     int64
 	ProrationAmount       int64
@@ -327,6 +335,11 @@ func (u *authUsecase) loadBillingChangeSnapshot(ctx context.Context, req *tenant
 		currentSeatLimit = 1
 	}
 
+	currentOutletLimit := sub.OutletLimit
+	if currentOutletLimit <= 0 {
+		currentOutletLimit = 1
+	}
+
 	currentPlan, err := u.planRepo.FindBySlug(ctx, string(sub.Plan))
 	if err != nil {
 		return nil, err
@@ -342,6 +355,7 @@ func (u *authUsecase) loadBillingChangeSnapshot(ctx context.Context, req *tenant
 		TenantName:            tenantName,
 		OwnerEmail:            ownerEmail,
 		CurrentSeatLimit:      currentSeatLimit,
+		CurrentOutletLimit:    currentOutletLimit,
 		ActiveUsers:           int(activeUsers),
 		CurrentAmount:         sub.AmountPaidIDR,
 		PlanSlug:              string(sub.Plan),
@@ -359,6 +373,7 @@ func (u *authUsecase) loadBillingChangeSnapshot(ctx context.Context, req *tenant
 func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.BillingChangeRequest, snapshot *billingSubscriptionSnapshot) (*billingChangeDecision, couponApplicationDecision, xenditClient.CreateInvoiceRequest, PendingBillingChange, error) {
 	decision := &billingChangeDecision{
 		OldSeatLimit:      snapshot.CurrentSeatLimit,
+		OldOutletLimit:    snapshot.CurrentOutletLimit,
 		OldAmountPerCycle: snapshot.CurrentAmountPerCycle,
 		Action:            string(req.Action),
 		Target:            req.Target,
@@ -368,6 +383,7 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 	}
 
 	newSeatLimit := snapshot.CurrentSeatLimit
+	newOutletLimit := snapshot.CurrentOutletLimit
 	newPlanSlug := snapshot.PlanSlug
 	var targetPlan *models.SubscriptionPlanConfig
 
@@ -378,6 +394,21 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrSeatLimitExceeded
 		}
 		newSeatLimit = parsedSeatLimit
+	case tenantDTO.BillingChangeActionAddOutlet:
+		parsedOutletLimit, parseErr := strconv.Atoi(strings.TrimSpace(req.Target))
+		if parseErr != nil || parsedOutletLimit < snapshot.CurrentOutletLimit {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
+		}
+		newOutletLimit = parsedOutletLimit
+	case tenantDTO.BillingChangeActionDowngradeOutlet:
+		parsedOutletLimit, parseErr := strconv.Atoi(strings.TrimSpace(req.Target))
+		if parseErr != nil || parsedOutletLimit >= snapshot.CurrentOutletLimit {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
+		}
+		if parsedOutletLimit < 1 {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
+		}
+		newOutletLimit = parsedOutletLimit
 	case tenantDTO.BillingChangeActionDowngrade:
 		parsedSeatLimit, parseErr := strconv.Atoi(strings.TrimSpace(req.Target))
 		if parseErr != nil || parsedSeatLimit >= snapshot.CurrentSeatLimit {
@@ -398,12 +429,12 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 		return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
 	}
 
-	currentAmount := snapshot.CurrentPlan.TotalPriceIDR(snapshot.BillingPeriod, snapshot.CurrentSeatLimit)
+	currentAmount := snapshot.CurrentPlan.TotalPriceWithOutletAddonsIDR(snapshot.BillingPeriod, snapshot.CurrentSeatLimit, snapshot.CurrentOutletLimit)
 	var newAmount int64
 	if targetPlan != nil {
-		newAmount = targetPlan.TotalPriceIDR(snapshot.BillingPeriod, newSeatLimit)
+		newAmount = targetPlan.TotalPriceWithOutletAddonsIDR(snapshot.BillingPeriod, newSeatLimit, newOutletLimit)
 	} else {
-		newAmount = snapshot.CurrentPlan.TotalPriceIDR(snapshot.BillingPeriod, newSeatLimit)
+		newAmount = snapshot.CurrentPlan.TotalPriceWithOutletAddonsIDR(snapshot.BillingPeriod, newSeatLimit, newOutletLimit)
 	}
 
 	if newAmount < currentAmount && req.Action == tenantDTO.BillingChangeActionUpgradePlan {
@@ -412,6 +443,7 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 
 	prorationAmount, waivedReason := calculateProrationAmount(snapshot.ActionDate, snapshot.NextBillingAt, snapshot.ExpiresAt, currentAmount, newAmount)
 	decision.NewSeatLimit = newSeatLimit
+	decision.NewOutletLimit = newOutletLimit
 	decision.NewAmountPerCycle = newAmount
 	decision.NewPlanSlug = newPlanSlug
 	decision.ProrationAmount = prorationAmount
@@ -458,9 +490,11 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 		CurrentPlan:          snapshot.PlanSlug,
 		CurrentBillingPeriod: snapshot.BillingPeriod,
 		CurrentSeatLimit:     snapshot.CurrentSeatLimit,
+		CurrentOutletLimit:   snapshot.CurrentOutletLimit,
 		ActiveUsers:          snapshot.ActiveUsers,
 		CurrentAmount:        currentAmount,
 		NewSeatLimit:         newSeatLimit,
+		NewOutletLimit:       newOutletLimit,
 		NewPlan:              newPlanSlug,
 		NewAmount:            decision.NewAmountPerCycle,
 		ProrationAmount:      decision.ProrationAmount,
@@ -483,7 +517,7 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 		}
 	} else {
 		decision.NotificationTitle = "Tagihan perubahan langganan siap"
-		decision.NotificationMessage = "Kami menyiapkan invoice perubahan langganan. Setelah pembayaran berhasil, seat limit dan paket Anda akan diperbarui otomatis."
+		decision.NotificationMessage = "Kami menyiapkan invoice perubahan langganan. Setelah pembayaran berhasil, limit dan paket Anda akan diperbarui otomatis."
 	}
 
 	frontendBaseURL := ""
@@ -508,8 +542,9 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 func (u *authUsecase) applyBillingChangeImmediately(ctx context.Context, snapshot *billingSubscriptionSnapshot, decision *billingChangeDecision, couponDecision couponApplicationDecision) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		updates := map[string]any{
-			"seat_limit": decision.NewSeatLimit,
-			"user_count": decision.NewSeatLimit,
+			"seat_limit":   decision.NewSeatLimit,
+			"outlet_limit": decision.NewOutletLimit,
+			"user_count":   decision.NewSeatLimit,
 		}
 		if amountColumn, colErr := u.resolveTenantSubscriptionAmountColumn(ctx); colErr != nil {
 			return colErr

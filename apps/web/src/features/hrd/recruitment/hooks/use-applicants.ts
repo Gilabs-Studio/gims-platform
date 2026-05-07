@@ -386,7 +386,6 @@ export function useProgressiveApplicantKanban({
 
         const stageData = res.data?.[stageId];
         const newApplicants = stageData?.applicants ?? [];
-        const total = stageData?.total ?? 0;
         const hasMore = newApplicants.length === PER_PAGE;
 
         setStageStates((prev) => {

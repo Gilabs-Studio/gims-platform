@@ -210,7 +210,6 @@ function LeadDetailSkeleton() {
 export function LeadDetail({ leadId }: LeadDetailProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
-  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
@@ -222,7 +221,6 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const canUpdate = useUserPermission("crm_lead.update");
   const canDelete = useUserPermission("crm_lead.delete");
   const canConvert = useUserPermission("crm_lead.convert");
-  const canCreateActivity = useUserPermission("crm_activity.create");
   const canCreateVisit = useUserPermission("crm_visit.create");
   const canCreateTask = useUserPermission("crm_task.create");
   const canViewProduct = useUserPermission("product.read");
@@ -762,8 +760,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                               if (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com")) {
                                 return "View LinkedIn Profile";
                               }
-                            } catch (e) {
-                              // Fallback if URL parsing fails
+                            } catch {
+                              // If URL parsing fails, fall back to generic text
                             }
                             return "View on Google Maps";
                           })()}

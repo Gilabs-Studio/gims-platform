@@ -384,6 +384,9 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 			return nil, err
 		}
 		usr.RoleID = req.RoleID
+		// Clear preloaded role to prevent GORM from reverting role_id during Save()
+		// This happens because FindByID preloads Role, and GORM may restore the association
+		usr.Role = nil
 	}
 
 	if req.Status != "" {

@@ -3,7 +3,6 @@
 import React from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/utils";
 import type { CategoryPerformance } from "../types";
@@ -47,8 +46,6 @@ interface CategoryPerformanceListProps {
 export function CategoryPerformanceList({
   setPage,
   setPerPage,
-  search,
-  setSearch,
   categoryList,
   pagination,
   isLoading,

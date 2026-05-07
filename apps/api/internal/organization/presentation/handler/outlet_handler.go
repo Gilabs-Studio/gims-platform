@@ -46,6 +46,12 @@ func (h *OutletHandler) Create(c *gin.Context) {
 
 	result, err := h.uc.Create(c.Request.Context(), req)
 	if err != nil {
+		if err == usecase.ErrOutletLimitReached {
+			errors.ErrorResponse(c, "OUTLET_LIMIT_REACHED", map[string]interface{}{
+				"reason": "outlet limit for this tenant has been reached; purchase add-on outlet to continue",
+			}, nil)
+			return
+		}
 		errors.ErrorResponse(c, "OUTLET_CREATE_FAILED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
@@ -211,4 +217,15 @@ func (h *OutletHandler) GetFormData(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, formData, nil)
+}
+
+// GetLimit returns current outlet count and maximum outlet limit for active tenant.
+func (h *OutletHandler) GetLimit(c *gin.Context) {
+	limit, err := h.uc.GetLimit(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, limit, nil)
 }

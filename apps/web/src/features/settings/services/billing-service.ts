@@ -11,6 +11,7 @@ export interface TenantSubscription {
   next_billing_at?: string;
   user_count: number;
   seat_limit?: number;
+  outlet_limit?: number;
   active_users?: number;
   amount_paid_idr: number;
   coupon_code?: string;
@@ -24,7 +25,7 @@ export interface TenantEntitlements {
   permission_codes?: string[];
 }
 
-export type BillingChangeAction = "add_seat" | "upgrade_plan" | "add_module" | "downgrade";
+export type BillingChangeAction = "add_seat" | "add_outlet" | "upgrade_plan" | "add_module" | "downgrade" | "downgrade_outlet";
 
 export interface BillingChangeRequest {
   action: BillingChangeAction;
@@ -43,6 +44,8 @@ export interface BillingChangeResponse {
   billing_change: {
     old_seat_limit: number;
     new_seat_limit: number;
+    old_outlet_limit: number;
+    new_outlet_limit: number;
     old_amount_per_cycle: number;
     new_amount_per_cycle: number;
     proration_amount: number;

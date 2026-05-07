@@ -30,11 +30,11 @@ import {
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserList } from "../hooks/use-user-list";
-import { useUserLimit } from "../hooks/use-user-limit";
 import type { User } from "../types";
 import { UserDetailModal } from "./user-detail-modal";
 import { UserForm } from "./user-form";
 import { UserListMobileFilters } from "./user-list-mobile-filters";
+import { UserAddonDialog } from "./user-addon-dialog";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import { passwordResetService } from "@/features/auth/password-reset/services/password-reset-service";
 import type { ListUsersResponse } from "../types";
@@ -64,6 +64,8 @@ export function UserList() {
     setRoleId,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
+    createConflictMessage,
+    setCreateConflictMessage,
     editingUser,
     setEditingUser,
     users,
@@ -80,6 +82,17 @@ export function UserList() {
     deleteUser,
     createUser,
     updateUser,
+    userLimit,
+    isAtLimit,
+    addonDialogOpen,
+    addonQuantity,
+    isAddonSubmitting,
+    addonUnitPrice,
+    addonBillingPeriod,
+    handleAddUserIntent,
+    handleAddonSubmit,
+    setAddonDialogOpen,
+    setAddonQuantity,
     permissions,
   } = useUserList();
 
@@ -97,9 +110,6 @@ export function UserList() {
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
   const queryClient = useQueryClient();
-
-  const { data: userLimit } = useUserLimit();
-  const isAtLimit = userLimit != null && userLimit.current >= userLimit.max;
 
   // Check if any filters are active
   const hasActiveFilters = status !== "" || roleId !== "";
@@ -330,10 +340,10 @@ export function UserList() {
                   </Badge>
                 )}
                 <Button
-                  onClick={() => setIsCreateDialogOpen(true)}
+                  onClick={() => handleAddUserIntent(() => setIsCreateDialogOpen(true))}
                   size="sm"
                   className="h-9 px-3 cursor-pointer"
-                  disabled={isAtLimit}
+                  variant={isAtLimit ? "destructive" : "default"}
                   title={isAtLimit ? t("limitReached") : undefined}
                 >
                   <Plus className="h-4 w-4" />
@@ -395,10 +405,10 @@ export function UserList() {
                 </Badge>
               )}
               <Button
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={() => handleAddUserIntent(() => setIsCreateDialogOpen(true))}
                 className="cursor-pointer"
                 size="sm"
-                disabled={isAtLimit}
+                variant={isAtLimit ? "destructive" : "default"}
                 title={isAtLimit ? t("limitReached") : undefined}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -591,8 +601,12 @@ export function UserList() {
               onSubmit={async (data) => {
                 await handleCreate(data as CreateUserFormData);
               }}
-              onCancel={() => setIsCreateDialogOpen(false)}
+              onCancel={() => {
+                setCreateConflictMessage("");
+                setIsCreateDialogOpen(false);
+              }}
               isLoading={createUser.isPending}
+              emailErrorMessage={createConflictMessage}
             />
           </DialogContent>
         </Dialog>
@@ -715,6 +729,19 @@ export function UserList() {
         onUserUpdated={() => {
           // Refresh will be handled by query invalidation in hooks
         }}
+      />
+
+      <UserAddonDialog
+        open={addonDialogOpen}
+        onOpenChange={setAddonDialogOpen}
+        current={userLimit?.current ?? 0}
+        max={userLimit?.max ?? 0}
+        quantity={addonQuantity}
+        onQuantityChange={setAddonQuantity}
+        unitPrice={addonUnitPrice}
+        billingPeriod={addonBillingPeriod}
+        isSubmitting={isAddonSubmitting}
+        onSubmit={handleAddonSubmit}
       />
 
       {permissions.canDelete && (

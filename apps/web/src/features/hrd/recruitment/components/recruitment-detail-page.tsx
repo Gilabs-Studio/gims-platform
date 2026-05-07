@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Briefcase,
   Users,
-  Calendar,
   Clock,
   FileText,
   CheckCircle2,
@@ -42,7 +41,6 @@ import { ApplicantDetailSheet } from "./applicant-detail-sheet";
 import { ApplicantForm } from "./applicant-form";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import type {
-  RecruitmentRequest,
   RecruitmentStatus,
   RecruitmentApplicant,
 } from "../types";

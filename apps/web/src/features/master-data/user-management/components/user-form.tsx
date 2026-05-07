@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useController, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { createUserSchema, updateUserSchema, type CreateUserFormData, type UpdateUserFormData } from "../schemas/user.schema";
@@ -24,9 +24,10 @@ interface UserFormProps {
   readonly onSubmit: (data: CreateUserFormData | UpdateUserFormData) => Promise<void>;
   readonly onCancel: () => void;
   readonly isLoading?: boolean;
+  readonly emailErrorMessage?: string;
 }
 
-export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps) {
+export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessage }: UserFormProps) {
   const isEdit = !!user;
   const { data: rolesData } = useRoles();
   const roles = sortOptions(rolesData?.data || [], (role) => role.name);
@@ -36,8 +37,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateUserFormData | UpdateUserFormData>({
     resolver: zodResolver(isEdit ? updateUserSchema : createUserSchema),
@@ -46,14 +46,19 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           email: user.email,
           name: user.name,
           role_id: user.role_id,
-          status: user.status,
         }
-      : {
-          status: "active",
-        },
+      : {},
   });
 
-  const selectedRoleId = watch("role_id");
+  const {
+    field: roleField,
+    fieldState: roleFieldState,
+  } = useController({
+    control,
+    name: "role_id",
+  });
+
+  const selectedRoleId = roleField.value || "";
 
   // Re-sync form values when editing user data finishes loading.
   // defaultValues only runs on mount; this effect handles async fetch timing.
@@ -63,13 +68,18 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
         email: user.email,
         name: user.name,
         role_id: user.role_id,
-        status: user.status,
       });
     }
   }, [user, reset]);
 
   const handleFormSubmit = async (data: CreateUserFormData | UpdateUserFormData) => {
-    await onSubmit(data);
+    // role_id is controlled via useController, ensure it's always in submission
+    // with current selected value from the form field
+    const submittedData: CreateUserFormData | UpdateUserFormData = {
+      ...data,
+      role_id: roleField.value, // Always use latest controlled value
+    };
+    await onSubmit(submittedData);
   };
 
   return (
@@ -83,6 +93,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           placeholder={t("emailPlaceholder")}
         />
         {errors.email && <FieldError>{errors.email.message}</FieldError>}
+        {!errors.email && emailErrorMessage && <FieldError>{emailErrorMessage}</FieldError>}
       </Field>
 
       {!isEdit && (
@@ -121,8 +132,8 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
       <Field orientation="vertical">
         <FieldLabel>{t("roleLabel")}</FieldLabel>
         <Select
-          value={selectedRoleId || ""}
-          onValueChange={(value) => setValue("role_id", value)}
+          value={selectedRoleId}
+          onValueChange={roleField.onChange}
         >
           <SelectTrigger>
             <SelectValue placeholder={t("rolePlaceholder")} />
@@ -136,23 +147,9 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           </SelectContent>
         </Select>
         {errors.role_id && <FieldError>{errors.role_id.message}</FieldError>}
-      </Field>
-
-      <Field orientation="vertical">
-        <FieldLabel>{t("statusLabel")}</FieldLabel>
-        <Select
-          value={watch("status") || "active"}
-          onValueChange={(value) => setValue("status", value as "active" | "inactive")}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t("statusLabel")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">{t("statusActive")}</SelectItem>
-            <SelectItem value="inactive">{t("statusInactive")}</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.status && <FieldError>{errors.status.message}</FieldError>}
+        {!errors.role_id && roleFieldState.error && (
+          <FieldError>{roleFieldState.error.message}</FieldError>
+        )}
       </Field>
 
       <div className="flex justify-end gap-2 pt-4">

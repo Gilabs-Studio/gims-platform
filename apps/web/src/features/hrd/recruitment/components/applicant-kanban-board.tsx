@@ -108,8 +108,6 @@ export function ApplicantKanbanBoard({
     resetExtraPages,
   } = useProgressiveApplicantKanban({ recruitmentRequestId });
 
-  const moveStageMutation = useMoveApplicantStage();
-
   const [activeApplicant, setActiveApplicant] =
     useState<RecruitmentApplicant | null>(null);
   const [moveDialog, setMoveDialog] = useState<{

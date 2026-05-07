@@ -63,4 +63,12 @@ export const outletService = {
     );
     return response.data;
   },
+
+  async getLimit(): Promise<{ current: number; max: number }> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { current: number; max: number };
+    }>(`${BASE_PATH}/outlets/limit`);
+    return response.data.data;
+  },
 };

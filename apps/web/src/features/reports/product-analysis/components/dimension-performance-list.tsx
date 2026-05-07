@@ -3,7 +3,6 @@
 import React from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -64,12 +63,9 @@ interface DimensionPerformanceListProps {
 
 export function DimensionPerformanceList({
   dimensionLabel,
-  searchPlaceholder,
   noDataMessage,
   setPage,
   setPerPage,
-  search,
-  setSearch,
   items,
   pagination,
   isLoading,

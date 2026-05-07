@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo, startTransition, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, startTransition } from "react";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";

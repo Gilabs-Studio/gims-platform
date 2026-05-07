@@ -52,9 +52,6 @@ import { CustomerDetailModal } from "@/features/master-data/customer/components/
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useQueryClient } from "@tanstack/react-query";
-import { customerInvoiceDPKeys } from "../hooks/use-customer-invoice-dp";
-import { orderKeys } from "@/features/sales/order/hooks/use-orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -104,22 +101,6 @@ function isPaymentStatus(status?: string | null): boolean {
     normalized === "partial" ||
     normalized === "unpaid"
   );
-}
-
-interface QueryListData<T> {
-  data: T[];
-  [key: string]: unknown;
-}
-
-interface CachedOrderInvoiceLike {
-  id: string;
-  status?: string;
-}
-
-interface CachedOrderLike {
-  id: string;
-  customer_invoices?: CachedOrderInvoiceLike[];
-  [key: string]: unknown;
 }
 
 function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) {
@@ -206,7 +187,6 @@ export function CustomerInvoiceDPList() {
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (typeof window === "undefined") return;

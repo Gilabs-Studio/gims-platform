@@ -563,7 +563,10 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 
 	if email != "" {
 		var count int64
-		if err := u.db.WithContext(ctx).Table("users").Where("email = ? AND deleted_at IS NULL", email).Count(&count).Error; err != nil {
+		normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+		// Keep this consistent with provisioning guard in provisionTenantForPaidPlan.
+		// Soft-deleted emails are still treated as reserved.
+		if err := u.db.WithContext(ctx).Table("users").Where("LOWER(email) = ?", normalizedEmail).Count(&count).Error; err != nil {
 			return nil, err
 		}
 		if count > 0 {
@@ -1576,6 +1579,7 @@ func (u *authUsecase) collectPlanPermissionAssignments(tx *gorm.DB, planSlug str
 			strings.HasPrefix(codeLower, "setting") ||
 			strings.HasPrefix(codeLower, "billing.") ||
 			codeLower == "pos.payment.manage" ||
+			strings.HasPrefix(codeLower, "pos.layout.") ||
 			// User and role management: always needed so the owner can manage their team
 			strings.HasPrefix(codeLower, "user.") ||
 			strings.HasPrefix(codeLower, "role.") ||

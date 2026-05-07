@@ -51,6 +51,7 @@ func (h *UserHandler) List(c *gin.Context) {
 			Name:                 u.Name,
 			Email:                u.Email,
 			AvatarURL:            u.AvatarURL,
+			RoleID:               u.RoleID,
 			Role: presentationDTO.RoleDTO{
 				Code: u.Role.Code,
 				Name: u.Role.Name,
@@ -122,6 +123,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		Name:      user.Name,
 		Email:     user.Email,
 		AvatarURL: user.AvatarURL,
+		RoleID:    user.RoleID,
 		Role: presentationDTO.RoleDTO{
 			Code: user.Role.Code,
 			Name: user.Role.Name,
@@ -185,6 +187,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		Name:      createdUser.Name,
 		Email:     createdUser.Email,
 		AvatarURL: createdUser.AvatarURL,
+		RoleID:    createdUser.RoleID,
 		Role: presentationDTO.RoleDTO{
 			Code: createdUser.Role.Code,
 			Name: createdUser.Role.Name,
@@ -247,6 +250,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		Name:      updatedUser.Name,
 		Email:     updatedUser.Email,
 		AvatarURL: updatedUser.AvatarURL,
+		RoleID:    updatedUser.RoleID,
 		Role: presentationDTO.RoleDTO{
 			Code: updatedUser.Role.Code,
 			Name: updatedUser.Role.Name,

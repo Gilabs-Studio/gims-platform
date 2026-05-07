@@ -49,15 +49,25 @@ func extractUserContext(c *gin.Context) (*userContext, bool) {
 	companyIDStr, _ := companyID.(string)
 
 	// If company ID is not in context, try to resolve it from employee profile
+	// using tenant-scoped query to match the database.GetDB pattern.
 	if strings.TrimSpace(companyIDStr) == "" {
+		tenantID, _ := c.Get("tenant_id")
+		tenantIDStr, _ := tenantID.(string)
+
 		var employee struct {
 			CompanyID *string
 		}
-		err := database.DB.Table("employees").
+		query := database.DB.Table("employees").
 			Select("company_id").
 			Where("user_id = ?", userID).
-			Where("deleted_at IS NULL").
-			First(&employee).Error
+			Where("deleted_at IS NULL")
+
+		// Apply tenant scoping if available
+		if tenantIDStr != "" {
+			query = query.Where("tenant_id = ?", tenantIDStr)
+		}
+
+		err := query.First(&employee).Error
 		if err == nil && employee.CompanyID != nil {
 			companyIDStr = *employee.CompanyID
 			c.Set("user_company_id", companyIDStr)
@@ -91,7 +101,7 @@ func handleFloorPlanError(c *gin.Context, err error) {
 			"field":    "status",
 		}, nil)
 	case usecase.ErrFloorPlanForbidden:
-		coreErrors.ForbiddenResponse(c, "pos.layout.read", nil)
+		coreErrors.ForbiddenResponse(c, "pos.layout", nil)
 	case usecase.ErrVersionNotFound:
 		coreErrors.NotFoundResponse(c, "layout_version", "")
 	default:

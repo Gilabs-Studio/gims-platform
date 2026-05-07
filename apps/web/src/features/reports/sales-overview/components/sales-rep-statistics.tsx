@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, MapPin, Truck } from "lucide-react";
 import type { SalesRepStatisticsData } from "../types";
 

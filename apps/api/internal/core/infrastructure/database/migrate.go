@@ -74,6 +74,12 @@ func AutoMigrate() error {
 	// These must run BEFORE AutoMigrate so GORM sees consistent schema.
 	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS seat_limit integer NOT NULL DEFAULT 1`)
 	_ = DB.Exec(`UPDATE tenant_subscriptions SET seat_limit = GREATEST(user_count, 1) WHERE seat_limit = 0`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS outlet_limit integer NOT NULL DEFAULT 1`)
+	_ = DB.Exec(`UPDATE tenant_subscriptions SET outlet_limit = 1 WHERE outlet_limit <= 0`)
+	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_monthly_idr bigint NOT NULL DEFAULT 500000`)
+	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_yearly_idr bigint NOT NULL DEFAULT 6000000`)
+	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_monthly_idr = 500000 WHERE outlet_addon_monthly_idr <= 0`)
+	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_yearly_idr = 6000000 WHERE outlet_addon_yearly_idr <= 0`)
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
 

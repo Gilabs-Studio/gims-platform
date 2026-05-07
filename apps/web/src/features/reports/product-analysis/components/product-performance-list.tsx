@@ -5,7 +5,6 @@
 import React from "react";
 import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
 import type { ProductPerformance } from "../types";
 import {
@@ -50,8 +49,6 @@ interface ProductPerformanceListProps {
 export function ProductPerformanceList({
   setPage,
   setPerPage,
-  search,
-  setSearch,
   performanceList,
   pagination,
   isLoading,

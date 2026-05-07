@@ -86,6 +86,7 @@ export interface ListJournalEntriesParams {
   search?: string;
   status?: JournalStatus;
   journal_type?: string;
+  company_id?: string;
   start_date?: string;
   end_date?: string;
   sort_by?: string;
