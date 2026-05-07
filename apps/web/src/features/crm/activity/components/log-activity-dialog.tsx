@@ -86,8 +86,6 @@ export function LogActivityDialog({
   onClose,
   leadId,
   dealId,
-  defaultEmployeeId,
-  employees,
   activityTypes,
   onSuccess,
 }: LogActivityDialogProps) {

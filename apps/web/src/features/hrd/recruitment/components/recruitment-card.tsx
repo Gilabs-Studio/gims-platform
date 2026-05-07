@@ -133,7 +133,6 @@ export function RecruitmentCard({ request, onClick, index = 0 }: RecruitmentCard
 
   const filledCount = request.filled_count ?? 0;
   const requiredCount = request.required_count ?? 0;
-  const openPositions = request.open_positions ?? (requiredCount - filledCount);
   const progressPercent = requiredCount > 0 ? (filledCount / requiredCount) * 100 : 0;
 
   const hasSalaryRange = request.salary_range_min != null || request.salary_range_max != null;

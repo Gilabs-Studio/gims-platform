@@ -100,7 +100,6 @@ const createAnimation = (
   variant: AnimationVariant,
   start: AnimationStart = "center",
   blur = false,
-  url?: string,
 ) => {
   const svg = generateSVG(variant, start);
   const transformOrigin = getTransformOrigin(start);

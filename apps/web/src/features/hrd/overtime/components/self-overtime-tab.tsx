@@ -20,7 +20,6 @@ import {
   useCancelOvertimeRequest,
 } from "../hooks/use-overtime";
 import type { OvertimeRequest, OvertimeStatus } from "../types";
-import { cn } from "@/lib/utils";
 
 function statusVariant(
   status: OvertimeStatus,

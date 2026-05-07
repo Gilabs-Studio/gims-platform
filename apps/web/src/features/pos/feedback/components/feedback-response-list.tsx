@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   CalendarIcon,
   Eye,
@@ -65,7 +65,7 @@ export function FeedbackResponseList() {
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
   const [isSalesOrderDetailOpen, setIsSalesOrderDetailOpen] = useState(false);
 
-  const { data, error, isLoading, isError, refetch } = useFeedbackResponses({
+  const { data, isLoading, isError, refetch } = useFeedbackResponses({
     page,
     per_page: pageSize,
     form_id: filterFormId,

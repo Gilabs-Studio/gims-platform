@@ -92,7 +92,6 @@ export function OvertimeDialog({
     control,
     watch,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<OvertimeFormData>({
     resolver: zodResolver(overtimeFormSchema),

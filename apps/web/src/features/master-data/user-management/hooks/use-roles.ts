@@ -91,7 +91,7 @@ export function useAssignPermissionsToRole() {
         removed: string[];
       };
     }) => roleService.assignPermissions(roleId, permissionIds, assignments, tolerant, diff),
-    onSuccess: async (updatedRole, variables) => {
+    onSuccess: async (updatedRole) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       queryClient.invalidateQueries({ queryKey: ["role"] });

@@ -161,7 +161,6 @@ export function DataTable<T extends { id: string }>({
   onPageChange,
   onPerPageChange,
   perPageOptions = [10, 20, 50, 100],
-  onResetFilters,
   mobileLayout,
   sort,
   sortableColumns,
@@ -203,35 +202,6 @@ export function DataTable<T extends { id: string }>({
       return <ArrowUp className="h-4 w-4 text-primary" />;
     }
     return <ArrowDown className="h-4 w-4 text-primary" />;
-  };
-
-  const getMinimalPageNumbers = () => {
-    if (!pagination) return [];
-
-    const totalPages = pagination.total_pages;
-    const currentPage = pagination.page;
-    const pages: number[] = [];
-
-    // Show max 2 pages: current and next (if exists)
-    // If on first page, show page 1 and 2
-    // If on last page, show previous and current
-    if (totalPages <= 2) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage === 1) {
-        // First page: show 1 and 2
-        pages.push(1, 2);
-      } else if (currentPage === totalPages) {
-        // Last page: show previous and current
-        pages.push(totalPages - 1, totalPages);
-      } else {
-        // Middle: show current and next
-        pages.push(currentPage, currentPage + 1);
-      }
-    }
-    return pages;
   };
 
   // Mobile card view

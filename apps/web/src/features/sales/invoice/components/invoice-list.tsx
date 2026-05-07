@@ -14,9 +14,6 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CreditCard, XCircle, CheckCircle2, AlertTriangle, Send, Printer, Download } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useQueryClient } from "@tanstack/react-query";
-import { invoiceKeys } from "../hooks/use-invoices";
-import { orderKeys } from "../../order/hooks/use-orders";
 import { invoiceService } from "../services/invoice-service";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
@@ -26,8 +23,8 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
-import type { CustomerInvoice, CustomerInvoiceListResponse, CustomerInvoiceStatus } from "../types";
-import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
+import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
+import type { SalesOrder } from "../../order/types";
 import type { DeliveryOrder } from "../../delivery/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -142,7 +139,6 @@ export function InvoiceList() {
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
   const approveInvoice = useApproveInvoice();
-  const queryClient = useQueryClient();
   const invoices = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
