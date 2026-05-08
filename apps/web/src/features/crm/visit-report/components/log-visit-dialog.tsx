@@ -361,7 +361,7 @@ export function LogVisitDialog({
     try {
       const urls: string[] = [];
       for (const file of filesToUpload) {
-        const res = await uploadImageMutation.mutateAsync(file);
+        const res = await uploadImageMutation.mutateAsync({ file, visitId: "temp" });
         if (res.data?.url) {
           urls.push(res.data.url);
         }

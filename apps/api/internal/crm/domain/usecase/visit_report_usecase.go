@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -369,8 +370,24 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 }
 
 func (u *visitReportUsecase) Delete(ctx context.Context, id string) error {
-	if _, err := u.visitRepo.FindByID(ctx, id); err != nil {
+	report, err := u.visitRepo.FindByID(ctx, id)
+	if err != nil {
 		return ErrVisitReportNotFound
+	}
+
+	// Delete all associated photos from R2 (best-effort cleanup)
+	if report.Photos != nil && *report.Photos != "" {
+		var photoURLs []string
+		if err := json.Unmarshal([]byte(*report.Photos), &photoURLs); err == nil {
+			for _, photoURL := range photoURLs {
+				if photoURL != "" {
+					key := storage.KeyFromURL(photoURL)
+					if key != "" {
+						_ = storage.Delete(ctx, key)
+					}
+				}
+			}
+		}
 	}
 
 	return u.visitRepo.Delete(ctx, id)
@@ -642,6 +659,16 @@ func (u *visitReportUsecase) UploadPhotos(ctx context.Context, id string, photoU
 
 	photosStr := string(photosJSON)
 	if err := u.visitRepo.UpdatePhotos(ctx, id, photosStr); err != nil {
+		// Best-effort cleanup: if DB save fails, delete NEW photos from R2
+		// (keep existing photos that were already saved)
+		for _, newPhotoURL := range photoURLs {
+			if newPhotoURL != "" {
+				key := storage.KeyFromURL(newPhotoURL)
+				if key != "" {
+					_ = storage.Delete(ctx, key)
+				}
+			}
+		}
 		return nil, err
 	}
 

@@ -71,3 +71,17 @@ func Delete(ctx context.Context, key string) error {
 func URL(key string) string {
 	return publicURL + "/" + key
 }
+
+// KeyFromURL extracts the R2 object key from a public URL (reverse of URL function).
+// Example: https://pub-abc123.r2.dev/avatars/user123.webp → avatars/user123.webp
+// Returns empty string if URL is not from this R2 bucket.
+func KeyFromURL(fullURL string) string {
+	if publicURL == "" || fullURL == "" {
+		return ""
+	}
+	// Try to extract key by stripping publicURL prefix
+	if strings.HasPrefix(fullURL, publicURL+"/") {
+		return strings.TrimPrefix(fullURL, publicURL+"/")
+	}
+	return ""
+}

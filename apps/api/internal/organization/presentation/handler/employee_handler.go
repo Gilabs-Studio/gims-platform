@@ -11,6 +11,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
@@ -1091,6 +1092,9 @@ func (h *EmployeeHandler) UploadEmployeeSignature(c *gin.Context) {
 	}
 
 	signature, err := h.employeeUC.UploadEmployeeSignature(c.Request.Context(), id, uploadedFile.URL, uploadedFile.Filename, uploadedFile.Size, fileHash, uploadedFile.MimeType, width, height, userID)
+			// Best-effort cleanup: remove the uploaded file if DB update fails
+			_ = storage.Delete(c.Request.Context(), uploadedFile.Path)
+
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
 			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{

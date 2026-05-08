@@ -15,6 +15,7 @@ func NewUploadHandler() *UploadHandler {
 }
 
 // UploadImage handles image upload requests
+// Query params: ?folder=visits,products,etc (default: 'uploads')
 func (h *UploadHandler) UploadImage(c *gin.Context) {
 	// 1. Get file from form
 	file, header, err := c.Request.FormFile("file")
@@ -27,9 +28,11 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Prepare upload config
+	// 2. Prepare upload config (accept folder from query param, default to 'uploads')
+	folder := c.DefaultQuery("folder", "uploads")
 	uploadConfig := utils.FileUploadConfig{
 		MaxSize: config.AppConfig.Storage.MaxUploadSize,
+		Folder:  folder,
 	}
 
 	// 3. Save and process file
@@ -67,6 +70,7 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 }
 
 // UploadDocument handles document upload requests (PDF, DOCX, XLS, etc.)
+// Query params: ?folder=documents,reports,etc (default: 'uploads')
 func (h *UploadHandler) UploadDocument(c *gin.Context) {
 	// 1. Get file from form
 	file, header, err := c.Request.FormFile("file")
@@ -79,9 +83,11 @@ func (h *UploadHandler) UploadDocument(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Prepare upload config
+	// 2. Prepare upload config (accept folder from query param, default to 'uploads')
+	folder := c.DefaultQuery("folder", "uploads")
 	uploadConfig := utils.FileUploadConfig{
 		MaxSize: config.AppConfig.Storage.MaxUploadSize,
+		Folder:  folder,
 	}
 
 	// 3. Save document file

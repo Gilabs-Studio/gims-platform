@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/google/uuid"
@@ -51,8 +52,12 @@ if err != nil {
 return nil, ErrFileProcessing
 }
 
-// 5. Upload to R2 under the "signatures/" prefix
-key := "signatures/" + filename
+	// 5. Determine folder: use config.Folder if set, otherwise "signatures"
+	folder := config.Folder
+	if folder == "" {
+		folder = "signatures"
+	}
+	key := fmt.Sprintf("%s/%s", strings.Trim(folder, "/"), filename)
 url, err := storage.Upload(context.Background(), key, fileContent, kind.MIME.Value)
 if err != nil {
 return nil, ErrFileProcessing

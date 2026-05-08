@@ -10,6 +10,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/product/domain/dto"
@@ -213,6 +214,18 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 		product.Description = req.Description
 	}
 	if req.ImageURL != nil {
+		// If image is being deleted (set to empty string) or replaced with new URL
+		if product.ImageURL != nil && *product.ImageURL != "" {
+			// Check if image URL is different (being replaced) or being deleted
+			if *req.ImageURL == "" || *product.ImageURL != *req.ImageURL {
+				// Delete old image from R2 (best-effort, don't fail the update if deletion fails)
+				key := storage.KeyFromURL(*product.ImageURL)
+				if key != "" {
+					_ = storage.Delete(ctx, key)
+				}
+			}
+		}
+		// Set new image URL
 		if *req.ImageURL == "" {
 			product.ImageURL = nil
 		} else {

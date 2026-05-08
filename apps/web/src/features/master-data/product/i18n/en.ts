@@ -24,6 +24,7 @@ export const productEn = {
     cancel: "Cancel",
     edit: "Edit",
     save: "Save",
+    saved: "Saved",
     saving: "Saving...",
     overview: "Overview",
     previous: "Previous",

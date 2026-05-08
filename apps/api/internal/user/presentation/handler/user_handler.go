@@ -2,6 +2,7 @@ package handler
 
 import (
 	stderrors "errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -427,7 +428,8 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	// 2. Prepare upload config
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize: 5 * 1024 * 1024, // 5MB limit
+		MaxSize: 5 * 1024 * 1024,     // 5MB limit
+		Folder:  fmt.Sprintf("avatars/%s", id), // Store each user's avatar under: avatars/{userId}/
 	}
 
 	// 3. Save file

@@ -173,6 +173,7 @@ export function ProductDialog({
                   <ImageUpload
                     value={watch("image_url")}
                     onChange={(url) => setValue("image_url", url || null, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                     disabled={isSubmitting}
                     enableUrlInput
                     enableImageSearch

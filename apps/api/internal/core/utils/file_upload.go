@@ -45,6 +45,7 @@ var AllowedDocumentTypes = map[string]bool{
 type FileUploadConfig struct {
 	MaxSize      int64  // Maximum file size in bytes
 	OriginalName string // Optional custom name for file (e.g., "Employee Name signature")
+	Folder       string // R2 folder prefix (e.g., "avatars", "products", "visits") — if empty, uses root
 }
 
 // UploadedFile represents an uploaded file
@@ -119,18 +120,26 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config 
 		ext = strings.ToLower(filepath.Ext(header.Filename))
 		mimeType = header.Header.Get("Content-Type")
 	}
-	filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	basename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 
-	// 4. Upload to R2
-	url, err := storage.Upload(context.Background(), filename, webpData, mimeType)
+	// 4. Build full R2 key with folder prefix (structured: avatars/uuid.webp, products/productId/uuid.webp, etc)
+	var key string
+	if config.Folder != "" {
+		key = fmt.Sprintf("%s/%s", strings.Trim(config.Folder, "/"), basename)
+	} else {
+		key = basename
+	}
+
+	// 5. Upload to R2
+	url, err := storage.Upload(context.Background(), key, webpData, mimeType)
 	if err != nil {
 		return nil, ErrFileProcessing
 	}
 
 	return &UploadedFile{
-		Filename:     filename,
+		Filename:     basename,
 		OriginalName: header.Filename,
-		Path:         filename, // R2 object key — used for deletion
+		Path:         key, // Full R2 object key (includes folder) — used for deletion
 		URL:          url,
 		Size:         int64(len(webpData)),
 		MimeType:     mimeType,
@@ -198,7 +207,7 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 	if base == "" {
 		base = "document"
 	}
-	filename := fmt.Sprintf("%s_%s.%s", uuid.New().String(), base, kind.Extension)
+	basename := fmt.Sprintf("%s_%s.%s", uuid.New().String(), base, kind.Extension)
 
 	// 4. Read full file content
 	fileContent, err := io.ReadAll(file)
@@ -206,16 +215,24 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 		return nil, ErrFileProcessing
 	}
 
-	// 5. Upload to R2
-	url, err := storage.Upload(context.Background(), filename, fileContent, kind.MIME.Value)
+	// 5. Build full R2 key with folder prefix (structured path)
+	var key string
+	if config.Folder != "" {
+		key = fmt.Sprintf("%s/%s", strings.Trim(config.Folder, "/"), basename)
+	} else {
+		key = basename
+	}
+
+	// 6. Upload to R2
+	url, err := storage.Upload(context.Background(), key, fileContent, kind.MIME.Value)
 	if err != nil {
 		return nil, ErrFileProcessing
 	}
 
 	return &UploadedFile{
-		Filename:     filename,
+		Filename:     basename,
 		OriginalName: header.Filename,
-		Path:         filename, // R2 object key — used for deletion
+		Path:         key, // Full R2 object key (includes folder) — used for deletion
 		URL:          url,
 		Size:         int64(len(fileContent)),
 		MimeType:     kind.MIME.Value,

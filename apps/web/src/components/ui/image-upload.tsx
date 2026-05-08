@@ -10,12 +10,12 @@ import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const LOCAL_UPLOAD_PREFIX = "/uploads/";
 const DATA_IMAGE_PREFIX = "data:image/";
 
 interface ImageUploadProps {
   value?: string | null;
   onChange: (url: string) => void;
+  uploadFolder?: string;
   disabled?: boolean;
   className?: string;
   helperText?: string;
@@ -72,6 +72,7 @@ interface ImageSearchResponse {
 export function ImageUpload({
   value,
   onChange,
+  uploadFolder,
   disabled,
   className,
   helperText = "SVG, PNG, JPG or GIF (max. 10MB)",
@@ -113,7 +114,7 @@ export function ImageUpload({
     const value = raw.trim();
     if (!value) return undefined;
 
-    if (value.startsWith(LOCAL_UPLOAD_PREFIX)) {
+    if (value.startsWith("/")) {
       return value;
     }
 
@@ -188,7 +189,12 @@ export function ImageUpload({
       formData.append("file", file);
 
       try {
-        const res = await apiClient.post<UploadResponse>("/upload/image", formData, {
+        const folder = uploadFolder?.trim();
+        const endpoint = folder
+          ? `/upload/image?folder=${encodeURIComponent(folder)}`
+          : "/upload/image";
+
+        const res = await apiClient.post<UploadResponse>(endpoint, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -217,7 +223,7 @@ export function ImageUpload({
         setLoading(false);
       }
     },
-    [onChange, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess]
+    [onChange, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess, uploadFolder]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -248,7 +254,7 @@ export function ImageUpload({
 
     let safeValue: string | null = null;
 
-    if (trimmed.startsWith("/uploads/")) {
+    if (trimmed.startsWith("/")) {
       safeValue = trimmed;
     } else {
       try {
@@ -263,7 +269,7 @@ export function ImageUpload({
 
     if (!safeValue) {
       toast.error(labels.invalidFile ?? "Invalid file", {
-        description: "Use full http/https URL or /uploads/... path.",
+        description: "Use full http/https URL or a root-relative path (/...)",
       });
       return;
     }
@@ -351,15 +357,15 @@ export function ImageUpload({
           </div>
         )}
 
-        {preview ? (
+        {safePreviewSrc ? (
           <div className="relative w-full h-full group">
             <div className="relative w-full h-full">
               <Image
-                src={safePreviewSrc ?? ""}
+                src={safePreviewSrc}
                 alt="Product preview"
                 fill
                 sizes="(max-width: 768px) 128px, 160px"
-                className="object-cover rounded-lg"
+                className="rounded-lg object-cover"
               />
             </div>
             {!disabled && !loading && (

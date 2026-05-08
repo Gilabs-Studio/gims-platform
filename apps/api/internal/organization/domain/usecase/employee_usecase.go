@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -2067,6 +2068,11 @@ func (u *employeeUsecase) DeleteEmployeeSignature(ctx context.Context, employeeI
 		return errors.New("employee does not have a signature")
 	}
 
+	// Delete signature file from R2 first (best-effort)
+	if signature.FilePath != "" {
+		_ = storage.Delete(ctx, signature.FilePath)
+	}
+	
 	return u.signatureRepo.SoftDelete(ctx, signature.ID.String())
 }
 
