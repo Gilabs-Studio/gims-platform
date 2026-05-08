@@ -37,6 +37,7 @@ type ActivityRepository interface {
 	FindByVisitReportID(ctx context.Context, visitReportID string) (*models.Activity, error)
 	List(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
 	Timeline(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
+	Update(ctx context.Context, activity *models.Activity) error
 }
 
 type activityRepository struct {
@@ -113,6 +114,11 @@ func (r *activityRepository) Timeline(ctx context.Context, params ActivityListPa
 	params.SortBy = "timestamp"
 	params.SortDir = "DESC"
 	return r.List(ctx, params)
+}
+
+// Update updates an existing activity record
+func (r *activityRepository) Update(ctx context.Context, activity *models.Activity) error {
+	return database.GetDB(ctx, r.db).Save(activity).Error
 }
 
 func (r *activityRepository) applyFilters(query *gorm.DB, params ActivityListParams) *gorm.DB {
