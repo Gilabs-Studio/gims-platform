@@ -292,16 +292,21 @@ func ToEmployeeSignatureResponse(signature *models.EmployeeSignature) *dto.Emplo
 		return nil
 	}
 
-	// Convert absolute path to relative URL
-	// FilePath example: /app/uploads/signatures/xxx.webp -> FileURL: /uploads/signatures/xxx.webp
+	// Convert absolute path to relative URL, or use full URL as-is for cloud storage.
+	// FilePath may be:
+	//   - An absolute local path:  /app/uploads/signatures/xxx.png  →  /uploads/signatures/xxx.png
+	//   - A relative web URL:      /uploads/signatures/xxx.png      →  unchanged
+	//   - A full cloud URL:        https://pub-xxx.r2.dev/xxx.png   →  unchanged
 	fileURL := signature.FilePath
-	// Remove /app prefix if present (Docker container path)
-	if strings.HasPrefix(fileURL, "/app/") {
-		fileURL = strings.TrimPrefix(fileURL, "/app")
-	}
-	// Ensure leading slash
-	if !strings.HasPrefix(fileURL, "/") {
-		fileURL = "/" + fileURL
+	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
+		// Local path: strip Docker /app prefix if present
+		if strings.HasPrefix(fileURL, "/app/") {
+			fileURL = strings.TrimPrefix(fileURL, "/app")
+		}
+		// Ensure leading slash for relative URLs
+		if !strings.HasPrefix(fileURL, "/") {
+			fileURL = "/" + fileURL
+		}
 	}
 
 	response := &dto.EmployeeSignatureResponse{

@@ -29,9 +29,7 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 
 	// 2. Prepare upload config
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize:   config.AppConfig.Storage.MaxUploadSize,
-		UploadDir: config.AppConfig.Storage.UploadDir,
-		BaseURL:   config.AppConfig.Storage.BaseURL,
+		MaxSize: config.AppConfig.Storage.MaxUploadSize,
 	}
 
 	// 3. Save and process file
@@ -83,9 +81,7 @@ func (h *UploadHandler) UploadDocument(c *gin.Context) {
 
 	// 2. Prepare upload config
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize:   config.AppConfig.Storage.MaxUploadSize,
-		UploadDir: config.AppConfig.Storage.UploadDir,
-		BaseURL:   config.AppConfig.Storage.BaseURL,
+		MaxSize: config.AppConfig.Storage.MaxUploadSize,
 	}
 
 	// 3. Save document file

@@ -1,0 +1,73 @@
+package storage
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+var (
+	client    *s3.Client
+	bucket    string
+	publicURL string
+)
+
+// Init initializes the Cloudflare R2 client. Must be called once at application startup.
+func Init(accountID, accessKeyID, secretKey, bucketName, pubURL string) error {
+	if accountID == "" || accessKeyID == "" || secretKey == "" || bucketName == "" {
+		return fmt.Errorf("storage: R2 config incomplete — R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are required")
+	}
+
+	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
+
+	client = s3.New(s3.Options{
+		Region:       "auto",
+		BaseEndpoint: aws.String(endpoint),
+		Credentials:  credentials.NewStaticCredentialsProvider(accessKeyID, secretKey, ""),
+		UsePathStyle: true,
+	})
+
+	bucket = bucketName
+	publicURL = strings.TrimSuffix(pubURL, "/")
+
+	return nil
+}
+
+// Upload stores data under the given key in the R2 bucket and returns the public URL.
+func Upload(ctx context.Context, key string, data []byte, contentType string) (string, error) {
+	_, err := client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:        aws.String(bucket),
+		Key:           aws.String(key),
+		Body:          bytes.NewReader(data),
+		ContentType:   aws.String(contentType),
+		ContentLength: aws.Int64(int64(len(data))),
+	})
+	if err != nil {
+		return "", fmt.Errorf("storage: R2 upload failed for key %q: %w", key, err)
+	}
+
+	return URL(key), nil
+}
+
+// Delete removes the object identified by key from the R2 bucket.
+func Delete(ctx context.Context, key string) error {
+	_, err := client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("storage: R2 delete failed for key %q: %w", key, err)
+	}
+
+	return nil
+}
+
+// URL returns the public URL for a given object key.
+func URL(key string) string {
+	return publicURL + "/" + key
+}

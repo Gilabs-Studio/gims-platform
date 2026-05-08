@@ -4,15 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/google/uuid"
 )
 
@@ -66,19 +64,13 @@ func (j *Job) FilePath() string {
 type Manager struct {
 	mu          sync.RWMutex
 	jobs        map[string]*Job
-	uploadDir   string
-	baseURL     string
 	cleanupTTL  time.Duration
 	cleanupTick time.Duration
 }
 
 func NewManager() *Manager {
-	uploadDir, baseURL := resolveStorageConfig()
-
 	manager := &Manager{
 		jobs:        make(map[string]*Job),
-		uploadDir:   uploadDir,
-		baseURL:     baseURL,
 		cleanupTTL:  7 * 24 * time.Hour,
 		cleanupTick: time.Hour,
 	}
@@ -151,7 +143,7 @@ func (m *Manager) process(jobID string, generator Generator) {
 		return
 	}
 
-	path, fileURL, err := persistGeneratedFile(m.uploadDir, m.baseURL, job.ID, file)
+	path, fileURL, err := persistGeneratedFile(job.ID, file)
 	if err != nil {
 		job.Status = StatusFailed
 		job.Progress = 100
@@ -240,7 +232,6 @@ func (m *Manager) startCleanupWorker() {
 func (m *Manager) cleanupExpiredJobs() {
 	cutoff := apptime.Now().Add(-m.cleanupTTL)
 	m.cleanupExpiredJobRecords(cutoff)
-	m.cleanupExpiredFilesOnDisk(cutoff)
 }
 
 func (m *Manager) cleanupExpiredJobRecords(cutoff time.Time) {
@@ -258,75 +249,22 @@ func (m *Manager) cleanupExpiredJobRecords(cutoff time.Time) {
 		}
 
 		if job.filePath != "" {
-			_ = os.Remove(job.filePath)
+			_ = storage.Delete(context.Background(), job.filePath)
 		}
 		delete(m.jobs, id)
 	}
 }
 
-func (m *Manager) cleanupExpiredFilesOnDisk(cutoff time.Time) {
-	exportsDir := filepath.Join(m.uploadDir, "exports")
-	entries, err := os.ReadDir(exportsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
-		return
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		fullPath := filepath.Join(exportsDir, entry.Name())
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().After(cutoff) {
-			continue
-		}
-
-		_ = os.Remove(fullPath)
-	}
-}
-
-func persistGeneratedFile(uploadDir, baseURL, jobID string, file *GeneratedFile) (string, string, error) {
-
-	exportsDir := filepath.Join(uploadDir, "exports")
-	if err := os.MkdirAll(exportsDir, 0o755); err != nil {
-		return "", "", fmt.Errorf("failed to create export dir: %w", err)
-	}
-
+func persistGeneratedFile(jobID string, file *GeneratedFile) (string, string, error) {
 	fileName := sanitizeFileName(file.FileName)
-	storedName := fmt.Sprintf("%s_%s", jobID, fileName)
-	fullPath := filepath.Join(exportsDir, storedName)
+	key := fmt.Sprintf("exports/%s_%s", jobID, fileName)
 
-	if err := os.WriteFile(fullPath, file.Bytes, 0o644); err != nil {
-		return "", "", fmt.Errorf("failed to write export file: %w", err)
+	url, err := storage.Upload(context.Background(), key, file.Bytes, file.ContentType)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload export file: %w", err)
 	}
 
-	fileURL := baseURL + "/exports/" + storedName
-	return fullPath, fileURL, nil
-}
-
-func resolveStorageConfig() (string, string) {
-	uploadDir := "./uploads"
-	baseURL := "/uploads"
-
-	if config.AppConfig == nil {
-		return uploadDir, baseURL
-	}
-
-	if value := strings.TrimSpace(config.AppConfig.Storage.UploadDir); value != "" {
-		uploadDir = value
-	}
-	if value := strings.TrimSpace(config.AppConfig.Storage.BaseURL); value != "" {
-		baseURL = strings.TrimRight(value, "/")
-	}
-
-	return uploadDir, baseURL
+	return key, url, nil
 }
 
 var fileNameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
