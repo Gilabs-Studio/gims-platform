@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'dio_adapter.dart';
+
 class ApiException implements Exception {
   ApiException(this.message, {this.code, this.statusCode});
 
@@ -20,7 +22,10 @@ class ApiClient {
   static const _baseUrlKey = 'gims_pos_base_url';
   static const _cookieKey = 'gims_pos_cookies';
   static const _csrfKey = 'gims_pos_csrf';
-  static const defaultBaseUrl = 'http://localhost:8087';
+  static const defaultBaseUrl = String.fromEnvironment(
+    'GIMS_API_URL',
+    defaultValue: 'http://localhost:8087',
+  );
 
   static final ApiClient instance = ApiClient._();
 
@@ -71,6 +76,7 @@ class ApiClient {
   }
 
   void _configureDio() {
+    configureDioAdapter(_dio);
     _dio.options = BaseOptions(
       baseUrl: apiV1,
       connectTimeout: const Duration(seconds: 15),
@@ -81,7 +87,8 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          if (_cookies.isNotEmpty) {
+          options.headers.remove('Authorization');
+          if (_cookies.isNotEmpty && canSetCookieHeader()) {
             options.headers['Cookie'] = _cookies.entries
                 .map((entry) => '${entry.key}=${entry.value}')
                 .join('; ');

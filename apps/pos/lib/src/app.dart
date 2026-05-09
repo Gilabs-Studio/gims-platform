@@ -76,7 +76,12 @@ class _AuthGateState extends State<AuthGate> {
         user: _user,
         onLogout: () async {
           await widget.repo.logout();
-          if (mounted) setState(() => _hasSession = false);
+          if (mounted) {
+            setState(() {
+              _user = null;
+              _hasSession = false;
+            });
+          }
         },
       );
     }
@@ -102,21 +107,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final TextEditingController _baseUrl;
-  final _email = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _baseUrl = TextEditingController(text: ApiClient.instance.baseUrl);
-  }
-
-  @override
   void dispose() {
-    _baseUrl.dispose();
-    _email.dispose();
+    _username.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -125,8 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       final user = await widget.repo.login(
-        baseUrl: _baseUrl.text,
-        email: _email.text,
+        username: _username.text.trim(),
         password: _password.text,
       );
       widget.onLoggedIn(user);
@@ -167,24 +163,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Masuk dengan akun GIMS. Session memakai cookie HttpOnly API dan CSRF token seperti web.',
+                        'Masuk dengan akun GIMS untuk membuka terminal, meja, layout, loyalty, dan feedback.',
                         style: TextStyle(color: GimsColors.mutedForeground),
                       ),
                       const SizedBox(height: 20),
                       TextField(
-                        controller: _baseUrl,
+                        controller: _username,
                         decoration: const InputDecoration(
-                          labelText: 'API origin',
-                          prefixIcon: Icon(Icons.dns_outlined),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.mail_outline),
+                          labelText: 'Username',
+                          prefixIcon: Icon(Icons.person_outline),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -239,14 +226,7 @@ class PosShell extends StatefulWidget {
 }
 
 class _PosShellState extends State<PosShell> {
-  final _titles = const [
-    'Terminal',
-    'Live Table',
-    'Floor',
-    'Loyalty',
-    'Feedback',
-  ];
-  int _index = 0;
+  PosFeature? _feature;
   bool _loading = true;
   List<Outlet> _outlets = const [];
   Outlet? _selectedOutlet;
@@ -266,7 +246,16 @@ class _PosShellState extends State<PosShell> {
         _selectedOutlet = outlets.isNotEmpty ? outlets.first : null;
       });
     } catch (error) {
-      if (mounted) _showError(context, error);
+      if (_isAuthError(error)) {
+        if (mounted) {
+          _showError(context, error);
+          await widget.onLogout();
+        }
+        return;
+      }
+      if (mounted) {
+        _showError(context, error);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -277,7 +266,14 @@ class _PosShellState extends State<PosShell> {
     final outlet = _selectedOutlet;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_index]),
+        leading: _feature == null
+            ? null
+            : IconButton(
+                tooltip: 'Kembali',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _feature = null),
+              ),
+        title: Text(_feature?.title ?? 'GIMS POS'),
         actions: [
           if (_outlets.isNotEmpty)
             Padding(
@@ -314,43 +310,234 @@ class _PosShellState extends State<PosShell> {
               title: 'Outlet tidak tersedia',
               message: 'Akun ini belum memiliki outlet dalam scope POS.',
             )
-          : IndexedStack(
-              index: _index,
-              children: [
-                TerminalScreen(repo: widget.repo, outlet: outlet),
-                LiveTableScreen(repo: widget.repo, outlet: outlet),
-                FloorEditorScreen(repo: widget.repo, outlet: outlet),
-                LoyaltyScreen(repo: widget.repo, outlet: outlet),
-                FeedbackScreen(repo: widget.repo, outlet: outlet),
-              ],
+          : _feature == null
+          ? PosHomeGrid(
+              outlet: outlet,
+              user: widget.user,
+              onSelected: (feature) => setState(() => _feature = feature),
+            )
+          : _FeatureView(feature: _feature!, repo: widget.repo, outlet: outlet),
+    );
+  }
+}
+
+enum PosFeature {
+  terminal(
+    'Terminal',
+    'Katalog, cart, checkout, nota, dan WhatsApp',
+    Icons.point_of_sale_outlined,
+  ),
+  liveTable(
+    'Live Table',
+    'Meja, sajikan, waktu tunggu, dan status order',
+    Icons.table_bar_outlined,
+  ),
+  floor(
+    'Floor Layout',
+    'Edit canvas layout meja seperti versi web',
+    Icons.grid_on_outlined,
+  ),
+  loyalty(
+    'Loyalty',
+    'Lookup member, enroll, poin, dan reward',
+    Icons.loyalty_outlined,
+  ),
+  feedback(
+    'Feedback',
+    'Form feedback outlet dan rating pelanggan',
+    Icons.rate_review_outlined,
+  );
+
+  const PosFeature(this.title, this.description, this.icon);
+
+  final String title;
+  final String description;
+  final IconData icon;
+}
+
+class PosHomeGrid extends StatelessWidget {
+  const PosHomeGrid({
+    super.key,
+    required this.outlet,
+    required this.user,
+    required this.onSelected,
+  });
+
+  final Outlet outlet;
+  final UserSession? user;
+  final ValueChanged<PosFeature> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            sliver: SliverToBoxAdapter(
+              child: _HomeHeader(outlet: outlet, user: user),
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.point_of_sale_outlined),
-            label: 'POS',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.table_bar_outlined),
-            label: 'Tables',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_on_outlined),
-            label: 'Floor',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.loyalty_outlined),
-            label: 'Loyalty',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.rate_review_outlined),
-            label: 'Feedback',
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            sliver: SliverGrid.builder(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 240,
+                mainAxisExtent: 170,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: PosFeature.values.length,
+              itemBuilder: (context, index) {
+                final feature = PosFeature.values[index];
+                return _HomeFeatureTile(
+                  feature: feature,
+                  onTap: () => onSelected(feature),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.outlet, required this.user});
+
+  final Outlet outlet;
+  final UserSession? user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: GimsColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.storefront_outlined,
+                color: GimsColors.primary,
+                size: 30,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    outlet.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user == null
+                        ? 'POS workspace'
+                        : '${user!.name} · ${user!.roleName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: GimsColors.mutedForeground),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeFeatureTile extends StatelessWidget {
+  const _HomeFeatureTile({required this.feature, required this.onTap});
+
+  final PosFeature feature;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: GimsColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(feature.icon, color: GimsColors.primary),
+              ),
+              const Spacer(),
+              Text(
+                feature.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                feature.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: GimsColors.mutedForeground,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureView extends StatelessWidget {
+  const _FeatureView({
+    required this.feature,
+    required this.repo,
+    required this.outlet,
+  });
+
+  final PosFeature feature;
+  final PosRepository repo;
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (feature) {
+      case PosFeature.terminal:
+        return TerminalScreen(repo: repo, outlet: outlet);
+      case PosFeature.liveTable:
+        return LiveTableScreen(repo: repo, outlet: outlet);
+      case PosFeature.floor:
+        return FloorEditorScreen(repo: repo, outlet: outlet);
+      case PosFeature.loyalty:
+        return LoyaltyScreen(repo: repo, outlet: outlet);
+      case PosFeature.feedback:
+        return FeedbackScreen(repo: repo, outlet: outlet);
+    }
   }
 }
 
@@ -1668,4 +1855,12 @@ void _showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(message), backgroundColor: GimsColors.destructive),
   );
+}
+
+bool _isAuthError(Object error) {
+  return error is ApiException &&
+      (error.statusCode == 401 ||
+          error.code == 'UNAUTHORIZED' ||
+          error.code == 'TOKEN_EXPIRED' ||
+          error.code == 'TOKEN_INVALID');
 }

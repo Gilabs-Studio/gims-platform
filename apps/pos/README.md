@@ -5,7 +5,7 @@ Flutter mobile client for the GIMS POS module.
 ## Backend Contract Notes
 
 - Auth uses `POST /api/v1/auth/login`; API sets `gims_access_token` and `gims_refresh_token` HttpOnly cookies.
-- Mobile keeps API cookies in secure storage and sends them as `Cookie` headers. This also supports local HTTP development where browser-only cookie behavior is not available.
+- Native mobile stores API cookies locally and sends them as `Cookie` headers. Flutter Web uses Dio `withCredentials` so the browser owns the HttpOnly cookies.
 - CSRF follows the web client: bootstrap with `GET /api/v1/auth/csrf`, then send `X-CSRF-Token` for `POST`, `PUT`, `PATCH`, and `DELETE`.
 - POS protected routes require backend middleware `AuthMiddleware`, `ScopeMiddleware`, and permissions such as:
   - `pos.order.create`, `pos.order.read`
@@ -16,7 +16,7 @@ Flutter mobile client for the GIMS POS module.
 
 ## Implemented Mobile Surface
 
-- Login with configurable API origin.
+- Login with username and password only. Configure API origin via `--dart-define=GIMS_API_URL=...` when needed.
 - Outlet-scoped POS terminal:
   - catalog from `/pos/catalog/outlet/:outletID`
   - create/confirm orders
@@ -45,7 +45,7 @@ cd apps/pos
 flutter pub get
 flutter analyze
 flutter test
-flutter run
+flutter run --dart-define=GIMS_API_URL=http://localhost:8087
 ```
 
 For Android builds on this machine, use the JDK that has `javac`:

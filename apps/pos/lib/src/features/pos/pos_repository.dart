@@ -12,16 +12,14 @@ class PosRepository {
       '${_api.apiV1}/pos/orders/$orderId/receipt';
 
   Future<UserSession> login({
-    required String baseUrl,
-    required String email,
+    required String username,
     required String password,
   }) async {
-    await _api.setBaseUrl(baseUrl);
     await _api.clearSession();
     await _api.bootstrapCsrf();
     final response = await _api.post<Map<String, dynamic>>(
       '/auth/login',
-      data: {'email': email, 'password': password},
+      data: {'email': username, 'password': password},
     );
     final data = _dataMap(response.data);
     final user = data['user'];
