@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:gims_pos/src/app.dart';
+import 'package:gims_pos/src/shared/widgets/empty_state.dart';
 
 void main() {
   testWidgets('renders empty state smoke test', (WidgetTester tester) async {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
-import 'models.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/models/floor_plan.dart';
+import '../../domain/live_table_data.dart';
 
 class FloorCanvas extends StatelessWidget {
   const FloorCanvas({
@@ -18,7 +19,7 @@ class FloorCanvas extends StatelessWidget {
   final List<LayoutObject> objects;
   final int width;
   final int height;
-  final List<LiveTableInfo> liveTables;
+  final List<LiveTableData> liveTables;
   final String? selectedId;
   final ValueChanged<LayoutObject>? onSelect;
   final void Function(LayoutObject object, Offset delta)? onMove;
@@ -62,7 +63,7 @@ class _CanvasObjectView extends StatelessWidget {
 
   final LayoutObject object;
   final bool selected;
-  final LiveTableInfo? liveInfo;
+  final LiveTableData? liveInfo;
   final ValueChanged<LayoutObject>? onSelect;
   final void Function(LayoutObject object, Offset delta)? onMove;
 
@@ -124,7 +125,7 @@ class _ObjectPainter extends CustomPainter {
 
   final LayoutObject object;
   final bool selected;
-  final LiveTableInfo? liveInfo;
+  final LiveTableData? liveInfo;
 
   @override
   void paint(Canvas canvas, Size size) {

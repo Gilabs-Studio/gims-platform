@@ -3,18 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api_exception.dart';
 import 'dio_adapter.dart';
-
-class ApiException implements Exception {
-  ApiException(this.message, {this.code, this.statusCode});
-
-  final String message;
-  final String? code;
-  final int? statusCode;
-
-  @override
-  String toString() => message;
-}
 
 class ApiClient {
   ApiClient._();
