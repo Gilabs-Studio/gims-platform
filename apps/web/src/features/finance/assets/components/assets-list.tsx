@@ -122,13 +122,22 @@ export function AssetsList() {
   const canCreate = useUserPermission("asset.create");
   const canUpdate = useUserPermission("asset.update");
   const canDelete = useUserPermission("asset.delete");
-  const canDepreciate = useUserPermission("asset.update");
+  const canDepreciate = useUserPermission("asset.depreciate");
+  const canTransfer = useUserPermission("asset.transfer");
+  const canDispose = useUserPermission("asset.dispose");
+  const canSell = useUserPermission("asset.sell");
+  const canRevalue = useUserPermission("asset.revalue");
+  const canAdjust = useUserPermission("asset.adjust");
+  const canAssign = useUserPermission("asset.assign");
+  const canReturn = useUserPermission("asset.return");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -149,19 +158,25 @@ export function AssetsList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
-    sort_by: "created_at",
-    sort_dir: "desc",
+    sort_by: sortBy,
+    sort_dir: sortDir,
   });
 
   const pagination = data?.meta?.pagination;
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
 
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
+
   if (isError) {
-    return (
-      <div className="text-center py-8 text-destructive">
-        {tCommon("error")}
-      </div>
-    );
+    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
 
   return (
@@ -207,15 +222,21 @@ export function AssetsList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("fields.code")}</TableHead>
-              <TableHead>{t("fields.name")}</TableHead>
+              <TableHead onClick={() => handleSort("code")} className="cursor-pointer">
+                {t("fields.code")}
+              </TableHead>
+              <TableHead onClick={() => handleSort("name")} className="cursor-pointer">
+                {t("fields.name")}
+              </TableHead>
               <TableHead>{t("fields.category")}</TableHead>
               <TableHead>{t("fields.location")}</TableHead>
-              <TableHead className="text-right">
-                {t("fields.bookValue")}
+              <TableHead onClick={() => handleSort("acquisition_date")} className="cursor-pointer">
+                {t("fields.acquisitionDate")}
               </TableHead>
-              <TableHead className="text-right">
-                {t("fields.accumulatedDepreciation")}
+              <TableHead className="text-right">{t("fields.acquisitionCost")}</TableHead>
+              <TableHead className="text-right">{t("fields.accumulatedDepreciation")}</TableHead>
+              <TableHead onClick={() => handleSort("book_value")} className="text-right cursor-pointer">
+                {t("fields.bookValue")}
               </TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead />
@@ -225,17 +246,14 @@ export function AssetsList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={10}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-muted-foreground"
-                >
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -254,29 +272,28 @@ export function AssetsList() {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.category?.name ?? "-"}</TableCell>
                   <TableCell>{item.location?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {item.acquisition_date ? new Date(item.acquisition_date).toLocaleDateString() : "-"}
+                  </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    {formatCurrency(item.book_value)}
+                    {formatCurrency(item.acquisition_cost)}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatCurrency(item.accumulated_depreciation)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCurrency(item.book_value)}
                   </TableCell>
                   <TableCell>{getStatusBadge(item.status, t)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="cursor-pointer"
-                        >
+                        <Button variant="ghost" size="icon" className="cursor-pointer">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() => handleViewDetail(item.id)}
-                        >
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => handleViewDetail(item.id)}>
                           <Eye className="h-4 w-4 mr-2" />
                           {t("actions.view")}
                         </DropdownMenuItem>
@@ -421,8 +438,8 @@ export function AssetsList() {
         pageSize={pagination?.per_page ?? pageSize}
         rowCount={pagination?.total ?? rows.length}
         onPageChange={setPage}
-        onPageSizeChange={(s) => {
-          setPageSize(s);
+        onPageSizeChange={(nextSize) => {
+          setPageSize(nextSize);
           setPage(1);
         }}
       />

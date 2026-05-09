@@ -45,7 +45,7 @@ function PageSkeleton() {
 
 export default function FinanceAssetLocationsPage() {
   return (
-    <PermissionGuard requiredPermission="asset.read">
+    <PermissionGuard requiredPermission="asset_location.read">
       <Suspense fallback={<PageSkeleton />}>
         <FinanceAssetLocationsContainer />
       </Suspense>

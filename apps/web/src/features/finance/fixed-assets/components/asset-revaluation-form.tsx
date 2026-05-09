@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetRevaluationSchema, type AssetRevaluationValues } from "../schemas/fixed-assets.schema";
 import { useAssetRevaluation } from "../hooks/use-asset-revaluation";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
@@ -19,6 +20,7 @@ interface AssetRevaluationFormProps {
 
 export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
   const { assets, submit } = useAssetRevaluation();
+  const canRevalueAsset = useUserPermission("asset.revalue");
   const form = useForm<AssetRevaluationValues>({
     resolver: zodResolver(assetRevaluationSchema),
     defaultValues: {
@@ -132,9 +134,9 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               )}
             />
 
-            <Button type="submit" disabled={submit.isPending} className="w-full">
+            <Button type="submit" disabled={submit.isPending || !canRevalueAsset} className="w-full">
               {submit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit for Approval
+              {canRevalueAsset ? "Submit for Approval" : "No permission to submit"}
             </Button>
           </form>
         </Form>

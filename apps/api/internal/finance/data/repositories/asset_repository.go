@@ -18,6 +18,8 @@ type AssetListParams struct {
 	Search     string
 	Status     *financeModels.AssetStatus
 	CategoryID *string
+	TypeID     *string
+	DepartmentID *string
 	LocationID *string
 	StartDate  *time.Time
 	EndDate    *time.Time
@@ -32,6 +34,7 @@ type AssetRepository interface {
 	List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error)
 	FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error)
 	GenerateCode(ctx context.Context) (string, error)
+	ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error)
 	UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error
 }
 
@@ -46,6 +49,7 @@ func NewAssetRepository(db *gorm.DB) AssetRepository {
 func (r *assetRepository) FindByID(ctx context.Context, id string, withDetails bool) (*financeModels.Asset, error) {
 	var item financeModels.Asset
 	q := database.GetDB(ctx, r.db)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	q = q.Preload("Category").Preload("Location")
 	if withDetails {
 		q = q.Preload("Depreciations", func(db *gorm.DB) *gorm.DB {
@@ -87,8 +91,22 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 
 	q := database.GetDB(ctx, r.db).Model(&financeModels.Asset{}).
 		Preload("Category").
-		Preload("Location")
+		Preload("Location").
+		Preload("Department")
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+
+	// If the caller provided a department filter, apply it
+	if params.DepartmentID != nil && strings.TrimSpace(*params.DepartmentID) != "" {
+		q = q.Where("fixed_assets.department_id = ?", strings.TrimSpace(*params.DepartmentID))
+	}
+
+	// If the permission scope indicates DIVISION and a division/department context exists,
+	// enforce department-level scoping to meet Department Head visibility requirement.
+	if scope, _ := ctx.Value("permission_scope").(string); strings.ToUpper(scope) == "DIVISION" {
+		if divID, _ := ctx.Value("scope_division_id").(string); strings.TrimSpace(divID) != "" {
+			q = q.Where("fixed_assets.department_id = ?", strings.TrimSpace(divID))
+		}
+	}
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
@@ -99,6 +117,9 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	}
 	if params.CategoryID != nil && strings.TrimSpace(*params.CategoryID) != "" {
 		q = q.Where("fixed_assets.category_id = ?", strings.TrimSpace(*params.CategoryID))
+	}
+	if params.TypeID != nil && strings.TrimSpace(*params.TypeID) != "" {
+		q = q.Where("fixed_assets.asset_type_id = ?", strings.TrimSpace(*params.TypeID))
 	}
 	if params.LocationID != nil && strings.TrimSpace(*params.LocationID) != "" {
 		q = q.Where("fixed_assets.location_id = ?", strings.TrimSpace(*params.LocationID))
@@ -141,6 +162,11 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 
 func (r *assetRepository) FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error) {
 	var last financeModels.AssetDepreciation
+	// ensure asset belongs to caller's scope
+	if _, err := r.FindByID(ctx, assetID, false); err != nil {
+		return nil, err
+	}
+
 	if err := database.GetDB(ctx, r.db).
 		Where("asset_id = ?", assetID).
 		Order("depreciation_date desc").
@@ -155,11 +181,10 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 	prefix := "AST-" + now.Format("200601") + "-"
 
 	var lastAsset financeModels.Asset
-	err := database.GetDB(ctx, r.db).
-		Unscoped().
-		Where("code LIKE ?", prefix+"%").
-		Order("code DESC").
-		First(&lastAsset).Error
+	q := database.GetDB(ctx, r.db).Unscoped().Model(&financeModels.Asset{}).
+		Where("code LIKE ?", prefix+"%")
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+	err := q.Order("code DESC").First(&lastAsset).Error
 
 	nextNum := 1
 	if err == nil {
@@ -174,9 +199,22 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 	return fmt.Sprintf("%s%04d", prefix, nextNum), nil
 }
 
+func (r *assetRepository) ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error) {
+	q := database.GetDB(ctx, r.db).Model(&financeModels.Asset{}).Where("code = ?", strings.TrimSpace(code))
+	if excludeID != nil && strings.TrimSpace(*excludeID) != "" {
+		q = q.Where("id <> ?", strings.TrimSpace(*excludeID))
+	}
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+	var count int64
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *assetRepository) UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error {
-	return database.GetDB(ctx, r.db).
-		Model(&financeModels.Asset{}).
-		Where("id = ?", assetID).
-		Update("status", status).Error
+	q := database.GetDB(ctx, r.db).Model(&financeModels.Asset{}).
+		Where("id = ?", assetID)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
+	return q.Update("status", status).Error
 }

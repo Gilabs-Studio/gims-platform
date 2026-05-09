@@ -12,12 +12,19 @@ type CreateAssetRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 
-	CategoryID string `json:"category_id" binding:"required,uuid"`
-	LocationID string `json:"location_id" binding:"required,uuid"`
+	AssetTypeID string `json:"asset_type_id" binding:"required"`
+	CategoryID  string `json:"asset_category_id" binding:"required,uuid"`
+	LocationID  string `json:"location_id" binding:"required,uuid"`
 
 	AcquisitionDate string  `json:"acquisition_date" binding:"required"`
 	AcquisitionCost float64 `json:"acquisition_cost" binding:"required,gt=0"`
 	SalvageValue    float64 `json:"salvage_value" binding:"omitempty,gte=0"`
+	UsefulLifeMonths *int    `json:"useful_life_months" binding:"required,gte=1"`
+	DepreciationMethod *string `json:"depreciation_method" binding:"required"`
+	VendorID        *string `json:"vendor_id"`
+	PurchaseInvoiceID *string `json:"purchase_invoice_id"`
+	DepartmentID    *string `json:"department_id"`
+	CustodianUserID *string `json:"custodian_user_id"`
 
 	// Extended fields
 	SerialNumber *string `json:"serial_number"`
@@ -29,11 +36,6 @@ type CreateAssetRequest struct {
 	InstallationCost float64 `json:"installation_cost" binding:"omitempty,gte=0"`
 	TaxAmount        float64 `json:"tax_amount" binding:"omitempty,gte=0"`
 	OtherCosts       float64 `json:"other_costs" binding:"omitempty,gte=0"`
-
-	// Depreciation Config Override
-	DepreciationMethod    *string `json:"depreciation_method"`
-	UsefulLifeMonths      *int    `json:"useful_life_months"`
-	DepreciationStartDate *string `json:"depreciation_start_date"`
 
 	// Warranty
 	WarrantyStart    *string `json:"warranty_start"`
@@ -54,13 +56,20 @@ type UpdateAssetRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 
-	CategoryID string `json:"category_id" binding:"required,uuid"`
-	LocationID string `json:"location_id" binding:"required,uuid"`
+	AssetTypeID string `json:"asset_type_id" binding:"required"`
+	CategoryID  string `json:"asset_category_id" binding:"required,uuid"`
+	LocationID  string `json:"location_id" binding:"required,uuid"`
 
 	AcquisitionDate string                    `json:"acquisition_date" binding:"required"`
 	AcquisitionCost float64                   `json:"acquisition_cost" binding:"required,gt=0"`
 	SalvageValue    float64                   `json:"salvage_value" binding:"omitempty,gte=0"`
 	Status          financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=active inactive sold disposed"`
+	UsefulLifeMonths *int                     `json:"useful_life_months" binding:"omitempty,gte=1"`
+	DepreciationMethod *string                `json:"depreciation_method"`
+	VendorID        *string                   `json:"vendor_id"`
+	PurchaseInvoiceID *string                 `json:"purchase_invoice_id"`
+	DepartmentID    *string                   `json:"department_id"`
+	CustodianUserID *string                   `json:"custodian_user_id"`
 
 	// Extended fields
 	SerialNumber *string `json:"serial_number"`
@@ -72,11 +81,6 @@ type UpdateAssetRequest struct {
 	InstallationCost float64 `json:"installation_cost" binding:"omitempty,gte=0"`
 	TaxAmount        float64 `json:"tax_amount" binding:"omitempty,gte=0"`
 	OtherCosts       float64 `json:"other_costs" binding:"omitempty,gte=0"`
-
-	// Depreciation Config Override
-	DepreciationMethod    *string `json:"depreciation_method"`
-	UsefulLifeMonths      *int    `json:"useful_life_months"`
-	DepreciationStartDate *string `json:"depreciation_start_date"`
 
 	// Warranty
 	WarrantyStart    *string `json:"warranty_start"`
@@ -98,6 +102,8 @@ type ListAssetsRequest struct {
 	Search     string                     `form:"search"`
 	Status     *financeModels.AssetStatus `form:"status" binding:"omitempty,oneof=active disposed"`
 	CategoryID *string                    `form:"category_id"`
+	TypeID     *string                    `form:"type_id"`
+	DeptID     *string                    `form:"dept_id"`
 	LocationID *string                    `form:"location_id"`
 	StartDate  *string                    `form:"start_date"`
 	EndDate    *string                    `form:"end_date"`
@@ -157,6 +163,63 @@ type BatchDepreciationRunResponse struct {
 	Skipped     int                        `json:"skipped"`
 	Failed      int                        `json:"failed"`
 	Items       []BatchDepreciationRunItem `json:"items"`
+}
+
+type RunDepreciationRequest struct {
+	Period     string  `json:"period" binding:"required"`
+	AssetID   *string `json:"asset_id" binding:"omitempty,uuid"`
+	CategoryID *string `json:"category_id" binding:"omitempty,uuid"`
+	LocationID *string `json:"location_id" binding:"omitempty,uuid"`
+}
+
+type DepreciationScheduleItem struct {
+	AssetID                 string  `json:"asset_id"`
+	AssetCode               string  `json:"asset_code"`
+	AssetName               string  `json:"asset_name"`
+	CategoryID              string  `json:"category_id"`
+	CategoryName            string  `json:"category_name,omitempty"`
+	LocationID              string  `json:"location_id"`
+	LocationName            string  `json:"location_name,omitempty"`
+	Method                  string  `json:"method"`
+	Period                  string  `json:"period"`
+	AcquisitionCost         float64 `json:"acquisition_cost"`
+	AccumulatedDepreciation float64 `json:"accumulated_depreciation"`
+	NetBookValue            float64 `json:"net_book_value"`
+	DepreciationAmount      float64 `json:"depreciation_amount"`
+	Posted                  bool    `json:"posted"`
+	Highlighted             bool    `json:"highlighted"`
+	JournalEntryID          *string `json:"journal_entry_id,omitempty"`
+	Status                  string  `json:"status"`
+	SkipReason              string  `json:"skip_reason,omitempty"`
+}
+
+type DepreciationScheduleResponse struct {
+	Period      string                   `json:"period"`
+	TotalAssets int                      `json:"total_assets"`
+	Posted      int                      `json:"posted"`
+	Pending     int                      `json:"pending"`
+	TotalAmount float64                  `json:"total_amount"`
+	Items       []DepreciationScheduleItem `json:"items"`
+}
+
+type DepreciationHistoryItem struct {
+	DepreciationID string    `json:"depreciation_id"`
+	AssetID        string    `json:"asset_id"`
+	AssetCode      string    `json:"asset_code"`
+	AssetName      string    `json:"asset_name"`
+	Period         string    `json:"period"`
+	Amount         float64   `json:"amount"`
+	Posted         bool      `json:"posted"`
+	JournalEntryID *string   `json:"journal_entry_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type DepreciationHistoryResponse struct {
+	Period  string                   `json:"period"`
+	Total   int                      `json:"total"`
+	Posted  int                      `json:"posted"`
+	Pending int                      `json:"pending"`
+	Items   []DepreciationHistoryItem `json:"items"`
 }
 
 type TransferAssetRequest struct {
@@ -322,6 +385,7 @@ type AssetResponse struct {
 	AssetTag     *string `json:"asset_tag,omitempty"`
 
 	// Category / Location
+	AssetTypeID string                 `json:"asset_type_id"`
 	CategoryID string                 `json:"category_id"`
 	Category   *AssetCategoryResponse `json:"category,omitempty"`
 	LocationID string                 `json:"location_id"`
@@ -331,6 +395,9 @@ type AssetResponse struct {
 	CompanyID      *string `json:"company_id,omitempty"`
 	BusinessUnitID *string `json:"business_unit_id,omitempty"`
 	DepartmentID   *string `json:"department_id,omitempty"`
+	CustodianUserID *string `json:"custodian_user_id,omitempty"`
+	VendorID       *string `json:"vendor_id,omitempty"`
+	PurchaseInvoiceID *string `json:"purchase_invoice_id,omitempty"`
 
 	// Assignment
 	AssignedToEmployeeID *string    `json:"assigned_to_employee_id,omitempty"`
@@ -444,6 +511,73 @@ type AvailableAssetResponse struct {
 	AssetImage string                      `json:"asset_image,omitempty"`
 	Status     string                      `json:"status"`
 	BookValue  float64                     `json:"book_value"`
+}
+
+// --- Edit Asset with Field Classification ---
+
+// DepreciationImpactPreview shows the effect of depreciation-sensitive changes
+type DepreciationImpactPreview struct {
+	OldMonthlyAmount     float64 `json:"old_monthly_amount"`
+	NewMonthlyAmount     float64 `json:"new_monthly_amount"`
+	RemainingMonths      int     `json:"remaining_months"`
+	OldTotalRemaining    float64 `json:"old_total_remaining"`
+	NewTotalRemaining    float64 `json:"new_total_remaining"`
+	ImpactAmount         float64 `json:"impact_amount"`
+	NewBookValue         float64 `json:"new_book_value"`
+	EntriesToRegenerate  int     `json:"entries_to_regenerate"`
+	FirstAffectedPeriod  string  `json:"first_affected_period"` // YYYY-MM
+	DepreciationMethod   string  `json:"depreciation_method"`
+}
+
+// FieldChangeInfo tracks what changed and its classification
+type FieldChangeInfo struct {
+	FieldName             string                     `json:"field_name"`
+	OldValue              interface{}                `json:"old_value"`
+	NewValue              interface{}                `json:"new_value"`
+	Group                 string                     `json:"group"` // A, B, C
+	DepreciationImpact    *DepreciationImpactPreview `json:"depreciation_impact,omitempty"`
+}
+
+// EditAssetRequest is similar to UpdateAssetRequest but tracks field changes
+type EditAssetRequest struct {
+	Code                  string   `json:"code" binding:"required"`
+	Name                  string   `json:"name" binding:"required"`
+	Description           string   `json:"description"`
+	AssetTypeID           string   `json:"asset_type_id" binding:"required"`
+	CategoryID            string   `json:"asset_category_id" binding:"required,uuid"`
+	LocationID            string   `json:"location_id" binding:"required,uuid"`
+	AcquisitionDate       string   `json:"acquisition_date" binding:"required"`
+	AcquisitionCost       float64  `json:"acquisition_cost" binding:"required,gt=0"`
+	SalvageValue          float64  `json:"salvage_value" binding:"omitempty,gte=0"`
+	Status                financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=active inactive sold disposed"`
+	UsefulLifeMonths      *int     `json:"useful_life_months" binding:"omitempty,gte=1"`
+	DepreciationMethod    *string  `json:"depreciation_method"`
+	VendorID              *string  `json:"vendor_id"`
+	PurchaseInvoiceID     *string  `json:"purchase_invoice_id"`
+	DepartmentID          *string  `json:"department_id"`
+	CustodianUserID       *string  `json:"custodian_user_id"`
+	SerialNumber          *string  `json:"serial_number"`
+	Barcode               *string  `json:"barcode"`
+	AssetTag              *string  `json:"asset_tag"`
+	ShippingCost          float64  `json:"shipping_cost" binding:"omitempty,gte=0"`
+	InstallationCost      float64  `json:"installation_cost" binding:"omitempty,gte=0"`
+	TaxAmount             float64  `json:"tax_amount" binding:"omitempty,gte=0"`
+	OtherCosts            float64  `json:"other_costs" binding:"omitempty,gte=0"`
+	WarrantyStart         *string  `json:"warranty_start"`
+	WarrantyEnd           *string  `json:"warranty_end"`
+	WarrantyProvider      *string  `json:"warranty_provider"`
+	WarrantyTerms         *string  `json:"warranty_terms"`
+	InsurancePolicyNumber *string  `json:"insurance_policy_number"`
+	InsuranceProvider     *string  `json:"insurance_provider"`
+	InsuranceStart        *string  `json:"insurance_start"`
+	InsuranceEnd          *string  `json:"insurance_end"`
+	InsuranceValue        *float64 `json:"insurance_value"`
+}
+
+// EditAssetResponse includes field changes and depreciation impact
+type EditAssetResponse struct {
+	*AssetResponse
+	ChangedFields []FieldChangeInfo `json:"changed_fields,omitempty"`
 }
 
 // UuidPtrToStringPtr converts a uuid.UUID pointer to a string pointer

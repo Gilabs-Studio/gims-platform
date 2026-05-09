@@ -50,6 +50,31 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *AssetHandler) EditAsset(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.EditAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.EditAsset(c.Request.Context(), id, &req)
+	if err != nil {
+		// Check for specific error types
+		if strings.Contains(err.Error(), "immutable") {
+			response.ErrorResponse(c, http.StatusForbidden, "ASSET_FIELD_IMMUTABLE", err.Error(), nil, nil)
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			response.ErrorResponse(c, http.StatusNotFound, "ASSET_NOT_FOUND", err.Error(), nil, nil)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_EDIT_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+
 func (h *AssetHandler) Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
@@ -139,6 +164,52 @@ func (h *AssetHandler) RunBatchDepreciation(c *gin.Context) {
 	res, err := h.uc.RunBatchDepreciation(c.Request.Context(), &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_BATCH_DEPRECIATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) GetDepreciationSchedule(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	if strings.TrimSpace(req.Period) == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "period is required", nil, nil)
+		return
+	}
+	res, err := h.uc.GetDepreciationSchedule(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_SCHEDULE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) RunDepreciation(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.RunDepreciation(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) GetDepreciationHistory(c *gin.Context) {
+	period := strings.TrimSpace(c.Query("period"))
+	if period == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "period is required", nil, nil)
+		return
+	}
+	res, err := h.uc.GetDepreciationHistory(c.Request.Context(), period)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_HISTORY_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

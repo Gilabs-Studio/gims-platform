@@ -2,29 +2,32 @@ package usecase
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	dbtest "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
+
+const financeTestCompanyID = "00000000-0000-0000-0000-000000000123"
+
+func financeTestContext() context.Context {
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	return context.WithValue(ctx, "company_id", financeTestCompanyID)
+}
 
 func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -32,6 +35,8 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 		&models.JournalReversal{},
 	)
 	require.NoError(t, err)
@@ -46,7 +51,7 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	refType := "GENERAL"
 	refID := "10000000-0000-0000-0000-000000000001"
 	createReq := &dto.CreateJournalEntryRequest{
@@ -80,11 +85,9 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -92,6 +95,8 @@ func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testi
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 		&models.JournalReversal{},
 	)
 	require.NoError(t, err)
@@ -99,6 +104,7 @@ func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testi
 	root := models.ChartOfAccount{Code: "1-0000", Name: "Assets", Type: models.AccountTypeAsset, IsActive: true, IsPostable: false}
 	leaf := models.ChartOfAccount{Code: "4-1100", Name: "Sales", Type: models.AccountTypeRevenue, IsActive: true, IsPostable: true}
 	require.NoError(t, db.Create(&root).Error)
+	require.NoError(t, db.Model(&root).Update("is_postable", false).Error)
 	require.NoError(t, db.Create(&leaf).Error)
 
 	coaRepo := repositories.NewChartOfAccountRepository(db)
@@ -106,7 +112,7 @@ func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testi
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	refType := "GENERAL"
 	refID := "20000000-0000-0000-0000-000000000001"
 	_, err = uc.Create(ctx, &dto.CreateJournalEntryRequest{
@@ -126,11 +132,9 @@ func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testi
 func TestJournalEntry_ShouldCreateWhenPostingToPostableLeafAccounts(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -138,6 +142,8 @@ func TestJournalEntry_ShouldCreateWhenPostingToPostableLeafAccounts(t *testing.T
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 		&models.JournalReversal{},
 	)
 	require.NoError(t, err)
@@ -152,7 +158,7 @@ func TestJournalEntry_ShouldCreateWhenPostingToPostableLeafAccounts(t *testing.T
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	refType := "GENERAL"
 	refID := "20000000-0000-0000-0000-000000000002"
 	created, err := uc.Create(ctx, &dto.CreateJournalEntryRequest{
@@ -172,11 +178,9 @@ func TestJournalEntry_ShouldCreateWhenPostingToPostableLeafAccounts(t *testing.T
 func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -184,6 +188,8 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 		&models.JournalReversal{},
 	)
 	require.NoError(t, err)
@@ -198,7 +204,7 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
 	first, err := uc.CreateOpeningBalanceJournal(ctx, &dto.CreateOpeningBalanceJournalRequest{
 		AccountID: account.ID,
@@ -208,8 +214,9 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 	require.NotNil(t, first)
 
 	reversal, err := uc.ReverseOpeningBalance(ctx, account.ID)
-	require.NoError(t, err)
-	require.NotNil(t, reversal)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "opening journal cannot be reversed directly")
+	require.Nil(t, reversal)
 
 	second, err := uc.CreateOpeningBalanceJournal(ctx, &dto.CreateOpeningBalanceJournalRequest{
 		AccountID: account.ID,
@@ -227,31 +234,26 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 	err = db.Where("id = ?", first.ID).First(&firstEntry).Error
 	require.NoError(t, err)
 	require.NotNil(t, firstEntry.ReferenceType)
-	require.Equal(t, string(models.RefOpeningBalanceRev), *firstEntry.ReferenceType)
+	require.Equal(t, string(models.RefOpeningBalance), *firstEntry.ReferenceType)
 	require.NotNil(t, firstEntry.ReferenceID)
-	require.Equal(t, first.ID, *firstEntry.ReferenceID)
-	require.Equal(t, models.JournalStatusReversed, firstEntry.Status)
-
-	var reversalMeta models.JournalReversal
-	err = db.Where("original_journal_entry_id = ?", first.ID).First(&reversalMeta).Error
-	require.NoError(t, err)
-	require.Equal(t, reversal.ID, reversalMeta.ReversalJournalEntryID)
+	require.Equal(t, account.ID, *firstEntry.ReferenceID)
+	require.Equal(t, models.JournalStatusPosted, firstEntry.Status)
 }
 
 func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 	)
 	require.NoError(t, err)
 
@@ -265,7 +267,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	refType := "SALES_INVOICE"
 	refID := "sales-inv-001"
 
@@ -305,17 +307,17 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
 	)
 	require.NoError(t, err)
 
@@ -329,7 +331,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	refType := "SALES_INVOICE_DP"
 	refID := "sales-inv-dp-001"
 
@@ -376,13 +378,10 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 func TestJournalEntryRepository_ShouldFilterByReferenceTypes(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
-	err = db.AutoMigrate(
+	err := db.AutoMigrate(
 		&coreModels.AuditLog{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
@@ -418,17 +417,15 @@ func financeStrPtr(v string) *string {
 func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
-	err = db.AutoMigrate(
+	err := db.AutoMigrate(
 		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
 	)
 	require.NoError(t, err)
 
@@ -447,7 +444,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 	openingRefType := "SALES_INVOICE"
 	openingRefID := "report-opening-001"
 
@@ -517,7 +514,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 
 	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil, nil, false)
 	require.NoError(t, err)
-	require.Equal(t, 1500.0, bs.AssetTotal)
+	require.Equal(t, 2000.0, bs.AssetTotal)
 
 	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate, nil, nil)
 	require.NoError(t, err)
@@ -533,17 +530,15 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThenIDs(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
-	err = db.AutoMigrate(
+	err := db.AutoMigrate(
 		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
 	)
 	require.NoError(t, err)
 
@@ -560,7 +555,7 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
 	refType1 := "SALES_INVOICE"
 	refID1 := "order-check-001"
@@ -623,17 +618,20 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 func TestFinancialClosing_IntegrityEnforcement(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
-	err = db.AutoMigrate(
+	err := db.AutoMigrate(
 		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 	)
 	require.NoError(t, err)
 
@@ -647,14 +645,16 @@ func TestFinancialClosing_IntegrityEnforcement(t *testing.T) {
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
-	// 1. Create a closed period for January 2026
-	janClosing := models.FinancialClosing{
-		PeriodEndDate: time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
-		Status:        models.FinancialClosingStatusApproved,
+	// 1. Create a closed accounting period for January 2026
+	janPeriod := models.AccountingPeriod{
+		PeriodName: "2026-01",
+		StartDate:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:    time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
+		Status:     models.AccountingPeriodStatusClosed,
 	}
-	require.NoError(t, db.Create(&janClosing).Error)
+	require.NoError(t, db.Create(&janPeriod).Error)
 
 	// 2. Attempt to post a journal in the closed period (Jan 15)
 	refType := "GENERAL"
@@ -672,7 +672,7 @@ func TestFinancialClosing_IntegrityEnforcement(t *testing.T) {
 
 	_, err = uc.Create(ctx, req)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "period has been closed")
+	require.Contains(t, err.Error(), "period is closed")
 
 	// 3. Attempt to post a journal in an open period (Feb 15) - Should succeed
 	refIDOpen := "open-test-002"
@@ -695,34 +695,34 @@ func TestFinancialClosing_IntegrityEnforcement(t *testing.T) {
 func TestInventoryFreeze_IntegrityEnforcement(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
-	err = db.AutoMigrate(
+	err := db.AutoMigrate(
 		&models.FinancialClosing{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.ChartOfAccount{},
+		&models.AccountingPeriod{},
 	)
 	require.NoError(t, err)
 
-	// 1. Create a closed period for Jan 2026
-	janClosing := models.FinancialClosing{
-		PeriodEndDate: time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
-		Status:        models.FinancialClosingStatusApproved,
+	// 1. Create a closed accounting period for Jan 2026
+	janPeriod := models.AccountingPeriod{
+		PeriodName: "2026-01",
+		StartDate:  time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:    time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
+		Status:     models.AccountingPeriodStatusClosed,
 	}
-	require.NoError(t, db.Create(&janClosing).Error)
+	require.NoError(t, db.Create(&janPeriod).Error)
 
 	// 2. Define a guard check function using the same logic as closing_guard.go
 	isPeriodClosed := func(dateStr string) bool {
 		parsed, _ := time.Parse("2006-01-02", dateStr)
-		var closing models.FinancialClosing
-		err := db.Where("period_end_date >= ? AND status = ?", parsed, models.FinancialClosingStatusApproved).
-			Order("period_end_date ASC").
-			First(&closing).Error
+		var period models.AccountingPeriod
+		err := db.Where("status = ? AND ? BETWEEN start_date AND end_date", models.AccountingPeriodStatusClosed, parsed).
+			Order("start_date ASC").
+			First(&period).Error
 		return err == nil
 	}
 

@@ -12,6 +12,8 @@ type DepreciationMethod string
 const (
 	DepreciationMethodStraightLine     DepreciationMethod = "SL"
 	DepreciationMethodDecliningBalance DepreciationMethod = "DB"
+	DepreciationMethodSumOfYearsDigits DepreciationMethod = "SYD"
+	DepreciationMethodUnitsOfProduction DepreciationMethod = "UOP"
 	DepreciationMethodNone             DepreciationMethod = "NONE"
 )
 

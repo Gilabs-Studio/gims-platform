@@ -29,12 +29,16 @@ var (
 type AssetUsecase interface {
 	Create(ctx context.Context, req *dto.CreateAssetRequest) (*dto.AssetResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateAssetRequest) (*dto.AssetResponse, error)
+	EditAsset(ctx context.Context, id string, req *dto.EditAssetRequest) (*dto.EditAssetResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.AssetResponse, error)
 	List(ctx context.Context, req *dto.ListAssetsRequest) ([]dto.AssetResponse, int64, error)
 	Depreciate(ctx context.Context, id string, req *dto.DepreciateAssetRequest) (*dto.AssetResponse, error)
 	PreviewBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationPreviewResponse, error)
 	RunBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
+	GetDepreciationSchedule(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.DepreciationScheduleResponse, error)
+	RunDepreciation(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
+	GetDepreciationHistory(ctx context.Context, period string) (*dto.DepreciationHistoryResponse, error)
 	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
 	PreviewDisposal(ctx context.Context, id string, req *dto.PreviewDisposalRequest) (*dto.PreviewDisposalResponse, error)
@@ -109,6 +113,32 @@ func ymPeriod(t time.Time) string {
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
+}
+
+func tenantIDFromContext(ctx context.Context) string {
+	if tenantID, ok := ctx.Value("tenant_id").(string); ok {
+		return strings.TrimSpace(tenantID)
+	}
+	return ""
+}
+
+func companyIDPtrFromContext(ctx context.Context) *string {
+	tenantID := tenantIDFromContext(ctx)
+	if tenantID == "" {
+		return nil
+	}
+	return &tenantID
+}
+
+func depreciationMethodOrDefault(raw *string, categoryMethod financeModels.DepreciationMethod) financeModels.DepreciationMethod {
+	if raw == nil {
+		return categoryMethod
+	}
+	method := financeModels.DepreciationMethod(strings.TrimSpace(*raw))
+	if method == "" {
+		return categoryMethod
+	}
+	return method
 }
 
 func normalizeCurrencyCode(raw string) string {
@@ -295,10 +325,20 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
 	}
+	tenantID := tenantIDFromContext(ctx)
 
 	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
 	if err != nil {
 		return nil, err
+	}
+	if acqDate.After(apptime.Now()) {
+		return nil, errors.New("acquisition date cannot be in the future")
+	}
+	if req.SalvageValue > req.AcquisitionCost {
+		return nil, errors.New("salvage value cannot be greater than acquisition cost")
+	}
+	if strings.TrimSpace(req.AssetTypeID) == "" {
+		return nil, errors.New("asset type is required")
 	}
 
 	cat, err := uc.catRepo.FindByID(ctx, strings.TrimSpace(req.CategoryID))
@@ -312,38 +352,109 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		return nil, err
 	}
 
+	depMethod := depreciationMethodOrDefault(req.DepreciationMethod, cat.DepreciationMethod)
+	depMethodStr := string(depMethod)
+	usefulLife := 0
+	if req.UsefulLifeMonths != nil {
+		usefulLife = *req.UsefulLifeMonths
+	} else {
+		usefulLife = cat.UsefulLifeMonths
+	}
+
 	code := strings.TrimSpace(req.Code)
 	if code == "" {
 		code, _ = uc.repo.GenerateCode(ctx)
 	}
+	if ok, err := uc.repo.ExistsByCode(ctx, code, nil); err != nil {
+		return nil, err
+	} else if ok {
+		return nil, errors.New("asset code already exists for this tenant")
+	}
 
 	item := &financeModels.Asset{
+		TenantID:                tenantID,
 		Code:                    code,
 		Name:                    strings.TrimSpace(req.Name),
 		Description:             strings.TrimSpace(req.Description),
+		AssetTypeID:             &req.AssetTypeID,
 		CategoryID:              strings.TrimSpace(req.CategoryID),
 		LocationID:              strings.TrimSpace(req.LocationID),
+		CompanyID:               companyIDPtrFromContext(ctx),
+		DepartmentID:            req.DepartmentID,
+		SupplierID:              req.VendorID,
+		SupplierInvoiceID:       req.PurchaseInvoiceID,
+		CustodianUserID:         req.CustodianUserID,
 		AcquisitionDate:         acqDate,
 		AcquisitionCost:         req.AcquisitionCost,
 		SalvageValue:            req.SalvageValue,
+		DepreciationMethod:      &depMethodStr,
+		UsefulLifeMonths:        &usefulLife,
 		AccumulatedDepreciation: 0,
 		BookValue:               req.AcquisitionCost,
 		Status:                  financeModels.AssetStatusActive,
 		CreatedBy:               &actorID,
+	}
+	actorUUID, err := uuid.Parse(actorID)
+	if err != nil {
+		return nil, err
 	}
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(item).Error; err != nil {
 			return err
 		}
+		assetUUID, err := uuid.Parse(item.ID)
+		if err != nil {
+			return err
+		}
 		txRec := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         item.ID,
 			Type:            financeModels.AssetTransactionTypeAcquire,
 			TransactionDate: acqDate,
 			Description:     "Asset acquired",
 			CreatedBy:       &actorID,
 		}
-		return tx.Create(txRec).Error
+		if err := tx.Create(txRec).Error; err != nil {
+			return err
+		}
+
+		if usefulLife > 0 && depMethod == financeModels.DepreciationMethodStraightLine {
+			monthly := round2(math.Max(0, req.AcquisitionCost-req.SalvageValue) / float64(usefulLife))
+			accumulated := 0.0
+			for month := 1; month <= usefulLife; month++ {
+				depDate := acqDate.AddDate(0, month, 0)
+				accumulated = round2(accumulated + monthly)
+				bookValue := round2(req.AcquisitionCost - accumulated)
+				if bookValue < req.SalvageValue {
+					bookValue = req.SalvageValue
+				}
+				rec := &financeModels.AssetDepreciation{
+					TenantID:         tenantID,
+					AssetID:          item.ID,
+					Period:           ymPeriod(depDate),
+					DepreciationDate: depDate,
+					Method:           depMethod,
+					Amount:           monthly,
+					Accumulated:      accumulated,
+					BookValue:        bookValue,
+					CreatedBy:        &actorID,
+				}
+				if err := tx.Create(rec).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		audit := &financeModels.AssetAuditLog{
+			AssetID:     assetUUID,
+			Action:      "created",
+			PerformedBy: &actorUUID,
+			Metadata: financeModels.MapStringInterface{
+				"source": "manual_create",
+			},
+		}
+		return tx.Create(audit).Error
 	})
 	if err != nil {
 		return nil, err
@@ -399,6 +510,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 	}
 
 	status := existing.Status
+	tenantID := tenantIDFromContext(ctx)
 	if strings.TrimSpace(string(req.Status)) != "" {
 		status = req.Status
 	}
@@ -407,6 +519,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 		"code":             strings.TrimSpace(req.Code),
 		"name":             strings.TrimSpace(req.Name),
 		"description":      strings.TrimSpace(req.Description),
+		"asset_type_id":    strings.TrimSpace(req.AssetTypeID),
 		"category_id":      strings.TrimSpace(req.CategoryID),
 		"location_id":      strings.TrimSpace(req.LocationID),
 		"acquisition_date": acqDate,
@@ -420,6 +533,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 			return err
 		}
 		txRec := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         id,
 			Type:            financeModels.AssetTransactionTypeUpdate,
 			TransactionDate: apptime.Now(),
@@ -438,6 +552,249 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 	}
 	res := uc.mapper.ToResponse(full, true)
 	return &res, nil
+}
+
+func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditAssetRequest) (*dto.EditAssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	// 1. Fetch and validate asset
+	existing, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrAssetNotFound
+		}
+		return nil, err
+	}
+	if existing.Status == financeModels.AssetStatusDisposed {
+		return nil, ErrAssetDisposedImmutable
+	}
+
+	// 2. Validate acquisition date and category
+	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
+	if err != nil {
+		return nil, err
+	}
+	cat, err := uc.catRepo.FindByID(ctx, strings.TrimSpace(req.CategoryID))
+	if err != nil {
+		return nil, err
+	}
+	if !cat.IsActive {
+		return nil, errors.New("asset category is inactive")
+	}
+	if _, err := uc.locRepo.FindByID(ctx, strings.TrimSpace(req.LocationID)); err != nil {
+		return nil, err
+	}
+
+	// 3. Get authenticated user
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	// 4. Classify changes
+	changes, err := ClassifyChanges(existing, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to classify changes: %w", err)
+	}
+
+	// 5. Validate Group C (immutable) fields
+	if err := ValidateGroupCChanges(existing, changes); err != nil {
+		return nil, err
+	}
+
+	// 6. Calculate depreciation impact for Group B changes
+	var deprecImpact *DepreciationRecalcInfo
+	if len(changes.GroupB) > 0 {
+		deprecImpact, err = CalculateDepreciationImpact(ctx, existing, changes, uc.db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate depreciation impact: %w", err)
+		}
+	}
+
+	// 7. Build field changes tracking for audit log
+	auditChangeList := make(financeModels.AuditChanges, 0)
+	fieldChanges := make([]dto.FieldChangeInfo, 0)
+
+	for fieldName, changeData := range changes.GroupA {
+		change := changeData.(map[string]interface{})
+		fieldChanges = append(fieldChanges, dto.FieldChangeInfo{
+			FieldName: fieldName,
+			OldValue:  change["old"],
+			NewValue:  change["new"],
+			Group:     string(GroupA),
+		})
+		auditChangeList = append(auditChangeList, financeModels.AuditChange{
+			Field:    fieldName,
+			OldValue: change["old"],
+			NewValue: change["new"],
+		})
+	}
+	for fieldName, changeData := range changes.GroupB {
+		change := changeData.(map[string]interface{})
+		impact := &dto.DepreciationImpactPreview{
+			OldMonthlyAmount:    deprecImpact.OldMonthlyAmount,
+			NewMonthlyAmount:    deprecImpact.NewMonthlyAmount,
+			RemainingMonths:     deprecImpact.RemainingMonths,
+			OldTotalRemaining:   deprecImpact.OldTotalRemaining,
+			NewTotalRemaining:   deprecImpact.NewTotalRemaining,
+			ImpactAmount:        deprecImpact.ImpactAmount,
+			NewBookValue:        deprecImpact.NewBookValue,
+			EntriesToRegenerate: deprecImpact.EntriesToRegenerate,
+			FirstAffectedPeriod: deprecImpact.FirstAffectedPeriod,
+			DepreciationMethod:  deprecImpact.DepreciationMethod,
+		}
+		fieldChanges = append(fieldChanges, dto.FieldChangeInfo{
+			FieldName:          fieldName,
+			OldValue:           change["old"],
+			NewValue:           change["new"],
+			Group:              string(GroupB),
+			DepreciationImpact: impact,
+		})
+		auditChangeList = append(auditChangeList, financeModels.AuditChange{
+			Field:    fieldName,
+			OldValue: change["old"],
+			NewValue: change["new"],
+		})
+	}
+
+	// 8. Build update map with all changes
+	updates := map[string]interface{}{
+		"code":                strings.TrimSpace(req.Code),
+		"name":                strings.TrimSpace(req.Name),
+		"description":         strings.TrimSpace(req.Description),
+		"asset_type_id":       strings.TrimSpace(req.AssetTypeID),
+		"category_id":         strings.TrimSpace(req.CategoryID),
+		"location_id":         strings.TrimSpace(req.LocationID),
+		"acquisition_date":    acqDate,
+		"acquisition_cost":    req.AcquisitionCost,
+		"salvage_value":       req.SalvageValue,
+		"useful_life_months":  req.UsefulLifeMonths,
+		"depreciation_method": req.DepreciationMethod,
+		"serial_number":       req.SerialNumber,
+		"barcode":             req.Barcode,
+		"asset_tag":           req.AssetTag,
+		"vendor_id":           req.VendorID,
+		"purchase_invoice_id": req.PurchaseInvoiceID,
+		"department_id":       req.DepartmentID,
+		"custodian_user_id":   req.CustodianUserID,
+		"shipping_cost":       req.ShippingCost,
+		"installation_cost":   req.InstallationCost,
+		"tax_amount":          req.TaxAmount,
+		"other_costs":         req.OtherCosts,
+	}
+
+	// Add warranty fields if provided
+	if req.WarrantyStart != nil && *req.WarrantyStart != "" {
+		if wStart, err := parseAssetDateStrict(*req.WarrantyStart); err == nil {
+			updates["warranty_start"] = wStart
+		}
+	}
+	if req.WarrantyEnd != nil && *req.WarrantyEnd != "" {
+		if wEnd, err := parseAssetDateStrict(*req.WarrantyEnd); err == nil {
+			updates["warranty_end"] = wEnd
+		}
+	}
+	if req.WarrantyProvider != nil {
+		updates["warranty_provider"] = *req.WarrantyProvider
+	}
+	if req.WarrantyTerms != nil {
+		updates["warranty_terms"] = *req.WarrantyTerms
+	}
+
+	// Add insurance fields if provided
+	if req.InsurancePolicyNumber != nil {
+		updates["insurance_policy_number"] = *req.InsurancePolicyNumber
+	}
+	if req.InsuranceProvider != nil {
+		updates["insurance_provider"] = *req.InsuranceProvider
+	}
+	if req.InsuranceStart != nil && *req.InsuranceStart != "" {
+		if iStart, err := parseAssetDateStrict(*req.InsuranceStart); err == nil {
+			updates["insurance_start"] = iStart
+		}
+	}
+	if req.InsuranceEnd != nil && *req.InsuranceEnd != "" {
+		if iEnd, err := parseAssetDateStrict(*req.InsuranceEnd); err == nil {
+			updates["insurance_end"] = iEnd
+		}
+	}
+	if req.InsuranceValue != nil {
+		updates["insurance_value"] = *req.InsuranceValue
+	}
+
+	// 9. Execute transaction with depreciation recalculation if needed
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Update asset record
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		// Recalculate depreciation if Group B changed
+		if len(changes.GroupB) > 0 && deprecImpact.EntriesToRegenerate > 0 {
+			newSalvage := req.SalvageValue
+			createdEntries, err := RecalculateDepreciation(ctx, tx, existing, newSalvage, req.UsefulLifeMonths, req.DepreciationMethod)
+			if err != nil {
+				return fmt.Errorf("depreciation recalculation failed: %w", err)
+			}
+			if createdEntries > 0 {
+				// Update impact info
+				deprecImpact.EntriesToRegenerate = createdEntries
+			}
+		}
+
+		// Create audit log with detailed changes
+		assetUUID := uuid.Must(uuid.Parse(id))
+		actorUUID := uuid.Must(uuid.Parse(actorID))
+
+		auditLog := &financeModels.AssetAuditLog{
+			AssetID:     assetUUID,
+			Action:      "updated",
+			PerformedBy: &actorUUID,
+			Changes:     auditChangeList,
+			Metadata: financeModels.MapStringInterface{
+				"source":                  "manual_edit",
+				"group_a_count":           len(changes.GroupA),
+				"group_b_count":           len(changes.GroupB),
+				"has_depreciation_impact": len(changes.GroupB) > 0,
+			},
+		}
+		if err := tx.Create(auditLog).Error; err != nil {
+			return fmt.Errorf("failed to create audit log: %w", err)
+		}
+
+		// Create transaction record
+		txRec := &financeModels.AssetTransaction{
+			AssetID:         id,
+			Type:            financeModels.AssetTransactionTypeUpdate,
+			TransactionDate: apptime.Now(),
+			Description:     fmt.Sprintf("Asset edited with %d Group A and %d Group B changes", len(changes.GroupA), len(changes.GroupB)),
+			CreatedBy:       &actorID,
+		}
+		return tx.Create(txRec).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 10. Fetch full updated asset and return
+	full, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	baseResponse := uc.mapper.ToResponse(full, true)
+	res := &dto.EditAssetResponse{
+		AssetResponse: &baseResponse,
+		ChangedFields: fieldChanges,
+	}
+	return res, nil
 }
 
 func (uc *assetUsecase) Delete(ctx context.Context, id string) error {
@@ -544,6 +901,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 	}
 
 	actorID, _ := ctx.Value("user_id").(string)
+	tenantID := tenantIDFromContext(ctx)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
@@ -655,6 +1013,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		newBook := round2(asset.AcquisitionCost - newAccum)
 
 		d := &financeModels.AssetDepreciation{
+			TenantID:         tenantID,
 			AssetID:          asset.ID,
 			Period:           period,
 			DepreciationDate: asOfDate,
@@ -671,6 +1030,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		}
 
 		txRec := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeDepreciate,
 			TransactionDate: asOfDate,
@@ -733,13 +1093,13 @@ func (uc *assetUsecase) PreviewBatchDepreciation(ctx context.Context, req *dto.B
 	}
 
 	return &dto.BatchDepreciationPreviewResponse{
-		PeriodMonth: req.PeriodMonth,
-		PeriodYear:  req.PeriodYear,
+		PeriodMonth:  req.PeriodMonth,
+		PeriodYear:   req.PeriodYear,
 		CurrencyCode: currencyCode,
-		TotalAssets: len(items),
-		Eligible:    eligible,
-		Skipped:     skipped,
-		Items:       items,
+		TotalAssets:  len(items),
+		Eligible:     eligible,
+		Skipped:      skipped,
+		Items:        items,
 	}, nil
 }
 
@@ -836,14 +1196,14 @@ func (uc *assetUsecase) RunBatchDepreciation(ctx context.Context, req *dto.Batch
 	}
 
 	return &dto.BatchDepreciationRunResponse{
-		PeriodMonth: req.PeriodMonth,
-		PeriodYear:  req.PeriodYear,
+		PeriodMonth:  req.PeriodMonth,
+		PeriodYear:   req.PeriodYear,
 		CurrencyCode: currencyCode,
-		Processed:   len(items),
-		Posted:      posted,
-		Skipped:     skipped,
-		Failed:      failed,
-		Items:       items,
+		Processed:    len(items),
+		Posted:       posted,
+		Skipped:      skipped,
+		Failed:       failed,
+		Items:        items,
 	}, nil
 }
 
@@ -1023,6 +1383,7 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 	if _, err := uc.locRepo.FindByID(ctx, newLocationID); err != nil {
 		return nil, err
 	}
+	tenantID := tenantIDFromContext(ctx)
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, transferDate); err != nil {
@@ -1034,6 +1395,7 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 			desc = "Asset transfer request"
 		}
 		tr := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeTransfer,
 			TransactionDate: transferDate,
@@ -1139,6 +1501,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
 	}
+	tenantID := tenantIDFromContext(ctx)
 
 	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
 	if err != nil {
@@ -1184,6 +1547,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			desc = "Asset disposal request"
 		}
 		tr := &financeModels.AssetTransaction{
+			TenantID:               tenantID,
 			AssetID:                asset.ID,
 			Type:                   financeModels.AssetTransactionTypeDispose,
 			TransactionDate:        disposalDate,
@@ -1226,6 +1590,7 @@ func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetR
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
 	}
+	tenantID := tenantIDFromContext(ctx)
 
 	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
 	if err != nil {
@@ -1259,6 +1624,7 @@ func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetR
 			desc = "Asset sold"
 		}
 		tr := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeDispose,
 			TransactionDate: disposalDate,
@@ -1291,6 +1657,7 @@ func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetR
 
 func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error {
 	tx := database.GetDB(ctx, uc.db)
+	tenantID := tenantIDFromContext(ctx)
 
 	// Fallback Category
 	var catID string
@@ -1322,6 +1689,7 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 	// Initialize all fields with proper zero values to avoid GORM type reflection issues
 	// Especially important for pointer fields which must be explicitly nil, not uninitialized
 	asset := financeModels.Asset{
+		TenantID:        tenantID,
 		Code:            req.Code,
 		Name:            req.Name,
 		CategoryID:      catID,
@@ -1332,42 +1700,42 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 		Status:          financeModels.AssetStatusActive,
 		LifecycleStage:  financeModels.AssetLifecycleDraft,
 		// Cost breakdown (initialize to zero to prevent GORM reflection panic)
-		ShippingCost:            0,
-		InstallationCost:        0,
-		TaxAmount:               0,
-		OtherCosts:              0,
+		ShippingCost:     0,
+		InstallationCost: 0,
+		TaxAmount:        0,
+		OtherCosts:       0,
 		// Depreciation fields
 		AccumulatedDepreciation: 0,
 		BookValue:               0,
 		// Nullable pointer fields - explicitly set to nil to avoid reflection issues
-		SerialNumber:             nil,
-		Barcode:                  nil,
-		QRCode:                   nil,
-		AssetTag:                 nil,
-		CompanyID:                nil,
-		BusinessUnitID:           nil,
-		DepartmentID:             nil,
-		AssignedToEmployeeID:     nil,
-		AssignmentDate:           nil,
-		SupplierID:               nil,
-		PurchaseOrderID:          nil,
-		SupplierInvoiceID:        nil,
-		DepreciationMethod:       nil,
-		UsefulLifeMonths:         nil,
-		DepreciationStartDate:    nil,
-		ParentAssetID:            nil,
-		WarrantyStart:            nil,
-		WarrantyEnd:              nil,
-		WarrantyProvider:         nil,
-		WarrantyTerms:            nil,
-		InsurancePolicyNumber:    nil,
-		InsuranceProvider:        nil,
-		InsuranceStart:           nil,
-		InsuranceEnd:             nil,
-		InsuranceValue:           nil,
-		ApprovedBy:               nil,
-		ApprovedAt:               nil,
-		CreatedBy:                nil,
+		SerialNumber:          nil,
+		Barcode:               nil,
+		QRCode:                nil,
+		AssetTag:              nil,
+		CompanyID:             nil,
+		BusinessUnitID:        nil,
+		DepartmentID:          nil,
+		AssignedToEmployeeID:  nil,
+		AssignmentDate:        nil,
+		SupplierID:            nil,
+		PurchaseOrderID:       nil,
+		SupplierInvoiceID:     nil,
+		DepreciationMethod:    nil,
+		UsefulLifeMonths:      nil,
+		DepreciationStartDate: nil,
+		ParentAssetID:         nil,
+		WarrantyStart:         nil,
+		WarrantyEnd:           nil,
+		WarrantyProvider:      nil,
+		WarrantyTerms:         nil,
+		InsurancePolicyNumber: nil,
+		InsuranceProvider:     nil,
+		InsuranceStart:        nil,
+		InsuranceEnd:          nil,
+		InsuranceValue:        nil,
+		ApprovedBy:            nil,
+		ApprovedAt:            nil,
+		CreatedBy:             nil,
 		// Boolean fields - set to false defaults
 		IsCapitalized:      false,
 		IsDepreciable:      true,
@@ -1381,6 +1749,7 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 
 	// Create transaction log
 	tLog := financeModels.AssetTransaction{
+		TenantID:        tenantID,
 		AssetID:         asset.ID,
 		Type:            financeModels.AssetTransactionTypeAcquire,
 		TransactionDate: parsedDate,
@@ -1399,6 +1768,7 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error) {
 	id = strings.TrimSpace(id)
 	actorID, _ := ctx.Value("user_id").(string)
+	tenantID := tenantIDFromContext(ctx)
 	date, err := parseAssetDateStrict(req.RevaluationDate)
 	if err != nil {
 		return nil, err
@@ -1414,6 +1784,7 @@ func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.Revalue
 			return err
 		}
 		tr := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeRevalue,
 			TransactionDate: date,
@@ -1436,6 +1807,7 @@ func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.Revalue
 func (uc *assetUsecase) Adjust(ctx context.Context, id string, req *dto.AdjustAssetRequest) (*dto.AssetResponse, error) {
 	id = strings.TrimSpace(id)
 	actorID, _ := ctx.Value("user_id").(string)
+	tenantID := tenantIDFromContext(ctx)
 	date, err := parseAssetDateStrict(req.AdjustmentDate)
 	if err != nil {
 		return nil, err
@@ -1451,6 +1823,7 @@ func (uc *assetUsecase) Adjust(ctx context.Context, id string, req *dto.AdjustAs
 			return err
 		}
 		tr := &financeModels.AssetTransaction{
+			TenantID:        tenantID,
 			AssetID:         asset.ID,
 			Type:            financeModels.AssetTransactionTypeAdjust,
 			TransactionDate: date,
@@ -1587,7 +1960,6 @@ func (uc *assetUsecase) postAssetDisposalJournal(
 			Memo:             "Clear accumulated depreciation",
 		})
 	}
-
 	if proceeds > 0 {
 		if tr.BankAccountID == nil || strings.TrimSpace(*tr.BankAccountID) == "" {
 			return errors.New("bank_account_id is required when proceeds_amount is greater than zero")
@@ -1599,7 +1971,6 @@ func (uc *assetUsecase) postAssetDisposalJournal(
 			Memo:             "Disposal proceeds",
 		})
 	}
-
 	if gainLoss > 0 {
 		gainAccount := tr.GainLossAccountID
 		if gainAccount == nil || strings.TrimSpace(*gainAccount) == "" {

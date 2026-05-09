@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetDisposalSchema, type AssetDisposalValues } from "../schemas/fixed-assets.schema";
 import { useAssetDisposal } from "../hooks/use-asset-disposal";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
@@ -18,6 +19,7 @@ interface AssetDisposalFormProps {
 
 export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
   const { preview, confirm } = useAssetDisposal();
+  const canDisposeAsset = useUserPermission("asset.dispose");
   const form = useForm<AssetDisposalValues>({
     resolver: zodResolver(assetDisposalSchema),
   });
@@ -134,9 +136,9 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               )}
             />
 
-            <Button type="submit" disabled={confirm.isPending} className="w-full">
+            <Button type="submit" disabled={confirm.isPending || !canDisposeAsset} className="w-full">
               {confirm.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Dispose Asset
+              {canDisposeAsset ? "Dispose Asset" : "No permission to dispose"}
             </Button>
           </form>
         </Form>

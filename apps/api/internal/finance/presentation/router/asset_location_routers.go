@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	assetLocationRead   = "asset.read"
-	assetLocationCreate = "asset.create"
-	assetLocationUpdate = "asset.update"
-	assetLocationDelete = "asset.delete"
+	assetLocationRead   = "asset_location.read"
+	assetLocationCreate = "asset_location.create"
+	assetLocationUpdate = "asset_location.update"
+	assetLocationDelete = "asset_location.delete"
 )
 
 func RegisterAssetLocationRoutes(r *gin.RouterGroup, h *handler.AssetLocationHandler) {

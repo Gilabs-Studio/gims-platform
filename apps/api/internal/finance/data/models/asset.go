@@ -39,9 +39,10 @@ type Asset struct {
 	// Core Identity
 	ID          string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Code        string `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
+	Code        string `gorm:"type:varchar(50);not null;index" json:"code"`
 	Name        string `gorm:"type:varchar(200);not null;index" json:"name"`
 	Description string `gorm:"type:text" json:"description"`
+	AssetTypeID *string `gorm:"type:varchar(20);index" json:"asset_type_id,omitempty"`
 
 	// NEW: Additional Identifiers
 	SerialNumber *string `gorm:"type:varchar(100);index" json:"serial_number,omitempty"`
@@ -81,6 +82,8 @@ type Asset struct {
 	PurchaseOrder     *PurchaseOrder   `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 	SupplierInvoiceID *string          `gorm:"type:uuid" json:"supplier_invoice_id,omitempty"`
 	SupplierInvoice   *SupplierInvoice `gorm:"foreignKey:SupplierInvoiceID" json:"supplier_invoice,omitempty"`
+	CustodianUserID   *string          `gorm:"type:uuid;index" json:"custodian_user_id,omitempty"`
+	CustodianUser     *User            `gorm:"foreignKey:CustodianUserID" json:"custodian_user,omitempty"`
 
 	// NEW: Cost Breakdown
 	ShippingCost     float64 `gorm:"type:numeric(18,2);default:0" json:"shipping_cost"`

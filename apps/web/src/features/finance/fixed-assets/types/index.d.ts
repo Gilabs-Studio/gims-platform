@@ -67,6 +67,63 @@ export interface BatchDepreciationRunResponse {
   }>;
 }
 
+export interface DepreciationScheduleItem {
+  asset_id: string;
+  asset_code: string;
+  asset_name: string;
+  category_id: string;
+  category_name?: string;
+  location_id: string;
+  location_name?: string;
+  method: string;
+  period: string;
+  acquisition_cost: number;
+  accumulated_depreciation: number;
+  net_book_value: number;
+  depreciation_amount: number;
+  posted: boolean;
+  highlighted: boolean;
+  journal_entry_id?: string | null;
+  status: string;
+  skip_reason?: string;
+}
+
+export interface DepreciationScheduleResponse {
+  period: string;
+  total_assets: number;
+  posted: number;
+  pending: number;
+  total_amount: number;
+  items: DepreciationScheduleItem[];
+}
+
+export interface DepreciationHistoryItem {
+  depreciation_id: string;
+  asset_id: string;
+  asset_code: string;
+  asset_name: string;
+  period: string;
+  amount: number;
+  posted: boolean;
+  journal_entry_id?: string | null;
+  created_at: string;
+}
+
+export interface DepreciationHistoryResponse {
+  period: string;
+  total: number;
+  posted: number;
+  pending: number;
+  items: DepreciationHistoryItem[];
+}
+
+export interface RunDepreciationRequest {
+  period: string;
+  asset_id?: string;
+  category_id?: string;
+  location_id?: string;
+}
+
 // Disposal Types
 export interface DisposalPreviewResponse {
   asset_id: string;

@@ -202,7 +202,7 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
   const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.update");
+  const canDepreciate = useUserPermission("asset.depreciate");
 
   const { data, isLoading } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;

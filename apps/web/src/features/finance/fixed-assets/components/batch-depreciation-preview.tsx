@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { BatchDepreciationPreviewResponse } from "../types";
 import { Loader2 } from "lucide-react";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 function normalizeCurrencyCode(currencyCode: string | undefined | null): string {
   const normalized = (currencyCode ?? "").trim().toUpperCase();
@@ -49,6 +50,7 @@ export function BatchDepreciationPreview({
   isLoadingPreview,
   isRunning,
 }: BatchDepreciationPreviewProps) {
+  const canDepreciate = useUserPermission("asset.depreciate");
   const currentYear = new Date().getFullYear();
   const previewLines = previewData?.preview_lines ?? [];
   const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);
@@ -117,19 +119,19 @@ export function BatchDepreciationPreview({
           <div className="flex gap-2">
             <Button
               onClick={onPreview}
-              disabled={!month || !year || isLoadingPreview}
+              disabled={!month || !year || isLoadingPreview || !canDepreciate}
               variant="outline"
             >
               {isLoadingPreview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Preview
+              {canDepreciate ? "Preview" : "No permission"}
             </Button>
             <Button
               onClick={onRun}
-              disabled={!previewData || isRunning}
+              disabled={!previewData || isRunning || !canDepreciate}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Run Depreciation
+              {canDepreciate ? "Run Depreciation" : "No permission"}
             </Button>
           </div>
         </CardContent>

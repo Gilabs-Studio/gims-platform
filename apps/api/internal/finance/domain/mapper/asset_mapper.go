@@ -14,6 +14,14 @@ func NewAssetMapper(categoryMapper *AssetCategoryMapper, locationMapper *AssetLo
 	return &AssetMapper{categoryMapper: categoryMapper, locationMapper: locationMapper}
 }
 
+// Helper function to safely dereference string pointers
+func getStringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dto.AssetResponse {
 	if item == nil {
 		return dto.AssetResponse{}
@@ -33,13 +41,17 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		AssetTag:     item.AssetTag,
 
 		// Category / Location
-		CategoryID: item.CategoryID,
-		LocationID: item.LocationID,
+		AssetTypeID: getStringValue(item.AssetTypeID),
+		CategoryID:  item.CategoryID,
+		LocationID:  item.LocationID,
 
 		// Organization
-		CompanyID:      item.CompanyID,
-		BusinessUnitID: item.BusinessUnitID,
-		DepartmentID:   item.DepartmentID,
+		CompanyID:       item.CompanyID,
+		BusinessUnitID:  item.BusinessUnitID,
+		DepartmentID:    item.DepartmentID,
+		CustodianUserID: item.CustodianUserID,
+		VendorID:        item.SupplierID,
+		PurchaseInvoiceID: item.SupplierInvoiceID,
 
 		// Assignment
 		AssignedToEmployeeID: item.AssignedToEmployeeID,

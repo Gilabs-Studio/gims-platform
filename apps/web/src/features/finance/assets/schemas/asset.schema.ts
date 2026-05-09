@@ -3,11 +3,21 @@ import { z } from "zod";
 export const assetFormSchema = z.object({
   code: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  category_id: z.string().uuid(),
-  location_id: z.string().uuid(),
+  asset_type_id: z.enum(["FIXED", "CURRENT", "INTANGIBLE", "OTHER"]),
+  asset_category_id: z.string().trim().min(1),
+  location_id: z.string().trim().min(1),
   acquisition_date: z.string().trim().min(1),
   acquisition_cost: z.number().positive(),
   salvage_value: z.number().nonnegative().optional(),
+  useful_life_months: z.number().int().positive().optional(),
+  depreciation_method: z.enum(["SL", "DB", "SYD", "UOP", "NONE"]),
+  department_id: z.string().trim().min(1).optional(),
+  custodian_user_id: z.string().trim().min(1).optional(),
+  // Use vendor name and supplier invoice number instead of IDs in the form
+  vendor_name: z.string().trim().optional(),
+  supplier_invoice_number: z.string().trim().optional(),
+  // Optional file upload for supplier invoice image (will be handled as File in the form)
+  supplier_invoice_image: z.any().optional(),
 });
 
 export type AssetFormValues = z.infer<typeof assetFormSchema>;

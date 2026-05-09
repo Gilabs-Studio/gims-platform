@@ -549,6 +549,10 @@ func SeedPermissions() error {
 		// Asset Batch Depreciation (Phase 4 PSAK 16)
 		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Preview Batch Depreciation", "DEPRECIATE", "asset"},
 		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Run Batch Depreciation", "DEPRECIATE", "asset"},
+		{"/finance/fixed-assets/depreciation-schedule", "depreciation.read", "View Depreciation Schedule", "VIEW", "depreciation"},
+		{"/finance/fixed-assets/depreciation-schedule", "depreciation.run", "Run Depreciation", "DEPRECIATE", "depreciation"},
+		{"/finance/fixed-assets/depreciation", "depreciation.read", "View Depreciation History", "VIEW", "depreciation"},
+		{"/finance/fixed-assets/depreciation", "depreciation.run", "Run Depreciation", "DEPRECIATE", "depreciation"},
 
 		// Asset Disposal (Phase 4 PSAK 16)
 		{"/finance/fixed-assets/disposal", "asset.update", "Preview Asset Disposal", "EDIT", "asset"},

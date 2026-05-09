@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, Clock } from "lucide-react";
 import type { RevaluationTransaction } from "../types";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 interface AssetRevaluationListProps {
   revaluations: RevaluationTransaction[];
@@ -15,6 +16,8 @@ interface AssetRevaluationListProps {
 }
 
 export function AssetRevaluationList({ revaluations, isLoading, isApproving = false, onApprove }: AssetRevaluationListProps) {
+  const canUpdateAsset = useUserPermission("asset.update");
+
   if (isLoading) {
     return (
       <Card>
@@ -89,7 +92,7 @@ export function AssetRevaluationList({ revaluations, isLoading, isApproving = fa
                     </TableCell>
                     <TableCell>{new Date(revaluation.effective_date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      {(revaluation.status === "draft" || revaluation.status === "pending") && onApprove && (
+                      {(revaluation.status === "draft" || revaluation.status === "pending") && onApprove && canUpdateAsset && (
                         <Button
                           size="sm"
                           variant="outline"
