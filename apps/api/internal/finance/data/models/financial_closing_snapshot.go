@@ -8,14 +8,14 @@ import (
 )
 
 type FinancialClosingSnapshot struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
-	PeriodEndDate time.Time `gorm:"type:date;not null;index" json:"period_end_date"`
-	NetProfit     float64   `gorm:"not null" json:"net_profit"`
-	RetainedEarningsBalance float64 `gorm:"not null" json:"retained_earnings_balance"`
-	SnapshotJSON  string    `gorm:"type:jsonb" json:"snapshot_json"`
-	Notes         string    `gorm:"type:text" json:"notes"`
+	PeriodEndDate           time.Time `gorm:"type:date;not null;index" json:"period_end_date"`
+	NetProfit               float64   `gorm:"not null" json:"net_profit"`
+	RetainedEarningsBalance float64   `gorm:"not null" json:"retained_earnings_balance"`
+	SnapshotJSON            string    `gorm:"type:jsonb" json:"snapshot_json"`
+	Notes                   string    `gorm:"type:text" json:"notes"`
 
 	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
 

@@ -142,7 +142,7 @@ var tenantTables = []string{
 	"bank_statement_lines",
 	"asset_categories",
 	"asset_locations",
-	"assets",
+	"fixed_assets",
 	"asset_depreciations",
 	"asset_depreciation_schedules",
 	"asset_disposals",

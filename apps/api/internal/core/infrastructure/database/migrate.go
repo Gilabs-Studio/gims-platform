@@ -195,6 +195,7 @@ func AutoMigrate() error {
 		&finance.AssetLocation{},
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
+		&finance.AssetDepreciationSchedule{},
 		&finance.AssetTransaction{},
 		// NEW: Extended Asset entities
 		&finance.AssetAttachment{},
@@ -523,6 +524,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: bank code tenant-scoped unique index migration failed (non-fatal): %v", err)
 	}
 
+	if err := ensureFixedAssetListIndexes(); err != nil {
+		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureDefaultAreasForAllTenants(); err != nil {
 		log.Printf("Warning: failed to ensure default areas for existing tenants: %v", err)
 	}
@@ -735,6 +740,22 @@ func ensureBankCodeTenantScopedUniqueIndex() error {
 		ON banks ((COALESCE(tenant_id::text, '__global__')), lower(code))
 		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
 	`).Error
+}
+
+func ensureFixedAssetListIndexes() error {
+	statements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_status_active ON fixed_assets (tenant_id, status) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_category_active ON fixed_assets (tenant_id, category_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_warranty_end_active ON fixed_assets (tenant_id, warranty_end) WHERE deleted_at IS NULL`,
+	}
+
+	for _, statement := range statements {
+		if err := DB.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func dropCompanyDirectorColumnIfExists() error {

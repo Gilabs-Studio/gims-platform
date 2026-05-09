@@ -10,11 +10,11 @@ import (
 type DepreciationMethod string
 
 const (
-	DepreciationMethodStraightLine     DepreciationMethod = "SL"
-	DepreciationMethodDecliningBalance DepreciationMethod = "DB"
-	DepreciationMethodSumOfYearsDigits DepreciationMethod = "SYD"
+	DepreciationMethodStraightLine      DepreciationMethod = "SL"
+	DepreciationMethodDecliningBalance  DepreciationMethod = "DB"
+	DepreciationMethodSumOfYearsDigits  DepreciationMethod = "SYD"
 	DepreciationMethodUnitsOfProduction DepreciationMethod = "UOP"
-	DepreciationMethodNone             DepreciationMethod = "NONE"
+	DepreciationMethodNone              DepreciationMethod = "NONE"
 )
 
 type AssetCategoryType string
@@ -27,7 +27,7 @@ const (
 )
 
 type AssetCategory struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Name string            `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`

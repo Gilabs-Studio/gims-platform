@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,7 +28,9 @@ func (h *AssetHandler) Create(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
 		return
 	}
-	res, err := h.uc.Create(c.Request.Context(), &req)
+	ctx := context.WithValue(c.Request.Context(), "request_ip", c.ClientIP())
+	ctx = context.WithValue(ctx, "user_agent", c.GetHeader("User-Agent"))
+	res, err := h.uc.Create(ctx, &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_CREATE_FAILED", err.Error(), nil, nil)
 		return

@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller, useWatch } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceAssetCategories } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
+import { apiClient } from "@/lib/api-client";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 
@@ -51,6 +53,12 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
   const t = useTranslations("financeAssets");
   const assetTypeOptions: Array<AssetFormValues["asset_type_id"]> = ["FIXED", "CURRENT", "INTANGIBLE", "OTHER"];
   const depreciationMethodOptions: Array<AssetFormValues["depreciation_method"]> = ["SL", "DB", "SYD", "UOP", "NONE"];
+
+  const { data: settingsData } = useQuery({
+    queryKey: ["finance-settings", "raw"],
+    queryFn: async () => (await apiClient.get("/finance/settings")).data,
+    enabled: open,
+  });
 
   const { data: categoriesData } = useFinanceAssetCategories({
     page: 1,
@@ -100,15 +108,27 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
       asset_category_id: initialData?.category_id ?? "",
       location_id: initialData?.location_id ?? "",
       acquisition_date: (initialData?.acquisition_date ?? "").slice(0, 10),
+      purchase_price: initialData?.acquisition_cost_breakdown?.base_price ?? initialData?.acquisition_cost ?? 0,
       acquisition_cost: initialData?.acquisition_cost ?? 0,
       salvage_value: initialData?.salvage_value ?? 0,
       useful_life_months: initialData?.useful_life_months ?? undefined,
       depreciation_method: (initialData?.depreciation_method ?? "SL") as AssetFormValues["depreciation_method"],
       department_id: initialData?.department_id ?? undefined,
       custodian_user_id: initialData?.assigned_to_employee_id ?? undefined,
+      assigned_to_employee_id: initialData?.assigned_to_employee_id ?? undefined,
+      parent_asset_id: initialData?.parent_asset_id ?? undefined,
       vendor_name: initialData?.acquisition_cost_breakdown?.supplier_name ?? "",
       supplier_invoice_number: initialData?.acquisition_cost_breakdown?.invoice_number ?? "",
       supplier_invoice_image: undefined,
+      warranty_start: initialData?.warranty?.warranty_start ?? undefined,
+      warranty_end: initialData?.warranty?.warranty_end ?? undefined,
+      warranty_provider: initialData?.warranty?.warranty_provider ?? undefined,
+      warranty_terms: initialData?.warranty?.warranty_terms ?? undefined,
+      insurance_policy_number: initialData?.insurance?.insurance_policy_number ?? undefined,
+      insurance_provider: initialData?.insurance?.insurance_provider ?? undefined,
+      insurance_start: initialData?.insurance?.insurance_start ?? undefined,
+      insurance_end: initialData?.insurance?.insurance_end ?? undefined,
+      insurance_value: initialData?.insurance?.insurance_value ?? undefined,
     }),
     [initialData],
   );
@@ -127,9 +147,39 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
   const assetTypeId = useWatch({ control: form.control, name: "asset_type_id" });
   const departmentId = useWatch({ control: form.control, name: "department_id" });
   const custodianUserId = useWatch({ control: form.control, name: "custodian_user_id" });
+  const assignedEmployeeId = useWatch({ control: form.control, name: "assigned_to_employee_id" });
+  const purchasePrice = useWatch({ control: form.control, name: "purchase_price" });
+  const shippingCost = useWatch({ control: form.control, name: "shipping_cost" });
+  const installationCost = useWatch({ control: form.control, name: "installation_cost" });
+  const taxAmount = useWatch({ control: form.control, name: "tax_amount" });
+  const otherCosts = useWatch({ control: form.control, name: "other_costs" });
   const acquisitionCost = useWatch({ control: form.control, name: "acquisition_cost" });
   const codeValue = useWatch({ control: form.control, name: "code" });
   const nameValue = useWatch({ control: form.control, name: "name" });
+
+  const acquisitionTotal = useMemo(
+    () =>
+      Number(purchasePrice ?? 0) +
+      Number(shippingCost ?? 0) +
+      Number(installationCost ?? 0) +
+      Number(taxAmount ?? 0) +
+      Number(otherCosts ?? 0),
+    [purchasePrice, shippingCost, installationCost, taxAmount, otherCosts],
+  );
+
+  useEffect(() => {
+    form.setValue("acquisition_cost", acquisitionTotal, { shouldDirty: true, shouldValidate: true });
+  }, [acquisitionTotal, form]);
+
+  const capitalizationThreshold = useMemo(() => {
+    const settings = (settingsData?.data ?? []) as Array<{ setting_key: string; value: string }>;
+    const setting = settings.find((item) => item.setting_key === "fixed_assets.capitalization_threshold");
+    if (!setting?.value) return 0;
+    const parsed = Number(setting.value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [settingsData]);
+
+  const capitalizationWarning = capitalizationThreshold > 0 && acquisitionTotal > 0 && acquisitionTotal < capitalizationThreshold;
 
   const selectedCategory = useMemo(
     () => categoryOptions.find((item) => item.id === categoryId),
@@ -161,12 +211,28 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
         asset_category_id: values.asset_category_id,
         location_id: values.location_id,
         acquisition_date: values.acquisition_date,
+        purchase_price: values.purchase_price ?? 0,
         acquisition_cost: values.acquisition_cost,
         salvage_value: values.salvage_value ?? 0,
         useful_life_months: values.useful_life_months,
         depreciation_method: values.depreciation_method,
         department_id: values.department_id,
         custodian_user_id: values.custodian_user_id,
+        assigned_to_employee_id: values.assigned_to_employee_id,
+        parent_asset_id: values.parent_asset_id,
+        warranty_start: values.warranty_start,
+        warranty_end: values.warranty_end,
+        warranty_provider: values.warranty_provider,
+        warranty_terms: values.warranty_terms,
+        insurance_policy_number: values.insurance_policy_number,
+        insurance_provider: values.insurance_provider,
+        insurance_start: values.insurance_start,
+        insurance_end: values.insurance_end,
+        insurance_value: values.insurance_value,
+        shipping_cost: values.shipping_cost,
+        installation_cost: values.installation_cost,
+        tax_amount: values.tax_amount,
+        other_costs: values.other_costs,
         vendor_id: undefined,
         purchase_invoice_id: undefined,
       };
@@ -409,9 +475,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="acquisition_date">
-                    {t("fields.acquisitionDate")}
-                  </Label>
+                  <Label htmlFor="acquisition_date">{t("fields.acquisitionDate")}</Label>
                   <Controller
                     name="acquisition_date"
                     control={form.control}
@@ -426,21 +490,96 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="acquisition_cost">
-                    {t("fields.acquisitionCost")}
-                  </Label>
+                  <Label htmlFor="purchase_price">Purchase Price</Label>
                   <Controller
-                    name="acquisition_cost"
+                    name="purchase_price"
                     control={form.control}
                     render={({ field }) => (
                       <NumericInput
-                        id="acquisition_cost"
+                        id="purchase_price"
                         value={field.value}
                         onChange={field.onChange}
                         placeholder={t("form.placeholders.amount")}
                       />
                     )}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="acquisition_cost">Acquisition Cost</Label>
+                  <Input id="acquisition_cost" value={formatCurrency(acquisitionCost)} readOnly />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shipping_cost">Shipping Cost</Label>
+                  <Controller
+                    name="shipping_cost"
+                    control={form.control}
+                    render={({ field }) => (
+                      <NumericInput
+                        id="shipping_cost"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t("form.placeholders.amount")}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="installation_cost">Installation Cost</Label>
+                  <Controller
+                    name="installation_cost"
+                    control={form.control}
+                    render={({ field }) => (
+                      <NumericInput
+                        id="installation_cost"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t("form.placeholders.amount")}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tax_amount">Tax Amount</Label>
+                  <Controller
+                    name="tax_amount"
+                    control={form.control}
+                    render={({ field }) => (
+                      <NumericInput
+                        id="tax_amount"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t("form.placeholders.amount")}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="other_costs">Other Costs</Label>
+                  <Controller
+                    name="other_costs"
+                    control={form.control}
+                    render={({ field }) => (
+                      <NumericInput
+                        id="other_costs"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t("form.placeholders.amount")}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                  <div className="rounded-xl border bg-muted/30 p-4 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Computed total</span>
+                      <span className="font-semibold">{formatCurrency(acquisitionTotal)}</span>
+                    </div>
+                    {capitalizationWarning ? (
+                      <p className="mt-2 text-amber-600">
+                        Nilai di bawah threshold kapitalisasi. Aset ini akan dicatat sebagai expense.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="salvage_value">{t("fields.salvageValue")}</Label>
@@ -472,16 +611,107 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
                     )}
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2 xl:col-span-3">
-                  <Label htmlFor="supplier_invoice_image">{t("form.labels.supplierInvoiceImage")}</Label>
-                  <input
-                    id="supplier_invoice_image"
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="block w-full rounded-md border bg-transparent px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-primary/10 file:py-1 file:px-3"
-                    {...form.register("supplier_invoice_image")}
+                <div className="space-y-2 md:col-span-2 xl:col-span-1">
+                  <Label htmlFor="assigned_to_employee_id">Assigned Employee</Label>
+                  <Controller
+                    control={form.control}
+                    name="assigned_to_employee_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? "none"}
+                        onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
+                      >
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue placeholder="Select employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="cursor-pointer">
+                            No assignment
+                          </SelectItem>
+                          {custodianOptions.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id} className="cursor-pointer">
+                              {employee.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                 </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border bg-card/50 p-5 shadow-sm">
+              <div className="mb-4 flex items-start gap-3">
+                <span className={sectionBadgeClass}>4</span>
+                <div>
+                  <div className="text-sm font-semibold">Warranty & Insurance</div>
+                  <div className="text-sm text-muted-foreground">Optional coverage details for the asset.</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="warranty_start">Warranty Start</Label>
+                  <Controller name="warranty_start" control={form.control} render={({ field }) => <Input id="warranty_start" {...field} />} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="warranty_end">Warranty End</Label>
+                  <Controller name="warranty_end" control={form.control} render={({ field }) => <Input id="warranty_end" {...field} />} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="warranty_provider">Warranty Provider</Label>
+                  <Input id="warranty_provider" {...form.register("warranty_provider")} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="warranty_terms">Warranty Terms</Label>
+                  <Input id="warranty_terms" {...form.register("warranty_terms")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insurance_policy_number">Insurance Policy Number</Label>
+                  <Input id="insurance_policy_number" {...form.register("insurance_policy_number")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insurance_provider">Insurance Provider</Label>
+                  <Input id="insurance_provider" {...form.register("insurance_provider")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insurance_start">Insurance Start</Label>
+                  <Input id="insurance_start" {...form.register("insurance_start")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insurance_end">Insurance End</Label>
+                  <Input id="insurance_end" {...form.register("insurance_end")} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="insurance_value">Insurance Value</Label>
+                  <Controller
+                    name="insurance_value"
+                    control={form.control}
+                    render={({ field }) => (
+                      <NumericInput id="insurance_value" value={field.value} onChange={field.onChange} placeholder={t("form.placeholders.amount")} />
+                    )}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border bg-card/50 p-5 shadow-sm">
+              <div className="mb-4 flex items-start gap-3">
+                <span className={sectionBadgeClass}>5</span>
+                <div>
+                  <div className="text-sm font-semibold">Attachments</div>
+                  <div className="text-sm text-muted-foreground">Upload invoice, warranty, or supporting documents.</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier_invoice_image">{t("form.labels.supplierInvoiceImage")}</Label>
+                <input
+                  id="supplier_invoice_image"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="block w-full rounded-md border bg-transparent px-3 py-2 text-sm file:mr-4 file:rounded file:border-0 file:bg-primary/10 file:py-1 file:px-3"
+                  {...form.register("supplier_invoice_image")}
+                />
               </div>
             </section>
           </div>

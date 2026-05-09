@@ -15,7 +15,7 @@ const (
 )
 
 type Budget struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Name        string `gorm:"type:varchar(255);not null;index" json:"name"`
@@ -24,7 +24,7 @@ type Budget struct {
 	StartDate time.Time `gorm:"type:date;not null;index" json:"start_date"`
 	EndDate   time.Time `gorm:"type:date;not null;index" json:"end_date"`
 
-	TotalAmount float64     `gorm:"type:numeric(18,2);not null" json:"total_amount"`
+	TotalAmount float64      `gorm:"type:numeric(18,2);not null" json:"total_amount"`
 	Status      BudgetStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 
 	ApprovedAt *time.Time `json:"approved_at"`

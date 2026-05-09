@@ -8,17 +8,17 @@ import (
 )
 
 type PaymentAllocation struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
-	PaymentID string `gorm:"type:uuid;not null;index" json:"payment_id"`
+	PaymentID string   `gorm:"type:uuid;not null;index" json:"payment_id"`
 	Payment   *Payment `gorm:"foreignKey:PaymentID" json:"-"`
 
-	ChartOfAccountID string         `gorm:"type:uuid;not null;index" json:"chart_of_account_id"`
-	ChartOfAccount   *ChartOfAccount `gorm:"foreignKey:ChartOfAccountID" json:"chart_of_account,omitempty"`
-	ChartOfAccountCodeSnapshot string `gorm:"type:varchar(50)" json:"chart_of_account_code_snapshot,omitempty"`
-	ChartOfAccountNameSnapshot string `gorm:"type:varchar(200)" json:"chart_of_account_name_snapshot,omitempty"`
-	ChartOfAccountTypeSnapshot string `gorm:"type:varchar(20)" json:"chart_of_account_type_snapshot,omitempty"`
+	ChartOfAccountID           string          `gorm:"type:uuid;not null;index" json:"chart_of_account_id"`
+	ChartOfAccount             *ChartOfAccount `gorm:"foreignKey:ChartOfAccountID" json:"chart_of_account,omitempty"`
+	ChartOfAccountCodeSnapshot string          `gorm:"type:varchar(50)" json:"chart_of_account_code_snapshot,omitempty"`
+	ChartOfAccountNameSnapshot string          `gorm:"type:varchar(200)" json:"chart_of_account_name_snapshot,omitempty"`
+	ChartOfAccountTypeSnapshot string          `gorm:"type:varchar(20)" json:"chart_of_account_type_snapshot,omitempty"`
 
 	ReferenceType *string `gorm:"type:varchar(50);index" json:"reference_type"`
 	ReferenceID   *string `gorm:"type:uuid;index" json:"reference_id"`

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	depreciationsvc "github.com/gilabs/gims/api/internal/finance/domain/service"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -326,6 +328,9 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		return nil, errors.New("user not authenticated")
 	}
 	tenantID := tenantIDFromContext(ctx)
+	if tenantID == "" {
+		return nil, errors.New("tenant is required")
+	}
 
 	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
 	if err != nil {
@@ -333,9 +338,6 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 	}
 	if acqDate.After(apptime.Now()) {
 		return nil, errors.New("acquisition date cannot be in the future")
-	}
-	if req.SalvageValue > req.AcquisitionCost {
-		return nil, errors.New("salvage value cannot be greater than acquisition cost")
 	}
 	if strings.TrimSpace(req.AssetTypeID) == "" {
 		return nil, errors.New("asset type is required")
@@ -351,6 +353,11 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 	if _, err := uc.locRepo.FindByID(ctx, strings.TrimSpace(req.LocationID)); err != nil {
 		return nil, err
 	}
+	if req.ParentAssetID != nil && strings.TrimSpace(*req.ParentAssetID) != "" {
+		if _, err := uc.repo.FindByID(ctx, strings.TrimSpace(*req.ParentAssetID), false); err != nil {
+			return nil, err
+		}
+	}
 
 	depMethod := depreciationMethodOrDefault(req.DepreciationMethod, cat.DepreciationMethod)
 	depMethodStr := string(depMethod)
@@ -361,14 +368,61 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		usefulLife = cat.UsefulLifeMonths
 	}
 
+	depreciationStart := acqDate
+	if req.DepreciationStartDate != nil && strings.TrimSpace(*req.DepreciationStartDate) != "" {
+		parsedDepStart, err := parseAssetDateStrict(*req.DepreciationStartDate)
+		if err != nil {
+			return nil, err
+		}
+		depreciationStart = parsedDepStart
+	}
+
+	basePurchasePrice := round2(req.PurchasePrice)
+	if basePurchasePrice <= 0 && req.AcquisitionCost > 0 {
+		basePurchasePrice = round2(req.AcquisitionCost)
+	}
+	totalAcquisitionCost := round2(basePurchasePrice + req.ShippingCost + req.InstallationCost + req.TaxAmount + req.OtherCosts)
+	if totalAcquisitionCost <= 0 {
+		return nil, errors.New("acquisition cost must be greater than zero")
+	}
+	if req.SalvageValue > totalAcquisitionCost {
+		return nil, errors.New("salvage value cannot be greater than acquisition cost")
+	}
+
 	code := strings.TrimSpace(req.Code)
 	if code == "" {
-		code, _ = uc.repo.GenerateCode(ctx)
+		code, err = uc.repo.GenerateCode(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if ok, err := uc.repo.ExistsByCode(ctx, code, nil); err != nil {
 		return nil, err
 	} else if ok {
 		return nil, errors.New("asset code already exists for this tenant")
+	}
+
+	capitalizationThreshold, approvalRequired, err := uc.loadCreatePolicy(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	isCapitalized := totalAcquisitionCost >= capitalizationThreshold
+	isDepreciable := cat.IsDepreciable && isCapitalized && usefulLife > 0 && depMethod != financeModels.DepreciationMethodNone
+
+	status := financeModels.AssetStatusActive
+	lifecycle := financeModels.AssetLifecycleInUse
+	if approvalRequired {
+		status = financeModels.AssetStatusPendingCapitalization
+		lifecycle = financeModels.AssetLifecyclePendingCapitalization
+	}
+
+	companyID := req.CompanyID
+	if companyID == nil {
+		companyID = companyIDPtrFromContext(ctx)
+	}
+	var deptID *string
+	if req.DepartmentID != nil && strings.TrimSpace(*req.DepartmentID) != "" {
+		deptID = req.DepartmentID
 	}
 
 	item := &financeModels.Asset{
@@ -378,20 +432,31 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		Description:             strings.TrimSpace(req.Description),
 		AssetTypeID:             &req.AssetTypeID,
 		CategoryID:              strings.TrimSpace(req.CategoryID),
-		LocationID:              strings.TrimSpace(req.LocationID),
-		CompanyID:               companyIDPtrFromContext(ctx),
-		DepartmentID:            req.DepartmentID,
+		LocationID:               strings.TrimSpace(req.LocationID),
+		CompanyID:               companyID,
+		BusinessUnitID:          req.BusinessUnitID,
+		DepartmentID:            deptID,
 		SupplierID:              req.VendorID,
+		PurchaseOrderID:         nil,
 		SupplierInvoiceID:       req.PurchaseInvoiceID,
 		CustodianUserID:         req.CustodianUserID,
+		AssignedToEmployeeID:    nil,
 		AcquisitionDate:         acqDate,
-		AcquisitionCost:         req.AcquisitionCost,
+		AcquisitionCost:         totalAcquisitionCost,
 		SalvageValue:            req.SalvageValue,
+		ShippingCost:            req.ShippingCost,
+		InstallationCost:        req.InstallationCost,
+		TaxAmount:               req.TaxAmount,
+		OtherCosts:              req.OtherCosts,
 		DepreciationMethod:      &depMethodStr,
 		UsefulLifeMonths:        &usefulLife,
+		DepreciationStartDate:   &depreciationStart,
 		AccumulatedDepreciation: 0,
-		BookValue:               req.AcquisitionCost,
-		Status:                  financeModels.AssetStatusActive,
+		BookValue:               totalAcquisitionCost,
+		Status:                  status,
+		LifecycleStage:          lifecycle,
+		IsCapitalized:           isCapitalized,
+		IsDepreciable:           isDepreciable,
 		CreatedBy:               &actorID,
 	}
 	actorUUID, err := uuid.Parse(actorID)
@@ -403,6 +468,14 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		if err := tx.Create(item).Error; err != nil {
 			return err
 		}
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", item.ID).Updates(map[string]interface{}{
+			"is_capitalized":  isCapitalized,
+			"is_depreciable":  isDepreciable,
+			"status":          status,
+			"lifecycle_stage":  lifecycle,
+		}).Error; err != nil {
+			return err
+		}
 		assetUUID, err := uuid.Parse(item.ID)
 		if err != nil {
 			return err
@@ -412,46 +485,83 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 			AssetID:         item.ID,
 			Type:            financeModels.AssetTransactionTypeAcquire,
 			TransactionDate: acqDate,
+			Amount:          totalAcquisitionCost,
 			Description:     "Asset acquired",
+			Status:          financeModels.AssetTransactionStatusApproved,
 			CreatedBy:       &actorID,
+		}
+		if approvalRequired {
+			txRec.Status = financeModels.AssetTransactionStatusDraft
 		}
 		if err := tx.Create(txRec).Error; err != nil {
 			return err
 		}
 
-		if usefulLife > 0 && depMethod == financeModels.DepreciationMethodStraightLine {
-			monthly := round2(math.Max(0, req.AcquisitionCost-req.SalvageValue) / float64(usefulLife))
-			accumulated := 0.0
-			for month := 1; month <= usefulLife; month++ {
-				depDate := acqDate.AddDate(0, month, 0)
-				accumulated = round2(accumulated + monthly)
-				bookValue := round2(req.AcquisitionCost - accumulated)
-				if bookValue < req.SalvageValue {
-					bookValue = req.SalvageValue
-				}
-				rec := &financeModels.AssetDepreciation{
-					TenantID:         tenantID,
-					AssetID:          item.ID,
-					Period:           ymPeriod(depDate),
-					DepreciationDate: depDate,
-					Method:           depMethod,
-					Amount:           monthly,
-					Accumulated:      accumulated,
-					BookValue:        bookValue,
-					CreatedBy:        &actorID,
-				}
-				if err := tx.Create(rec).Error; err != nil {
-					return err
-				}
+		if approvalRequired {
+			return tx.Create(&financeModels.AssetAuditLog{
+				AssetID:     assetUUID,
+				Action:      "create",
+				PerformedBy: &actorUUID,
+				IPAddress:   stringPtrFromContext(ctx, "request_ip"),
+				UserAgent:   stringPtrFromContext(ctx, "user_agent"),
+				Metadata: financeModels.MapStringInterface{
+					"source":                 "manual_create",
+					"approval_required":      true,
+					"is_capitalized":         isCapitalized,
+					"acquisition_cost_total": totalAcquisitionCost,
+				},
+			}).Error
+		}
+
+		if item.IsDepreciable {
+			if err := uc.generateDepreciationSchedule(tx, item, tenantID, actorID); err != nil {
+				return err
+			}
+		}
+
+		if req.AssignedToEmployeeID != nil && strings.TrimSpace(*req.AssignedToEmployeeID) != "" {
+			if err := uc.assignEmployeeTx(tx, item, strings.TrimSpace(*req.AssignedToEmployeeID), actorID, nil); err != nil {
+				return err
+			}
+		}
+
+		if !isCapitalized {
+			debitAccountID, err := uc.resolveAcquisitionDebitAccountID(false, cat)
+			if err != nil {
+				return err
+			}
+			creditAccountID, err := uc.resolveAcquisitionCreditAccountID(ctx, tenantID, req)
+			if err != nil {
+				return err
+			}
+			if err := uc.postAcquisitionJournal(tx, item, txRec, debitAccountID, creditAccountID, totalAcquisitionCost, "Asset acquisition expense"); err != nil {
+				return err
+			}
+		} else {
+			debitAccountID, err := uc.resolveAcquisitionDebitAccountID(true, cat)
+			if err != nil {
+				return err
+			}
+			creditAccountID, err := uc.resolveAcquisitionCreditAccountID(ctx, tenantID, req)
+			if err != nil {
+				return err
+			}
+			if err := uc.postAcquisitionJournal(tx, item, txRec, debitAccountID, creditAccountID, totalAcquisitionCost, "Asset acquisition"); err != nil {
+				return err
 			}
 		}
 
 		audit := &financeModels.AssetAuditLog{
 			AssetID:     assetUUID,
-			Action:      "created",
+			Action:      "create",
 			PerformedBy: &actorUUID,
+			IPAddress:   stringPtrFromContext(ctx, "request_ip"),
+			UserAgent:   stringPtrFromContext(ctx, "user_agent"),
 			Metadata: financeModels.MapStringInterface{
-				"source": "manual_create",
+				"source":                 "manual_create",
+				"approval_required":      false,
+				"is_capitalized":         isCapitalized,
+				"acquisition_cost_total": totalAcquisitionCost,
 			},
 		}
 		return tx.Create(audit).Error
@@ -850,34 +960,55 @@ func (uc *assetUsecase) List(ctx context.Context, req *dto.ListAssetsRequest) ([
 		perPage = 100
 	}
 
+	dateFromValue := req.StartDate
+	if dateFromValue == nil || strings.TrimSpace(*dateFromValue) == "" {
+		dateFromValue = req.DateFrom
+	}
+	dateToValue := req.EndDate
+	if dateToValue == nil || strings.TrimSpace(*dateToValue) == "" {
+		dateToValue = req.DateTo
+	}
+
 	var startDate *time.Time
-	if req.StartDate != nil && strings.TrimSpace(*req.StartDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.StartDate))
+	if dateFromValue != nil && strings.TrimSpace(*dateFromValue) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*dateFromValue))
 		if err != nil {
-			return nil, 0, errors.New("invalid start_date")
+			return nil, 0, errors.New("invalid date_from")
 		}
 		startDate = &parsed
 	}
 	var endDate *time.Time
-	if req.EndDate != nil && strings.TrimSpace(*req.EndDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.EndDate))
+	if dateToValue != nil && strings.TrimSpace(*dateToValue) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*dateToValue))
 		if err != nil {
-			return nil, 0, errors.New("invalid end_date")
+			return nil, 0, errors.New("invalid date_to")
 		}
 		endDate = &parsed
 	}
 
+	sortBy := strings.TrimSpace(req.SortBy)
+	if sortBy == "" {
+		sortBy = strings.TrimSpace(req.Sort)
+	}
+	sortDir := strings.TrimSpace(req.SortDir)
+	if sortDir == "" {
+		sortDir = strings.TrimSpace(req.Order)
+	}
+
 	items, total, err := uc.repo.List(ctx, repositories.AssetListParams{
-		Search:     req.Search,
-		Status:     req.Status,
-		CategoryID: req.CategoryID,
-		LocationID: req.LocationID,
-		StartDate:  startDate,
-		EndDate:    endDate,
-		SortBy:     req.SortBy,
-		SortDir:    req.SortDir,
-		Limit:      perPage,
-		Offset:     (page - 1) * perPage,
+		Search:               req.Search,
+		Status:               req.Status,
+		CategoryID:           req.CategoryID,
+		LocationID:           req.LocationID,
+		DepartmentID:         req.DeptID,
+		StartDate:            startDate,
+		EndDate:              endDate,
+		WarrantyExpiringDays: req.WarrantyExpiringDays,
+		IsCapitalized:        req.IsCapitalized,
+		SortBy:               sortBy,
+		SortDir:              sortDir,
+		Limit:                perPage,
+		Offset:               (page - 1) * perPage,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -2387,4 +2518,230 @@ func parseUUIDPtr(s *string) *uuid.UUID {
 		return nil
 	}
 	return &u
+}
+
+func stringPtrFromContext(ctx context.Context, key string) *string {
+	if ctx == nil {
+		return nil
+	}
+	value, _ := ctx.Value(key).(string)
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func (uc *assetUsecase) settingValueByKey(ctx context.Context, tenantID, key string) (string, error) {
+	var setting financeModels.FinanceSetting
+	err := database.GetDB(ctx, uc.db).
+		Where("tenant_id = ? AND setting_key = ?", tenantID, key).
+		First(&setting).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(setting.Value), nil
+}
+
+func (uc *assetUsecase) loadCreatePolicy(ctx context.Context, tenantID string) (float64, bool, error) {
+	threshold := 0.0
+	approvalRequired := false
+
+	if value, err := uc.settingValueByKey(ctx, tenantID, "fixed_assets.capitalization_threshold"); err != nil {
+		return 0, false, err
+	} else if strings.TrimSpace(value) != "" {
+		parsed, parseErr := strconv.ParseFloat(value, 64)
+		if parseErr != nil {
+			return 0, false, fmt.Errorf("invalid capitalization threshold setting: %w", parseErr)
+		}
+		threshold = round2(parsed)
+	}
+
+	if value, err := uc.settingValueByKey(ctx, tenantID, "fixed_assets.approval_required"); err != nil {
+		return 0, false, err
+	} else if strings.TrimSpace(value) != "" {
+		normalized := strings.ToLower(strings.TrimSpace(value))
+		approvalRequired = normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on"
+	}
+
+	return threshold, approvalRequired, nil
+}
+
+func (uc *assetUsecase) resolveAcquisitionDebitAccountID(capitalized bool, cat *financeModels.AssetCategory) (string, error) {
+	if cat == nil {
+		return "", errors.New("asset category is required")
+	}
+	if capitalized {
+		if strings.TrimSpace(cat.AssetAccountID) == "" {
+			return "", errors.New("asset account is not configured on category")
+		}
+		return strings.TrimSpace(cat.AssetAccountID), nil
+	}
+	if strings.TrimSpace(cat.DepreciationExpenseAccountID) == "" {
+		return "", errors.New("expense account is not configured on category")
+	}
+	return strings.TrimSpace(cat.DepreciationExpenseAccountID), nil
+}
+
+func (uc *assetUsecase) resolveAcquisitionCreditAccountID(ctx context.Context, tenantID string, req *dto.CreateAssetRequest) (string, error) {
+	settingKey := financeModels.SettingCOACash
+	if req != nil && (req.VendorID != nil || req.PurchaseInvoiceID != nil) {
+		settingKey = financeModels.SettingCOAAccountsPayable
+	}
+	code, err := uc.settingValueByKey(ctx, tenantID, settingKey)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(code) == "" {
+		return "", fmt.Errorf("finance setting '%s' is not configured", settingKey)
+	}
+	account, err := uc.coaRepo.FindByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	return account.ID, nil
+}
+
+func (uc *assetUsecase) postAcquisitionJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, debitAccountID, creditAccountID string, amount float64, desc string) error {
+	if amount <= 0 {
+		return nil
+	}
+	if uc.journalUC == nil {
+		return errors.New("journal usecase is not configured")
+	}
+	if asset == nil || tr == nil {
+		return errors.New("asset transaction is required")
+	}
+
+	lines := []finDTO.JournalLineRequest{
+		{ChartOfAccountID: debitAccountID, Debit: math.Abs(amount), Credit: 0, Memo: desc},
+		{ChartOfAccountID: creditAccountID, Debit: 0, Credit: math.Abs(amount), Memo: desc},
+	}
+	refType := reference.RefTypeAssetTransaction
+	refID := tr.ID
+	journal, err := uc.journalUC.PostOrUpdateJournal(database.WithTx(tx.Statement.Context, tx), &finDTO.CreateJournalEntryRequest{
+		EntryDate:         tr.TransactionDate.Format("2006-01-02"),
+		Description:       desc + ": " + asset.Code,
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	})
+	if err != nil {
+		return err
+	}
+	if journal != nil {
+		return tx.Model(&financeModels.AssetTransaction{}).Where("id = ?", tr.ID).Updates(map[string]interface{}{
+			"reference_id": journal.ID,
+		}).Error
+	}
+	return nil
+}
+
+func (uc *assetUsecase) generateDepreciationSchedule(tx *gorm.DB, asset *financeModels.Asset, tenantID, actorID string) error {
+	if asset == nil || !asset.IsDepreciable || asset.DepreciationMethod == nil || asset.UsefulLifeMonths == nil || *asset.UsefulLifeMonths <= 0 {
+		return nil
+	}
+	method := financeModels.DepreciationMethod(strings.TrimSpace(*asset.DepreciationMethod))
+	if method == financeModels.DepreciationMethodNone {
+		return nil
+	}
+
+	startDate := asset.AcquisitionDate
+	if asset.DepreciationStartDate != nil && !asset.DepreciationStartDate.IsZero() {
+		startDate = *asset.DepreciationStartDate
+	}
+
+	engine, err := depreciationsvc.NewDepreciationEngine(method, asset.AcquisitionCost, asset.SalvageValue, *asset.UsefulLifeMonths, asset.AcquisitionDate, startDate)
+	if err != nil {
+		return err
+	}
+	schedules, err := engine.GenerateSchedule(startDate.AddDate(0, *asset.UsefulLifeMonths, 0))
+	if err != nil {
+		return err
+	}
+	if len(schedules) == 0 {
+		return nil
+	}
+
+	assetUUID, err := uuid.Parse(asset.ID)
+	if err != nil {
+		return err
+	}
+	for _, item := range schedules {
+		row := financeModels.AssetDepreciationSchedule{
+			TenantID:               tenantID,
+			AssetID:                assetUUID,
+			PeriodStartDate:        item.PeriodStartDate,
+			PeriodEndDate:          item.PeriodEndDate,
+			PeriodMonth:            item.PeriodMonth,
+			DepreciationAmount:     item.DepreciationAmount,
+			AccumulatedDepreciation:item.AccumulatedDepreciation,
+			BookValue:              item.BookValue,
+		}
+		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (uc *assetUsecase) assignEmployeeTx(tx *gorm.DB, asset *financeModels.Asset, employeeID, actorID string, notes *string) error {
+	if asset == nil {
+		return errors.New("asset is required")
+	}
+	assetID := strings.TrimSpace(asset.ID)
+	if assetID == "" {
+		return errors.New("asset id is required")
+	}
+	employeeID = strings.TrimSpace(employeeID)
+	if employeeID == "" {
+		return errors.New("employee id is required")
+	}
+	employeeUUID, err := uuid.Parse(employeeID)
+	if err != nil {
+		return err
+	}
+	actorUUID, err := uuid.Parse(strings.TrimSpace(actorID))
+	if err != nil {
+		return err
+	}
+	assetUUID, err := uuid.Parse(assetID)
+	if err != nil {
+		return err
+	}
+	now := apptime.Now()
+	updates := map[string]interface{}{
+		"assigned_to_employee_id": employeeUUID.String(),
+		"assignment_date":         now,
+	}
+	if err := tx.Model(&financeModels.Asset{}).Where("id = ? AND tenant_id = ?", assetID, asset.TenantID).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	var departmentUUID *uuid.UUID
+	if asset.DepartmentID != nil && strings.TrimSpace(*asset.DepartmentID) != "" {
+		if parsed, parseErr := uuid.Parse(strings.TrimSpace(*asset.DepartmentID)); parseErr == nil {
+			departmentUUID = &parsed
+		}
+	}
+	var locationUUID *uuid.UUID
+	if strings.TrimSpace(asset.LocationID) != "" {
+		if parsed, parseErr := uuid.Parse(strings.TrimSpace(asset.LocationID)); parseErr == nil {
+			locationUUID = &parsed
+		}
+	}
+	history := financeModels.AssetAssignmentHistory{
+		AssetID:      assetUUID,
+		EmployeeID:   &employeeUUID,
+		DepartmentID: departmentUUID,
+		LocationID:   locationUUID,
+		AssignedAt:   now,
+		AssignedBy:   &actorUUID,
+		Notes:        notes,
+	}
+	return tx.Create(&history).Error
 }

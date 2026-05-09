@@ -29,6 +29,10 @@ func RegisterDepreciationRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
+	g.POST("/fixed-assets", middleware.RequirePermission(assetCreate), h.Create)
+	g.POST("/fixed-assets/", middleware.RequirePermission(assetCreate), h.Create)
+	g.GET("/fixed-assets", middleware.RequirePermission(assetRead), h.List)
+	g.GET("/fixed-assets/", middleware.RequirePermission(assetRead), h.List)
 	// Available assets for employee borrowing
 	g.GET("/available", middleware.RequirePermission(assetRead), h.GetAvailableAssets)
 	g.POST("", middleware.RequirePermission(assetCreate), h.Create)

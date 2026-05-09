@@ -1,13 +1,13 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
@@ -15,18 +15,21 @@ import (
 )
 
 type AssetListParams struct {
-	Search     string
-	Status     *financeModels.AssetStatus
-	CategoryID *string
-	TypeID     *string
-	DepartmentID *string
-	LocationID *string
-	StartDate  *time.Time
-	EndDate    *time.Time
-	Limit      int
-	Offset     int
-	SortBy     string
-	SortDir    string
+	Search               string
+	Status               *financeModels.AssetStatus
+	CategoryID           *string
+	TypeID               *string
+	DepartmentID         *string
+	LocationID           *string
+	StartDate            *time.Time
+	EndDate              *time.Time
+	WarrantyExpiringDays *int
+	IsCapitalized        *bool
+	IncludeDisposed      bool
+	Limit                int
+	Offset               int
+	SortBy               string
+	SortDir              string
 }
 
 type AssetRepository interface {
@@ -83,6 +86,21 @@ var assetAllowedSort = map[string]clause.OrderByColumn{
 	"book_value": {
 		Column: clause.Column{Table: "fixed_assets", Name: "book_value"},
 	},
+	"acquisition_cost": {
+		Column: clause.Column{Table: "fixed_assets", Name: "acquisition_cost"},
+	},
+	"accumulated_depreciation": {
+		Column: clause.Column{Table: "fixed_assets", Name: "accumulated_depreciation"},
+	},
+	"status": {
+		Column: clause.Column{Table: "fixed_assets", Name: "status"},
+	},
+	"lifecycle_stage": {
+		Column: clause.Column{Table: "fixed_assets", Name: "lifecycle_stage"},
+	},
+	"warranty_end": {
+		Column: clause.Column{Table: "fixed_assets", Name: "warranty_end"},
+	},
 }
 
 func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error) {
@@ -90,6 +108,7 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	var total int64
 
 	q := database.GetDB(ctx, r.db).Model(&financeModels.Asset{}).
+		Preload("AssignedToEmployee").
 		Preload("Category").
 		Preload("Location").
 		Preload("Department")
@@ -114,6 +133,8 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	}
 	if params.Status != nil {
 		q = q.Where("fixed_assets.status = ?", *params.Status)
+	} else if !params.IncludeDisposed {
+		q = q.Where("fixed_assets.status <> ?", financeModels.AssetStatusDisposed)
 	}
 	if params.CategoryID != nil && strings.TrimSpace(*params.CategoryID) != "" {
 		q = q.Where("fixed_assets.category_id = ?", strings.TrimSpace(*params.CategoryID))
@@ -129,6 +150,14 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	}
 	if params.EndDate != nil {
 		q = q.Where("fixed_assets.acquisition_date <= ?", *params.EndDate)
+	}
+	if params.WarrantyExpiringDays != nil && *params.WarrantyExpiringDays > 0 {
+		from := apptime.Now().Truncate(24 * time.Hour)
+		to := from.AddDate(0, 0, *params.WarrantyExpiringDays)
+		q = q.Where("fixed_assets.warranty_end IS NOT NULL AND fixed_assets.warranty_end BETWEEN ? AND ?", from, to)
+	}
+	if params.IsCapitalized != nil {
+		q = q.Where("fixed_assets.is_capitalized = ?", *params.IsCapitalized)
 	}
 
 	if err := q.Count(&total).Error; err != nil {

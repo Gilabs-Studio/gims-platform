@@ -8,7 +8,7 @@ import (
 )
 
 type CreateAssetRequest struct {
-	Code        string `json:"code" binding:"required"`
+	Code        string `json:"code"`
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 
@@ -16,15 +16,20 @@ type CreateAssetRequest struct {
 	CategoryID  string `json:"asset_category_id" binding:"required,uuid"`
 	LocationID  string `json:"location_id" binding:"required,uuid"`
 
-	AcquisitionDate string  `json:"acquisition_date" binding:"required"`
-	AcquisitionCost float64 `json:"acquisition_cost" binding:"required,gt=0"`
-	SalvageValue    float64 `json:"salvage_value" binding:"omitempty,gte=0"`
+	AcquisitionDate string   `json:"acquisition_date" binding:"required"`
+	PurchasePrice   float64  `json:"purchase_price"`
+	AcquisitionCost float64  `json:"acquisition_cost"`
+	SalvageValue    float64  `json:"salvage_value" binding:"omitempty,gte=0"`
 	UsefulLifeMonths *int    `json:"useful_life_months" binding:"required,gte=1"`
 	DepreciationMethod *string `json:"depreciation_method" binding:"required"`
 	VendorID        *string `json:"vendor_id"`
 	PurchaseInvoiceID *string `json:"purchase_invoice_id"`
 	DepartmentID    *string `json:"department_id"`
 	CustodianUserID *string `json:"custodian_user_id"`
+	CompanyID       *string `json:"company_id" binding:"omitempty,uuid"`
+	BusinessUnitID  *string `json:"business_unit_id" binding:"omitempty,uuid"`
+	ParentAssetID   *string `json:"parent_asset_id" binding:"omitempty,uuid"`
+	AssignedToEmployeeID *string `json:"assigned_to_employee_id" binding:"omitempty,uuid"`
 
 	// Extended fields
 	SerialNumber *string `json:"serial_number"`
@@ -36,6 +41,7 @@ type CreateAssetRequest struct {
 	InstallationCost float64 `json:"installation_cost" binding:"omitempty,gte=0"`
 	TaxAmount        float64 `json:"tax_amount" binding:"omitempty,gte=0"`
 	OtherCosts       float64 `json:"other_costs" binding:"omitempty,gte=0"`
+	DepreciationStartDate *string `json:"depreciation_start_date"`
 
 	// Warranty
 	WarrantyStart    *string `json:"warranty_start"`
@@ -100,15 +106,21 @@ type ListAssetsRequest struct {
 	Page       int                        `form:"page" binding:"omitempty,min=1"`
 	PerPage    int                        `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search     string                     `form:"search"`
-	Status     *financeModels.AssetStatus `form:"status" binding:"omitempty,oneof=active disposed"`
+	Status     *financeModels.AssetStatus `form:"status" binding:"omitempty,oneof=draft pending_capitalization active in_use under_maintenance idle disposed sold written_off transferred inactive"`
 	CategoryID *string                    `form:"category_id"`
 	TypeID     *string                    `form:"type_id"`
 	DeptID     *string                    `form:"dept_id"`
 	LocationID *string                    `form:"location_id"`
 	StartDate  *string                    `form:"start_date"`
 	EndDate    *string                    `form:"end_date"`
+	DateFrom   *string                    `form:"date_from"`
+	DateTo     *string                    `form:"date_to"`
+	WarrantyExpiringDays *int             `form:"warranty_expiring_days" binding:"omitempty,oneof=30 60 90"`
+	IsCapitalized *bool                   `form:"is_capitalized"`
 	SortBy     string                     `form:"sort_by"`
 	SortDir    string                     `form:"sort_dir"`
+	Sort       string                     `form:"sort"`
+	Order      string                     `form:"order"`
 }
 
 type DepreciateAssetRequest struct {
@@ -388,8 +400,12 @@ type AssetResponse struct {
 	AssetTypeID string                 `json:"asset_type_id"`
 	CategoryID string                 `json:"category_id"`
 	Category   *AssetCategoryResponse `json:"category,omitempty"`
+	CategoryName string                `json:"category_name,omitempty"`
+	AssetType    string                `json:"asset_type,omitempty"`
 	LocationID string                 `json:"location_id"`
 	Location   *AssetLocationResponse `json:"location,omitempty"`
+	LocationName string                `json:"location_name,omitempty"`
+	DeptName     string                `json:"dept_name,omitempty"`
 
 	// Organization
 	CompanyID      *string `json:"company_id,omitempty"`
@@ -427,6 +443,7 @@ type AssetResponse struct {
 	// Status / Lifecycle
 	Status               financeModels.AssetStatus         `json:"status"`
 	LifecycleStage       financeModels.AssetLifecycleStage `json:"lifecycle_stage"`
+	DisplayStatus        string                            `json:"display_status"`
 	IsCapitalized        bool                              `json:"is_capitalized"`
 	IsDepreciable        bool                              `json:"is_depreciable"`
 	IsFullyDepreciated   bool                              `json:"is_fully_deprecated"`
@@ -445,6 +462,7 @@ type AssetResponse struct {
 	WarrantyTerms         *string    `json:"warranty_terms,omitempty"`
 	IsUnderWarranty       bool       `json:"is_under_warranty"`
 	WarrantyDaysRemaining int        `json:"warranty_days_remaining"`
+	WarrantyExpiryDays    *int       `json:"warranty_expiry_days,omitempty"`
 
 	// Insurance
 	InsurancePolicyNumber *string    `json:"insurance_policy_number,omitempty"`
