@@ -324,13 +324,8 @@ class _PosShellState extends State<PosShell> {
 enum PosFeature {
   terminal(
     'Terminal',
-    'Katalog, cart, checkout, nota, dan WhatsApp',
+    'Kasir POS dengan alur meja otomatis per outlet',
     Icons.point_of_sale_outlined,
-  ),
-  liveTable(
-    'Live Table',
-    'Meja, sajikan, waktu tunggu, dan status order',
-    Icons.table_bar_outlined,
   ),
   floor(
     'Floor Layout',
@@ -528,9 +523,7 @@ class _FeatureView extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (feature) {
       case PosFeature.terminal:
-        return TerminalScreen(repo: repo, outlet: outlet);
-      case PosFeature.liveTable:
-        return LiveTableScreen(repo: repo, outlet: outlet);
+        return UnifiedTerminalFlowScreen(repo: repo, outlet: outlet);
       case PosFeature.floor:
         return FloorEditorScreen(repo: repo, outlet: outlet);
       case PosFeature.loyalty:
@@ -541,11 +534,105 @@ class _FeatureView extends StatelessWidget {
   }
 }
 
-class TerminalScreen extends StatefulWidget {
-  const TerminalScreen({super.key, required this.repo, required this.outlet});
+class UnifiedTerminalFlowScreen extends StatefulWidget {
+  const UnifiedTerminalFlowScreen({
+    super.key,
+    required this.repo,
+    required this.outlet,
+  });
 
   final PosRepository repo;
   final Outlet outlet;
+
+  @override
+  State<UnifiedTerminalFlowScreen> createState() =>
+      _UnifiedTerminalFlowScreenState();
+}
+
+class _UnifiedTerminalFlowScreenState extends State<UnifiedTerminalFlowScreen> {
+  bool _loading = true;
+  bool _hasPublishedLayout = false;
+  TableSelection? _selectedTable;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveOutletMode();
+  }
+
+  @override
+  void didUpdateWidget(covariant UnifiedTerminalFlowScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.outlet.id != widget.outlet.id) {
+      _selectedTable = null;
+      _resolveOutletMode();
+    }
+  }
+
+  Future<void> _resolveOutletMode() async {
+    setState(() => _loading = true);
+    try {
+      final plans = await widget.repo.listFloorPlans(
+        outletId: widget.outlet.id,
+        status: 'published',
+        perPage: 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _hasPublishedLayout = plans.isNotEmpty;
+      });
+    } catch (error) {
+      if (mounted) {
+        _showError(context, error);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!_hasPublishedLayout) {
+      return TerminalScreen(repo: widget.repo, outlet: widget.outlet);
+    }
+
+    final selectedTable = _selectedTable;
+    if (selectedTable == null) {
+      return LiveTableScreen(
+        repo: widget.repo,
+        outlet: widget.outlet,
+        onSelectTable: (table) {
+          setState(() => _selectedTable = table);
+        },
+      );
+    }
+
+    return TerminalScreen(
+      repo: widget.repo,
+      outlet: widget.outlet,
+      selectedTable: selectedTable,
+      onBackToLiveTable: () => setState(() => _selectedTable = null),
+    );
+  }
+}
+
+class TerminalScreen extends StatefulWidget {
+  const TerminalScreen({
+    super.key,
+    required this.repo,
+    required this.outlet,
+    this.selectedTable,
+    this.onBackToLiveTable,
+  });
+
+  final PosRepository repo;
+  final Outlet outlet;
+  final TableSelection? selectedTable;
+  final VoidCallback? onBackToLiveTable;
 
   @override
   State<TerminalScreen> createState() => _TerminalScreenState();
@@ -617,9 +704,13 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (_cart.isEmpty) return;
     setState(() => _loading = true);
     try {
+      final selectedTable = widget.selectedTable;
       var order = await widget.repo.createOrder(
         outletId: widget.outlet.id,
-        orderType: 'TAKE_AWAY',
+        orderType: selectedTable == null ? 'TAKE_AWAY' : 'DINE_IN',
+        tableId: selectedTable?.id,
+        tableLabel: selectedTable?.label,
+        guestCount: selectedTable?.seatCount ?? 1,
         customerName: _customerName.text,
       );
       for (final line in _cart) {
@@ -687,6 +778,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
+        final selectedTable = widget.selectedTable;
         final catalog = _CatalogPanel(
           search: _search,
           products: products,
@@ -716,22 +808,48 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
         return Padding(
           padding: const EdgeInsets.all(12),
-          child: wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 7, child: catalog),
-                    const SizedBox(width: 12),
-                    SizedBox(width: 360, child: cart),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Expanded(child: catalog),
-                    const SizedBox(height: 12),
-                    SizedBox(height: 330, child: cart),
-                  ],
+          child: Column(
+            children: [
+              if (selectedTable != null)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.table_bar_outlined),
+                    title: Text('Meja ${selectedTable.label}'),
+                    subtitle: Text(
+                      selectedTable.seatCount > 0
+                          ? 'Dine in • ${selectedTable.seatCount} kursi'
+                          : 'Dine in',
+                    ),
+                    trailing: widget.onBackToLiveTable == null
+                        ? null
+                        : OutlinedButton.icon(
+                            onPressed: widget.onBackToLiveTable,
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Kembali ke Live Table'),
+                          ),
+                  ),
                 ),
+              if (selectedTable != null) const SizedBox(height: 12),
+              Expanded(
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 7, child: catalog),
+                          const SizedBox(width: 12),
+                          SizedBox(width: 360, child: cart),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Expanded(child: catalog),
+                          const SizedBox(height: 12),
+                          SizedBox(height: 330, child: cart),
+                        ],
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1011,10 +1129,16 @@ class _CartPanel extends StatelessWidget {
 }
 
 class LiveTableScreen extends StatefulWidget {
-  const LiveTableScreen({super.key, required this.repo, required this.outlet});
+  const LiveTableScreen({
+    super.key,
+    required this.repo,
+    required this.outlet,
+    this.onSelectTable,
+  });
 
   final PosRepository repo;
   final Outlet outlet;
+  final ValueChanged<TableSelection>? onSelectTable;
 
   @override
   State<LiveTableScreen> createState() => _LiveTableScreenState();
@@ -1022,6 +1146,7 @@ class LiveTableScreen extends StatefulWidget {
 
 class _LiveTableScreenState extends State<LiveTableScreen> {
   Timer? _timer;
+  Timer? _clockTimer;
   FloorPlan? _plan;
   List<PosOrder> _orders = const [];
   DateTime _now = DateTime.now();
@@ -1035,6 +1160,13 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       const Duration(seconds: 15),
       (_) => _load(silent: true),
     );
+    _clockTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) {
+        if (!mounted) return;
+        setState(() => _now = DateTime.now());
+      },
+    );
   }
 
   @override
@@ -1046,6 +1178,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _clockTimer?.cancel();
     super.dispose();
   }
 
@@ -1125,26 +1258,25 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
   Future<void> _tapTable(LiveTableInfo info) async {
     if (info.order == null) {
-      try {
-        await widget.repo.createOrder(
-          outletId: widget.outlet.id,
-          orderType: 'DINE_IN',
-          tableId: info.table.id,
-          tableLabel:
-              info.table.label ??
-              info.table.tableNumber?.toString() ??
-              info.table.id,
-          guestCount: info.seatCount == 0 ? 1 : info.seatCount,
+      final onSelectTable = widget.onSelectTable;
+      if (onSelectTable != null) {
+        onSelectTable(
+          TableSelection(
+            id: info.table.id,
+            label:
+                info.table.label ??
+                info.table.tableNumber?.toString() ??
+                info.table.id,
+            seatCount: info.seatCount,
+          ),
         );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Order meja dibuat. Tambahkan item dari Terminal.'),
-            ),
-          );
-        }
-      } catch (error) {
-        if (mounted) _showError(context, error);
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih meja dari flow Terminal.')),
+        );
       }
       return;
     }
@@ -1165,7 +1297,10 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              'Status ${order.status.value} · tunggu ${formatDuration(info.duration)}',
+              'Status ${order.status.value}',
+            ),
+            Text(
+              'Mulai ${DateFormat('HH:mm').format(order.createdAt)} · tunggu ${formatDuration(info.duration)}',
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -1258,6 +1393,18 @@ class FloorEditorScreen extends StatefulWidget {
 
   @override
   State<FloorEditorScreen> createState() => _FloorEditorScreenState();
+}
+
+class TableSelection {
+  const TableSelection({
+    required this.id,
+    required this.label,
+    required this.seatCount,
+  });
+
+  final String id;
+  final String label;
+  final int seatCount;
 }
 
 class _FloorEditorScreenState extends State<FloorEditorScreen> {
