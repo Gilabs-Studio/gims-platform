@@ -138,22 +138,12 @@ class _PosShellState extends State<PosShell> {
               ),
         title: Text(_feature?.title ?? outlet.name),
         actions: [
-          if (_outlets.length > 1)
-            PopupMenuButton<Outlet>(
-              tooltip: 'Pilih Outlet',
-              icon: const Icon(Icons.store_outlined),
-              onSelected: (value) => setState(() {
-                _outlet = value;
-                _feature = null; // Reset feature when changing outlet
-              }),
-              itemBuilder: (_) => [
-                for (final item in _outlets)
-                  PopupMenuItem(value: item, child: Text(item.name)),
-              ],
-            ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
+                case 'change_outlet':
+                  _showOutletSelector();
+                  break;
                 case 'refresh':
                   _loadOutlets();
                   break;
@@ -166,6 +156,11 @@ class _PosShellState extends State<PosShell> {
               }
             },
             itemBuilder: (_) => [
+              if (_outlets.length > 1)
+                const PopupMenuItem(
+                  value: 'change_outlet',
+                  child: Text('Ganti Outlet'),
+                ),
               const PopupMenuItem(value: 'refresh', child: Text('Refresh')),
               const PopupMenuItem(value: 'settings', child: Text('Settings')),
               const PopupMenuItem(value: 'logout', child: Text('Logout')),
@@ -204,6 +199,37 @@ class _PosShellState extends State<PosShell> {
             child: const Text('Simpan'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showOutletSelector() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pilih Outlet'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _outlets.length,
+            itemBuilder: (context, index) {
+              final item = _outlets[index];
+              return ListTile(
+                leading: const Icon(Icons.storefront_outlined),
+                title: Text(item.name),
+                selected: item.id == _outlet?.id,
+                onTap: () {
+                  setState(() {
+                    _outlet = item;
+                    _feature = null;
+                  });
+                  Navigator.pop(dialogContext);
+                },
+              );
+            },
+          ),
+        ),
       ),
     );
   }

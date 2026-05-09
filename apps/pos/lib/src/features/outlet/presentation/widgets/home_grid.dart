@@ -59,8 +59,8 @@ class HomeGrid extends StatelessWidget {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             sliver: SliverGrid.builder(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 240,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
                 mainAxisExtent: 170,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
@@ -84,54 +84,43 @@ class HomeGrid extends StatelessWidget {
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.outlet, required this.user});
 
-  final Outlet outlet;
+  final Outlet outlet; // Kept for API compatibility, but unused in UI to avoid duplication.
   final UserSession? user;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: GimsColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.storefront_outlined,
-                color: GimsColors.primary,
-                size: 30,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Welcome back,',
+            style: TextStyle(
+              color: GimsColors.mutedForeground,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    outlet.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user == null
-                        ? 'POS workspace'
-                        : '${user!.name} · ${user!.roleName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: GimsColors.mutedForeground),
-                  ),
-                ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            user == null ? 'Cashier' : user!.name,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (user?.roleName != null && user!.roleName.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              user!.roleName,
+              style: const TextStyle(
+                color: GimsColors.primary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -145,42 +134,52 @@ class _HomeFeatureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: GimsColors.border.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: GimsColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(feature.icon, color: GimsColors.primary),
-              ),
-              const Spacer(),
+              Icon(feature.icon, color: GimsColors.primary, size: 32),
+              const SizedBox(height: 16),
               Text(
                 feature.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                  fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                feature.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: GimsColors.mutedForeground,
-                  fontSize: 12,
+              const SizedBox(height: 8),
+              Flexible(
+                child: Text(
+                  feature.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: GimsColors.mutedForeground,
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
