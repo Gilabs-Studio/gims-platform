@@ -721,6 +721,27 @@ class _TerminalScreenState extends State<TerminalScreen> {
         _order = order;
         _cart = [];
       });
+      if (!mounted) return;
+      final checkoutResult = await showModalBottomSheet<_CheckoutResult>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        builder: (context) => _CheckoutFlowSheet(
+          repo: widget.repo,
+          order: order,
+          config: _config,
+          selectedTable: selectedTable,
+          outletId: widget.outlet.id,
+        ),
+      );
+      if (checkoutResult != null && mounted) {
+        handleOrderCompleted(
+          checkoutResult.customerName,
+          checkoutResult.tenderAmount,
+        );
+      }
     } catch (error) {
       if (mounted) _showError(context, error);
     } finally {
@@ -728,35 +749,19 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
   }
 
-  Future<void> _pay({required bool digital}) async {
-    final order = _order;
-    if (order == null) return;
-    setState(() => _loading = true);
-    try {
-      final payment = digital
-          ? await widget.repo.initiateDigital(
-              order.id,
-              amount: order.totalAmount,
-              customerName: _customerName.text,
-            )
-          : await widget.repo.processCash(
-              order.id,
-              amount: order.totalAmount,
-              customerName: _customerName.text,
-            );
-      if (digital && payment.paymentUrl != null) {
-        await _openExternal(payment.paymentUrl!);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Payment ${payment.status}')));
-      }
-    } catch (error) {
-      if (mounted) _showError(context, error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+  void handleOrderCompleted(
+    String? customerName,
+    double? tenderAmount,
+  ) {
+    if (customerName != null && customerName.isNotEmpty) {
+      _customerName.text = customerName;
     }
+    if (tenderAmount != null) {
+      // Tender amount is already reflected in the payment confirmation state.
+    }
+    setState(() {
+      _cart = [];
+    });
   }
 
   @override
@@ -782,6 +787,13 @@ class _TerminalScreenState extends State<TerminalScreen> {
         final catalog = _CatalogPanel(
           search: _search,
           products: products,
+          categories: _catalog
+              .map((item) => item.category?.trim())
+              .whereType<String>()
+              .where((value) => value.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort(),
           onChanged: () => setState(() {}),
           onTap: _addToCart,
         );
@@ -796,8 +808,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
             () => _cart = _cart.where((item) => item != line).toList(),
           ),
           onOpenOrder: _openOrder,
-          onCash: () => _pay(digital: false),
-          onDigital: () => _pay(digital: true),
           onReceipt: _order == null
               ? null
               : () => _openExternal(widget.repo.receiptUrl(_order!.id)),
@@ -826,6 +836,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
                             onPressed: widget.onBackToLiveTable,
                             icon: const Icon(Icons.arrow_back),
                             label: const Text('Kembali ke Live Table'),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: GimsColors.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
                           ),
                   ),
                 ),
@@ -870,93 +886,181 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 }
 
-class _CatalogPanel extends StatelessWidget {
+class _CatalogPanel extends StatefulWidget {
   const _CatalogPanel({
     required this.search,
     required this.products,
+    required this.categories,
     required this.onChanged,
     required this.onTap,
   });
 
   final TextEditingController search;
   final List<CatalogItem> products;
+  final List<String> categories;
   final VoidCallback onChanged;
   final ValueChanged<CatalogItem> onTap;
 
   @override
+  State<_CatalogPanel> createState() => _CatalogPanelState();
+}
+
+class _CatalogPanelState extends State<_CatalogPanel> {
+  String? _categoryFilter;
+
+  @override
   Widget build(BuildContext context) {
+    final filteredProducts = widget.products.where((item) {
+      final matchCategory =
+          _categoryFilter == null || item.category == _categoryFilter;
+      return matchCategory;
+    }).toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             TextField(
-              controller: search,
-              onChanged: (_) => onChanged(),
+              controller: widget.search,
+              onChanged: (_) => widget.onChanged(),
               decoration: const InputDecoration(
                 hintText: 'Cari produk',
                 prefixIcon: Icon(Icons.search),
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 180,
-                  mainAxisExtent: 150,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final item = products[index];
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: item.isAvailable ? () => onTap(item) : null,
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        color: item.isAvailable
-                            ? Colors.white
-                            : GimsColors.muted,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: GimsColors.border),
+            if (widget.categories.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('All'),
+                      selected: _categoryFilter == null,
+                      onSelected: (_) {
+                        setState(() => _categoryFilter = null);
+                        widget.onChanged();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    for (final category in widget.categories) ...[
+                      ChoiceChip(
+                        label: Text(category),
+                        selected: _categoryFilter == category,
+                        onSelected: (_) {
+                          setState(() => _categoryFilter = category);
+                          widget.onChanged();
+                        },
                       ),
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            item.productKind == 'RECIPE'
-                                ? Icons.restaurant_menu
-                                : Icons.inventory_2_outlined,
-                            color: item.isAvailable
-                                ? GimsColors.primary
-                                : GimsColors.mutedForeground,
-                          ),
-                          const Spacer(),
-                          Text(
-                            item.productName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(formatMoney(item.price, 'IDR')),
-                          Text(
-                            item.productKind == 'STOCK'
-                                ? 'Stok ${item.stock.toStringAsFixed(0)}'
-                                : item.productKind,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: GimsColors.mutedForeground,
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+            if (widget.categories.isNotEmpty) const SizedBox(height: 12),
+            Expanded(
+              child: filteredProducts.isEmpty
+                  ? const Center(child: Text('No products found.'))
+                  : GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 210,
+                        mainAxisExtent: 238,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredProducts[index];
+                        final imageUrl = resolveImageUrl(item.imageUrl);
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: item.isAvailable ? () => widget.onTap(item) : null,
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              color: item.isAvailable ? Colors.white : GimsColors.muted,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: GimsColors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: imageUrl == null
+                                      ? Container(
+                                          color: GimsColors.muted.withValues(alpha: 0.18),
+                                          child: Icon(
+                                            item.productKind == 'RECIPE'
+                                                ? Icons.restaurant_menu
+                                                : Icons.inventory_2_outlined,
+                                            size: 34,
+                                            color: item.isAvailable
+                                                ? GimsColors.primary
+                                                : GimsColors.mutedForeground,
+                                          ),
+                                        )
+                                      : Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            color: GimsColors.muted.withValues(alpha: 0.18),
+                                            child: Icon(
+                                              item.productKind == 'RECIPE'
+                                                  ? Icons.restaurant_menu
+                                                  : Icons.inventory_2_outlined,
+                                              size: 34,
+                                              color: item.isAvailable
+                                                  ? GimsColors.primary
+                                                  : GimsColors.mutedForeground,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if ((item.category ?? '').isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 5),
+                                          child: Text(
+                                            item.category!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: GimsColors.mutedForeground,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      Text(
+                                        item.productName,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(formatMoney(item.price, 'IDR')),
+                                      Text(
+                                        item.productKind == 'STOCK'
+                                            ? 'Stok ${item.stock.toStringAsFixed(0)}'
+                                            : item.productKind,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: GimsColors.mutedForeground,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -975,8 +1079,6 @@ class _CartPanel extends StatelessWidget {
     required this.onQtyChanged,
     required this.onRemove,
     required this.onOpenOrder,
-    required this.onCash,
-    required this.onDigital,
     required this.onReceipt,
     required this.onWhatsApp,
   });
@@ -989,14 +1091,13 @@ class _CartPanel extends StatelessWidget {
   final void Function(CartLine line, double qty) onQtyChanged;
   final ValueChanged<CartLine> onRemove;
   final VoidCallback onOpenOrder;
-  final VoidCallback onCash;
-  final VoidCallback onDigital;
   final VoidCallback? onReceipt;
   final VoidCallback? onWhatsApp;
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      clipBehavior: Clip.hardEdge,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1028,34 +1129,11 @@ class _CartPanel extends StatelessWidget {
                   : ListView(
                       children: [
                         for (final line in cart)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(line.product.productName),
-                            subtitle: Text(
-                              formatMoney(line.product.price, currency),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: () => onQtyChanged(
-                                    line,
-                                    (line.quantity - 1).clamp(1, 999),
-                                  ),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                ),
-                                Text(line.quantity.toStringAsFixed(0)),
-                                IconButton(
-                                  onPressed: () =>
-                                      onQtyChanged(line, line.quantity + 1),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                ),
-                                IconButton(
-                                  onPressed: () => onRemove(line),
-                                  icon: const Icon(Icons.delete_outline),
-                                ),
-                              ],
-                            ),
+                          _CartItemRow(
+                            line: line,
+                            currency: currency,
+                            onQtyChanged: onQtyChanged,
+                            onRemove: onRemove,
                           ),
                         if (order != null)
                           for (final item in order!.items)
@@ -1099,16 +1177,6 @@ class _CartPanel extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  FilledButton.icon(
-                    onPressed: onCash,
-                    icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Cash'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: onDigital,
-                    icon: const Icon(Icons.qr_code_2),
-                    label: const Text('Xendit'),
-                  ),
                   OutlinedButton.icon(
                     onPressed: onReceipt,
                     icon: const Icon(Icons.receipt_long),
@@ -1121,6 +1189,543 @@ class _CartPanel extends StatelessWidget {
                   ),
                 ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CartItemRow extends StatelessWidget {
+  const _CartItemRow({
+    required this.line,
+    required this.currency,
+    required this.onQtyChanged,
+    required this.onRemove,
+  });
+
+  final CartLine line;
+  final String currency;
+  final void Function(CartLine line, double qty) onQtyChanged;
+  final ValueChanged<CartLine> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = resolveImageUrl(line.product.imageUrl);
+    final fallbackIcon = line.product.productKind == 'STOCK'
+        ? Icons.inventory_2_outlined
+        : Icons.restaurant_menu;
+
+    return Dismissible(
+      key: ValueKey(line.product.productId),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: GimsColors.destructive.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      onDismissed: (_) => onRemove(line),
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  color: GimsColors.muted.withValues(alpha: 0.2),
+                  child: imageUrl == null
+                      ? Icon(fallbackIcon, color: GimsColors.mutedForeground)
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            fallbackIcon,
+                            color: GimsColors.mutedForeground,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      line.product.productName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      formatMoney(line.product.price, currency),
+                      style: const TextStyle(color: GimsColors.mutedForeground),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      final nextQty = line.quantity - 1;
+                      if (nextQty <= 0) {
+                        onRemove(line);
+                        return;
+                      }
+                      onQtyChanged(line, nextQty);
+                    },
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                  Text(
+                    line.quantity.toStringAsFixed(0),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onQtyChanged(line, line.quantity + 1),
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String? resolveImageUrl(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/')) {
+    return '${ApiClient.instance.apiOrigin}$trimmed';
+  }
+  return trimmed;
+}
+
+class _CheckoutResult {
+  const _CheckoutResult({
+    required this.customerName,
+    this.tenderAmount,
+  });
+
+  final String? customerName;
+  final double? tenderAmount;
+}
+
+class _CheckoutFlowSheet extends StatefulWidget {
+  const _CheckoutFlowSheet({
+    required this.repo,
+    required this.order,
+    required this.config,
+    required this.selectedTable,
+    required this.outletId,
+  });
+
+  final PosRepository repo;
+  final PosOrder order;
+  final PosConfig? config;
+  final TableSelection? selectedTable;
+  final String outletId;
+
+  @override
+  State<_CheckoutFlowSheet> createState() => _CheckoutFlowSheetState();
+}
+
+class _CheckoutFlowSheetState extends State<_CheckoutFlowSheet> {
+  final _customerName = TextEditingController();
+  final _customerPhone = TextEditingController();
+  final _memberSearch = TextEditingController();
+  final _tender = TextEditingController();
+
+  bool _existingCustomer = false;
+  bool _loading = false;
+  int _step = 0;
+  LoyaltyMemberLookup? _memberLookup;
+  LoyaltyReward? _selectedReward;
+
+  @override
+  void dispose() {
+    _customerName.dispose();
+    _customerPhone.dispose();
+    _memberSearch.dispose();
+    _tender.dispose();
+    super.dispose();
+  }
+
+  double get _orderTotal => widget.order.totalAmount;
+
+  String get _displayCustomerName {
+    if (_existingCustomer && _memberLookup?.customerName != null && _memberLookup!.customerName!.isNotEmpty) {
+      return _memberLookup!.customerName!;
+    }
+    return _customerName.text.trim();
+  }
+
+  Future<void> _lookupMember() async {
+    final query = _memberSearch.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final lookup = await widget.repo.lookupMember(
+        name: query,
+        outletId: widget.outletId,
+      );
+      setState(() {
+        _memberLookup = lookup;
+        _selectedReward = null;
+        if (lookup.found && lookup.customerName != null && lookup.customerName!.isNotEmpty) {
+          _customerName.text = lookup.customerName!;
+        }
+        if (lookup.availableRewards.isNotEmpty) {
+          _step = 1;
+        } else {
+          _step = 2;
+        }
+      });
+    } catch (error) {
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _continueFromCustomerStep() {
+    if (_existingCustomer) {
+      if (_memberLookup == null) {
+        if (_memberSearch.text.trim().isEmpty) {
+          _showError(context, ApiException('Masukkan nama member terlebih dahulu'));
+          return;
+        }
+        _lookupMember();
+        return;
+      }
+      setState(() => _step = _memberLookup!.availableRewards.isNotEmpty ? 1 : 2);
+      return;
+    }
+
+    if (_customerName.text.trim().isEmpty) {
+      _showError(context, ApiException('Masukkan nama customer terlebih dahulu'));
+      return;
+    }
+    setState(() => _step = 2);
+  }
+
+  Future<void> _payCash() async {
+    final tenderValue = double.tryParse(_tender.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? _orderTotal;
+    if (tenderValue < _orderTotal) {
+      _showError(context, ApiException('Nominal cash kurang dari total pembayaran'));
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await widget.repo.processCash(
+        widget.order.id,
+        amount: tenderValue,
+        customerName: _displayCustomerName.isEmpty ? null : _displayCustomerName,
+        loyaltyMemberId: _memberLookup?.memberId,
+        loyaltyRewardId: _selectedReward?.id,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(
+        _CheckoutResult(
+          customerName: _displayCustomerName.isEmpty ? null : _displayCustomerName,
+          tenderAmount: tenderValue,
+        ),
+      );
+    } catch (error) {
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _payDigital() async {
+    setState(() => _loading = true);
+    try {
+      final payment = await widget.repo.initiateDigital(
+        widget.order.id,
+        amount: _orderTotal,
+        channelCode: 'QRIS',
+        customerName: _displayCustomerName.isEmpty ? null : _displayCustomerName,
+        loyaltyMemberId: _memberLookup?.memberId,
+        loyaltyRewardId: _selectedReward?.id,
+      );
+      if (payment.paymentUrl != null && payment.paymentUrl!.isNotEmpty) {
+        await _openExternal(payment.paymentUrl!);
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(
+        _CheckoutResult(
+          customerName: _displayCustomerName.isEmpty ? null : _displayCustomerName,
+        ),
+      );
+    } catch (error) {
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rewards = _memberLookup?.availableRewards ?? const <LoyaltyReward>[];
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.receipt_long, color: GimsColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Checkout ${widget.order.orderNumber}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.selectedTable == null
+                                ? 'Take away'
+                                : 'Meja ${widget.selectedTable!.label}',
+                            style: const TextStyle(color: GimsColors.mutedForeground),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formatMoney(_orderTotal, widget.config?.currency ?? 'IDR'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_step == 0) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment<bool>(value: false, label: Text('Customer Baru'), icon: Icon(Icons.person_outline)),
+                          ButtonSegment<bool>(value: true, label: Text('Member'), icon: Icon(Icons.loyalty_outlined)),
+                        ],
+                        selected: {_existingCustomer},
+                        onSelectionChanged: (selection) {
+                          setState(() {
+                            _existingCustomer = selection.first;
+                            _memberLookup = null;
+                            _selectedReward = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      if (_existingCustomer) ...[
+                        TextField(
+                          controller: _memberSearch,
+                          decoration: const InputDecoration(
+                            labelText: 'Cari nama member',
+                            prefixIcon: Icon(Icons.search),
+                          ),
+                          onSubmitted: (_) => _lookupMember(),
+                        ),
+                        const SizedBox(height: 10),
+                        FilledButton.icon(
+                          onPressed: _loading ? null : _lookupMember,
+                          icon: _loading
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.search),
+                          label: const Text('Cari Member'),
+                        ),
+                        if (_memberLookup != null) ...[
+                          const SizedBox(height: 12),
+                          Card(
+                            child: ListTile(
+                              leading: Icon(
+                                _memberLookup!.found ? Icons.verified_outlined : Icons.info_outline,
+                              ),
+                              title: Text(_memberLookup!.customerName ?? 'Member'),
+                              subtitle: Text(
+                                '${_memberLookup!.currentTier ?? '-'} · ${_memberLookup!.pointBalance.toStringAsFixed(0)} poin',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ] else ...[
+                        TextField(
+                          controller: _customerName,
+                          decoration: const InputDecoration(
+                            labelText: 'Nama customer',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _customerPhone,
+                          decoration: const InputDecoration(
+                            labelText: 'No. telepon (opsional)',
+                            prefixIcon: Icon(Icons.phone_outlined),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _loading ? null : _continueFromCustomerStep,
+                child: Text(rewards.isNotEmpty && _existingCustomer ? 'Lanjut ke Kupon' : 'Lanjut ke Pembayaran'),
+              ),
+            ] else if (_step == 1) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Redeem Kupon',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pilih reward yang berlaku untuk member ini.',
+                        style: TextStyle(color: GimsColors.mutedForeground.withValues(alpha: 0.9)),
+                      ),
+                      const SizedBox(height: 10),
+                      for (final reward in rewards)
+                        Card(
+                          child: RadioListTile<LoyaltyReward>(
+                            value: reward,
+                            groupValue: _selectedReward,
+                            onChanged: (value) => setState(() => _selectedReward = value),
+                            title: Text(reward.name),
+                            subtitle: Text('${reward.type} · ${reward.pointsRequired.toStringAsFixed(0)} poin'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _loading
+                          ? null
+                          : () => setState(() => _step = 0),
+                      child: const Text('Kembali'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _loading ? null : () => setState(() => _step = 2),
+                      child: const Text('Lanjut ke Pembayaran'),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Pembayaran',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _tender,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Nominal cash',
+                          helperText: formatMoney(_orderTotal, widget.config?.currency ?? 'IDR'),
+                          prefixIcon: const Icon(Icons.payments_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: _loading ? null : _payCash,
+                            icon: const Icon(Icons.payments_outlined),
+                            label: const Text('Cash'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: _loading ? null : _payDigital,
+                            icon: const Icon(Icons.qr_code_2),
+                            label: const Text('Xendit'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _loading ? null : () => setState(() => _step = _memberLookup?.availableRewards.isNotEmpty == true ? 1 : 0),
+                      child: const Text('Kembali'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
