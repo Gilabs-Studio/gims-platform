@@ -18,8 +18,8 @@ import type {
   TransferAssetInput,
 } from "../types";
 
-const LIST_BASE_URL = "/finance/fixed-assets";
-const ACTION_BASE_URL = "/finance/assets";
+const LIST_BASE_URL = "/finance/fixed-assets/assets";
+const ACTION_BASE_URL = "/finance/fixed-assets/assets";
 
 export const financeAssetsService = {
   list: async (params?: ListAssetsParams): Promise<ApiResponse<Asset[]>> => {
