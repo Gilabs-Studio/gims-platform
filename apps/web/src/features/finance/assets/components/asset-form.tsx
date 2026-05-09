@@ -652,11 +652,33 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="warranty_start">Warranty Start</Label>
-                  <Controller name="warranty_start" control={form.control} render={({ field }) => <Input id="warranty_start" {...field} />} />
+                  <Controller
+                    name="warranty_start"
+                    control={form.control}
+                    render={({ field }) => (
+                      <DatePicker
+                        id="warranty_start"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Pilih tanggal mulai garansi"
+                      />
+                    )}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="warranty_end">Warranty End</Label>
-                  <Controller name="warranty_end" control={form.control} render={({ field }) => <Input id="warranty_end" {...field} />} />
+                  <Controller
+                    name="warranty_end"
+                    control={form.control}
+                    render={({ field }) => (
+                      <DatePicker
+                        id="warranty_end"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Pilih tanggal berakhir garansi"
+                      />
+                    )}
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="warranty_provider">Warranty Provider</Label>
@@ -676,11 +698,33 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="insurance_start">Insurance Start</Label>
-                  <Input id="insurance_start" {...form.register("insurance_start")} />
+                  <Controller
+                    name="insurance_start"
+                    control={form.control}
+                    render={({ field }) => (
+                      <DatePicker
+                        id="insurance_start"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Pilih tanggal mulai asuransi"
+                      />
+                    )}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="insurance_end">Insurance End</Label>
-                  <Input id="insurance_end" {...form.register("insurance_end")} />
+                  <Controller
+                    name="insurance_end"
+                    control={form.control}
+                    render={({ field }) => (
+                      <DatePicker
+                        id="insurance_end"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Pilih tanggal berakhir asuransi"
+                      />
+                    )}
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="insurance_value">Insurance Value</Label>
