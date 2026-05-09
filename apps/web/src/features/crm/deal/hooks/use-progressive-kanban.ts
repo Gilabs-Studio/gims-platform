@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useDealFormData, dealKeys } from "./use-deals";
 import { dealService } from "../services/deal-service";
@@ -38,6 +38,27 @@ export function useProgressiveKanbanBoard() {
   const [stageStates, setStageStates] = useState<Record<string, StageState>>(
     {}
   );
+
+  // Reset extra pages when by-stage queries are invalidated by external mutations
+  // (e.g., useUpdateDeal, useCreateDeal). Ensures progressive-loaded pages
+  // reflect the latest data after invalidation instead of showing stale results.
+  useEffect(() => {
+    const unsubscribe = qc.getQueryCache().subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        (event as { action?: { type: string } }).action?.type === "invalidate"
+      ) {
+        const queryKey = event.query.queryKey as unknown[];
+        if (
+          queryKey[0] === dealKeys.all[0] &&
+          queryKey[1] === dealKeys.byStage()[1]
+        ) {
+          setStageStates({});
+        }
+      }
+    });
+    return unsubscribe;
+  }, [qc]);
 
   // Fetch page 1 for each stage using useQueries (avoids hook-in-loop violation)
   const stageQueryResults = useQueries({

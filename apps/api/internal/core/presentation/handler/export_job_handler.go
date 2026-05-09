@@ -46,7 +46,7 @@ func (h *ExportJobHandler) Download(c *gin.Context) {
 		return
 	}
 
-	c.FileAttachment(job.FilePath(), job.FileName)
+	c.Redirect(http.StatusFound, job.FileURL)
 }
 
 func getUserID(c *gin.Context) string {

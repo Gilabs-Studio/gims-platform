@@ -162,7 +162,7 @@ export function ProductIngredientCreateDialog({
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
-        image_url: imageUrl || undefined,
+        image_url: isEditing ? (imageUrl && imageUrl.trim() !== "" ? imageUrl : "") : (imageUrl || undefined),
         category_id: categoryId || null,
         uom_id: uomId,
         product_kind: "STOCK" as const,
@@ -251,6 +251,7 @@ export function ProductIngredientCreateDialog({
                 <ImageUpload
                   value={imageUrl}
                   onChange={(url) => setImageUrl(url)}
+                  uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                   disabled={createMutation.isPending}
                   enableUrlInput
                   enableImageSearch

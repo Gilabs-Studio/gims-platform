@@ -7,6 +7,10 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const isDevelopment = process.env.NODE_ENV === "development";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const r2PublicUrl =
+  process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.trim() ??
+  process.env.R2_PUBLIC_URL?.trim() ??
+  "https://pub-d746125bb1b6423491682404faec8132.r2.dev";
 const apiProxyDestination = apiBaseUrl
   ? (() => {
       try {
@@ -56,6 +60,23 @@ const remoteImagePatterns: RemotePattern[] = [
         }
       })()
     : []),
+  ...(r2PublicUrl
+    ? (() => {
+        try {
+          const parsed = new URL(r2PublicUrl);
+          return [
+            {
+              protocol: parsed.protocol.replace(":", "") as "http" | "https",
+              hostname: parsed.hostname,
+              ...(parsed.port ? { port: parsed.port } : {}),
+              pathname: "/**",
+            } satisfies RemotePattern,
+          ];
+        } catch {
+          return [];
+        }
+      })()
+    : []),
 ];
 
 // Bundle Analyzer - only load when ANALYZE=true
@@ -82,6 +103,10 @@ const nextConfig: NextConfig = {
       {
         source: "/internal/:path*",
         destination: `${apiProxyDestination}/internal/:path*`,
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${apiProxyDestination}/uploads/:path*`,
       },
     ];
   },

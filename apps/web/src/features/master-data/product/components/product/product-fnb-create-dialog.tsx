@@ -407,7 +407,7 @@ export function ProductFnbCreateDialog({
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
-        image_url: imageUrl || undefined,
+        image_url: isEditing ? (imageUrl && imageUrl.trim() !== "" ? imageUrl : "") : (imageUrl || undefined),
         category_id: categoryId,
         uom_id: null,
         product_kind: "RECIPE" as const,
@@ -486,6 +486,7 @@ export function ProductFnbCreateDialog({
                 <ImageUpload
                   value={imageUrl}
                   onChange={(url) => setImageUrl(url)}
+                  uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                   disabled={createMutation.isPending}
                   enableUrlInput
                   enableImageSearch

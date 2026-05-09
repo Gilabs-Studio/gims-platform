@@ -292,7 +292,10 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
       const payload = {
         ...data,
         code: data.code ?? "",
-        image_url: data.image_url ?? undefined, 
+        image_url:
+          isEditing && data.image_url === null
+            ? ""
+            : (data.image_url ?? undefined),
         category_id: data.category_id || null,
         brand_id: data.brand_id || null,
         segment_id: data.segment_id || null,

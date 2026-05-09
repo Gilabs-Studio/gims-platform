@@ -27,6 +27,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/seeders"
 
 	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
@@ -109,6 +110,17 @@ func initInfrastructure() {
 
 	// Initialize application timezone (must be before any time-dependent logic)
 	apptime.Init(config.AppConfig.Server.Timezone)
+
+	// Initialize Cloudflare R2 storage
+	if err := storage.Init(
+		config.AppConfig.Storage.R2AccountID,
+		config.AppConfig.Storage.R2AccessKeyID,
+		config.AppConfig.Storage.R2SecretAccessKey,
+		config.AppConfig.Storage.R2BucketName,
+		config.AppConfig.Storage.R2PublicURL,
+	); err != nil {
+		log.Fatal("Failed to initialize R2 storage:", err)
+	}
 
 	// Connect to database
 	if err := database.Connect(); err != nil {
@@ -368,9 +380,6 @@ func main() {
 			"message": "pong",
 		})
 	})
-
-	// Serve static files from uploads directory
-	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
 	// SaaS: Register system admin routes (completely separate from tenant API)
 	tenantRouter.RegisterSystemAdminRoutes(r, sysAdminH, jwtManager, sysAdminRepository)

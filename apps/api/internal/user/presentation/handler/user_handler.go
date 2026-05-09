@@ -2,10 +2,11 @@ package handler
 
 import (
 	stderrors "errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	domainDTO "github.com/gilabs/gims/api/internal/user/domain/dto"
 	"github.com/gilabs/gims/api/internal/user/domain/usecase"
@@ -434,26 +435,9 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	defer file.Close()
 
 	// 2. Prepare upload config
-	// Default to local storage if config is missing (safety fallback)
-	uploadDir := "uploads"
-	if config.AppConfig.Storage.UploadDir != "" {
-		uploadDir = config.AppConfig.Storage.UploadDir
-	}
-	
-	baseURL := "http://localhost:8080/uploads"
-	// Use Storage.BaseURL if it's set to a full URL, otherwise we might need to construct it.
-	// For now, let's assume if Storage.BaseURL starts with http, use it, otherwise join.
-	if config.AppConfig.Storage.BaseURL != "" && len(config.AppConfig.Storage.BaseURL) > 4 && config.AppConfig.Storage.BaseURL[:4] == "http" {
-		baseURL = config.AppConfig.Storage.BaseURL
-	} else if config.AppConfig.Storage.BaseURL != "" {
-		// Just use what is configured, assuming it might be relative or absolute
-		baseURL = config.AppConfig.Storage.BaseURL
-	}
-
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize:   5 * 1024 * 1024, // 5MB limit
-		UploadDir: uploadDir,
-		BaseURL:   baseURL,
+		MaxSize: 5 * 1024 * 1024,     // 5MB limit
+		Folder:  fmt.Sprintf("avatars/%s", id), // Store each user's avatar under: avatars/{userId}/
 	}
 
 	// 3. Save file
@@ -477,8 +461,8 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	// 4. Update user avatar URL
 	if err := h.userUC.UpdateAvatar(c.Request.Context(), id, uploadedFile.URL); err != nil {
-		// Try to strict cleanup if update fails
-		_ = utils.DeleteFile(uploadedFile.Filename, uploadConfig.UploadDir)
+		// Best-effort cleanup: remove the uploaded file if DB update fails
+		_ = storage.Delete(c.Request.Context(), uploadedFile.Path)
 		
 		if err == usecase.ErrUserNotFound {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	_ "image/gif"
@@ -8,10 +9,10 @@ import (
 	_ "image/png"
 	"io"
 	"mime/multipart"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/google/uuid"
 	"github.com/h2non/filetype"
 )
@@ -43,9 +44,8 @@ var AllowedDocumentTypes = map[string]bool{
 // FileUploadConfig holds configuration for file uploads
 type FileUploadConfig struct {
 	MaxSize      int64  // Maximum file size in bytes
-	UploadDir    string // Directory to save uploaded files
-	BaseURL      string // Base URL for serving files
 	OriginalName string // Optional custom name for file (e.g., "Employee Name signature")
+	Folder       string // R2 folder prefix (e.g., "avatars", "products", "visits") — if empty, uses root
 }
 
 // UploadedFile represents an uploaded file
@@ -100,7 +100,7 @@ func ValidateImageFile(file multipart.File, header *multipart.FileHeader, maxSiz
 	return nil
 }
 
-// SaveUploadedFile saves an uploaded file with security best practices
+// SaveUploadedFile validates, converts to WebP, and uploads an image to Cloudflare R2.
 func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config FileUploadConfig) (*UploadedFile, error) {
 	// 1. Validate file
 	if err := ValidateImageFile(file, header, config.MaxSize); err != nil {
@@ -113,78 +113,37 @@ func SaveUploadedFile(file multipart.File, header *multipart.FileHeader, config 
 		return nil, err
 	}
 
-	// 3. Generate secure filename using UUID
+	// 3. Generate secure UUID filename
 	ext := ".webp"
 	mimeType := "image/webp"
 	if !WebPEnabled {
-		// No WebP conversion — keep original extension
 		ext = strings.ToLower(filepath.Ext(header.Filename))
 		mimeType = header.Header.Get("Content-Type")
 	}
-	filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	basename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 
-	// 4. Ensure upload directory exists
-	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
-		return nil, ErrFileProcessing
+	// 4. Build full R2 key with folder prefix (structured: avatars/uuid.webp, products/productId/uuid.webp, etc)
+	var key string
+	if config.Folder != "" {
+		key = fmt.Sprintf("%s/%s", strings.Trim(config.Folder, "/"), basename)
+	} else {
+		key = basename
 	}
 
-	// 5. Create full path (prevent directory traversal)
-	fullPath := filepath.Join(config.UploadDir, filename)
-
-	// 6. Validate path is within upload directory (security check)
-	absUploadDir, err := filepath.Abs(config.UploadDir)
+	// 5. Upload to R2
+	url, err := storage.Upload(context.Background(), key, webpData, mimeType)
 	if err != nil {
 		return nil, ErrFileProcessing
 	}
-	absFilePath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return nil, ErrFileProcessing
-	}
-	if !strings.HasPrefix(absFilePath, absUploadDir) {
-		return nil, errors.New("invalid file path")
-	}
-
-	// 7. Write file with restricted permissions (no execute)
-	if err := os.WriteFile(fullPath, webpData, 0644); err != nil {
-		return nil, ErrFileProcessing
-	}
-
-	// 8. Build public URL
-	url := fmt.Sprintf("%s/%s", strings.TrimSuffix(config.BaseURL, "/"), filename)
 
 	return &UploadedFile{
-		Filename:     filename,
+		Filename:     basename,
 		OriginalName: header.Filename,
-		Path:         fullPath,
+		Path:         key, // Full R2 object key (includes folder) — used for deletion
 		URL:          url,
 		Size:         int64(len(webpData)),
 		MimeType:     mimeType,
 	}, nil
-}
-
-// DeleteFile safely deletes an uploaded file
-func DeleteFile(filename string, uploadDir string) error {
-	// Prevent directory traversal
-	if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
-		return errors.New("invalid filename")
-	}
-
-	fullPath := filepath.Join(uploadDir, filename)
-
-	// Validate path is within upload directory
-	absUploadDir, err := filepath.Abs(uploadDir)
-	if err != nil {
-		return err
-	}
-	absFilePath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return err
-	}
-	if !strings.HasPrefix(absFilePath, absUploadDir) {
-		return errors.New("invalid file path")
-	}
-
-	return os.Remove(fullPath)
 }
 
 // ValidateDocumentFile validates document file type and size
@@ -220,7 +179,7 @@ func ValidateDocumentFile(file multipart.File, header *multipart.FileHeader, max
 	return nil
 }
 
-// SaveDocumentFile saves an uploaded document file with security best practices
+// SaveDocumentFile validates and uploads a document file (PDF, DOCX, XLS) to Cloudflare R2.
 func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config FileUploadConfig) (*UploadedFile, error) {
 	// 1. Validate file
 	if err := ValidateDocumentFile(file, header, config.MaxSize); err != nil {
@@ -233,8 +192,6 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 	if err != nil && err != io.EOF {
 		return nil, ErrFileProcessing
 	}
-
-	// Reset file pointer
 	if _, err := file.Seek(0, 0); err != nil {
 		return nil, ErrFileProcessing
 	}
@@ -250,49 +207,34 @@ func SaveDocumentFile(file multipart.File, header *multipart.FileHeader, config 
 	if base == "" {
 		base = "document"
 	}
-	filename := fmt.Sprintf("%s_%s.%s", uuid.New().String(), base, kind.Extension)
+	basename := fmt.Sprintf("%s_%s.%s", uuid.New().String(), base, kind.Extension)
 
-	// 4. Ensure upload directory exists
-	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
-		return nil, ErrFileProcessing
-	}
-
-	// 5. Create full path (prevent directory traversal)
-	fullPath := filepath.Join(config.UploadDir, filename)
-
-	// 6. Validate path is within upload directory (security check)
-	absUploadDir, err := filepath.Abs(config.UploadDir)
-	if err != nil {
-		return nil, ErrFileProcessing
-	}
-	absFilePath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return nil, ErrFileProcessing
-	}
-	if !strings.HasPrefix(absFilePath, absUploadDir) {
-		return nil, errors.New("invalid file path")
-	}
-
-	// 7. Read full file content
+	// 4. Read full file content
 	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		return nil, ErrFileProcessing
 	}
 
-	// 8. Write file with restricted permissions (no execute)
-	if err := os.WriteFile(fullPath, fileContent, 0644); err != nil {
+	// 5. Build full R2 key with folder prefix (structured path)
+	var key string
+	if config.Folder != "" {
+		key = fmt.Sprintf("%s/%s", strings.Trim(config.Folder, "/"), basename)
+	} else {
+		key = basename
+	}
+
+	// 6. Upload to R2
+	url, err := storage.Upload(context.Background(), key, fileContent, kind.MIME.Value)
+	if err != nil {
 		return nil, ErrFileProcessing
 	}
 
-	// 9. Build public URL
-	url := fmt.Sprintf("%s/%s", strings.TrimSuffix(config.BaseURL, "/"), filename)
-
 	return &UploadedFile{
-		Filename:     filename,
+		Filename:     basename,
 		OriginalName: header.Filename,
-		Path:         fullPath,
+		Path:         key, // Full R2 object key (includes folder) — used for deletion
 		URL:          url,
-		Size:         header.Size,
+		Size:         int64(len(fileContent)),
 		MimeType:     kind.MIME.Value,
 	}, nil
 }

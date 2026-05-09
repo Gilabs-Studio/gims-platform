@@ -40,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCreateActivity, useActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
+import { dealKeys } from "@/features/crm/deal/hooks/use-deals";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
@@ -358,6 +359,10 @@ export function LogActivityDialog({
       // Invalidate lead product items so the tab reflects the newly added products
       if (leadId) {
         qc.invalidateQueries({ queryKey: leadKeys.productItems(leadId) });
+      }
+      if (dealId) {
+        qc.invalidateQueries({ queryKey: dealKeys.productItems(dealId) });
+        qc.invalidateQueries({ queryKey: dealKeys.detail(dealId) });
       }
       toast.success(t("logActivity.created"));
       onClose();
