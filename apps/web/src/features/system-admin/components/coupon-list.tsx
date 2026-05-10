@@ -65,6 +65,7 @@ function StatusBadge({ isActive, activeLabel, inactiveLabel }: { isActive: boole
 }
 
 type CouponFormState = CreateCouponRequest;
+type DiscountType = NonNullable<CouponFormState["discount_type"]>;
 
 function createEmptyCouponForm(): CouponFormState {
   return {
@@ -124,6 +125,10 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
   };
   const [form, setForm] = useState<CouponFormState>(() => couponToForm(coupon));
   const [error, setError] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const discountType = form.discount_type ?? "trial";
+  const isTrial = discountType === "trial";
+  const isTierSpecific = (form.scope ?? "general") === "tier_specific";
 
   const mutation = useMutation({
     mutationFn: (payload: CouponFormState) => {
@@ -159,7 +164,41 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
       setError(t("maxUsesMin"));
       return;
     }
+
+    if (isTierSpecific && !form.target_plan_slug?.trim()) {
+      setError(`${t("targetPlanSlug")} is required`);
+      return;
+    }
+
+    if (!isTrial && (form.discount_value ?? 0) <= 0) {
+      setError(`${t("discountValue")} must be greater than 0`);
+      return;
+    }
+
+    if (discountType === "percent" && (form.discount_value ?? 0) > 100) {
+      setError(`${t("discountValue")} must be at most 100`);
+      return;
+    }
+
     mutation.mutate(form);
+  };
+
+  const handleDiscountTypeChange = (value: DiscountType) => {
+    setForm((prev) => {
+      if (value === "trial") {
+        return {
+          ...prev,
+          discount_type: value,
+          discount_value: 0,
+        };
+      }
+
+      return {
+        ...prev,
+        discount_type: value,
+        discount_value: prev.discount_value && prev.discount_value > 0 ? prev.discount_value : 10,
+      };
+    });
   };
 
   return (
@@ -192,6 +231,38 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
             />
           </div>
 
+          <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+            <Label>{t("discountType")}</Label>
+            <div className="grid gap-2 md:grid-cols-3">
+              <Button
+                type="button"
+                variant={discountType === "trial" ? "default" : "outline"}
+                onClick={() => handleDiscountTypeChange("trial")}
+              >
+                {t("trial")}
+              </Button>
+              <Button
+                type="button"
+                variant={discountType === "percent" ? "default" : "outline"}
+                onClick={() => handleDiscountTypeChange("percent")}
+              >
+                {t("percent")}
+              </Button>
+              <Button
+                type="button"
+                variant={discountType === "amount" ? "default" : "outline"}
+                onClick={() => handleDiscountTypeChange("amount")}
+              >
+                {t("amount")}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isTrial
+                ? "Trial coupon: fokus ke masa aktif akses, tanpa nilai diskon."
+                : "Discount coupon: isi nilai diskon agar potongan berlaku."}
+            </p>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="c-type">{t("couponType")}</Label>
@@ -216,7 +287,13 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
               <Label htmlFor="c-scope">{t("scope")}</Label>
               <Select
                 value={form.scope ?? "general"}
-                onValueChange={(v) => setForm((p) => ({ ...p, scope: v as CouponFormState["scope"] }))}
+                onValueChange={(v) =>
+                  setForm((p) => ({
+                    ...p,
+                    scope: v as CouponFormState["scope"],
+                    target_plan_slug: v === "tier_specific" ? p.target_plan_slug : "",
+                  }))
+                }
               >
                 <SelectTrigger id="c-scope">
                   <SelectValue />
@@ -229,7 +306,7 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          {isTierSpecific && (
             <div className="space-y-1.5">
               <Label htmlFor="c-target">{t("targetPlanSlug")}</Label>
               <Input
@@ -239,85 +316,24 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
                 onChange={(e) => setForm((p) => ({ ...p, target_plan_slug: e.target.value }))}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-discount-type">{t("discountType")}</Label>
-              <Select
-                value={form.discount_type ?? "trial"}
-                onValueChange={(v) => setForm((p) => ({ ...p, discount_type: v as CouponFormState["discount_type"] }))}
-              >
-                <SelectTrigger id="c-discount-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trial">{t("trial")}</SelectItem>
-                  <SelectItem value="percent">{t("percent")}</SelectItem>
-                  <SelectItem value="amount">{t("amount")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-discount">{t("discountValue")}</Label>
-              <Input
-                id="c-discount"
-                type="number"
-                min={0}
-                step="1"
-                value={form.discount_value ?? 0}
-                onChange={(e) => setForm((p) => ({ ...p, discount_value: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-max-users">{t("maxUserCount")}</Label>
-              <Input
-                id="c-max-users"
-                type="number"
-                min={1}
-                max={500}
-                value={form.max_user_count ?? ""}
-                onChange={(e) => setForm((p) => ({ ...p, max_user_count: Number(e.target.value) }))}
-              />
-            </div>
-          </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-lock-users">{t("lockUserCount")}</Label>
-              <div className="flex h-10 items-center rounded-md border px-3">
-                <Switch
-                  id="c-lock-users"
-                  checked={!!form.lock_user_count}
-                  onCheckedChange={(checked) => setForm((p) => ({ ...p, lock_user_count: checked }))}
+            {!isTrial && (
+              <div className="space-y-1.5">
+                <Label htmlFor="c-discount">{t("discountValue")}</Label>
+                <Input
+                  id="c-discount"
+                  type="number"
+                  min={0}
+                  max={discountType === "percent" ? 100 : undefined}
+                  step="1"
+                  value={form.discount_value ?? 0}
+                  onChange={(e) => setForm((p) => ({ ...p, discount_value: Number(e.target.value) }))}
                 />
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-package-monthly">{t("packagePriceMonthly")}</Label>
-              <Input
-                id="c-package-monthly"
-                type="number"
-                min={0}
-                step="1000"
-                value={form.package_price_monthly_idr ?? 0}
-                onChange={(e) => setForm((p) => ({ ...p, package_price_monthly_idr: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-package-yearly">{t("packagePriceYearly")}</Label>
-              <Input
-                id="c-package-yearly"
-                type="number"
-                min={0}
-                step="1000"
-                value={form.package_price_yearly_idr ?? 0}
-                onChange={(e) => setForm((p) => ({ ...p, package_price_yearly_idr: Number(e.target.value) }))}
-              />
-            </div>
-          </div>
+            )}
 
-          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="c-days">{t("durationDays")}</Label>
               <Input
@@ -329,44 +345,112 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
                 onChange={(e) => setForm((p) => ({ ...p, duration_days: Number(e.target.value) }))}
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="c-uses">{t("maxUses")}</Label>
+              <Label htmlFor="c-max-users">{t("maxUserCount")}</Label>
               <Input
-                id="c-uses"
+                id="c-max-users"
                 type="number"
                 min={1}
-                max={99999}
-                value={form.max_uses ?? 0}
-                onChange={(e) => setForm((p) => ({ ...p, max_uses: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-uses-email">{t("maxUsesPerEmail")}</Label>
-              <Input
-                id="c-uses-email"
-                type="number"
-                min={1}
-                max={100}
-                value={form.max_uses_per_email ?? 1}
-                onChange={(e) => setForm((p) => ({ ...p, max_uses_per_email: Number(e.target.value) }))}
+                max={500}
+                value={form.max_user_count ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm((p) => ({ ...p, max_user_count: value ? Number(value) : undefined }));
+                }}
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="c-expires">{t("expiresAt")}</Label>
-            <Input
-              id="c-expires"
-              type="date"
-              value={form.expires_at?.split("T")[0] ?? ""}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  expires_at: e.target.value ? `${e.target.value}T23:59:59Z` : null,
-                }))
-              }
-            />
+            <Label htmlFor="c-lock-users">{t("lockUserCount")}</Label>
+            <div className="flex h-10 items-center rounded-md border px-3">
+              <Switch
+                id="c-lock-users"
+                checked={!!form.lock_user_count}
+                onCheckedChange={(checked) => setForm((p) => ({ ...p, lock_user_count: checked }))}
+              />
+            </div>
           </div>
+
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 px-0 text-sm"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+            >
+              {showAdvanced ? "Hide advanced settings" : "Show advanced settings"}
+            </Button>
+          </div>
+
+          {showAdvanced && (
+            <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-3">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-package-monthly">{t("packagePriceMonthly")}</Label>
+                  <Input
+                    id="c-package-monthly"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    value={form.package_price_monthly_idr ?? 0}
+                    onChange={(e) => setForm((p) => ({ ...p, package_price_monthly_idr: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-package-yearly">{t("packagePriceYearly")}</Label>
+                  <Input
+                    id="c-package-yearly"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    value={form.package_price_yearly_idr ?? 0}
+                    onChange={(e) => setForm((p) => ({ ...p, package_price_yearly_idr: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-uses">{t("maxUses")}</Label>
+                  <Input
+                    id="c-uses"
+                    type="number"
+                    min={1}
+                    max={99999}
+                    value={form.max_uses ?? 0}
+                    onChange={(e) => setForm((p) => ({ ...p, max_uses: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-uses-email">{t("maxUsesPerEmail")}</Label>
+                  <Input
+                    id="c-uses-email"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.max_uses_per_email ?? 1}
+                    onChange={(e) => setForm((p) => ({ ...p, max_uses_per_email: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-expires">{t("expiresAt")}</Label>
+                  <Input
+                    id="c-expires"
+                    type="date"
+                    value={form.expires_at?.split("T")[0] ?? ""}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        expires_at: e.target.value ? `${e.target.value}T23:59:59Z` : null,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
@@ -555,14 +639,14 @@ export function CouponList() {
       </div>
 
       <CouponDialog
-        key="create-coupon"
+        key={createOpen ? "create-coupon-open" : "create-coupon-closed"}
         open={createOpen}
         mode="create"
         onClose={() => setCreateOpen(false)}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ["sys-coupons"] })}
       />
       <CouponDialog
-        key={editingCoupon?.id ?? "edit-coupon"}
+        key={`${editingCoupon?.id ?? "edit-coupon"}-${editOpen ? "open" : "closed"}`}
         open={editOpen}
         mode="edit"
         coupon={editingCoupon}

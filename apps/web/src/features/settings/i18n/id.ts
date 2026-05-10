@@ -34,6 +34,23 @@ export const settingsId: SettingsTranslations = {
     saving: "Menyimpan...",
     name: "Nama",
     email: "Email",
+    deleteAccount: {
+      title: "Hapus Akun",
+      description: "Ajukan penghapusan permanen akun tenant dan seluruh data tenant.",
+      warning: "Data tidak langsung dihapus. Akun akan dikunci dan masuk masa pemulihan 30 hari.",
+      action: "Hapus Akun",
+      confirmTitle: "Hapus akun ini?",
+      confirmDescription: "Tindakan ini memulai hitung mundur 30 hari sebelum penghapusan permanen.",
+      scheduledPurgeLabel: "Jadwal purge",
+      pointGrace: "System admin masih bisa memulihkan tenant ini dalam 30 hari.",
+      pointLocked: "Semua user tenant langsung dikunci selama masa tunggu.",
+      pointPermanent: "Setelah 30 hari, seluruh data tenant dan file terkait di R2 dihapus permanen.",
+      cancel: "Batal",
+      confirmAction: "Ya, Jadwalkan Penghapusan",
+      successToast: "Permintaan hapus akun berhasil. Tenant masuk masa pemulihan 30 hari.",
+      successToastWithDate: "Permintaan hapus akun berhasil. Purge permanen dijadwalkan pada {date}.",
+      errorToast: "Gagal mengajukan penghapusan akun. Silakan coba lagi.",
+    },
     
     // Dashboard Metrics
     metrics: {

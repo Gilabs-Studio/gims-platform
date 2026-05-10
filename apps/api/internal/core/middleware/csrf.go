@@ -129,6 +129,24 @@ func isSafeMethod(method string) bool {
 	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
 }
 
+func isBearerAuthRequest(c *gin.Context) bool {
+	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+	if authHeader == "" {
+		return false
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 {
+		return false
+	}
+
+	if !strings.EqualFold(parts[0], "Bearer") {
+		return false
+	}
+
+	return strings.TrimSpace(parts[1]) != ""
+}
+
 func validateCSRFTokens(c *gin.Context, token string) bool {
 	requestToken := c.GetHeader("X-CSRF-Token")
 	if requestToken != "" && requestToken == token {
@@ -163,6 +181,13 @@ func CSRF() gin.HandlerFunc {
 		}
 
 		if isSafeMethod(c.Request.Method) {
+			c.Next()
+			return
+		}
+
+		// CSRF is only relevant for cookie-auth browser flows.
+		// POS/mobile sends bearer token manually via Authorization header.
+		if isBearerAuthRequest(c) {
 			c.Next()
 			return
 		}

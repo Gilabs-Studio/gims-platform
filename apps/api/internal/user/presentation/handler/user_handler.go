@@ -48,11 +48,11 @@ func (h *UserHandler) List(c *gin.Context) {
 	userDTOs := make([]presentationDTO.UserResponseDTO, len(users))
 	for i, u := range users {
 		userDTOs[i] = presentationDTO.UserResponseDTO{
-			ID:                   u.ID,
-			Name:                 u.Name,
-			Email:                u.Email,
-			AvatarURL:            u.AvatarURL,
-			RoleID:               u.RoleID,
+			ID:        u.ID,
+			Name:      u.Name,
+			Email:     u.Email,
+			AvatarURL: u.AvatarURL,
+			RoleID:    u.RoleID,
 			Role: presentationDTO.RoleDTO{
 				Code: u.Role.Code,
 				Name: u.Role.Name,
@@ -436,7 +436,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	// 2. Prepare upload config
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize: 5 * 1024 * 1024,     // 5MB limit
+		MaxSize: 5 * 1024 * 1024,               // 5MB limit
 		Folder:  fmt.Sprintf("avatars/%s", id), // Store each user's avatar under: avatars/{userId}/
 	}
 
@@ -463,7 +463,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	if err := h.userUC.UpdateAvatar(c.Request.Context(), id, uploadedFile.URL); err != nil {
 		// Best-effort cleanup: remove the uploaded file if DB update fails
 		_ = storage.Delete(c.Request.Context(), uploadedFile.Path)
-		
+
 		if err == usecase.ErrUserNotFound {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
 				"user_id": id,
@@ -493,4 +493,35 @@ func (h *UserHandler) GetLimit(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, limit, nil)
+}
+
+// RequestAccountDeletion schedules tenant deletion in 30 days (owner only).
+func (h *UserHandler) RequestAccountDeletion(c *gin.Context) {
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		errors.UnauthorizedResponse(c, "unauthorized")
+		return
+	}
+	id, ok := userIDVal.(string)
+	if !ok || id == "" {
+		errors.InternalServerErrorResponse(c, "invalid user id in context")
+		return
+	}
+
+	schedule, err := h.userUC.RequestAccountDeletion(c.Request.Context(), id)
+	if err != nil {
+		switch err {
+		case usecase.ErrUserNotFound:
+			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{"user_id": id}, nil)
+		case usecase.ErrDeleteAccountForbidden:
+			errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
+				"reason": "only tenant owner can request account deletion",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	response.SuccessResponse(c, schedule, nil)
 }

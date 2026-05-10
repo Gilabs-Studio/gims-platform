@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type txKey struct{}
@@ -54,7 +55,10 @@ func GetDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
 	// Apply tenant scope when the request carries a tenant_id.
 	if v := ctx.Value(tenantIDKey); v != nil {
 		if tid, ok := v.(string); ok && tid != "" {
-			return db.Where("tenant_id = ?", tid)
+			return db.Where(clause.Eq{
+				Column: clause.Column{Table: clause.CurrentTable, Name: "tenant_id"},
+				Value:  tid,
+			})
 		}
 	}
 

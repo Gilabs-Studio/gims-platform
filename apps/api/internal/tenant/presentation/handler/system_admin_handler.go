@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 func resolveSystemAdminCookieOptions() (string, http.SameSite, bool) {
@@ -358,7 +360,37 @@ func (h *SystemAdminHandler) GetTenantDetail(c *gin.Context) {
 
 	tenant, err := h.tenantUC.GetTenantDetail(c.Request.Context(), id)
 	if err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			errors.NotFoundResponse(c, "tenant", id)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, tenant, nil)
+}
+
+// RecoverTenantDeletion cancels a pending tenant deletion request (system admin only).
+func (h *SystemAdminHandler) RecoverTenantDeletion(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"id": "required"}, nil)
+		return
+	}
+
+	tenant, err := h.tenantUC.RecoverTenantDeletion(c.Request.Context(), id)
+	if err != nil {
+		switch err {
+		case gorm.ErrRecordNotFound:
+			errors.NotFoundResponse(c, "tenant", id)
+		case usecase.ErrTenantDeletionNotScheduled:
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{
+				"reason": "tenant deletion is not scheduled",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
 		return
 	}
 

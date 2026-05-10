@@ -32,6 +32,23 @@ export const settingsEn = {
     saving: "Saving...",
     name: "Name",
     email: "Email",
+    deleteAccount: {
+      title: "Delete Account",
+      description: "Request permanent deletion of your tenant account and all tenant data.",
+      warning: "Data is not deleted immediately. The account is locked and enters a 30-day recovery window.",
+      action: "Delete Account",
+      confirmTitle: "Delete this account?",
+      confirmDescription: "This action starts a 30-day countdown before permanent deletion.",
+      scheduledPurgeLabel: "Scheduled purge",
+      pointGrace: "System admin can recover this tenant within 30 days.",
+      pointLocked: "Users in this tenant are immediately locked during the waiting period.",
+      pointPermanent: "After 30 days, all tenant data and related R2 files are permanently removed.",
+      cancel: "Cancel",
+      confirmAction: "Yes, Schedule Deletion",
+      successToast: "Account deletion requested. Your tenant is now in a 30-day recovery period.",
+      successToastWithDate: "Account deletion requested. Permanent purge is scheduled for {date}.",
+      errorToast: "Failed to request account deletion. Please try again.",
+    },
     
     // Dashboard Metrics
     metrics: {

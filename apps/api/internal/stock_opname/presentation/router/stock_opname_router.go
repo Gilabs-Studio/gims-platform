@@ -85,7 +85,7 @@ func RegisterStockOpnameRoutes(
 	inventoryOpname.GET("/:id/items", middleware.RequirePermission("stock_opname.read"), h.ListItems)
 	inventoryOpname.PUT("/:id/items", middleware.RequirePermission("stock_opname.update"), h.SaveItems)
 	// Backward-compatible path introduced during initial phase rollout
-	inventoryOpname.PUT(":id/lines", middleware.RequirePermission("stock_opname.update"), h.SaveLines)
+	inventoryOpname.PUT("/:id/lines", middleware.RequirePermission("stock_opname.update"), h.SaveLines)
 	inventoryOpname.POST("/:id/generate-journal", middleware.RequirePermission("stock_opname.update"), h.GenerateJournal)
 	inventoryOpname.POST("/:id/submit-approval", middleware.RequirePermission("stock_opname.update"), h.SubmitApproval)
 	inventoryOpname.DELETE("/:id", middleware.RequirePermission("stock_opname.delete"), h.Delete)

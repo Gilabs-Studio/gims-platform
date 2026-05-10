@@ -66,6 +66,10 @@ export interface Tenant {
   owner_user_id?: string;
   owner_name?: string;
   owner_email?: string;
+  deletion_requested_at?: string;
+  deletion_scheduled_at?: string;
+  deletion_requested_by?: string;
+  deletion_previous_status?: string;
   created_at?: string;
 }
 
