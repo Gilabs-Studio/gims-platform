@@ -22,8 +22,10 @@ const (
 type AssetTransactionStatus string
 
 const (
-	AssetTransactionStatusDraft    AssetTransactionStatus = "draft"
-	AssetTransactionStatusApproved AssetTransactionStatus = "approved"
+	AssetTransactionStatusPending   AssetTransactionStatus = "pending"
+	AssetTransactionStatusPosted    AssetTransactionStatus = "posted"
+	AssetTransactionStatusRejected  AssetTransactionStatus = "rejected"
+	AssetTransactionStatusCancelled AssetTransactionStatus = "cancelled"
 )
 
 type AssetTransaction struct {
@@ -37,7 +39,7 @@ type AssetTransaction struct {
 	TransactionDate time.Time              `gorm:"type:date;not null;index" json:"transaction_date"`
 	Amount          float64                `gorm:"type:numeric(18,2);not null;default:0" json:"amount"`
 	Description     string                 `gorm:"type:text" json:"description"`
-	Status          AssetTransactionStatus `gorm:"type:varchar(20);not null;default:'draft';index" json:"status"`
+	Status          AssetTransactionStatus `gorm:"type:varchar(20);not null;default:'pending';index" json:"status"`
 
 	ReferenceType *string `gorm:"type:varchar(50)" json:"reference_type"`
 	ReferenceID   *string `gorm:"type:uuid" json:"reference_id"`

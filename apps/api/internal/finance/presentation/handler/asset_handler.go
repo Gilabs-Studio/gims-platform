@@ -367,11 +367,12 @@ func (h *AssetHandler) CreateAttachment(c *gin.Context) {
 	fileSize := int(header.Size)
 
 	// For now, store file info (actual file storage would use cloud storage)
+	tenantID, _ := c.Request.Context().Value("tenant_id").(string)
 	att := &financeModels.AssetAttachment{
 		AssetID:     assetUUID,
 		FileName:    header.Filename,
-		FilePath:    "uploads/assets/" + assetID + "/" + header.Filename,
-		FileURL:     "/api/v1/finance/assets/" + assetID + "/attachments/" + header.Filename,
+		FilePath:    "/tenants/" + tenantID + "/assets/" + assetID + "/" + header.Filename,
+		FileURL:     "/api/v1/fixed-assets/" + assetID + "/attachments/" + header.Filename,
 		FileType:    fileType,
 		FileSize:    &fileSize,
 		MimeType:    &contentType,
@@ -384,6 +385,12 @@ func (h *AssetHandler) CreateAttachment(c *gin.Context) {
 		actorUUID, err := uuid.Parse(actorID)
 		if err == nil {
 			att.UploadedBy = &actorUUID
+		}
+	}
+	if tenantID != "" {
+		tenantUUID, err := uuid.Parse(tenantID)
+		if err == nil {
+			att.TenantID = &tenantUUID
 		}
 	}
 

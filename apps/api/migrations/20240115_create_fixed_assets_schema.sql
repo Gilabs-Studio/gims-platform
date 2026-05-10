@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS asset_locations (
 );
 
 -- Main Assets Table
-CREATE TABLE IF NOT EXISTS assets (
+CREATE TABLE IF NOT EXISTS fixed_assets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL,
   company_id UUID,
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS asset_depreciation_schedules (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
   CONSTRAINT asset_depreciation_schedules_unique_month UNIQUE(asset_id, period_month),
   INDEX idx_asset_depreciation_schedules_asset (asset_id),
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS asset_disposals (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE RESTRICT,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE RESTRICT,
   
   INDEX idx_asset_disposals_asset (asset_id),
   INDEX idx_asset_disposals_disposal_date (disposal_date),
@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS asset_attachments (
   uploaded_by UUID,
   uploaded_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
   INDEX idx_asset_attachments_asset (asset_id),
   INDEX idx_asset_attachments_type (attachment_type)
@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS asset_audit_logs (
   ip_address VARCHAR(45),
   user_agent TEXT,
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
   INDEX idx_asset_audit_logs_asset (asset_id),
   INDEX idx_asset_audit_logs_action (action),
@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS asset_transfers (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
   INDEX idx_asset_transfers_asset (asset_id),
   INDEX idx_asset_transfers_status (status),
@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS asset_maintenance_logs (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
   INDEX idx_asset_maintenance_logs_asset (asset_id),
   INDEX idx_asset_maintenance_logs_maintenance_date (maintenance_date),
@@ -308,6 +308,6 @@ CREATE TABLE IF NOT EXISTS asset_maintenance_logs (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_assets_composite_status_category ON assets(status, category_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_assets_composite_department_location ON assets(department_id, location_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_assets_composite_custodian_active ON assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;
+CREATE INDEX idx_assets_composite_status_category ON fixed_assets(status, category_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_assets_composite_department_location ON fixed_assets(department_id, location_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_assets_composite_custodian_active ON fixed_assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;

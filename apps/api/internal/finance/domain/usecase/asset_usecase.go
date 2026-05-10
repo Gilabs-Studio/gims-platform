@@ -487,11 +487,11 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 			TransactionDate: acqDate,
 			Amount:          totalAcquisitionCost,
 			Description:     "Asset acquired",
-			Status:          financeModels.AssetTransactionStatusApproved,
+			Status:          financeModels.AssetTransactionStatusPosted,
 			CreatedBy:       &actorID,
 		}
 		if approvalRequired {
-			txRec.Status = financeModels.AssetTransactionStatusDraft
+			txRec.Status = financeModels.AssetTransactionStatusPending
 		}
 		if err := tx.Create(txRec).Error; err != nil {
 			return err
@@ -1531,7 +1531,7 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 			Type:            financeModels.AssetTransactionTypeTransfer,
 			TransactionDate: transferDate,
 			Description:     desc,
-			Status:          financeModels.AssetTransactionStatusDraft,
+			Status:          financeModels.AssetTransactionStatusPending,
 			ReferenceID:     &newLocationID, // Store target location ID in reference for approval
 			CreatedBy:       &actorID,
 			CreatedAt:       apptime.Now(),
@@ -1684,7 +1684,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			TransactionDate:        disposalDate,
 			Amount:                 req.ProceedsAmount,
 			Description:            desc,
-			Status:                 financeModels.AssetTransactionStatusDraft,
+			Status:                 financeModels.AssetTransactionStatusPending,
 			ProceedsAmount:         req.ProceedsAmount,
 			BankAccountID:          req.BankAccountID,
 			BookValueAtTransaction: preview.BookValue,
@@ -1761,7 +1761,7 @@ func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetR
 			TransactionDate: disposalDate,
 			Amount:          req.SaleAmount,
 			Description:     fmt.Sprintf("%s (sale amount: %s)", desc, saleAmountStr),
-			Status:          financeModels.AssetTransactionStatusDraft,
+			Status:          financeModels.AssetTransactionStatusPending,
 			CreatedBy:       &actorID,
 			CreatedAt:       apptime.Now(),
 		}
@@ -1921,7 +1921,7 @@ func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.Revalue
 			TransactionDate: date,
 			Amount:          req.NewValue, // New total value
 			Description:     req.Description,
-			Status:          financeModels.AssetTransactionStatusDraft,
+			Status:          financeModels.AssetTransactionStatusPending,
 			CreatedBy:       &actorID,
 			CreatedAt:       apptime.Now(),
 		}
@@ -1960,7 +1960,7 @@ func (uc *assetUsecase) Adjust(ctx context.Context, id string, req *dto.AdjustAs
 			TransactionDate: date,
 			Amount:          req.AdjustmentAmount, // Delta amount
 			Description:     req.Description,
-			Status:          financeModels.AssetTransactionStatusDraft,
+			Status:          financeModels.AssetTransactionStatusPending,
 			CreatedBy:       &actorID,
 			CreatedAt:       apptime.Now(),
 		}
@@ -1980,8 +1980,8 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 		return nil, errors.New("transaction not found")
 	}
 
-	if tr.Status != financeModels.AssetTransactionStatusDraft {
-		return nil, errors.New("only draft transactions can be approved")
+	if tr.Status != financeModels.AssetTransactionStatusPending {
+		return nil, errors.New("only pending transactions can be approved")
 	}
 
 	asset := tr.Asset
@@ -2042,7 +2042,7 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 		}
 
 		return tx.Model(&financeModels.AssetTransaction{}).Where("id = ?", tr.ID).Updates(map[string]interface{}{
-			"status":    financeModels.AssetTransactionStatusApproved,
+			"status":    financeModels.AssetTransactionStatusPosted,
 			"posted_by": &actorID,
 		}).Error
 	})

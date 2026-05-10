@@ -139,11 +139,12 @@ CREATE INDEX IF NOT EXISTS idx_asset_audit_action ON asset_audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_asset_audit_date ON asset_audit_logs(performed_at);
 
 -- ============================================
--- Part 5: Create asset_assignment_history table
+-- Part 5: Create asset_assignment_histories table
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS asset_assignment_history (
+CREATE TABLE IF NOT EXISTS asset_assignment_histories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID,
     asset_id UUID NOT NULL REFERENCES fixed_assets(id) ON DELETE CASCADE,
     employee_id UUID REFERENCES employees(id),
     department_id UUID REFERENCES departments(id),
@@ -156,9 +157,9 @@ CREATE TABLE IF NOT EXISTS asset_assignment_history (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_asset_assignment_asset ON asset_assignment_history(asset_id);
-CREATE INDEX IF NOT EXISTS idx_asset_assignment_employee ON asset_assignment_history(employee_id);
-CREATE INDEX IF NOT EXISTS idx_asset_assignment_date ON asset_assignment_history(assigned_at);
+CREATE INDEX IF NOT EXISTS idx_asset_assignment_asset ON asset_assignment_histories(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignment_employee ON asset_assignment_histories(employee_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignment_date ON asset_assignment_histories(assigned_at);
 
 -- ============================================
 -- Part 6: Update existing data (if any)

@@ -8,8 +8,10 @@ import (
 
 // AssetDisposal model
 type AssetDisposal struct {
-	ID      uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	AssetID uuid.UUID `gorm:"type:uuid;not null;index" json:"asset_id"`
+	ID                  uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID            *uuid.UUID `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	AssetID             uuid.UUID  `gorm:"type:uuid;not null;index" json:"asset_id"`
+	SourceTransactionID *uuid.UUID `gorm:"type:uuid;index" json:"source_transaction_id,omitempty"`
 
 	DisposalType DisposalType `gorm:"type:varchar(50)" json:"disposal_type"`
 	DisposalDate time.Time    `gorm:"type:date;not null;index" json:"disposal_date"`

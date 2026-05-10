@@ -179,7 +179,7 @@ func (a *Asset) BeforeCreate(tx *gorm.DB) error {
 
 // TotalAcquisitionCost returns the total cost including additional costs
 func (a *Asset) TotalAcquisitionCost() float64 {
-	return a.AcquisitionCost + a.ShippingCost + a.InstallationCost + a.TaxAmount + a.OtherCosts
+	return a.ShippingCost + a.InstallationCost + a.TaxAmount + a.OtherCosts
 }
 
 // IsUnderWarranty checks if the asset is currently under warranty

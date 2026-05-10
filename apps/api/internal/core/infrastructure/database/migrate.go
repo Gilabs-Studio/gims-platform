@@ -197,7 +197,12 @@ func AutoMigrate() error {
 		&finance.AssetDepreciation{},
 		&finance.AssetDepreciationSchedule{},
 		&finance.AssetTransaction{},
-		// NEW: Extended Asset entities
+		// Extended Asset domain entities (final business records)
+		&finance.AssetDisposal{},
+		&finance.AssetTransfer{},
+		&finance.AssetRevaluation{},
+		&finance.AssetMaintenanceLog{},
+		// Asset workflow & audit
 		&finance.AssetAttachment{},
 		&finance.AssetAuditLog{},
 		&finance.AssetAssignmentHistory{},
@@ -1790,8 +1795,12 @@ func backfillTenantIDs() error {
 		"bank_statement_lines",
 		"asset_categories",
 		"asset_locations",
-		"assets",
+		"fixed_assets",
 		"asset_depreciations",
+		"asset_depreciation_schedules",
+		"asset_disposals",
+		"asset_transfers",
+		"asset_maintenance_logs",
 		"asset_transactions",
 		"asset_attachments",
 		"asset_audit_logs",

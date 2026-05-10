@@ -229,8 +229,9 @@ func prepareAssetCreateSchema(t *testing.T, db *gorm.DB) {
 			metadata TEXT,
 			created_at TIMESTAMP
 		)`,
-		`CREATE TABLE IF NOT EXISTS asset_assignment_history (
+		`CREATE TABLE IF NOT EXISTS asset_assignment_histories (
 			id TEXT PRIMARY KEY,
+			tenant_id TEXT,
 			asset_id TEXT,
 			employee_id TEXT,
 			department_id TEXT,
