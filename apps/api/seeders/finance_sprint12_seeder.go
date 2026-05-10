@@ -189,6 +189,12 @@ func SeedFinanceSprint12() error {
 		},
 	}
 
+	// Assign seeded assets to PT Gilabs company
+	gilabsCompanyID := GiLabsCompanyID
+	for j := range assets {
+		assets[j].CompanyID = &gilabsCompanyID
+	}
+
 	for i := range assets {
 		if assets[i].CategoryID == "" || assets[i].LocationID == "" {
 			log.Printf("Warning: Skipping asset %s because category/location is missing", assets[i].Code)
