@@ -459,6 +459,44 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		IsDepreciable:           isDepreciable,
 		CreatedBy:               &actorID,
 	}
+
+	// Parse optional warranty/insurance dates and set on asset
+	if req.WarrantyStart != nil && strings.TrimSpace(*req.WarrantyStart) != "" {
+		if ws, err := parseAssetDateStrict(*req.WarrantyStart); err == nil {
+			item.WarrantyStart = &ws
+		}
+	}
+	if req.WarrantyEnd != nil && strings.TrimSpace(*req.WarrantyEnd) != "" {
+		if we, err := parseAssetDateStrict(*req.WarrantyEnd); err == nil {
+			item.WarrantyEnd = &we
+		}
+	}
+	if req.WarrantyProvider != nil {
+		item.WarrantyProvider = req.WarrantyProvider
+	}
+	if req.WarrantyTerms != nil {
+		item.WarrantyTerms = req.WarrantyTerms
+	}
+
+	if req.InsuranceStart != nil && strings.TrimSpace(*req.InsuranceStart) != "" {
+		if isd, err := parseAssetDateStrict(*req.InsuranceStart); err == nil {
+			item.InsuranceStart = &isd
+		}
+	}
+	if req.InsuranceEnd != nil && strings.TrimSpace(*req.InsuranceEnd) != "" {
+		if ied, err := parseAssetDateStrict(*req.InsuranceEnd); err == nil {
+			item.InsuranceEnd = &ied
+		}
+	}
+	if req.InsuranceProvider != nil {
+		item.InsuranceProvider = req.InsuranceProvider
+	}
+	if req.InsurancePolicyNumber != nil {
+		item.InsurancePolicyNumber = req.InsurancePolicyNumber
+	}
+	if req.InsuranceValue != nil {
+		item.InsuranceValue = req.InsuranceValue
+	}
 	actorUUID, err := uuid.Parse(actorID)
 	if err != nil {
 		return nil, err
@@ -2719,6 +2757,16 @@ func (uc *assetUsecase) assignEmployeeTx(tx *gorm.DB, asset *financeModels.Asset
 		"assignment_date":         now,
 	}
 	if err := tx.Model(&financeModels.Asset{}).Where("id = ? AND tenant_id = ?", assetID, asset.TenantID).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	// Close previous active assignment(s) for this asset
+	prevQuery := tx.Model(&financeModels.AssetAssignmentHistory{}).
+		Where("asset_id = ? AND (returned_at IS NULL)", assetUUID)
+	if strings.TrimSpace(asset.TenantID) != "" {
+		prevQuery = prevQuery.Where("tenant_id = ?", asset.TenantID)
+	}
+	if err := prevQuery.Update("returned_at", now).Error; err != nil {
 		return err
 	}
 
