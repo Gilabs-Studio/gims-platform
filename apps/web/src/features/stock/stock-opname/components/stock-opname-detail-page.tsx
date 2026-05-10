@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, FileText, Send, CheckCircle, XCircle, Archive, Users, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion";
 import { useStockOpname, useUpdateStockOpnameStatus, useGenerateStockOpnameJournal, useSubmitStockOpnameApproval } from "../hooks/use-stock-opnames";
@@ -14,6 +15,7 @@ import { formatDate } from "@/lib/utils";
 import { getStockOpnameErrorMessage, isStockOpnameMappingError } from "../utils/error-utils";
 import { StockOpnameManagerView } from "./stock-opname-manager-view";
 import { StockOpnameCounterView } from "./stock-opname-counter-view";
+import type { StockOpnameDraftActions } from "./stock-opname-manager-view";
 
 interface Props {
   id: string;
@@ -34,12 +36,24 @@ export function StockOpnameDetailPage({ id }: Props) {
   const statusMutation = useUpdateStockOpnameStatus();
   const generateJournalMutation = useGenerateStockOpnameJournal();
   const submitApprovalMutation = useSubmitStockOpnameApproval();
+  const draftActionsRef = useRef<StockOpnameDraftActions | null>(null);
+  const [isSyncingDraftBeforeAction, setIsSyncingDraftBeforeAction] = useState(false);
 
   const isManagerView = canApprove || canPost;
 
   const handleStatusChange = async (newStatus: string) => {
     if (!opname) return;
     try {
+      if (opname.status === "draft") {
+        setIsSyncingDraftBeforeAction(true);
+        const didFlushDraft = await draftActionsRef.current?.flushPendingDrafts();
+        setIsSyncingDraftBeforeAction(false);
+        if (didFlushDraft === false) {
+          toast.error(tCommon("error"));
+          return;
+        }
+      }
+
       if (newStatus === "pending_approval") {
         await generateJournalMutation.mutateAsync(opname.id);
         await submitApprovalMutation.mutateAsync(opname.id);
@@ -49,6 +63,7 @@ export function StockOpnameDetailPage({ id }: Props) {
       await statusMutation.mutateAsync({ id: opname.id, data: { status: newStatus as never } });
       toast.success(tCommon("saved"));
     } catch (error) {
+      setIsSyncingDraftBeforeAction(false);
       if (isStockOpnameMappingError(error)) {
         toast.error(t("errors.mappingRequired"), {
           action: {
@@ -63,6 +78,7 @@ export function StockOpnameDetailPage({ id }: Props) {
   };
 
   const isActionPending =
+    isSyncingDraftBeforeAction ||
     statusMutation.isPending ||
     generateJournalMutation.isPending ||
     submitApprovalMutation.isPending;
@@ -219,9 +235,9 @@ export function StockOpnameDetailPage({ id }: Props) {
 
       {/* Main Content — role-based */}
       {isManagerView ? (
-        <StockOpnameManagerView opname={opname} canEditDraft={canUpdate} />
+        <StockOpnameManagerView ref={draftActionsRef} opname={opname} canEditDraft={canUpdate} />
       ) : (
-        <StockOpnameCounterView opname={opname} readOnly={!canUpdate || opname.status !== "draft"} />
+        <StockOpnameCounterView ref={draftActionsRef} opname={opname} readOnly={!canUpdate || opname.status !== "draft"} />
       )}
     </PageMotion>
   );

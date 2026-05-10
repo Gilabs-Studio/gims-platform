@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { forwardRef, useEffect, useState, useCallback, useImperativeHandle, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useStockOpnameItemsInfinite, useSaveStockOpnameLines } from "../hooks/use-stock-opnames";
 import type { StockOpname, StockOpnameItem } from "../types";
+import type { StockOpnameDraftActions } from "./stock-opname-manager-view";
 
 interface Props {
   opname: StockOpname;
@@ -30,7 +31,7 @@ interface PendingCounterLine {
   notes: string;
 }
 
-export function StockOpnameCounterView({ opname, readOnly }: Props) {
+export const StockOpnameCounterView = forwardRef<StockOpnameDraftActions, Props>(function StockOpnameCounterView({ opname, readOnly }: Props, ref) {
   const t = useTranslations("stock_opname");
   const tCommon = useTranslations("common");
 
@@ -62,6 +63,7 @@ export function StockOpnameCounterView({ opname, readOnly }: Props) {
   const pendingLinesRef = useRef<Record<string, PendingCounterLine>>({});
   const flushTimerRef = useRef<number | null>(null);
   const isFlushingRef = useRef(false);
+  const flushPromiseRef = useRef<Promise<boolean> | null>(null);
   const flushAgainRef = useRef(false);
   const [hasPendingDraft, setHasPendingDraft] = useState(false);
   const [isQueueSaving, setIsQueueSaving] = useState(false);
@@ -92,91 +94,112 @@ export function StockOpnameCounterView({ opname, readOnly }: Props) {
     window.localStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
   }, [draftStorageKey, itemState]);
 
-  const flushPendingLines = useCallback(async () => {
-    if (readOnly || isFlushingRef.current) {
-      flushAgainRef.current = true;
-      return;
+  const flushPendingLines = useCallback(async (): Promise<boolean> => {
+    if (readOnly) {
+      return true;
     }
 
-    const snapshot = Object.values(pendingLinesRef.current);
-    if (snapshot.length === 0) {
-      return;
+    if (flushPromiseRef.current) {
+      return flushPromiseRef.current;
     }
 
-    isFlushingRef.current = true;
-    setIsQueueSaving(true);
-    pendingLinesRef.current = {};
-    setHasPendingDraft(false);
-    if (flushTimerRef.current) {
-      clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
+    const runFlush = async (): Promise<boolean> => {
+      if (isFlushingRef.current) {
+        flushAgainRef.current = true;
+        return true;
+      }
 
-    const itemIds = snapshot.map((line) => line.itemId);
-    setItemState((prev) => {
-      const next = { ...prev };
-      for (const itemId of itemIds) {
-        next[itemId] = {
-          ...(next[itemId] ?? {
-            physical_qty: null,
+      const snapshot = Object.values(pendingLinesRef.current);
+      if (snapshot.length === 0) {
+        return true;
+      }
+
+      isFlushingRef.current = true;
+      setIsQueueSaving(true);
+      pendingLinesRef.current = {};
+      setHasPendingDraft(false);
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      const itemIds = snapshot.map((line) => line.itemId);
+      setItemState((prev) => {
+        const next = { ...prev };
+        for (const itemId of itemIds) {
+          next[itemId] = {
+            ...(next[itemId] ?? {
+              physical_qty: null,
+              dirty: false,
+              saving: false,
+            }),
+            saving: true,
             dirty: false,
-            saving: false,
-          }),
-          saving: true,
-          dirty: false,
-        };
+          };
+        }
+        return next;
+      });
+
+      let didFail = false;
+      try {
+        await saveLinesMutation.mutateAsync({
+          id: opname.id,
+          data: {
+            items: snapshot.map((line) => ({
+              product_id: line.product_id,
+              system_qty: line.system_qty,
+              physical_qty: line.physical_qty,
+              notes: line.notes,
+            })),
+          },
+        });
+
+        setItemState((prev) => {
+          const next = { ...prev };
+          for (const itemId of itemIds) {
+            if (!next[itemId]) continue;
+            next[itemId] = { ...next[itemId], saving: false, dirty: false };
+          }
+          return next;
+        });
+        return true;
+      } catch {
+        didFail = true;
+        pendingLinesRef.current = snapshot.reduce<Record<string, PendingCounterLine>>((acc, line) => {
+          acc[line.itemId] = line;
+          return acc;
+        }, {});
+        setHasPendingDraft(true);
+        setItemState((prev) => {
+          const next = { ...prev };
+          for (const itemId of itemIds) {
+            if (!next[itemId]) continue;
+            next[itemId] = { ...next[itemId], saving: false, dirty: true };
+          }
+          return next;
+        });
+        toast.error(tCommon("error"));
+        return false;
+      } finally {
+        isFlushingRef.current = false;
+        setIsQueueSaving(false);
+        if (!didFail && (flushAgainRef.current || Object.keys(pendingLinesRef.current).length > 0)) {
+          flushAgainRef.current = false;
+          setHasPendingDraft(Object.keys(pendingLinesRef.current).length > 0);
+        }
       }
-      return next;
+    };
+
+    const promise = runFlush().finally(() => {
+      flushPromiseRef.current = null;
     });
-
-    let didFail = false;
-    try {
-      await saveLinesMutation.mutateAsync({
-        id: opname.id,
-        data: {
-          items: snapshot.map((line) => ({
-            product_id: line.product_id,
-            system_qty: line.system_qty,
-            physical_qty: line.physical_qty,
-            notes: line.notes,
-          })),
-        },
-      });
-
-      setItemState((prev) => {
-        const next = { ...prev };
-        for (const itemId of itemIds) {
-          if (!next[itemId]) continue;
-          next[itemId] = { ...next[itemId], saving: false, dirty: false };
-        }
-        return next;
-      });
-    } catch {
-      didFail = true;
-      pendingLinesRef.current = snapshot.reduce<Record<string, PendingCounterLine>>((acc, line) => {
-        acc[line.itemId] = line;
-        return acc;
-      }, {});
-      setHasPendingDraft(true);
-      setItemState((prev) => {
-        const next = { ...prev };
-        for (const itemId of itemIds) {
-          if (!next[itemId]) continue;
-          next[itemId] = { ...next[itemId], saving: false, dirty: true };
-        }
-        return next;
-      });
-      toast.error(tCommon("error"));
-    } finally {
-      isFlushingRef.current = false;
-      setIsQueueSaving(false);
-      if (!didFail && (flushAgainRef.current || Object.keys(pendingLinesRef.current).length > 0)) {
-        flushAgainRef.current = false;
-        setHasPendingDraft(Object.keys(pendingLinesRef.current).length > 0);
-        void flushPendingLines();
-      }
-    }
+    flushPromiseRef.current = promise;
+    return promise;
   }, [opname.id, readOnly, saveLinesMutation, tCommon]);
+
+  useImperativeHandle(ref, () => ({
+    flushPendingDrafts: flushPendingLines,
+  }), [flushPendingLines]);
 
   const queueQtyChange = useCallback((item: StockOpnameItem, newQty: number | null) => {
     if (readOnly) return;
@@ -406,4 +429,4 @@ export function StockOpnameCounterView({ opname, readOnly }: Props) {
       )}
     </div>
   );
-}
+});
