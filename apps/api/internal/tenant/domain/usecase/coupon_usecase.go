@@ -471,7 +471,15 @@ func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string, us
 	}
 
 	now := apptime.Now()
-	expiresAt := now.Add(time.Duration(coupon.DurationDays) * 24 * time.Hour)
+	var expiresAt time.Time
+	var expiresAtPtr *time.Time
+	if coupon.DurationDays > 0 {
+		expiresAt = now.Add(time.Duration(coupon.DurationDays) * 24 * time.Hour)
+		expiresAtPtr = &expiresAt
+	} else {
+		// DurationDays == 0 indicates lifetime — leave ExpiresAt nil
+		expiresAtPtr = nil
+	}
 	couponID := coupon.ID
 	plan := couponTypeToPlan(coupon.CouponType)
 	if coupon.TargetPlanSlug != nil && *coupon.TargetPlanSlug != "" {
@@ -489,7 +497,7 @@ func buildTrialSubscriptionFromCoupon(coupon *models.Coupon, tenantID string, us
 		UserCount:     userCount,
 		SeatLimit:     userCount,
 		StartsAt:      now,
-		ExpiresAt:     &expiresAt,
+		ExpiresAt:     expiresAtPtr,
 		CouponID:      &couponID,
 		Notes:         fmt.Sprintf("Granted via coupon %s (%s)", coupon.Code, coupon.Description),
 	}
@@ -547,7 +555,7 @@ func couponTypeToPlan(ct models.CouponType) models.SubscriptionPlan {
 	case models.CouponTypeHROnly:
 		return models.PlanHRGrowth
 	default:
-		return models.PlanFullAccess
+		return models.PlanUltimateSuite
 	}
 }
 

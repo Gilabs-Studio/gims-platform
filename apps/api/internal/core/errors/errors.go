@@ -312,6 +312,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "User limit for this tenant has been reached. Upgrade your plan to add more users.",
 	},
+	"USER_COUNT_EXCEEDS_SYSTEM_LIMIT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "User count exceeds the maximum allowed for registration",
+	},
 
 	// Sales Errors
 	"CREDIT_LIMIT_EXCEEDED": {

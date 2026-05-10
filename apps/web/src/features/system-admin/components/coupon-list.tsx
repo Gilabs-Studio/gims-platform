@@ -156,7 +156,7 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
       setError(t("descriptionRequired"));
       return;
     }
-    if (form.duration_days < 1) {
+    if (form.duration_days < 0) {
       setError(t("durationMin"));
       return;
     }
@@ -339,11 +339,24 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
               <Input
                 id="c-days"
                 type="number"
-                min={1}
+                min={0}
                 max={36500}
                 value={form.duration_days}
                 onChange={(e) => setForm((p) => ({ ...p, duration_days: Number(e.target.value) }))}
               />
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  id="c-lifetime"
+                  type="checkbox"
+                  checked={form.duration_days === 0}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, duration_days: e.target.checked ? 0 : 30 }))
+                  }
+                />
+                <label htmlFor="c-lifetime" className="text-sm text-muted-foreground">
+                  {t("lifetime")}
+                </label>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -351,8 +364,8 @@ function CouponDialog({ open, mode, coupon, onClose, onSaved }: CouponDialogProp
               <Input
                 id="c-max-users"
                 type="number"
-                min={1}
-                max={500}
+                min={0}
+                max={999}
                 value={form.max_user_count ?? ""}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -593,7 +606,7 @@ export function CouponList() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {coupon.duration_days >= 36500 ? "Lifetime" : `${coupon.duration_days}d`}
+                      {coupon.duration_days === 0 || coupon.duration_days >= 36500 ? "Lifetime" : `${coupon.duration_days}d`}
                     </TableCell>
                     <TableCell className="text-sm">
                       {coupon.used_count} / {coupon.max_uses}

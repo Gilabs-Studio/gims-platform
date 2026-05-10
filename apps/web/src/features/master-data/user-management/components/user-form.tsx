@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
+import { Eye, EyeOff } from "lucide-react";
 import { createUserSchema, updateUserSchema, type CreateUserFormData, type UpdateUserFormData } from "../schemas/user.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
   const { data: rolesData } = useRoles();
   const roles = sortOptions(rolesData?.data || [], (role) => role.name);
   const t = useTranslations("userManagement.form");
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -99,11 +101,25 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, emailErrorMessag
       {!isEdit && (
         <Field orientation="vertical">
           <FieldLabel>{t("passwordLabel")}</FieldLabel>
-          <Input
-            type="password"
-            {...register("password")}
-            placeholder={t("passwordPlaceholder")}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              {...register("password")}
+              placeholder={t("passwordPlaceholder")}
+              className="pr-10"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 cursor-pointer"
+              onClick={() => setShowPassword((prev) => !prev)}
+              disabled={isLoading}
+              aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
           {(
             errors as {
               password?: { message?: string };

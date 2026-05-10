@@ -25,7 +25,7 @@ export interface TenantEntitlements {
   permission_codes?: string[];
 }
 
-export type BillingChangeAction = "add_seat" | "add_outlet" | "upgrade_plan" | "add_module" | "downgrade" | "downgrade_outlet";
+export type BillingChangeAction = "add_seat" | "add_outlet" | "upgrade_plan" | "add_module" | "downgrade";
 
 export interface BillingChangeRequest {
   action: BillingChangeAction;

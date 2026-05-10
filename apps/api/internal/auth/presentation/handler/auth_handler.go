@@ -373,6 +373,37 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	var req dto.RegisterTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			// Provide enhanced error messages for user_count field validation
+			var fieldErrors []response.FieldError
+			hasUserCountError := false
+			
+			for _, fieldError := range validationErrors {
+				if fieldError.StructField() == "UserCount" {
+					hasUserCountError = true
+					var message string
+					switch fieldError.Tag() {
+					case "max":
+						message = "User count must not exceed 999 per registration (system limit)"
+					case "min":
+						message = "User count must be at least 1"
+					default:
+						message = "Invalid user count value"
+					}
+					fieldErrors = append(fieldErrors, response.FieldError{
+						Field:   "user_count",
+						Code:    fieldError.Tag(),
+						Message: message,
+					})
+				}
+			}
+			
+			// If we found user_count errors, return them with better context
+			if hasUserCountError && len(fieldErrors) > 0 {
+				errors.ValidationErrorResponse(c, fieldErrors)
+				return
+			}
+			
+			// For other validation errors, use generic handler
 			errors.HandleValidationError(c, validationErrors)
 			return
 		}
@@ -418,6 +449,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			errors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]interface{}{
 				"field":   "user_count",
 				"message": "Selected user count exceeds coupon limit",
+				"hint":    "Please reduce the number of users to match your coupon's maximum allowed user count, or remove the coupon to use plan pricing instead",
 			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())

@@ -386,6 +386,7 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 	newOutletLimit := snapshot.CurrentOutletLimit
 	newPlanSlug := snapshot.PlanSlug
 	var targetPlan *models.SubscriptionPlanConfig
+	var oneTimeOutletAmount int64
 
 	switch req.Action {
 	case tenantDTO.BillingChangeActionAddSeat:
@@ -400,6 +401,11 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
 		}
 		newOutletLimit = parsedOutletLimit
+		outletAddonCount := newOutletLimit - snapshot.CurrentOutletLimit
+		if outletAddonCount < 0 {
+			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
+		}
+		oneTimeOutletAmount = int64(outletAddonCount) * snapshot.CurrentPlan.OutletAddonPriceIDR(snapshot.BillingPeriod)
 	case tenantDTO.BillingChangeActionDowngradeOutlet:
 		parsedOutletLimit, parseErr := strconv.Atoi(strings.TrimSpace(req.Target))
 		if parseErr != nil || parsedOutletLimit >= snapshot.CurrentOutletLimit {
@@ -441,14 +447,21 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 		return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, ErrBillingChangeUnsupported
 	}
 
-	prorationAmount, waivedReason := calculateProrationAmount(snapshot.ActionDate, snapshot.NextBillingAt, snapshot.ExpiresAt, currentAmount, newAmount)
 	decision.NewSeatLimit = newSeatLimit
 	decision.NewOutletLimit = newOutletLimit
 	decision.NewAmountPerCycle = newAmount
 	decision.NewPlanSlug = newPlanSlug
-	decision.ProrationAmount = prorationAmount
-	decision.ProrationWaivedReason = waivedReason
-	decision.AmountDueNow = prorationAmount
+	if req.Action == tenantDTO.BillingChangeActionAddOutlet {
+		decision.NewAmountPerCycle = currentAmount
+		decision.ProrationAmount = oneTimeOutletAmount
+		decision.ProrationWaivedReason = "one_time_outlet_addon"
+		decision.AmountDueNow = oneTimeOutletAmount
+	} else {
+		prorationAmount, waivedReason := calculateProrationAmount(snapshot.ActionDate, snapshot.NextBillingAt, snapshot.ExpiresAt, currentAmount, newAmount)
+		decision.ProrationAmount = prorationAmount
+		decision.ProrationWaivedReason = waivedReason
+		decision.AmountDueNow = prorationAmount
+	}
 
 	couponDecision := couponApplicationDecision{Code: strings.ToUpper(strings.TrimSpace(req.CouponCode))}
 	if couponDecision.Code != "" {
@@ -461,12 +474,18 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, errors.New("COUPON_INVALID")
 		}
 		couponDecision.MarkAsUsed = coupon.MaxUses <= 1
+		baseAmount := newAmount
+		discountUserCount := newSeatLimit
+		if req.Action == tenantDTO.BillingChangeActionAddOutlet {
+			baseAmount = decision.AmountDueNow
+			discountUserCount = 1
+		}
 		discountedAmount, discountErr := u.couponUC.ApplyDiscount(
 			ctx,
 			couponDecision.Code,
 			newPlanSlug,
-			newAmount,
-			newSeatLimit,
+			baseAmount,
+			discountUserCount,
 			snapshot.BillingPeriod,
 		)
 		if discountErr != nil {
@@ -475,8 +494,13 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			}
 			return nil, couponApplicationDecision{}, xenditClient.CreateInvoiceRequest{}, PendingBillingChange{}, discountErr
 		}
-		couponDecision.DiscountAmount = newAmount - discountedAmount
-		decision.NewAmountPerCycle = discountedAmount
+		couponDecision.DiscountAmount = baseAmount - discountedAmount
+		if req.Action == tenantDTO.BillingChangeActionAddOutlet {
+			decision.AmountDueNow = discountedAmount
+			decision.ProrationAmount = discountedAmount
+		} else {
+			decision.NewAmountPerCycle = discountedAmount
+		}
 	}
 
 	pending := PendingBillingChange{
@@ -516,8 +540,13 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 			decision.NotificationMessage = "Perubahan langganan akan diterapkan tanpa tagihan tambahan sekarang karena sisa periode aktif sudah terlalu singkat."
 		}
 	} else {
-		decision.NotificationTitle = "Tagihan perubahan langganan siap"
-		decision.NotificationMessage = "Kami menyiapkan invoice perubahan langganan. Setelah pembayaran berhasil, limit dan paket Anda akan diperbarui otomatis."
+		if req.Action == tenantDTO.BillingChangeActionAddOutlet {
+			decision.NotificationTitle = "Pembayaran add-on outlet siap"
+			decision.NotificationMessage = "Kami menyiapkan invoice sekali bayar untuk penambahan outlet. Setelah pembayaran berhasil, limit outlet Anda akan diperbarui otomatis tanpa mengubah biaya recurring."
+		} else {
+			decision.NotificationTitle = "Tagihan perubahan langganan siap"
+			decision.NotificationMessage = "Kami menyiapkan invoice perubahan langganan. Setelah pembayaran berhasil, limit dan paket Anda akan diperbarui otomatis."
+		}
 	}
 
 	frontendBaseURL := ""
@@ -534,6 +563,9 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 		FailureRedirectURL: frontendBaseURL + "/profile?tab=billing&billing_status=failed&billing_token=" + decision.IdempotencyKey,
 		Currency:           "IDR",
 		InvoiceDuration:    86400,
+	}
+	if req.Action == tenantDTO.BillingChangeActionAddOutlet {
+		invoiceReq.Description = fmt.Sprintf("One-time outlet addon for %s (%s)", snapshot.TenantName, decision.Target)
 	}
 
 	return decision, couponDecision, invoiceReq, pending, nil

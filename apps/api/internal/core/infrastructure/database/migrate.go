@@ -375,6 +375,11 @@ func AutoMigrate() error {
 		return fmt.Errorf("failed to run SaaS tenant migration: %w", err)
 	}
 
+	// Normalize lifetime subscriptions created by older coupon logic
+	if err := migrations.NormalizeLifetimeSubscriptions(DB); err != nil {
+		log.Printf("Warning: Could not normalize lifetime subscriptions: %v", err)
+	}
+
 	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
 	// This fixes issues where seeders or manual imports missed the remaining amount.
 	DB.Exec(`UPDATE customer_invoices 

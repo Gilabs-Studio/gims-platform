@@ -176,7 +176,6 @@ export function useOutletList() {
       const invoiceUrl = typeof rawInvoiceUrl === "string" ? rawInvoiceUrl : "";
       setAddonDialogOpen(false);
 
-      await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
       await queryClient.invalidateQueries({ queryKey: ["outlets", "limit"] });
 
       if (invoiceUrl) {
@@ -229,7 +228,6 @@ export function useOutletList() {
       pagination,
       outletLimit,
       addonUnitPrice,
-      addonBillingPeriod: subscription?.billing_period === "yearly" ? "year" : "month",
       isLoading,
       isError,
       refetch,
