@@ -1,8 +1,9 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { financeAssetKeys } from '@/features/finance/assets/hooks/use-finance-assets';
 
 interface EditAssetResponse {
   id: string;
@@ -25,10 +26,12 @@ interface EditAssetResponse {
  * - Tracks which fields were changed and their classification
  */
 export function useAssetEdit() {
+  const queryClient = useQueryClient();
+
   const mutation = useMutation({
     mutationFn: async (params: { assetId: string; data: Record<string, any> }) => {
       const response = await apiClient.patch<EditAssetResponse>(
-        `/assets/${params.assetId}`,
+        `/finance/fixed-assets/assets/${params.assetId}`,
         params.data
       );
       return response;
@@ -38,6 +41,16 @@ export function useAssetEdit() {
       toast.success(`Asset "${data.name}" updated successfully`, {
         description: `${data.changed_fields?.length || 0} field(s) changed`,
       });
+      // Invalidate queries so detail views refresh
+      try {
+        const id = response.data?.id;
+        if (id) {
+          queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
+        }
+        queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
+      } catch (e) {
+        // ignore
+      }
     },
     onError: (error: any) => {
       const message = error?.response?.data?.message || error?.message || 'Failed to update asset';
@@ -74,7 +87,7 @@ export function useAssetEdit() {
 export function useAssetDetails(assetId: string) {
   return useMutation({
     mutationFn: async () => {
-      return apiClient.get(`/assets/${assetId}`);
+      return apiClient.get(`/finance/assets/${assetId}`);
     },
   });
 }

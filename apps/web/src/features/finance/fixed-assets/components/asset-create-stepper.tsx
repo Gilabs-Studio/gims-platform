@@ -22,6 +22,15 @@ import {
 import { AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUserPermission } from '@/hooks/use-user-permission';
+import { useFinanceAssetCategories } from '@/features/finance/asset-categories/hooks/use-finance-asset-categories';
+import { useFinanceAssetLocations } from '@/features/finance/asset-locations/hooks/use-finance-asset-locations';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Stepper Step definition
 interface StepperStep {
@@ -60,7 +69,7 @@ export interface AssetFormData {
   salvageValue?: number;
   currencyCode: string;
   depreciationMethod?: 'SL' | 'DB' | 'SYD' | 'UOP' | 'NONE';
-  usefulLifeMonths?: number;
+  usefulLifeMonths: number;
 
   // Step 4: Procurement
   supplierName?: string;
@@ -95,7 +104,7 @@ const assetFormSchema = z.object({
   salvageValue: z.number().nonnegative().optional(),
   currencyCode: z.string().length(3),
   depreciationMethod: z.enum(['SL', 'DB', 'SYD', 'UOP', 'NONE']).optional(),
-  usefulLifeMonths: z.number().positive().optional(),
+  usefulLifeMonths: z.number().int().positive('Useful life must be at least 1 month'),
 
   supplierName: z.string().optional(),
   purchaseOrderNumber: z.string().optional(),
@@ -137,6 +146,14 @@ const STEPS: StepperStep[] = [
   },
 ];
 
+const STEP_FIELDS: Array<Array<keyof FormData>> = [
+  ["name", "description", "serialNumber", "assetTag", "barcodeOrQR", "notes"],
+  ["assetType", "categoryId", "locationId", "departmentId", "custodianId"],
+  ["acquisitionDate", "acquisitionCost", "salvageValue", "currencyCode", "depreciationMethod", "usefulLifeMonths"],
+  ["supplierName", "purchaseOrderNumber", "invoiceNumber", "invoiceDate", "invoiceAttachmentFile"],
+  [],
+];
+
 export function AssetCreateStepper({
   open,
   onClose,
@@ -147,6 +164,22 @@ export function AssetCreateStepper({
   const [error, setError] = useState<string | null>(null);
   const canCreateAsset = useUserPermission('asset.create');
 
+  const { data: categoriesData } = useFinanceAssetCategories({
+    page: 1,
+    per_page: 100,
+    sort_by: 'name',
+    sort_dir: 'asc',
+  });
+  const { data: locationsData } = useFinanceAssetLocations({
+    page: 1,
+    per_page: 100,
+    sort_by: 'name',
+    sort_dir: 'asc',
+  });
+
+  const categoryOptions = categoriesData?.data ?? [];
+  const locationOptions = locationsData?.data ?? [];
+
   const form = useForm<FormData>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
@@ -154,15 +187,21 @@ export function AssetCreateStepper({
       assetType: 'TANGIBLE',
       depreciationMethod: 'SL',
     },
+    shouldUnregister: false,
     mode: 'onChange',
   });
 
   const handleNext = async () => {
     // Validate current step fields
-    const isValid = await form.trigger();
+    const fieldsToValidate = STEP_FIELDS[currentStep] ?? [];
+    const isValid = fieldsToValidate.length > 0
+      ? await form.trigger(fieldsToValidate as never, { shouldFocus: true })
+      : true;
     if (isValid) {
       setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
       setError(null);
+    } else {
+      setError(`Please complete the required fields in ${STEPS[currentStep].title}.`);
     }
   };
 
@@ -192,7 +231,7 @@ export function AssetCreateStepper({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Fixed Asset</DialogTitle>
+          <DialogTitle>Create Asset</DialogTitle>
           <DialogDescription>
             Complete all steps to create a new asset
           </DialogDescription>
@@ -266,7 +305,10 @@ export function AssetCreateStepper({
             <AssetStepRenderer
               step={currentStep}
               form={form}
+              errors={form.formState.errors}
               assetType={form.watch('assetType')}
+              categoryOptions={categoryOptions}
+              locationOptions={locationOptions}
             />
           </div>
 
@@ -316,23 +358,29 @@ export function AssetCreateStepper({
 interface AssetStepRendererProps {
   step: number;
   form: any;
+  errors: any;
   assetType: string;
+  categoryOptions: Array<{ id: string; name: string }>;
+  locationOptions: Array<{ id: string; name: string }>;
 }
 
 function AssetStepRenderer({
   step,
   form,
+  errors,
   assetType,
+  categoryOptions,
+  locationOptions,
 }: AssetStepRendererProps) {
   switch (step) {
     case 0:
-      return <AssetBasicInfoStep form={form} />;
+      return <AssetBasicInfoStep form={form} errors={errors} />;
     case 1:
-      return <AssetClassificationStep form={form} />;
+      return <AssetClassificationStep form={form} errors={errors} categoryOptions={categoryOptions} locationOptions={locationOptions} />;
     case 2:
-      return <AssetFinancialStep form={form} assetType={assetType} />;
+      return <AssetFinancialStep form={form} errors={errors} assetType={assetType} />;
     case 3:
-      return <AssetProcurementStep form={form} />;
+      return <AssetProcurementStep form={form} errors={errors} />;
     case 4:
       return <AssetReviewStep form={form} />;
     default:
@@ -340,10 +388,16 @@ function AssetStepRenderer({
   }
 }
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+
+  return <p className="mt-1 text-xs text-red-600">{message}</p>;
+}
+
 // ===== STEP COMPONENTS =====
 // (Import these from separate component files)
 
-function AssetBasicInfoStep({ form }: any) {
+function AssetBasicInfoStep({ form, errors }: any) {
   return (
     <div className="space-y-4">
       {/* Asset name input */}
@@ -354,35 +408,81 @@ function AssetBasicInfoStep({ form }: any) {
           placeholder="e.g., Laptop Dell XPS 15"
           className="w-full px-3 py-2 border rounded-lg"
         />
+        <FieldError message={errors?.name?.message} />
       </div>
       {/* Additional fields... */}
     </div>
   );
 }
 
-function AssetClassificationStep({ form }: any) {
+function AssetClassificationStep({ form, errors, categoryOptions, locationOptions }: any) {
   return (
     <div className="space-y-4">
-      {/* Asset type selection */}
-      <div>
-        <label className="text-sm font-medium">Asset Type *</label>
-        <select {...form.register('assetType')} className="w-full px-3 py-2 border rounded-lg">
-          <option value="TANGIBLE">Tangible Fixed Asset</option>
-          <option value="INTANGIBLE">Intangible Asset</option>
-          <option value="NON_DEPRECIABLE">Non-Depreciable Asset</option>
-          <option value="CONSTRUCTION">Construction In Progress</option>
-        </select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="text-sm font-medium">Asset Type *</label>
+          <select {...form.register('assetType')} className="w-full px-3 py-2 border rounded-lg">
+            <option value="TANGIBLE">Tangible Fixed Asset</option>
+            <option value="INTANGIBLE">Intangible Asset</option>
+            <option value="NON_DEPRECIABLE">Non-Depreciable Asset</option>
+            <option value="CONSTRUCTION">Construction In Progress</option>
+          </select>
+          <FieldError message={errors?.assetType?.message} />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Asset Category *</label>
+          <Select value={form.watch('categoryId') || ''} onValueChange={(value) => form.setValue('categoryId', value, { shouldValidate: true, shouldDirty: true })}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((category: { id: string; name: string }) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError message={errors?.categoryId?.message} />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Location *</label>
+          <Select value={form.watch('locationId') || ''} onValueChange={(value) => form.setValue('locationId', value, { shouldValidate: true, shouldDirty: true })}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              {locationOptions.map((location: { id: string; name: string }) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError message={errors?.locationId?.message} />
+        </div>
       </div>
-      {/* Additional fields... */}
     </div>
   );
 }
 
-function AssetFinancialStep({ form, assetType }: any) {
+function AssetFinancialStep({ form, errors, assetType }: any) {
   const isDepreciable = assetType === 'TANGIBLE';
 
   return (
     <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Acquisition Date *</label>
+        <input
+          {...form.register('acquisitionDate', { valueAsDate: true })}
+          type="date"
+          className="w-full px-3 py-2 border rounded-lg"
+        />
+        <FieldError message={errors?.acquisitionDate?.message} />
+      </div>
+
       {/* Acquisition cost */}
       <div>
         <label className="text-sm font-medium">Acquisition Cost *</label>
@@ -392,6 +492,19 @@ function AssetFinancialStep({ form, assetType }: any) {
           placeholder="0.00"
           className="w-full px-3 py-2 border rounded-lg"
         />
+        <FieldError message={errors?.acquisitionCost?.message} />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Useful Life (Months) *</label>
+        <input
+          {...form.register('usefulLifeMonths', { valueAsNumber: true })}
+          type="number"
+          min="1"
+          placeholder="e.g., 60"
+          className="w-full px-3 py-2 border rounded-lg"
+        />
+        <FieldError message={errors?.usefulLifeMonths?.message} />
       </div>
 
       {isDepreciable && (
@@ -406,6 +519,7 @@ function AssetFinancialStep({ form, assetType }: any) {
               <option value="UOP">Units of Production (UOP)</option>
               <option value="NONE">No Depreciation</option>
             </select>
+            <FieldError message={errors?.depreciationMethod?.message} />
           </div>
         </>
       )}
@@ -413,7 +527,7 @@ function AssetFinancialStep({ form, assetType }: any) {
   );
 }
 
-function AssetProcurementStep({ form }: any) {
+function AssetProcurementStep({ form, errors }: any) {
   return (
     <div className="space-y-4">
       {/* Supplier information */}
@@ -424,6 +538,7 @@ function AssetProcurementStep({ form }: any) {
           placeholder="e.g., PT ABC Electronics"
           className="w-full px-3 py-2 border rounded-lg"
         />
+        <FieldError message={errors?.supplierName?.message} />
       </div>
       {/* Invoice details */}
     </div>

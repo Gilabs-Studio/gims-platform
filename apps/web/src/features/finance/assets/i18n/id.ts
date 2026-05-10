@@ -176,6 +176,9 @@ export const financeAssetsId = {
     location: "Lokasi",
     acquisitionDate: "Tanggal perolehan",
     acquisitionCost: "Nilai perolehan",
+    transactionDate: "Tanggal transaksi",
+    newCost: "Nilai baru",
+    amount: "Jumlah",
     salvageValue: "Nilai residu",
     bookValue: "Nilai buku",
     accumulatedDepreciation: "Akumulasi depresiasi",
@@ -183,6 +186,10 @@ export const financeAssetsId = {
     asOfDate: "Per tanggal",
     transferDate: "Tanggal transfer",
     disposalDate: "Tanggal pelepasan",
+    warranty: "Garansi",
+  },
+  filters: {
+    title: "Filter",
   },
   actions: {
     create: "Buat",
@@ -214,6 +221,15 @@ export const financeAssetsId = {
       assignment: "Klasifikasi & Penanggung Jawab",
       acquisition: "Detail Perolehan",
     },
+    assetTypes: {
+      FIXED: "Aset Tetap",
+      CURRENT: "Aset Lancar",
+      INTANGIBLE: "Aset Tak Berwujud",
+      OTHER: "Aset Lainnya",
+      TANGIBLE: "Aset Tetap Berwujud",
+      NON_DEPRECIABLE: "Aset Tidak Disusutkan",
+      CONSTRUCTION: "Konstruksi Dalam Pengerjaan",
+    },
     sectionDescriptions: {
       basic: "Identitas utama dan perilaku depresiasi.",
       assignment: "Klasifikasi, lokasi, dan kepemilikan.",
@@ -241,12 +257,6 @@ export const financeAssetsId = {
       vendorName: "Masukkan nama vendor",
       supplierInvoiceNumber: "Masukkan nomor faktur vendor",
       amount: "0",
-    },
-    assetTypes: {
-      FIXED: "Aset Tetap",
-      CURRENT: "Aset Lancar",
-      INTANGIBLE: "Aset Tak Berwujud",
-      OTHER: "Lainnya",
     },
     depreciationMethods: {
       SL: "Garis Lurus",
@@ -311,6 +321,7 @@ export const financeAssetsId = {
     saveSearchTitle: "Simpan Pencarian",
     saveSearchPlaceholder: "Masukkan nama pencarian...",
     filters: {
+      title: "Filter",
       query: "Pencarian",
       status: "Status",
       lifecycleStage: "Tahap Siklus Hidup",

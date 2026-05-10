@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	depreciationsvc "github.com/gilabs/gims/api/internal/finance/domain/service"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -27,9 +30,11 @@ var fieldToGroup = map[string]FieldGroup{
 	// Group A: Non-accounting fields
 	"name":                    GroupA,
 	"description":             GroupA,
+	"status":                  GroupA,
 	"asset_tag":               GroupA,
 	"location_id":             GroupA,
 	"department_id":           GroupA,
+	"assigned_to_employee_id":  GroupA,
 	"custodian_user_id":       GroupA,
 	"serial_number":           GroupA,
 	"barcode":                 GroupA,
@@ -54,11 +59,11 @@ var fieldToGroup = map[string]FieldGroup{
 	"useful_life_months":   GroupB,
 	"depreciation_method":  GroupB,
 	"category_id":          GroupB,
+	"acquisition_cost":     GroupB,
 
 	// Group C: Immutable after active
 	"code":              GroupC,
 	"acquisition_date":  GroupC,
-	"acquisition_cost":  GroupC,
 	"asset_type_id":     GroupC,
 }
 
@@ -84,6 +89,9 @@ func ClassifyChanges(existing *financeModels.Asset, req *dto.EditAssetRequest) (
 
 	// Helper function to check if field changed
 	checkAndClassify := func(fieldName string, oldVal interface{}, newVal interface{}) {
+		oldVal = normalizeComparableValue(oldVal)
+		newVal = normalizeComparableValue(newVal)
+
 		// Compare values
 		changed := false
 		if oldVal != newVal {
@@ -125,6 +133,7 @@ func ClassifyChanges(existing *financeModels.Asset, req *dto.EditAssetRequest) (
 	checkAndClassify("code", existing.Code, req.Code)
 	checkAndClassify("name", existing.Name, req.Name)
 	checkAndClassify("description", existing.Description, req.Description)
+	checkAndClassify("status", existing.Status, req.Status)
 	checkAndClassify("asset_type_id", existing.AssetTypeID, &req.AssetTypeID)
 	checkAndClassify("category_id", existing.CategoryID, req.CategoryID)
 	checkAndClassify("location_id", existing.LocationID, req.LocationID)
@@ -136,6 +145,7 @@ func ClassifyChanges(existing *financeModels.Asset, req *dto.EditAssetRequest) (
 	checkAndClassify("vendor_id", existing.SupplierID, req.VendorID)
 	checkAndClassify("purchase_invoice_id", existing.SupplierInvoiceID, req.PurchaseInvoiceID)
 	checkAndClassify("department_id", existing.DepartmentID, req.DepartmentID)
+	checkAndClassify("assigned_to_employee_id", existing.AssignedToEmployeeID, req.AssignedToEmployeeID)
 	checkAndClassify("custodian_user_id", existing.CustodianUserID, req.CustodianUserID)
 	checkAndClassify("serial_number", existing.SerialNumber, req.SerialNumber)
 	checkAndClassify("barcode", existing.Barcode, req.Barcode)
@@ -155,6 +165,64 @@ func ClassifyChanges(existing *financeModels.Asset, req *dto.EditAssetRequest) (
 	checkAndClassify("insurance_value", existing.InsuranceValue, req.InsuranceValue)
 
 	return changes, nil
+}
+
+func normalizeComparableValue(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case *string:
+		if typed == nil {
+			return nil
+		}
+		return strings.TrimSpace(*typed)
+	case *int:
+		if typed == nil {
+			return nil
+		}
+		return *typed
+	case *float64:
+		if typed == nil {
+			return nil
+		}
+		return *typed
+	case *time.Time:
+		if typed == nil || typed.IsZero() {
+			return nil
+		}
+		return typed.Format("2006-01-02")
+	case financeModels.AssetStatus:
+		return string(typed)
+	case financeModels.AssetLifecycleStage:
+		return string(typed)
+	default:
+		return value
+	}
+}
+
+func deriveEditAcquisitionCost(existing *financeModels.Asset, req *dto.EditAssetRequest) float64 {
+	if existing == nil || req == nil {
+		return 0
+	}
+	shippingCost := existing.ShippingCost
+	if req.ShippingCost != nil {
+		shippingCost = *req.ShippingCost
+	}
+	installationCost := existing.InstallationCost
+	if req.InstallationCost != nil {
+		installationCost = *req.InstallationCost
+	}
+	taxAmount := existing.TaxAmount
+	if req.TaxAmount != nil {
+		taxAmount = *req.TaxAmount
+	}
+	otherCosts := existing.OtherCosts
+	if req.OtherCosts != nil {
+		otherCosts = *req.OtherCosts
+	}
+	basePurchasePrice := round2(existing.AcquisitionCost - existing.ShippingCost - existing.InstallationCost - existing.TaxAmount - existing.OtherCosts)
+	if basePurchasePrice < 0 {
+		basePurchasePrice = 0
+	}
+	return round2(basePurchasePrice + shippingCost + installationCost + taxAmount + otherCosts)
 }
 
 // ValidateGroupCChanges ensures Group C fields are not changed if asset is active
@@ -220,7 +288,7 @@ func CalculateDepreciationImpact(
 	if val, ok := changes.GroupB["useful_life_months"]; ok {
 		monthsVal := val.(map[string]interface{})["new"]
 		if monthsVal != nil {
-			newUsefulLifeMonths = monthsVal.(*int)
+			newUsefulLifeMonths = convertToIntPtr(monthsVal)
 		}
 	}
 
@@ -228,7 +296,7 @@ func CalculateDepreciationImpact(
 	if val, ok := changes.GroupB["depreciation_method"]; ok {
 		methodVal := val.(map[string]interface{})["new"]
 		if methodVal != nil {
-			newDepMethod = methodVal.(*string)
+			newDepMethod = convertToStringPtr(methodVal)
 		}
 	}
 
@@ -278,18 +346,23 @@ func CalculateDepreciationImpact(
 	// Count how many depreciation entries need to be regenerated
 	entriesToRegen := int64(0)
 	var firstUnpostedPeriod string
-	var firstUnpostedDep financeModels.AssetDepreciation
+	var firstUnpostedDep financeModels.AssetDepreciationSchedule
+	assetUUID, parseErr := uuid.Parse(existing.ID)
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	tenantID := tenantIDFromContext(ctx)
 	if err := db.WithContext(ctx).
-		Where("asset_id = ? AND journal_entry_id IS NULL", existing.ID).
-		Order("period ASC").
+		Where("asset_id = ? AND tenant_id = ? AND is_posted = false AND deleted_at IS NULL", assetUUID, tenantID).
+		Order("period_month ASC").
 		First(&firstUnpostedDep).Error; err == nil {
-		firstUnpostedPeriod = firstUnpostedDep.Period
+		firstUnpostedPeriod = firstUnpostedDep.PeriodStartDate.Format("2006-01")
 	}
 
 	// Count total unposted entries
 	db.WithContext(ctx).
-		Model(&financeModels.AssetDepreciation{}).
-		Where("asset_id = ? AND journal_entry_id IS NULL", existing.ID).
+		Model(&financeModels.AssetDepreciationSchedule{}).
+		Where("asset_id = ? AND tenant_id = ? AND is_posted = false AND deleted_at IS NULL", assetUUID, tenantID).
 		Count(&entriesToRegen)
 
 	if firstUnpostedPeriod == "" {
@@ -322,15 +395,27 @@ func RecalculateDepreciation(
 	ctx context.Context,
 	db *gorm.DB,
 	asset *financeModels.Asset,
+	tenantID string,
 	newSalvageValue float64,
 	newUsefulLifeMonths *int,
 	newDepMethod *string,
 ) (int, error) {
+	if asset == nil {
+		return 0, errors.New("asset is required")
+	}
+	assetUUID, err := uuid.Parse(asset.ID)
+	if err != nil {
+		return 0, err
+	}
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return 0, errors.New("tenant is required")
+	}
 	// 1. Find first unposted entry (if any)
-	var firstUnposted financeModels.AssetDepreciation
+	var firstUnposted financeModels.AssetDepreciationSchedule
 	hasUnposted := db.WithContext(ctx).
-		Where("asset_id = ? AND journal_entry_id IS NULL", asset.ID).
-		Order("period ASC").
+		Where("asset_id = ? AND tenant_id = ? AND is_posted = false AND deleted_at IS NULL", assetUUID, tenantID).
+		Order("period_month ASC").
 		First(&firstUnposted).Error == nil
 
 	if !hasUnposted {
@@ -339,13 +424,12 @@ func RecalculateDepreciation(
 	}
 
 	// 2. Calculate affected period
-	fromPeriod := firstUnposted.Period
-	acqDate, _ := time.Parse("2006-01-02", asset.AcquisitionDate.Format("2006-01-02"))
+	acqDate := asset.AcquisitionDate
 
 	// 3. Soft-delete unposted entries from fromPeriod forward
 	if err := db.WithContext(ctx).
-		Where("asset_id = ? AND journal_entry_id IS NULL AND period >= ?", asset.ID, fromPeriod).
-		Delete(&financeModels.AssetDepreciation{}).Error; err != nil {
+		Where("asset_id = ? AND tenant_id = ? AND is_posted = false AND deleted_at IS NULL AND period_start_date >= ?", assetUUID, tenantID, firstUnposted.PeriodStartDate).
+		Delete(&financeModels.AssetDepreciationSchedule{}).Error; err != nil {
 		return 0, err
 	}
 
@@ -359,7 +443,8 @@ func RecalculateDepreciation(
 	if newDepMethod != nil {
 		newMethod = newDepMethod
 	} else if asset.DepreciationMethod == nil {
-		newMethod = (*string)(&[]string{string(category.DepreciationMethod)}[0])
+		resolved := string(category.DepreciationMethod)
+		newMethod = &resolved
 	}
 
 	// 5. Calculate remaining useful life
@@ -373,50 +458,39 @@ func RecalculateDepreciation(
 	}
 
 	// 6. Regenerate schedule from fromPeriod
-	monthly := 0.0
-	if usefulLife > 0 {
-		monthly = round2(math.Max(0, asset.AcquisitionCost-newSalvageValue) / float64(usefulLife))
+	method := financeModels.DepreciationMethodStraightLine
+	if newMethod != nil && strings.TrimSpace(*newMethod) != "" {
+		method = financeModels.DepreciationMethod(strings.TrimSpace(*newMethod))
+	}
+	engine, err := depreciationsvc.NewDepreciationEngine(method, asset.AcquisitionCost, newSalvageValue, usefulLife, asset.AcquisitionDate, acqDate)
+	if err != nil {
+		return 0, err
+	}
+	allSchedules, err := engine.GenerateSchedule(acqDate.AddDate(0, usefulLife, 0))
+	if err != nil {
+		return 0, err
 	}
 
 	// Count how many entries we regenerate
 	entriesCreated := 0
-
-	// Parse fromPeriod (YYYY-MM format)
-	parts := len(fromPeriod)
-	if parts >= 7 {
-		accumulated := asset.AccumulatedDepreciation // We keep accumulated from posted entries
-		
-		// Regenerate entries
-		for month := 1; month <= usefulLife; month++ {
-			depDate := acqDate.AddDate(0, month, 0)
-			period := ymPeriod(depDate)
-
-			// Skip if before fromPeriod
-			if period < fromPeriod {
-				continue
-			}
-
-			accumulated = round2(accumulated + monthly)
-			bookValue := round2(asset.AcquisitionCost - accumulated)
-			if bookValue < newSalvageValue {
-				bookValue = newSalvageValue
-			}
-
-			rec := &financeModels.AssetDepreciation{
-				AssetID:          asset.ID,
-				Period:           period,
-				DepreciationDate: depDate,
-				Method:           financeModels.DepreciationMethod(*newMethod),
-				Amount:           monthly,
-				Accumulated:      accumulated,
-				BookValue:        bookValue,
-			}
-
-			if err := db.WithContext(ctx).Create(rec).Error; err != nil {
-				return entriesCreated, err
-			}
-			entriesCreated++
+	for _, schedule := range allSchedules {
+		if schedule.PeriodStartDate.Before(firstUnposted.PeriodStartDate) {
+			continue
 		}
+		row := financeModels.AssetDepreciationSchedule{
+			TenantID:                tenantID,
+			AssetID:                 assetUUID,
+			PeriodStartDate:         schedule.PeriodStartDate,
+			PeriodEndDate:           schedule.PeriodEndDate,
+			PeriodMonth:             schedule.PeriodMonth,
+			DepreciationAmount:      schedule.DepreciationAmount,
+			AccumulatedDepreciation: schedule.AccumulatedDepreciation,
+			BookValue:               schedule.BookValue,
+		}
+		if err := db.WithContext(ctx).Create(&row).Error; err != nil {
+			return entriesCreated, err
+		}
+		entriesCreated++
 	}
 
 	return entriesCreated, nil
@@ -443,4 +517,115 @@ func calculateRemainingMonths(acqDate time.Time, now time.Time, usefulLife int) 
 		remaining = 0
 	}
 	return remaining
+}
+
+func convertToIntPtr(v interface{}) *int {
+	switch t := v.(type) {
+	case *int:
+		return t
+	case int:
+		return &t
+	case float64:
+		i := int(t)
+		return &i
+	case *float64:
+		if t == nil {
+			return nil
+		}
+		i := int(*t)
+		return &i
+	case string:
+		if t == "" {
+			return nil
+		}
+		// try parse as int
+		var i int
+		_, err := fmt.Sscanf(t, "%d", &i)
+		if err != nil {
+			return nil
+		}
+		return &i
+	default:
+		return nil
+	}
+}
+
+func convertToStringPtr(v interface{}) *string {
+	switch t := v.(type) {
+	case *string:
+		return t
+	case string:
+		s := strings.TrimSpace(t)
+		return &s
+	default:
+		// fallback to fmt.Sprintf
+		s := fmt.Sprintf("%v", v)
+		s = strings.TrimSpace(s)
+		if s == "<nil>" || s == "" {
+			return nil
+		}
+		return &s
+	}
+}
+
+func closeCurrentAssignmentTx(tx *gorm.DB, assetID, tenantID string, returnAt time.Time) error {
+	return tx.Model(&financeModels.AssetAssignmentHistory{}).
+		Where("asset_id = ? AND tenant_id = ? AND returned_at IS NULL", assetID, tenantID).
+		Updates(map[string]interface{}{
+			"returned_at":   returnAt,
+			"return_reason": "reassigned",
+		}).Error
+}
+
+func insertAssignmentHistoryTx(tx *gorm.DB, assetID, tenantID string, req *dto.EditAssetRequest, actorID string, assignedAt time.Time) error {
+	if req == nil || req.AssignedToEmployeeID == nil || strings.TrimSpace(*req.AssignedToEmployeeID) == "" {
+		return nil
+	}
+
+	employeeUUID, err := uuid.Parse(strings.TrimSpace(*req.AssignedToEmployeeID))
+	if err != nil {
+		return err
+	}
+	assetUUID, err := uuid.Parse(assetID)
+	if err != nil {
+		return err
+	}
+	actorUUID, err := uuid.Parse(strings.TrimSpace(actorID))
+	if err != nil {
+		return err
+	}
+
+	var tenantUUID *uuid.UUID
+	if parsed, err := uuid.Parse(strings.TrimSpace(tenantID)); err == nil {
+		tenantUUID = &parsed
+	}
+	history := financeModels.AssetAssignmentHistory{
+		TenantID:   tenantUUID,
+		AssetID:    assetUUID,
+		EmployeeID: &employeeUUID,
+		AssignedAt: assignedAt,
+		AssignedBy: &actorUUID,
+	}
+	if req.DepartmentID != nil && strings.TrimSpace(*req.DepartmentID) != "" {
+		departmentValue := strings.TrimSpace(*req.DepartmentID)
+		if departmentUUID := parseUUIDPtr(&departmentValue); departmentUUID != nil {
+			history.DepartmentID = departmentUUID
+		}
+	}
+	if strings.TrimSpace(req.LocationID) != "" {
+		locationValue := strings.TrimSpace(req.LocationID)
+		if locationUUID := parseUUIDPtr(&locationValue); locationUUID != nil {
+			history.LocationID = locationUUID
+		}
+	}
+	return tx.Create(&history).Error
+}
+
+func cascadeStatusToChildrenTx(tx *gorm.DB, parentID, tenantID string, status financeModels.AssetStatus, lifecycle financeModels.AssetLifecycleStage) error {
+	return tx.Model(&financeModels.Asset{}).
+		Where("tenant_id = ? AND parent_asset_id = ?", tenantID, parentID).
+		Updates(map[string]interface{}{
+			"status":          status,
+			"lifecycle_stage": lifecycle,
+		}).Error
 }

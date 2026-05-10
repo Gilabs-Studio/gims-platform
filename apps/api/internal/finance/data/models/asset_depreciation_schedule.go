@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // AssetDepreciationSchedule model
@@ -27,6 +28,7 @@ type AssetDepreciationSchedule struct {
 
 	CreatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relations
 	Asset *Asset `gorm:"foreignKey:AssetID" json:"asset,omitempty"`
@@ -35,4 +37,11 @@ type AssetDepreciationSchedule struct {
 // TableName specifies the table name
 func (AssetDepreciationSchedule) TableName() string {
 	return "asset_depreciation_schedules"
+}
+
+func (s *AssetDepreciationSchedule) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
+	}
+	return nil
 }

@@ -13,6 +13,12 @@ func TestResolveLifecycleStage_DefaultMapping(t *testing.T) {
 	require.Equal(t, financeModels.AssetLifecycleUnderMaintenance, stage)
 }
 
+func TestResolveLifecycleStage_PendingApprovalMapping(t *testing.T) {
+	stage, err := ResolveLifecycleStage(financeModels.AssetStatusPendingApproval, nil)
+	require.NoError(t, err)
+	require.Equal(t, financeModels.AssetLifecyclePending, stage)
+}
+
 func TestResolveLifecycleStage_RejectsInvalidCombination(t *testing.T) {
 	preferred := financeModels.AssetLifecycleUnderMaintenance
 	_, err := ResolveLifecycleStage(financeModels.AssetStatusDisposed, &preferred)

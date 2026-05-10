@@ -27,6 +27,7 @@ import { AlertCircle, AlertTriangle, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAssetEdit } from '../hooks/use-asset-edit';
 import { AssetEditConfirmModal } from './asset-edit-confirm-modal';
 import { useUserPermission } from '@/hooks/use-user-permission';
@@ -42,9 +43,11 @@ const editAssetSchema = z.object({
   // Group A - Non-accounting fields
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
+  status: z.enum(['pending_approval', 'active', 'in_use', 'idle', 'under_maintenance', 'disposed', 'sold', 'written_off', 'transferred']),
   assetTag: z.string().optional(),
   locationId: z.string().uuid('Invalid location'),
   departmentId: z.string().uuid('Invalid department').optional().or(z.literal('')),
+  assignedToEmployeeId: z.string().uuid('Invalid employee').optional().or(z.literal('')),
   custodianUserId: z.string().uuid('Invalid custodian').optional().or(z.literal('')),
   serialNumber: z.string().optional(),
   barcode: z.string().optional(),
@@ -54,12 +57,17 @@ const editAssetSchema = z.object({
   usefulLifeMonths: z.number().min(1, 'Useful life must be >= 1 month').optional().or(z.literal('') as any),
   deprecationMethod: z.enum(['SL', 'DB', 'SYD', 'UOP', 'NONE']).optional(),
   categoryId: z.string().uuid('Invalid category'),
+  shippingCost: z.number().min(0).default(0),
+  installationCost: z.number().min(0).default(0),
+  taxAmount: z.number().min(0).default(0),
+  otherCosts: z.number().min(0).default(0),
 
   // Group C - Immutable fields (disabled in UI)
   code: z.string().optional(),
   acquisitionDate: z.string().optional(),
   acquisitionCost: z.number().optional(),
   assetTypeId: z.string().optional(),
+  cascadeToChildren: z.boolean().default(false),
 });
 
 type EditAssetFormData = z.infer<typeof editAssetSchema>;
@@ -78,16 +86,18 @@ export function AssetEditForm({
   onCancel,
 }: AssetEditFormProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingSubmission, setPendingSubmission] = useState<EditAssetFormData | null>(null);
+  const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
 
-  const form = useForm<EditAssetFormData>({
+  const form = useForm<any>({
     resolver: zodResolver(editAssetSchema),
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
+      status: initialData?.status || initialData?.display_status || 'active',
       assetTag: initialData?.asset_tag || '',
       locationId: initialData?.location_id || '',
       departmentId: initialData?.department_id || '',
+      assignedToEmployeeId: initialData?.assigned_to_employee_id || '',
       custodianUserId: initialData?.custodian_user_id || '',
       serialNumber: initialData?.serial_number || '',
       barcode: initialData?.barcode || '',
@@ -95,10 +105,15 @@ export function AssetEditForm({
       usefulLifeMonths: initialData?.useful_life_months || '',
       deprecationMethod: initialData?.depreciation_method || 'SL',
       categoryId: initialData?.category_id || '',
+      shippingCost: initialData?.shipping_cost || 0,
+      installationCost: initialData?.installation_cost || 0,
+      taxAmount: initialData?.tax_amount || 0,
+      otherCosts: initialData?.other_costs || 0,
       code: initialData?.code || '',
       acquisitionDate: initialData?.acquisition_date || '',
       acquisitionCost: initialData?.acquisition_cost || 0,
       assetTypeId: initialData?.asset_type_id || '',
+      cascadeToChildren: false,
     },
   });
 
@@ -107,12 +122,18 @@ export function AssetEditForm({
 
   // Ensure form resets when initialData changes (support multiple key name variations)
   useEffect(() => {
-    const mappedDefaults: EditAssetFormData = {
+    const mappedDefaults: any = {
       name: initialData?.name || initialData?.asset_name || '',
       description: initialData?.description || '',
+      status: initialData?.status || initialData?.display_status || 'active',
       assetTag: initialData?.asset_tag || initialData?.assetTag || '',
       locationId: initialData?.location_id || initialData?.locationId || '',
       departmentId: initialData?.department_id || initialData?.departmentId || '',
+      assignedToEmployeeId:
+        initialData?.assigned_to_employee_id ||
+        initialData?.assignedToEmployeeId ||
+        initialData?.employee_id ||
+        '',
       custodianUserId:
         initialData?.custodian_user_id ||
         initialData?.custodianUserId ||
@@ -125,10 +146,15 @@ export function AssetEditForm({
       usefulLifeMonths: initialData?.useful_life_months ?? '',
       deprecationMethod: initialData?.depreciation_method || initialData?.deprecationMethod || 'SL',
       categoryId: initialData?.category_id || initialData?.categoryId || '',
+      shippingCost: initialData?.shipping_cost ?? 0,
+      installationCost: initialData?.installation_cost ?? 0,
+      taxAmount: initialData?.tax_amount ?? 0,
+      otherCosts: initialData?.other_costs ?? 0,
       code: initialData?.code || '',
       acquisitionDate: initialData?.acquisition_date || initialData?.acquisitionDate || '',
       acquisitionCost: initialData?.acquisition_cost ?? 0,
       assetTypeId: initialData?.asset_type_id || initialData?.assetTypeId || '',
+      cascadeToChildren: false,
     };
 
     form.reset(mappedDefaults);
@@ -137,11 +163,32 @@ export function AssetEditForm({
   // Detect changed fields (as keys array)
   const dirtyKeys = useMemo(() => Object.keys(form.formState.dirtyFields || {}), [form.formState.dirtyFields]);
   const canUpdateAsset = useUserPermission('asset.update');
+  const shippingCost = form.watch('shippingCost');
+  const installationCost = form.watch('installationCost');
+  const taxAmount = form.watch('taxAmount');
+  const otherCosts = form.watch('otherCosts');
+
+  const acquisitionBaseCost = useMemo(() => {
+    const total = Number(initialData?.acquisition_cost ?? 0);
+    const shipping = Number(initialData?.shipping_cost ?? 0);
+    const installation = Number(initialData?.installation_cost ?? 0);
+    const tax = Number(initialData?.tax_amount ?? 0);
+    const other = Number(initialData?.other_costs ?? 0);
+    return Math.max(0, total - shipping - installation - tax - other);
+  }, [initialData]);
+
+  const acquisitionCostPreview = useMemo(() => {
+    return acquisitionBaseCost + Number(shippingCost ?? 0) + Number(installationCost ?? 0) + Number(taxAmount ?? 0) + Number(otherCosts ?? 0);
+  }, [acquisitionBaseCost, installationCost, otherCosts, shippingCost, taxAmount]);
+
+  useEffect(() => {
+    form.setValue('acquisitionCost', acquisitionCostPreview, { shouldDirty: false, shouldValidate: true });
+  }, [acquisitionCostPreview, form]);
 
   // Classify changed fields into groups
   const fieldGroups = useMemo(() => {
-    const groupA = ['name', 'description', 'assetTag', 'locationId', 'departmentId', 'custodianUserId', 'serialNumber', 'barcode'];
-    const groupB = ['salvageValue', 'usefulLifeMonths', 'deprecationMethod', 'categoryId'];
+    const groupA = ['name', 'description', 'status', 'assetTag', 'locationId', 'departmentId', 'assignedToEmployeeId', 'custodianUserId', 'serialNumber', 'barcode'];
+    const groupB = ['salvageValue', 'usefulLifeMonths', 'deprecationMethod', 'categoryId', 'shippingCost', 'installationCost', 'taxAmount', 'otherCosts'];
     const groupC = ['code', 'acquisitionDate', 'acquisitionCost', 'assetTypeId'];
 
     return {
@@ -152,8 +199,9 @@ export function AssetEditForm({
   }, [dirtyKeys]);
 
   const isActive = initialData?.status === 'active' || initialData?.status === 'in_use';
+  const isParent = Boolean(initialData?.is_parent);
 
-  const onSubmit = async (data: EditAssetFormData) => {
+  const onSubmit = async (data: any) => {
     // Check if Group C fields are changed and asset is active
     if (isActive && fieldGroups.C.length > 0) {
       alert(
@@ -173,9 +221,72 @@ export function AssetEditForm({
     await submitEdit(data);
   };
 
-  const submitEdit = async (data: EditAssetFormData) => {
+  const submitEdit = async (data: any) => {
     try {
-      await editAsset(assetId, data);
+      const payload: any = {
+        code: data.code || initialData?.code || '',
+        name: data.name || initialData?.name || '',
+        description: data.description ?? initialData?.description ?? '',
+        asset_type_id: data.assetTypeId || initialData?.asset_type_id || '',
+        asset_category_id: data.categoryId || initialData?.category_id || '',
+        location_id: data.locationId || initialData?.location_id || '',
+        acquisition_date: data.acquisitionDate || initialData?.acquisition_date || '',
+        acquisition_cost: Number(initialData?.acquisition_cost ?? 0),
+        salvage_value: Number(data.salvageValue ?? initialData?.salvage_value ?? 0),
+        status: data.status || initialData?.status || initialData?.display_status || 'active',
+        depreciation_method:
+          data.deprecationMethod || initialData?.depreciation_method || 'SL',
+        department_id: data.departmentId || initialData?.department_id || undefined,
+        assigned_to_employee_id:
+          data.assignedToEmployeeId || initialData?.assigned_to_employee_id || undefined,
+        custodian_user_id: data.custodianUserId || initialData?.custodian_user_id || undefined,
+        serial_number: data.serialNumber || initialData?.serial_number || undefined,
+        barcode: data.barcode || initialData?.barcode || undefined,
+        asset_tag: data.assetTag || initialData?.asset_tag || undefined,
+        shipping_cost: Number(data.shippingCost ?? initialData?.shipping_cost ?? 0),
+        installation_cost: Number(data.installationCost ?? initialData?.installation_cost ?? 0),
+        tax_amount: Number(data.taxAmount ?? initialData?.tax_amount ?? 0),
+        other_costs: Number(data.otherCosts ?? initialData?.other_costs ?? 0),
+        cascade_to_children: Boolean(data.cascadeToChildren),
+      };
+
+      // Keep existing useful life unless the user changes it.
+      payload.useful_life_months =
+        data.usefulLifeMonths === '' || data.usefulLifeMonths === undefined
+          ? initialData?.useful_life_months
+          : Number(data.usefulLifeMonths);
+
+      const resp = await editAsset(assetId, payload);
+      // If server returned updated asset, reset form to reflect persisted values
+      if (resp && resp.data) {
+        const d = resp.data;
+        const serverDefaults: any = {
+          name: d.name || '',
+          description: d.description || '',
+          status: d.status || d.display_status || 'active',
+          assetTag: d.asset_tag || '',
+          locationId: d.location_id || '',
+          departmentId: d.department_id || '',
+          assignedToEmployeeId: d.assigned_to_employee_id || '',
+          custodianUserId: d.custodian_user_id || '',
+          serialNumber: d.serial_number || '',
+          barcode: d.barcode || '',
+          salvageValue: d.salvage_value ?? 0,
+          usefulLifeMonths: d.useful_life_months ?? '',
+          deprecationMethod: d.depreciation_method || 'SL',
+          categoryId: d.asset_category_id || d.category_id || '',
+          shippingCost: d.shipping_cost ?? 0,
+          installationCost: d.installation_cost ?? 0,
+          taxAmount: d.tax_amount ?? 0,
+          otherCosts: d.other_costs ?? 0,
+          code: d.code || '',
+          acquisitionDate: d.acquisition_date || '',
+          acquisitionCost: d.acquisition_cost ?? 0,
+          assetTypeId: d.asset_type_id || '',
+          cascadeToChildren: false,
+        };
+        form.reset(serverDefaults);
+      }
       onSuccess?.();
     } catch (error) {
       console.error('Failed to edit asset:', error);
@@ -192,6 +303,15 @@ export function AssetEditForm({
           })}
           className="space-y-6"
         >
+          {isParent && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
+              <AlertDescription className="text-amber-900 ml-2">
+                This asset has child assets. Status changes can optionally cascade to children; accounting changes remain local to the parent.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -210,6 +330,55 @@ export function AssetEditForm({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control as any}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <FormControl>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="in_use">In Use</SelectItem>
+                                <SelectItem value="idle">Idle</SelectItem>
+                                <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
+                                <SelectItem value="disposed">Disposed</SelectItem>
+                                <SelectItem value="sold">Sold</SelectItem>
+                                <SelectItem value="written_off">Written Off</SelectItem>
+                                <SelectItem value="transferred">Transferred</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control as any}
+                      name="cascadeToChildren"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start gap-3 rounded-lg border p-4">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(Boolean(checked))} />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Cascade status to children</FormLabel>
+                            <FormDescription>
+                              Apply the status/lifecycle change to direct child assets.
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   {/* Group C - Immutable Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -377,28 +546,52 @@ export function AssetEditForm({
                     />
                   </div>
 
-                  <FormField
-                    control={form.control as any}
-                    name="custodianUserId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Custodian</FormLabel>
-                        <FormControl>
-                          <Select value={field.value || ''} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select custodian" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {/* TODO: Load from API */}
-                              <SelectItem value="user-1">John Doe</SelectItem>
-                              <SelectItem value="user-2">Jane Smith</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control as any}
+                      name="assignedToEmployeeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned Employee</FormLabel>
+                          <FormControl>
+                            <Select value={field.value || ''} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select employee" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="emp-1">John Doe</SelectItem>
+                                <SelectItem value="emp-2">Jane Smith</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control as any}
+                      name="custodianUserId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Custodian</FormLabel>
+                          <FormControl>
+                            <Select value={field.value || ''} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select custodian" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {/* TODO: Load from API */}
+                                <SelectItem value="user-1">John Doe</SelectItem>
+                                <SelectItem value="user-2">Jane Smith</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -496,6 +689,8 @@ export function AssetEditForm({
                               type="number"
                               min="1"
                               placeholder="e.g., 60"
+                              value={field.value ?? ''}
+                              onChange={(event) => field.onChange(event.target.value === '' ? '' : Number(event.target.value))}
                               className={fieldGroups.B.includes('usefulLifeMonths') ? 'border-orange-300 bg-orange-50' : ''}
                             />
                           </FormControl>
@@ -559,6 +754,8 @@ export function AssetEditForm({
                             min="0"
                             step="0.01"
                             placeholder="0.00"
+                            value={field.value ?? ''}
+                            onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))}
                             className={fieldGroups.B.includes('salvageValue') ? 'border-orange-300 bg-orange-50' : ''}
                           />
                         </FormControl>
@@ -569,6 +766,64 @@ export function AssetEditForm({
                       </FormItem>
                     )}
                   />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control as any}
+                      name="shippingCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Shipping Cost</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min="0" step="0.01" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control as any}
+                      name="installationCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Installation Cost</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min="0" step="0.01" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control as any}
+                      name="taxAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tax Amount</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min="0" step="0.01" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control as any}
+                      name="otherCosts"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Other Costs</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min="0" step="0.01" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value === '' ? 0 : Number(event.target.value))} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

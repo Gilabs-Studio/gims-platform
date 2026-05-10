@@ -7,21 +7,25 @@ import (
 )
 
 var statusLifecycleMap = map[financeModels.AssetStatus][]financeModels.AssetLifecycleStage{
+	financeModels.AssetStatusPendingApproval: {
+		financeModels.AssetLifecyclePending,
+	},
 	financeModels.AssetStatusActive: {
 		financeModels.AssetLifecycleInUse,
-		financeModels.AssetLifecycleActive,
+		financeModels.AssetLifecycleIdle,
 	},
 	financeModels.AssetStatusInUse: {
 		financeModels.AssetLifecycleInUse,
 	},
 	financeModels.AssetStatusIdle: {
-		financeModels.AssetLifecycleActive,
+		financeModels.AssetLifecycleIdle,
 	},
 	financeModels.AssetStatusUnderMaintenance: {
 		financeModels.AssetLifecycleUnderMaintenance,
 	},
 	financeModels.AssetStatusDisposed: {
-		financeModels.AssetLifecycleDisposed,
+		financeModels.AssetLifecycleRetired,
+		financeModels.AssetLifecycleSold,
 		financeModels.AssetLifecycleWrittenOff,
 	},
 }

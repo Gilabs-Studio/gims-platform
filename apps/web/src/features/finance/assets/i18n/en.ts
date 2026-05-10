@@ -176,6 +176,9 @@ export const financeAssetsEn = {
     location: "Location",
     acquisitionDate: "Acquisition date",
     acquisitionCost: "Acquisition cost",
+    transactionDate: "Transaction date",
+    newCost: "New cost",
+    amount: "Amount",
     salvageValue: "Salvage value",
     bookValue: "Book value",
     accumulatedDepreciation: "Accumulated depreciation",
@@ -183,6 +186,10 @@ export const financeAssetsEn = {
     asOfDate: "As of date",
     transferDate: "Transfer date",
     disposalDate: "Disposal date",
+    warranty: "Warranty",
+  },
+  filters: {
+    title: "Filters",
   },
   actions: {
     create: "Create",
@@ -214,6 +221,15 @@ export const financeAssetsEn = {
       assignment: "Classification & Assignment",
       acquisition: "Acquisition Details",
     },
+    assetTypes: {
+      FIXED: "Fixed Asset",
+      CURRENT: "Current Asset",
+      INTANGIBLE: "Intangible Asset",
+      OTHER: "Other Asset",
+      TANGIBLE: "Tangible Fixed Asset",
+      NON_DEPRECIABLE: "Non-Depreciable Asset",
+      CONSTRUCTION: "Construction In Progress",
+    },
     sectionDescriptions: {
       basic: "Core identity and depreciation behavior.",
       assignment: "Classification, placement, and ownership.",
@@ -241,12 +257,6 @@ export const financeAssetsEn = {
       vendorName: "Enter vendor name",
       supplierInvoiceNumber: "Enter supplier invoice number",
       amount: "0",
-    },
-    assetTypes: {
-      FIXED: "Fixed",
-      CURRENT: "Current",
-      INTANGIBLE: "Intangible",
-      OTHER: "Other",
     },
     depreciationMethods: {
       SL: "Straight Line",
@@ -310,6 +320,7 @@ export const financeAssetsEn = {
     saveSearchTitle: "Save Search",
     saveSearchPlaceholder: "Enter search name...",
     filters: {
+      title: "Filters",
       query: "Search",
       status: "Status",
       lifecycleStage: "Lifecycle Stage",

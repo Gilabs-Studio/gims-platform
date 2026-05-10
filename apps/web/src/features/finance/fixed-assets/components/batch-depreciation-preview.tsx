@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { BatchDepreciationPreviewResponse } from "../types";
 import { Loader2 } from "lucide-react";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useTranslations } from "next-intl";
 
 function normalizeCurrencyCode(currencyCode: string | undefined | null): string {
   const normalized = (currencyCode ?? "").trim().toUpperCase();
@@ -50,6 +51,7 @@ export function BatchDepreciationPreview({
   isLoadingPreview,
   isRunning,
 }: BatchDepreciationPreviewProps) {
+  const t = useTranslations("financeFixedAssets.batchDepreciation");
   const canDepreciate = useUserPermission("asset.depreciate");
   const currentYear = new Date().getFullYear();
   const previewLines = previewData?.preview_lines ?? [];
@@ -61,7 +63,7 @@ export function BatchDepreciationPreview({
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
-    label: new Date(2000, i).toLocaleDateString("en-US", { month: "long" }),
+    label: new Date(2000, i).toLocaleDateString(undefined, { month: "long" }),
   }));
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => ({
@@ -73,19 +75,19 @@ export function BatchDepreciationPreview({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Depreciation Period</CardTitle>
-          <CardDescription>Select the month and year for batch depreciation</CardDescription>
+          <CardTitle>{t("period")}</CardTitle>
+          <CardDescription>{t("selectPeriod")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="month">Month</Label>
+              <Label htmlFor="month">{t("month")}</Label>
               <Select
                 value={month}
                 onValueChange={onMonthChange}
               >
                 <SelectTrigger id="month" className="cursor-pointer">
-                  <SelectValue placeholder="Select Month" />
+                  <SelectValue placeholder={t("month")} />
                 </SelectTrigger>
                 <SelectContent>
                   {monthOptions.map((opt) => (
@@ -97,13 +99,13 @@ export function BatchDepreciationPreview({
               </Select>
             </div>
             <div>
-              <Label htmlFor="year">Year</Label>
+              <Label htmlFor="year">{t("year")}</Label>
               <Select
                 value={year}
                 onValueChange={onYearChange}
               >
                 <SelectTrigger id="year" className="cursor-pointer">
-                  <SelectValue placeholder="Select Year" />
+                  <SelectValue placeholder={t("year")} />
                 </SelectTrigger>
                 <SelectContent>
                   {yearOptions.map((opt) => (
@@ -123,7 +125,7 @@ export function BatchDepreciationPreview({
               variant="outline"
             >
               {isLoadingPreview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {canDepreciate ? "Preview" : "No permission"}
+              {canDepreciate ? t("preview") : t("preview")}
             </Button>
             <Button
               onClick={onRun}
@@ -131,7 +133,7 @@ export function BatchDepreciationPreview({
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {canDepreciate ? "Run Depreciation" : "No permission"}
+              {canDepreciate ? t("run") : t("run")}
             </Button>
           </div>
         </CardContent>
@@ -140,26 +142,26 @@ export function BatchDepreciationPreview({
       {previewData && (
         <Card>
           <CardHeader>
-            <CardTitle>Preview Results</CardTitle>
+            <CardTitle>{t("previewResults")}</CardTitle>
             <CardDescription>
-              {previewData.successful} of {previewData.total_lines} assets ready for depreciation ({previewData.skipped} skipped)
+              {previewData.successful} / {previewData.total_lines} {t("ready")} ({previewData.skipped} {t("skipped")})
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-4 p-4 bg-muted rounded-lg text-sm">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-muted-foreground">Total Amount</p>
+                  <p className="text-muted-foreground">{t("totalAmount")}</p>
                   <p className="text-lg font-semibold">
                     {formatCurrency(totalDepreciationAmount, defaultCurrencyCode)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Successful</p>
+                  <p className="text-muted-foreground">{t("successful")}</p>
                   <p className="text-lg font-semibold">{previewData.successful}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Failed</p>
+                  <p className="text-muted-foreground">{t("failed")}</p>
                   <p className="text-lg font-semibold text-destructive">{previewData.failed}</p>
                 </div>
               </div>
@@ -169,11 +171,11 @@ export function BatchDepreciationPreview({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Asset</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="text-right">Book Value</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("asset")}</TableHead>
+                    <TableHead>{t("method")}</TableHead>
+                    <TableHead className="text-right">{t("amount")}</TableHead>
+                    <TableHead className="text-right">{t("bookValue")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -213,7 +215,7 @@ export function BatchDepreciationPreview({
 
             {previewLines.length > 10 && (
               <p className="text-sm text-muted-foreground mt-2">
-                ... and {previewLines.length - 10} more assets
+                ... {previewLines.length - 10} {t("ready")}
               </p>
             )}
           </CardContent>

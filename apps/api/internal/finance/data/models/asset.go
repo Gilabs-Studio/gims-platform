@@ -11,6 +11,7 @@ type AssetStatus string
 
 const (
 	AssetStatusDraft                 AssetStatus = "draft"
+	AssetStatusPendingApproval      AssetStatus = "pending_approval"
 	AssetStatusPendingCapitalization AssetStatus = "pending_capitalization"
 	AssetStatusActive                AssetStatus = "active"
 	AssetStatusInUse                 AssetStatus = "in_use"
@@ -28,10 +29,14 @@ type AssetLifecycleStage string
 const (
 	AssetLifecycleDraft                 AssetLifecycleStage = "draft"
 	AssetLifecyclePendingCapitalization AssetLifecycleStage = "pending_capitalization"
+	AssetLifecyclePending               AssetLifecycleStage = "pending"
 	AssetLifecycleActive                AssetLifecycleStage = "active"
 	AssetLifecycleInUse                 AssetLifecycleStage = "in_use"
+	AssetLifecycleIdle                  AssetLifecycleStage = "idle"
 	AssetLifecycleUnderMaintenance      AssetLifecycleStage = "under_maintenance"
 	AssetLifecycleDisposed              AssetLifecycleStage = "disposed"
+	AssetLifecycleRetired               AssetLifecycleStage = "retired"
+	AssetLifecycleSold                  AssetLifecycleStage = "sold"
 	AssetLifecycleWrittenOff            AssetLifecycleStage = "written_off"
 )
 

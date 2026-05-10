@@ -47,6 +47,9 @@ CREATE INDEX IF NOT EXISTS idx_asset_assignment_histories_tenant
 ALTER TABLE IF EXISTS asset_depreciation_schedules
     ADD COLUMN IF NOT EXISTS tenant_id UUID;
 
+ALTER TABLE IF EXISTS asset_depreciation_schedules
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_tenant_period
     ON asset_depreciation_schedules(tenant_id, asset_id, period_month);
 

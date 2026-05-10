@@ -37,9 +37,9 @@ import { assetFormSchema, type AssetFormValues } from "../schemas/asset.schema";
 import type { Asset } from "../types";
 import {
   useCreateFinanceAsset,
-  useUpdateFinanceAsset,
   useUploadAttachment,
 } from "../hooks/use-finance-assets";
+import { useAssetEdit } from "@/features/finance/fixed-assets/hooks/use-asset-edit";
 import { DatePicker } from "./date-picker";
 
 type Props = {
@@ -97,7 +97,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
     }).format(value || 0);
 
   const createMutation = useCreateFinanceAsset();
-  const updateMutation = useUpdateFinanceAsset();
+  const { editAsset, isLoading: isEditLoading } = useAssetEdit();
   const uploadAttachment = useUploadAttachment();
 
   const defaultValues: AssetFormValues = useMemo(
@@ -200,7 +200,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
 
   const sectionBadgeClass = "inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary";
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isSubmitting = createMutation.isPending || isEditLoading;
 
   const onSubmit = async (values: AssetFormValues) => {
     try {
@@ -220,9 +220,6 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
         custodian_user_id: values.custodian_user_id,
         assigned_to_employee_id: values.assigned_to_employee_id,
         parent_asset_id: values.parent_asset_id,
-        warranty_start: values.warranty_start,
-        warranty_end: values.warranty_end,
-        warranty_provider: values.warranty_provider,
         warranty_terms: values.warranty_terms,
         insurance_policy_number: values.insurance_policy_number,
         insurance_provider: values.insurance_provider,
@@ -257,8 +254,28 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
       } else {
         const id = initialData?.id ?? "";
         if (!id) throw new Error("Missing id");
-        await updateMutation.mutateAsync({ id, data: payload });
-        toast.success(t("toast.updated"));
+        await editAsset(id, {
+          code: payload.code,
+          name: payload.name,
+          description: initialData?.description ?? "",
+          asset_type_id: payload.asset_type_id,
+          asset_category_id: payload.asset_category_id,
+          location_id: payload.location_id,
+          acquisition_date: payload.acquisition_date,
+          acquisition_cost: payload.acquisition_cost,
+          salvage_value: payload.salvage_value,
+          status: initialData?.status ?? "active",
+          useful_life_months: payload.useful_life_months,
+          depreciation_method: payload.depreciation_method,
+          department_id: payload.department_id,
+          assigned_to_employee_id: payload.assigned_to_employee_id,
+          custodian_user_id: payload.custodian_user_id,
+          shipping_cost: payload.shipping_cost,
+          installation_cost: payload.installation_cost,
+          tax_amount: payload.tax_amount,
+          other_costs: payload.other_costs,
+          cascade_to_children: false,
+        } as any);
       }
       onOpenChange(false);
     } catch {

@@ -558,29 +558,30 @@ type FieldChangeInfo struct {
 
 // EditAssetRequest is similar to UpdateAssetRequest but tracks field changes
 type EditAssetRequest struct {
-	Code                  string   `json:"code" binding:"required"`
-	Name                  string   `json:"name" binding:"required"`
+	Code                  string   `json:"code"`
+	Name                  string   `json:"name"`
 	Description           string   `json:"description"`
-	AssetTypeID           string   `json:"asset_type_id" binding:"required"`
-	CategoryID            string   `json:"asset_category_id" binding:"required,uuid"`
-	LocationID            string   `json:"location_id" binding:"required,uuid"`
-	AcquisitionDate       string   `json:"acquisition_date" binding:"required"`
-	AcquisitionCost       float64  `json:"acquisition_cost" binding:"required,gt=0"`
-	SalvageValue          float64  `json:"salvage_value" binding:"omitempty,gte=0"`
-	Status                financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=active inactive sold disposed"`
+	AssetTypeID           string   `json:"asset_type_id"`
+	CategoryID            string   `json:"asset_category_id" binding:"omitempty,uuid"`
+	LocationID            string   `json:"location_id" binding:"omitempty,uuid"`
+	AcquisitionDate       string   `json:"acquisition_date"`
+	AcquisitionCost       *float64 `json:"acquisition_cost" binding:"omitempty,gt=0"`
+	SalvageValue          *float64 `json:"salvage_value" binding:"omitempty,gte=0"`
+	Status                financeModels.AssetStatus `json:"status" binding:"omitempty,oneof=pending_approval active inactive in_use idle under_maintenance disposed sold written_off transferred"`
 	UsefulLifeMonths      *int     `json:"useful_life_months" binding:"omitempty,gte=1"`
 	DepreciationMethod    *string  `json:"depreciation_method"`
 	VendorID              *string  `json:"vendor_id"`
 	PurchaseInvoiceID     *string  `json:"purchase_invoice_id"`
 	DepartmentID          *string  `json:"department_id"`
+	AssignedToEmployeeID   *string  `json:"assigned_to_employee_id"`
 	CustodianUserID       *string  `json:"custodian_user_id"`
 	SerialNumber          *string  `json:"serial_number"`
 	Barcode               *string  `json:"barcode"`
 	AssetTag              *string  `json:"asset_tag"`
-	ShippingCost          float64  `json:"shipping_cost" binding:"omitempty,gte=0"`
-	InstallationCost      float64  `json:"installation_cost" binding:"omitempty,gte=0"`
-	TaxAmount             float64  `json:"tax_amount" binding:"omitempty,gte=0"`
-	OtherCosts            float64  `json:"other_costs" binding:"omitempty,gte=0"`
+	ShippingCost          *float64 `json:"shipping_cost" binding:"omitempty,gte=0"`
+	InstallationCost      *float64 `json:"installation_cost" binding:"omitempty,gte=0"`
+	TaxAmount             *float64 `json:"tax_amount" binding:"omitempty,gte=0"`
+	OtherCosts            *float64 `json:"other_costs" binding:"omitempty,gte=0"`
 	WarrantyStart         *string  `json:"warranty_start"`
 	WarrantyEnd           *string  `json:"warranty_end"`
 	WarrantyProvider      *string  `json:"warranty_provider"`
@@ -590,6 +591,7 @@ type EditAssetRequest struct {
 	InsuranceStart        *string  `json:"insurance_start"`
 	InsuranceEnd          *string  `json:"insurance_end"`
 	InsuranceValue        *float64 `json:"insurance_value"`
+	CascadeToChildren     bool     `json:"cascade_to_children"`
 }
 
 // EditAssetResponse includes field changes and depreciation impact

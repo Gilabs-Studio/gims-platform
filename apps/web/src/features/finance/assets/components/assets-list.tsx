@@ -60,10 +60,12 @@ import type { Asset } from "../types";
 import {
   useDeleteFinanceAsset,
   useFinanceAssets,
+  useCreateFinanceAsset,
 } from "../hooks/use-finance-assets";
 import { useFinanceAssetCategories } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 import { AssetForm } from "./asset-form";
+import { AssetCreateStepper, type AssetFormData } from "@/features/finance/fixed-assets/components/asset-create-stepper";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
 type ActionMode =
@@ -160,6 +162,9 @@ export function AssetsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<Asset | null>(null);
+  const [stepperOpen, setStepperOpen] = useState(false);
+
+  const createMutation = useCreateFinanceAsset();
 
   const [deleting, setDeleting] = useState<Asset | null>(null);
   const deleteMutation = useDeleteFinanceAsset();
@@ -190,13 +195,13 @@ export function AssetsList() {
 
   const { data: categoriesData } = useFinanceAssetCategories({
     page: 1,
-    per_page: 200,
+    per_page: 100,
     sort_by: "name",
     sort_dir: "asc",
   });
   const { data: locationsData } = useFinanceAssetLocations({
     page: 1,
-    per_page: 200,
+    per_page: 100,
     sort_by: "name",
     sort_dir: "asc",
   });
@@ -227,17 +232,29 @@ export function AssetsList() {
         </div>
 
         {canCreate && (
-          <Button
-            onClick={() => {
-              setFormMode("create");
-              setEditing(null);
-              setFormOpen(true);
-            }}
-            className="cursor-pointer"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("actions.create")}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                // open stepper for guided create
+                setStepperOpen(true);
+              }}
+              className="cursor-pointer"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("actions.create")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFormMode("create");
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              Quick Create
+            </Button>
+          </div>
         )}
       </div>
 
@@ -401,7 +418,16 @@ export function AssetsList() {
                       {item.code}
                     </button>
                   </TableCell>
-                  <TableCell>{item.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span>{item.name}</span>
+                      {!item.is_capitalized && (
+                        <Badge variant="secondary" className="text-xs">
+                          Expense
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{item.category?.name ?? "-"}</TableCell>
                   <TableCell>{item.location?.name ?? "-"}</TableCell>
                   <TableCell>
@@ -439,7 +465,14 @@ export function AssetsList() {
                       "-"
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(item.status, t)}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <div>{getStatusBadge(item.status, t)}</div>
+                      {item.display_status && (
+                        <span className="text-xs text-muted-foreground mt-1">{item.display_status}</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -604,6 +637,36 @@ export function AssetsList() {
         onOpenChange={setFormOpen}
         mode={formMode}
         initialData={editing}
+      />
+
+      <AssetCreateStepper
+        open={stepperOpen}
+        onClose={() => setStepperOpen(false)}
+        onComplete={async (data: AssetFormData) => {
+          try {
+            const payload = {
+              name: data.name,
+              asset_type_id: data.assetType,
+              asset_category_id: data.categoryId,
+              location_id: data.locationId,
+              acquisition_date: data.acquisitionDate.toISOString().slice(0, 10),
+              acquisition_cost: data.acquisitionCost,
+              purchase_price: data.acquisitionCost,
+              salvage_value: data.salvageValue,
+              currency_code: data.currencyCode,
+              depreciation_method: data.depreciationMethod,
+              useful_life_months: data.usefulLifeMonths,
+              warranty_start: data.warrantyStartDate ? data.warrantyStartDate.toISOString().slice(0, 10) : undefined,
+              warranty_end: data.warrantyEndDate ? data.warrantyEndDate.toISOString().slice(0, 10) : undefined,
+            } as any;
+            await createMutation.mutateAsync(payload);
+            toast.success(t("toast.created"));
+            setStepperOpen(false);
+          } catch (err) {
+            toast.error(t("toast.failed"));
+            throw err;
+          }
+        }}
       />
 
       <AssetActionsDialogs

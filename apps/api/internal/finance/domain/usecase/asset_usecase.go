@@ -711,7 +711,6 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 		return nil, errors.New("request is required")
 	}
 
-	// 1. Fetch and validate asset
 	existing, err := uc.repo.FindByID(ctx, id, false)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -722,42 +721,154 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 	if existing.Status == financeModels.AssetStatusDisposed {
 		return nil, ErrAssetDisposedImmutable
 	}
-
-	// 2. Validate acquisition date and category
-	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
-	if err != nil {
-		return nil, err
-	}
-	cat, err := uc.catRepo.FindByID(ctx, strings.TrimSpace(req.CategoryID))
-	if err != nil {
-		return nil, err
-	}
-	if !cat.IsActive {
-		return nil, errors.New("asset category is inactive")
-	}
-	if _, err := uc.locRepo.FindByID(ctx, strings.TrimSpace(req.LocationID)); err != nil {
-		return nil, err
+	tenantID := tenantIDFromContext(ctx)
+	if tenantID == "" {
+		return nil, errors.New("tenant is required")
 	}
 
-	// 3. Get authenticated user
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
 	}
 
-	// 4. Classify changes
-	changes, err := ClassifyChanges(existing, req)
+	// Resolve partial PATCH payload against existing data so omitted fields keep current values.
+	resolvedReq := *req
+	if strings.TrimSpace(resolvedReq.Code) == "" {
+		resolvedReq.Code = existing.Code
+	}
+	if strings.TrimSpace(resolvedReq.Name) == "" {
+		resolvedReq.Name = existing.Name
+	}
+	if strings.TrimSpace(resolvedReq.Description) == "" {
+		resolvedReq.Description = existing.Description
+	}
+	if strings.TrimSpace(resolvedReq.AssetTypeID) == "" && existing.AssetTypeID != nil {
+		resolvedReq.AssetTypeID = strings.TrimSpace(*existing.AssetTypeID)
+	}
+	if strings.TrimSpace(resolvedReq.CategoryID) == "" {
+		resolvedReq.CategoryID = existing.CategoryID
+	}
+	if strings.TrimSpace(resolvedReq.LocationID) == "" {
+		resolvedReq.LocationID = existing.LocationID
+	}
+	if strings.TrimSpace(resolvedReq.AcquisitionDate) == "" {
+		resolvedReq.AcquisitionDate = existing.AcquisitionDate.Format("2006-01-02")
+	}
+	if resolvedReq.AcquisitionCost == nil {
+		acq := existing.AcquisitionCost
+		resolvedReq.AcquisitionCost = &acq
+	}
+	if resolvedReq.SalvageValue == nil {
+		salv := existing.SalvageValue
+		resolvedReq.SalvageValue = &salv
+	}
+	if resolvedReq.UsefulLifeMonths == nil {
+		resolvedReq.UsefulLifeMonths = existing.UsefulLifeMonths
+	}
+	if resolvedReq.DepreciationMethod == nil {
+		resolvedReq.DepreciationMethod = existing.DepreciationMethod
+	}
+	if resolvedReq.VendorID == nil {
+		resolvedReq.VendorID = existing.SupplierID
+	}
+	if resolvedReq.PurchaseInvoiceID == nil {
+		resolvedReq.PurchaseInvoiceID = existing.SupplierInvoiceID
+	}
+	if resolvedReq.DepartmentID == nil {
+		resolvedReq.DepartmentID = existing.DepartmentID
+	}
+	if resolvedReq.AssignedToEmployeeID == nil {
+		resolvedReq.AssignedToEmployeeID = existing.AssignedToEmployeeID
+	}
+	if resolvedReq.CustodianUserID == nil {
+		resolvedReq.CustodianUserID = existing.CustodianUserID
+	}
+	if resolvedReq.SerialNumber == nil {
+		resolvedReq.SerialNumber = existing.SerialNumber
+	}
+	if resolvedReq.Barcode == nil {
+		resolvedReq.Barcode = existing.Barcode
+	}
+	if resolvedReq.AssetTag == nil {
+		resolvedReq.AssetTag = existing.AssetTag
+	}
+	if resolvedReq.ShippingCost == nil {
+		v := existing.ShippingCost
+		resolvedReq.ShippingCost = &v
+	}
+	if resolvedReq.InstallationCost == nil {
+		v := existing.InstallationCost
+		resolvedReq.InstallationCost = &v
+	}
+	if resolvedReq.TaxAmount == nil {
+		v := existing.TaxAmount
+		resolvedReq.TaxAmount = &v
+	}
+	if resolvedReq.OtherCosts == nil {
+		v := existing.OtherCosts
+		resolvedReq.OtherCosts = &v
+	}
+	if resolvedReq.WarrantyStart == nil && existing.WarrantyStart != nil {
+		v := existing.WarrantyStart.Format("2006-01-02")
+		resolvedReq.WarrantyStart = &v
+	}
+	if resolvedReq.WarrantyEnd == nil && existing.WarrantyEnd != nil {
+		v := existing.WarrantyEnd.Format("2006-01-02")
+		resolvedReq.WarrantyEnd = &v
+	}
+	if resolvedReq.WarrantyProvider == nil {
+		resolvedReq.WarrantyProvider = existing.WarrantyProvider
+	}
+	if resolvedReq.WarrantyTerms == nil {
+		resolvedReq.WarrantyTerms = existing.WarrantyTerms
+	}
+	if resolvedReq.InsurancePolicyNumber == nil {
+		resolvedReq.InsurancePolicyNumber = existing.InsurancePolicyNumber
+	}
+	if resolvedReq.InsuranceProvider == nil {
+		resolvedReq.InsuranceProvider = existing.InsuranceProvider
+	}
+	if resolvedReq.InsuranceStart == nil && existing.InsuranceStart != nil {
+		v := existing.InsuranceStart.Format("2006-01-02")
+		resolvedReq.InsuranceStart = &v
+	}
+	if resolvedReq.InsuranceEnd == nil && existing.InsuranceEnd != nil {
+		v := existing.InsuranceEnd.Format("2006-01-02")
+		resolvedReq.InsuranceEnd = &v
+	}
+	if resolvedReq.InsuranceValue == nil {
+		resolvedReq.InsuranceValue = existing.InsuranceValue
+	}
+
+	acqDate, err := parseAssetDateStrict(resolvedReq.AcquisitionDate)
+	if err != nil {
+		return nil, err
+	}
+	cat, err := uc.catRepo.FindByID(ctx, strings.TrimSpace(resolvedReq.CategoryID))
+	if err != nil {
+		return nil, err
+	}
+	if !cat.IsActive {
+		return nil, errors.New("asset category is inactive")
+	}
+	if _, err := uc.locRepo.FindByID(ctx, strings.TrimSpace(resolvedReq.LocationID)); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(resolvedReq.Status)) != "" {
+		if _, err := depreciationsvc.ResolveLifecycleStage(resolvedReq.Status, nil); err != nil {
+			return nil, err
+		}
+	}
+
+	changes, err := ClassifyChanges(existing, &resolvedReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to classify changes: %w", err)
 	}
-
-	// 5. Validate Group C (immutable) fields
 	if err := ValidateGroupCChanges(existing, changes); err != nil {
 		return nil, err
 	}
 
-	// 6. Calculate depreciation impact for Group B changes
 	var deprecImpact *DepreciationRecalcInfo
 	if len(changes.GroupB) > 0 {
 		deprecImpact, err = CalculateDepreciationImpact(ctx, existing, changes, uc.db)
@@ -766,7 +877,6 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 		}
 	}
 
-	// 7. Build field changes tracking for audit log
 	auditChangeList := make(financeModels.AuditChanges, 0)
 	fieldChanges := make([]dto.FieldChangeInfo, 0)
 
@@ -812,82 +922,151 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 		})
 	}
 
-	// 8. Build update map with all changes
+	derivedAcquisitionCost := deriveEditAcquisitionCost(existing, &resolvedReq)
+	if derivedAcquisitionCost != existing.AcquisitionCost {
+		fieldChanges = append(fieldChanges, dto.FieldChangeInfo{
+			FieldName: "acquisition_cost",
+			OldValue:  existing.AcquisitionCost,
+			NewValue:  derivedAcquisitionCost,
+			Group:     string(GroupB),
+		})
+		auditChangeList = append(auditChangeList, financeModels.AuditChange{
+			Field:    "acquisition_cost",
+			OldValue: existing.AcquisitionCost,
+			NewValue: derivedAcquisitionCost,
+		})
+	}
+
+	statusChanged := strings.TrimSpace(string(resolvedReq.Status)) != "" && resolvedReq.Status != existing.Status
+	var resolvedLifecycle financeModels.AssetLifecycleStage
+	if statusChanged {
+		resolvedLifecycle, err = depreciationsvc.ResolveLifecycleStage(resolvedReq.Status, nil)
+		if err != nil {
+			return nil, err
+		}
+		fieldChanges = append(fieldChanges, dto.FieldChangeInfo{
+			FieldName: "status",
+			OldValue:  existing.Status,
+			NewValue:  resolvedReq.Status,
+			Group:     string(GroupA),
+		})
+		fieldChanges = append(fieldChanges, dto.FieldChangeInfo{
+			FieldName: "lifecycle_stage",
+			OldValue:  existing.LifecycleStage,
+			NewValue:  resolvedLifecycle,
+			Group:     string(GroupA),
+		})
+		auditChangeList = append(auditChangeList, financeModels.AuditChange{Field: "status", OldValue: existing.Status, NewValue: resolvedReq.Status})
+		auditChangeList = append(auditChangeList, financeModels.AuditChange{Field: "lifecycle_stage", OldValue: existing.LifecycleStage, NewValue: resolvedLifecycle})
+	}
+
+	assignedEmployeeChanged := false
+	if changeData, ok := changes.GroupA["assigned_to_employee_id"]; ok {
+		change := changeData.(map[string]interface{})
+		if fmt.Sprintf("%v", change["old"]) != fmt.Sprintf("%v", change["new"]) {
+			assignedEmployeeChanged = true
+		}
+	}
+
+	acquisitionBookValue := round2(math.Max(*resolvedReq.SalvageValue, derivedAcquisitionCost-existing.AccumulatedDepreciation))
+
 	updates := map[string]interface{}{
-		"code":                strings.TrimSpace(req.Code),
-		"name":                strings.TrimSpace(req.Name),
-		"description":         strings.TrimSpace(req.Description),
-		"asset_type_id":       strings.TrimSpace(req.AssetTypeID),
-		"category_id":         strings.TrimSpace(req.CategoryID),
-		"location_id":         strings.TrimSpace(req.LocationID),
+		"code":                strings.TrimSpace(resolvedReq.Code),
+		"name":                strings.TrimSpace(resolvedReq.Name),
+		"description":         strings.TrimSpace(resolvedReq.Description),
+		"asset_type_id":       strings.TrimSpace(resolvedReq.AssetTypeID),
+		"category_id":         strings.TrimSpace(resolvedReq.CategoryID),
+		"location_id":         strings.TrimSpace(resolvedReq.LocationID),
 		"acquisition_date":    acqDate,
-		"acquisition_cost":    req.AcquisitionCost,
-		"salvage_value":       req.SalvageValue,
-		"useful_life_months":  req.UsefulLifeMonths,
-		"depreciation_method": req.DepreciationMethod,
-		"serial_number":       req.SerialNumber,
-		"barcode":             req.Barcode,
-		"asset_tag":           req.AssetTag,
-		"vendor_id":           req.VendorID,
-		"purchase_invoice_id": req.PurchaseInvoiceID,
-		"department_id":       req.DepartmentID,
-		"custodian_user_id":   req.CustodianUserID,
-		"shipping_cost":       req.ShippingCost,
-		"installation_cost":   req.InstallationCost,
-		"tax_amount":          req.TaxAmount,
-		"other_costs":         req.OtherCosts,
+		"acquisition_cost":    derivedAcquisitionCost,
+		"book_value":          acquisitionBookValue,
+		"salvage_value":       *resolvedReq.SalvageValue,
+		"useful_life_months":  resolvedReq.UsefulLifeMonths,
+		"depreciation_method": resolvedReq.DepreciationMethod,
+		"serial_number":       resolvedReq.SerialNumber,
+		"barcode":             resolvedReq.Barcode,
+		"asset_tag":           resolvedReq.AssetTag,
+		"supplier_id":         resolvedReq.VendorID,
+		"supplier_invoice_id": resolvedReq.PurchaseInvoiceID,
+		"department_id":       resolvedReq.DepartmentID,
+		"custodian_user_id":   resolvedReq.CustodianUserID,
+		"shipping_cost":       *resolvedReq.ShippingCost,
+		"installation_cost":   *resolvedReq.InstallationCost,
+		"tax_amount":          *resolvedReq.TaxAmount,
+		"other_costs":         *resolvedReq.OtherCosts,
+		"status":              existing.Status,
+		"lifecycle_stage":     existing.LifecycleStage,
+	}
+	if statusChanged {
+		updates["status"] = resolvedReq.Status
+		updates["lifecycle_stage"] = resolvedLifecycle
+	}
+
+	assignmentEmployeeID := parseUUIDPtr(resolvedReq.AssignedToEmployeeID)
+	if assignmentEmployeeID != nil {
+		updates["assigned_to_employee_id"] = assignmentEmployeeID.String()
+		updates["assignment_date"] = apptime.Now()
 	}
 
 	// Add warranty fields if provided
-	if req.WarrantyStart != nil && *req.WarrantyStart != "" {
-		if wStart, err := parseAssetDateStrict(*req.WarrantyStart); err == nil {
+	if resolvedReq.WarrantyStart != nil && *resolvedReq.WarrantyStart != "" {
+		if wStart, err := parseAssetDateStrict(*resolvedReq.WarrantyStart); err == nil {
 			updates["warranty_start"] = wStart
 		}
 	}
-	if req.WarrantyEnd != nil && *req.WarrantyEnd != "" {
-		if wEnd, err := parseAssetDateStrict(*req.WarrantyEnd); err == nil {
+	if resolvedReq.WarrantyEnd != nil && *resolvedReq.WarrantyEnd != "" {
+		if wEnd, err := parseAssetDateStrict(*resolvedReq.WarrantyEnd); err == nil {
 			updates["warranty_end"] = wEnd
 		}
 	}
-	if req.WarrantyProvider != nil {
-		updates["warranty_provider"] = *req.WarrantyProvider
+	if resolvedReq.WarrantyProvider != nil {
+		updates["warranty_provider"] = *resolvedReq.WarrantyProvider
 	}
-	if req.WarrantyTerms != nil {
-		updates["warranty_terms"] = *req.WarrantyTerms
+	if resolvedReq.WarrantyTerms != nil {
+		updates["warranty_terms"] = *resolvedReq.WarrantyTerms
 	}
 
 	// Add insurance fields if provided
-	if req.InsurancePolicyNumber != nil {
-		updates["insurance_policy_number"] = *req.InsurancePolicyNumber
+	if resolvedReq.InsurancePolicyNumber != nil {
+		updates["insurance_policy_number"] = *resolvedReq.InsurancePolicyNumber
 	}
-	if req.InsuranceProvider != nil {
-		updates["insurance_provider"] = *req.InsuranceProvider
+	if resolvedReq.InsuranceProvider != nil {
+		updates["insurance_provider"] = *resolvedReq.InsuranceProvider
 	}
-	if req.InsuranceStart != nil && *req.InsuranceStart != "" {
-		if iStart, err := parseAssetDateStrict(*req.InsuranceStart); err == nil {
+	if resolvedReq.InsuranceStart != nil && *resolvedReq.InsuranceStart != "" {
+		if iStart, err := parseAssetDateStrict(*resolvedReq.InsuranceStart); err == nil {
 			updates["insurance_start"] = iStart
 		}
 	}
-	if req.InsuranceEnd != nil && *req.InsuranceEnd != "" {
-		if iEnd, err := parseAssetDateStrict(*req.InsuranceEnd); err == nil {
+	if resolvedReq.InsuranceEnd != nil && *resolvedReq.InsuranceEnd != "" {
+		if iEnd, err := parseAssetDateStrict(*resolvedReq.InsuranceEnd); err == nil {
 			updates["insurance_end"] = iEnd
 		}
 	}
-	if req.InsuranceValue != nil {
-		updates["insurance_value"] = *req.InsuranceValue
+	if resolvedReq.InsuranceValue != nil {
+		updates["insurance_value"] = *resolvedReq.InsuranceValue
 	}
 
 	// 9. Execute transaction with depreciation recalculation if needed
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update asset record
-		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ? AND tenant_id = ?", id, tenantID).Updates(updates).Error; err != nil {
 			return err
+		}
+
+		if assignedEmployeeChanged {
+			now := apptime.Now()
+			if err := closeCurrentAssignmentTx(tx, id, tenantID, now); err != nil {
+				return err
+			}
+			if err := insertAssignmentHistoryTx(tx, id, tenantID, &resolvedReq, actorID, now); err != nil {
+				return err
+			}
 		}
 
 		// Recalculate depreciation if Group B changed
 		if len(changes.GroupB) > 0 && deprecImpact.EntriesToRegenerate > 0 {
-			newSalvage := req.SalvageValue
-			createdEntries, err := RecalculateDepreciation(ctx, tx, existing, newSalvage, req.UsefulLifeMonths, req.DepreciationMethod)
+			newSalvage := *resolvedReq.SalvageValue
+			createdEntries, err := RecalculateDepreciation(ctx, tx, existing, tenantID, newSalvage, resolvedReq.UsefulLifeMonths, resolvedReq.DepreciationMethod)
 			if err != nil {
 				return fmt.Errorf("depreciation recalculation failed: %w", err)
 			}
@@ -897,9 +1076,21 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 			}
 		}
 
+		if statusChanged && resolvedReq.CascadeToChildren {
+			if err := cascadeStatusToChildrenTx(tx, id, tenantID, resolvedReq.Status, resolvedLifecycle); err != nil {
+				return err
+			}
+		}
+
 		// Create audit log with detailed changes
-		assetUUID := uuid.Must(uuid.Parse(id))
-		actorUUID := uuid.Must(uuid.Parse(actorID))
+		assetUUID, err := uuid.Parse(id)
+		if err != nil {
+			return err
+		}
+		actorUUID, err := uuid.Parse(actorID)
+		if err != nil {
+			return err
+		}
 
 		auditLog := &financeModels.AssetAuditLog{
 			AssetID:     assetUUID,
