@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageMotion } from "@/components/motion/page-motion";
-import { useTenants } from "../hooks/use-tenants";
+import { useRecoverTenantDeletion, useTenants } from "../hooks/use-tenants";
 import {
   Table,
   TableBody,
@@ -16,15 +17,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Search, Eye, Users } from "lucide-react";
+import { Search, Eye, RefreshCw, Users } from "lucide-react";
 import { TenantDetailDialog } from "./tenant-detail-dialog";
 import type { Tenant } from "../types";
 
 export function TenantList() {
+  const t = useTranslations("systemAdmin.tenants");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [viewingTenant, setViewingTenant] = useState<Tenant | null>(null);
+  const recoverMutation = useRecoverTenantDeletion();
 
   const { data, isLoading, isError } = useTenants({ page, per_page: perPage, search: search || undefined });
 
@@ -35,7 +38,7 @@ export function TenantList() {
     return (
       <PageMotion>
         <div className="rounded-md bg-destructive/10 p-4 text-destructive">
-          Failed to load tenants.
+          {t("failedToLoad")}
         </div>
       </PageMotion>
     );
@@ -47,14 +50,14 @@ export function TenantList() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Tenant Management</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
             <p className="text-sm text-muted-foreground">
-              Manage all tenants registered on this platform.
+              {t("description")}
             </p>
           </div>
           {pagination && (
             <span className="text-sm text-muted-foreground">
-              {pagination.total} total tenant{pagination.total !== 1 ? "s" : ""}
+              {pagination.total} {t("total")}
             </span>
           )}
         </div>
@@ -64,7 +67,7 @@ export function TenantList() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or slug..."
+              placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -80,11 +83,11 @@ export function TenantList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Users</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("name")}</TableHead>
+                <TableHead>{t("slug")}</TableHead>
+                <TableHead>{t("plan")}</TableHead>
+                <TableHead>{t("users")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
                 <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -103,7 +106,7 @@ export function TenantList() {
               ) : tenants.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    No tenants found.
+                    {t("noTenants")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -132,18 +135,45 @@ export function TenantList() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={tenant.status} />
+                      <div className="space-y-1">
+                        <StatusBadge status={tenant.status} />
+                        {tenant.status === "pending_deletion" && tenant.deletion_scheduled_at && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {t("scheduledDelete", {
+                              date: new Date(tenant.deletion_scheduled_at).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              }),
+                            })}
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 cursor-pointer"
-                        onClick={() => setViewingTenant(tenant)}
-                        title="View detail"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 cursor-pointer"
+                          onClick={() => setViewingTenant(tenant)}
+                          title={t("viewDetail")}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {tenant.status === "pending_deletion" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 cursor-pointer"
+                            title={t("recoverAction")}
+                            disabled={recoverMutation.isPending}
+                            onClick={() => recoverMutation.mutate(tenant.id)}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -182,6 +212,7 @@ function StatusBadge({ status }: { status: string }) {
     active: "default",
     trial: "secondary",
     suspended: "destructive",
+    pending_deletion: "destructive",
   };
   return (
     <Badge variant={variantMap[status] ?? "outline"} className="capitalize">

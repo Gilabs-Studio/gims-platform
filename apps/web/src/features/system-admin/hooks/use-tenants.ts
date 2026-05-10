@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { systemAdminService } from "../services/system-admin-service";
 import type { TenantListParams } from "../types";
 
@@ -29,6 +30,21 @@ export function useSystemAdminDashboard() {
     queryFn: async () => {
       const res = await systemAdminService.getDashboard();
       return res.data;
+    },
+  });
+}
+
+export function useRecoverTenantDeletion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (tenantID: string) => systemAdminService.recoverTenantDeletion(tenantID),
+    onSuccess: async () => {
+      toast.success("Tenant deletion has been recovered.");
+      await queryClient.invalidateQueries({ queryKey: ["system-admin", "tenants"] });
+    },
+    onError: () => {
+      toast.error("Failed to recover tenant deletion.");
     },
   });
 }

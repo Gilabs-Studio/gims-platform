@@ -37,5 +37,6 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 		p.PUT("", h.UpdateProfile)
 		p.PUT("/password", h.ChangePassword)
 		p.POST("/avatar", h.UploadAvatar)
+		p.POST("/delete-account", h.RequestAccountDeletion)
 	}
 }

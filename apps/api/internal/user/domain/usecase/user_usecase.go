@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
@@ -29,10 +30,11 @@ import (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrUserLimitReached  = errors.New("user limit reached")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrUserAlreadyExists      = errors.New("user already exists")
+	ErrRoleNotFound           = errors.New("role not found")
+	ErrUserLimitReached       = errors.New("user limit reached")
+	ErrDeleteAccountForbidden = errors.New("only tenant owner can request account deletion")
 )
 
 // UserLimitResponse carries the current and maximum allowed user count for a tenant.
@@ -58,6 +60,7 @@ type UserUsecase interface {
 	ChangePassword(ctx context.Context, id string, req *dto.ChangePasswordRequest) error
 	UpdateAvatar(ctx context.Context, id string, avatarURL string) error
 	Delete(ctx context.Context, id string) error
+	RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error)
 }
 
 type userUsecase struct {
@@ -465,6 +468,81 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	}))
 
 	return nil
+}
+
+func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error) {
+	usr, err := u.userRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	if usr.Role == nil || !usr.Role.IsProtected {
+		return nil, ErrDeleteAccountForbidden
+	}
+
+	tenant, err := u.tenantRepo.FindByID(ctx, usr.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := apptime.Now()
+	scheduledAt := now.AddDate(0, 0, 30)
+
+	if strings.EqualFold(strings.TrimSpace(tenant.Status), "pending_deletion") && tenant.DeletionScheduledAt != nil {
+		requestedAt := now
+		if tenant.DeletionRequestedAt != nil {
+			requestedAt = *tenant.DeletionRequestedAt
+		}
+		return &dto.TenantDeletionScheduleResponse{
+			TenantID:            tenant.ID,
+			DeletionRequestedAt: requestedAt.Format(time.RFC3339),
+			DeletionScheduledAt: tenant.DeletionScheduledAt.Format(time.RFC3339),
+			GracePeriodDays:     30,
+		}, nil
+	}
+
+	previousStatus := strings.TrimSpace(tenant.Status)
+	if previousStatus == "" {
+		previousStatus = "active"
+	}
+
+	tenant.Status = "pending_deletion"
+	tenant.DeletionRequestedAt = &now
+	tenant.DeletionScheduledAt = &scheduledAt
+	tenant.DeletionRequestedBy = &usr.ID
+	tenant.DeletionPreviousStatus = &previousStatus
+	tenant.DeletionRecoveredAt = nil
+
+	if err := u.tenantRepo.Update(ctx, tenant); err != nil {
+		return nil, err
+	}
+
+	// Immediately disable tenant users while retaining data during the grace period.
+	_ = database.DB.WithContext(ctx).
+		Table("users").
+		Where("tenant_id = ? AND deleted_at IS NULL", tenant.ID).
+		Updates(map[string]interface{}{"status": "inactive", "updated_at": now}).Error
+
+	// Revoke active refresh tokens so existing sessions are not silently extended.
+	_ = database.DB.WithContext(ctx).
+		Table("refresh_tokens").
+		Where("tenant_id = ? AND revoked = false", tenant.ID).
+		Updates(map[string]interface{}{"revoked": true, "updated_at": now}).Error
+
+	u.auditService.Log(ctx, "tenant.deletion.requested", tenant.ID, map[string]interface{}{
+		"requested_by": usr.ID,
+		"scheduled_at": scheduledAt.Format(time.RFC3339),
+	})
+
+	return &dto.TenantDeletionScheduleResponse{
+		TenantID:            tenant.ID,
+		DeletionRequestedAt: now.Format(time.RFC3339),
+		DeletionScheduledAt: scheduledAt.Format(time.RFC3339),
+		GracePeriodDays:     30,
+	}, nil
 }
 
 func (u *userUsecase) UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error) {
