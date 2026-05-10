@@ -26,6 +26,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -53,6 +61,8 @@ import {
   useDeleteFinanceAsset,
   useFinanceAssets,
 } from "../hooks/use-finance-assets";
+import { useFinanceAssetCategories } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
+import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
@@ -139,6 +149,14 @@ export function AssetsList() {
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterLocation, setFilterLocation] = useState<string>("");
+  const [filterCapitalized, setFilterCapitalized] = useState<string>("");
+  const [filterWarrantyExpiring, setFilterWarrantyExpiring] = useState<30 | 60 | 90 | null>(null);
+
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<Asset | null>(null);
@@ -158,12 +176,33 @@ export function AssetsList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
+    status: filterStatus || undefined,
+    category_id: filterCategory || undefined,
+    location_id: filterLocation || undefined,
+    is_capitalized: filterCapitalized ? filterCapitalized === "true" : undefined,
+    warranty_expiring_days: filterWarrantyExpiring ?? undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   });
 
   const pagination = data?.meta?.pagination;
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
+
+  const { data: categoriesData } = useFinanceAssetCategories({
+    page: 1,
+    per_page: 200,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
+  const { data: locationsData } = useFinanceAssetLocations({
+    page: 1,
+    per_page: 200,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
+
+  const categoryOptions = categoriesData?.data ?? [];
+  const locationOptions = locationsData?.data ?? [];
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -215,8 +254,100 @@ export function AssetsList() {
             className="pl-9"
           />
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="gap-2"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          {t("filters.title")}
+        </Button>
         <div className="flex-1" />
       </div>
+
+      {showFilters && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-lg border bg-card/50 p-4">
+          <div className="space-y-2">
+            <Label className="text-xs">{t("fields.status")}</Label>
+            <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setPage(1); }}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">{t("placeholders.all")}</SelectItem>
+                <SelectItem value="active">{t("status.active")}</SelectItem>
+                <SelectItem value="inactive">{t("status.inactive")}</SelectItem>
+                <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                <SelectItem value="disposed">{t("status.disposed")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">{t("fields.category")}</Label>
+            <Select value={filterCategory} onValueChange={(val) => { setFilterCategory(val); setPage(1); }}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">{t("placeholders.all")}</SelectItem>
+                {categoryOptions?.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">{t("fields.location")}</Label>
+            <Select value={filterLocation} onValueChange={(val) => { setFilterLocation(val); setPage(1); }}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">{t("placeholders.all")}</SelectItem>
+                {locationOptions?.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">{t("fields.capitalized")}</Label>
+            <Select value={filterCapitalized} onValueChange={(val) => { setFilterCapitalized(val); setPage(1); }}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">{t("placeholders.all")}</SelectItem>
+                <SelectItem value="true">{t("common.yes")}</SelectItem>
+                <SelectItem value="false">{t("common.no")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">{t("fields.warrantyExpiry")}</Label>
+            <Select value={String(filterWarrantyExpiring ?? "")} onValueChange={(val) => { setFilterWarrantyExpiring(val === "" ? null : (val === "30" ? 30 : val === "60" ? 60 : 90)); setPage(1); }}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder={t("placeholders.select")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">{t("placeholders.all")}</SelectItem>
+                <SelectItem value="30">{t("filters.warranty.30", { days: 30 })}</SelectItem>
+                <SelectItem value="60">{t("filters.warranty.60", { days: 60 })}</SelectItem>
+                <SelectItem value="90">{t("filters.warranty.90", { days: 90 })}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-md border">
         <Table>
@@ -238,6 +369,7 @@ export function AssetsList() {
               <TableHead onClick={() => handleSort("book_value")} className="text-right cursor-pointer">
                 {t("fields.bookValue")}
               </TableHead>
+              <TableHead>{t("fields.warranty")}</TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead />
             </TableRow>
@@ -283,6 +415,29 @@ export function AssetsList() {
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatCurrency(item.book_value)}
+                  </TableCell>
+                  <TableCell>
+                    {item.warranty_end ? (
+                      (() => {
+                        const now = new Date();
+                        const end = new Date(item.warranty_end);
+                        const diffMs = end.getTime() - now.getTime();
+                        const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                        let badge = (
+                          <Badge variant="outline">{`${days}d`}</Badge>
+                        );
+                        if (days <= 30) {
+                          badge = <Badge variant="destructive">{`${days}d`}</Badge>;
+                        } else if (days <= 60) {
+                          badge = <Badge className="text-yellow-600">{`${days}d`}</Badge>;
+                        } else if (days <= 90) {
+                          badge = <Badge className="text-emerald-600">{`${days}d`}</Badge>;
+                        }
+                        return badge;
+                      })()
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell>{getStatusBadge(item.status, t)}</TableCell>
                   <TableCell className="text-right">
