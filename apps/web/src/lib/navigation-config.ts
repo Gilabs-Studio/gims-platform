@@ -125,9 +125,16 @@ export const navigationConfig: NavItem[] = [
         permission: "crm_area_mapping.read",
       },
       {
+        name: "Yearly Target",
+        i18nKey: "yearlyTarget",
+        url: "/crm/targets",
+        icon: "target",
+        permission: "sales_target.read", // Shared for now until yearly_target has its own perms
+      },
+      {
         name: "Sales Target",
         i18nKey: "salesTarget",
-        url: "/crm/targets",
+        url: "/crm/sales-targets",
         icon: "check-square",
         permission: "sales_target.read",
       },

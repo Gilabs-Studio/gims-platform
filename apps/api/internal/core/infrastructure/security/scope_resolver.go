@@ -66,6 +66,15 @@ func HRDScopeQueryOptions() ScopeQueryOptions {
 	}
 }
 
+// SalesTargetScopeQueryOptions returns options for sales target module
+// where the record owner is identified by employee_id (the sales rep)
+func SalesTargetScopeQueryOptions() ScopeQueryOptions {
+	return ScopeQueryOptions{
+		OwnerEmployeeIDColumn: "employee_id",
+		DivisionJoinSQL:       "employee_id IN (SELECT id FROM employees WHERE division_id = ?)",
+	}
+}
+
 // ScopeFilter holds the resolved scope context for query filtering
 type ScopeFilter struct {
 	Scope        string // OWN, DIVISION, AREA, OUTLET, WAREHOUSE, ALL
