@@ -526,8 +526,6 @@ export function BillingTab() {
   const [isSeatDowngradeDialogOpen, setIsSeatDowngradeDialogOpen] = useState(false);
   const [pendingSeatDowngradeTarget, setPendingSeatDowngradeTarget] = useState<number | null>(null);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [isOutletDowngradeDialogOpen, setIsOutletDowngradeDialogOpen] = useState(false);
-  const [pendingOutletDowngradeTarget, setPendingOutletDowngradeTarget] = useState<number | null>(null);
 
   const requestedBillingTab = useMemo<"seat" | "plan" | "manage_outlet" | null>(() => {
     const requestedTab = searchParams.get("billing_tab");
@@ -687,9 +685,7 @@ export function BillingTab() {
   const seatChangeDelta = seatCount - currentSeatLimit;
   const isSeatDowngradeRequest = seatChangeDelta < 0;
   const seatChangeAbsolute = Math.abs(seatChangeDelta);
-  const outletChangeDelta = outletCount - currentOutletLimit;
-  const isOutletDowngradeRequest = outletChangeDelta < 0;
-  const outletChangeAbsolute = Math.abs(outletChangeDelta);
+  const outletChangeDelta = Math.max(0, outletCount - currentOutletLimit);
   const outletAddonUnitPrice = useMemo(() => {
     if (!currentPlanConfig) {
       return 500_000;
@@ -698,7 +694,7 @@ export function BillingTab() {
       ? (currentPlanConfig.outlet_addon_yearly_idr ?? 6_000_000)
       : (currentPlanConfig.outlet_addon_monthly_idr ?? 500_000);
   }, [currentPlanConfig, subscription?.billing_period]);
-  const outletNextCycleDelta = outletChangeDelta * outletAddonUnitPrice;
+  const outletTotalDueNow = outletChangeDelta * outletAddonUnitPrice;
   const outletCapacityPercent = Math.min(
     100,
     Math.round((currentOutletUsage / Math.max(1, currentOutletLimit)) * 100),
@@ -777,8 +773,7 @@ export function BillingTab() {
       return;
     }
     if (outletCount < currentOutletLimit) {
-      setPendingOutletDowngradeTarget(outletCount);
-      setIsOutletDowngradeDialogOpen(true);
+      toast.error(t("billing.manageOutletMinHint", { count: currentOutletLimit }));
       return;
     }
     void (async () => {
@@ -790,21 +785,6 @@ export function BillingTab() {
       }
     })();
   }, [subscription, outletCount, currentOutletLimit, submitBillingChange]);
-
-  const confirmOutletDowngrade = useCallback(async () => {
-    if (pendingOutletDowngradeTarget == null) {
-      return;
-    }
-    const target = pendingOutletDowngradeTarget;
-    setIsOutletDowngradeDialogOpen(false);
-    setPendingOutletDowngradeTarget(null);
-    setIsUpgrading(true);
-    try {
-      await submitBillingChange("downgrade_outlet", String(target));
-    } finally {
-      setIsUpgrading(false);
-    }
-  }, [pendingOutletDowngradeTarget, submitBillingChange]);
 
   const confirmSeatDowngrade = useCallback(async () => {
     if (pendingSeatDowngradeTarget == null) {
@@ -1292,42 +1272,20 @@ export function BillingTab() {
               </div>
 
               <div className="mb-5 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm">
-                <p className="font-medium text-foreground">
-                  {isOutletDowngradeRequest ? t("billing.outletDowngradeEstimateTitle") : t("billing.manageOutletEstimateTitle")}
+                <p className="font-medium text-foreground">{t("billing.manageOutletEstimateTitle")}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletNeedToAdd", { count: outletChangeDelta || 1 })}
                 </p>
-                {isOutletDowngradeRequest ? (
-                  <>
-                    <p className="mt-1 text-muted-foreground">
-                      {t("billing.outletNeedToReduce", { count: outletChangeAbsolute })}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {t("billing.outletNextCycleDecrease", { amount: formatCurrencyIDR(Math.abs(outletNextCycleDelta)) })}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-1 text-muted-foreground">
-                      {t("billing.manageOutletNeedToAdd", { count: outletChangeAbsolute })}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {t("billing.manageOutletNextCycleIncrease", { amount: formatCurrencyIDR(Math.abs(outletNextCycleDelta)) })}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {t("billing.manageOutletPricingHint", {
-                        amount: formatCurrencyIDR(outletAddonUnitPrice),
-                        period: subscription?.billing_period === "yearly" ? "year" : "month",
-                      })}
-                    </p>
-                  </>
-                )}
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletPricingHint", {
+                    amount: formatCurrencyIDR(outletAddonUnitPrice),
+                    period: t("billing.oneTimePaymentPeriod"),
+                  })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletTotalDueNow", { amount: formatCurrencyIDR(outletTotalDueNow) })}
+                </p>
               </div>
-
-              {isOutletDowngradeRequest && (
-                <div className="mb-5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
-                  <p className="font-medium text-foreground">{t("billing.downgradeOutletPricingTitle")}</p>
-                  <p className="mt-1 text-muted-foreground">{t("billing.downgradeOutletPricingDescription")}</p>
-                </div>
-              )}
 
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1.5">
@@ -1370,53 +1328,20 @@ export function BillingTab() {
                 <Button
                   type="button"
                   className="h-9"
-                  variant={isOutletDowngradeRequest ? "destructive" : "default"}
-                  disabled={isUpgrading || outletCount === currentOutletLimit}
+                  variant="default"
+                  disabled={isUpgrading || outletCount === currentOutletLimit || outletCount < currentOutletLimit}
                   onClick={handleOutletSubmit}
                 >
                   {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {isUpgrading
                     ? t("billing.processing")
-                    : isOutletDowngradeRequest
-                      ? t("billing.downgradeOutletToCount", { count: outletCount })
-                      : t("billing.manageOutletAddToCount", { count: outletCount })}
+                    : t("billing.manageOutletAddToCount", { count: outletCount })}
                 </Button>
 
                 {outletCount === currentOutletLimit && (
                   <p className="text-xs text-muted-foreground">{t("billing.manageOutletMinHint", { count: currentOutletLimit })}</p>
                 )}
               </div>
-
-              <AlertDialog
-                open={isOutletDowngradeDialogOpen}
-                onOpenChange={(open) => {
-                  setIsOutletDowngradeDialogOpen(open);
-                  if (!open) {
-                    setPendingOutletDowngradeTarget(null);
-                  }
-                }}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("billing.downgradeOutletConfirmTitle")}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("billing.downgradeOutletConfirmDescription", {
-                        count: pendingOutletDowngradeTarget ?? outletCount,
-                      })}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isUpgrading}>{t("billing.cancel")}</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => { void confirmOutletDowngrade(); }}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      disabled={isUpgrading}
-                    >
-                      {isUpgrading ? t("billing.processing") : t("billing.downgradeOutletConfirmAction")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </TabsContent>
         </Tabs>

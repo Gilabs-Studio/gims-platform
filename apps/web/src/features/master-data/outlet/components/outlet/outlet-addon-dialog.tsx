@@ -20,7 +20,6 @@ type OutletAddonDialogProps = {
   quantity: number;
   onQuantityChange: (value: number) => void;
   unitPrice: number;
-  billingPeriod: string;
   isSubmitting: boolean;
   onSubmit: () => void;
 };
@@ -41,7 +40,6 @@ export function OutletAddonDialog({
   quantity,
   onQuantityChange,
   unitPrice,
-  billingPeriod,
   isSubmitting,
   onSubmit,
 }: OutletAddonDialogProps) {
@@ -65,7 +63,7 @@ export function OutletAddonDialog({
           <div className="rounded-lg border bg-muted/30 p-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t("outlet.addon.unitPrice")}</span>
-              <span className="font-medium">{formatIDR(unitPrice)} / {billingPeriod}</span>
+              <span className="font-medium">{formatIDR(unitPrice)}</span>
             </div>
           </div>
 

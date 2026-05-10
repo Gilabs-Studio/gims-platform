@@ -440,7 +440,6 @@ export function OutletMapView() {
         quantity={addonQuantity}
         onQuantityChange={setAddonQuantity}
         unitPrice={addonUnitPrice}
-        billingPeriod={subscription?.billing_period === "yearly" ? "year" : "month"}
         isSubmitting={isAddonSubmitting}
         onSubmit={async () => {
           if (!data.outletLimit) return;
@@ -464,7 +463,6 @@ export function OutletMapView() {
             const invoiceUrl = typeof rawInvoiceUrl === "string" ? rawInvoiceUrl : "";
             setAddonDialogOpen(false);
 
-            await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
             await queryClient.invalidateQueries({ queryKey: ["outlets", "limit"] });
 
             if (invoiceUrl) {

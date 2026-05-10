@@ -194,12 +194,12 @@ export function ProfileView() {
       void confirmBillingMutation.mutateAsync(billingToken);
     }
     if (billingStatus === "paid") {
-      toast.success("Payment received. Seat update is being applied.");
+      toast.success("Payment received. Your billing change is being applied.");
       statusToastShown.current = true;
       return;
     }
     if (billingStatus === "failed") {
-      toast.error("Payment failed or canceled. No seat changes were applied.");
+      toast.error("Payment failed or canceled. No billing changes were applied.");
       statusToastShown.current = true;
     }
   }, [searchParams, canManageBilling, confirmBillingMutation]);
