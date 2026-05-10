@@ -237,7 +237,7 @@ export function GoodsReceiptsList() {
           }}
         >
           <SelectTrigger className="w-40">
-            <SelectValue placeholder={t("columns.warehouse") || "Warehouse"} />
+            <SelectValue placeholder={t("columns.warehouse")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{tCommon("all")}</SelectItem>
@@ -290,7 +290,7 @@ export function GoodsReceiptsList() {
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
-              <TableHead>{t("columns.supplier")}</TableHead>                <TableHead>{t("columns.warehouse") || "Warehouse"}</TableHead>              <TableHead>{t("columns.receiptDate")}</TableHead>
+              <TableHead>{t("columns.supplier")}</TableHead>                <TableHead>{t("columns.warehouse")}</TableHead>              <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>

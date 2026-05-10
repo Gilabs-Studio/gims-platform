@@ -13,19 +13,13 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { LocationPicker } from "../../../geographic/components/location-picker";
 
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "../../hooks/use-suppliers";
-import { useSupplierTypes } from "../../hooks/use-supplier-types";
-import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
+import { useSupplierTypes, useCreateSupplierType } from "../../hooks/use-supplier-types";
+import { usePaymentTerms, useCreatePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
+import { useBusinessUnits, useCreateBusinessUnit } from "@/features/master-data/organization/hooks/use-business-units";
 import type { Supplier, CreateContactData, CreateSupplierBankData } from "../../types";
 import { SupplierContactList } from "./supplier-contact-list";
 import { SupplierBankList } from "./supplier-bank-list";
@@ -74,6 +68,9 @@ export function SupplierSidePanel({
   const isViewing = mode === "view";
   const createSupplier = useCreateSupplier();
   const updateSupplier = useUpdateSupplier();
+  const createSupplierType = useCreateSupplierType();
+  const createPaymentTerms = useCreatePaymentTerms();
+  const createBusinessUnit = useCreateBusinessUnit();
   const [activeTab, setActiveTab] = useState("general");
   // Hidden submit button ref — triggers real DOM submit so RHF resolver reads live form state
   const submitBtnRef = useRef<HTMLButtonElement>(null);
@@ -289,7 +286,76 @@ export function SupplierSidePanel({
     setValue("bank_accounts", formBanks.filter((_, i) => i !== index));
   };
 
-  const isLoading = createSupplier.isPending || updateSupplier.isPending || isLoadingDetail;
+  const handleCreateSupplierType = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = supplierTypes.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      setValue("supplier_type_id", existing.id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      return existing.id;
+    }
+
+    const result = await createSupplierType.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    setValue("supplier_type_id", createdId, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    return createdId;
+  };
+
+  const handleCreatePaymentTerms = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = paymentTerms.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      setValue("payment_terms_id", existing.id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      return existing.id;
+    }
+
+    const result = await createPaymentTerms.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    setValue("payment_terms_id", createdId, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    return createdId;
+  };
+
+  const handleCreateBusinessUnit = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = businessUnits.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      setValue("business_unit_id", existing.id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      return existing.id;
+    }
+
+    const result = await createBusinessUnit.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    setValue("business_unit_id", createdId, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    return createdId;
+  };
+
+  const isLoading =
+    createSupplier.isPending ||
+    updateSupplier.isPending ||
+    createSupplierType.isPending ||
+    createPaymentTerms.isPending ||
+    createBusinessUnit.isPending ||
+    isLoadingDetail;
 
   const panelTitle = isViewing
     ? fullSupplier?.name ?? t("title")
@@ -342,22 +408,16 @@ export function SupplierSidePanel({
                     control={control}
                     name="supplier_type_id"
                     render={({ field }) => (
-                      <Select
+                      <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={field.onChange}
+                        options={supplierTypes.map((type) => ({ value: type.id, label: type.name }))}
+                        placeholder={t("form.supplierTypePlaceholder")}
+                        createPermission="supplier_type.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={handleCreateSupplierType}
                         disabled={isViewing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("form.supplierTypePlaceholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {supplierTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     )}
                   />
                 </Field>
@@ -378,22 +438,16 @@ export function SupplierSidePanel({
                     control={control}
                     name="payment_terms_id"
                     render={({ field }) => (
-                      <Select
+                      <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={field.onChange}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
+                        placeholder={t("form.paymentTermsPlaceholder")}
+                        createPermission="payment_term.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={handleCreatePaymentTerms}
                         disabled={isViewing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("form.paymentTermsPlaceholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {paymentTerms.map((pt) => (
-                            <SelectItem key={pt.id} value={pt.id}>
-                              {pt.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     )}
                   />
                 </Field>
@@ -404,22 +458,16 @@ export function SupplierSidePanel({
                     control={control}
                     name="business_unit_id"
                     render={({ field }) => (
-                      <Select
+                      <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={field.onChange}
+                        options={businessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
+                        placeholder={t("form.businessUnitPlaceholder")}
+                        createPermission="business_unit.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={handleCreateBusinessUnit}
                         disabled={isViewing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("form.businessUnitPlaceholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {businessUnits.map((bu) => (
-                            <SelectItem key={bu.id} value={bu.id}>
-                              {bu.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     )}
                   />
                 </Field>
