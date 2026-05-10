@@ -606,7 +606,7 @@ export function CouponList() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {coupon.duration_days >= 36500 ? "Lifetime" : `${coupon.duration_days}d`}
+                      {coupon.duration_days === 0 || coupon.duration_days >= 36500 ? "Lifetime" : `${coupon.duration_days}d`}
                     </TableCell>
                     <TableCell className="text-sm">
                       {coupon.used_count} / {coupon.max_uses}

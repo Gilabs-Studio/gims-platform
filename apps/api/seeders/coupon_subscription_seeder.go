@@ -35,10 +35,10 @@ func SeedCoupons() error {
 		{
 			ID:           DevCouponID,
 			Code:         DevCouponCode,
-			Description:  "Internal dev coupon — full access, no expiry, multi-use",
+			Description:  "Internal dev coupon — full access, no expiry, single-use (owner godmode)",
 			CouponType:   tenantModels.CouponTypeFullAccess,
 			DurationDays: 36500, // ~100 years effective lifetime
-			MaxUses:      9999,
+			MaxUses:      1,
 			IsActive:     true,
 			ExpiresAt:    nil,
 			CreatedBy:    SystemAdminEmail,
