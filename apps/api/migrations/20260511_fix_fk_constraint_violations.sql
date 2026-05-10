@@ -32,17 +32,17 @@ END $$;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'companies') THEN
-    WITH tenant_company AS (
-      SELECT fa.id, fa.tenant_id, c.id AS first_company_id
-      FROM fixed_assets fa
-      JOIN companies c ON c.tenant_id = fa.tenant_id
-      WHERE fa.company_id IS NULL
-      QUALIFY ROW_NUMBER() OVER (PARTITION BY fa.id ORDER BY c.created_at ASC) = 1
-    )
+    -- Update fixed_assets with NULL company_id to use tenant's first company
     UPDATE fixed_assets fa
-    SET company_id = tc.first_company_id
-    FROM tenant_company tc
-    WHERE fa.id = tc.id;
+    SET company_id = (
+      SELECT c.id
+      FROM companies c
+      WHERE c.tenant_id = fa.tenant_id
+      ORDER BY c.created_at ASC
+      LIMIT 1
+    )
+    WHERE fa.company_id IS NULL
+      AND fa.tenant_id IS NOT NULL;
   END IF;
 END $$;
 
@@ -58,23 +58,37 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- FIX-02: Handle asset_assignment_histories.location_id FK violations (if using locations table vs asset_locations)
+-- FIX-02: Handle asset_assignment_histories.location_id FK violations
 -- ============================================================================
 
 DO $$
 BEGIN
+  -- Only if asset_assignment_histories table exists AND has location_id column
   IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'fk_asset_assignment_histories_location'
-      AND table_name = 'asset_assignment_histories'
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'asset_assignment_histories'
+      AND column_name = 'location_id'
   ) THEN
+    -- Check if FK constraint exists
     IF EXISTS (
-      SELECT 1 FROM asset_assignment_histories aah
-      WHERE aah.location_id IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM locations l WHERE l.id = aah.location_id)
-      LIMIT 1
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE constraint_name = 'fk_asset_assignment_histories_location'
+        AND table_name = 'asset_assignment_histories'
     ) THEN
-      ALTER TABLE asset_assignment_histories DROP CONSTRAINT fk_asset_assignment_histories_location;
+      -- Check if there are orphans (assume it's asset_locations table since that exists)
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'asset_locations'
+      ) THEN
+        IF EXISTS (
+          SELECT 1 FROM asset_assignment_histories aah
+          WHERE aah.location_id IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM asset_locations al WHERE al.id = aah.location_id)
+          LIMIT 1
+        ) THEN
+          ALTER TABLE asset_assignment_histories DROP CONSTRAINT fk_asset_assignment_histories_location;
+        END IF;
+      END IF;
     END IF;
   END IF;
 END $$;
