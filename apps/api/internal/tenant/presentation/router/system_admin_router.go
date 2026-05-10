@@ -29,6 +29,7 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			// Tenant management
 			protected.GET("/tenants", h.ListTenants)
 			protected.GET("/tenants/:id", h.GetTenantDetail)
+			protected.POST("/tenants/:id/recover-deletion", h.RecoverTenantDeletion)
 			protected.GET("/tenants/:id/subscription", h.GetTenantSubscription)
 
 			// Coupon management

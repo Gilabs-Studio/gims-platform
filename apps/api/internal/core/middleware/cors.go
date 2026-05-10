@@ -1,12 +1,28 @@
 package middleware
 
 import (
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
+
+func isLoopbackOrigin(origin string) bool {
+	originURL, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil {
+		return false
+	}
+
+	host := strings.ToLower(strings.TrimSpace(originURL.Hostname()))
+	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+		return false
+	}
+
+	scheme := strings.ToLower(strings.TrimSpace(originURL.Scheme))
+	return scheme == "http" || scheme == "https"
+}
 
 // CORSMiddleware sets up CORS configuration
 func CORSMiddleware() gin.HandlerFunc {
@@ -49,6 +65,18 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 
 	config.AllowOrigins = allowedOrigins
+	allowedOriginSet := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range allowedOrigins {
+		allowedOriginSet[origin] = struct{}{}
+	}
+	config.AllowOriginFunc = func(origin string) bool {
+		if _, ok := allowedOriginSet[origin]; ok {
+			return true
+		}
+
+		// Allow local development clients on arbitrary ports (e.g. Flutter web).
+		return isLoopbackOrigin(origin)
+	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{
 		"Origin",

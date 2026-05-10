@@ -94,6 +94,7 @@ import (
 	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	tenantHandler "github.com/gilabs/gims/api/internal/tenant/presentation/handler"
 	tenantRouter "github.com/gilabs/gims/api/internal/tenant/presentation/router"
+	tenantWorker "github.com/gilabs/gims/api/internal/tenant/worker"
 
 	tenantScope "github.com/gilabs/gims/api/internal/core/infrastructure/tenant"
 	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
@@ -331,6 +332,10 @@ func main() {
 		24*time.Hour,
 	)
 	rtWorker.Start()
+
+	// Cleanup worker for tenants that passed 30-day deletion grace period.
+	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour)
+	delWorker.Start()
 
 	// Setup Router
 	r := coreRouter.NewEngine(jwtManager)
@@ -573,6 +578,7 @@ func main() {
 
 	// Stop background worker before shutting down server/resources
 	rtWorker.Stop()
+	delWorker.Stop()
 	if autoAbsentWorker != nil {
 		autoAbsentWorker.Stop()
 	}

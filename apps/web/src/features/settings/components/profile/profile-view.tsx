@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProfileForm } from "./profile-form";
 import { PasswordForm } from "./password-form";
+import { DeleteAccountCard } from "./delete-account-card";
 import { AvatarUpload } from "./avatar-upload";
 import { PreferencesForm } from "./preferences-form";
 import { PaymentSettings } from "./payment-settings";
@@ -382,6 +383,7 @@ export function ProfileView() {
             <TabsContent value="security" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
               <div className="grid gap-6">
                 <PasswordForm />
+                <DeleteAccountCard />
               </div>
             </TabsContent>
 

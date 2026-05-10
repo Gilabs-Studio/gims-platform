@@ -80,6 +80,11 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_yearly_idr bigint NOT NULL DEFAULT 6000000`)
 	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_monthly_idr = 500000 WHERE outlet_addon_monthly_idr <= 0`)
 	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_yearly_idr = 6000000 WHERE outlet_addon_yearly_idr <= 0`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_scheduled_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_by uuid`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_recovered_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_previous_status varchar(20)`)
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
 

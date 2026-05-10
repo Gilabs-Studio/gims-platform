@@ -252,6 +252,11 @@ export const systemAdminService = {
     return data;
   },
 
+  async recoverTenantDeletion(id: string): Promise<TenantDetailResponse> {
+    const { data } = await sysAdminClient.post<TenantDetailResponse>(`/tenants/${id}/recover-deletion`);
+    return data;
+  },
+
   // ── Coupon management ────────────────────────────────────────────────────
 
   async createCoupon(payload: CreateCouponRequest): Promise<CouponDetailResponse> {
