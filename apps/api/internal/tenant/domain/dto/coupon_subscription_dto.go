@@ -12,14 +12,16 @@ type CreateCouponRequest struct {
 	CouponType             string  `json:"coupon_type"       binding:"required,oneof=full_access pos_only erp_only crm_only hr_only"`
 	DiscountType           string  `json:"discount_type"     binding:"omitempty,oneof=trial percent amount"`
 	DiscountValue          float64 `json:"discount_value"    binding:"omitempty,min=0"`
-	MaxUserCount           int     `json:"max_user_count"    binding:"omitempty,min=1,max=500"`
+	MaxUserCount           int     `json:"max_user_count"    binding:"omitempty,min=0,max=999"`
 	LockUserCount          bool    `json:"lock_user_count"`
 	PackagePriceMonthlyIDR float64 `json:"package_price_monthly_idr" binding:"omitempty,min=0"`
 	PackagePriceYearlyIDR  float64 `json:"package_price_yearly_idr"  binding:"omitempty,min=0"`
 	Scope                  string  `json:"scope"             binding:"omitempty,oneof=general tier_specific"`
 	TargetPlanSlug         string  `json:"target_plan_slug"  binding:"omitempty,max=64"`
 	// DurationDays is how many days access is granted (trial type only). Minimum 1.
-	DurationDays    int        `json:"duration_days"     binding:"required,min=1,max=3650"`
+	// DurationDays is how many days access is granted (trial type only).
+	// Use 0 to indicate lifetime (no duration limit).
+	DurationDays    int        `json:"duration_days"     binding:"omitempty,min=0,max=36500"`
 	MaxUses         int        `json:"max_uses"          binding:"required,min=1,max=100000"`
 	MaxUsesPerEmail int        `json:"max_uses_per_email" binding:"omitempty,min=1,max=100"`
 	ExpiresAt       *time.Time `json:"expires_at"         binding:"omitempty"`
@@ -31,13 +33,14 @@ type UpdateCouponRequest struct {
 	CouponType             string     `json:"coupon_type"       binding:"required,oneof=full_access pos_only erp_only crm_only hr_only"`
 	DiscountType           string     `json:"discount_type"     binding:"omitempty,oneof=trial percent amount"`
 	DiscountValue          float64    `json:"discount_value"    binding:"omitempty,min=0"`
-	MaxUserCount           int        `json:"max_user_count"    binding:"omitempty,min=1,max=500"`
+	MaxUserCount           int        `json:"max_user_count"    binding:"omitempty,min=0,max=999"`
 	LockUserCount          bool       `json:"lock_user_count"`
 	PackagePriceMonthlyIDR float64    `json:"package_price_monthly_idr" binding:"omitempty,min=0"`
 	PackagePriceYearlyIDR  float64    `json:"package_price_yearly_idr"  binding:"omitempty,min=0"`
 	Scope                  string     `json:"scope"             binding:"omitempty,oneof=general tier_specific"`
 	TargetPlanSlug         string     `json:"target_plan_slug"  binding:"omitempty,max=64"`
-	DurationDays           int        `json:"duration_days"     binding:"required,min=1,max=3650"`
+	// DurationDays: allow 0 for lifetime. Make optional so frontend can omit when not applicable.
+	DurationDays           int        `json:"duration_days"     binding:"omitempty,min=0,max=36500"`
 	MaxUses                int        `json:"max_uses"          binding:"required,min=1,max=100000"`
 	MaxUsesPerEmail        int        `json:"max_uses_per_email" binding:"omitempty,min=1,max=100"`
 	ExpiresAt              *time.Time `json:"expires_at"         binding:"omitempty"`
