@@ -87,6 +87,7 @@ export const goodsReceiptId = {
     purchaseOrder: "PO",
     supplier: "Supplier",
     receiptDate: "Tanggal Terima",
+    warehouse: "Gudang",
     status: "Status",
     createdAt: "Dibuat",
     totalItems: "Item",
