@@ -555,7 +555,7 @@ func couponTypeToPlan(ct models.CouponType) models.SubscriptionPlan {
 	case models.CouponTypeHROnly:
 		return models.PlanHRGrowth
 	default:
-		return models.PlanFullAccess
+		return models.PlanUltimateSuite
 	}
 }
 

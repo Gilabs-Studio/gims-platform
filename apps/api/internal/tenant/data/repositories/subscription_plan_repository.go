@@ -66,6 +66,8 @@ func normalizePlanSlug(slug string) string {
 		return "crm_growth"
 	case "hr", "hr_modular":
 		return "hr_growth"
+	case "full_access":
+		return "ultimate_suite"
 	default:
 		return normalized
 	}

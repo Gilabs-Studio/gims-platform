@@ -211,7 +211,7 @@ function CurrentPlanCard({ sub, planName }: { sub: TenantSubscription; planName:
 
   const expiresAt = sub.expires_at
     ? new Date(sub.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
-    : null;
+    : "Lifetime";
 
   return (
     <div className="rounded-xl border border-border/80 bg-card p-6 space-y-4">
@@ -644,9 +644,10 @@ export function BillingTab() {
   // Resolve human-readable plan name from API plans (fallback to formatted slug)
   const currentPlanName = useMemo(() => {
     if (!subscription?.plan) return null;
-    const matched = (apiPlans ?? []).find((p) => p.slug === subscription.plan);
+    const resolvedPlanSlug = subscription.plan === "full_access" ? "ultimate_suite" : subscription.plan;
+    const matched = (apiPlans ?? []).find((p) => p.slug === resolvedPlanSlug);
     if (matched) return matched.name;
-    return subscription.plan.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return resolvedPlanSlug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }, [subscription, apiPlans]);
 
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
@@ -669,9 +670,10 @@ export function BillingTab() {
     return bundles.find((bundle) => bundle.cta !== "contact")?.id ?? selectedBundleState;
   }, [bundles, selectedBundleState]);
   const requiredAdditionalSeats = Math.max(0, seatCount - currentSeatLimit);
+  const resolvedPlanSlug = subscription?.plan === "full_access" ? "ultimate_suite" : subscription?.plan;
   const currentPlanConfig = useMemo(
-    () => (apiPlans ?? []).find((p) => p.slug === subscription?.plan),
-    [apiPlans, subscription?.plan],
+    () => (apiPlans ?? []).find((p) => p.slug === resolvedPlanSlug),
+    [apiPlans, resolvedPlanSlug],
   );
   const estimatedCurrentCycle = useMemo(
     () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, currentSeatLimit),
