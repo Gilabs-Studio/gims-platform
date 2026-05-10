@@ -275,17 +275,45 @@ CREATE TABLE IF NOT EXISTS asset_maintenance_logs (
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_asset_categories_name ON asset_categories(name);
 CREATE INDEX IF NOT EXISTS idx_asset_categories_active ON asset_categories(is_active);
-CREATE INDEX IF NOT EXISTS idx_asset_locations_code ON asset_locations(code);
-CREATE INDEX IF NOT EXISTS idx_asset_locations_name ON asset_locations(name);
+-- Asset Locations Indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_locations' AND column_name = 'code') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_locations_code ON asset_locations(code);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_locations' AND column_name = 'name') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_locations_name ON asset_locations(name);
+  END IF;
+END $$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_serial_unique ON fixed_assets(serial_number) WHERE serial_number IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_assets_code ON fixed_assets(code);
-CREATE INDEX IF NOT EXISTS idx_assets_status ON fixed_assets(status);
-CREATE INDEX IF NOT EXISTS idx_assets_category ON fixed_assets(category_id);
-CREATE INDEX IF NOT EXISTS idx_assets_location ON fixed_assets(location_id);
-CREATE INDEX IF NOT EXISTS idx_assets_department ON fixed_assets(department_id);
-CREATE INDEX IF NOT EXISTS idx_assets_created_at ON fixed_assets(created_at);
-CREATE INDEX IF NOT EXISTS idx_assets_asset_type ON fixed_assets(asset_type);
+-- Fixed Assets Indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'serial_number') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_serial_unique ON fixed_assets(serial_number) WHERE serial_number IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'code') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_code ON fixed_assets(code);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'status') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_status ON fixed_assets(status);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'category_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_category ON fixed_assets(category_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'location_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_location ON fixed_assets(location_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'department_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_department ON fixed_assets(department_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'created_at') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_created_at ON fixed_assets(created_at);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'asset_type') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_asset_type ON fixed_assets(asset_type);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_asset ON asset_depreciation_schedules(asset_id);
 CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_period ON asset_depreciation_schedules(period_start_date);
@@ -295,12 +323,30 @@ CREATE INDEX IF NOT EXISTS idx_asset_disposals_asset ON asset_disposals(asset_id
 CREATE INDEX IF NOT EXISTS idx_asset_disposals_disposal_date ON asset_disposals(disposal_date);
 CREATE INDEX IF NOT EXISTS idx_asset_disposals_type ON asset_disposals(disposal_type);
 
-CREATE INDEX IF NOT EXISTS idx_asset_attachments_asset ON asset_attachments(asset_id);
-CREATE INDEX IF NOT EXISTS idx_asset_attachments_type ON asset_attachments(attachment_type);
+-- Asset Attachments Indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_attachments' AND column_name = 'asset_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_attachments_asset ON asset_attachments(asset_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_attachments' AND column_name = 'file_type') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_attachments_type ON asset_attachments(file_type);
+  END IF;
+END $$;
 
-CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_asset ON asset_audit_logs(asset_id);
-CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_action ON asset_audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_changed_at ON asset_audit_logs(changed_at);
+-- Asset Audit Logs Indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_audit_logs' AND column_name = 'asset_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_asset ON asset_audit_logs(asset_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_audit_logs' AND column_name = 'action') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_action ON asset_audit_logs(action);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'asset_audit_logs' AND column_name = 'performed_at') THEN
+    CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_performed_at ON asset_audit_logs(performed_at);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_asset_transfers_asset ON asset_transfers(asset_id);
 CREATE INDEX IF NOT EXISTS idx_asset_transfers_status ON asset_transfers(status);
@@ -310,6 +356,19 @@ CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_asset ON asset_maintenance
 CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_maintenance_date ON asset_maintenance_logs(maintenance_date);
 CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_type ON asset_maintenance_logs(maintenance_type);
 
-CREATE INDEX IF NOT EXISTS idx_assets_composite_status_category ON fixed_assets(status, category_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_assets_composite_department_location ON fixed_assets(department_id, location_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_assets_composite_custodian_active ON fixed_assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;
+-- Composite Indexes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'status')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'category_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_composite_status_category ON fixed_assets(status, category_id) WHERE deleted_at IS NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'department_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'location_id') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_composite_department_location ON fixed_assets(department_id, location_id) WHERE deleted_at IS NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'custodian_user_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'is_active') THEN
+    CREATE INDEX IF NOT EXISTS idx_assets_composite_custodian_active ON fixed_assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;
+  END IF;
+END $$;

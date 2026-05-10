@@ -282,12 +282,19 @@ END
 WHERE lifecycle_stage IS NULL OR lifecycle_stage = '';
 
 -- Set is_capitalized = true for existing assets with book entries
-UPDATE fixed_assets 
-SET is_capitalized = true 
-WHERE id IN (
-    SELECT DISTINCT reference_id 
-    FROM journal_entries 
-    WHERE reference_type = 'fixed_asset'
-);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'fixed_assets' AND column_name = 'is_capitalized')
+     AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'journal_entries') THEN
+    UPDATE fixed_assets 
+    SET is_capitalized = true 
+    WHERE id IN (
+        SELECT DISTINCT reference_id::UUID 
+        FROM journal_entries 
+        WHERE reference_type = 'fixed_asset'
+          AND reference_id IS NOT NULL
+    );
+  END IF;
+END $$;
 
 -- Migration completed successfully
