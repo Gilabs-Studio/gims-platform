@@ -152,7 +152,6 @@ export function AssetsList() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Filters
-  const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterLocation, setFilterLocation] = useState<string>("");
@@ -271,100 +270,10 @@ export function AssetsList() {
             className="pl-9"
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          className="gap-2"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {t("filters.title")}
-        </Button>
         <div className="flex-1" />
       </div>
 
-      {showFilters && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 rounded-lg border bg-card/50 p-4">
-          <div className="space-y-2">
-            <Label className="text-xs">{t("fields.status")}</Label>
-            <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setPage(1); }}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder={t("placeholders.select")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("placeholders.all")}</SelectItem>
-                <SelectItem value="active">{t("status.active")}</SelectItem>
-                <SelectItem value="inactive">{t("status.inactive")}</SelectItem>
-                <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                <SelectItem value="disposed">{t("status.disposed")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs">{t("fields.category")}</Label>
-            <Select value={filterCategory} onValueChange={(val) => { setFilterCategory(val); setPage(1); }}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder={t("placeholders.select")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("placeholders.all")}</SelectItem>
-                {categoryOptions?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs">{t("fields.location")}</Label>
-            <Select value={filterLocation} onValueChange={(val) => { setFilterLocation(val); setPage(1); }}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder={t("placeholders.select")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("placeholders.all")}</SelectItem>
-                {locationOptions?.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs">{t("fields.capitalized")}</Label>
-            <Select value={filterCapitalized} onValueChange={(val) => { setFilterCapitalized(val); setPage(1); }}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder={t("placeholders.select")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("placeholders.all")}</SelectItem>
-                <SelectItem value="true">{t("common.yes")}</SelectItem>
-                <SelectItem value="false">{t("common.no")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs">{t("fields.warrantyExpiry")}</Label>
-            <Select value={String(filterWarrantyExpiring ?? "")} onValueChange={(val) => { setFilterWarrantyExpiring(val === "" ? null : (val === "30" ? 30 : val === "60" ? 60 : 90)); setPage(1); }}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder={t("placeholders.select")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("placeholders.all")}</SelectItem>
-                <SelectItem value="30">{t("filters.warranty.30", { days: 30 })}</SelectItem>
-                <SelectItem value="60">{t("filters.warranty.60", { days: 60 })}</SelectItem>
-                <SelectItem value="90">{t("filters.warranty.90", { days: 90 })}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
 
       <div className="rounded-md border">
         <Table>
