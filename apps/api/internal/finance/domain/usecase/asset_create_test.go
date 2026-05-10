@@ -29,7 +29,7 @@ func newCreateAssetTestUsecase(t *testing.T, db *gorm.DB) *assetUsecase {
 	locRepo := repositories.NewAssetLocationRepository(db)
 	assetRepo := repositories.NewAssetRepository(db)
 	assetMapper := mapper.NewAssetMapper(mapper.NewAssetCategoryMapper(), mapper.NewAssetLocationMapper())
-	return NewAssetUsecase(db, nil, catRepo, locRepo, assetRepo, assetMapper, nil, nil, nil).(*assetUsecase)
+	return NewAssetUsecase(db, nil, catRepo, locRepo, nil, assetRepo, assetMapper, nil, nil, nil).(*assetUsecase)
 }
 
 func seedCreateAssetDependencies(t *testing.T, db *gorm.DB) (string, string) {

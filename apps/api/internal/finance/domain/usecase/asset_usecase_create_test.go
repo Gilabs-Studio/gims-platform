@@ -38,7 +38,7 @@ func buildAssetUsecaseForTest(t *testing.T) (*gorm.DB, AssetUsecase, func()) {
 	assignmentRepo := repositories.NewAssetAssignmentRepository(db)
 	mapper := fm.NewAssetMapper(fm.NewAssetCategoryMapper(), fm.NewAssetLocationMapper())
 
-	uc := NewAssetUsecase(db, nil, catRepo, locRepo, assetRepo, mapper, attachmentRepo, auditRepo, assignmentRepo)
+	uc := NewAssetUsecase(db, nil, catRepo, locRepo, nil, assetRepo, mapper, attachmentRepo, auditRepo, assignmentRepo)
 	return db, uc, cleanup
 }
 

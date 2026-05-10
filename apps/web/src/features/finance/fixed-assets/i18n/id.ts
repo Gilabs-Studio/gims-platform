@@ -27,6 +27,8 @@ export const financeFixedAssetsId = {
     entriesPosted: "entri diposting ke buku besar",
     errors: "Kesalahan",
     errorsEncountered: "kesalahan ditemui",
+    periodClosed: "Periode Akuntansi Ditutup",
+    validationError: "Kesalahan Validasi",
   },
   disposal: {
     title: "Pembuangan Aset",

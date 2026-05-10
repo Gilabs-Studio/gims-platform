@@ -50,6 +50,7 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
   const totalAssets = normalized.total_assets ?? normalized.processed ?? 0;
   const successful = normalized.successful ?? normalized.posted ?? 0;
   const failed = normalized.failed ?? 0;
+  const skipped = normalized.skipped ?? (totalAssets - successful - failed);
   const totalAmount =
     normalized.total_amount ??
     items.reduce((sum, item) => sum + (typeof item.amount === "number" ? item.amount : 0), 0);
@@ -77,7 +78,7 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">{t("asset")}</p>
               <p className="text-2xl font-bold">{totalAssets}</p>
@@ -85,6 +86,10 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
             <div>
               <p className="text-sm text-muted-foreground">{t("successful")}</p>
               <p className="text-2xl font-bold text-green-600">{successful}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("skipped")}</p>
+              <p className="text-2xl font-bold text-yellow-600">{skipped}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("failed")}</p>

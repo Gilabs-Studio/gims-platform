@@ -249,6 +249,18 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 	periodEnd := periodStart.AddDate(0, 1, 0).Add(-time.Nanosecond)
 	periodKey := ymPeriod(periodStart)
 
+	// Accounting period validation (FIX #10)
+	tenantID := tenantIDFromContext(ctx)
+	if tenantID != "" && uc.apRepo != nil {
+		closed, err := uc.apRepo.IsClosed(ctx, tenantID, periodKey)
+		if err != nil {
+			return nil, err
+		}
+		if closed {
+			return nil, errors.New("Periode akuntansi sudah ditutup")
+		}
+	}
+
 	var existingCount int64
 	idempotencyQuery := database.GetDB(ctx, uc.db).Model(&financeModels.AssetDepreciation{}).Where("period = ?", periodKey)
 	idempotencyQuery = security.ApplyScopeFilter(idempotencyQuery, ctx, security.FinanceScopeQueryOptions())
@@ -511,6 +523,46 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 				},
 			}
 			if err := tx.Create(audit).Error; err != nil {
+				runItem.Status = "failed"
+				runItem.Reason = err.Error()
+				failed++
+				items = append(items, runItem)
+				continue
+			}
+
+			// Insert asset transaction as event log referencing the depreciation ledger (FIX #3)
+			transRefID := dep.ID
+			trans := &financeModels.AssetTransaction{
+				TenantID:               asset.TenantID,
+				AssetID:                asset.ID,
+				Type:                   financeModels.AssetTransactionTypeDepreciate,
+				TransactionDate:        periodStart,
+				Amount:                 amount,
+				Description:            fmt.Sprintf("Depreciation %s (%s)", asset.Code, periodKey),
+				Status:                 financeModels.AssetTransactionStatusPosted,
+				ReferenceType:          &refType,
+				ReferenceID:            &transRefID,
+				BookValueAtTransaction: bookValue,
+				CreatedBy:              actorPtr,
+			}
+			if err := tx.Create(trans).Error; err != nil {
+				runItem.Status = "failed"
+				runItem.Reason = err.Error()
+				failed++
+				items = append(items, runItem)
+				continue
+			}
+
+			// Mark corresponding schedule as posted if exists (tenant-scoped)
+			now = apptime.Now()
+			if err := tx.Model(&financeModels.AssetDepreciationSchedule{}).
+				Where("tenant_id = ? AND asset_id = ? AND period_start_date = ?", asset.TenantID, asset.ID, periodStart).
+				Updates(map[string]interface{}{
+					"is_posted":      true,
+					"posted_at":      &now,
+					"journal_entry_id": journalEntry.ID,
+				}).Error; err != nil {
+				// Non-fatal: continue processing but log as failed update
 				runItem.Status = "failed"
 				runItem.Reason = err.Error()
 				failed++

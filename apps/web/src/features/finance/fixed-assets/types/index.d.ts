@@ -20,29 +20,37 @@ export interface ApiResponse<T> {
 }
 
 // Batch Depreciation Types
-export interface BatchDepreciationPreviewLine {
+export interface BatchDepreciationPreviewItem {
   asset_id: string;
   asset_code: string;
   asset_name: string;
   currency_code?: string;
-  period: string;
-  method: "SL" | "DB" | "NONE";
-  depreciation_amount: number;
-  accumulated_depreciation: number;
-  book_value: number;
-  status: "new" | "already_depreciated" | "skipped";
+  period?: string;
+  method?: "SL" | "DB" | "NONE";
+  depreciation_amount?: number;
+  accumulated_depreciation?: number;
+  book_value?: number;
+  opening_book_value?: number;
+  projected_book_value?: number;
+  eligible?: boolean;
+  status?: "new" | "already_depreciated" | "skipped";
+  skip_reason?: string;
   error?: string;
 }
 
 export interface BatchDepreciationPreviewResponse {
-  preview_lines: BatchDepreciationPreviewLine[];
+  items?: BatchDepreciationPreviewItem[];
+  preview_lines?: BatchDepreciationPreviewItem[];
   currency_code?: string;
-  total_lines: number;
-  successful: number;
-  failed: number;
-  skipped: number;
-  total_depreciation_amount: number;
-  errors: string[];
+  total_assets?: number;
+  total_lines?: number;
+  eligible?: number;
+  successful?: number;
+  failed?: number;
+  skipped?: number;
+  total_depreciation_amount?: number;
+  total_amount?: number;
+  errors?: string[];
 }
 
 export interface BatchDepreciationRunResponse {

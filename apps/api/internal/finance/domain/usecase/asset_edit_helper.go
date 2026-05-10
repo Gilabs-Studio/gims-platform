@@ -225,15 +225,36 @@ func deriveEditAcquisitionCost(existing *financeModels.Asset, req *dto.EditAsset
 	return round2(basePurchasePrice + shippingCost + installationCost + taxAmount + otherCosts)
 }
 
+// isUserAdmin checks if the user is an admin based on their role in context
+func isUserAdmin(ctx context.Context) bool {
+	// Check system admin flag first
+	if isSystemAdmin, ok := ctx.Value("is_system_admin").(bool); ok && isSystemAdmin {
+		return true
+	}
+
+	// Check user role
+	if userRole, ok := ctx.Value("user_role").(string); ok {
+		return userRole == "admin" || userRole == "system_admin" || userRole == "owner"
+	}
+
+	return false
+}
+
 // ValidateGroupCChanges ensures Group C fields are not changed if asset is active
-func ValidateGroupCChanges(existing *financeModels.Asset, changes *FieldChanges) error {
+// Admins can override this restriction
+func ValidateGroupCChanges(ctx context.Context, existing *financeModels.Asset, changes *FieldChanges) error {
 	if len(changes.GroupC) == 0 {
 		return nil
 	}
 
-	// Group C is immutable for active/in_use assets
+	// Group C is immutable for active/in_use assets, UNLESS user is admin
 	if existing.Status == financeModels.AssetStatusActive ||
 		existing.Status == financeModels.AssetStatusInUse {
+		// Admin users can edit immutable fields
+		if isUserAdmin(ctx) {
+			return nil
+		}
+
 		fields := make([]string, 0, len(changes.GroupC))
 		for field := range changes.GroupC {
 			fields = append(fields, field)

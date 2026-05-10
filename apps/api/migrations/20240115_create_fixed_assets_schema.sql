@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS asset_categories (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  CONSTRAINT asset_categories_name_unique UNIQUE(name),
-  INDEX idx_asset_categories_name (name),
-  INDEX idx_asset_categories_active (is_active)
+  CONSTRAINT asset_categories_name_unique UNIQUE(name)
 );
 
 -- Asset Locations Table
@@ -44,9 +42,7 @@ CREATE TABLE IF NOT EXISTS asset_locations (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  CONSTRAINT asset_locations_code_unique UNIQUE(code),
-  INDEX idx_asset_locations_code (code),
-  INDEX idx_asset_locations_name (name)
+  CONSTRAINT asset_locations_code_unique UNIQUE(code)
 );
 
 -- Main Assets Table
@@ -126,18 +122,9 @@ CREATE TABLE IF NOT EXISTS fixed_assets (
   FOREIGN KEY (location_id) REFERENCES asset_locations(id) ON DELETE RESTRICT,
   
   CONSTRAINT assets_code_unique UNIQUE(code),
-  CONSTRAINT assets_serial_unique UNIQUE(serial_number) WHERE serial_number IS NOT NULL,
   CONSTRAINT assets_salvage_not_exceed_cost CHECK(salvage_value <= acquisition_cost),
   CONSTRAINT assets_cost_positive CHECK(acquisition_cost > 0),
-  CONSTRAINT assets_useful_life_positive CHECK(useful_life_months > 0 OR asset_type IN ('NON_DEPRECIABLE', 'INTANGIBLE')),
-  
-  INDEX idx_assets_code (code),
-  INDEX idx_assets_status (status),
-  INDEX idx_assets_category (category_id),
-  INDEX idx_assets_location (location_id),
-  INDEX idx_assets_department (department_id),
-  INDEX idx_assets_created_at (created_at),
-  INDEX idx_assets_asset_type (asset_type)
+  CONSTRAINT assets_useful_life_positive CHECK(useful_life_months > 0 OR asset_type IN ('NON_DEPRECIABLE', 'INTANGIBLE'))
 );
 
 -- Asset Depreciation Schedules Table
@@ -163,10 +150,7 @@ CREATE TABLE IF NOT EXISTS asset_depreciation_schedules (
   
   FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
   
-  CONSTRAINT asset_depreciation_schedules_unique_month UNIQUE(asset_id, period_month),
-  INDEX idx_asset_depreciation_schedules_asset (asset_id),
-  INDEX idx_asset_depreciation_schedules_period (period_start_date),
-  INDEX idx_asset_depreciation_schedules_posted (is_posted)
+  CONSTRAINT asset_depreciation_schedules_unique_month UNIQUE(asset_id, period_month)
 );
 
 -- Asset Disposals Table
@@ -195,11 +179,7 @@ CREATE TABLE IF NOT EXISTS asset_disposals (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE RESTRICT,
-  
-  INDEX idx_asset_disposals_asset (asset_id),
-  INDEX idx_asset_disposals_disposal_date (disposal_date),
-  INDEX idx_asset_disposals_type (disposal_type)
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE RESTRICT
 );
 
 -- Asset Attachments Table
@@ -218,10 +198,7 @@ CREATE TABLE IF NOT EXISTS asset_attachments (
   uploaded_by UUID,
   uploaded_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
-  
-  INDEX idx_asset_attachments_asset (asset_id),
-  INDEX idx_asset_attachments_type (attachment_type)
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE
 );
 
 -- Asset Audit Logs Table
@@ -240,11 +217,7 @@ CREATE TABLE IF NOT EXISTS asset_audit_logs (
   ip_address VARCHAR(45),
   user_agent TEXT,
   
-  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
-  
-  INDEX idx_asset_audit_logs_asset (asset_id),
-  INDEX idx_asset_audit_logs_action (action),
-  INDEX idx_asset_audit_logs_changed_at (changed_at)
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE
 );
 
 -- Asset Transfers Table
@@ -271,11 +244,7 @@ CREATE TABLE IF NOT EXISTS asset_transfers (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
-  
-  INDEX idx_asset_transfers_asset (asset_id),
-  INDEX idx_asset_transfers_status (status),
-  INDEX idx_asset_transfers_transfer_date (transfer_date)
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE
 );
 
 -- Asset Maintenance Logs Table
@@ -300,14 +269,47 @@ CREATE TABLE IF NOT EXISTS asset_maintenance_logs (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   
-  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE,
-  
-  INDEX idx_asset_maintenance_logs_asset (asset_id),
-  INDEX idx_asset_maintenance_logs_maintenance_date (maintenance_date),
-  INDEX idx_asset_maintenance_logs_type (maintenance_type)
+  FOREIGN KEY (asset_id) REFERENCES fixed_assets(id) ON DELETE CASCADE
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_assets_composite_status_category ON fixed_assets(status, category_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_assets_composite_department_location ON fixed_assets(department_id, location_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_assets_composite_custodian_active ON fixed_assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_asset_categories_name ON asset_categories(name);
+CREATE INDEX IF NOT EXISTS idx_asset_categories_active ON asset_categories(is_active);
+CREATE INDEX IF NOT EXISTS idx_asset_locations_code ON asset_locations(code);
+CREATE INDEX IF NOT EXISTS idx_asset_locations_name ON asset_locations(name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_serial_unique ON fixed_assets(serial_number) WHERE serial_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_assets_code ON fixed_assets(code);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON fixed_assets(status);
+CREATE INDEX IF NOT EXISTS idx_assets_category ON fixed_assets(category_id);
+CREATE INDEX IF NOT EXISTS idx_assets_location ON fixed_assets(location_id);
+CREATE INDEX IF NOT EXISTS idx_assets_department ON fixed_assets(department_id);
+CREATE INDEX IF NOT EXISTS idx_assets_created_at ON fixed_assets(created_at);
+CREATE INDEX IF NOT EXISTS idx_assets_asset_type ON fixed_assets(asset_type);
+
+CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_asset ON asset_depreciation_schedules(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_period ON asset_depreciation_schedules(period_start_date);
+CREATE INDEX IF NOT EXISTS idx_asset_depreciation_schedules_posted ON asset_depreciation_schedules(is_posted);
+
+CREATE INDEX IF NOT EXISTS idx_asset_disposals_asset ON asset_disposals(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_disposals_disposal_date ON asset_disposals(disposal_date);
+CREATE INDEX IF NOT EXISTS idx_asset_disposals_type ON asset_disposals(disposal_type);
+
+CREATE INDEX IF NOT EXISTS idx_asset_attachments_asset ON asset_attachments(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_attachments_type ON asset_attachments(attachment_type);
+
+CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_asset ON asset_audit_logs(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_action ON asset_audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_asset_audit_logs_changed_at ON asset_audit_logs(changed_at);
+
+CREATE INDEX IF NOT EXISTS idx_asset_transfers_asset ON asset_transfers(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_transfers_status ON asset_transfers(status);
+CREATE INDEX IF NOT EXISTS idx_asset_transfers_transfer_date ON asset_transfers(transfer_date);
+
+CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_asset ON asset_maintenance_logs(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_maintenance_date ON asset_maintenance_logs(maintenance_date);
+CREATE INDEX IF NOT EXISTS idx_asset_maintenance_logs_type ON asset_maintenance_logs(maintenance_type);
+
+CREATE INDEX IF NOT EXISTS idx_assets_composite_status_category ON fixed_assets(status, category_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_assets_composite_department_location ON fixed_assets(department_id, location_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_assets_composite_custodian_active ON fixed_assets(custodian_user_id, is_active) WHERE deleted_at IS NULL;

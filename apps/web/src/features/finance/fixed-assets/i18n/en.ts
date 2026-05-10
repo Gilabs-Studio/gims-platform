@@ -27,6 +27,8 @@ export const financeFixedAssetsEn = {
     entriesPosted: "entries posted to general ledger",
     errors: "Errors",
     errorsEncountered: "errors encountered",
+    periodClosed: "Accounting Period Closed",
+    validationError: "Validation Error",
   },
   disposal: {
     title: "Asset Disposal",

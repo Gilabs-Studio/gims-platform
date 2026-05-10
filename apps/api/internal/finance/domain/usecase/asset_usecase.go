@@ -71,6 +71,7 @@ type assetUsecase struct {
 	catRepo        repositories.AssetCategoryRepository
 	locRepo        repositories.AssetLocationRepository
 	repo           repositories.AssetRepository
+	apRepo         repositories.AccountingPeriodRepository
 	attachmentRepo repositories.AssetAttachmentRepository
 	auditLogRepo   repositories.AssetAuditLogRepository
 	assignmentRepo repositories.AssetAssignmentRepository
@@ -83,6 +84,7 @@ func NewAssetUsecase(
 	coaRepo repositories.ChartOfAccountRepository,
 	catRepo repositories.AssetCategoryRepository,
 	locRepo repositories.AssetLocationRepository,
+	apRepo repositories.AccountingPeriodRepository,
 	repo repositories.AssetRepository,
 	mapper *mapper.AssetMapper,
 	attachmentRepo repositories.AssetAttachmentRepository,
@@ -93,6 +95,7 @@ func NewAssetUsecase(
 	uc := &assetUsecase{
 		db: db, coaRepo: coaRepo, catRepo: catRepo, locRepo: locRepo,
 		repo: repo, mapper: mapper,
+		apRepo: apRepo,
 		attachmentRepo: attachmentRepo, auditLogRepo: auditLogRepo, assignmentRepo: assignmentRepo,
 	}
 	if len(journalUC) > 0 {
@@ -865,7 +868,7 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 	if err != nil {
 		return nil, fmt.Errorf("failed to classify changes: %w", err)
 	}
-	if err := ValidateGroupCChanges(existing, changes); err != nil {
+	if err := ValidateGroupCChanges(ctx, existing, changes); err != nil {
 		return nil, err
 	}
 
@@ -1339,24 +1342,26 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		}
 
 		var amount float64
+		lifeMonths := asset.GetUsefulLifeMonths()
 		switch cat.DepreciationMethod {
 		case financeModels.DepreciationMethodStraightLine:
-			if cat.UsefulLifeMonths <= 0 {
+			if lifeMonths <= 0 {
 				return errors.New("invalid useful_life_months")
 			}
-			if periodsDone >= cat.UsefulLifeMonths {
+			if periodsDone >= lifeMonths {
 				return errors.New("asset has reached useful life")
 			}
 			base := asset.AcquisitionCost - asset.SalvageValue
 			if base < 0 {
 				base = 0
 			}
-			amount = base / float64(cat.UsefulLifeMonths)
+			amount = base / float64(lifeMonths)
 		case financeModels.DepreciationMethodDecliningBalance:
 			if cat.DepreciationRate <= 0 {
 				return errors.New("depreciation_rate is required for DB")
 			}
-			amount = bookValue * cat.DepreciationRate
+			ratePerMonth := cat.DepreciationRate / float64(lifeMonths)
+			amount = bookValue * ratePerMonth
 		default:
 			return errors.New("unsupported depreciation_method")
 		}

@@ -31,12 +31,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAssetEdit } from '../hooks/use-asset-edit';
 import { AssetEditConfirmModal } from './asset-edit-confirm-modal';
 import { useUserPermission } from '@/hooks/use-user-permission';
+import { useAuthStore } from '@/features/auth/stores/use-auth-store';
 
 /**
  * Field Classification:
  * - GROUP A (Non-accounting): Free to change
  * - GROUP B (Accounting-sensitive): Need confirmation & depreciation recalc
- * - GROUP C (Immutable): Cannot change after active status
+ * - GROUP C (Immutable): Cannot change after active status (unless admin)
  */
 
 const editAssetSchema = z.object({
@@ -87,6 +88,10 @@ export function AssetEditForm({
 }: AssetEditFormProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
+
+  // Get user and check if admin (allows editing immutable fields)
+  const { user } = useAuthStore();
+  const isAdminUser = user?.role?.code === 'admin';
 
   const form = useForm<any>({
     resolver: zodResolver(editAssetSchema),
@@ -393,13 +398,14 @@ export function AssetEditForm({
                           <FormControl>
                             <Input
                               {...field}
-                              disabled
-                              className="bg-gray-100"
-                              title="Immutable: Asset code cannot be changed after creation"
+                              disabled={!isAdminUser && isActive}
+                              className={!isAdminUser && isActive ? "bg-gray-100" : ""}
+                              title={!isAdminUser && isActive ? "Immutable: Asset code cannot be changed after creation" : ""}
                             />
                           </FormControl>
                           <FormDescription>
-                            {isActive && 'Immutable for active assets'}
+                            {!isAdminUser && isActive && 'Immutable for active assets (admin can override)'}
+                            {isAdminUser && isActive && 'Admin: You can edit immutable fields'}
                           </FormDescription>
                         </FormItem>
                       )}
@@ -418,13 +424,14 @@ export function AssetEditForm({
                             <Input
                               {...field}
                               type="date"
-                              disabled
-                              className="bg-gray-100"
-                              title="Immutable: Acquisition date cannot be changed"
+                              disabled={!isAdminUser && isActive}
+                              className={!isAdminUser && isActive ? "bg-gray-100" : ""}
+                              title={!isAdminUser && isActive ? "Immutable: Acquisition date cannot be changed" : ""}
                             />
                           </FormControl>
                           <FormDescription>
-                            {isActive && 'Immutable for active assets'}
+                            {!isAdminUser && isActive && 'Immutable for active assets (admin can override)'}
+                            {isAdminUser && isActive && 'Admin: You can edit immutable fields'}
                           </FormDescription>
                         </FormItem>
                       )}
@@ -658,13 +665,14 @@ export function AssetEditForm({
                             <Input
                               {...field}
                               type="number"
-                              disabled
-                              className="bg-gray-100"
-                              title="Immutable: Use Revaluation feature to change acquisition cost"
+                              disabled={!isAdminUser && isActive}
+                              className={!isAdminUser && isActive ? "bg-gray-100" : ""}
+                              title={!isAdminUser && isActive ? "Immutable: Use Revaluation feature to change acquisition cost" : ""}
                             />
                           </FormControl>
                           <FormDescription>
-                            Use Revaluation feature to modify
+                            {!isAdminUser && isActive && 'Use Revaluation feature to modify'}
+                            {isAdminUser && isActive && 'Admin: You can edit immutable fields'}
                           </FormDescription>
                         </FormItem>
                       )}

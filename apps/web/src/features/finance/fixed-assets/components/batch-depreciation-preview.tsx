@@ -11,6 +11,32 @@ import { Loader2 } from "lucide-react";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useTranslations } from "next-intl";
 
+type PreviewItem = NonNullable<BatchDepreciationPreviewResponse["items"]>[number];
+
+function getPreviewLines(previewData: BatchDepreciationPreviewResponse | null): PreviewItem[] {
+  return previewData?.items ?? previewData?.preview_lines ?? [];
+}
+
+function getPreviewStatus(line: PreviewItem): "new" | "already_depreciated" | "skipped" {
+  if (typeof line.status === "string" && line.status.length > 0) {
+    return line.status;
+  }
+  if (line.eligible === false || line.skip_reason) {
+    return "skipped";
+  }
+  return "new";
+}
+
+function getPreviewBookValue(line: PreviewItem): number {
+  if (typeof line.book_value === "number") {
+    return line.book_value;
+  }
+  if (typeof line.opening_book_value === "number") {
+    return line.opening_book_value;
+  }
+  return 0;
+}
+
 function normalizeCurrencyCode(currencyCode: string | undefined | null): string {
   const normalized = (currencyCode ?? "").trim().toUpperCase();
   if (/^[A-Z]{3}$/.test(normalized)) {
@@ -38,6 +64,7 @@ interface BatchDepreciationPreviewProps {
   previewData: BatchDepreciationPreviewResponse | null;
   isLoadingPreview: boolean;
   isRunning: boolean;
+  periodValidationError?: { type: string; message: string } | null;
 }
 
 export function BatchDepreciationPreview({
@@ -50,16 +77,22 @@ export function BatchDepreciationPreview({
   previewData,
   isLoadingPreview,
   isRunning,
+  periodValidationError,
 }: BatchDepreciationPreviewProps) {
   const t = useTranslations("financeFixedAssets.batchDepreciation");
   const canDepreciate = useUserPermission("asset.depreciate");
   const currentYear = new Date().getFullYear();
-  const previewLines = previewData?.preview_lines ?? [];
+  const previewLines = getPreviewLines(previewData);
   const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);
   const totalDepreciationAmount =
     previewData?.total_depreciation_amount ??
-    (previewData as (BatchDepreciationPreviewResponse & { total_amount?: number }) | null)?.total_amount ??
+    previewData?.total_amount ??
+    previewLines.reduce((sum, line) => sum + (typeof line.depreciation_amount === "number" ? line.depreciation_amount : 0), 0) ??
     0;
+  const totalLines = previewData?.total_assets ?? previewData?.total_lines ?? previewLines.length;
+  const successfulLines = previewData?.successful ?? previewData?.eligible ?? previewLines.filter((line) => line.eligible !== false && !line.skip_reason).length;
+  const skippedLines = previewData?.skipped ?? previewLines.filter((line) => line.eligible === false || !!line.skip_reason).length;
+  const failedLines = previewData?.failed ?? 0;
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
@@ -136,6 +169,23 @@ export function BatchDepreciationPreview({
               {canDepreciate ? t("run") : t("run")}
             </Button>
           </div>
+
+          {periodValidationError && (
+            <div
+              className={`p-4 rounded-lg border ${
+                periodValidationError.type === "closed_period"
+                  ? "bg-red-50 border-red-200 text-red-800"
+                  : "bg-yellow-50 border-yellow-200 text-yellow-800"
+              }`}
+            >
+              <p className="font-medium">
+                {periodValidationError.type === "closed_period"
+                  ? t("periodClosed")
+                  : t("validationError")}
+              </p>
+              <p className="text-sm mt-1">{periodValidationError.message}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -144,12 +194,12 @@ export function BatchDepreciationPreview({
           <CardHeader>
             <CardTitle>{t("previewResults")}</CardTitle>
             <CardDescription>
-              {previewData.successful} / {previewData.total_lines} {t("ready")} ({previewData.skipped} {t("skipped")})
+              {successfulLines} / {totalLines} {t("ready")} ({skippedLines} {t("skipped")})
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="mb-4 p-4 bg-muted rounded-lg text-sm">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <p className="text-muted-foreground">{t("totalAmount")}</p>
                   <p className="text-lg font-semibold">
@@ -157,12 +207,16 @@ export function BatchDepreciationPreview({
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">{t("successful")}</p>
-                  <p className="text-lg font-semibold">{previewData.successful}</p>
+                  <p className="text-muted-foreground">{t("ready")}</p>
+                  <p className="text-lg font-semibold text-green-600">{successfulLines}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("skipped")}</p>
+                  <p className="text-lg font-semibold text-yellow-600">{skippedLines}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{t("failed")}</p>
-                  <p className="text-lg font-semibold text-destructive">{previewData.failed}</p>
+                  <p className="text-lg font-semibold text-destructive">{failedLines}</p>
                 </div>
               </div>
             </div>
@@ -187,24 +241,24 @@ export function BatchDepreciationPreview({
                           <p className="text-sm text-muted-foreground">{line.asset_code}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{line.method}</TableCell>
+                      <TableCell>{line.method ?? "SL"}</TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(line.depreciation_amount, line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(line.book_value, line.currency_code ?? defaultCurrencyCode)}
+                        {formatCurrency(getPreviewBookValue(line), line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell>
                           <Badge
                             variant={
-                              line.status === "new"
+                              getPreviewStatus(line) === "new"
                                 ? "info"
-                                : line.status === "skipped"
+                                : getPreviewStatus(line) === "skipped"
                                 ? "warning"
                                 : "outline"
                             }
                           >
-                          {line.status}
+                          {getPreviewStatus(line)}
                           </Badge>
                       </TableCell>
                     </TableRow>
