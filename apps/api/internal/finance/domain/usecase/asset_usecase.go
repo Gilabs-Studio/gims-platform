@@ -432,7 +432,7 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		Description:             strings.TrimSpace(req.Description),
 		AssetTypeID:             &req.AssetTypeID,
 		CategoryID:              strings.TrimSpace(req.CategoryID),
-		LocationID:               strings.TrimSpace(req.LocationID),
+		LocationID:              strings.TrimSpace(req.LocationID),
 		CompanyID:               companyID,
 		BusinessUnitID:          req.BusinessUnitID,
 		DepartmentID:            deptID,
@@ -472,7 +472,7 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 			"is_capitalized":  isCapitalized,
 			"is_depreciable":  isDepreciable,
 			"status":          status,
-			"lifecycle_stage":  lifecycle,
+			"lifecycle_stage": lifecycle,
 		}).Error; err != nil {
 			return err
 		}
@@ -2673,14 +2673,14 @@ func (uc *assetUsecase) generateDepreciationSchedule(tx *gorm.DB, asset *finance
 	}
 	for _, item := range schedules {
 		row := financeModels.AssetDepreciationSchedule{
-			TenantID:               tenantID,
-			AssetID:                assetUUID,
-			PeriodStartDate:        item.PeriodStartDate,
-			PeriodEndDate:          item.PeriodEndDate,
-			PeriodMonth:            item.PeriodMonth,
-			DepreciationAmount:     item.DepreciationAmount,
-			AccumulatedDepreciation:item.AccumulatedDepreciation,
-			BookValue:              item.BookValue,
+			TenantID:                tenantID,
+			AssetID:                 assetUUID,
+			PeriodStartDate:         item.PeriodStartDate,
+			PeriodEndDate:           item.PeriodEndDate,
+			PeriodMonth:             item.PeriodMonth,
+			DepreciationAmount:      item.DepreciationAmount,
+			AccumulatedDepreciation: item.AccumulatedDepreciation,
+			BookValue:               item.BookValue,
 		}
 		if err := tx.Create(&row).Error; err != nil {
 			return err
@@ -2743,5 +2743,12 @@ func (uc *assetUsecase) assignEmployeeTx(tx *gorm.DB, asset *financeModels.Asset
 		AssignedBy:   &actorUUID,
 		Notes:        notes,
 	}
+	// Ensure tenant scoping on assignment history
+	if strings.TrimSpace(asset.TenantID) != "" {
+		if tUUID, err := uuid.Parse(strings.TrimSpace(asset.TenantID)); err == nil {
+			history.TenantID = &tUUID
+		}
+	}
+
 	return tx.Create(&history).Error
 }
