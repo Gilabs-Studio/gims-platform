@@ -30,10 +30,11 @@ import (
 )
 
 var (
-	ErrUserNotFound           = errors.New("user not found")
-	ErrUserAlreadyExists      = errors.New("user already exists")
-	ErrRoleNotFound           = errors.New("role not found")
-	ErrUserLimitReached       = errors.New("user limit reached")
+	ErrUserNotFound                = errors.New("user not found")
+	ErrUserAlreadyExists           = errors.New("user already exists")
+	ErrRoleNotFound                = errors.New("role not found")
+	ErrUserLimitReached            = errors.New("user limit reached")
+	ErrOwnerMutationForbidden = errors.New("owner user cannot be modified")
 	ErrDeleteAccountForbidden = errors.New("only tenant owner can request account deletion")
 )
 
@@ -350,6 +351,42 @@ func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*
 	return mapper.ToUserResponse(createdUser), nil
 }
 
+func (u *userUsecase) ensureOwnerMutationAllowed(ctx context.Context, targetUser *models.User) error {
+	if middleware.IsSystemAdmin(ctx) {
+		return nil
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	if actorID == "" || targetUser == nil {
+		return nil
+	}
+
+	if actorID == targetUser.ID {
+		if targetUser.Role != nil && targetUser.Role.IsProtected {
+			return ErrOwnerMutationForbidden
+		}
+		return nil
+	}
+
+	actorUser, err := u.userRepo.FindByID(ctx, actorID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if actorUser.Role == nil || !actorUser.Role.IsProtected {
+		return nil
+	}
+
+	if targetUser.Role != nil && targetUser.Role.IsProtected {
+		return ErrOwnerMutationForbidden
+	}
+
+	return nil
+}
+
 func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	// Find user
 	usr, err := u.userRepo.FindByID(ctx, id)
@@ -357,6 +394,10 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
+		return nil, err
+	}
+
+	if err := u.ensureOwnerMutationAllowed(ctx, usr); err != nil {
 		return nil, err
 	}
 
@@ -436,11 +477,15 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 
 func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	// Check if user exists
-	_, err := u.userRepo.FindByID(ctx, id)
+	usr, err := u.userRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
+		return err
+	}
+
+	if err := u.ensureOwnerMutationAllowed(ctx, usr); err != nil {
 		return err
 	}
 

@@ -10,13 +10,13 @@ import (
 type InventoryValuationMethod string
 
 const (
-	InventoryValuationMethodAverageCost          InventoryValuationMethod = "average_cost"
-	InventoryValuationMethodFIFO                 InventoryValuationMethod = "fifo"
+	InventoryValuationMethodAverageCost            InventoryValuationMethod = "average_cost"
+	InventoryValuationMethodFIFO                   InventoryValuationMethod = "fifo"
 	InventoryValuationMethodSpecificIdentification InventoryValuationMethod = "specific_identification"
 )
 
 type InventorySettings struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CompanyID string `gorm:"type:uuid;not null;uniqueIndex" json:"company_id"`

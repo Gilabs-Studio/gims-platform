@@ -296,6 +296,9 @@ func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm
 		fyID := strings.TrimSpace(*fiscalYearID)
 		var fy financeModels.FiscalYear
 		if err := tx.WithContext(ctx).First(&fy, "id = ?", fyID).Error; err != nil {
+			if strings.Contains(err.Error(), `relation "fiscal_years" does not exist`) {
+				return nil, nil
+			}
 			return nil, err
 		}
 		if fy.CompanyID != trimmedCompanyID {
@@ -315,6 +318,9 @@ func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm
 		Order("start_date desc").
 		Take(&fy).Error
 	if err != nil {
+		if strings.Contains(err.Error(), `relation "fiscal_years" does not exist`) {
+			return nil, nil
+		}
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -514,6 +520,10 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, errors.New("opening journal cannot be updated via manual journal endpoint")
 	}
 
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
+
 	entry, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -674,6 +684,9 @@ func (uc *journalEntryUsecase) Delete(ctx context.Context, id string) error {
 	if id == "" {
 		return errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return ErrJournalNotFound
+	}
 	entry, err := uc.repo.FindByID(ctx, id, false)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -780,6 +793,9 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
 	}
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
@@ -1223,6 +1239,10 @@ func (uc *journalEntryUsecase) Cancel(ctx context.Context, id string) (*dto.Jour
 		return nil, errors.New("id is required")
 	}
 
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -1282,6 +1302,10 @@ func (uc *journalEntryUsecase) resolveCompanyIDFromActor(ctx context.Context) (s
 		return "", errors.New("db is not configured")
 	}
 
+	if ctxCompanyID, _ := ctx.Value("company_id").(string); strings.TrimSpace(ctxCompanyID) != "" {
+		return strings.TrimSpace(ctxCompanyID), nil
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -1322,6 +1346,10 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
 	}
 
 	actorID, _ := ctx.Value("user_id").(string)

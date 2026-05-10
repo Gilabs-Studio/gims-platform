@@ -14,6 +14,8 @@ type AccountingPeriodRepository interface {
 	Create(ctx context.Context, period *financeModels.AccountingPeriod) error
 	UpdateStatus(ctx context.Context, id string, status financeModels.AccountingPeriodStatus, lockedAt *time.Time, lockedBy *string) error
 	FindLatestClosed(ctx context.Context) (*financeModels.AccountingPeriod, error)
+	// IsClosed checks whether the given period name is closed for the tenant
+	IsClosed(ctx context.Context, tenantID string, periodName string) (bool, error)
 }
 
 type accountingPeriodRepository struct {
@@ -58,4 +60,17 @@ func (r *accountingPeriodRepository) FindLatestClosed(ctx context.Context) (*fin
 		return nil, err
 	}
 	return &period, nil
+}
+
+// IsClosed checks whether the given period name (e.g. "2026-05") is closed for the tenant
+func (r *accountingPeriodRepository) IsClosed(ctx context.Context, tenantID string, periodName string) (bool, error) {
+	var period financeModels.AccountingPeriod
+	db := database.GetDB(ctx, r.db).Where("tenant_id = ? AND period_name = ?", tenantID, periodName)
+	if err := db.First(&period).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return period.Status == financeModels.AccountingPeriodStatusClosed, nil
 }

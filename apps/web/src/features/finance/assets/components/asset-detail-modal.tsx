@@ -207,7 +207,7 @@ export function AssetDetailModal({
   const tCommon = useTranslations("common");
 
   const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.update");
+  const canDepreciate = useUserPermission("asset.depreciate");
 
   const { data, isLoading } = useFinanceAsset(assetId ?? "", {
     enabled: !!assetId && open,

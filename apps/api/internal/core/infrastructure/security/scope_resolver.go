@@ -19,6 +19,9 @@ type ScopeQueryOptions struct {
 	DivisionJoinSQL string
 	// AreaIDColumn is the column that stores the area ID (e.g., "delivery_area_id")
 	AreaIDColumn string
+	// AreaJoinSQL is an optional custom subquery for area scoping when the table
+	// does not have a direct area_id column.
+	AreaJoinSQL string
 	// OutletIDColumn is the column that stores the outlet ID (e.g., "outlet_id").
 	// Used when scope is OUTLET to filter records by employee's assigned outlets.
 	OutletIDColumn string
@@ -187,6 +190,10 @@ func (sf *ScopeFilter) applyArea(db *gorm.DB, opts ScopeQueryOptions) *gorm.DB {
 		return sf.applyOwn(db, opts)
 	}
 
+	if opts.AreaJoinSQL != "" {
+		return db.Where(opts.AreaJoinSQL, sf.AreaIDs)
+	}
+
 	if opts.AreaIDColumn != "" {
 		return db.Where(opts.AreaIDColumn+" IN ?", sf.AreaIDs)
 	}
@@ -329,6 +336,7 @@ func FinanceScopeQueryOptions() ScopeQueryOptions {
 	return ScopeQueryOptions{
 		OwnerUserIDColumn: "created_by",
 		DivisionJoinSQL:   "created_by IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)",
+		AreaJoinSQL:       "created_by IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_areas WHERE area_id IN ?) AND user_id IS NOT NULL AND deleted_at IS NULL)",
 		OutletJoinSQL:     "created_by IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL AND deleted_at IS NULL)",
 	}
 }

@@ -23,9 +23,9 @@ export function AssetLocationList() {
   const t = useTranslations("financeAssetLocations");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("asset.create");
-  const canUpdate = useUserPermission("asset.update");
-  const canDelete = useUserPermission("asset.delete");
+  const canCreate = useUserPermission("asset_location.create");
+  const canUpdate = useUserPermission("asset_location.update");
+  const canDelete = useUserPermission("asset_location.delete");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

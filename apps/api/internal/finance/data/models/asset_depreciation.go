@@ -15,7 +15,7 @@ const (
 )
 
 type AssetDepreciation struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	AssetID string `gorm:"type:uuid;not null;index;uniqueIndex:idx_asset_period" json:"asset_id"`

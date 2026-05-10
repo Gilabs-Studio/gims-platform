@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,7 +28,9 @@ func (h *AssetHandler) Create(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
 		return
 	}
-	res, err := h.uc.Create(c.Request.Context(), &req)
+	ctx := context.WithValue(c.Request.Context(), "request_ip", c.ClientIP())
+	ctx = context.WithValue(ctx, "user_agent", c.GetHeader("User-Agent"))
+	res, err := h.uc.Create(ctx, &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_CREATE_FAILED", err.Error(), nil, nil)
 		return
@@ -49,6 +52,31 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	}
 	response.SuccessResponse(c, res, nil)
 }
+
+func (h *AssetHandler) EditAsset(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.EditAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.EditAsset(c.Request.Context(), id, &req)
+	if err != nil {
+		// Check for specific error types
+		if strings.Contains(err.Error(), "immutable") {
+			response.ErrorResponse(c, http.StatusForbidden, "ASSET_FIELD_IMMUTABLE", err.Error(), nil, nil)
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			response.ErrorResponse(c, http.StatusNotFound, "ASSET_NOT_FOUND", err.Error(), nil, nil)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_EDIT_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 
 func (h *AssetHandler) Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
@@ -139,6 +167,52 @@ func (h *AssetHandler) RunBatchDepreciation(c *gin.Context) {
 	res, err := h.uc.RunBatchDepreciation(c.Request.Context(), &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_BATCH_DEPRECIATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) GetDepreciationSchedule(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	if strings.TrimSpace(req.Period) == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "period is required", nil, nil)
+		return
+	}
+	res, err := h.uc.GetDepreciationSchedule(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_SCHEDULE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) RunDepreciation(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.RunDepreciation(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) GetDepreciationHistory(c *gin.Context) {
+	period := strings.TrimSpace(c.Query("period"))
+	if period == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "period is required", nil, nil)
+		return
+	}
+	res, err := h.uc.GetDepreciationHistory(c.Request.Context(), period)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_HISTORY_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)
@@ -293,11 +367,12 @@ func (h *AssetHandler) CreateAttachment(c *gin.Context) {
 	fileSize := int(header.Size)
 
 	// For now, store file info (actual file storage would use cloud storage)
+	tenantID, _ := c.Request.Context().Value("tenant_id").(string)
 	att := &financeModels.AssetAttachment{
 		AssetID:     assetUUID,
 		FileName:    header.Filename,
-		FilePath:    "uploads/assets/" + assetID + "/" + header.Filename,
-		FileURL:     "/api/v1/finance/assets/" + assetID + "/attachments/" + header.Filename,
+		FilePath:    "/tenants/" + tenantID + "/assets/" + assetID + "/" + header.Filename,
+		FileURL:     "/api/v1/fixed-assets/" + assetID + "/attachments/" + header.Filename,
 		FileType:    fileType,
 		FileSize:    &fileSize,
 		MimeType:    &contentType,
@@ -310,6 +385,12 @@ func (h *AssetHandler) CreateAttachment(c *gin.Context) {
 		actorUUID, err := uuid.Parse(actorID)
 		if err == nil {
 			att.UploadedBy = &actorUUID
+		}
+	}
+	if tenantID != "" {
+		tenantUUID, err := uuid.Parse(tenantID)
+		if err == nil {
+			att.TenantID = &tenantUUID
 		}
 	}
 

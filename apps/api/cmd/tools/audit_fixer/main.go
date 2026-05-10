@@ -94,7 +94,8 @@ func main() {
 	assetAuditLogRepo := finRepos.NewAssetAuditLogRepository(db)
 	assetAssignmentRepo := finRepos.NewAssetAssignmentRepository(db)
 
-	assetUC := finUC.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
+	accountingPeriodRepo := finRepos.NewAccountingPeriodRepository(db)
+	assetUC := finUC.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, accountingPeriodRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 
 	// Init Inventory Deps
 	invRepo := invRepos.NewInventoryRepository(db)

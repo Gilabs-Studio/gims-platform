@@ -27,13 +27,13 @@ ALTER TABLE IF EXISTS valuation_runs
 -- ============================================================================
 
 ALTER TABLE IF EXISTS valuation_run_details
-  ADD COLUMN IF NOT EXISTS cost_price_snapshot NUMERIC(18,6) COMMENT 'Cost price at valuation time (immutable for audit)';
+  ADD COLUMN IF NOT EXISTS cost_price_snapshot NUMERIC(18,6);
 
 ALTER TABLE IF EXISTS valuation_run_details
-  ADD COLUMN IF NOT EXISTS currency_code_snapshot VARCHAR(3) COMMENT 'Currency code at valuation time (for FX)';
+  ADD COLUMN IF NOT EXISTS currency_code_snapshot VARCHAR(3);
 
 ALTER TABLE IF EXISTS valuation_run_details
-  ADD COLUMN IF NOT EXISTS exchange_rate_snapshot NUMERIC(15,8) COMMENT 'Exchange rate at valuation time (for FX)';
+  ADD COLUMN IF NOT EXISTS exchange_rate_snapshot NUMERIC(15,8);
 
 -- ============================================================================
 -- 3. ADD CONSTRAINTS - Data integrity
@@ -45,6 +45,9 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_tables 
     WHERE tablename = 'products' AND schemaname = 'public'
+  ) AND EXISTS (
+    SELECT 1 FROM pg_tables
+    WHERE tablename = 'valuation_run_details' AND schemaname = 'public'
   ) THEN
     IF NOT EXISTS (
       SELECT 1 FROM pg_constraint 
@@ -61,7 +64,10 @@ END $$;
 -- FK: valuation_runs.approved_by → users.id
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
+    SELECT 1 FROM pg_tables
+    WHERE tablename = 'valuation_runs' AND schemaname = 'public'
+  ) AND NOT EXISTS (
     SELECT 1 FROM pg_constraint 
     WHERE conname = 'fk_valuation_runs_approved_by'
   ) THEN
@@ -154,32 +160,68 @@ END $$;
 -- 6. BACKFILL DATA - Set is_locked for old posted runs
 -- ============================================================================
 
-UPDATE valuation_runs
-SET is_locked = TRUE, 
-    locked_at = COALESCE(completed_at, updated_at)
-WHERE status IN ('posted', 'no_difference')
-  AND is_locked = FALSE;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'valuation_runs'
+      AND column_name = 'status'
+  ) AND EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'valuation_runs'
+      AND column_name = 'is_locked'
+  ) AND EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'valuation_runs'
+      AND column_name = 'locked_at'
+  ) THEN
+    UPDATE valuation_runs
+    SET is_locked = TRUE,
+        locked_at = COALESCE(completed_at, updated_at)
+    WHERE status IN ('posted', 'no_difference')
+      AND is_locked = FALSE;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 7. FINANCE_SETTINGS - Ensure critical COA keys exist (idempotent)
 -- ============================================================================
 
--- Only insert if not already present
-INSERT INTO finance_settings (id, setting_key, value, description, category, created_at, updated_at)
-VALUES 
-  -- Inventory Revaluation (EQUITY - not income)
-  (gen_random_uuid(), 'coa.inventory_revaluation_reserve', '3290', 'Revaluation surplus for inventory (retained earnings)', 'inventory', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.inventory_asset', '1120', 'Inventory asset account', 'inventory', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.inventory_loss', '5020', 'Inventory valuation loss (expense)', 'inventory', NOW(), NOW()),
-  -- FX Revaluation
-  (gen_random_uuid(), 'coa.fx_gain', '4050', 'Exchange gain (income)', 'fx', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.fx_loss', '5030', 'Exchange loss (expense)', 'fx', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.fx_remeasurement', '1160', 'FX remeasurement adjustment (asset)', 'fx', NOW(), NOW()),
-  -- Depreciation
-  (gen_random_uuid(), 'coa.depreciation_expense', '5040', 'Depreciation expense', 'depreciation', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.depreciation_accumulated', '1140', 'Accumulated depreciation', 'depreciation', NOW(), NOW()),
-  (gen_random_uuid(), 'coa.depreciation_gain', '4060', 'Depreciation reversal gain (income)', 'depreciation', NOW(), NOW())
-ON CONFLICT (setting_key) DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'finance_settings'
+  ) THEN
+    INSERT INTO finance_settings (id, setting_key, value, description, category, created_at, updated_at)
+    SELECT gen_random_uuid(), v.setting_key, v.value, v.description, v.category, NOW(), NOW()
+    FROM (
+      VALUES
+        ('coa.inventory_revaluation_reserve', '3290', 'Revaluation surplus for inventory (retained earnings)', 'inventory'),
+        ('coa.inventory_asset', '1120', 'Inventory asset account', 'inventory'),
+        ('coa.inventory_loss', '5020', 'Inventory valuation loss (expense)', 'inventory'),
+        ('coa.fx_gain', '4050', 'Exchange gain (income)', 'fx'),
+        ('coa.fx_loss', '5030', 'Exchange loss (expense)', 'fx'),
+        ('coa.fx_remeasurement', '1160', 'FX remeasurement adjustment (asset)', 'fx'),
+        ('coa.depreciation_expense', '5040', 'Depreciation expense', 'depreciation'),
+        ('coa.depreciation_accumulated', '1140', 'Accumulated depreciation', 'depreciation'),
+        ('coa.depreciation_gain', '4060', 'Depreciation reversal gain (income)', 'depreciation')
+    ) AS v(setting_key, value, description, category)
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM finance_settings fs
+      WHERE fs.setting_key = v.setting_key
+    );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 8. DOCUMENT - Migration notes

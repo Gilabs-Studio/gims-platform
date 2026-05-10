@@ -8,16 +8,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetDisposalSchema, type AssetDisposalValues } from "../schemas/fixed-assets.schema";
 import { useAssetDisposal } from "../hooks/use-asset-disposal";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
+import { useTranslations } from "next-intl";
 
 interface AssetDisposalFormProps {
   onSuccess?: () => void;
 }
 
 export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
+  const t = useTranslations("financeFixedAssets.disposal");
   const { preview, confirm } = useAssetDisposal();
+  const canDisposeAsset = useUserPermission("asset.dispose");
   const form = useForm<AssetDisposalValues>({
     resolver: zodResolver(assetDisposalSchema),
   });
@@ -44,13 +48,13 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
         });
 
         if (confirmResult.success) {
-          toast.success("Asset disposed successfully");
+          toast.success(t("completed"));
           form.reset();
           onSuccess?.();
         }
       }
     } catch (error) {
-      toast.error(getFinanceErrorMessage(error, "Failed to dispose asset"));
+      toast.error(getFinanceErrorMessage(error, t("disposeAsset")));
       console.error(error);
     }
   };
@@ -58,8 +62,8 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>New Asset Disposal</CardTitle>
-        <CardDescription>Enter asset disposal details</CardDescription>
+        <CardTitle>{t("newAssetDisposal")}</CardTitle>
+        <CardDescription>{t("enterDetails")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -69,9 +73,9 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               name="asset_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Asset</FormLabel>
+                  <FormLabel>{t("assetLabel")}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Select asset" />
+                    <Input {...field} placeholder={t("selectAsset")} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -83,7 +87,7 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               name="proceeds_amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Proceeds Amount</FormLabel>
+                  <FormLabel>{t("proceedsAmount")}</FormLabel>
                   <FormControl>
                     <Input {...field} type="number" step="0.01" placeholder="0.00" />
                   </FormControl>
@@ -97,9 +101,9 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               name="bank_account_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Bank Account</FormLabel>
+                  <FormLabel>{t("bankAccount")}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Select bank account" />
+                    <Input {...field} placeholder={t("selectBankAccount")} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -111,7 +115,7 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               name="disposal_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Disposal Date</FormLabel>
+                  <FormLabel>{t("disposalDateLabel")}</FormLabel>
                   <FormControl>
                     <Input {...field} type="date" />
                   </FormControl>
@@ -125,18 +129,18 @@ export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormLabel>{t("descriptionOptional")}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Additional notes" />
+                    <Input {...field} placeholder={t("additionalNotes")} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" disabled={confirm.isPending} className="w-full">
+            <Button type="submit" disabled={confirm.isPending || !canDisposeAsset} className="w-full">
               {confirm.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Dispose Asset
+              {canDisposeAsset ? t("disposeAsset") : t("disposeAsset")}
             </Button>
           </form>
         </Form>

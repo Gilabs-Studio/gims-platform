@@ -222,6 +222,10 @@ func (h *UserHandler) Update(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrOwnerMutationForbidden) {
+			errors.ForbiddenResponse(c, "owner user cannot be modified", nil)
+			return
+		}
 		if stderrors.Is(err, usecase.ErrUserAlreadyExists) {
 			errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
 				"resource": "user",
@@ -273,6 +277,10 @@ func (h *UserHandler) Delete(c *gin.Context) {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", map[string]interface{}{
 				"user_id": id,
 			}, nil)
+			return
+		}
+		if err == usecase.ErrOwnerMutationForbidden {
+			errors.ForbiddenResponse(c, "owner user cannot be modified", nil)
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())

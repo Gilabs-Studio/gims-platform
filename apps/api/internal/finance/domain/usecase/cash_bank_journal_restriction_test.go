@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	dbtest "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -40,7 +41,8 @@ func TestCashBankJournal_ControlAccountRestriction(t *testing.T) {
 	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
 		t.Skip("sqlite integration test skipped because CGO is disabled")
 	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
 
 	err = db.AutoMigrate(
 		&models.ChartOfAccount{},
@@ -48,6 +50,8 @@ func TestCashBankJournal_ControlAccountRestriction(t *testing.T) {
 		&models.CashBankJournalLine{},
 		&coreModels.BankAccount{},
 		&models.FinanceSetting{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 	)
 	require.NoError(t, err)
 
@@ -59,6 +63,8 @@ func TestCashBankJournal_ControlAccountRestriction(t *testing.T) {
 
 	// 2. Setup Bank Account
 	bankAccount := coreModels.BankAccount{Name: "Main Bank", AccountNumber: "123", IsActive: true}
+	bankAccount.CreatedBy = financeTestCompanyID
+	bankAccount.UpdatedBy = financeTestCompanyID
 	require.NoError(t, db.Create(&bankAccount).Error)
 
 	// 3. Setup Mock Settings
@@ -80,7 +86,7 @@ func TestCashBankJournal_ControlAccountRestriction(t *testing.T) {
 		mapper:          mapper.NewCashBankJournalMapper(coaMapper),
 	}
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
 	t.Run("Should fail when using restricted AR account", func(t *testing.T) {
 		req := &dto.CreateCashBankJournalRequest{

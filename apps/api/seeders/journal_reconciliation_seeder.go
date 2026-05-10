@@ -93,7 +93,8 @@ func SeedJournalReconciliation() error {
 	assetAuditLogRepo := financeRepos.NewAssetAuditLogRepository(db)
 	assetAssignmentRepo := financeRepos.NewAssetAssignmentRepository(db)
 
-	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
+	accountingPeriodRepo := financeRepos.NewAccountingPeriodRepository(db)
+	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, accountingPeriodRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 
 	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine, fiscalYearRepo)
 

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import type { BatchDepreciationRunResponse } from "../types";
+import { useTranslations } from "next-intl";
 
 interface BatchDepreciationResultsProps {
   data: BatchDepreciationRunResponse;
@@ -34,6 +35,7 @@ function formatCurrency(value: number | undefined | null, currencyCode?: string)
 }
 
 export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps) {
+  const t = useTranslations("financeFixedAssets.batchDepreciation");
   const normalized = data as BatchDepreciationRunResponse & {
     processed?: number;
     posted?: number;
@@ -48,6 +50,7 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
   const totalAssets = normalized.total_assets ?? normalized.processed ?? 0;
   const successful = normalized.successful ?? normalized.posted ?? 0;
   const failed = normalized.failed ?? 0;
+  const skipped = normalized.skipped ?? (totalAssets - successful - failed);
   const totalAmount =
     normalized.total_amount ??
     items.reduce((sum, item) => sum + (typeof item.amount === "number" ? item.amount : 0), 0);
@@ -69,27 +72,31 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
           <div className="flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-green-600" />
             <div>
-              <CardTitle>Batch Depreciation Completed</CardTitle>
-              <CardDescription>Successfully processed all selected assets</CardDescription>
+              <CardTitle>{t("run")}</CardTitle>
+              <CardDescription>{t("successful")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Assets</p>
+              <p className="text-sm text-muted-foreground">{t("asset")}</p>
               <p className="text-2xl font-bold">{totalAssets}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Successful</p>
+              <p className="text-sm text-muted-foreground">{t("successful")}</p>
               <p className="text-2xl font-bold text-green-600">{successful}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Failed</p>
+              <p className="text-sm text-muted-foreground">{t("skipped")}</p>
+              <p className="text-2xl font-bold text-yellow-600">{skipped}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("failed")}</p>
               <p className="text-2xl font-bold text-destructive">{failed}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="text-sm text-muted-foreground">{t("totalAmount")}</p>
               <p className="text-2xl font-bold">
                 {formatCurrency(totalAmount, defaultCurrencyCode)}
               </p>
@@ -100,15 +107,15 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
 
       <Card>
         <CardHeader>
-          <CardTitle>Journal Entries Created</CardTitle>
-          <CardDescription>{journalIDs.length} entries posted to general ledger</CardDescription>
+          <CardTitle>{t("journalEntriesCreated")}</CardTitle>
+          <CardDescription>{journalIDs.length} {t("entriesPosted")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {journalIDs.map((id, idx) => (
               <div key={idx} className="flex items-center justify-between p-2 border rounded hover:bg-muted/50 cursor-pointer">
                 <span className="font-mono text-sm">{id}</span>
-                <span className="text-xs text-muted-foreground">Journal Entry</span>
+                <span className="text-xs text-muted-foreground">{t("journalEntriesCreated")}</span>
               </div>
             ))}
           </div>
@@ -121,8 +128,8 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
             <div className="flex items-center gap-2">
               <AlertCircle className="h-6 w-6 text-destructive" />
               <div>
-                <CardTitle className="text-destructive">Errors</CardTitle>
-                <CardDescription>{errors.length} errors encountered</CardDescription>
+                <CardTitle className="text-destructive">{t("errors")}</CardTitle>
+                <CardDescription>{errors.length} {t("errorsEncountered")}</CardDescription>
               </div>
             </div>
           </CardHeader>

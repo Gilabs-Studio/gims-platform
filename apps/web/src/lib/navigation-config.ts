@@ -493,7 +493,7 @@ export const navigationConfig: NavItem[] = [
         ],
       },
       {
-        name: "Fixed Assets",
+        name: "Asset Management",
         i18nKey: "fixedAssets",
         url: "",
         icon: "building-2",

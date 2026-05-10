@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -38,6 +39,7 @@ import { UserAddonDialog } from "./user-addon-dialog";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import { passwordResetService } from "@/features/auth/password-reset/services/password-reset-service";
 import type { ListUsersResponse } from "../types";
+import { canOwnerManageUser } from "@/features/auth/components/auth-guard";
 import {
   clearPasswordResetTokenPrefill,
   getPasswordResetTokenPrefill,
@@ -110,6 +112,9 @@ export function UserList() {
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
   const queryClient = useQueryClient();
+  const currentUser = useAuthStore((state) => state.user);
+
+  const canManageTargetUser = (targetUser: User) => canOwnerManageUser(currentUser, targetUser);
 
   // Check if any filters are active
   const hasActiveFilters = status !== "" || roleId !== "";
@@ -470,111 +475,115 @@ export function UserList() {
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={row.password_reset_pending ? "bg-destructive/10 hover:bg-destructive/15" : undefined}
-                >
-                  <TableCell>
-                    <button
-                      onClick={() => handleViewUser(row.id)}
-                      className="group flex items-center gap-3 cursor-pointer"
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={getAvatarUrl(row)} alt={row.name} />
-                      </Avatar>
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium text-primary group-hover:underline">{row.name}</span>
-                        {row.password_reset_pending && (
-                          <span className="text-xs font-medium text-destructive">
-                            {t("pendingResetRequest")}
-                          </span>
-                        )}
+              users.map((row) => {
+                const canManageRow = canManageTargetUser(row);
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={row.password_reset_pending ? "bg-destructive/10 hover:bg-destructive/15" : undefined}
+                  >
+                    <TableCell>
+                      <button
+                        onClick={() => handleViewUser(row.id)}
+                        className="group flex items-center gap-3 cursor-pointer"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={getAvatarUrl(row)} alt={row.name} />
+                        </Avatar>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium text-primary group-hover:underline">{row.name}</span>
+                          {row.password_reset_pending && (
+                            <span className="text-xs font-medium text-destructive">
+                              {t("pendingResetRequest")}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{row.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal">
+                        {row.role?.name ?? "-"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={row.status === "active"}
+                          onCheckedChange={(checked) => {
+                            const newStatus = checked ? "active" : "inactive";
+                            updateUser.mutate(
+                              { id: row.id, data: { status: newStatus } },
+                              {
+                                onSuccess: () => {
+                                  toast.success(`User status updated to ${newStatus}`);
+                                },
+                                onError: () => {
+                                  toast.error("Failed to update user status");
+                                },
+                              },
+                            );
+                          }}
+                          disabled={!permissions.canUpdate || updateUser.isPending}
+                          className="cursor-pointer"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {row.status === "active" ? t("active") : t("inactive")}
+                        </span>
                       </div>
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{row.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-normal">
-                      {row.role?.name ?? "-"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={row.status === "active"}
-                        onCheckedChange={(checked) => {
-                          const newStatus = checked ? "active" : "inactive";
-                          updateUser.mutate(
-                            { id: row.id, data: { status: newStatus } },
-                            {
-                              onSuccess: () => {
-                                toast.success(`User status updated to ${newStatus}`);
-                              },
-                              onError: () => {
-                                toast.error("Failed to update user status");
-                              },
-                            },
-                          );
-                        }}
-                        disabled={!permissions.canUpdate || updateUser.isPending}
-                        className="cursor-pointer"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {row.status === "active" ? t("active") : t("inactive")}
-                      </span>
-                    </div>
-                  </TableCell>
-                  {(permissions.canUpdate || permissions.canDelete) && (
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleViewUser(row.id)}
-                            className="cursor-pointer"
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </DropdownMenuItem>
-                          {permissions.canUpdate && (
+                    </TableCell>
+                    {(permissions.canUpdate || permissions.canDelete) && (
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="cursor-pointer">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() => setEditingUser(row.id)}
+                              onClick={() => handleViewUser(row.id)}
                               className="cursor-pointer"
                             >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
                             </DropdownMenuItem>
-                          )}
-                          {permissions.canUpdate && row.password_reset_pending && (
-                            <DropdownMenuItem
-                              onClick={() => openResetPasswordDialog(row)}
-                              className="cursor-pointer text-destructive focus:text-destructive"
-                            >
-                              <KeyRound className="mr-2 h-4 w-4" />
-                              {t("resetPasswordAction")}
-                            </DropdownMenuItem>
-                          )}
-                          {permissions.canDelete && (permissions.canUpdate || row.password_reset_pending) && <DropdownMenuSeparator />}
-                          {permissions.canDelete && (
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteClick(row.id)}
-                              className="cursor-pointer text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
+                            {permissions.canUpdate && canManageRow && (
+                              <DropdownMenuItem
+                                onClick={() => setEditingUser(row.id)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {permissions.canUpdate && canManageRow && row.password_reset_pending && (
+                              <DropdownMenuItem
+                                onClick={() => openResetPasswordDialog(row)}
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                              >
+                                <KeyRound className="mr-2 h-4 w-4" />
+                                {t("resetPasswordAction")}
+                              </DropdownMenuItem>
+                            )}
+                            {permissions.canDelete && canManageRow && (permissions.canUpdate || row.password_reset_pending) && <DropdownMenuSeparator />}
+                            {permissions.canDelete && canManageRow && (
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteClick(row.id)}
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -614,7 +623,7 @@ export function UserList() {
         </Dialog>
       )}
 
-      {editingUser && editingUserData?.data && permissions.canUpdate && (
+      {editingUser && editingUserData?.data && permissions.canUpdate && canManageTargetUser(editingUserData.data) && (
         <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -746,27 +755,31 @@ export function UserList() {
         onSubmit={handleAddonSubmit}
       />
 
-      {permissions.canDelete && (
-        <DeleteDialog
-          open={!!deletingUserId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setDeletingUserId(null);
-            }
-          }}
-          onConfirm={handleDeleteConfirm}
-          title={t("deleteTitle")}
-          description={
-            deletingUserId
-              ? t("deleteDescriptionWithName", {
-                  name: users.find((u) => u.id === deletingUserId)?.name ?? t("deleteDescription"),
-                })
-              : t("deleteDescription")
-          }
-          itemName="user"
-          isLoading={deleteUser.isPending}
-        />
-      )}
+      {permissions.canDelete && deletingUserId && (() => {
+        const deletingUser = users.find((user) => user.id === deletingUserId);
+
+        if (!deletingUser || !canManageTargetUser(deletingUser)) {
+          return null;
+        }
+
+        return (
+          <DeleteDialog
+            open={!!deletingUserId}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeletingUserId(null);
+              }
+            }}
+            onConfirm={handleDeleteConfirm}
+            title={t("deleteTitle")}
+            description={t("deleteDescriptionWithName", {
+              name: deletingUser.name,
+            })}
+            itemName="user"
+            isLoading={deleteUser.isPending}
+          />
+        );
+      })()}
     </div>
   );
 }

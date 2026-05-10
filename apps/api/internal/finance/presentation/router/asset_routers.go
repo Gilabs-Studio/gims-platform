@@ -12,6 +12,8 @@ const (
 	assetUpdate     = "asset.update"
 	assetDelete     = "asset.delete"
 	assetDepreciate = "asset.depreciate"
+	depreciationRead = "depreciation.read"
+	depreciationRun  = "depreciation.run"
 )
 
 func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
@@ -19,9 +21,18 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	registerAssetRoutesInGroup(r.Group("/fixed-assets/assets"), h)
 }
 
+func RegisterDepreciationRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
+	registerDepreciationRoutesInGroup(r.Group("/depreciation"), h)
+	registerDepreciationRoutesInGroup(r.Group("/fixed-assets/depreciation"), h)
+}
+
 func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
+	g.POST("/fixed-assets", middleware.RequirePermission(assetCreate), h.Create)
+	g.POST("/fixed-assets/", middleware.RequirePermission(assetCreate), h.Create)
+	g.GET("/fixed-assets", middleware.RequirePermission(assetRead), h.List)
+	g.GET("/fixed-assets/", middleware.RequirePermission(assetRead), h.List)
 	// Available assets for employee borrowing
 	g.GET("/available", middleware.RequirePermission(assetRead), h.GetAvailableAssets)
 	g.POST("", middleware.RequirePermission(assetCreate), h.Create)
@@ -33,6 +44,7 @@ func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("/:id", middleware.RequirePermission(assetRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(assetUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(assetDelete), h.Delete)
+		g.PATCH("/:id", middleware.RequirePermission(assetUpdate), h.EditAsset)
 	g.POST("/:id/depreciate", middleware.RequirePermission(assetDepreciate), h.Depreciate)
 	g.POST("/depreciations/:dep_id/approve", middleware.RequirePermission(assetDepreciate), h.ApproveDepreciation)
 	g.POST("/:id/transfer", middleware.RequirePermission(assetUpdate), h.Transfer)
@@ -55,4 +67,10 @@ func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	// Phase 2: Audit Logs & Assignment History
 	g.GET("/:id/audit-logs", middleware.RequirePermission(assetRead), h.ListAuditLogs)
 	g.GET("/:id/assignment-history", middleware.RequirePermission(assetRead), h.ListAssignmentHistory)
+}
+
+func registerDepreciationRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
+	g.GET("/schedule", middleware.RequirePermission(depreciationRead), h.GetDepreciationSchedule)
+	g.GET("/history", middleware.RequirePermission(depreciationRead), h.GetDepreciationHistory)
+	g.POST("/run", middleware.RequirePermission(depreciationRun), h.RunDepreciation)
 }

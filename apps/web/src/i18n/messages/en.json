@@ -125,6 +125,7 @@
     "description": "Description",
     "amount": "Amount",
     "match": "Match",
+    "override": "Override",
     "somethingWentWrong": "Something went wrong",
     "name": "Name",
     "select": "Select"

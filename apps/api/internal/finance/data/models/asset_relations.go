@@ -6,10 +6,10 @@ package models
 
 // Company represents a company entity (from organization module)
 type Company struct {
-	ID   string `gorm:"type:uuid;primary_key" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Name string `gorm:"type:varchar(200)" json:"name"`
-	Code string `gorm:"type:varchar(50)" json:"code,omitempty"`
+	Name     string `gorm:"type:varchar(200)" json:"name"`
+	Code     string `gorm:"type:varchar(50)" json:"code,omitempty"`
 }
 
 func (Company) TableName() string {

@@ -20,29 +20,37 @@ export interface ApiResponse<T> {
 }
 
 // Batch Depreciation Types
-export interface BatchDepreciationPreviewLine {
+export interface BatchDepreciationPreviewItem {
   asset_id: string;
   asset_code: string;
   asset_name: string;
   currency_code?: string;
-  period: string;
-  method: "SL" | "DB" | "NONE";
-  depreciation_amount: number;
-  accumulated_depreciation: number;
-  book_value: number;
-  status: "new" | "already_depreciated" | "skipped";
+  period?: string;
+  method?: "SL" | "DB" | "NONE";
+  depreciation_amount?: number;
+  accumulated_depreciation?: number;
+  book_value?: number;
+  opening_book_value?: number;
+  projected_book_value?: number;
+  eligible?: boolean;
+  status?: "new" | "already_depreciated" | "skipped";
+  skip_reason?: string;
   error?: string;
 }
 
 export interface BatchDepreciationPreviewResponse {
-  preview_lines: BatchDepreciationPreviewLine[];
+  items?: BatchDepreciationPreviewItem[];
+  preview_lines?: BatchDepreciationPreviewItem[];
   currency_code?: string;
-  total_lines: number;
-  successful: number;
-  failed: number;
-  skipped: number;
-  total_depreciation_amount: number;
-  errors: string[];
+  total_assets?: number;
+  total_lines?: number;
+  eligible?: number;
+  successful?: number;
+  failed?: number;
+  skipped?: number;
+  total_depreciation_amount?: number;
+  total_amount?: number;
+  errors?: string[];
 }
 
 export interface BatchDepreciationRunResponse {
@@ -65,6 +73,63 @@ export interface BatchDepreciationRunResponse {
     reason?: string;
     journal_entry_id?: string;
   }>;
+}
+
+export interface DepreciationScheduleItem {
+  asset_id: string;
+  asset_code: string;
+  asset_name: string;
+  category_id: string;
+  category_name?: string;
+  location_id: string;
+  location_name?: string;
+  method: string;
+  period: string;
+  acquisition_cost: number;
+  accumulated_depreciation: number;
+  net_book_value: number;
+  depreciation_amount: number;
+  posted: boolean;
+  highlighted: boolean;
+  journal_entry_id?: string | null;
+  status: string;
+  skip_reason?: string;
+}
+
+export interface DepreciationScheduleResponse {
+  period: string;
+  total_assets: number;
+  posted: number;
+  pending: number;
+  total_amount: number;
+  items: DepreciationScheduleItem[];
+}
+
+export interface DepreciationHistoryItem {
+  depreciation_id: string;
+  asset_id: string;
+  asset_code: string;
+  asset_name: string;
+  period: string;
+  amount: number;
+  posted: boolean;
+  journal_entry_id?: string | null;
+  created_at: string;
+}
+
+export interface DepreciationHistoryResponse {
+  period: string;
+  total: number;
+  posted: number;
+  pending: number;
+  items: DepreciationHistoryItem[];
+}
+
+export interface RunDepreciationRequest {
+  period: string;
+  asset_id?: string;
+  category_id?: string;
+  location_id?: string;
 }
 
 // Disposal Types

@@ -9,16 +9,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetRevaluationSchema, type AssetRevaluationValues } from "../schemas/fixed-assets.schema";
 import { useAssetRevaluation } from "../hooks/use-asset-revaluation";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
+import { useTranslations } from "next-intl";
 
 interface AssetRevaluationFormProps {
   onSuccess?: () => void;
 }
 
 export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
+  const t = useTranslations("financeFixedAssets.revaluation");
   const { assets, submit } = useAssetRevaluation();
+  const canRevalueAsset = useUserPermission("asset.revalue");
   const form = useForm<AssetRevaluationValues>({
     resolver: zodResolver(assetRevaluationSchema),
     defaultValues: {
@@ -39,12 +43,12 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
       });
 
       if (submitResult.success) {
-        toast.success("Asset revaluation submitted successfully");
+        toast.success(t("submitForApproval"));
         form.reset();
         onSuccess?.();
       }
     } catch (error) {
-      toast.error(getFinanceErrorMessage(error, "Failed to process revaluation"));
+      toast.error(getFinanceErrorMessage(error, t("submitForApproval")));
       console.error(error);
     }
   };
@@ -52,8 +56,8 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>New Asset Revaluation</CardTitle>
-        <CardDescription>Submit asset revaluation for approval</CardDescription>
+        <CardTitle>{t("newAssetRevaluation")}</CardTitle>
+        <CardDescription>{t("submitForApproval")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -63,11 +67,11 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               name="asset_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Asset</FormLabel>
+                  <FormLabel>{t("assetLabel")}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder="Select asset" />
+                        <SelectValue placeholder={t("selectAsset")} />
                       </SelectTrigger>
                       <SelectContent>
                         {assets.map((asset) => (
@@ -88,7 +92,7 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               name="new_value"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Asset Value</FormLabel>
+                  <FormLabel>{t("newRevaluationAmount")}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -109,7 +113,7 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               name="revaluation_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Revaluation Date</FormLabel>
+                  <FormLabel>{t("effectiveDateLabel")}</FormLabel>
                   <FormControl>
                     <Input {...field} type="date" />
                   </FormControl>
@@ -123,18 +127,18 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormLabel>{t("descriptionOptional")}</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Reason for revaluation" />
+                    <Input {...field} placeholder={t("reasonForRevaluation")} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" disabled={submit.isPending} className="w-full">
+            <Button type="submit" disabled={submit.isPending || !canRevalueAsset} className="w-full">
               {submit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit for Approval
+              {canRevalueAsset ? t("submitButton") : t("submitButton")}
             </Button>
           </form>
         </Form>

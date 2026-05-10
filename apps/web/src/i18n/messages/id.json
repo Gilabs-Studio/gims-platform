@@ -125,7 +125,8 @@
     "description": "Deskripsi",
     "amount": "Jumlah",
     "match": "Cocok",
-    "name": "Nama",
+      "override": "Ganti",
+      "name": "Nama",
     "select": "Pilih",
     "somethingWentWrong": "Terjadi kesalahan"
   },
