@@ -383,7 +383,7 @@ export function ProfileView() {
             <TabsContent value="security" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
               <div className="grid gap-6">
                 <PasswordForm />
-                <DeleteAccountCard />
+                {canManageBilling && <DeleteAccountCard />}
               </div>
             </TabsContent>
 

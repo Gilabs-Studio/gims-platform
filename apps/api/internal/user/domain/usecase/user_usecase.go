@@ -488,6 +488,10 @@ func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*d
 		return nil, err
 	}
 
+	if tenant.OwnerUserID == nil || strings.TrimSpace(*tenant.OwnerUserID) != strings.TrimSpace(usr.ID) {
+		return nil, ErrDeleteAccountForbidden
+	}
+
 	now := apptime.Now()
 	scheduledAt := now.AddDate(0, 0, 30)
 
