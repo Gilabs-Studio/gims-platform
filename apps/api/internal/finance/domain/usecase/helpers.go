@@ -16,6 +16,22 @@ func parseDate(value string) (time.Time, error) {
 	return time.Parse("2006-01-02", value)
 }
 
+// parseAssetDateStrict parses a required asset date in "2006-01-02" format.
+// Returns a user-friendly validation error when format is invalid.
+func parseAssetDateStrict(value string) (time.Time, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return time.Time{}, errors.New("date is required")
+	}
+
+	parsed, err := time.Parse("2006-01-02", trimmed)
+	if err != nil {
+		return time.Time{}, errors.New("invalid date format, use YYYY-MM-DD")
+	}
+
+	return parsed, nil
+}
+
 // parseOptionalDate parses an optional date string in "2006-01-02" format.
 // Returns nil if the date is empty; returns error if invalid format.
 func parseOptionalDate(value *string) (*time.Time, error) {
