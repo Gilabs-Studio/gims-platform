@@ -17,8 +17,11 @@ export function SalesRepStatistics({ statistics }: SalesRepStatisticsProps) {
 
   const stats = [
     {
-      label: t("total_revenue"),
-      value: statistics.total_revenue_formatted,
+      label: t("target_revenue"),
+      value:
+        statistics.target_amount_formatted && statistics.target_amount_formatted.length > 0
+          ? `${statistics.target_amount_formatted} / ${statistics.total_revenue_formatted}`
+          : statistics.total_revenue_formatted,
       icon: DollarSign,
       subtitle: `${t("avg_order_value")}: ${statistics.average_order_value_formatted}`,
     },

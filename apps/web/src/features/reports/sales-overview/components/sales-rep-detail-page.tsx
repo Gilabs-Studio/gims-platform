@@ -21,7 +21,6 @@ import { useSalesRepDetail } from "../hooks/use-sales-rep-detail";
 import { useSalesRepCheckInLocations } from "../hooks/use-sales-rep-check-in-locations";
 import { SalesRepStatistics } from "./sales-rep-statistics";
 import { SalesRepDetailTabs } from "./sales-rep-detail-tabs";
-import { TargetAchievementCircle } from "./target-achievement-circle";
 import { format, subYears } from "date-fns";
 import type { DateRange } from "react-day-picker";
 
@@ -200,15 +199,6 @@ export function SalesRepDetailPage({
 
         {/* Right Column - 1/3: Employee Info Sidebar */}
         <div className="space-y-6">
-          {/* Target Achievement Circle */}
-          {detail.statistics?.target_amount !== undefined && detail.statistics.target_amount !== null && (
-            <TargetAchievementCircle
-              achievementPercent={detail.statistics.target_achievement_percent}
-              targetAmount={detail.statistics.target_amount}
-              currentRevenue={detail.statistics.total_revenue}
-            />
-          )}
-
           {/* Employee Information Card */}
           <div className="rounded-lg border">
             <div className="px-3 py-3 border-b">

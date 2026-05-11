@@ -9,6 +9,7 @@ export const salesOverviewReportEn = {
     performance_list_description:
       "Performance metrics for all sales representatives",
     search_placeholder: "Search by name or code...",
+    target_revenue: "Target / Revenue",
     total_revenue: "Total Revenue",
     total_orders: "Total Orders",
     visits_completed: "Visits Completed",

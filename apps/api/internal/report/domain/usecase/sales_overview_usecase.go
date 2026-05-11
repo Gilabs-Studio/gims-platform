@@ -223,6 +223,13 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		return nil, nil
 	}
 
+	// Use the same target source as list endpoint to keep target values consistent.
+	targetAmounts, err := uc.repo.GetEmployeeTargetAmounts(ctx, []string{employeeID}, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	targetFromRange := targetAmounts[employeeID]
+
 	conversionRate := float64(0)
 	if row.VisitsCompleted > 0 {
 		conversionRate = math.Round((float64(row.TotalOrders)/float64(row.VisitsCompleted))*10000) / 100
@@ -234,16 +241,13 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 	}
 
 	// Calculate target achievement percentage
-	var targetAmount *float64
-	var targetAmountFormatted *string
-	var targetAchievementPercent *float64
-	if row.TargetAmount > 0 {
-		targetAmount = &row.TargetAmount
-		formatted := formatCurrencyIDR(row.TargetAmount)
-		targetAmountFormatted = &formatted
-		
-		achievementPercent := math.Round((row.TotalRevenue/row.TargetAmount)*10000) / 100
-		targetAchievementPercent = &achievementPercent
+	targetAmount := targetFromRange
+	formatted := formatCurrencyIDR(targetAmount)
+	targetAmountFormatted := &formatted
+	targetAchievementPercent := float64(0)
+	if targetAmount > 0 {
+		achievementPercent := math.Round((row.TotalRevenue/targetAmount)*10000) / 100
+		targetAchievementPercent = achievementPercent
 	}
 
 	stats := &dto.SalesRepStatisticsResponse{
@@ -255,9 +259,9 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		ConversionRate:             conversionRate,
 		AverageOrderValue:          avgOrderValue,
 		AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
-		TargetAmount:               targetAmount,
+		TargetAmount:               &targetAmount,
 		TargetAmountFormatted:      targetAmountFormatted,
-		TargetAchievementPercent:   targetAchievementPercent,
+		TargetAchievementPercent:   &targetAchievementPercent,
 	}
 
 	// Period comparison: calculate percentage change vs previous period
