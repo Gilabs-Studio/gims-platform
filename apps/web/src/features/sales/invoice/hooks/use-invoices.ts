@@ -83,6 +83,8 @@ export function useInvoices(params?: ListCustomerInvoicesParams, options?: { ena
     queryKey: invoiceKeys.list(params),
     queryFn: () => invoiceService.list(params),
     enabled: options?.enabled ?? true,
+    retry: 1,
+    staleTime: 1000 * 60 * 5,
   });
 }
 

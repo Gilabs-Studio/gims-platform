@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -36,6 +37,9 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 		First(&period).Error
 	if err == nil {
 		return errors.New("period is closed")
+	}
+	if err != nil && strings.Contains(err.Error(), `relation "accounting_periods" does not exist`) {
+		return nil
 	}
 	if err != gorm.ErrRecordNotFound {
 		return err

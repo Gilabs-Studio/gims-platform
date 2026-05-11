@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -438,11 +439,13 @@ export function InventoryList() {
                             <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-md border shrink-0 overflow-hidden bg-muted flex items-center justify-center">
                                 {item.product_image_url ? (
-                                    <img 
-                                        src={resolveImageUrl(item.product_image_url)} 
-                                        alt={item.product_name}
-                                        className="h-full w-full object-cover"
-                                    />
+                                <Image
+                                  src={resolveImageUrl(item.product_image_url) ?? ""}
+                                  alt={item.product_name}
+                                  width={40}
+                                  height={40}
+                                  className="h-full w-full object-cover"
+                                />
                                 ) : (
                                     <span className="text-xs font-bold text-muted-foreground">
                                         {item.product_name.substring(0, 2).toUpperCase()}

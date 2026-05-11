@@ -37,7 +37,7 @@ import type { PurchasePaymentListItem, PurchasePaymentDetail } from "../types";
 import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail as PurchasePaymentDetailView } from "./purchase-payment-detail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
-import { PurchasePaymentPrintDialog } from "./purchase-payment-print-dialog";
+import { purchasePaymentsService } from "../services/purchase-payments-service";
 import { isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 export function PurchasePaymentsList() {
@@ -55,7 +55,7 @@ export function PurchasePaymentsList() {
   const [editingItem, setEditingItem] = useState<PurchasePaymentDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
+
 
   const canCreate = useUserPermission("purchase_payment.create");
   const canUpdate = useUserPermission("purchase_payment.update");
@@ -279,7 +279,7 @@ export function PurchasePaymentsList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                onClick={() => setPrintingId(item.id)}
+                                onClick={() => { purchasePaymentsService.openPrintWindow(item.id).catch(() => toast.error("Print failed")); }}
                                 className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -344,14 +344,6 @@ export function PurchasePaymentsList() {
           setDetailId(null);
         }}
       />
-
-      {printingId && (
-        <PurchasePaymentPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          paymentId={printingId}
-        />
-      )}
 
       <DeleteDialog
         open={!!deletingItem}

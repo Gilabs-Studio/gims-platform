@@ -64,7 +64,12 @@ export const DashboardHeader = memo(function DashboardHeader({
     ? fallbackAvatarUrl
     : (normalizedAvatarUrl ?? fallbackAvatarUrl);
 
-  const canViewActivities = useHasPermission("crm_activity.read");
+  // Allow viewing activities when either explicit activity permission
+  // exists or when user can view pipeline (reuses existing permission).
+  // Call hooks unconditionally to satisfy React rules of hooks.
+  const canViewActivityPerm = useHasPermission("crm_activity.read");
+  const canViewPipelinePerm = useHasPermission("crm_deal.read");
+  const canViewActivities = canViewActivityPerm || canViewPipelinePerm;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background px-4 md:rounded-tl-3xl">

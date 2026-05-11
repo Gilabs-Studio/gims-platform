@@ -125,22 +125,31 @@ func parseAgingBucketRules(raw string) ([]agingBucketRule, error) {
 	return rules, nil
 }
 
-func (uc *agingReportUsecase) loadBucketRules(ctx context.Context) []agingBucketRule {
+func (uc *agingReportUsecase) loadBucketRules(ctx context.Context, reportType string) []agingBucketRule {
 	defaults := defaultAgingBucketRules()
 	if uc.settingsService == nil {
 		return defaults
 	}
 
-	rawValue, err := uc.settingsService.GetValue(ctx, financeModels.SettingAgingBucketConfig)
-	if err != nil {
-		return defaults
+	keys := []string{financeModels.AgingBucketConfigSettingKey(reportType)}
+	if keys[0] != financeModels.SettingAgingBucketConfig {
+		keys = append(keys, financeModels.SettingAgingBucketConfig)
 	}
 
-	parsed, err := parseAgingBucketRules(rawValue)
-	if err != nil {
-		return defaults
+	for _, key := range keys {
+		rawValue, err := uc.settingsService.GetValue(ctx, key)
+		if err != nil {
+			continue
+		}
+
+		parsed, err := parseAgingBucketRules(rawValue)
+		if err != nil {
+			continue
+		}
+		return parsed
 	}
-	return parsed
+
+	return defaults
 }
 
 func toBucketDefinitions(rules []agingBucketRule) []dto.AgingBucketDefinition {
@@ -278,7 +287,7 @@ func (uc *agingReportUsecase) ARAging(ctx context.Context, asOf time.Time, searc
 	if err != nil {
 		return nil, 0, err
 	}
-	bucketRules := uc.loadBucketRules(ctx)
+	bucketRules := uc.loadBucketRules(ctx, financeModels.AgingReportTypeAR)
 	bucketConfig := toBucketDefinitions(bucketRules)
 
 	respRows := make([]dto.ARAgingInvoiceRow, 0, len(rows))
@@ -337,7 +346,7 @@ func (uc *agingReportUsecase) APAging(ctx context.Context, asOf time.Time, searc
 	if err != nil {
 		return nil, 0, err
 	}
-	bucketRules := uc.loadBucketRules(ctx)
+	bucketRules := uc.loadBucketRules(ctx, financeModels.AgingReportTypeAR)
 	bucketConfig := toBucketDefinitions(bucketRules)
 
 	respRows := make([]dto.APAgingInvoiceRow, 0, len(rows))
@@ -382,7 +391,7 @@ func (uc *agingReportUsecase) ARAgingFinance(ctx context.Context, query dto.Agin
 	if err != nil {
 		return nil, err
 	}
-	bucketRules := uc.loadBucketRules(ctx)
+	bucketRules := uc.loadBucketRules(ctx, financeModels.AgingReportTypeAP)
 	bucketConfig := toBucketDefinitions(bucketRules)
 
 	respRows := make([]dto.ARAgingInvoiceRow, 0, len(rows))
@@ -490,7 +499,7 @@ func (uc *agingReportUsecase) APAgingFinance(ctx context.Context, query dto.Agin
 	if err != nil {
 		return nil, err
 	}
-	bucketRules := uc.loadBucketRules(ctx)
+	bucketRules := uc.loadBucketRules(ctx, financeModels.AgingReportTypeAP)
 	bucketConfig := toBucketDefinitions(bucketRules)
 
 	respRows := make([]dto.APAgingInvoiceRow, 0, len(rows))

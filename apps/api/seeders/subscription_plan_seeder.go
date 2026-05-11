@@ -25,18 +25,20 @@ func SeedSubscriptionPlans() error {
 	plans := []tenantModels.SubscriptionPlanConfig{
 		// ── Modular plans ─────────────────────────────────────────────────────
 		{
-			Slug:            "pos_growth",
-			Name:            "POS Modular",
-			Category:        "pos",
-			Description:     "Multi-outlet cashier with loyalty and advanced reports.",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 79_000,
-			PriceYearlyIDR:  853_200, // 79000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   false,
-			SortOrder:       10,
+			Slug:                  "pos_growth",
+			Name:                  "POS Modular",
+			Category:              "pos",
+			Description:           "Multi-outlet cashier with loyalty and advanced reports.",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       79_000,
+			PriceYearlyIDR:        853_200, // 79000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         false,
+			SortOrder:             10,
 			Features: tenantModels.PlanFeatureList{
 				"Multi-outlet cashier",
 				"Loyalty programs",
@@ -50,18 +52,20 @@ func SeedSubscriptionPlans() error {
 			},
 		},
 		{
-			Slug:            "erp_pro",
-			Name:            "ERP Modular",
-			Category:        "erp",
-			Description:     "Purchase, sales, finance, and inventory operations.",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 109_000,
-			PriceYearlyIDR:  1_177_200, // 109000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   false,
-			SortOrder:       20,
+			Slug:                  "erp_pro",
+			Name:                  "ERP Modular",
+			Category:              "erp",
+			Description:           "Purchase, sales, finance, and inventory operations.",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       109_000,
+			PriceYearlyIDR:        1_177_200, // 109000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         false,
+			SortOrder:             20,
 			Features: tenantModels.PlanFeatureList{
 				"Purchase and sales",
 				"Finance and accounting",
@@ -77,18 +81,20 @@ func SeedSubscriptionPlans() error {
 			},
 		},
 		{
-			Slug:            "crm_growth",
-			Name:            "CRM Modular",
-			Category:        "crm",
-			Description:     "Pipeline automation, custom fields, and activity timeline.",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 89_000,
-			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   false,
-			SortOrder:       30,
+			Slug:                  "crm_growth",
+			Name:                  "CRM Modular",
+			Category:              "crm",
+			Description:           "Pipeline automation, custom fields, and activity timeline.",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       89_000,
+			PriceYearlyIDR:        961_200, // 89000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         false,
+			SortOrder:             30,
 			Features: tenantModels.PlanFeatureList{
 				"Pipeline automation",
 				"Custom fields",
@@ -102,18 +108,20 @@ func SeedSubscriptionPlans() error {
 			},
 		},
 		{
-			Slug:            "hr_growth",
-			Name:            "HR Modular",
-			Category:        "hr",
-			Description:     "Payroll processing, attendance, and performance reviews.",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 89_000,
-			PriceYearlyIDR:  961_200, // 89000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   false,
-			SortOrder:       40,
+			Slug:                  "hr_growth",
+			Name:                  "HR Modular",
+			Category:              "hr",
+			Description:           "Payroll processing, attendance, and performance reviews.",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       89_000,
+			PriceYearlyIDR:        961_200, // 89000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         false,
+			SortOrder:             40,
 			Features: tenantModels.PlanFeatureList{
 				"Payroll processing",
 				"Attendance tracking",
@@ -129,18 +137,20 @@ func SeedSubscriptionPlans() error {
 		},
 		// ── Bundle plans ──────────────────────────────────────────────────────
 		{
-			Slug:            "growth_suite",
-			Name:            "Growth Suite",
-			Category:        "bundle",
-			Description:     "POS · ERP · CRM",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 125_000,
-			PriceYearlyIDR:  1_350_000, // 125000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   false,
-			SortOrder:       1,
+			Slug:                  "growth_suite",
+			Name:                  "Growth Suite",
+			Category:              "bundle",
+			Description:           "POS · ERP · CRM",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       125_000,
+			PriceYearlyIDR:        1_350_000, // 125000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         false,
+			SortOrder:             1,
 			Features: tenantModels.PlanFeatureList{
 				"Point of Sale",
 				"ERP (Purchase, Sales, Finance)",
@@ -161,18 +171,20 @@ func SeedSubscriptionPlans() error {
 			},
 		},
 		{
-			Slug:            "ultimate_suite",
-			Name:            "Ultimate Suite",
-			Category:        "bundle",
-			Description:     "All modules included",
-			BillingType:     tenantModels.BillingTypePerUser,
-			PriceMonthlyIDR: 175_000,
-			PriceYearlyIDR:  1_890_000, // 175000 * 12 * 0.9
-			MinUsers:        1,
-			MaxUsers:        500,
-			IsActive:        true,
-			IsHighlighted:   true,
-			SortOrder:       2,
+			Slug:                  "ultimate_suite",
+			Name:                  "Ultimate Suite",
+			Category:              "bundle",
+			Description:           "All modules included",
+			BillingType:           tenantModels.BillingTypePerUser,
+			PriceMonthlyIDR:       175_000,
+			PriceYearlyIDR:        1_890_000, // 175000 * 12 * 0.9
+			OutletAddonMonthlyIDR: 500_000,
+			OutletAddonYearlyIDR:  6_000_000,
+			MinUsers:              1,
+			MaxUsers:              500,
+			IsActive:              true,
+			IsHighlighted:         true,
+			SortOrder:             2,
 			Features: tenantModels.PlanFeatureList{
 				"Point of Sale",
 				"ERP (Full suite)",
@@ -203,7 +215,7 @@ func SeedSubscriptionPlans() error {
 	for i := range plans {
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "category", "description", "billing_type", "price_monthly_idr", "price_yearly_idr", "min_users", "max_users", "is_highlighted", "sort_order", "features", "role_templates", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"name", "category", "description", "billing_type", "price_monthly_idr", "price_yearly_idr", "outlet_addon_monthly_idr", "outlet_addon_yearly_idr", "min_users", "max_users", "is_highlighted", "sort_order", "features", "role_templates", "updated_at"}),
 		}).Create(&plans[i]).Error; err != nil {
 			log.Printf("Error seeding plan %s: %v", plans[i].Slug, err)
 			return err
@@ -216,7 +228,7 @@ func SeedSubscriptionPlans() error {
 
 	// Seed module entitlements per plan.
 	entitlements := map[string][]string{
-		"pos_growth":     {"pos", "purchase", "core", "inventory", "finance", "sales"}, // POS Growth includes purchase, sales, finance, and inventory menus
+		"pos_growth":     {"pos", "purchase", "core", "inventory", "finance", "sales", "stock", "stock_ledger", "stock_opname"}, // POS Growth includes purchase, sales, finance, inventory and full stock features
 		"erp_pro":        {"purchase", "inventory", "finance", "sales", "core"},
 		"crm_growth":     {"crm", "core"},
 		"hr_growth":      {"hr", "core"},
@@ -265,6 +277,8 @@ func SeedSubscriptionPlans() error {
 		"/purchase/supplier-invoices",
 		"/purchase/payments",
 		"/stock/inventory",
+		"/stock/ledger",
+		"/stock/opname",
 		"/stock/movements",
 		"/finance/accounting/coa",
 		"/finance/journals/purchase",
@@ -343,11 +357,7 @@ func SeedSubscriptionPlans() error {
 		"/finance/journals/purchase",
 		"/finance/journals/adjustment",
 		"/finance/closing",
-		"/finance/ar/customer-payments",
-		"/finance/ar/credit-notes",
 		"/finance/ar/aging-reports",
-		"/finance/ap/supplier-payments",
-		"/finance/ap/debit-notes",
 		"/finance/ap/non-trade-payables",
 		"/finance/ap/aging-reports",
 		"/finance/bank-accounts",
@@ -505,13 +515,7 @@ func SeedSubscriptionPlans() error {
 		"/finance/journals/purchase",
 		"/finance/journals/adjustment",
 		"/finance/closing",
-		"/finance/ar/customer-invoices",
-		"/finance/ar/customer-payments",
-		"/finance/ar/credit-notes",
 		"/finance/ar/aging-reports",
-		"/finance/ap/supplier-invoices",
-		"/finance/ap/supplier-payments",
-		"/finance/ap/debit-notes",
 		"/finance/ap/non-trade-payables",
 		"/finance/ap/aging-reports",
 		"/finance/bank-accounts",
@@ -595,8 +599,8 @@ func SeedSubscriptionPlans() error {
 		permissionCodes []string
 	}{
 		"pos_growth": {
-			menuURLs:        append(posExactMenuURLs, masterDataExactMenuURLs...),
-			menuPrefixes:    []string{},
+			menuURLs:     append(posExactMenuURLs, masterDataExactMenuURLs...),
+			menuPrefixes: []string{},
 			permissionCodes: []string{
 				posPaymentManagePermission,
 				// Chart of Accounts (full CRUD)
@@ -611,6 +615,7 @@ func SeedSubscriptionPlans() error {
 				// Fiscal Years (full CRUD)
 				"fiscal_year.read",
 				"fiscal_year.write",
+				"fiscal_year.delete",
 				// Accounting Mapping (read-only)
 				"account_mappings.read",
 			},

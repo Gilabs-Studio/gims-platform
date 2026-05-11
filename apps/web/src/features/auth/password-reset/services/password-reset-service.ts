@@ -4,7 +4,6 @@ import type {
   ForgotPasswordResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
-  ValidateTokenRequest,
   ValidateTokenResponse,
 } from "../types";
 

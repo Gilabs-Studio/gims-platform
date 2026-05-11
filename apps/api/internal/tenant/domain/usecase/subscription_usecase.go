@@ -123,6 +123,7 @@ func subModelToDTO(s *models.TenantSubscription) *dto.SubscriptionResponse {
 		NextBillingAt: s.NextBillingAt,
 		UserCount:     s.UserCount,
 		SeatLimit:     s.SeatLimit,
+		OutletLimit:   s.OutletLimit,
 		AmountPaidIDR: s.AmountPaidIDR,
 		Notes:         s.Notes,
 		CreatedAt:     s.CreatedAt,
@@ -135,6 +136,9 @@ func subModelToDTO(s *models.TenantSubscription) *dto.SubscriptionResponse {
 	}
 	if r.UserCount == 0 {
 		r.UserCount = r.SeatLimit
+	}
+	if r.OutletLimit <= 0 {
+		r.OutletLimit = 1
 	}
 	if s.XenditPaymentID != nil {
 		r.XenditPaymentID = *s.XenditPaymentID

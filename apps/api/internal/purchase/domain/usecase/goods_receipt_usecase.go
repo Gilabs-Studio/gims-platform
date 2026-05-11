@@ -175,12 +175,21 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			return err
 		}
 
+		var receiptDate *time.Time
+		if req.ReceiptDate != nil && strings.TrimSpace(*req.ReceiptDate) != "" {
+			parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.ReceiptDate))
+			if err != nil {
+				return fmt.Errorf("invalid receipt_date format: %w", err)
+			}
+			receiptDate = &parsed
+		}
+
 		gr := &models.GoodsReceipt{
 			Code:            code,
 			PurchaseOrderID: po.ID,
 			WarehouseID:     &warehouseID,
 			SupplierID:      supplierID,
-			ReceiptDate:     nil,
+			ReceiptDate:     receiptDate,
 			Notes:           req.Notes,
 			ProofImageURL:   req.ProofImageURL,
 			Status:          models.GoodsReceiptStatusDraft,
@@ -295,13 +304,22 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 	before := grAuditSnapshot(existing)
 
+	receiptDate := existing.ReceiptDate
+	if req.ReceiptDate != nil && strings.TrimSpace(*req.ReceiptDate) != "" {
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.ReceiptDate))
+		if err != nil {
+			return nil, fmt.Errorf("invalid receipt_date format: %w", err)
+		}
+		receiptDate = &parsed
+	}
+
 	gr := &models.GoodsReceipt{
 		ID:              existing.ID,
 		Code:            existing.Code,
 		PurchaseOrderID: existing.PurchaseOrderID,
 		WarehouseID:     &warehouseID,
 		SupplierID:      existing.SupplierID,
-		ReceiptDate:     existing.ReceiptDate,
+		ReceiptDate:     receiptDate,
 		Notes:           req.Notes,
 		ProofImageURL:   req.ProofImageURL,
 		Status:          existing.Status,
@@ -488,14 +506,17 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			}
 		}
 		if fullyReceived {
-			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			// Only close PO if at least one NORMAL supplier invoice exists and all NORMAL
+			// invoices are paid/cancelled/rejected. DP-only settlement must not close PO.
 			var totalInvoiceCount3 int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Count(&totalInvoiceCount3)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Where("status NOT IN ?", []models.SupplierInvoiceStatus{
 					models.SupplierInvoiceStatusPaid,
 					models.SupplierInvoiceStatusCancelled,
@@ -671,7 +692,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		Select("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received),0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id IN ?", poIDs).
-		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+		Where("UPPER(gr.status) <> ?", string(models.GoodsReceiptStatusRejected)).
 		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
 		Scan(&receivedRows).Error; err != nil {
 		return nil, err
@@ -818,10 +839,10 @@ func (uc *goodsReceiptUsecase) Approve(ctx context.Context, id string) (*dto.Goo
 			return fmt.Errorf("failed to update stock: %w", err)
 		}
 		if err := uc.inventoryUC.TriggerDocumentJournal(txCtx, tx, reference.RefTypeGoodsReceipt, out.ID); err != nil {
-			return fmt.Errorf("failed to create journal: %w", err)
+			log.Printf("warning: failed to create GR journal on approve (non-blocking): %v", err)
 		}
 		if err := uc.triggerAssetCreation(txCtx, out); err != nil {
-			return fmt.Errorf("failed to create asset: %w", err)
+			log.Printf("warning: failed to create GR asset records on approve (non-blocking): %v", err)
 		}
 
 		return nil
@@ -975,14 +996,17 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			}
 		}
 		if fullyReceived {
-			// Only close PO if at least one supplier invoice exists and all are paid or cancelled (#276)
+			// Only close PO if at least one NORMAL supplier invoice exists and all NORMAL
+			// invoices are paid/cancelled/rejected. DP-only settlement must not close PO.
 			var totalInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Count(&totalInvoiceCount)
 			var pendingInvoiceCount int64
 			tx.Model(&models.SupplierInvoice{}).
 				Where("purchase_order_id = ?", po.ID).
+				Where("type = ?", models.SupplierInvoiceTypeNormal).
 				Where("status NOT IN ?", []models.SupplierInvoiceStatus{
 					models.SupplierInvoiceStatusPaid,
 					models.SupplierInvoiceStatusCancelled,
@@ -1380,7 +1404,7 @@ func (uc *goodsReceiptUsecase) validateGoodsReceiptItemsAgainstPO(ctx context.Co
 			Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
 			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 			Where("goods_receipts.purchase_order_id = ?", po.ID).
-			Where("goods_receipts.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+			Where("UPPER(goods_receipts.status) <> ?", string(models.GoodsReceiptStatusRejected)).
 			Where("goods_receipt_items.purchase_order_item_id = ?", it.PurchaseOrderItemID).
 			Where("goods_receipts.id <> ?", gr.ID).
 			Scan(&alreadyReceived).Error; err != nil {
@@ -1453,10 +1477,15 @@ func (uc *goodsReceiptUsecase) triggerAssetCreation(ctx context.Context, gr *mod
 
 		// Trigger only for "Device" type
 		if strings.ToLower(productPOItem.Product.Type.Name) == "device" {
+			acquisitionDate := apptime.Now().Format("2006-01-02")
+			if gr.ReceiptDate != nil {
+				acquisitionDate = gr.ReceiptDate.Format("2006-01-02")
+			}
+
 			req := &finDto.CreateAssetFromPurchaseRequest{
 				Code:            fmt.Sprintf("AST-%s-%s", productPOItem.Product.Code, gr.Code),
 				Name:            productPOItem.Product.Name,
-				AcquisitionDate: gr.ReceiptDate.Format("2006-01-02"),
+				AcquisitionDate: acquisitionDate,
 				AcquisitionCost: productPOItem.Price,
 				ReferenceType:   "GOODS_RECEIPT",
 				ReferenceID:     gr.ID,

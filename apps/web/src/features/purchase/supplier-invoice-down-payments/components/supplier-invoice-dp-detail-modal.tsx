@@ -3,16 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  AlertTriangle,
-  Building2,
   CheckCircle2,
-  FileText,
-  Printer,
-  Send,
-  Trash2,
-  XCircle,
   CreditCard,
+  Printer,
   Pencil,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -27,14 +22,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,18 +38,21 @@ import { SupplierDetailModal } from "@/features/master-data/supplier/components/
 import type { SupplierInvoiceDPDetail } from "../types";
 import {
   useApproveSupplierInvoiceDP,
-  useCancelSupplierInvoiceDP,
   useDeleteSupplierInvoiceDP,
-  usePendingSupplierInvoiceDP,
-  useRejectSupplierInvoiceDP,
   useSubmitSupplierInvoiceDP,
   useSupplierInvoiceDP,
   useSupplierInvoiceDPAuditTrail,
 } from "../hooks/use-supplier-invoice-dp";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
-import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
+import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
+
+// Dynamic import for form dialog to prevent recreating on each render
+const SupplierInvoiceDPFormDialog = dynamic(
+  () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
+  { ssr: false },
+);
 
 // ─── Audit Trail tab ──────────────────────────────────────────────────────────
 
@@ -117,20 +112,10 @@ function SupplierInvoiceDPDetailView({
   const t = useTranslations("supplierInvoiceDP");
   const tCommon = useTranslations("common");
 
-  const canSubmit = useUserPermission("supplier_invoice_dp.submit");
-  const canCreatePayment = useUserPermission("purchase_payment.create");
-  const canUpdate = useUserPermission("supplier_invoice_dp.update");
-  const canApprove = useUserPermission("supplier_invoice_dp.approve");
-  const canReject = useUserPermission("supplier_invoice_dp.reject");
-  const canCancel = useUserPermission("supplier_invoice_dp.cancel");
-  const canPending = useUserPermission("supplier_invoice_dp.pending");
-  const canDelete = useUserPermission("supplier_invoice_dp.delete");
-  const canPrint = useUserPermission("supplier_invoice_dp.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
@@ -147,17 +132,7 @@ function SupplierInvoiceDPDetailView({
     return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
   };
 
-  const submitMutation = useSubmitSupplierInvoiceDP();
-  const approveMutation = useApproveSupplierInvoiceDP();
-  const rejectMutation = useRejectSupplierInvoiceDP();
-  const cancelMutation = useCancelSupplierInvoiceDP();
-  const pendingMutation = usePendingSupplierInvoiceDP();
   const deleteMutation = useDeleteSupplierInvoiceDP();
-
-  const SupplierInvoiceDPFormDialog = dynamic(
-    () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
-    { ssr: false },
-  );
 
   const st = (data.status ?? "").toLowerCase();
   const isSettled = st === "paid" || st === "cancelled" || st === "rejected";
@@ -172,27 +147,6 @@ function SupplierInvoiceDPDetailView({
     if (diff < 0) return "font-semibold text-destructive";
     if (diff <= 7) return "font-semibold text-warning";
     return "font-medium text-foreground";
-  })();
-
-  const dueDateUrgency = (() => {
-    if (isSettled || !data.due_date) return null;
-    const due = new Date(data.due_date);
-    const now = new Date();
-    due.setHours(0, 0, 0, 0);
-    now.setHours(0, 0, 0, 0);
-    const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
-    if (diff < 0)
-      return (
-        <span className="ml-1.5 inline-flex items-center gap-0.5 text-destructive text-xs font-semibold">
-          <AlertTriangle className="h-3 w-3" />
-          {Math.abs(diff)}d overdue
-        </span>
-      );
-    if (diff === 0)
-      return <span className="ml-1.5 text-warning text-xs font-semibold">· Due today</span>;
-    if (diff <= 7)
-      return <span className="ml-1.5 text-warning text-xs font-medium">· {diff}d left</span>;
-    return null;
   })();
 
   return (
@@ -338,15 +292,6 @@ function SupplierInvoiceDPDetailView({
         </TabsContent>
       </Tabs>
 
-      {/* Print dialog */}
-      {printOpen && (
-        <SupplierInvoiceDPPrintDialog
-          open={printOpen}
-          onClose={() => setPrintOpen(false)}
-          invoiceId={data.id}
-        />
-      )}
-
       {/* Purchase payment form (match customer flow) */}
       {data && (
         <PurchasePaymentForm
@@ -466,7 +411,6 @@ export function SupplierInvoiceDPDetailModal({
 
   const submitMutation = useSubmitSupplierInvoiceDP();
   const approveMutation = useApproveSupplierInvoiceDP();
-  const [printOpen, setPrintOpen] = useState(false);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const normalizedDetailStatus = (detail?.status ?? "").toLowerCase() === "approved"
@@ -540,7 +484,7 @@ export function SupplierInvoiceDPDetailModal({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setPrintOpen(true)}
+                  onClick={() => { if (detail?.id) supplierInvoiceDPService.openPrintWindow(detail.id).catch(() => toast.error(t("toast.failed"))); }}
                   className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >

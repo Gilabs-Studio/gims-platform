@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { WidgetType, POSOutletItem, POSSummaryData } from "../types";
 import { useDashboardWidgetOverview } from "./use-dashboard";
 
-export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
-  const [selectedOutletId, setSelectedOutletId] = useState<string>("all");
+export function usePosOutletOverview(
+  widgetType: WidgetType,
+  enabled: boolean,
+  options?: { allowAllOutlets?: boolean },
+) {
+  const allowAllOutlets = options?.allowAllOutlets ?? true;
+  const [selectedOutletId, setSelectedOutletId] = useState<string>(allowAllOutlets ? "all" : "");
+  const didSetInitialOutlet = useRef(false);
 
   const overviewQuery = useDashboardWidgetOverview(widgetType, {
     enabled,
   });
 
   const selectedOutletQuery = useDashboardWidgetOverview(widgetType, {
-    enabled: enabled && selectedOutletId !== "all",
+    enabled: enabled && selectedOutletId !== "all" && selectedOutletId !== "",
     outletId: selectedOutletId === "all" ? undefined : selectedOutletId,
   });
 
@@ -22,29 +28,46 @@ export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
   const visibleOutlets = useMemo<POSOutletItem[]>(() => overviewSummary?.outlets ?? [], [overviewSummary?.outlets]);
 
   useEffect(() => {
-    if (selectedOutletId === "all") {
+    if (!enabled || didSetInitialOutlet.current || visibleOutlets.length === 0) {
+      return;
+    }
+
+    if (allowAllOutlets && selectedOutletId !== "all") {
+      return;
+    }
+
+    didSetInitialOutlet.current = true;
+    startTransition(() => {
+      setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0].outlet_id);
+    });
+  }, [allowAllOutlets, enabled, selectedOutletId, visibleOutlets]);
+
+  useEffect(() => {
+    if (allowAllOutlets && selectedOutletId === "all") {
       return;
     }
 
     const hasSelectedOutlet = visibleOutlets.some((outlet) => outlet.outlet_id === selectedOutletId);
     if (!hasSelectedOutlet) {
-      setSelectedOutletId("all");
+      startTransition(() => {
+        setSelectedOutletId(allowAllOutlets ? "all" : visibleOutlets[0]?.outlet_id ?? "");
+      });
     }
-  }, [selectedOutletId, visibleOutlets]);
+  }, [allowAllOutlets, selectedOutletId, visibleOutlets]);
 
   const filteredOutlets = useMemo(() => {
-    if (selectedOutletId === "all") {
+    if (allowAllOutlets && selectedOutletId === "all") {
       return visibleOutlets;
     }
 
     return visibleOutlets.filter((outlet) => outlet.outlet_id === selectedOutletId);
-  }, [visibleOutlets, selectedOutletId]);
+  }, [allowAllOutlets, visibleOutlets, selectedOutletId]);
 
   const posSummary: POSSummaryData | undefined =
-    selectedOutletId === "all" ? overviewSummary : selectedSummary ?? overviewSummary;
+    allowAllOutlets && selectedOutletId === "all" ? overviewSummary : selectedSummary ?? overviewSummary;
 
   const focusedOutlet = useMemo(() => {
-    if (selectedOutletId !== "all") {
+    if (!allowAllOutlets || selectedOutletId !== "all") {
       return visibleOutlets.find((outlet) => outlet.outlet_id === selectedOutletId);
     }
 
@@ -53,14 +76,14 @@ export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
     }
 
     return undefined;
-  }, [selectedOutletId, visibleOutlets]);
+  }, [allowAllOutlets, selectedOutletId, visibleOutlets]);
 
-  const isLoading = overviewQuery.isLoading || (enabled && selectedOutletId !== "all" && selectedOutletQuery.isLoading);
+  const isLoading = overviewQuery.isLoading || (enabled && (!allowAllOutlets || selectedOutletId !== "all") && selectedOutletQuery.isLoading);
   const isError = overviewQuery.isError || selectedOutletQuery.isError;
 
   const refetch = async () => {
     await overviewQuery.refetch();
-    if (selectedOutletId !== "all") {
+    if (!allowAllOutlets || selectedOutletId !== "all") {
       await selectedOutletQuery.refetch();
     }
   };
@@ -72,6 +95,7 @@ export function usePosOutletOverview(widgetType: WidgetType, enabled: boolean) {
     selectedOutletId,
     setSelectedOutletId,
     hasOutletFilter: visibleOutlets.length > 1,
+    allowAllOutlets,
     isSingleOutletScope: visibleOutlets.length === 1,
     focusedOutlet,
     isLoading,

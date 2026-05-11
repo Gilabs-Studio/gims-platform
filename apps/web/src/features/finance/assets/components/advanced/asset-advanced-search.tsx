@@ -267,7 +267,6 @@ export function AssetAdvancedSearch({
 
   const handleCategorySelect = (
     categoryId: string,
-    category?: AssetCategoryLite,
   ) => {
     if (!categoryId) {
       onFiltersChange({ ...filters, categoryIds: [] });
@@ -281,7 +280,6 @@ export function AssetAdvancedSearch({
 
   const handleLocationSelect = (
     locationId: string,
-    location?: AssetLocationLite,
   ) => {
     if (!locationId) {
       onFiltersChange({ ...filters, locationIds: [] });
@@ -293,7 +291,7 @@ export function AssetAdvancedSearch({
     }
   };
 
-  const handleDepartmentSelect = (deptId: string, dept?: DepartmentLite) => {
+  const handleDepartmentSelect = (deptId: string) => {
     if (!deptId) {
       onFiltersChange({ ...filters, departmentIds: [] });
       return;
@@ -304,7 +302,7 @@ export function AssetAdvancedSearch({
     }
   };
 
-  const handleEmployeeSelect = (empId: string, emp?: EmployeeLite) => {
+  const handleEmployeeSelect = (empId: string) => {
     if (!empId) {
       onFiltersChange({ ...filters, employeeIds: [] });
       return;

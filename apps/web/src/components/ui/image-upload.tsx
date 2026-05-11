@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Search, X, Loader2, ImagePlus, Link2 } from "lucide-react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { toast } from "sonner";
@@ -9,12 +10,12 @@ import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const LOCAL_UPLOAD_PREFIX = "/uploads/";
 const DATA_IMAGE_PREFIX = "data:image/";
 
 interface ImageUploadProps {
   value?: string | null;
   onChange: (url: string) => void;
+  uploadFolder?: string;
   disabled?: boolean;
   className?: string;
   helperText?: string;
@@ -71,6 +72,7 @@ interface ImageSearchResponse {
 export function ImageUpload({
   value,
   onChange,
+  uploadFolder,
   disabled,
   className,
   helperText = "SVG, PNG, JPG or GIF (max. 10MB)",
@@ -100,7 +102,7 @@ export function ImageUpload({
   },
 }: ImageUploadProps) {
   const [loading, setLoading] = React.useState(false);
-  const [preview, setPreview] = React.useState<string | null>(value ?? null);
+  const [localPreviewObjectUrl, setLocalPreviewObjectUrl] = React.useState<string | null>(null);
   const [urlInput, setUrlInput] = React.useState("");
   const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery ?? "");
   const [isSearching, setIsSearching] = React.useState(false);
@@ -112,7 +114,7 @@ export function ImageUpload({
     const value = raw.trim();
     if (!value) return undefined;
 
-    if (value.startsWith(LOCAL_UPLOAD_PREFIX)) {
+    if (value.startsWith("/")) {
       return value;
     }
 
@@ -151,18 +153,17 @@ export function ImageUpload({
     }
   }, []);
 
-  // Sync internal preview with external value
-  React.useEffect(() => {
-    if (value) {
-      setPreview(resolveImageUrl(value) ?? null);
-    } else {
-      setPreview(null);
-    }
-  }, [value]);
+  const preview = React.useMemo(() => {
+    if (localPreviewObjectUrl) return localPreviewObjectUrl;
+    if (value) return resolveImageUrl(value) ?? null;
+    return null;
+  }, [localPreviewObjectUrl, value]);
 
   React.useEffect(() => {
     if (initialSearchQuery && initialSearchQuery !== searchQuery) {
-      setSearchQuery(initialSearchQuery);
+      React.startTransition(() => {
+        setSearchQuery(initialSearchQuery);
+      });
     }
   }, [initialSearchQuery, searchQuery]);
 
@@ -181,14 +182,19 @@ export function ImageUpload({
 
       // Create preview immediately
       const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
+      setLocalPreviewObjectUrl(objectUrl);
       setLoading(true);
 
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const res = await apiClient.post<UploadResponse>("/upload/image", formData, {
+        const folder = uploadFolder?.trim();
+        const endpoint = folder
+          ? `/upload/image?folder=${encodeURIComponent(folder)}`
+          : "/upload/image";
+
+        const res = await apiClient.post<UploadResponse>(endpoint, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -208,7 +214,7 @@ export function ImageUpload({
           throw new Error(labels.uploadFailed ?? "Upload failed");
         }
       } catch (err) {
-        setPreview(value ? (resolveImageUrl(value) ?? null) : null); // Revert
+        setLocalPreviewObjectUrl(null);
         toast.error(labels.uploadFailed ?? "Upload failed", {
           description: "Something went wrong while uploading the image.",
         });
@@ -217,7 +223,7 @@ export function ImageUpload({
         setLoading(false);
       }
     },
-    [onChange, value, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess]
+    [onChange, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess, uploadFolder]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -237,7 +243,7 @@ export function ImageUpload({
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange("");
-    setPreview(null);
+    setLocalPreviewObjectUrl(null);
   };
 
   const handleApplyUrl = React.useCallback(() => {
@@ -248,7 +254,7 @@ export function ImageUpload({
 
     let safeValue: string | null = null;
 
-    if (trimmed.startsWith("/uploads/")) {
+    if (trimmed.startsWith("/")) {
       safeValue = trimmed;
     } else {
       try {
@@ -263,13 +269,12 @@ export function ImageUpload({
 
     if (!safeValue) {
       toast.error(labels.invalidFile ?? "Invalid file", {
-        description: "Use full http/https URL or /uploads/... path.",
+        description: "Use full http/https URL or a root-relative path (/...)",
       });
       return;
     }
 
     onChange(safeValue);
-    setPreview(resolveImageUrl(safeValue) ?? safeValue);
     setUrlInput("");
   }, [labels.invalidFile, onChange, urlInput]);
 
@@ -323,7 +328,6 @@ export function ImageUpload({
   const handleSelectFromResults = React.useCallback(
     (item: ImageSearchResponse["data"][number]) => {
       onChange(item.url);
-      setPreview(resolveImageUrl(item.url) ?? item.url);
 
       if (item.source === "unsplash" && item.download_location) {
         void triggerUnsplashDownload(item.id, item.download_location);
@@ -353,13 +357,15 @@ export function ImageUpload({
           </div>
         )}
 
-        {preview ? (
+        {safePreviewSrc ? (
           <div className="relative w-full h-full group">
             <div className="relative w-full h-full">
-              <img
+              <Image
                 src={safePreviewSrc}
                 alt="Product preview"
-                className="w-full h-full object-cover rounded-lg"
+                fill
+                sizes="(max-width: 768px) 128px, 160px"
+                className="rounded-lg object-cover"
               />
             </div>
             {!disabled && !loading && (
@@ -449,10 +455,12 @@ export function ImageUpload({
                     onClick={() => handleSelectFromResults(item)}
                     title={labels.selectFromResults ?? "Select"}
                   >
-                    <img
-                      src={sanitizeImageSrc(item.thumb_url)}
+                    <Image
+                      src={sanitizeImageSrc(item.thumb_url) ?? ""}
                       alt={item.alt || "Search result"}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 33vw, 25vw"
+                      className="object-cover"
                     />
                     <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1 py-0.5 text-[10px] text-foreground opacity-0 transition-opacity group-hover:opacity-100">
                       {labels.selectFromResults ?? "Select"}

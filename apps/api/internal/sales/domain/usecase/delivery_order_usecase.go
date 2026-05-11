@@ -802,12 +802,20 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
 
-	// Mark as delivered
-	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
+	// Mark as delivered and close SO when now fully fulfilled + fully settled.
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		if err := u.deliveryOrderRepo.Deliver(txCtx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
+			return err
+		}
+
+		closeSalesOrderWhenSettledAndFulfilled(tx, deliveryOrder.SalesOrderID)
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	// Sales order status is no longer tied strictly to Delivery completion
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)

@@ -6,19 +6,33 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	warehouseRepo "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrOutletNotFound = errors.New("OUTLET_NOT_FOUND")
+	ErrOutletNotFound     = errors.New("OUTLET_NOT_FOUND")
+	ErrOutletLimitReached = errors.New("OUTLET_LIMIT_REACHED")
 )
+
+// OutletLimitResponse carries current outlet count and max allowed by subscription.
+type OutletLimitResponse struct {
+	Current int `json:"current"`
+	Max     int `json:"max"`
+}
+
+type subscriptionFinder interface {
+	FindActiveByTenantID(ctx context.Context, tenantID string) (*tenantModels.TenantSubscription, error)
+}
 
 // OutletUsecase defines business logic for outlets
 type OutletUsecase interface {
@@ -28,15 +42,17 @@ type OutletUsecase interface {
 	Update(ctx context.Context, id string, req dto.UpdateOutletRequest) (*dto.OutletResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetFormData(ctx context.Context) (*dto.OutletFormDataResponse, error)
+	GetLimit(ctx context.Context) (*OutletLimitResponse, error)
 }
 
 type outletUsecase struct {
-	db            *gorm.DB
-	repo          repositories.OutletRepository
-	warehouseRepo warehouseRepo.WarehouseRepository
-	employeeRepo  repositories.EmployeeRepository
-	companyRepo   repositories.CompanyRepository
-	mapper        *mapper.OutletMapper
+	db               *gorm.DB
+	repo             repositories.OutletRepository
+	warehouseRepo    warehouseRepo.WarehouseRepository
+	employeeRepo     repositories.EmployeeRepository
+	companyRepo      repositories.CompanyRepository
+	subscriptionRepo subscriptionFinder
+	mapper           *mapper.OutletMapper
 }
 
 func (uc *outletUsecase) syncLinkedWarehousesStatus(tx *gorm.DB, outletID string, warehouseID *string, isActive bool) error {
@@ -62,24 +78,61 @@ func NewOutletUsecase(
 	whRepo warehouseRepo.WarehouseRepository,
 	employeeRepo repositories.EmployeeRepository,
 	companyRepo repositories.CompanyRepository,
+	subscriptionRepo subscriptionFinder,
 ) OutletUsecase {
 	return &outletUsecase{
-		db:            db,
-		repo:          repo,
-		warehouseRepo: whRepo,
-		employeeRepo:  employeeRepo,
-		companyRepo:   companyRepo,
-		mapper:        mapper.NewOutletMapper(),
+		db:               db,
+		repo:             repo,
+		warehouseRepo:    whRepo,
+		employeeRepo:     employeeRepo,
+		companyRepo:      companyRepo,
+		subscriptionRepo: subscriptionRepo,
+		mapper:           mapper.NewOutletMapper(),
 	}
+}
+
+func (uc *outletUsecase) GetLimit(ctx context.Context) (*OutletLimitResponse, error) {
+	var current int64
+	if err := database.GetDB(ctx, uc.db).Model(&orgModels.Outlet{}).Count(&current).Error; err != nil {
+		return nil, err
+	}
+
+	if middleware.IsSystemAdmin(ctx) {
+		return &OutletLimitResponse{Current: int(current), Max: 0}, nil
+	}
+
+	tenantID := middleware.TenantFromContext(ctx)
+	max := 1
+	if uc.subscriptionRepo != nil {
+		if sub, err := uc.subscriptionRepo.FindActiveByTenantID(ctx, tenantID); err == nil && sub != nil {
+			if sub.OutletLimit > max {
+				max = sub.OutletLimit
+			}
+		}
+	}
+
+	if max <= 0 {
+		max = 1
+	}
+
+	return &OutletLimitResponse{Current: int(current), Max: max}, nil
 }
 
 // Create creates a new outlet and optionally a linked warehouse
 func (uc *outletUsecase) Create(ctx context.Context, req dto.CreateOutletRequest) (*dto.OutletResponse, error) {
+	limit, limitErr := uc.GetLimit(ctx)
+	if limitErr != nil {
+		return nil, limitErr
+	}
+	if limit.Max > 0 && limit.Current >= limit.Max {
+		return nil, ErrOutletLimitReached
+	}
+
 	const maxCodeRetry = 3
 
 	var (
-		outlet  *orgModels.Outlet
-		err     error
+		outlet *orgModels.Outlet
+		err    error
 	)
 
 	for attempt := 0; attempt < maxCodeRetry; attempt++ {

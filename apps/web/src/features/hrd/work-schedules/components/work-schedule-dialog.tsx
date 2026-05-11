@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -82,7 +83,7 @@ export function WorkScheduleDialog({
   const { data: formDataResponse } = useWorkScheduleFormData();
 
   const divisions = formDataResponse?.data?.divisions ?? [];
-  const companies = formDataResponse?.data?.companies ?? [];
+  const companies = useMemo(() => formDataResponse?.data?.companies ?? [], [formDataResponse?.data?.companies]);
 
   const {
     register,
@@ -306,7 +307,7 @@ export function WorkScheduleDialog({
         toast.success(t("messages.createSuccess"));
       }
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       toast.error(tCommon("error"));
     }
   };

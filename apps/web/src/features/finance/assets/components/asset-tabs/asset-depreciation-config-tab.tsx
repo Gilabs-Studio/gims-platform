@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import type { Asset, AssetDepreciation, AssetCategoryLite } from "../../types";
+import type { Asset, AssetCategoryLite } from "../../types";
 import { formatDate } from "@/lib/utils";
 
 type DepreciationMethod = "SL" | "DB" | "SYD" | "UOP" | "NONE";
@@ -190,7 +190,6 @@ export function AssetDepreciationConfigTab({
   asset,
   category,
   isLoading,
-  isCategoryLoading,
   onUpdateConfig,
 }: AssetDepreciationConfigTabProps) {
   const t = useTranslations("financeAssets");

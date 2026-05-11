@@ -11,6 +11,7 @@ export interface TenantSubscription {
   next_billing_at?: string;
   user_count: number;
   seat_limit?: number;
+  outlet_limit?: number;
   active_users?: number;
   amount_paid_idr: number;
   coupon_code?: string;
@@ -24,7 +25,7 @@ export interface TenantEntitlements {
   permission_codes?: string[];
 }
 
-export type BillingChangeAction = "add_seat" | "upgrade_plan" | "add_module" | "downgrade";
+export type BillingChangeAction = "add_seat" | "add_outlet" | "upgrade_plan" | "add_module" | "downgrade";
 
 export interface BillingChangeRequest {
   action: BillingChangeAction;
@@ -43,6 +44,8 @@ export interface BillingChangeResponse {
   billing_change: {
     old_seat_limit: number;
     new_seat_limit: number;
+    old_outlet_limit: number;
+    new_outlet_limit: number;
     old_amount_per_cycle: number;
     new_amount_per_cycle: number;
     proration_amount: number;
@@ -66,12 +69,25 @@ export interface BillingConfirmResponse {
   status: "synced" | "already_synced";
 }
 
+export interface TenantPaymentMethod {
+  id: string;
+  tenant_id: string;
+  xendit_token_id: string;
+  masked_card_number: string;
+  card_brand: string;
+  card_holder_name: string;
+  expiry_month: number;
+  expiry_year: number;
+  is_default: boolean;
+  created_at: string;
+}
+
 export const billingService = {
   getMySubscription: async (): Promise<TenantSubscription | null> => {
     const response = await apiClient.get<{ success: boolean; data: TenantSubscription | null }>(
       "/billing/subscription",
     );
-    return response.data.data;
+    return response.data.data ?? null;
   },
 
   getMyEntitlements: async (): Promise<TenantEntitlements> => {
@@ -99,5 +115,35 @@ export const billingService = {
       { token },
     );
     return response.data.data;
+  },
+
+  cancelSubscription: async (): Promise<{ status: string }> => {
+    const response = await apiClient.delete<{ success: boolean; data: { status: string } }>(
+      "/billing/subscription",
+    );
+    return response.data.data;
+  },
+
+  listPaymentMethods: async (): Promise<TenantPaymentMethod[]> => {
+    const response = await apiClient.get<{ success: boolean; data: TenantPaymentMethod[] }>(
+      "/billing/payment-methods",
+    );
+    return response.data.data ?? [];
+  },
+
+  addPaymentMethod: async (xenditTokenId: string): Promise<TenantPaymentMethod> => {
+    const response = await apiClient.post<{ success: boolean; data: TenantPaymentMethod }>(
+      "/billing/payment-methods",
+      { xendit_token_id: xenditTokenId },
+    );
+    return response.data.data;
+  },
+
+  setDefaultPaymentMethod: async (id: string): Promise<void> => {
+    await apiClient.patch(`/billing/payment-methods/${id}/default`, {});
+  },
+
+  removePaymentMethod: async (id: string): Promise<void> => {
+    await apiClient.delete(`/billing/payment-methods/${id}`);
   },
 };

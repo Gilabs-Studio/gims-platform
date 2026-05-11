@@ -95,6 +95,7 @@ export function useApprovePurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+      queryClient.invalidateQueries({ queryKey: ["supplier-invoice-dp", "add"] });
     },
   });
 }

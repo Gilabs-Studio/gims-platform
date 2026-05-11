@@ -791,9 +791,38 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		return dto.ConvertToQuotationResponse{}, errors.New("deal already converted")
 	}
 
-	// Validate deal has product items
-	if len(deal.Items) == 0 {
-		return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
+	// Resolve active source items for conversion:
+	// - lead-linked deals: authoritative source is crm_lead_product_items
+	// - standalone deals: fallback to crm_deal_product_items snapshot
+	var leadItems []models.LeadProductItem
+	if deal.LeadID != nil && *deal.LeadID != "" {
+		leadItems, err = u.leadRepo.ListProductItems(ctx, *deal.LeadID)
+		if err != nil {
+			return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to fetch lead product items: %w", err)
+		}
+
+		hasActiveLeadItems := false
+		for _, item := range leadItems {
+			if !item.DeletedAt.Valid {
+				hasActiveLeadItems = true
+				break
+			}
+		}
+		if !hasActiveLeadItems {
+			return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
+		}
+	} else {
+		// Validate standalone deal has product items
+		hasActiveDealItems := false
+		for _, item := range deal.Items {
+			if !item.DeletedAt.Valid {
+				hasActiveDealItems = true
+				break
+			}
+		}
+		if !hasActiveDealItems {
+			return dto.ConvertToQuotationResponse{}, errors.New("deal has no items")
+		}
 	}
 
 	// Auto-create customer from lead when no customer is linked yet or linked customer doesn't exist
@@ -902,27 +931,51 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 		return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to generate quotation code: %w", err)
 	}
 
-	// Build quotation items from active (non-deleted) deal product items only
+	// Build quotation items from resolved active source items
 	var subtotal float64
-	quotationItems := make([]salesModels.SalesQuotationItem, 0, len(deal.Items))
-	for _, dealItem := range deal.Items {
-		if dealItem.DeletedAt.Valid {
-			continue // skip soft-deleted items
-		}
-		item := salesModels.SalesQuotationItem{
-			ID:       uuid.New().String(),
-			Quantity: float64(dealItem.Quantity),
-			Price:    dealItem.UnitPrice,
-			Discount: dealItem.DiscountAmount,
-		}
+	quotationItems := make([]salesModels.SalesQuotationItem, 0)
+	if deal.LeadID != nil && *deal.LeadID != "" {
+		quotationItems = make([]salesModels.SalesQuotationItem, 0, len(leadItems))
+		for _, leadItem := range leadItems {
+			if leadItem.DeletedAt.Valid {
+				continue // skip soft-deleted items
+			}
+			item := salesModels.SalesQuotationItem{
+				ID:       uuid.New().String(),
+				Quantity: float64(leadItem.Quantity),
+				Price:    leadItem.UnitPrice,
+				Discount: 0,
+			}
 
-		if dealItem.ProductID != nil && *dealItem.ProductID != "" {
-			item.ProductID = *dealItem.ProductID
-		}
+			if leadItem.ProductID != nil && *leadItem.ProductID != "" {
+				item.ProductID = *leadItem.ProductID
+			}
 
-		item.CalculateSubtotal()
-		subtotal += item.Subtotal
-		quotationItems = append(quotationItems, item)
+			item.CalculateSubtotal()
+			subtotal += item.Subtotal
+			quotationItems = append(quotationItems, item)
+		}
+	} else {
+		quotationItems = make([]salesModels.SalesQuotationItem, 0, len(deal.Items))
+		for _, dealItem := range deal.Items {
+			if dealItem.DeletedAt.Valid {
+				continue // skip soft-deleted items
+			}
+			item := salesModels.SalesQuotationItem{
+				ID:       uuid.New().String(),
+				Quantity: float64(dealItem.Quantity),
+				Price:    dealItem.UnitPrice,
+				Discount: dealItem.DiscountAmount,
+			}
+
+			if dealItem.ProductID != nil && *dealItem.ProductID != "" {
+				item.ProductID = *dealItem.ProductID
+			}
+
+			item.CalculateSubtotal()
+			subtotal += item.Subtotal
+			quotationItems = append(quotationItems, item)
+		}
 	}
 
 	// Calculate tax (11% PPN)

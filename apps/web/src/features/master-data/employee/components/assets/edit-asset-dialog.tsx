@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
 	Dialog,
@@ -110,13 +110,13 @@ export function EditAssetDialog({
 		[assetOptions, selectedAssetId],
 	);
 
-	const resetForm = () => {
+	const resetForm = useCallback(() => {
 		setSelectedAssetId(asset?.asset_id ?? "");
 		setBorrowDate(asset?.borrow_date ? new Date(asset.borrow_date) : undefined);
 		setBorrowCondition(asset?.borrow_condition ?? "");
 		setAssetImage(asset?.asset_image ?? "");
 		setNotes(asset?.notes ?? "");
-	};
+	}, [asset]);
 
 	useEffect(() => {
 		if (!open) {
@@ -128,7 +128,7 @@ export function EditAssetDialog({
 		}, 0);
 
 		return () => window.clearTimeout(timer);
-	}, [open, asset]);
+  }, [open, asset, resetForm]);
 
 	const handleDialogChange = (nextOpen: boolean) => {
 		if (!nextOpen) {

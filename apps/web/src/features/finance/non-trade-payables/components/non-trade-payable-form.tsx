@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,11 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
     if (open) form.reset(defaultValues);
   }, [open, defaultValues, form]);
 
+  const transactionDate = useWatch({ control: form.control, name: "transaction_date" });
+  const dueDate = useWatch({ control: form.control, name: "due_date" });
+  const chartOfAccountId = useWatch({ control: form.control, name: "chart_of_account_id" });
+  const amount = useWatch({ control: form.control, name: "amount" });
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: NonTradePayableValues) => {
@@ -114,7 +119,7 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
               <Label htmlFor="transaction_date">{t("fields.transactionDate")}</Label>
               <DatePicker
                 id="transaction_date"
-                value={form.watch("transaction_date") ?? ""}
+                value={transactionDate ?? ""}
                 onChange={(value) => form.setValue("transaction_date", value, { shouldDirty: true })}
                 placeholder={t("fields.transactionDate")}
               />
@@ -123,7 +128,7 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
               <Label htmlFor="due_date">{t("fields.dueDate")}</Label>
               <DatePicker
                 id="due_date"
-                value={form.watch("due_date") ?? ""}
+                value={dueDate ?? ""}
                 onChange={(value) => form.setValue("due_date", value || null, { shouldDirty: true })}
                 placeholder={t("fields.dueDate")}
               />
@@ -134,7 +139,7 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
             <div className="space-y-2">
               <Label>{t("fields.chartOfAccount")}</Label>
               <Select
-                value={form.watch("chart_of_account_id") || ""}
+                value={chartOfAccountId || ""}
                 onValueChange={(v) => form.setValue("chart_of_account_id", v, { shouldDirty: true })}
               >
                 <SelectTrigger className="cursor-pointer">
@@ -153,7 +158,7 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
               <Label htmlFor="amount">{t("fields.amount")}</Label>
               <NumericInput
                 id="amount"
-                value={form.watch("amount")}
+                value={amount}
                 onChange={(value) => form.setValue("amount", value ?? 0, { shouldDirty: true })}
                 currency
               />

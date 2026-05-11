@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,11 @@ interface DraftLinePayload {
   notes: string;
 }
 
-export function StockOpnameManagerView({ opname, canEditDraft = false }: Props) {
+export interface StockOpnameDraftActions {
+  flushPendingDrafts: () => Promise<boolean>;
+}
+
+export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>(function StockOpnameManagerView({ opname, canEditDraft = false }: Props, ref) {
   const t = useTranslations("stock_opname");
   const tCommon = useTranslations("common");
   const isDraftEditable = opname.status === "draft" && canEditDraft;
@@ -65,6 +69,7 @@ export function StockOpnameManagerView({ opname, canEditDraft = false }: Props) 
   const draftQueueRef = useRef<Record<string, DraftLinePayload>>({});
   const flushTimerRef = useRef<number | null>(null);
   const isFlushingRef = useRef(false);
+  const flushPromiseRef = useRef<Promise<boolean> | null>(null);
   const needsRefetchRef = useRef(false);
   const [hasPendingDraft, setHasPendingDraft] = useState(false);
   const [isQueueSaving, setIsQueueSaving] = useState(false);
@@ -118,101 +123,122 @@ export function StockOpnameManagerView({ opname, canEditDraft = false }: Props) 
     });
   }, []);
 
-  const flushDraftQueue = useCallback(async () => {
-    if (!isDraftEditable || isFlushingRef.current) {
-      needsRefetchRef.current = true;
-      return;
+  const flushDraftQueue = useCallback(async (): Promise<boolean> => {
+    if (!isDraftEditable) {
+      return true;
     }
 
-    const snapshot = Object.values(draftQueueRef.current);
-    if (snapshot.length === 0) {
-      return;
+    if (flushPromiseRef.current) {
+      return flushPromiseRef.current;
     }
 
-    isFlushingRef.current = true;
-    setIsQueueSaving(true);
-    draftQueueRef.current = {};
-    setHasPendingDraft(false);
-    if (flushTimerRef.current) {
-      clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
-
-    const itemIds = snapshot.map((line) => line.itemId);
-    setDraftState((prev) => {
-      const next = { ...prev };
-      for (const itemId of itemIds) {
-        next[itemId] = {
-          ...(next[itemId] ?? {
-            physical_qty: null,
-            notes: "",
-            dirty: false,
-            saving: false,
-          }),
-          saving: true,
-          dirty: false,
-        };
+    const runFlush = async (): Promise<boolean> => {
+      if (isFlushingRef.current) {
+        needsRefetchRef.current = true;
+        return true;
       }
-      return next;
+
+      const snapshot = Object.values(draftQueueRef.current);
+      if (snapshot.length === 0) {
+        return true;
+      }
+
+      isFlushingRef.current = true;
+      setIsQueueSaving(true);
+      draftQueueRef.current = {};
+      setHasPendingDraft(false);
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      const itemIds = snapshot.map((line) => line.itemId);
+      setDraftState((prev) => {
+        const next = { ...prev };
+        for (const itemId of itemIds) {
+          next[itemId] = {
+            ...(next[itemId] ?? {
+              physical_qty: null,
+              notes: "",
+              dirty: false,
+              saving: false,
+            }),
+            saving: true,
+            dirty: false,
+          };
+        }
+        return next;
+      });
+
+      let didFail = false;
+      try {
+        await saveLinesMutation.mutateAsync({
+          id: opname.id,
+          data: {
+            items: snapshot.map((line) => ({
+              product_id: line.product_id,
+              system_qty: line.system_qty,
+              physical_qty: line.physical_qty,
+              notes: line.notes,
+            })),
+          },
+        });
+
+        setDraftState((prev) => {
+          const next = { ...prev };
+          for (const itemId of itemIds) {
+            if (!next[itemId]) continue;
+            next[itemId] = {
+              ...next[itemId],
+              saving: false,
+              dirty: false,
+            };
+          }
+          return next;
+        });
+        return true;
+      } catch {
+        draftQueueRef.current = snapshot.reduce<Record<string, DraftLinePayload>>((acc, line) => {
+          acc[line.itemId] = line;
+          return acc;
+        }, {});
+        setHasPendingDraft(true);
+
+        setDraftState((prev) => {
+          const next = { ...prev };
+          for (const itemId of itemIds) {
+            if (!next[itemId]) continue;
+            next[itemId] = {
+              ...next[itemId],
+              saving: false,
+              dirty: true,
+            };
+          }
+          return next;
+        });
+        toast.error(tCommon("error"));
+        didFail = true;
+        return false;
+      } finally {
+        isFlushingRef.current = false;
+        setIsQueueSaving(false);
+        if (!didFail && (needsRefetchRef.current || Object.keys(draftQueueRef.current).length > 0)) {
+          needsRefetchRef.current = false;
+          setHasPendingDraft(Object.keys(draftQueueRef.current).length > 0);
+        }
+      }
+    };
+
+    const promise = runFlush().finally(() => {
+      flushPromiseRef.current = null;
     });
-
-    let didFail = false;
-    try {
-      await saveLinesMutation.mutateAsync({
-        id: opname.id,
-        data: {
-          items: snapshot.map((line) => ({
-            product_id: line.product_id,
-            system_qty: line.system_qty,
-            physical_qty: line.physical_qty,
-            notes: line.notes,
-          })),
-        },
-      });
-
-      setDraftState((prev) => {
-        const next = { ...prev };
-        for (const itemId of itemIds) {
-          if (!next[itemId]) continue;
-          next[itemId] = {
-            ...next[itemId],
-            saving: false,
-            dirty: false,
-          };
-        }
-        return next;
-      });
-    } catch {
-      draftQueueRef.current = snapshot.reduce<Record<string, DraftLinePayload>>((acc, line) => {
-        acc[line.itemId] = line;
-        return acc;
-      }, {});
-      setHasPendingDraft(true);
-
-      setDraftState((prev) => {
-        const next = { ...prev };
-        for (const itemId of itemIds) {
-          if (!next[itemId]) continue;
-          next[itemId] = {
-            ...next[itemId],
-            saving: false,
-            dirty: true,
-          };
-        }
-        return next;
-      });
-      toast.error(tCommon("error"));
-      didFail = true;
-    } finally {
-      isFlushingRef.current = false;
-      setIsQueueSaving(false);
-      if (!didFail && (needsRefetchRef.current || Object.keys(draftQueueRef.current).length > 0)) {
-        needsRefetchRef.current = false;
-        setHasPendingDraft(Object.keys(draftQueueRef.current).length > 0);
-        void flushDraftQueue();
-      }
-    }
+    flushPromiseRef.current = promise;
+    return promise;
   }, [isDraftEditable, opname.id, saveLinesMutation, tCommon]);
+
+  useImperativeHandle(ref, () => ({
+    flushPendingDrafts: flushDraftQueue,
+  }), [flushDraftQueue]);
 
   const queueDraftLine = useCallback((item: (typeof items)[number], physicalQty: number | null, notes: string) => {
     if (!isDraftEditable) {
@@ -512,4 +538,4 @@ export function StockOpnameManagerView({ opname, canEditDraft = false }: Props) 
       </Tabs>
     </div>
   );
-}
+});

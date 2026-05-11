@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,8 @@ export function BudgetForm({ open, onOpenChange, mode, id, initialData }: Props)
       form.reset(defaultValues);
     }
   }, [open, defaultValues, form]);
+
+  const watchedItems = useWatch({ control: form.control, name: "items" }) ?? [];
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
@@ -220,7 +222,7 @@ export function BudgetForm({ open, onOpenChange, mode, id, initialData }: Props)
                     <div className="md:col-span-6 space-y-1">
                       <Label>{t("fields.account")}</Label>
                       <Select
-                        value={form.watch(`items.${idx}.chart_of_account_id`) || ""}
+                        value={watchedItems[idx]?.chart_of_account_id || ""}
                         onValueChange={(v) => form.setValue(`items.${idx}.chart_of_account_id`, v, { shouldDirty: true })}
                       >
                         <SelectTrigger className="cursor-pointer">

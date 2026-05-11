@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -161,4 +162,17 @@ const (
 	// SettingAgingBucketConfig maps to aging report bucket configuration in JSON array format.
 	// Example value: [{"key":"current","label":"Current","min_days":null,"max_days":0}, ...]
 	SettingAgingBucketConfig = "report.aging.bucket_config"
+
+	// Aging report scopes used for report-specific aging configuration.
+	AgingReportTypeAR = "ar"
+	AgingReportTypeAP = "ap"
 )
+
+func AgingBucketConfigSettingKey(reportType string) string {
+	switch strings.ToLower(strings.TrimSpace(reportType)) {
+	case AgingReportTypeAP:
+		return SettingAgingBucketConfig + ".ap"
+	default:
+		return SettingAgingBucketConfig + ".ar"
+	}
+}

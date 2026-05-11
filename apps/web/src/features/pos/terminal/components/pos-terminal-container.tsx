@@ -96,17 +96,6 @@ export function POSTerminalContainer({
   const [loyaltyRewards, setLoyaltyRewards] = useState<RewardConfig[]>([]);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [enrollDefaultName, setEnrollDefaultName] = useState("");
-  const [linkedTable, setLinkedTable] = useState<{
-    id?: string;
-    label?: string;
-  } | null>(
-    initialTableLabel
-      ? {
-          id: initialTableId,
-          label: initialTableLabel,
-        }
-      : null
-  );
 
   const { data: configData } = usePOSConfig(outletId, { enabled: !!outletId });
   const { data: orderData } = usePOSOrder(activeOrderId ?? "", {
@@ -120,6 +109,23 @@ export function POSTerminalContainer({
 
   const config = configData?.data ?? undefined;
   const activeOrder = orderData?.data ?? null;
+  const linkedTable = useMemo(() => {
+    if (activeOrder?.table_label) {
+      return {
+        id: activeOrder.table_id ?? initialTableId,
+        label: activeOrder.table_label,
+      };
+    }
+
+    if (initialTableLabel) {
+      return {
+        id: initialTableId,
+        label: initialTableLabel,
+      };
+    }
+
+    return null;
+  }, [activeOrder?.table_id, activeOrder?.table_label, initialTableId, initialTableLabel]);
   const currentTableLabel = activeOrder?.table_label ?? linkedTable?.label ?? null;
 
   // Compute whether the active order is in a terminal state
@@ -168,15 +174,6 @@ export function POSTerminalContainer({
       setActiveOrderId(null);
     }
   }, [activeOrderId, voidOrder]);
-
-  // Keep table context synchronized with the active order.
-  useEffect(() => {
-    if (!activeOrder?.table_label) return;
-    setLinkedTable((prev) => ({
-      id: activeOrder.table_id ?? prev?.id,
-      label: activeOrder.table_label ?? prev?.label,
-    }));
-  }, [activeOrder?.table_id, activeOrder?.table_label]);
 
   // Order creation is intentionally deferred until the cashier clicks "Pay".
   // This prevents ghost orders on the Live Table when a table is merely opened and items are browsed

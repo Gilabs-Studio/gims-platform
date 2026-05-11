@@ -189,6 +189,12 @@ func SeedFinanceSprint12() error {
 		},
 	}
 
+	// Assign seeded assets to PT Gilabs company
+	gilabsCompanyID := GiLabsCompanyID
+	for j := range assets {
+		assets[j].CompanyID = &gilabsCompanyID
+	}
+
 	for i := range assets {
 		if assets[i].CategoryID == "" || assets[i].LocationID == "" {
 			log.Printf("Warning: Skipping asset %s because category/location is missing", assets[i].Code)
@@ -262,7 +268,7 @@ func SeedFinanceSprint12() error {
 				TransactionDate: ast1.AcquisitionDate,
 				Amount:          ast1.AcquisitionCost,
 				Description:     "Initial acquisition of Laptop - Finance",
-				Status:          financeModels.AssetTransactionStatusApproved,
+				Status:          financeModels.AssetTransactionStatusPosted,
 			},
 			{
 				AssetID:         ast1.ID,
@@ -270,7 +276,7 @@ func SeedFinanceSprint12() error {
 				TransactionDate: now.AddDate(0, -3, 0),
 				Amount:          388889,
 				Description:     fmt.Sprintf("Monthly depreciation %s", now.AddDate(0, -3, 0).Format("Jan 2006")),
-				Status:          financeModels.AssetTransactionStatusApproved,
+				Status:          financeModels.AssetTransactionStatusPosted,
 			},
 		}
 		if ast3.ID != "" {
@@ -280,7 +286,7 @@ func SeedFinanceSprint12() error {
 				TransactionDate: ast3.AcquisitionDate,
 				Amount:          ast3.AcquisitionCost,
 				Description:     "Initial acquisition of Delivery Van",
-				Status:          financeModels.AssetTransactionStatusApproved,
+				Status:          financeModels.AssetTransactionStatusPosted,
 			})
 			transactions = append(transactions, financeModels.AssetTransaction{
 				AssetID:         ast3.ID,
@@ -288,7 +294,7 @@ func SeedFinanceSprint12() error {
 				TransactionDate: now.AddDate(0, -1, 0),
 				Amount:          0,
 				Description:     "Transferred from Head Office to Warehouse",
-				Status:          financeModels.AssetTransactionStatusApproved,
+				Status:          financeModels.AssetTransactionStatusPosted,
 			})
 		}
 

@@ -45,10 +45,7 @@ func SeedPermissions() error {
 
 		// Master Data - Organization
 		{"/master-data/company", "company.read", "View Company", "VIEW", "company"},
-		{"/master-data/company", "company.create", "Create Company", "CREATE", "company"},
 		{"/master-data/company", "company.update", "Edit Company", "EDIT", "company"},
-		{"/master-data/company", "company.delete", "Delete Company", "DELETE", "company"},
-		{"/master-data/company", "company.approve", "Approve Company", "APPROVE", "company"},
 
 		{"/master-data/divisions", "division.read", "View Divisions", "VIEW", "division"},
 		{"/master-data/divisions", "division.create", "Create Divisions", "CREATE", "division"},
@@ -441,6 +438,7 @@ func SeedPermissions() error {
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
 		{"/finance/settings/fiscal-years", "fiscal_year.read", "View Fiscal Years", "VIEW", "fiscal_year"},
 		{"/finance/settings/fiscal-years", "fiscal_year.write", "Manage Fiscal Years", "EDIT", "fiscal_year"},
+		{"/finance/settings/fiscal-years", "fiscal_year.delete", "Delete Fiscal Years", "DELETE", "fiscal_year"},
 		{"/finance/settings/accounting-mapping", "account_mappings.read", "View Account Mappings", "VIEW", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},
@@ -516,8 +514,8 @@ func SeedPermissions() error {
 		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
 		{"/finance/reports/cash-flow-statement", "cash_flow_statement.read", "View Cash Flow Statement", "VIEW", "cash_flow_statement"},
 
-		{"/finance/ar/customer-invoices", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
-		{"/finance/ar/customer-invoices", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
+		{"/finance/journals/sales", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/journals/sales", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
 		{"/finance/ar/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
 		{"/finance/reports/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
 		// HYBRID POLICY: hidden in frontend navigation for now, kept in backend seeder for research.
@@ -551,6 +549,10 @@ func SeedPermissions() error {
 		// Asset Batch Depreciation (Phase 4 PSAK 16)
 		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Preview Batch Depreciation", "DEPRECIATE", "asset"},
 		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Run Batch Depreciation", "DEPRECIATE", "asset"},
+		{"/finance/fixed-assets/depreciation-schedule", "depreciation.read", "View Depreciation Schedule", "VIEW", "depreciation"},
+		{"/finance/fixed-assets/depreciation-schedule", "depreciation.run", "Run Depreciation", "DEPRECIATE", "depreciation"},
+		{"/finance/fixed-assets/depreciation", "depreciation.read", "View Depreciation History", "VIEW", "depreciation"},
+		{"/finance/fixed-assets/depreciation", "depreciation.run", "Run Depreciation", "DEPRECIATE", "depreciation"},
 
 		// Asset Disposal (Phase 4 PSAK 16)
 		{"/finance/fixed-assets/disposal", "asset.update", "Preview Asset Disposal", "EDIT", "asset"},
@@ -721,6 +723,24 @@ func SeedPermissions() error {
 		{"/pos/feedback", "feedback.delete", "Delete Feedback Forms", "DELETE", "feedback"},
 	}
 
+	// Dashboard widget visibility is now derived from menu permissions.
+	// Widgets only show if the user has access to the related menu URL.
+	// No separate dashboard_widget.*.view permissions are created.
+	//
+	// Widget-to-menu mapping (frontend):
+	// - POS widgets (/pos): pos_outlet_sales, pos_live_table_overview, pos_cash_control
+	// - Sales widgets (/sales/orders): total_orders, sales_performance, track_orders, best_selling, revenue_bar_chart, stat_summary_orders, stat_summary_revenue
+	// - Finance/Journal widgets (/finance/journals/*): costs_chart, revenue_vs_costs, balance_overview, costs_by_category, revenue_chart, kpi_*, stat_summary_balance, stat_summary_expense
+	// - Inventory widgets (/stock/inventory): warehouse_overview, kpi_dio, kpi_inventory_turnover
+	// - Customer Invoice widgets (/sales/invoices): invoices_summary, recent_invoices, kpi_ar_days
+	// - Purchase widgets (/purchase/purchase-orders): track_purchase_orders, pending_approvals_purchase
+	// - Delivery widgets (/sales/delivery-orders): delivery_status, kpi_cost_per_delivery, kpi_utilization_rate, kpi_otd_rate
+	// - Employee widgets (/master-data/employees): employee_count
+	// - Customer widgets (/master-data/customers): total_customers
+	// - CRM widgets (/crm/*): crm_total_contacts, crm_active_leads, crm_deals_overview, crm_activity_summary
+	// - Travel Planner widgets (/travel/*): travel_planner_overview
+	// - HR widgets (/hrd/*): hr_attendance_today, hr_pending_leaves
+
 	// Build menu URL to ID map
 	menuMap := make(map[string]string)
 	var allMenus []permission.Menu
@@ -780,6 +800,8 @@ func SeedPermissions() error {
 
 	// Remove legacy permissions whose pages were removed from dashboard.
 	removeDeprecatedPermissions([]string{
+		"company.create",
+		"company.delete",
 		"sales_estimation.read",
 		"sales_estimation.create",
 		"sales_estimation.update",
@@ -862,51 +884,87 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
 	assignScopedPermissionsToRole("manager", map[string]string{
-		"sales":             "DIVISION",
-		"purchase":          "DIVISION",
-		"hrd":               "DIVISION",
-		"finance":           "DIVISION",
-		"account_mappings":  "DIVISION",
-		"non_trade_payable": "DIVISION",
-		"travel_visit":      "DIVISION",
-		"pos":               "OWN",
-		"stock":             "ALL",
+		"sales":                 "DIVISION",
+		"purchase":              "DIVISION",
+		"hrd":                   "DIVISION",
+		"finance":               "DIVISION",
+		"financial_closing":     "DIVISION",
+		"general_ledger_report": "DIVISION",
+		"trial_balance_report":  "DIVISION",
+		"balance_sheet_report":  "DIVISION",
+		"profit_loss_report":    "DIVISION",
+		"cash_flow_statement":   "DIVISION",
+		"adjustment_journal":    "DIVISION",
+		"purchase_journal":      "DIVISION",
+		"cash_bank_transaction": "DIVISION",
+		"account_mappings":      "DIVISION",
+		"non_trade_payable":     "DIVISION",
+		"travel_visit":          "DIVISION",
+		"pos":                   "OWN",
+		"stock":                 "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
 	assignScopedPermissionsToRole("staff", map[string]string{
-		"sales":             "OWN",
-		"purchase":          "OWN",
-		"hrd":               "OWN",
-		"finance":           "OWN",
-		"account_mappings":  "OWN",
-		"non_trade_payable": "OWN",
-		"travel_visit":      "OWN",
-		"pos":               "OWN",
-		"stock":             "OWN",
+		"sales":                 "OWN",
+		"purchase":              "OWN",
+		"hrd":                   "OWN",
+		"finance":               "OWN",
+		"financial_closing":     "OWN",
+		"general_ledger_report": "OWN",
+		"trial_balance_report":  "OWN",
+		"balance_sheet_report":  "OWN",
+		"profit_loss_report":    "OWN",
+		"cash_flow_statement":   "OWN",
+		"adjustment_journal":    "OWN",
+		"purchase_journal":      "OWN",
+		"cash_bank_transaction": "OWN",
+		"account_mappings":      "OWN",
+		"non_trade_payable":     "OWN",
+		"travel_visit":          "OWN",
+		"pos":                   "OWN",
+		"stock":                 "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
 	assignScopedPermissionsToRole("area_supervisor", map[string]string{
-		"sales":            "AREA",
-		"purchase":         "DIVISION",
-		"hrd":              "OWN",
-		"finance":          "OWN",
-		"account_mappings": "OWN",
-		"travel_visit":     "DIVISION",
-		"pos":              "OWN",
-		"stock":            "AREA",
+		"sales":                 "AREA",
+		"purchase":              "DIVISION",
+		"hrd":                   "OWN",
+		"finance":               "OWN",
+		"financial_closing":     "OWN",
+		"general_ledger_report": "OWN",
+		"trial_balance_report":  "OWN",
+		"balance_sheet_report":  "OWN",
+		"profit_loss_report":    "OWN",
+		"cash_flow_statement":   "OWN",
+		"adjustment_journal":    "OWN",
+		"purchase_journal":      "OWN",
+		"cash_bank_transaction": "OWN",
+		"account_mappings":      "OWN",
+		"travel_visit":          "DIVISION",
+		"pos":                   "OWN",
+		"stock":                 "AREA",
 	}, "ALL")
 
 	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
 	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":            "ALL",
-		"purchase":         "DIVISION",
-		"hrd":              "OWN",
-		"finance":          "OWN",
-		"account_mappings": "OWN",
-		"travel_visit":     "ALL",
-		"stock":            "ALL",
+		"sales":                 "ALL",
+		"purchase":              "DIVISION",
+		"hrd":                   "OWN",
+		"finance":               "OWN",
+		"financial_closing":     "OWN",
+		"general_ledger_report": "OWN",
+		"trial_balance_report":  "OWN",
+		"balance_sheet_report":  "OWN",
+		"profit_loss_report":    "OWN",
+		"cash_flow_statement":   "OWN",
+		"adjustment_journal":    "OWN",
+		"purchase_journal":      "OWN",
+		"cash_bank_transaction": "OWN",
+		"account_mappings":      "OWN",
+		"travel_visit":          "ALL",
+		"stock":                 "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
@@ -919,13 +977,18 @@ func SeedPermissions() error {
 		"hrd":               "OWN",
 		"travel_visit":      "OWN",
 		"stock":             "OWN",
-		// Finance journal domain pages — explicit DIVISION scope
-		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
-		//  standard module prefix, so they must be mapped explicitly)
-		"adjustment_journal": "DIVISION",
-		"journal_template":   "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
+		// Explicit finance resources that do not share the "finance" resource prefix.
+		"financial_closing":     "DIVISION",
+		"general_ledger_report": "DIVISION",
+		"trial_balance_report":  "DIVISION",
+		"balance_sheet_report":  "DIVISION",
+		"profit_loss_report":    "DIVISION",
+		"cash_flow_statement":   "DIVISION",
+		"adjustment_journal":    "DIVISION",
+		"journal_template":      "DIVISION",
+		"journal_valuation":     "DIVISION",
+		"purchase_journal":      "DIVISION",
+		"cash_bank_transaction": "DIVISION",
 	}, "ALL")
 
 	assignScopedPermissionsToRole("accountant", map[string]string{
@@ -937,11 +1000,18 @@ func SeedPermissions() error {
 		"hrd":               "OWN",
 		"travel_visit":      "OWN",
 		"stock":             "OWN",
-		// Finance journal domain pages — Accountant operates at DIVISION level
-		"adjustment_journal": "DIVISION",
-		"journal_template":   "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
+		// Explicit finance resources that do not share the "finance" resource prefix.
+		"financial_closing":     "DIVISION",
+		"general_ledger_report": "DIVISION",
+		"trial_balance_report":  "DIVISION",
+		"balance_sheet_report":  "DIVISION",
+		"profit_loss_report":    "DIVISION",
+		"cash_flow_statement":   "DIVISION",
+		"adjustment_journal":    "DIVISION",
+		"journal_template":      "DIVISION",
+		"journal_valuation":     "DIVISION",
+		"purchase_journal":      "DIVISION",
+		"cash_bank_transaction": "DIVISION",
 	}, "OWN")
 	assignViewPermissionsToRole("auditor", "ALL")
 

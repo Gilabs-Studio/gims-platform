@@ -20,7 +20,7 @@ const (
 
 type UpCountryCost struct {
 	ID        string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID  string              `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code      string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Purpose   string              `gorm:"type:varchar(255)" json:"purpose"`
 	Location  string              `gorm:"type:varchar(255)" json:"location"`
@@ -102,11 +102,11 @@ const (
 )
 
 type UpCountryCostItem struct {
-	ID              string   `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	UpCountryCostID string   `gorm:"type:uuid;not null;index" json:"up_country_cost_id"`
-	CostType        CostType `gorm:"type:varchar(50);not null" json:"cost_type"`
-	Description     string   `gorm:"type:text" json:"description"`
-	Amount          float64  `gorm:"type:numeric(18,2);default:0" json:"amount"`
+	ID              string     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	UpCountryCostID string     `gorm:"type:uuid;not null;index" json:"up_country_cost_id"`
+	CostType        CostType   `gorm:"type:varchar(50);not null" json:"cost_type"`
+	Description     string     `gorm:"type:text" json:"description"`
+	Amount          float64    `gorm:"type:numeric(18,2);default:0" json:"amount"`
 	ExpenseDate     *time.Time `gorm:"type:date" json:"expense_date"`
 
 	CreatedAt time.Time      `json:"created_at"`

@@ -67,3 +67,11 @@ type ListUsersRequest struct {
 	Status  string `form:"status" binding:"omitempty,oneof=active inactive"`
 	RoleID  string `form:"role_id" binding:"omitempty,uuid"`
 }
+
+// TenantDeletionScheduleResponse describes a scheduled tenant data deletion window.
+type TenantDeletionScheduleResponse struct {
+	TenantID            string `json:"tenant_id"`
+	DeletionRequestedAt string `json:"deletion_requested_at"`
+	DeletionScheduledAt string `json:"deletion_scheduled_at"`
+	GracePeriodDays     int    `json:"grace_period_days"`
+}

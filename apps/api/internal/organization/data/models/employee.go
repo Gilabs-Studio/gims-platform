@@ -89,6 +89,12 @@ type Employee struct {
 	// It is set to true when at least one EmployeeArea record has IsSupervisor=true.
 	IsAreaSupervisor bool `gorm:"-" json:"is_area_supervisor"`
 
+	// Outlet assignments (M:N via EmployeeOutlet)
+	Outlets []EmployeeOutlet `gorm:"foreignKey:EmployeeID" json:"outlets,omitempty"`
+
+	// Warehouse assignments (M:N via EmployeeWarehouse — includes auto-selected from outlets)
+	Warehouses []EmployeeWarehouse `gorm:"foreignKey:EmployeeID" json:"warehouses,omitempty"`
+
 	// Creator tracking
 	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`
 

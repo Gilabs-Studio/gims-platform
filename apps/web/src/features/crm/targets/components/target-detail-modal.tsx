@@ -61,7 +61,7 @@ export function TargetDetailModal({
       await deleteTarget.mutateAsync(target.id);
       toast.success(t("deleted"));
       onClose();
-    } catch (error) {
+    } catch {
       toast.error(t("common.error"));
     }
   };

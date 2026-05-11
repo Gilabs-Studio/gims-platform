@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
+import { formatDate, resolveImageUrl } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { InventoryStockItem } from "../types";
 import { useInventoryTreeBatches } from "../hooks/use-inventory-tree";
@@ -140,9 +141,11 @@ export function InventoryDetailDialog({
            <div className="flex gap-4">
               <div className="h-20 w-20 shrink-0 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
                   {item.product_image_url ? (
-                      <img 
-                        src={resolveImageUrl(item.product_image_url)} 
+                      <Image
+                        src={resolveImageUrl(item.product_image_url) ?? ""}
                         alt={item.product_name}
+                        width={80}
+                        height={80}
                         className="h-full w-full object-cover"
                       />
                   ) : (

@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
@@ -70,7 +69,7 @@ var journalLineAllowedSort = map[string]string{
 func (r *journalLineRepository) List(ctx context.Context, params JournalLineListParams) ([]JournalLineWithEntry, int64, error) {
 	// If filtering by cash bank journal, use cash_bank_journal_lines directly (does not always have a journal_entry_id).
 	if id := strings.TrimSpace(params.CashBankJournalID); id != "" {
-		baseQuery := database.GetDB(ctx, r.db).
+		baseQuery := r.db.WithContext(ctx).
 			Table("cash_bank_journal_lines AS cbl").
 			Joins("JOIN cash_bank_journals cbj ON cbj.id = cbl.cash_bank_journal_id AND cbj.deleted_at IS NULL").
 			Joins("LEFT JOIN chart_of_accounts coa ON coa.id = cbl.chart_of_account_id").
@@ -78,6 +77,8 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 			Where("cbj.id = ?", id)
 
 		// Apply scope-based data filtering (based on cash bank journal scope)
+		// Ensure tenant qualification to avoid ambiguous tenant_id in JOINs
+		baseQuery = applyQualifiedTenantFilter(ctx, baseQuery, "cbl.tenant_id", "cbj.tenant_id", "coa.tenant_id")
 		baseQuery = security.ApplyScopeFilter(baseQuery, ctx, security.FinanceScopeQueryOptions())
 
 		// Count total
@@ -118,12 +119,13 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 		return items, total, nil
 	}
 
-	baseQuery := database.GetDB(ctx, r.db).
+	baseQuery := r.db.WithContext(ctx).
 		Table("journal_lines AS jl").
 		Joins("JOIN journal_entries AS je ON je.id = jl.journal_entry_id AND je.deleted_at IS NULL").
 		Where("jl.deleted_at IS NULL")
 
 	// Apply scope-based data filtering
+	baseQuery = applyQualifiedTenantFilter(ctx, baseQuery, "jl.tenant_id", "je.tenant_id")
 	baseQuery = security.ApplyScopeFilter(baseQuery, ctx, security.FinanceScopeQueryOptions())
 
 	// Apply filters
@@ -216,7 +218,7 @@ func (r *journalLineRepository) SumBeforeDate(ctx context.Context, coaID string,
 	}
 	var res result
 
-	q := database.GetDB(ctx, r.db).
+	q := r.db.WithContext(ctx).
 		Table("journal_lines AS jl").
 		Select("COALESCE(SUM(jl.debit), 0) AS debit_sum, COALESCE(SUM(jl.credit), 0) AS credit_sum").
 		Joins("JOIN journal_entries AS je ON je.id = jl.journal_entry_id AND je.deleted_at IS NULL").
@@ -228,6 +230,10 @@ func (r *journalLineRepository) SumBeforeDate(ctx context.Context, coaID string,
 		q = q.Where("je.status = ?", js)
 	}
 
+	// Apply tenant qualification
+	q = applyQualifiedTenantFilter(ctx, q, "jl.tenant_id", "je.tenant_id")
+	// Apply permission-based scope filtering (OWN/DIVISION/AREA/ALL)
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if err := q.Scan(&res).Error; err != nil {
 		return 0, 0, err
 	}

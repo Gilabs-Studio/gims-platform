@@ -143,7 +143,8 @@ export const DynamicIcon: React.FC<IconProps> = ({
  * Legacy function - maintained for backward compatibility
  * @deprecated Use DynamicIcon component instead
  */
-export const getIcon = (_iconName: string) => {
+export const getIcon = (iconName: string) => {
+  void iconName;
   console.warn("getIcon is deprecated. Use DynamicIcon component instead.");
   return Circle; // Return fallback
 };

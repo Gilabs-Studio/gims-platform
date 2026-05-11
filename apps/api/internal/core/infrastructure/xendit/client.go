@@ -208,6 +208,51 @@ func (c *Client) CreateCustomer(ctx context.Context, req CreateCustomerRequest) 
 	return doPost[CustomerResponse](ctx, c, "/customers", req)
 }
 
+// ─── Card Tokenization API ───────────────────────────────────────────────────
+
+// CardTokenData is the card token object stored from Xendit.js tokenization.
+// The frontend collects card details via Xendit.js, which returns a token_id.
+// This token_id is sent to our backend and stored here — never the raw card data.
+type CardTokenData struct {
+	ID              string `json:"id"`               // Xendit token ID (xnd_...)
+	Status          string `json:"status"`           // "VALID", "INVALID"
+	MaskedCardNumber string `json:"masked_card_number"` // e.g. "400000XXXXXX0002"
+	CardBrand       string `json:"card_brand"`       // "VISA", "MASTERCARD", etc.
+	CardHolderName  string `json:"card_holder_name"`
+	ExpiryMonth     int    `json:"expiry_month"`
+	ExpiryYear      int    `json:"expiry_year"`
+}
+
+// GetCardToken retrieves a card token by its ID to verify validity and card details.
+func (c *Client) GetCardToken(ctx context.Context, tokenID string) (*CardTokenData, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		c.baseURL+"/v2/tokens/"+tokenID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: build get-token request: %w", err)
+	}
+	httpReq.SetBasicAuth(c.secretKey, "")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: http get-token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("xendit: read get-token response: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("xendit: API error %d on get-token: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result CardTokenData
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("xendit: parse get-token response: %w", err)
+	}
+	return &result, nil
+}
+
 // CreateRecurringPlan registers a recurring billing plan in Xendit.
 func (c *Client) CreateRecurringPlan(ctx context.Context, req CreateRecurringPlanRequest) (*RecurringPlanResponse, error) {
 	return doPost[RecurringPlanResponse](ctx, c, subscriptionPath, req)

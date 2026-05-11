@@ -11,7 +11,6 @@ import {
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import {
@@ -38,13 +37,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 import {
   useFeedbackForms,
   useFeedbackResponse,
   useFeedbackResponses,
 } from "../hooks/use-feedback";
-import type { AnswerValue, FeedbackResponseItem } from "../types";
+import type { FeedbackResponseItem } from "../types";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import type { SalesOrder } from "@/features/sales/order/types";
@@ -52,12 +52,12 @@ import type { SalesOrder } from "@/features/sales/order/types";
 export function FeedbackResponseList() {
   const t = useTranslations("feedback.responses");
   const tCommon = useTranslations("common");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [filterOutletId, setFilterOutletId] = useState<string | undefined>();
   const [filterFormId, setFilterFormId] = useState<string | undefined>();
 
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -68,7 +68,6 @@ export function FeedbackResponseList() {
   const { data, isLoading, isError, refetch } = useFeedbackResponses({
     page,
     per_page: pageSize,
-    outlet_id: filterOutletId,
     form_id: filterFormId,
     search: debouncedSearch || undefined,
   });
@@ -84,6 +83,8 @@ export function FeedbackResponseList() {
   const pagination = data?.meta?.pagination;
   const forms = formsData?.data ?? [];
 
+  // Removed debug logging for feedback responses
+
   function openDetail(id: string) {
     setDetailId(id);
     setDetailOpen(true);
@@ -92,11 +93,6 @@ export function FeedbackResponseList() {
   function openSalesOrder(orderId: string) {
     setSelectedSalesOrderId(orderId);
     setIsSalesOrderDetailOpen(true);
-  }
-
-  function formatAnswerValue(val: AnswerValue): string {
-    if (Array.isArray(val)) return val.join(", ");
-    return String(val);
   }
 
   if (isError) {
@@ -168,7 +164,7 @@ export function FeedbackResponseList() {
               <TableHead>{t("orderId")}</TableHead>
               <TableHead>{t("avgScore")}</TableHead>
               <TableHead>{t("submittedAt")}</TableHead>
-              <TableHead className="w-[80px]">{tCommon("actions")}</TableHead>
+              <TableHead className="w-20">{tCommon("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -211,11 +207,15 @@ export function FeedbackResponseList() {
                     <TableCell>{item.customer_name ?? "—"}</TableCell>
                     <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
                     <TableCell>
-                      {item.pos_order_id ? (
+                      {item.sales_order_id && canViewSalesOrder ? (
                         <SalesOrderLink
-                          orderId={item.pos_order_id}
+                          orderId={item.sales_order_id}
                           onOpen={openSalesOrder}
                         />
+                      ) : item.sales_order_id ? (
+                        item.sales_order_id
+                      ) : item.pos_order_id ? (
+                        item.pos_order_id
                       ) : (
                         "—"
                       )}
@@ -344,10 +344,10 @@ function DetailContent({ item }: { item: FeedbackResponseItem }) {
             <TableCell className="text-muted-foreground font-medium">{t("outlet")}</TableCell>
             <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
           </TableRow>
-          {item.pos_order_id && (
+          {(item.sales_order_id || item.pos_order_id) && (
             <TableRow>
               <TableCell className="text-muted-foreground font-medium">{t("orderId")}</TableCell>
-              <TableCell>{item.pos_order_id}</TableCell>
+              <TableCell>{item.sales_order_id ?? item.pos_order_id}</TableCell>
             </TableRow>
           )}
           {item.avg_score != null && (

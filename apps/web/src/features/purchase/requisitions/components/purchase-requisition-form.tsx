@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import type { Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
@@ -122,7 +122,6 @@ function getContactPhone(contact: Record<string, unknown>): string {
 	const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
 	return phone;
 }
-
 type QuickCreateType = "supplier" | "paymentTerm" | "businessUnit" | "employee" | "product" | null;
 
 interface PurchaseRequisitionFormProps {
@@ -763,7 +762,11 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																		hasMore={productsCombobox.hasMore}
 																		isLoadingMore={productsCombobox.isLoadingMore}
 																		searchDebounceMs={300}
-																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })).filter((o) => {
+																			const currentVal = watchedItems?.[idx]?.product_id;
+																			if (o.value === currentVal) return true;
+																			return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+																		})}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
 																		createLabel={t("actions.createNew") || "Create Product"}

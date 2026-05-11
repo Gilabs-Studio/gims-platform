@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
+import { purchaseOrderKeys } from "@/features/purchase/orders/hooks/use-purchase-orders";
+import { supplierInvoiceDPKeys } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import type {
   CreatePurchaseRequisitionInput,
   PurchaseRequisitionListParams,
@@ -147,6 +149,8 @@ export function useConvertPurchaseRequisition() {
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseRequisitionKeys.detail(id) });
       invalidateRequisitionAuditTrail(queryClient, id);
+      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.addData() });
     },
   });
 }

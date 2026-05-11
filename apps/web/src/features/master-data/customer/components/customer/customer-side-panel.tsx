@@ -1,7 +1,7 @@
 "use client";
 
 import { Drawer } from "@/components/ui/drawer";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, startTransition } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -197,28 +197,30 @@ export function CustomerSidePanel({
         });
       });
     } else if (mode === "create") {
-      setDraftContacts([]);
-      reset({
-        name: initialData?.name ?? "",
-        customer_type_id: "",
-        address: "",
-        email: "",
-        website: "",
-        npwp: "",
-        notes: "",
-        village_name: "",
-        province_id: undefined,
-        city_id: undefined,
-        district_id: undefined,
-        latitude: null,
-        longitude: null,
-        bank_accounts: [],
-        default_business_type_id: "",
-        default_sales_rep_id: "",
-        default_payment_terms_id: "",
-        default_tax_rate: null,
-        credit_limit: 0,
-        credit_is_active: false,
+      startTransition(() => {
+        setDraftContacts([]);
+        reset({
+          name: initialData?.name ?? "",
+          customer_type_id: "",
+          address: "",
+          email: "",
+          website: "",
+          npwp: "",
+          notes: "",
+          village_name: "",
+          province_id: undefined,
+          city_id: undefined,
+          district_id: undefined,
+          latitude: null,
+          longitude: null,
+          bank_accounts: [],
+          default_business_type_id: "",
+          default_sales_rep_id: "",
+          default_payment_terms_id: "",
+          default_tax_rate: null,
+          credit_limit: 0,
+          credit_is_active: false,
+        });
       });
     }
     return () => clearTimeout(_timer);
@@ -397,6 +399,7 @@ export function CustomerSidePanel({
           </TabsList>
         }
       >
+        {/* eslint-disable-next-line react-hooks/refs */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20 p-4">
           <TabsContent forceMount value="general" className="space-y-6 data-[state=inactive]:hidden">
             <div className="space-y-4">

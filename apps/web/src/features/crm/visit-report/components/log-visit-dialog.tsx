@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, startTransition } from "react";
 import { useTranslations } from "next-intl";
 import { MapPin, Loader2, Camera, X, Check, CalendarIcon, Plus, Trash2, Package } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -117,7 +117,7 @@ export function LogVisitDialog({
   const uploadImageMutation = useUploadVisitImage();
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions = formDataRes?.data?.interest_questions ?? [];
+  const questions = useMemo(() => formDataRes?.data?.interest_questions ?? [], [formDataRes?.data?.interest_questions]);
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", { enabled: open && !!leadId });
@@ -173,13 +173,15 @@ export function LogVisitDialog({
   // Initialize fields from props when dialog opens
   useEffect(() => {
     if (open) {
-      const now = new Date();
-      setSelectedDate(now);
-      setSelectedTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
-      setCalendarOpen(false);
-      setContactPerson(defaultContactPerson ?? "");
-      setContactPhone(normalizePhoneInput(defaultContactPhone ?? ""));
-      setSelectedContactId("");
+      startTransition(() => {
+        const now = new Date();
+        setSelectedDate(now);
+        setSelectedTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+        setCalendarOpen(false);
+        setContactPerson(defaultContactPerson ?? "");
+        setContactPhone(normalizePhoneInput(defaultContactPhone ?? ""));
+        setSelectedContactId("");
+      });
     }
   }, [open, defaultContactPerson, defaultContactPhone]);
 
@@ -223,7 +225,8 @@ export function LogVisitDialog({
     // Mark as initialised before calling setProductItems to prevent concurrent effect runs.
     productItemsInitializedRef.current = true;
 
-    setProductItems((prev) => {
+    startTransition(() => {
+      setProductItems((prev) => {
       const merged = new Map<string, ProductInterestItem>();
 
       if (latestProductMap) {
@@ -270,19 +273,22 @@ export function LogVisitDialog({
       }
       return Array.from(merged.values());
     });
+    });
   }, [open, recentActivitiesRes, leadProductItemsRes]);
 
   // Recalculate interest_level once questions load (async timing fix)
   // The pre-populate effect may run before questions are fetched, leaving interest_level = 0
   useEffect(() => {
     if (!questions.length) return;
-    setProductItems((prev) =>
-      prev.map((p) =>
-        p.answers.length > 0
-          ? { ...p, interest_level: calculateInterest(p.answers) }
-          : p,
-      ),
-    );
+    startTransition(() => {
+      setProductItems((prev) =>
+        prev.map((p) =>
+          p.answers.length > 0
+            ? { ...p, interest_level: calculateInterest(p.answers) }
+            : p,
+        ),
+      );
+    });
   // calculateInterest is stable (depends on questions which is the trigger here)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions]);
@@ -355,7 +361,7 @@ export function LogVisitDialog({
     try {
       const urls: string[] = [];
       for (const file of filesToUpload) {
-        const res = await uploadImageMutation.mutateAsync(file);
+        const res = await uploadImageMutation.mutateAsync({ file, visitId: "temp" });
         if (res.data?.url) {
           urls.push(res.data.url);
         }
@@ -448,6 +454,8 @@ export function LogVisitDialog({
         qc.invalidateQueries({ queryKey: leadKeys.all });
       }
       if (dealId) {
+        qc.invalidateQueries({ queryKey: dealKeys.productItems(dealId) });
+        qc.invalidateQueries({ queryKey: dealKeys.detail(dealId) });
         qc.invalidateQueries({ queryKey: dealKeys.all });
       }
       qc.invalidateQueries({ queryKey: travelPlannerKeys.availableVisitsBase() });

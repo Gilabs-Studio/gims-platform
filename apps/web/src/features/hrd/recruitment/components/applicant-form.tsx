@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/ui/file-upload";
 import {
@@ -98,7 +97,7 @@ export function ApplicantForm({
   const createMutation = useCreateApplicant();
   const updateMutation = useUpdateApplicant();
 
-  const stages = stagesData?.data || [];
+  const stages = useMemo(() => stagesData?.data || [], [stagesData?.data]);
   const isEditing = !!applicant;
   const applicantSources = useApplicantSources(t);
 
@@ -176,7 +175,7 @@ export function ApplicantForm({
         });
       }
       onClose();
-    } catch (error) {
+    } catch {
       // Error is handled by the mutation
     }
   };

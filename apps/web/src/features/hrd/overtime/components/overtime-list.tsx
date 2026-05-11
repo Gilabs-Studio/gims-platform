@@ -32,7 +32,6 @@ import {
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
   MoreHorizontal,
-  Plus,
   Search,
   Eye,
   Clock,
@@ -49,7 +48,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { OvertimeRequest, OvertimeStatus, OvertimeType } from "../types";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import {
   Dialog,
@@ -101,7 +100,6 @@ export function OvertimeList() {
 
   const t = useTranslations("hrd.overtime");
   const tCommon = useTranslations("common");
-  const locale = useLocale();
 
   // Calculate date range based on month/year filters for list view
   const dateFrom = `${yearFilter}-${String(monthFilter).padStart(2, "0")}-01`;
@@ -126,8 +124,6 @@ export function OvertimeList() {
   // Calendar hook
   const calendar = useOvertimeCalendar();
 
-  const canCreate = useUserPermission("overtime.create");
-  const canUpdate = useUserPermission("overtime.update");
   const canDelete = useUserPermission("overtime.delete");
   const canView = useUserPermission("overtime.read");
   const canApprove = useUserPermission("overtime.approve");
@@ -228,10 +224,6 @@ export function OvertimeList() {
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
-  };
-
-  const canEditRecord = (record: OvertimeRequest) => {
-    return record.status === "PENDING" && canUpdate;
   };
 
   const canDeleteRecord = (record: OvertimeRequest) => {

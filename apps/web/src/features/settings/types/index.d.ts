@@ -37,6 +37,18 @@ export interface AvatarUploadApiResponse {
   meta: Meta;
 }
 
+export interface TenantDeletionScheduleResponse {
+  tenant_id: string;
+  deletion_requested_at: string;
+  deletion_scheduled_at: string;
+  grace_period_days: number;
+}
+
+export interface TenantDeletionScheduleApiResponse {
+  data: TenantDeletionScheduleResponse;
+  meta: Meta;
+}
+
 // Dashboard Metrics Types
 export interface CheckInLocationsSummary {
   total_locations: number;

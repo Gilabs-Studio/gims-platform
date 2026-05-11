@@ -26,7 +26,7 @@ const (
 
 type ChartOfAccount struct {
 	ID       string      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID string      `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code     string      `gorm:"type:varchar(50);not null;index" json:"code"`
 	Name     string      `gorm:"type:varchar(200);not null;index" json:"name"`
 	Type     AccountType `gorm:"type:varchar(20);not null;index" json:"type"`
@@ -34,9 +34,9 @@ type ChartOfAccount struct {
 	Parent   *ChartOfAccount
 	Children []ChartOfAccount `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 
-	IsActive       bool       `gorm:"default:true;index" json:"is_active"`
-	IsPostable     bool       `gorm:"default:true;index" json:"is_postable"`
-	IsProtected    bool       `gorm:"default:false;index" json:"is_protected"`
+	IsActive    bool `gorm:"default:true;index" json:"is_active"`
+	IsPostable  bool `gorm:"default:true;index" json:"is_postable"`
+	IsProtected bool `gorm:"default:false;index" json:"is_protected"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

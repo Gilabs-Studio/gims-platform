@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMyActivities } from "../hooks/use-activities";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { aggregateVisitProducts, getActivityTypeIcon, parseVisitMetadata } from "../utils";
 import { VisitActivityCard } from "./visit-activity-card";
@@ -58,8 +59,12 @@ export function ActivityFeedDialog({
     ...(typeFilter !== "all" ? { activity_type_id: typeFilter } : {}),
   };
 
+  const { user } = useAuthStore();
+  const hasEmployee = !!user?.employee_id;
+
+  // Only call backend when drawer is open and user has linked employee profile
   const { data, isLoading, isError } = useMyActivities(params, {
-    enabled: open,
+    enabled: open && hasEmployee,
   });
   const { data: typesData } = useActivityTypes({
     per_page: 20,
@@ -124,6 +129,11 @@ export function ActivityFeedDialog({
                   <div className="h-3 w-3/4 rounded bg-muted" />
                 </div>
               ))}
+            </div>
+          ) : !hasEmployee ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+              <Package className="h-8 w-8 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">{t("noEmployeeProfile")}</p>
             </div>
           ) : isError ? (
             <div className="flex flex-col items-center justify-center py-10 text-center gap-2">

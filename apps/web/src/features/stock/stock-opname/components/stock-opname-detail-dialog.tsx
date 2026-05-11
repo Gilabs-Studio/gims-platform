@@ -2,7 +2,7 @@
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,

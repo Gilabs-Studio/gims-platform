@@ -125,9 +125,16 @@ export const navigationConfig: NavItem[] = [
         permission: "crm_area_mapping.read",
       },
       {
+        name: "Yearly Target",
+        i18nKey: "yearlyTarget",
+        url: "/crm/targets",
+        icon: "target",
+        permission: "sales_target.read", // Shared for now until yearly_target has its own perms
+      },
+      {
         name: "Sales Target",
         i18nKey: "salesTarget",
-        url: "/crm/targets",
+        url: "/crm/sales-targets",
         icon: "check-square",
         permission: "sales_target.read",
       },
@@ -419,20 +426,6 @@ export const navigationConfig: NavItem[] = [
         icon: "receipt",
         children: [
           {
-            name: "Customer Payments",
-            i18nKey: "payments",
-            url: "/finance/ar/customer-payments",
-            icon: "credit-card",
-            permission: "payment.read",
-          },
-          {
-            name: "Credit Notes",
-            i18nKey: "returns",
-            url: "/finance/ar/credit-notes",
-            icon: "rotate-ccw",
-            permission: "sales_return.read",
-          },
-          {
             name: "AR Aging Reports",
             i18nKey: "agingReports",
             url: "/finance/ar/aging-reports",
@@ -447,20 +440,6 @@ export const navigationConfig: NavItem[] = [
         url: "",
         icon: "receipt",
         children: [
-          {
-            name: "Supplier Payments",
-            i18nKey: "payments",
-            url: "/finance/ap/supplier-payments",
-            icon: "credit-card",
-            permission: "payment.read",
-          },
-          {
-            name: "Debit Notes",
-            i18nKey: "returns",
-            url: "/finance/ap/debit-notes",
-            icon: "rotate-ccw",
-            permission: "purchase_return.read",
-          },
           {
             name: "Non-Trade Payables",
             i18nKey: "nonTradePayables",
@@ -514,7 +493,7 @@ export const navigationConfig: NavItem[] = [
         ],
       },
       {
-        name: "Fixed Assets",
+        name: "Asset Management",
         i18nKey: "fixedAssets",
         url: "",
         icon: "building-2",

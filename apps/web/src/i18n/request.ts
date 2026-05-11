@@ -54,6 +54,8 @@ import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
 import { targetsEn } from "@/features/crm/targets/i18n/en";
 import { targetsId } from "@/features/crm/targets/i18n/id";
+import { salesTargetsEn } from "@/features/crm/sales-targets/i18n/en";
+import { salesTargetsId } from "@/features/crm/sales-targets/i18n/id";
 import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
 import { inventoryEn } from "@/features/stock/inventory/i18n/en";
@@ -227,8 +229,7 @@ const messages = {
     customerInvoiceDP: customerInvoiceDPEn,
     ...commandPaletteEn,
     ...targetsEn,
-    ...targetsEn,
-    ...targetsEn,
+    ...salesTargetsEn,
     ...hrdEn,
     ...inventoryEn,
     stock_ledger: stockLedgerEn,
@@ -326,7 +327,7 @@ const messages = {
     customerInvoiceDP: customerInvoiceDPId,
     ...commandPaletteId,
     ...targetsId,
-    ...targetsId,
+    ...salesTargetsId,
     ...hrdId,
     ...inventoryId,
     stock_ledger: stockLedgerId,

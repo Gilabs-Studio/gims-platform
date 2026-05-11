@@ -4,6 +4,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -54,7 +55,8 @@ func (r *taxConfigurationRepository) Update(ctx context.Context, item *financeMo
 
 func (r *taxConfigurationRepository) FindByID(ctx context.Context, id string) (*financeModels.TaxConfiguration, error) {
 	var item financeModels.TaxConfiguration
-	if err := r.getDB(ctx).First(&item, "id = ?", id).Error; err != nil {
+	q := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.TaxConfiguration{}), ctx, security.FinanceScopeQueryOptions())
+	if err := q.First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -68,7 +70,7 @@ func (r *taxConfigurationRepository) List(ctx context.Context, params TaxConfigu
 		params.PerPage = 20
 	}
 
-	query := r.getDB(ctx).Model(&financeModels.TaxConfiguration{}).Where("company_id = ?", params.CompanyID)
+	query := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.TaxConfiguration{}), ctx, security.FinanceScopeQueryOptions()).Where("company_id = ?", params.CompanyID)
 	if params.TaxType != nil {
 		query = query.Where("tax_type = ?", *params.TaxType)
 	}

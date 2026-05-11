@@ -553,11 +553,11 @@ export function FeedbackFormBuilder() {
     per_page: 50,
   });
   const { data: outletsData } = useOutlets({ per_page: 100 });
-  const outlets = outletsData?.data ?? [];
+  const outlets = useMemo(() => outletsData?.data ?? [], [outletsData]);
 
   const deleteMutation = useDeleteFeedbackForm();
   const copyMutation = useCopyFeedbackForm();
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data]);
 
   const outletNameMap = useMemo(() => {
     const map = new Map<string, string>();

@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { Marker, useMap } from "react-leaflet";
 import { MapView } from "./map-view";
 import type { MapProfile } from "./map-config";
@@ -74,7 +74,9 @@ export default function MapPickerInner({
   const [markerPosition, setMarkerPosition] = useState<[number, number]>(initialPosition);
 
   useEffect(() => {
-    setMarkerPosition(initialPosition);
+    startTransition(() => {
+      setMarkerPosition(initialPosition);
+    });
   }, [initialPosition]);
 
   const currentPosition = navigateToPosition || markerPosition;

@@ -14,10 +14,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CreditCard, XCircle, CheckCircle2, AlertTriangle, Send, Printer, Download } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useQueryClient } from "@tanstack/react-query";
-import { invoiceKeys } from "../hooks/use-invoices";
-import { orderKeys } from "../../order/hooks/use-orders";
-import { InvoicePrintDialog } from "./invoice-print-dialog";
+import { invoiceService } from "../services/invoice-service";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import { InvoiceForm } from "./invoice-form";
@@ -26,13 +23,13 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
-import type { CustomerInvoice, CustomerInvoiceListResponse, CustomerInvoiceStatus } from "../types";
-import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
+import type { CustomerInvoice, CustomerInvoiceStatus } from "../types";
+import type { SalesOrder } from "../../order/types";
 import type { DeliveryOrder } from "../../delivery/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { useMemo } from "react";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
@@ -133,7 +130,7 @@ export function InvoiceList() {
   const canViewCustomer = useUserPermission("customer.read");
   const canPrint = useUserPermission("customer_invoice.print");
 
-  const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
+
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
   const exportProgress = useExportProgress();
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
@@ -142,8 +139,7 @@ export function InvoiceList() {
   const deleteInvoice = useDeleteInvoice();
   const updateStatus = useUpdateInvoiceStatus();
   const approveInvoice = useApproveInvoice();
-  const queryClient = useQueryClient();
-  const invoices = data?.data ?? [];
+  const invoices = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
   useEffect(() => {
@@ -216,49 +212,12 @@ export function InvoiceList() {
   };
 
   const handleOpenCreatePayment = (invoice: CustomerInvoice) => {
-    try {
-      queryClient.cancelQueries({ queryKey: invoiceKeys.lists() });
-      queryClient.setQueriesData({ queryKey: invoiceKeys.lists() }, (old: CustomerInvoiceListResponse | undefined) => {
-        if (!old?.data) return old;
-        return {
-          ...old,
-          data: old.data.map((inv) =>
-            inv.id === invoice.id ? { ...inv, status: "waiting_payment" } : inv,
-          ),
-        };
-      });
-
-      const soId = invoice.sales_order?.id;
-      if (soId) {
-        queryClient.setQueriesData(
-          { queryKey: orderKeys.lists() },
-          (old: SalesOrderListResponse | undefined) => {
-            if (!old?.data) return old;
-            return {
-              ...old,
-              data: old.data.map((order) => {
-                if (order.id !== soId) return order;
-                const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
-                return {
-                  ...order,
-                  customer_invoices: existing.map((ci) =>
-                    ci.id === invoice.id ? { ...ci, status: "waiting_payment" } : ci,
-                  ),
-                };
-              }),
-            };
-          },
-        );
-      }
-    } catch (e) {
-      // noop
-    }
     setCreatePaymentForInvoiceId(invoice.id);
   };
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
+    return normalized === "waiting_approval" || normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
   };
 
   const isOverdue = (invoice: CustomerInvoice) => {
@@ -497,7 +456,7 @@ export function InvoiceList() {
                   )}
                   {canPrint && (
                     <DropdownMenuItem
-                      onClick={() => setPrintingInvoiceId(invoice.id)}
+                      onClick={() => { invoiceService.openPrintWindow(invoice.id).catch(() => toast.error("Print failed")); }}
                       className="cursor-pointer text-purple focus:text-purple"
                     >
                       <Printer className="h-4 w-4 mr-2" />
@@ -567,6 +526,7 @@ export function InvoiceList() {
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
+            <SelectItem value="waiting_approval">{t("status.waiting_approval")}</SelectItem>
             <SelectItem value="waiting_payment">{t("status.waiting_payment")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>
@@ -709,14 +669,6 @@ export function InvoiceList() {
           description={t("deleteDesc")}
           itemName={t("common.invoice")}
           isLoading={deleteInvoice.isPending}
-        />
-      )}
-
-      {printingInvoiceId && (
-        <InvoicePrintDialog
-          open={!!printingInvoiceId}
-          onClose={() => setPrintingInvoiceId(null)}
-          invoiceId={printingInvoiceId}
         />
       )}
 

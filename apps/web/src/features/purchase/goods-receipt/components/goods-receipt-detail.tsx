@@ -9,6 +9,7 @@ import {
   FileText,
   Send,
   Printer,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ import {
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
-import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { goodsReceiptsService } from "../services/goods-receipts-service";
 import { SILinkedDialog } from "./si-linked-dialog";
 
 interface GoodsReceiptDetailProps {
@@ -78,7 +79,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
@@ -96,7 +97,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const canEdit = useUserPermission("goods_receipt.update");
-  const canDelete = useUserPermission("goods_receipt.delete");
   const canSubmit = useUserPermission("goods_receipt.submit");
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");
@@ -219,7 +219,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (goodsReceiptId) goodsReceiptsService.openPrintWindow(goodsReceiptId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -289,10 +289,10 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateReturnOpen(true)}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-warning/10"
                     title={t("actions.createReturn")}
                   >
-                    <FileText className="h-4 w-4" />
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -323,6 +323,12 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.code")}</TableCell>
                         <TableCell>{gr.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.receiptDate")}</TableCell>
+                        <TableCell>{gr.receipt_date ? formatDate(gr.receipt_date) : "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("columns.warehouse")}</TableCell>
+                        <TableCell>{gr.warehouse?.name || "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("fields.receiptDate")}</TableCell>
                         <TableCell>{gr.receipt_date ? formatDate(gr.receipt_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
@@ -622,14 +628,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         description={t("detail.title")}
         isLoading={deleteMutation.isPending}
       />
-
-      {goodsReceiptId && (
-        <GoodsReceiptPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          receiptId={goodsReceiptId}
-        />
-      )}
 
       <PurchaseOrderDetail
         open={isPurchaseOrderOpen}

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
+import { useOutletLimit } from "@/features/master-data/outlet/hooks/use-outlet-limit";
 import {
   billingService,
   type BillingChangeAction,
@@ -210,7 +211,7 @@ function CurrentPlanCard({ sub, planName }: { sub: TenantSubscription; planName:
 
   const expiresAt = sub.expires_at
     ? new Date(sub.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
-    : null;
+    : "Lifetime";
 
   return (
     <div className="rounded-xl border border-border/80 bg-card p-6 space-y-4">
@@ -518,15 +519,17 @@ export function BillingTab() {
   const [seatCountDraft, setSeatCountDraft] = useState<number | null>(null);
   // planUserCount: user count for plan comparison pricing only
   const [planUserCountDraft, setPlanUserCountDraft] = useState<number | null>(null);
+  const [outletCountDraft, setOutletCountDraft] = useState<number | null>(null);
   const [selectedBundleState, setSelectedBundleState] = useState("ultimate_suite");
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [activeBillingTabState, setActiveBillingTabState] = useState<"seat" | "plan">("seat");
+  const [activeBillingTabState, setActiveBillingTabState] = useState<"seat" | "plan" | "manage_outlet">("seat");
   const [isSeatDowngradeDialogOpen, setIsSeatDowngradeDialogOpen] = useState(false);
   const [pendingSeatDowngradeTarget, setPendingSeatDowngradeTarget] = useState<number | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
-  const requestedBillingTab = useMemo<"seat" | "plan" | null>(() => {
+  const requestedBillingTab = useMemo<"seat" | "plan" | "manage_outlet" | null>(() => {
     const requestedTab = searchParams.get("billing_tab");
-    return requestedTab === "plan" || requestedTab === "seat" ? requestedTab : null;
+    return requestedTab === "plan" || requestedTab === "seat" || requestedTab === "manage_outlet" ? requestedTab : null;
   }, [searchParams]);
 
   const { data: subscription, isLoading: subLoading } = useQuery({
@@ -534,6 +537,7 @@ export function BillingTab() {
     queryFn: () => billingService.getMySubscription(),
     staleTime: 60_000,
   });
+  const { data: outletLimit } = useOutletLimit();
 
   const isSubscriptionSuspended = subscription?.status === "suspended";
 
@@ -587,6 +591,17 @@ export function BillingTab() {
     },
   });
 
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: () => billingService.cancelSubscription(),
+    onSuccess: async () => {
+      toast.success(t("billing.cancelSubscriptionSuccess"));
+      await queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+    },
+    onError: () => {
+      toast.error(t("billing.cancelSubscriptionError"));
+    },
+  });
+
   const bundles = useMemo<BundlePlan[]>(() => {
     if (!apiPlans?.length) {
       return [];
@@ -629,15 +644,19 @@ export function BillingTab() {
   // Resolve human-readable plan name from API plans (fallback to formatted slug)
   const currentPlanName = useMemo(() => {
     if (!subscription?.plan) return null;
-    const matched = (apiPlans ?? []).find((p) => p.slug === subscription.plan);
+    const resolvedPlanSlug = subscription.plan === "full_access" ? "ultimate_suite" : subscription.plan;
+    const matched = (apiPlans ?? []).find((p) => p.slug === resolvedPlanSlug);
     if (matched) return matched.name;
-    return subscription.plan.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return resolvedPlanSlug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }, [subscription, apiPlans]);
 
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
   const isOnMaxPlan = subscription?.plan === "ultimate_suite" || subscription?.plan === "full_access";
 
   const currentSeatLimit = subscription?.seat_limit ?? subscription?.user_count ?? 1;
+  const currentOutletLimit = Math.max(1, subscription?.outlet_limit ?? outletLimit?.max ?? 1);
+  const currentOutletUsage = Math.max(0, outletLimit?.current ?? 0);
+  const outletCount = outletCountDraft ?? currentOutletLimit;
   const isSeatLimitAtMax = currentSeatLimit >= MAX_SELF_SERVICE_SEAT_LIMIT;
   const activeUsers = subscription?.active_users ?? 0;
   const seatMinimum = Math.max(1, activeUsers);
@@ -651,9 +670,10 @@ export function BillingTab() {
     return bundles.find((bundle) => bundle.cta !== "contact")?.id ?? selectedBundleState;
   }, [bundles, selectedBundleState]);
   const requiredAdditionalSeats = Math.max(0, seatCount - currentSeatLimit);
+  const resolvedPlanSlug = subscription?.plan === "full_access" ? "ultimate_suite" : subscription?.plan;
   const currentPlanConfig = useMemo(
-    () => (apiPlans ?? []).find((p) => p.slug === subscription?.plan),
-    [apiPlans, subscription?.plan],
+    () => (apiPlans ?? []).find((p) => p.slug === resolvedPlanSlug),
+    [apiPlans, resolvedPlanSlug],
   );
   const estimatedCurrentCycle = useMemo(
     () => estimateCycleTotal(currentPlanConfig, subscription?.billing_period, currentSeatLimit),
@@ -667,6 +687,20 @@ export function BillingTab() {
   const seatChangeDelta = seatCount - currentSeatLimit;
   const isSeatDowngradeRequest = seatChangeDelta < 0;
   const seatChangeAbsolute = Math.abs(seatChangeDelta);
+  const outletChangeDelta = Math.max(0, outletCount - currentOutletLimit);
+  const outletAddonUnitPrice = useMemo(() => {
+    if (!currentPlanConfig) {
+      return 500_000;
+    }
+    return subscription?.billing_period === "yearly"
+      ? (currentPlanConfig.outlet_addon_yearly_idr ?? 6_000_000)
+      : (currentPlanConfig.outlet_addon_monthly_idr ?? 500_000);
+  }, [currentPlanConfig, subscription?.billing_period]);
+  const outletTotalDueNow = outletChangeDelta * outletAddonUnitPrice;
+  const outletCapacityPercent = Math.min(
+    100,
+    Math.round((currentOutletUsage / Math.max(1, currentOutletLimit)) * 100),
+  );
 
   const submitBillingChange = useCallback(async (action: BillingChangeAction, target: string) => {
     const actionDate = new Date().toISOString().slice(0, 10);
@@ -732,6 +766,27 @@ export function BillingTab() {
     }
     void handleSeatUpdate(seatCount);
   }, [subscription, seatCount, currentSeatLimit, activeUsers, handleSeatUpdate, t]);
+
+  const handleOutletSubmit = useCallback(() => {
+    if (!subscription || outletCount === currentOutletLimit) {
+      return;
+    }
+    if (outletCount < 1) {
+      return;
+    }
+    if (outletCount < currentOutletLimit) {
+      toast.error(t("billing.manageOutletMinHint", { count: currentOutletLimit }));
+      return;
+    }
+    void (async () => {
+      setIsUpgrading(true);
+      try {
+        await submitBillingChange("add_outlet", String(outletCount));
+      } finally {
+        setIsUpgrading(false);
+      }
+    })();
+  }, [subscription, outletCount, currentOutletLimit, submitBillingChange]);
 
   const confirmSeatDowngrade = useCallback(async () => {
     if (pendingSeatDowngradeTarget == null) {
@@ -817,12 +872,43 @@ export function BillingTab() {
         </div>
       )}
 
+      {/* Cancel subscription — only visible for active/trial non-lifetime subscriptions */}
+      {subscription &&
+        (subscription.status === "active" || subscription.status === "trial") &&
+        subscription.billing_period !== "lifetime" && (
+          <div className="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-4">
+            <div className="text-sm">
+              <p className="font-semibold text-foreground">{t("billing.cancelSubscriptionTitle")}</p>
+              <p className="mt-0.5 text-muted-foreground">
+                {t("billing.cancelSubscriptionDescription", {
+                  date: subscription.expires_at
+                    ? new Date(subscription.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
+                    : t("billing.endOfBillingPeriod"),
+                })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setIsCancelDialogOpen(true)}
+            >
+              {t("billing.cancelSubscriptionAction")}
+            </Button>
+          </div>
+        )}
+
       {subscription && (
-        <Tabs value={activeBillingTab} onValueChange={(tab) => setActiveBillingTabState(tab as "seat" | "plan")} className="space-y-6">
+        <Tabs value={activeBillingTab} onValueChange={(tab) => setActiveBillingTabState(tab as "seat" | "plan" | "manage_outlet")} className="space-y-6">
           <TabsList className="h-10">
             <TabsTrigger value="seat" className="gap-2">
               <Users className="h-3.5 w-3.5" />
               {t("billing.seatTab")}
+            </TabsTrigger>
+            <TabsTrigger value="manage_outlet" className="gap-2">
+              <BadgeCheck className="h-3.5 w-3.5" />
+              {t("billing.manageOutletTab")}
             </TabsTrigger>
             <TabsTrigger value="plan" className="gap-2">
               <ArrowUpCircle className="h-3.5 w-3.5" />
@@ -1049,12 +1135,12 @@ export function BillingTab() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                  </>
+                </>
               )}
             </div>
 
             {modularPlans.length > 0 && (
-              <div className="space-y-3">
+              <>
                 <div>
                   <h4 className="text-sm font-semibold">{t("billing.modularTitle")}</h4>
                   <p className="text-xs text-muted-foreground">{t("billing.modularSeatInfo")}</p>
@@ -1087,7 +1173,7 @@ export function BillingTab() {
                     );
                   })}
                 </div>
-              </div>
+              </>
             )}
           </TabsContent>
 
@@ -1146,8 +1232,158 @@ export function BillingTab() {
               </AnimatePresence>
             )}
           </TabsContent>
+
+          <TabsContent value="manage_outlet" className="space-y-6">
+            <div className="rounded-xl border border-border/80 bg-card p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="text-base font-semibold">{t("billing.manageOutletTitle")}</h4>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {t("billing.manageOutletDescription")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <BadgeCheck className="h-4 w-4" />
+                  <span
+                    className={cn(
+                      currentOutletUsage >= currentOutletLimit ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {t("billing.outletUsage", { current: currentOutletUsage, max: currentOutletLimit })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t("billing.capacityUsed")}</span>
+                  <span
+                    className={cn(
+                      currentOutletUsage >= currentOutletLimit ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {`${currentOutletUsage}/${currentOutletLimit}`}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${outletCapacityPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-5 rounded-lg border border-border/70 bg-muted/40 p-3 text-sm">
+                <p className="font-medium text-foreground">{t("billing.manageOutletEstimateTitle")}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletNeedToAdd", { count: outletChangeDelta || 1 })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletPricingHint", {
+                    amount: formatCurrencyIDR(outletAddonUnitPrice),
+                    period: t("billing.oneTimePaymentPeriod"),
+                  })}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {t("billing.manageOutletTotalDueNow", { amount: formatCurrencyIDR(outletTotalDueNow) })}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">{t("billing.manageOutletNewCount")}</label>
+                  <div className="flex items-center rounded-lg border border-border/70">
+                    <button
+                      type="button"
+                      onClick={() => setOutletCountDraft((v) => Math.max(1, (v ?? currentOutletLimit) - 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label={t("billing.decreaseOutlet")}
+                      disabled={outletCount <= 1}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={outletCount}
+                      onChange={(e) => {
+                        const next = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(next) && next >= 1 && next <= 999) {
+                          setOutletCountDraft(next);
+                        }
+                      }}
+                      className="h-9 w-16 border-x bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      aria-label={t("billing.manageOutletNewCount")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setOutletCountDraft((v) => Math.min(999, (v ?? currentOutletLimit) + 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-muted"
+                      aria-label={t("billing.increaseOutlet")}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  className="h-9"
+                  variant="default"
+                  disabled={isUpgrading || outletCount === currentOutletLimit || outletCount < currentOutletLimit}
+                  onClick={handleOutletSubmit}
+                >
+                  {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {isUpgrading
+                    ? t("billing.processing")
+                    : t("billing.manageOutletAddToCount", { count: outletCount })}
+                </Button>
+
+                {outletCount === currentOutletLimit && (
+                  <p className="text-xs text-muted-foreground">{t("billing.manageOutletMinHint", { count: currentOutletLimit })}</p>
+                )}
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       )}
+
+      {/* Cancel subscription confirmation */}
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("billing.cancelSubscriptionDialogTitle")}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  {t("billing.cancelSubscriptionDialogDescription", {
+                    date: subscription?.expires_at
+                      ? new Date(subscription.expires_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
+                      : t("billing.endOfBillingPeriod"),
+                  })}
+                </p>
+                <p>{t("billing.cancelSubscriptionDialogWarning")}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelSubscriptionMutation.isPending}>
+              {t("billing.keepSubscription")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { void cancelSubscriptionMutation.mutateAsync(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelSubscriptionMutation.isPending}
+            >
+              {cancelSubscriptionMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {cancelSubscriptionMutation.isPending ? t("billing.cancellingSubscription") : t("billing.confirmCancelSubscription")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

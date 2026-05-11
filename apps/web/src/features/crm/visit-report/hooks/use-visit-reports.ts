@@ -138,7 +138,10 @@ export function useUploadVisitPhotos() {
 
 export function useUploadVisitImage() {
 	return useMutation({
-		mutationFn: (file: File) => visitReportService.uploadImage(file),
+		mutationFn: ({ file, visitId }: { file: File; visitId?: string }) => {
+			const folder = visitId && visitId.trim() !== "" ? `visits/${visitId}` : "visits/temp";
+			return visitReportService.uploadImage(file, folder);
+		},
 	});
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import L from "leaflet";
 import {
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { OutletCard } from "./outlet-card";
 import { OutletSidePanel } from "./outlet-side-panel";
 import { OutletDetailDialog } from "./outlet-detail-dialog";
+import { OutletAddonDialog } from "./outlet-addon-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
@@ -37,6 +38,9 @@ import { useOutletMapView } from "../../hooks/use-outlet-map-view";
 import type { Outlet } from "../../types";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { useUpdateOutlet } from "../../hooks/use-outlets";
+import { billingService } from "@/features/settings/services/billing-service";
+import { authService } from "@/features/auth/services/auth-service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
@@ -63,6 +67,43 @@ export function OutletMapView() {
   const { t } = translations;
   const updateOutlet = useUpdateOutlet();
   const { data: warehousesResp } = useWarehouses({ per_page: 100, is_active: true });
+
+  const queryClient = useQueryClient();
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [addonQuantity, setAddonQuantity] = useState(1);
+  const [isAddonSubmitting, setIsAddonSubmitting] = useState(false);
+
+  const { data: subscription } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: () => billingService.getMySubscription(),
+    staleTime: 60_000,
+  });
+  const { data: plans } = useQuery({
+    queryKey: ["public-subscription-plans"],
+    queryFn: () => authService.getSubscriptionPlans(),
+    staleTime: 300_000,
+    retry: false,
+  });
+
+  const addonUnitPrice = useMemo(() => {
+    if (!subscription) return 500000;
+    const activePlan = plans?.find((plan) => plan.slug === subscription.plan);
+    if (!activePlan) return 500000;
+    if (subscription.billing_period === "yearly") {
+      return activePlan.outlet_addon_yearly_idr ?? 6000000;
+    }
+    return activePlan.outlet_addon_monthly_idr ?? 500000;
+  }, [plans, subscription]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onOpenAddon = () => {
+      setAddonQuantity(1);
+      setAddonDialogOpen(true);
+    };
+    window.addEventListener("open-outlet-addon", onOpenAddon as EventListener);
+    return () => window.removeEventListener("open-outlet-addon", onOpenAddon as EventListener);
+  }, []);
 
   // Derive fly-to position from the currently selected outlet so the map
   // pans to the marker whenever the user clicks an item in the sidebar list.
@@ -165,6 +206,7 @@ export function OutletMapView() {
 
           {/* Search & Filter */}
           <div className="px-4 pb-4 space-y-3">
+            {/* Search input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -174,6 +216,8 @@ export function OutletMapView() {
                 className="pl-9"
               />
             </div>
+
+            {/* Status filter + Create button */}
             <div className="flex items-center gap-2">
               <Select
                 value={state.statusFilter ?? "all"}
@@ -181,7 +225,7 @@ export function OutletMapView() {
                   actions.setStatusFilter(v as "all" | "active" | "inactive")
                 }
               >
-                <SelectTrigger className="w-full sm:w-40">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t("common.status")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -190,17 +234,21 @@ export function OutletMapView() {
                   <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                 </SelectContent>
               </Select>
+
               {permissions.canCreate && (
                 <Button
                   onClick={actions.handleCreate}
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-40 cursor-pointer"
+                  variant={data.outletLimit && data.outletLimit.max > 0 && data.outletLimit.current >= data.outletLimit.max ? "destructive" : undefined}
+                  className="shrink-0 cursor-pointer"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4" />
                   {t("common.create")}
                 </Button>
               )}
             </div>
-            {data.companies.length > 0 && (
+
+            {/* Company filter */}
+            {data.companies?.length ? (
               <Select
                 value={state.companyFilter ?? "all"}
                 onValueChange={(v) => actions.setCompanyFilter(v)}
@@ -217,8 +265,9 @@ export function OutletMapView() {
                   ))}
                 </SelectContent>
               </Select>
-            )}
-            {/* Warehouse filter for outlets (optional) */}
+            ) : null}
+
+            {/* Warehouse filter */}
             {warehousesResp?.data?.length ? (
               <Select
                 value={state.warehouseFilter ?? "all"}
@@ -229,7 +278,7 @@ export function OutletMapView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Warehouses</SelectItem>
-                  {warehousesResp?.data?.map((w) => (
+                  {warehousesResp.data.map((w) => (
                     <SelectItem key={w.id} value={w.id}>
                       {w.name}
                     </SelectItem>
@@ -258,7 +307,7 @@ export function OutletMapView() {
               <p className="text-sm">{t("outlet.empty")}</p>
               {permissions.canCreate && (
                 <Button
-                  variant="outline"
+                  variant={data.outletLimit && data.outletLimit.max > 0 && data.outletLimit.current >= data.outletLimit.max ? "destructive" : "outline"}
                   className="mt-4 cursor-pointer"
                   onClick={actions.handleCreate}
                 >
@@ -271,8 +320,27 @@ export function OutletMapView() {
             <>
               <div className="p-4 pb-2 flex items-center justify-between border-b bg-muted/50">
                 <span className="text-sm text-muted-foreground">
-                  {data.outlets.length}{" "}
-                  {data.outlets.length === 1 ? "outlet" : "outlets"}
+                    {data.outletLimit ? (
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          data.outletLimit.max > 0 && data.outletLimit.current >= data.outletLimit.max
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                      {t("outlet.limitBadge", {
+                        current: data.outletLimit.current,
+                        max: data.outletLimit.max,
+                      })}{" "}
+                      {data.outletLimit.max === 1 ? t("outlet.singular") : t("outlet.plural")}
+                    </span>
+                  ) : (
+                    <span>
+                      {data.outlets.length}{" "}
+                      {data.outlets.length === 1 ? "outlet" : "outlets"}
+                    </span>
+                  )}
                 </span>
                 <Badge variant="secondary">{data.markers.length} on map</Badge>
               </div>
@@ -286,21 +354,23 @@ export function OutletMapView() {
                   onDetail={() => actions.handleView(outlet)}
                   onEdit={() => actions.handleEdit(outlet)}
                   onDelete={() => actions.setDeletingId(outlet.id)}
-                  onStatusChange={permissions.canUpdate ? (isActive) => {
-                    updateOutlet.mutate(
-                      { id: outlet.id, data: { is_active: isActive } },
-                      {
-                        onSuccess: () => {
-                          toast.success(
-                            isActive ? t("outlet.updateSuccess") : t("outlet.updateSuccess")
+                  onStatusChange={
+                    permissions.canUpdate
+                      ? (isActive) => {
+                          updateOutlet.mutate(
+                            { id: outlet.id, data: { is_active: isActive } },
+                            {
+                              onSuccess: () => {
+                                toast.success(t("outlet.updateSuccess"));
+                              },
+                              onError: () => {
+                                toast.error(t("outlet.saveError"));
+                              },
+                            }
                           );
-                        },
-                        onError: () => {
-                          toast.error(t("outlet.saveError"));
-                        },
-                      }
-                    );
-                  } : undefined}
+                        }
+                      : undefined
+                  }
                   canUpdate={permissions.canUpdate}
                   canDelete={permissions.canDelete}
                   isStatusChanging={updateOutlet.isPending}
@@ -359,6 +429,54 @@ export function OutletMapView() {
         mode={state.panelMode ?? "create"}
         outlet={state.editingOutlet}
         onSuccess={() => actions.refetch()}
+      />
+
+      {/* Addon Dialog (open when limit reached) */}
+      <OutletAddonDialog
+        open={addonDialogOpen}
+        onOpenChange={(open) => setAddonDialogOpen(open)}
+        current={data.outletLimit?.current ?? 0}
+        max={data.outletLimit?.max ?? 0}
+        quantity={addonQuantity}
+        onQuantityChange={setAddonQuantity}
+        unitPrice={addonUnitPrice}
+        isSubmitting={isAddonSubmitting}
+        onSubmit={async () => {
+          if (!data.outletLimit) return;
+          setIsAddonSubmitting(true);
+          try {
+            const actionDate = new Date().toISOString().slice(0, 10);
+            const nextOutletLimit = data.outletLimit.max + addonQuantity;
+            const result = await billingService.changeSubscription({
+              action: "add_outlet",
+              target: String(nextOutletLimit),
+              action_date: actionDate,
+              idempotency_key: `outlet-addon-${actionDate}-${nextOutletLimit}`,
+            });
+
+            toast.success(result.user_notification?.title || t("outlet.addon.invoiceReady"));
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("outlet_create_resume_intent", actionDate);
+            }
+
+            const rawInvoiceUrl = result.xendit_payload?.invoice_url;
+            const invoiceUrl = typeof rawInvoiceUrl === "string" ? rawInvoiceUrl : "";
+            setAddonDialogOpen(false);
+
+            await queryClient.invalidateQueries({ queryKey: ["outlets", "limit"] });
+
+            if (invoiceUrl) {
+              window.open(invoiceUrl, "_blank", "noopener,noreferrer");
+            } else {
+              actions.setEditingOutlet(null);
+              actions.setPanelMode("create");
+            }
+          } catch {
+            toast.error(t("outlet.addon.invoiceError"));
+          } finally {
+            setIsAddonSubmitting(false);
+          }
+        }}
       />
 
       {/* Delete Dialog */}

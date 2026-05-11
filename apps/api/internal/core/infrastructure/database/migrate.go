@@ -74,6 +74,17 @@ func AutoMigrate() error {
 	// These must run BEFORE AutoMigrate so GORM sees consistent schema.
 	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS seat_limit integer NOT NULL DEFAULT 1`)
 	_ = DB.Exec(`UPDATE tenant_subscriptions SET seat_limit = GREATEST(user_count, 1) WHERE seat_limit = 0`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS outlet_limit integer NOT NULL DEFAULT 1`)
+	_ = DB.Exec(`UPDATE tenant_subscriptions SET outlet_limit = 1 WHERE outlet_limit <= 0`)
+	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_monthly_idr bigint NOT NULL DEFAULT 500000`)
+	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_yearly_idr bigint NOT NULL DEFAULT 6000000`)
+	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_monthly_idr = 500000 WHERE outlet_addon_monthly_idr <= 0`)
+	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_yearly_idr = 6000000 WHERE outlet_addon_yearly_idr <= 0`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_scheduled_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_by uuid`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_recovered_at timestamptz`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_previous_status varchar(20)`)
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
 
@@ -94,6 +105,7 @@ func AutoMigrate() error {
 		&tenant.PlanPermissionEntitlement{},
 		&tenant.TenantSubscription{},
 		&tenant.PaymentTransaction{},
+		&tenant.TenantPaymentMethod{},
 		&user.User{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
@@ -126,6 +138,8 @@ func AutoMigrate() error {
 		// Employee entities (Sprint 3)
 		&organization.Employee{},
 		&organization.EmployeeArea{},
+		&organization.EmployeeOutlet{},
+		&organization.EmployeeWarehouse{},
 		// Supplier entities (Sprint 4)
 		&supplier.SupplierType{},
 		&supplier.Bank{},
@@ -186,8 +200,14 @@ func AutoMigrate() error {
 		&finance.AssetLocation{},
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
+		&finance.AssetDepreciationSchedule{},
 		&finance.AssetTransaction{},
-		// NEW: Extended Asset entities
+		// Extended Asset domain entities (final business records)
+		&finance.AssetDisposal{},
+		&finance.AssetTransfer{},
+		&finance.AssetRevaluation{},
+		&finance.AssetMaintenanceLog{},
+		// Asset workflow & audit
 		&finance.AssetAttachment{},
 		&finance.AssetAuditLog{},
 		&finance.AssetAssignmentHistory{},
@@ -238,6 +258,9 @@ func AutoMigrate() error {
 		// Sales Targets entities (Sprint 7)
 		&sales.YearlyTarget{},
 		&sales.MonthlyTarget{},
+		// Sales Targets per Employee (Sales Target feature)
+		&sales.SalesTarget{},
+		&sales.MonthlySalesTarget{},
 		// Sales Visit Interest Survey (Sprint 7)
 		&sales.SalesVisitInterestQuestion{},
 		&sales.SalesVisitInterestOption{},
@@ -353,6 +376,11 @@ func AutoMigrate() error {
 	// SaaS: Add tenant_id to all domain tables and backfill existing data
 	if err := migrations.MigrateTenantID(DB); err != nil {
 		return fmt.Errorf("failed to run SaaS tenant migration: %w", err)
+	}
+
+	// Normalize lifetime subscriptions created by older coupon logic
+	if err := migrations.NormalizeLifetimeSubscriptions(DB); err != nil {
+		log.Printf("Warning: Could not normalize lifetime subscriptions: %v", err)
 	}
 
 	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
@@ -512,6 +540,10 @@ func AutoMigrate() error {
 
 	if err := ensureBankCodeTenantScopedUniqueIndex(); err != nil {
 		log.Printf("Warning: bank code tenant-scoped unique index migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureFixedAssetListIndexes(); err != nil {
+		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
 	}
 
 	if err := ensureDefaultAreasForAllTenants(); err != nil {
@@ -726,6 +758,22 @@ func ensureBankCodeTenantScopedUniqueIndex() error {
 		ON banks ((COALESCE(tenant_id::text, '__global__')), lower(code))
 		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
 	`).Error
+}
+
+func ensureFixedAssetListIndexes() error {
+	statements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_status_active ON fixed_assets (tenant_id, status) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_category_active ON fixed_assets (tenant_id, category_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_warranty_end_active ON fixed_assets (tenant_id, warranty_end) WHERE deleted_at IS NULL`,
+	}
+
+	for _, statement := range statements {
+		if err := DB.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func dropCompanyDirectorColumnIfExists() error {
@@ -1760,8 +1808,12 @@ func backfillTenantIDs() error {
 		"bank_statement_lines",
 		"asset_categories",
 		"asset_locations",
-		"assets",
+		"fixed_assets",
 		"asset_depreciations",
+		"asset_depreciation_schedules",
+		"asset_disposals",
+		"asset_transfers",
+		"asset_maintenance_logs",
 		"asset_transactions",
 		"asset_attachments",
 		"asset_audit_logs",

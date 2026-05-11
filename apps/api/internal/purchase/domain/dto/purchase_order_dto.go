@@ -17,12 +17,13 @@ type PurchaseOrderRequisitionRef struct {
 
 // GoodsReceiptSummary is a minimal GR view used in list responses.
 type GoodsReceiptSummary struct {
-	ID         string `json:"id"`
-	Code       string `json:"code"`
-	Status     string `json:"status"`
-	TotalItems int    `json:"total_items"`
+	ID         string    `json:"id"`
+	Code       string    `json:"code"`
+	Status     string    `json:"status"`
+	TotalItems int       `json:"total_items"`
 	// TotalItemsReceived is the sum of QuantityReceived across the GR items
-	TotalItemsReceived float64 `json:"total_items_received"`
+	TotalItemsReceived float64   `json:"total_items_received"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 // POFulfillmentSummary tracks how much of the ordered qty has been received via confirmed GRs.
@@ -35,11 +36,14 @@ type POFulfillmentSummary struct {
 
 // SupplierInvoiceSummary is a minimal Supplier Invoice view used in list responses.
 type SupplierInvoiceSummary struct {
-	ID               string  `json:"id"`
-	Code             string  `json:"code"`
-	Status           string  `json:"status"`
-	GoodsReceiptID   *string `json:"goods_receipt_id,omitempty"`
-	GoodsReceiptCode *string `json:"goods_receipt_code,omitempty"`
+	ID               string    `json:"id"`
+	Code             string    `json:"code"`
+	Status           string    `json:"status"`
+	Amount           float64   `json:"amount"`
+	PaidAmount       float64   `json:"paid_amount"`
+	GoodsReceiptID   *string   `json:"goods_receipt_id,omitempty"`
+	GoodsReceiptCode *string   `json:"goods_receipt_code,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type PurchaseOrderItemRequest struct {

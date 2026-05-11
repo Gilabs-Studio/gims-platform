@@ -70,7 +70,9 @@ export function Drawer({
 
   React.useEffect(() => {
     if (open) {
-      setWidth(defaultWidth);
+      React.startTransition(() => {
+        setWidth(defaultWidth);
+      });
     }
   }, [open, defaultWidth]);
 

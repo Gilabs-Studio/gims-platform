@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -110,7 +112,8 @@ func (h *AgingReportHandler) ARAging(c *gin.Context) {
 
 	res, total, err := h.uc.ARAging(c.Request.Context(), asOf, search, page, perPage)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusInternalServerError, "AR_AGING_FAILED", err.Error(), nil, nil)
+		log.Printf("[aging][ar] failed: %v", err)
+		response.ErrorResponse(c, http.StatusInternalServerError, "AR_AGING_FAILED", "failed to fetch AR aging report", nil, nil)
 		return
 	}
 	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
@@ -138,7 +141,8 @@ func (h *AgingReportHandler) APAging(c *gin.Context) {
 
 	res, total, err := h.uc.APAging(c.Request.Context(), asOf, search, page, perPage)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusInternalServerError, "AP_AGING_FAILED", err.Error(), nil, nil)
+		log.Printf("[aging][ap] failed: %v", err)
+		response.ErrorResponse(c, http.StatusInternalServerError, "AP_AGING_FAILED", "failed to fetch AP aging report", nil, nil)
 		return
 	}
 	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
@@ -151,11 +155,19 @@ func (h *AgingReportHandler) ARAgingFinance(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid aging query parameters", nil, nil)
 		return
 	}
-	query.PartnerID = strings.TrimSpace(c.Query("customer_id"))
+	partner := strings.TrimSpace(c.Query("customer_id"))
+	if partner != "" {
+		if _, err := uuid.Parse(partner); err != nil {
+			response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid customer_id", nil, nil)
+			return
+		}
+	}
+	query.PartnerID = partner
 
 	res, err := h.uc.ARAgingFinance(c.Request.Context(), query)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusInternalServerError, "AR_AGING_FAILED", err.Error(), nil, nil)
+		log.Printf("[aging][ar_finance] failed: %v", err)
+		response.ErrorResponse(c, http.StatusInternalServerError, "AR_AGING_FAILED", "failed to fetch AR aging report", nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)
@@ -167,11 +179,19 @@ func (h *AgingReportHandler) APAgingFinance(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid aging query parameters", nil, nil)
 		return
 	}
-	query.PartnerID = strings.TrimSpace(c.Query("supplier_id"))
+	partner := strings.TrimSpace(c.Query("supplier_id"))
+	if partner != "" {
+		if _, err := uuid.Parse(partner); err != nil {
+			response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid supplier_id", nil, nil)
+			return
+		}
+	}
+	query.PartnerID = partner
 
 	res, err := h.uc.APAgingFinance(c.Request.Context(), query)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusInternalServerError, "AP_AGING_FAILED", err.Error(), nil, nil)
+		log.Printf("[aging][ap_finance] failed: %v", err)
+		response.ErrorResponse(c, http.StatusInternalServerError, "AP_AGING_FAILED", "failed to fetch AP aging report", nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

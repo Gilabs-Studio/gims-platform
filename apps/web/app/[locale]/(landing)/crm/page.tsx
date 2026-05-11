@@ -1,9 +1,8 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
+// ArrowRight not used — removed
 import { Link } from "@/i18n/routing";
 import { buildLandingMetadata } from "@/lib/seo";
 
@@ -111,9 +110,9 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
         
         {/* HERO IMAGE SHOWCASE (Clean no heavy borders) */}
         <section className="px-6 max-w-7xl mx-auto w-full pb-24">
-          <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
+          <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
             {/* Using abstract Apple-like minimalist representation or screenshot if available */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-background to-secondary/30" />
+            <div className="absolute inset-0 bg-linear-to-tr from-background to-secondary/30" />
             <Image 
               src="/screenshot/pipeline.webp" 
               alt="CRM Interface" 
@@ -153,7 +152,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                     <div className="w-full h-full flex gap-4">
                       {[1,2,3].map(i => (
                         <div key={i} className="flex-1 bg-secondary/50 rounded-lg p-2 space-y-3">
@@ -188,7 +187,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                     <div className="w-full max-w-xs space-y-4">
                       <div className="flex items-start gap-4">
                         <div className="w-8 h-8 rounded-full bg-primary/20 shrink-0" />
@@ -224,12 +223,12 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                      <div className="w-full h-full border border-border/50 rounded-xl bg-card shadow-sm flex flex-col overflow-hidden relative">
                         <div className="h-10 bg-secondary border-b border-border/50 flex items-center px-4" />
                         <div className="flex-1 p-6 space-y-4">
                            <div className="w-1/3 h-4 bg-muted rounded" />
-                           <div className="w-full h-[1px] bg-border my-4" />
+                           <div className="w-full h-px bg-border my-4" />
                            <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
                              <div className="w-1/4 h-2 bg-muted rounded" />
                              <div className="w-1/4 h-2 bg-muted rounded" />

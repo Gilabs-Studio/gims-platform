@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -369,8 +370,24 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 }
 
 func (u *visitReportUsecase) Delete(ctx context.Context, id string) error {
-	if _, err := u.visitRepo.FindByID(ctx, id); err != nil {
+	report, err := u.visitRepo.FindByID(ctx, id)
+	if err != nil {
 		return ErrVisitReportNotFound
+	}
+
+	// Delete all associated photos from R2 (best-effort cleanup)
+	if report.Photos != nil && *report.Photos != "" {
+		var photoURLs []string
+		if err := json.Unmarshal([]byte(*report.Photos), &photoURLs); err == nil {
+			for _, photoURL := range photoURLs {
+				if photoURL != "" {
+					key := storage.KeyFromURL(photoURL)
+					if key != "" {
+						_ = storage.Delete(ctx, key)
+					}
+				}
+			}
+		}
 	}
 
 	return u.visitRepo.Delete(ctx, id)
@@ -642,6 +659,16 @@ func (u *visitReportUsecase) UploadPhotos(ctx context.Context, id string, photoU
 
 	photosStr := string(photosJSON)
 	if err := u.visitRepo.UpdatePhotos(ctx, id, photosStr); err != nil {
+		// Best-effort cleanup: if DB save fails, delete NEW photos from R2
+		// (keep existing photos that were already saved)
+		for _, newPhotoURL := range photoURLs {
+			if newPhotoURL != "" {
+				key := storage.KeyFromURL(newPhotoURL)
+				if key != "" {
+					_ = storage.Delete(ctx, key)
+				}
+			}
+		}
 		return nil, err
 	}
 
@@ -649,6 +676,9 @@ func (u *visitReportUsecase) UploadPhotos(ctx context.Context, id string, photoU
 	if err != nil {
 		return nil, err
 	}
+
+	// Update the associated activity with the new photos in metadata
+	u.updateVisitActivityMetadata(ctx, updated)
 
 	return mapper.MapVisitReportToResponse(updated), nil
 }
@@ -936,68 +966,8 @@ func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitR
 		return
 	}
 
-	// Parse photos from JSONB
-	var photos []string
-	if visit.Photos != nil {
-		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
-	}
-
-	// Extract GPS coordinates from check-in/check-out locations
-	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
-	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
-
-	// Build product interest list from visit report details
-	var products []VisitActivityProductInfo
-	for _, detail := range visit.Details {
-		p := VisitActivityProductInfo{
-			ProductID:     detail.ProductID,
-			InterestLevel: detail.InterestLevel,
-			Notes:         detail.Notes,
-		}
-		if detail.Product != nil {
-			p.ProductName = detail.Product.Name
-			p.ProductSKU = detail.Product.Code
-		}
-		if detail.Quantity != nil {
-			p.Quantity = int(*detail.Quantity)
-		}
-		if detail.Price != nil {
-			p.UnitPrice = *detail.Price
-		}
-		for _, a := range detail.Answers {
-			sa := SurveyAnswerInfo{
-				Score:      a.Score,
-				QuestionID: a.QuestionID,
-				OptionID:   a.OptionID,
-			}
-			if a.Question != nil {
-				sa.QuestionText = a.Question.QuestionText
-			}
-			if a.Option != nil {
-				sa.OptionText = a.Option.OptionText
-			}
-			p.SurveyAnswers = append(p.SurveyAnswers, sa)
-		}
-		products = append(products, p)
-	}
-
-	metadata := VisitActivityMetadata{
-		VisitCode:     visit.Code,
-		Purpose:       visit.Purpose,
-		Outcome:       visit.Outcome,
-		Result:        visit.Result,
-		Photos:        photos,
-		CheckInAt:     formatTimePtr(visit.CheckInAt),
-		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
-		CheckInLat:    checkInLat,
-		CheckInLng:    checkInLng,
-		CheckOutLat:   checkOutLat,
-		CheckOutLng:   checkOutLng,
-		Address:       visit.Address,
-		ContactPerson: visit.ContactPerson,
-		Products:      products,
-	}
-
+	// Build activity metadata using shared helper
+	metadata := u.buildVisitActivityMetadata(visit)
 	metadataJSON, marshalErr := json.Marshal(metadata)
 	if marshalErr != nil {
 		fmt.Printf("[WARN] failed to marshal visit activity metadata: %v\n", marshalErr)
@@ -1258,6 +1228,99 @@ func extractCoords(locationJSON *string) (*float64, *float64) {
 		lng = &v
 	}
 	return lat, lng
+}
+
+// buildVisitActivityMetadata constructs the activity metadata struct from a visit report.
+// Extracted to a separate method so it can be reused by both autoCreateVisitActivity and updateVisitActivityMetadata.
+func (u *visitReportUsecase) buildVisitActivityMetadata(visit *models.VisitReport) *VisitActivityMetadata {
+	// Parse photos from JSONB
+	var photos []string
+	if visit.Photos != nil {
+		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
+	}
+
+	// Extract GPS coordinates from check-in/check-out locations
+	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
+	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
+
+	// Build product interest list from visit report details
+	var products []VisitActivityProductInfo
+	for _, detail := range visit.Details {
+		p := VisitActivityProductInfo{
+			ProductID:     detail.ProductID,
+			InterestLevel: detail.InterestLevel,
+			Notes:         detail.Notes,
+		}
+		if detail.Product != nil {
+			p.ProductName = detail.Product.Name
+			p.ProductSKU = detail.Product.Code
+		}
+		if detail.Quantity != nil {
+			p.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			p.UnitPrice = *detail.Price
+		}
+		for _, a := range detail.Answers {
+			sa := SurveyAnswerInfo{
+				Score:      a.Score,
+				QuestionID: a.QuestionID,
+				OptionID:   a.OptionID,
+			}
+			if a.Question != nil {
+				sa.QuestionText = a.Question.QuestionText
+			}
+			if a.Option != nil {
+				sa.OptionText = a.Option.OptionText
+			}
+			p.SurveyAnswers = append(p.SurveyAnswers, sa)
+		}
+		products = append(products, p)
+	}
+
+	return &VisitActivityMetadata{
+		VisitCode:     visit.Code,
+		Purpose:       visit.Purpose,
+		Outcome:       visit.Outcome,
+		Result:        visit.Result,
+		Photos:        photos,
+		CheckInAt:     formatTimePtr(visit.CheckInAt),
+		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
+		CheckInLat:    checkInLat,
+		CheckInLng:    checkInLng,
+		CheckOutLat:   checkOutLat,
+		CheckOutLng:   checkOutLng,
+		Address:       visit.Address,
+		ContactPerson: visit.ContactPerson,
+		Products:      products,
+	}
+}
+
+// updateVisitActivityMetadata updates the metadata of an existing activity record for a visit.
+// Called when photos or other visit details are updated after the activity is created.
+func (u *visitReportUsecase) updateVisitActivityMetadata(ctx context.Context, visit *models.VisitReport) {
+	activity, err := u.activityRepo.FindByVisitReportID(ctx, visit.ID)
+	if err != nil {
+		// Activity might not exist yet; this is OK for new visits
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Printf("[WARN] failed to fetch activity for visit %s to update metadata: %v\n", visit.Code, err)
+		}
+		return
+	}
+
+	metadata := u.buildVisitActivityMetadata(visit)
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		fmt.Printf("[WARN] failed to marshal updated activity metadata for visit %s: %v\n", visit.Code, err)
+		return
+	}
+
+	metadataStr := string(metadataJSON)
+	activity.Metadata = &metadataStr
+
+	if err := u.activityRepo.Update(ctx, activity); err != nil {
+		fmt.Printf("[WARN] failed to update activity metadata for visit %s: %v\n", visit.Code, err)
+	}
 }
 
 // formatTimePtr formats a *time.Time to ISO 8601 string pointer

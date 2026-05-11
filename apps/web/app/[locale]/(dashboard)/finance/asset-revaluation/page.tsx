@@ -9,10 +9,12 @@ import { AssetRevaluationList } from "@/features/finance/fixed-assets/components
 import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 export default function AssetRevaluationPage() {
   const [showForm, setShowForm] = useState(false);
   const { revaluations, isLoading, approve } = useAssetRevaluation();
+  const canUpdateAsset = useUserPermission("asset.update");
 
   return (
     <PermissionGuard requiredPermission="asset.revalue">
@@ -29,8 +31,9 @@ export default function AssetRevaluationPage() {
                 <Button
                   onClick={() => setShowForm(true)}
                   className="cursor-pointer"
+                  disabled={!canUpdateAsset}
                 >
-                  New Revaluation
+                  {canUpdateAsset ? "New Revaluation" : "No permission"}
                 </Button>
               </div>
               <AssetRevaluationList

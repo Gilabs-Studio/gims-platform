@@ -253,7 +253,7 @@ export function LocationPicker({
     if (selectedCityData?.data?.name) parts.push(selectedCityData.data.name);
     if (selectedProvinceData?.data?.name) parts.push(selectedProvinceData.data.name);
     return parts.join(", ");
-  }, [selectedDistrictData?.data?.name, selectedCityData?.data?.name, selectedProvinceData?.data?.name]);
+  }, [selectedDistrictData, selectedCityData, selectedProvinceData]);
 
   // When coordinates are selected from the map picker, run reverse geocode.
   // Pre-sets lastResolvedCoords to prevent the coordKey effect from firing
@@ -275,7 +275,7 @@ export function LocationPicker({
         }
       );
     },
-    [setValue, fields.latitude, fields.longitude, fields.province_id, fields.city_id, fields.district_id, reverseGeocode, applyGeocodeResult]
+    [setValue, fields.latitude, fields.longitude, fields.district_id, reverseGeocode, applyGeocodeResult]
   );
 
   const handleUseCurrentLocation = useCallback(() => {

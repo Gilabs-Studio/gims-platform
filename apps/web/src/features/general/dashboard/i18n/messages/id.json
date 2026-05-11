@@ -2,6 +2,8 @@
   "dashboard": {
     "title": "Dasbor",
     "error": "Gagal memuat data dasbor. Silakan coba lagi.",
+    "scopeRestrictedTitle": "Scope dibatasi",
+    "scopeRestrictedDescription": "Widget ini disembunyikan untuk scope izin saat ini.",
     "loading": "Memuat...",
     "noData": "Tidak ada data tersedia",
     "customize": "Kustomisasi",
@@ -37,12 +39,19 @@
       }
     },
     "onboarding": {
-      "welcome": "Selamat datang di SalesView!",
+      "welcome": "Selamat datang di GIMS!",
       "chooseTypePrompt": "Mari siapkan akun Anda. Bisnis apa yang sedang Anda jalankan?",
       "setupChecklist": "Daftar Periksa Setup",
       "checklistPrompt": "Selesaikan langkah-langkah berikut untuk menyiapkan workspace Anda ({done}/{total} selesai)",
       "dismiss": "Lewati untuk sekarang",
       "markDone": "Selesaikan setup",
+      "accessSetup": {
+        "title": "Setup akses role & karyawan",
+        "description": "Atur permission role dan cakupan akses karyawan sebelum tim mulai menggunakan workspace.",
+        "rolePermissions": "Konfigurasi permission role",
+        "employeeAccessFnb": "Atur akses karyawan untuk outlet dan alur kasir",
+        "employeeAccessOther": "Atur akses karyawan untuk gudang dan operasional"
+      },
       "types": {
         "fnb": {
           "label": "Makanan & Minuman",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, LayoutGrid } from "lucide-react";
 import type { WidgetConfig, POSOutletItem } from "../types";
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 
 interface PosCashControlWidgetProps {
   readonly widget: WidgetConfig;
@@ -30,6 +31,8 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
   const pageSize = 6;
   const registry = WIDGET_REGISTRY[widget.type];
   const canView = useUserPermission(registry?.permission ?? "");
+  const permissionScope = usePermissionScope(registry?.permission ?? "");
+  const allowAllOutlets = permissionScope?.trim().toUpperCase() === "ALL";
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
   const {
@@ -39,15 +42,18 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
     selectedOutletId,
     setSelectedOutletId,
     hasOutletFilter,
+    allowAllOutlets: canSelectAllOutlets,
     isSingleOutletScope,
     focusedOutlet,
     isLoading,
     isError,
     refetch,
-  } = usePosOutletOverview(widget.type, canView);
+  } = usePosOutletOverview(widget.type, canView, { allowAllOutlets });
 
   useEffect(() => {
-    setVisibleCount(pageSize);
+    startTransition(() => {
+      setVisibleCount(pageSize);
+    });
   }, [selectedOutletId]);
 
   const displayedOutlets = useMemo(() => filteredOutlets.slice(0, visibleCount), [filteredOutlets, visibleCount]);
@@ -83,7 +89,9 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("widgets.pos_cash_control.allOutlets")}</SelectItem>
+                  {canSelectAllOutlets && (
+                    <SelectItem value="all">{t("widgets.pos_cash_control.allOutlets")}</SelectItem>
+                  )}
                   {visibleOutlets.map((outlet) => (
                     <SelectItem key={outlet.outlet_id} value={outlet.outlet_id}>
                       {outlet.outlet_name}

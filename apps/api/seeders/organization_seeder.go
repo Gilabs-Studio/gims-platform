@@ -156,11 +156,9 @@ func SeedOrganization() error {
 
 	latGilabs := -6.2088
 	lngGilabs := 106.8456
-	latGacoan := -6.2234
-	lngGacoan := 106.8120
-	latKimia := -6.2297
-	lngKimia := 106.8235
 
+	// Only one company is provisioned per tenant. Company creation via UI is disabled.
+	// To add a company, contact GiLabs sales: https://wa.me/6289607700028
 	companies := []models.Company{
 		{
 			ID:         GiLabsCompanyID,
@@ -173,38 +171,6 @@ func SeedOrganization() error {
 			VillageID:  villageID,
 			Latitude:   &latGilabs,
 			Longitude:  &lngGilabs,
-			Timezone:   "Asia/Jakarta",
-			Status:     models.CompanyStatusApproved,
-			IsApproved: true,
-			IsActive:   true,
-		},
-		{
-			ID:         MieGacoanCompanyID,
-			Name:       "PT. Mie Gacoan Indonesia",
-			Address:    "Jl. Gandaria Utara III No.10, Jakarta Selatan",
-			Email:      "info@miegacoan.id",
-			Phone:      "021-7258-0001",
-			NPWP:       "02.345.678.9-013.000",
-			NIB:        "2345678901234",
-			VillageID:  villageID,
-			Latitude:   &latGacoan,
-			Longitude:  &lngGacoan,
-			Timezone:   "Asia/Jakarta",
-			Status:     models.CompanyStatusApproved,
-			IsApproved: true,
-			IsActive:   true,
-		},
-		{
-			ID:         KimiaFarmaCompanyID,
-			Name:       "PT. Kimia Farma Tbk",
-			Address:    "Jl. Veteran No.9, Jakarta Pusat",
-			Email:      "info@kimiafarma.co.id",
-			Phone:      "021-3847-3832",
-			NPWP:       "03.456.789.0-014.000",
-			NIB:        "3456789012345",
-			VillageID:  villageID,
-			Latitude:   &latKimia,
-			Longitude:  &lngKimia,
 			Timezone:   "Asia/Jakarta",
 			Status:     models.CompanyStatusApproved,
 			IsApproved: true,

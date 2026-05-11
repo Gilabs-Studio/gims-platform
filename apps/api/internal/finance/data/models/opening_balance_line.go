@@ -8,7 +8,7 @@ import (
 )
 
 type OpeningBalanceLine struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CompanyID    string `gorm:"type:uuid;not null;index:idx_ob_line_company_fy,priority:1" json:"company_id"`
@@ -19,7 +19,7 @@ type OpeningBalanceLine struct {
 	CreditAmount float64 `gorm:"type:decimal(18,2);not null;default:0" json:"credit_amount"`
 	Description  string  `gorm:"type:text" json:"description,omitempty"`
 
-	ProductID      *string `gorm:"type:uuid;index" json:"product_id,omitempty"`
+	ProductID      *string  `gorm:"type:uuid;index" json:"product_id,omitempty"`
 	ProductQty     *float64 `gorm:"type:decimal(18,4)" json:"product_qty,omitempty"`
 	ProductAvgCost *float64 `gorm:"type:decimal(18,6)" json:"product_avg_cost,omitempty"`
 

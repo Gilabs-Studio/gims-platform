@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -92,7 +93,6 @@ export function OvertimeDialog({
     control,
     watch,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<OvertimeFormData>({
     resolver: zodResolver(overtimeFormSchema),

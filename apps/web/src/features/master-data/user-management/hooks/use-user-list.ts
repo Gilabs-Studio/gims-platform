@@ -6,6 +6,8 @@ import { useUsers, useDeleteUser, useUser, useCreateUser, useUpdateUser } from "
 import { useRoles } from "./use-users";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useHasPermission } from "./use-has-permission";
+import { useUserAddon } from "./use-user-addon";
+import { useUserLimit } from "./use-user-limit";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 
 /** Extracts the API error code from an Axios error response. */
@@ -25,6 +27,35 @@ function extractApiErrorMessage(err: unknown): string | null {
   return e?.details?.reason ?? e?.message ?? null;
 }
 
+function extractApiConflictDetails(err: unknown): {
+  code?: string;
+  field?: string;
+  resource?: string;
+  value?: string;
+} {
+  const axiosErr = err as {
+    response?: {
+      data?: {
+        error?: {
+          code?: string;
+          details?: {
+            field?: string;
+            resource?: string;
+            value?: string;
+          };
+        };
+      };
+    };
+  };
+
+  return {
+    code: axiosErr?.response?.data?.error?.code,
+    field: axiosErr?.response?.data?.error?.details?.field,
+    resource: axiosErr?.response?.data?.error?.details?.resource,
+    value: axiosErr?.response?.data?.error?.details?.value,
+  };
+}
+
 export function useUserList() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -33,6 +64,7 @@ export function useUserList() {
   const [status, setStatus] = useState<string>("");
   const [roleId, setRoleId] = useState<string>("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createConflictMessage, setCreateConflictMessage] = useState("");
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -40,6 +72,7 @@ export function useUserList() {
   const canCreate = useHasPermission("user.create");
   const canUpdate = useHasPermission("user.update");
   const canDelete = useHasPermission("user.delete");
+  const { data: userLimit } = useUserLimit();
 
   const { data, isLoading } = useUsers({ page, per_page: perPage, search: debouncedSearch, status, role_id: roleId });
   const { data: rolesData } = useRoles();
@@ -47,6 +80,10 @@ export function useUserList() {
   const deleteUser = useDeleteUser();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const userAddon = useUserAddon({
+    userLimit,
+    onOpenCreateDialog: () => setIsCreateDialogOpen(true),
+  });
 
   const users = data?.data || [];
   const pagination = data?.meta?.pagination;
@@ -54,22 +91,37 @@ export function useUserList() {
 
   const handleCreate = async (formData: CreateUserFormData) => {
     try {
+      setCreateConflictMessage("");
       await createUser.mutateAsync(formData);
       setIsCreateDialogOpen(false);
       toast.success("User created successfully");
     } catch (err) {
       const code = extractApiErrorCode(err);
       if (code === "USER_LIMIT_REACHED") {
+        setIsCreateDialogOpen(false);
+        setCreateConflictMessage("");
+        userAddon.openAddonDialog();
         toast.error("User limit reached", {
           description:
             extractApiErrorMessage(err) ??
             "Upgrade your plan to add more users.",
         });
-      } else if (code === "DUPLICATE_EMAIL" || (extractApiErrorMessage(err) ?? "").toLowerCase().includes("email")) {
-        toast.error("Email already in use", {
-          description: "Another user is already registered with this email address.",
+      } else if (code === "RESOURCE_ALREADY_EXISTS" || code === "DUPLICATE_EMAIL") {
+        const conflict = extractApiConflictDetails(err);
+        const fieldLabel = conflict.field === "email" ? "Email" : conflict.field ?? "Resource";
+        const fieldValue = conflict.value ? ` ${conflict.value}` : "";
+        const resourceLabel = conflict.resource ? ` ${conflict.resource}` : "";
+        const conflictMessage = conflict.field === "email"
+          ? `The email${fieldValue} is already used by another user.`
+          : `${fieldLabel}${resourceLabel}${fieldValue} already exists.`;
+
+        setCreateConflictMessage(conflictMessage);
+
+        toast.error(`${fieldLabel} already exists`, {
+          description: conflictMessage,
         });
       } else {
+        setCreateConflictMessage("");
         toast.error("Failed to create user");
       }
     }
@@ -132,10 +184,13 @@ export function useUserList() {
     setRoleId,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
+    createConflictMessage,
+    setCreateConflictMessage,
     editingUser,
     setEditingUser,
     deletingUserId,
     setDeletingUserId,
+    userLimit,
     // Data
     users,
     pagination,
@@ -151,6 +206,7 @@ export function useUserList() {
     deleteUser,
     createUser,
     updateUser,
+    ...userAddon,
     permissions: {
       canCreate,
       canUpdate,

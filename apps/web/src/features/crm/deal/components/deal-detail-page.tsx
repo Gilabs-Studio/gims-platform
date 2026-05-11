@@ -90,7 +90,6 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
 export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const t = useTranslations("crmDeal");
   const tCommon = useTranslations("common");
-  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);

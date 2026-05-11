@@ -24,7 +24,7 @@ import type { MenuWithActions } from "../types";
  */
 export function useUserPermissions() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const handleLogout = useLogout();
   const locale = useLocale();
   
@@ -43,14 +43,28 @@ export function useUserPermissions() {
   // Build menu tree with access flags based on user.permissions from login
   const menuData = useMemo(() => {
     if (!query.data?.data) return null;
-    
-    const userPermissions = user?.permissions ?? {};
+    // Prefer server-provided permissions when available (reflects latest role/menu assignments)
+    const serverPermissionsList = (query.data.data as { permissions?: Array<{ code: string; scope?: string }> } | undefined)?.permissions ?? undefined;
+    const serverPermissions: Record<string, string> = {};
+    if (Array.isArray(serverPermissionsList)) {
+      for (const p of serverPermissionsList) {
+        if (p && p.code) {
+          serverPermissions[p.code] = p.scope ?? "ALL";
+        }
+      }
+    }
+
+    // Merge: server-provided permissions take precedence over stored auth permissions
+    const userPermissions = {
+      ...(user?.permissions ?? {}),
+      ...serverPermissions,
+    } as Record<string, string>;
     const menus = query.data.data.menus;
     
-    // Mark menus with access based on user permissions map (code -> scope)
+    // Mark menus with access based on merged permissions map (code -> scope)
     const markMenuAccess = (menu: MenuWithActions): MenuWithActions => {
       const markedActions = menu.actions?.map(action => {
-        const hasAccess = action.code in userPermissions;
+        const hasAccess = !!(action.code && action.code in userPermissions);
         
         return {
           ...action,
@@ -98,9 +112,50 @@ export function useUserPermissions() {
     }
   }, [query.error, handleLogout, router, locale]);
 
+  // Sync server-provided permissions into auth store so app stays consistent
+  useEffect(() => {
+    const serverPermissionsList = (query.data as { data?: { permissions?: Array<{ code: string; scope?: string }> } } | undefined)?.data?.permissions ?? undefined;
+    if (!serverPermissionsList || !user) return;
+
+    const serverPermissions: Record<string, string> = {};
+    if (Array.isArray(serverPermissionsList)) {
+      for (const p of serverPermissionsList) {
+        if (p && p.code) {
+          serverPermissions[p.code] = p.scope ?? "ALL";
+        }
+      }
+    }
+
+    const merged = {
+      ...(user.permissions ?? {}),
+      ...serverPermissions,
+    } as Record<string, string>;
+
+    // shallow compare
+    const oldKeys = Object.keys(user.permissions ?? {});
+    const newKeys = Object.keys(merged);
+    let equal = oldKeys.length === newKeys.length;
+    if (equal) {
+      for (const k of newKeys) {
+        if ((user.permissions ?? {})[k] !== merged[k]) {
+          equal = false;
+          break;
+        }
+      }
+    }
+
+    if (!equal) {
+      setUser({
+        ...user,
+        permissions: merged,
+      });
+    }
+  }, [query.data, user, setUser]);
+
   // Return query with processed menu data that includes access flags from login permissions
   return {
     ...query,
     data: menuData ? { data: menuData } : undefined,
   };
 }
+

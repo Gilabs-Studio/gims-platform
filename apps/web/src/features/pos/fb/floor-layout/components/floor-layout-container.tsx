@@ -39,9 +39,16 @@ export function FloorLayoutContainer() {
   }, [assignedOutlets]);
 
   // Fetch existing floor layouts
-  const { data: layoutsData, isLoading: layoutsLoading } = useFloorLayouts(
-    { per_page: 100, company_id: companyId },
-    { enabled: assignedOutlets.length > 0 }
+  // For single company (companyId defined), fetch with company filter
+  // For multiple companies or no company, fetch all layouts user can access
+  const { data: layoutsData, isLoading: layoutsLoading, refetch: refetchLayouts } = useFloorLayouts(
+    companyId 
+      ? { per_page: 100, company_id: companyId }
+      : { per_page: 100 },
+    { 
+      // Enable when outlets are loaded and (company is defined OR we have multiple outlets)
+      enabled: assignedOutlets.length > 0 && (companyId !== undefined || assignedOutlets.length > 1)
+    }
   );
   const existingLayouts = useMemo(() => layoutsData?.data ?? [], [layoutsData?.data]);
 
@@ -50,8 +57,10 @@ export function FloorLayoutContainer() {
   }, []);
 
   const handleBackToList = useCallback(() => {
+    // Refetch layouts when going back to list to ensure latest data is shown
+    refetchLayouts();
     setEditorFloorPlanId(null);
-  }, []);
+  }, [refetchLayouts]);
 
   const handleCreateSuccess = useCallback((id: string) => {
     setShowCreateDialog(false);

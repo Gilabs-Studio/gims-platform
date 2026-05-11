@@ -24,6 +24,7 @@ export const productId = {
     cancel: "Batal",
     edit: "Edit",
     save: "Simpan",
+    saved: "Tersimpan",
     saving: "Menyimpan...",
     overview: "Ringkasan",
     previous: "Sebelumnya",

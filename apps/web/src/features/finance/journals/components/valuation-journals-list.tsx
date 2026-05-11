@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Play, ShieldCheck, Eye, Download, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ export function ValuationJournalsList() {
 
   const selectedRun = useValuationRunDetail(selectedRunID);
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
   const runs = runsData?.data ?? [];
 
@@ -166,15 +167,14 @@ export function ValuationJournalsList() {
 
   const handlePreview = async () => {
     if (!runForm.period_start || !runForm.period_end) {
-      toast.error("Period start and end are required");
+      toast.error(t("toast.failed"));
       return;
     }
     try {
       await previewMutation.mutateAsync(runForm);
       setIsPreviewOpen(true);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t("toast.failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -186,8 +186,7 @@ export function ValuationJournalsList() {
       setIsRunModalOpen(false);
       setSelectedRunID(response.data.id);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t("toast.failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -200,8 +199,7 @@ export function ValuationJournalsList() {
       toast.success("Valuation approved and posted");
       setSelectedRunID(run.id);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Approval failed";
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, "Approval failed"));
     }
   };
 
@@ -215,8 +213,7 @@ export function ValuationJournalsList() {
       toast.success("Retry valuation run submitted");
       setSelectedRunID(response.data.id);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Retry failed";
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, "Retry failed"));
     }
   };
 

@@ -1,12 +1,14 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -56,6 +58,93 @@ func normalizeFiscalYearID(fiscalYearID *string) *string {
 	return &trimmed
 }
 
+func financeReportScopeOptions(ownerColumn string) security.ScopeQueryOptions {
+	ownerColumn = strings.TrimSpace(ownerColumn)
+	if ownerColumn == "" {
+		ownerColumn = "je.created_by"
+	}
+
+	return security.ScopeQueryOptions{
+		OwnerUserIDColumn: ownerColumn,
+		DivisionJoinSQL:   ownerColumn + " IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)",
+		AreaJoinSQL:       ownerColumn + " IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_areas WHERE area_id IN ?) AND user_id IS NOT NULL AND deleted_at IS NULL)",
+		OutletJoinSQL:     ownerColumn + " IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL AND deleted_at IS NULL)",
+	}
+}
+
+func appendFinanceScopePredicate(ctx context.Context, query string, args []interface{}, ownerColumn string) (string, []interface{}) {
+	scope, _ := ctx.Value("permission_scope").(string)
+	scope = strings.ToUpper(strings.TrimSpace(scope))
+	if scope == "" || scope == "ALL" || middleware.IsSystemAdmin(ctx) {
+		return query, args
+	}
+
+	userID, _ := ctx.Value("scope_user_id").(string)
+	employeeID, _ := ctx.Value("scope_employee_id").(string)
+	divisionID, _ := ctx.Value("scope_division_id").(string)
+	areaIDs, _ := ctx.Value("scope_area_ids").([]string)
+	outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+
+	ownerColumn = strings.TrimSpace(ownerColumn)
+	if ownerColumn == "" {
+		ownerColumn = "je.created_by"
+	}
+
+	switch scope {
+	case "OWN":
+		if strings.TrimSpace(userID) == "" {
+			return query + " AND 1 = 0", args
+		}
+		query += " AND " + ownerColumn + " = ?"
+		args = append(args, userID)
+	case "DIVISION":
+		if strings.TrimSpace(divisionID) == "" {
+			if strings.TrimSpace(userID) == "" {
+				return query + " AND 1 = 0", args
+			}
+			query += " AND " + ownerColumn + " = ?"
+			args = append(args, userID)
+			return query, args
+		}
+		query += " AND " + ownerColumn + " IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL)"
+		args = append(args, divisionID)
+	case "AREA":
+		if len(areaIDs) == 0 {
+			if strings.TrimSpace(userID) == "" {
+				return query + " AND 1 = 0", args
+			}
+			query += " AND " + ownerColumn + " = ?"
+			args = append(args, userID)
+			return query, args
+		}
+		query += " AND " + ownerColumn + " IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_areas WHERE area_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL AND deleted_at IS NULL)"
+		args = append(args, areaIDs)
+	case "OUTLET":
+		if len(outletIDs) == 0 {
+			if strings.TrimSpace(userID) == "" {
+				return query + " AND 1 = 0", args
+			}
+			query += " AND " + ownerColumn + " = ?"
+			args = append(args, userID)
+			return query, args
+		}
+		query += " AND " + ownerColumn + " IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL) AND user_id IS NOT NULL AND deleted_at IS NULL)"
+		args = append(args, outletIDs)
+	default:
+		if strings.TrimSpace(employeeID) == "" && strings.TrimSpace(userID) == "" {
+			return query + " AND 1 = 0", args
+		}
+		if strings.TrimSpace(userID) != "" {
+			query += " AND " + ownerColumn + " = ?"
+			args = append(args, userID)
+		} else {
+			return query + " AND 1 = 0", args
+		}
+	}
+
+	return query, args
+}
+
 func (r *financeReportRepository) validateCompanyFilterSupport(ctx context.Context, companyID *string) error {
 	if companyID == nil {
 		return nil
@@ -96,7 +185,7 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 		result[id] = GLAccountBalance{ChartOfAccountID: id}
 	}
 
-	query := database.GetDB(ctx, r.db).
+	query := r.db.WithContext(ctx).
 		Table("journal_lines jl").
 		Select(`
 			jl.chart_of_account_id as coa_id,
@@ -121,6 +210,8 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 		Where("jl.deleted_at IS NULL").
 		Where("coa.deleted_at IS NULL")
 
+	query = security.ApplyScopeFilter(query, ctx, financeReportScopeOptions("je.created_by"))
+
 	if len(accountIDs) > 0 {
 		query = query.Where("jl.chart_of_account_id IN ?", accountIDs)
 	}
@@ -130,6 +221,9 @@ func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Conte
 	if fiscalYearID != nil {
 		query = query.Where("je.fiscal_year_id = ?", *fiscalYearID)
 	}
+
+	// Apply qualified tenant filter to avoid unqualified `tenant_id` ambiguity on JOINs
+	query = applyQualifiedTenantFilter(ctx, query, "jl.tenant_id", "je.tenant_id", "coa.tenant_id")
 
 	type row struct {
 		CoAID          string  `gorm:"column:coa_id"`
@@ -210,7 +304,7 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 	}
 
 	var lines []financeModels.JournalLine
-	query := database.GetDB(ctx, r.db).
+	query := r.db.WithContext(ctx).
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
@@ -219,12 +313,16 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 		Where("journal_lines.deleted_at IS NULL").
 		Where("journal_entries.entry_date >= ?", startDate).
 		Where("journal_entries.entry_date <= ?", endDate)
+	query = security.ApplyScopeFilter(query, ctx, financeReportScopeOptions("journal_entries.created_by"))
 	if companyID != nil {
 		query = query.Where("journal_entries.company_id = ?", *companyID)
 	}
 	if fiscalYearID != nil {
 		query = query.Where("journal_entries.fiscal_year_id = ?", *fiscalYearID)
 	}
+	// Apply qualified tenant filter so tenant scoping remains enforced with qualified column
+	query = applyQualifiedTenantFilter(ctx, query, "journal_lines.tenant_id", "journal_entries.tenant_id")
+
 	err := query.
 		Order("journal_entries.entry_date asc, journal_entries.id asc, journal_lines.id asc").
 		Find(&lines).Error
@@ -274,7 +372,16 @@ func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, e
 	}
 
 	var row result
-	if err := database.GetDB(ctx, r.db).Raw(query, args...).Scan(&row).Error; err != nil {
+	// Append tenant filter to raw SQL to keep tenant isolation
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	if tenantID != "" {
+		query += " AND je.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+
+	query, args = appendFinanceScopePredicate(ctx, query, args, "je.created_by")
+
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&row).Error; err != nil {
 		return 0, err
 	}
 

@@ -61,29 +61,21 @@ export function AsyncSelect<T>({
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const debouncedQuery = useDebounce(query, 300);
-  const [options, setOptions] = React.useState<T[]>(defaultOptions);
+  const [fetchedOptions, setFetchedOptions] = React.useState<T[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [selectedItem, setSelectedItem] = React.useState<T | undefined>(
-    defaultOptions.find((item) => getValue(item) === value)
-  );
 
-  // Apply defaultOptions only while the popover is closed (as the initial/fallback state).
-  // Once the user opens the dropdown the fetch effect takes over, and we must NOT
-  // let a new defaultOptions reference (e.g. a recreated array) clobber the fetched results.
-  React.useEffect(() => {
+  const options = React.useMemo(() => {
     if (!open && defaultOptions.length > 0) {
-      setOptions(defaultOptions);
+      return defaultOptions;
     }
-  }, [defaultOptions, open]);
+    return fetchedOptions;
+  }, [open, defaultOptions, fetchedOptions]);
 
-  // Sync selected item if value changes externally
-  React.useEffect(() => {
+  const selectedItem = React.useMemo(() => {
     if (value && options.length > 0) {
-      const found = options.find((item) => getValue(item) === value);
-      if (found) setSelectedItem(found);
-    } else if (!value) {
-      setSelectedItem(undefined);
+      return options.find((item) => getValue(item) === value);
     }
+    return undefined;
   }, [value, options, getValue]);
 
   // Fetch when debounced query changes
@@ -93,17 +85,17 @@ export function AsyncSelect<T>({
       
       // If query is empty and we have default options, use them, unless preload is true
       if (!query && !preload && defaultOptions.length > 0) {
-        setOptions(defaultOptions);
+        setFetchedOptions(defaultOptions);
         return;
       }
 
       setLoading(true);
       try {
         const results = await fetcher(debouncedQuery);
-        setOptions(results);
+        setFetchedOptions(results);
       } catch (error) {
         console.error("AsyncSelect fetch error:", error);
-        setOptions([]);
+        setFetchedOptions([]);
       } finally {
         setLoading(false);
       }
@@ -117,7 +109,6 @@ export function AsyncSelect<T>({
 
   const handleSelect = (currentValue: string) => {
     const item = options.find((i) => getValue(i) === currentValue);
-    setSelectedItem(item);
     onChange(currentValue, item);
     setOpen(false);
   };

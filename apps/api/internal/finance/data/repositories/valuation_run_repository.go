@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"context"
 	"strings"
 	"time"
@@ -51,7 +52,8 @@ func (r *valuationRunRepository) Create(ctx context.Context, run *financeModels.
 
 func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := database.GetDB(ctx, r.db).Preload("Details").First(&run, "id = ?", id).Error; err != nil {
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.ValuationRun{}), ctx, security.FinanceScopeQueryOptions()).Preload("Details")
+	if err := q.First(&run, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
@@ -59,7 +61,8 @@ func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*fina
 
 func (r *valuationRunRepository) FindByReferenceID(ctx context.Context, refID string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := database.GetDB(ctx, r.db).Preload("Details").First(&run, "reference_id = ?", refID).Error; err != nil {
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.ValuationRun{}), ctx, security.FinanceScopeQueryOptions()).Preload("Details")
+	if err := q.First(&run, "reference_id = ?", refID).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
@@ -68,8 +71,7 @@ func (r *valuationRunRepository) FindByReferenceID(ctx context.Context, refID st
 // HasPendingRun checks if there is already a valuation run awaiting completion for the period.
 func (r *valuationRunRepository) HasPendingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error) {
 	var count int64
-	err := database.GetDB(ctx, r.db).
-		Model(&financeModels.ValuationRun{}).
+	err := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.ValuationRun{}), ctx, security.FinanceScopeQueryOptions()).
 		Where("valuation_type = ? AND status IN ? AND period_start = ? AND period_end = ?",
 			valuationType,
 			[]financeModels.ValuationRunStatus{
@@ -141,6 +143,7 @@ func (r *valuationRunRepository) List(ctx context.Context, params ValuationRunLi
 	var total int64
 
 	q := database.GetDB(ctx, r.db).Model(&financeModels.ValuationRun{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if params.ValuationType != nil {
 		q = q.Where("valuation_runs.valuation_type = ?", *params.ValuationType)

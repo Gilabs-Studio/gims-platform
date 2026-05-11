@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -43,7 +43,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     isFormLoading,
     fields,
     remove,
-    products,
     contacts,
     selectedContactId,
     calculations,
@@ -81,6 +80,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
   } = useQuotationForm({ quotation, open, onClose });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
+  const customerId = useWatch({ control, name: "customer_id" });
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -378,7 +378,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   createPermission="customer.create"
                   createLabel={`${t("common.create") || "Create"} "{query}"`}
                   onCreateClick={(q) => openQuickCreate("contact", q)}
-                  disabled={!form.watch("customer_id")}
+                  disabled={!customerId}
                 />
                 {errors.customer_contact && (
                   <FieldError>{errors.customer_contact.message}</FieldError>
@@ -559,7 +559,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 hasMore={productCombobox.hasMore}
                                 isLoadingMore={productCombobox.isLoadingMore}
                                 searchDebounceMs={300}
-                                options={productCombobox.options}
+                                options={productCombobox.options.filter((o) => {
+                                  const currentVal = watchedItems?.[index]?.product_id?.toString();
+                                  if (o.value === currentVal) return true;
+                                  return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id.toString() === o.value);
+                                })}
                                 placeholder={t("item.selectProduct")}
                                 createPermission="product.create"
                                 createLabel={`${t("common.create")} "{query}"`}
@@ -800,7 +804,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         />
       )}
       {quickCreate.type === "contact" && (() => {
-        const customerId = form.watch("customer_id");
         if (!customerId) return null;
         return (
           <ContactFormDialog

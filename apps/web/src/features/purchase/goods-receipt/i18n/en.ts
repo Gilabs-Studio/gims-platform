@@ -87,6 +87,7 @@ export const goodsReceiptEn = {
     purchaseOrder: "PO",
     supplier: "Supplier",
     receiptDate: "Receipt Date",
+    warehouse: "Warehouse",
     status: "Status",
     createdAt: "Created At",
     totalItems: "Items",

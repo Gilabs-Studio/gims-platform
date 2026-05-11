@@ -1,14 +1,25 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
+
+const subscribeToHydration = (callback: () => void) => {
+  callback();
+  return () => {};
+};
+const getHydrationSnapshot = () => typeof window !== "undefined";
+const getHydrationServerSnapshot = () => false;
 
 /**
  * Authentication guard hook specifically for the login page.
  *
- * This hook verifies the current session in the background, but it does not
- * block rendering of the login form. This improves perceived performance by
- * allowing users to start typing immediately while the browser checks if the
- * existing session is still valid.
+ * Does NOT block rendering of the login form. Verification runs in the
+ * background so users can start typing immediately while the browser
+ * checks whether an existing session is still valid.
+ *
+ * States:
+ * - isLoading: true while verifying or redirecting
+ * - shouldShowLoginForm: true once hydrated and not redirecting
+ * - isRateLimited: true when backend returns 429
  */
 export function useLoginGuard() {
   const router = useRouter();
@@ -20,25 +31,23 @@ export function useLoginGuard() {
     logout,
   } = useAuthStore();
 
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydrationSnapshot,
+    getHydrationServerSnapshot,
+  );
+
   const [isVerifying, setIsVerifying] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const hasAttemptedVerification = useRef(false);
 
-  // Mark as hydrated after first render (Zustand rehydration complete)
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
+  // Deps: exclude `isRedirecting` (guarded by ref)
   const verifyAndRedirect = useCallback(async () => {
-    // Avoid repeated attempts when the component re-renders
-    if (hasAttemptedVerification.current || isRedirecting) {
-      return;
-    }
+    if (hasAttemptedVerification.current) return;
     hasAttemptedVerification.current = true;
 
-    // If we already have a verified session from this page load, avoid the
-    // extra round-trip and redirect immediately.
+    // Fast path: already verified this page load, skip round-trip
     if (isSessionVerified && localStorageAuth) {
       setIsRedirecting(true);
       router.push("/dashboard");
@@ -50,12 +59,10 @@ export function useLoginGuard() {
     try {
       const { authService } = await import("../services/auth-service");
 
-      // Ensure CSRF token is available before /auth/refresh-token in
-      // cross-origin production setups.
       try {
         await authService.prefetchCSRFToken();
       } catch {
-        // Ignore — verification can still succeed without it.
+        // Non-fatal — proceed without CSRF prefetch
       }
 
       const response = await authService.getMe();
@@ -68,7 +75,6 @@ export function useLoginGuard() {
         return;
       }
 
-      // If response doesn't contain user, treat it as an invalid session.
       logout();
     } catch (error: unknown) {
       const axiosError = error as {
@@ -77,8 +83,8 @@ export function useLoginGuard() {
       const status = axiosError?.response?.status;
       const errorCode = axiosError?.response?.data?.error?.code;
 
-      // CSRF mismatch can happen when the token is stale; let the user retry.
       if (errorCode === "CSRF_INVALID") {
+        // Stale token — allow user to retry naturally
         return;
       }
 
@@ -87,37 +93,32 @@ export function useLoginGuard() {
         const { fullAuthCleanup } = await import("../utils/clear-auth-cookies");
         await fullAuthCleanup();
       } else if (status === 403) {
-        // Session exists but lacks permissions - keep cookies so user can re-login.
+        // Session exists but lacks permissions — keep cookies for re-login
         logout();
       } else if (status === 429) {
-        // Rate limited - allow the user to try again once the cooldown expires.
+        setIsRateLimited(true);
       } else {
         logout();
       }
     } finally {
       setIsVerifying(false);
     }
-  }, [
-    localStorageAuth,
-    isSessionVerified,
-    isRedirecting,
-    router,
-    setUser,
-    setSessionVerified,
-    logout,
-  ]);
+  }, [isSessionVerified, localStorageAuth, router, setUser, setSessionVerified, logout]);
+  //   ^ removed: isRedirecting (guarded by ref)
 
-  // Start verification as soon as hydration is complete.
   useEffect(() => {
     if (!isHydrated) return;
-    verifyAndRedirect();
+
+    const timeoutId = window.setTimeout(() => {
+      verifyAndRedirect();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [isHydrated, verifyAndRedirect]);
 
   return {
-    // Indicates the login page is still checking whether the user is already logged in.
     isLoading: isVerifying || isRedirecting,
-
-    // Allow the login form to render immediately after hydration.
+    isRateLimited,
     shouldShowLoginForm: isHydrated && !isRedirecting,
   };
 }

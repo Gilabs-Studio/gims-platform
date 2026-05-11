@@ -27,7 +27,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { useRouter } from "@/i18n/routing";
-import { SalesPaymentPrintDialog } from "./sales-payment-print-dialog";
+import { salesPaymentsService } from "../services/sales-payments-service";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -61,7 +61,7 @@ export function SalesPaymentsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
+
 
   const canCreate = useUserPermission("sales_payment.create");
   const canDelete = useUserPermission("sales_payment.delete");
@@ -306,7 +306,7 @@ export function SalesPaymentsList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                onClick={() => setPrintingPaymentId(item.id)}
+                                onClick={() => { salesPaymentsService.openPrintWindow(item.id).catch(() => toast.error("Print failed")); }}
                                 className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -383,13 +383,6 @@ export function SalesPaymentsList() {
         }}
       />
 
-      {printingPaymentId && (
-        <SalesPaymentPrintDialog
-          open={!!printingPaymentId}
-          onClose={() => setPrintingPaymentId(null)}
-          paymentId={printingPaymentId}
-        />
-      )}
     </div>
   );
 }

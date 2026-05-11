@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { LayoutDashboard, RotateCcw, Check } from "lucide-react";
 import {
@@ -27,13 +27,19 @@ import { SortableWidget } from "./sortable-widget";
 import { WidgetRenderer } from "./widget-renderer";
 import { WidgetPicker } from "./widget-picker";
 import { OnboardingWizard } from "./onboarding-wizard";
-import { DashboardTemplatePicker } from "./dashboard-template-picker";
-import { WIDGET_REGISTRY } from "../config/widget-registry";
+import {
+  buildAccessibleDefaultWidgets,
+  collectAccessibleMenuUrls,
+  isWidgetVisibleByAccessibleMenus,
+  WIDGET_REGISTRY,
+} from "../config/widget-registry";
 import { useOnboardingState } from "../hooks/use-onboarding";
-import type { WidgetConfig, WidgetType } from "../types";
+import type { WidgetType } from "../types";
+import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
+  const { data: permissionsData, isLoading: isPermissionsLoading } = useUserPermissions();
   const { data: layoutData } = useDashboardLayout();
   const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState();
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
@@ -54,11 +60,11 @@ export function DashboardGrid() {
   } = useDashboardStore();
 
   const hasPersistedLayout = Boolean(layoutData && layoutData.length > 0);
-  const shouldShowTemplatePicker =
-    onboarding?.completed === true &&
-    layoutData !== undefined &&
-    !hasPersistedLayout &&
-    widgets.length === 0;
+  const accessibleMenuUrls = useMemo(
+    () => collectAccessibleMenuUrls(permissionsData?.data.menus ?? []),
+    [permissionsData?.data.menus],
+  );
+  const hasAccessibleMenus = accessibleMenuUrls.size > 0;
 
   // Sync layout from DB into store once loaded.
   // When a saved layout exists, hydrate it into the store.
@@ -68,13 +74,33 @@ export function DashboardGrid() {
     }
   }, [hasPersistedLayout, layoutData, setWidgets]);
 
-  const handleSelectTemplate = useCallback(
-    (templateWidgets: WidgetConfig[]) => {
-      setWidgets(templateWidgets);
-      saveLayout(templateWidgets);
-    },
-    [setWidgets, saveLayout],
-  );
+  useEffect(() => {
+    if (
+      isOnboardingLoading ||
+      onboarding === undefined ||
+      !onboarding.completed ||
+      isPermissionsLoading ||
+      hasPersistedLayout ||
+      widgets.length > 0 ||
+      !hasAccessibleMenus
+    ) {
+      return;
+    }
+
+    const defaultWidgets = buildAccessibleDefaultWidgets(accessibleMenuUrls);
+    if (defaultWidgets.length > 0) {
+      setWidgets(defaultWidgets);
+    }
+  }, [
+    accessibleMenuUrls,
+    hasAccessibleMenus,
+    hasPersistedLayout,
+    isOnboardingLoading,
+    isPermissionsLoading,
+    onboarding,
+    setWidgets,
+    widgets.length,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -140,16 +166,13 @@ export function DashboardGrid() {
 
   const visibleWidgets = widgets
     .filter((w) => w.visible)
+    .filter((w) => isWidgetVisibleByAccessibleMenus(w.type, accessibleMenuUrls))
     .sort((a, b) => a.order - b.order);
 
   // While onboarding is in progress or still loading, render the wizard as the full dashboard content.
   // Once onboarding is complete, render the grid.
   if (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed)) {
     return <OnboardingWizard />;
-  }
-
-  if (shouldShowTemplatePicker) {
-    return <DashboardTemplatePicker onSelect={handleSelectTemplate} />;
   }
 
   return (

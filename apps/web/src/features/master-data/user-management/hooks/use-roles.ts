@@ -91,11 +91,12 @@ export function useAssignPermissionsToRole() {
         removed: string[];
       };
     }) => roleService.assignPermissions(roleId, permissionIds, assignments, tolerant, diff),
-    onSuccess: async (updatedRole, variables) => {
+    onSuccess: async (updatedRole) => {
       // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ["roles"] });
-      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
+      queryClient.invalidateQueries({ queryKey: ["role"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
       
       // If current user's role code matches the updated role, update permissions in auth store
       if (updatedRole?.code === user?.role?.code) {
@@ -110,9 +111,6 @@ export function useAssignPermissionsToRole() {
           permissions: permissionsMap,
         });
       }
-      
-      // Invalidate user-permissions query last to trigger menu re-render
-      queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
     },
   });
 }
@@ -129,6 +127,7 @@ export function useRoleMenuAccess(roleId: string) {
 
 export function useUpdateRoleMenuAccess() {
   const queryClient = useQueryClient();
+  const { user, setUser } = useAuthStore();
 
   return useMutation({
     mutationFn: ({
@@ -138,12 +137,34 @@ export function useUpdateRoleMenuAccess() {
       roleId: string;
       assignments: RoleMenuAccessAssignment[];
     }) => roleService.updateMenuAccess(roleId, assignments),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["role-menu-access", variables.roleId] });
-      queryClient.invalidateQueries({ queryKey: ["role", variables.roleId] });
+    onSuccess: async (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["role-menu-access"] });
+      queryClient.invalidateQueries({ queryKey: ["role"] });
       queryClient.invalidateQueries({ queryKey: ["roles"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user-permissions"] });
+
+      // If current user's role code matches the updated role, sync permissions
+      if (user?.role?.code) {
+        try {
+          const updatedRole = await roleService.getById(variables.roleId);
+          if (updatedRole?.code === user?.role?.code && updatedRole?.permissions) {
+            // Build permissions map from updated role
+            const permissionsMap: Record<string, string> = {};
+            for (const p of updatedRole.permissions) {
+              permissionsMap[p.code] = p.scope ?? "ALL";
+            }
+            
+            setUser({
+              ...user,
+              permissions: permissionsMap,
+            });
+          }
+        } catch (error) {
+          // If role fetch fails, rely on user-permissions refetch to sync
+          console.error("Failed to sync role permissions after menu-access update:", error);
+        }
+      }
     },
   });
 }

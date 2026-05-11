@@ -1,8 +1,6 @@
 package usecase
 
 import (
-	"context"
-	"strings"
 	"sync"
 	"testing"
 
@@ -14,18 +12,15 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	dbtest "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 )
 
 func TestPayment_ShouldApproveIdempotently_WhenConcurrentRequests(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -50,6 +45,8 @@ func TestPayment_ShouldApproveIdempotently_WhenConcurrentRequests(t *testing.T) 
 		Name:             "Main Bank",
 		AccountNumber:    "123",
 		ChartOfAccountID: &coaCash.ID,
+		CreatedBy:        financeTestCompanyID,
+		UpdatedBy:        financeTestCompanyID,
 	}
 	require.NoError(t, db.Create(&bankAccount).Error)
 
@@ -64,10 +61,10 @@ func TestPayment_ShouldApproveIdempotently_WhenConcurrentRequests(t *testing.T) 
 	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	paymentUC := NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
 	refType := reference.RefTypeSupplierInvoice
-	refID := "ap-001"
+	refID := "00000000-0000-0000-0000-000000000001"
 
 	req := &dto.CreatePaymentRequest{
 		PaymentDate:   "2026-03-01",

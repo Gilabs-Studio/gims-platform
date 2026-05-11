@@ -164,22 +164,28 @@ export function EmployeeDetailModal({
           </div>
         ) : (
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList>
-              <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
-              <TabsTrigger value="employment">
+            <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden">
+              <TabsTrigger value="overview" className="flex-1">
+                {t("tabs.overview")}
+              </TabsTrigger>
+              <TabsTrigger value="employment" className="flex-1">
                 {t("tabs.employment")}
               </TabsTrigger>
-              <TabsTrigger value="contract-history">
+              <TabsTrigger value="contract-history" className="flex-1">
                 {t("tabs.contractHistory")}
               </TabsTrigger>
-              <TabsTrigger value="signature">{t("tabs.signature")}</TabsTrigger>
-              <TabsTrigger value="education-history">
+              <TabsTrigger value="signature" className="flex-1">
+                {t("tabs.signature")}
+              </TabsTrigger>
+              <TabsTrigger value="education-history" className="flex-1">
                 {t("tabs.educationHistory")}
               </TabsTrigger>
-              <TabsTrigger value="certifications">
+              <TabsTrigger value="certifications" className="flex-1">
                 {t("tabs.certifications")}
               </TabsTrigger>
-              <TabsTrigger value="assets">{t("tabs.assets")}</TabsTrigger>
+              <TabsTrigger value="assets" className="flex-1">
+                {t("tabs.assets")}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 py-4">
@@ -627,6 +633,75 @@ export function EmployeeDetailModal({
                 ) : (
                   <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
                     {t("form.noAreasAssigned")}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Outlet Assignments Table */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  {t("sections.scopeInfo")}
+                </h3>
+                {displayEmployee.outlets && displayEmployee.outlets.length > 0 ? (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableBody>
+                        {displayEmployee.outlets.map((outlet) => (
+                          <TableRow key={outlet.outlet_id}>
+                            <TableCell className="font-medium">
+                              {outlet.outlet_name || outlet.code || outlet.outlet_id}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {outlet.address || outlet.outlet_id}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
+                    {t("form.noOutletsAssigned")}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Warehouse Assignments Table */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  {t("form.warehousesLabel")}
+                </h3>
+                {displayEmployee.warehouses && displayEmployee.warehouses.length > 0 ? (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableBody>
+                        {displayEmployee.warehouses.map((warehouse) => (
+                          <TableRow key={`${warehouse.warehouse_id}-${warehouse.is_auto ? "auto" : "manual"}`}>
+                            <TableCell className="font-medium">
+                              {warehouse.warehouse_name || warehouse.code || warehouse.warehouse_id}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {warehouse.address || warehouse.warehouse_id}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge
+                                variant={warehouse.is_auto ? "secondary" : "outline"}
+                              >
+                                {warehouse.is_auto ? t("form.auto") : t("form.manual")}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm border rounded-lg">
+                    {t("form.noWarehousesAssigned")}
                   </div>
                 )}
               </div>

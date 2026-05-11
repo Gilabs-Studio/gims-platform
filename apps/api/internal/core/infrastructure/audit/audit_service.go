@@ -64,7 +64,6 @@ func (s *databaseAuditService) LogWithChangesFull(ctx context.Context, action st
 	}
 
 	metaJSON, _ := json.Marshal(metadata)
-
 	changesStr := "null"
 	if changes != nil {
 		if cBytes, err := json.Marshal(changes); err == nil {

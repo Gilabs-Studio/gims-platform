@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Package, UtensilsCrossed, LayoutGrid } from "lucide-react";
+import { Search, Package, UtensilsCrossed, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { usePOSCatalog } from "../hooks/use-pos";
 import { usePOSUIStore, type POSGridSize } from "../../stores/use-pos-ui-store";
 import type { POSCatalogItem } from "../types";
 import { cn } from "@/lib/utils";
+import { useRouter } from "@/i18n/routing";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 interface POSCatalogGridProps {
   outletId: string;
@@ -30,6 +32,8 @@ const GRID_SIZE_CONFIG: Record<POSGridSize, string> = {
 export function POSCatalogGrid({ outletId, onAddItem, disabled = false, cartQuantities }: POSCatalogGridProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const router = useRouter();
+  const canCreateProduct = useUserPermission("product.create");
 
   const gridSize = usePOSUIStore((s) => s.gridSize);
   const setGridSize = usePOSUIStore((s) => s.setGridSize);
@@ -138,6 +142,29 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false, cartQuan
                 gridSize={gridSize}
               />
             ))}
+            {canCreateProduct && (
+              <button
+                type="button"
+                onClick={() => router.push("/master-data/products")}
+                className={cn(
+                  "group flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-muted-foreground/30",
+                  "transition-all duration-200 focus-visible:outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-ring",
+                  "hover:border-primary/50 hover:bg-muted/30 active:scale-[0.98]",
+                  "cursor-pointer overflow-hidden aspect-square",
+                  !disabled && "hover:shadow-md",
+                )}
+              >
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="rounded-full bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
+                    <Plus className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                    {gridSize === "small" ? "Product" : "Add Product"}
+                  </p>
+                </div>
+              </button>
+            )}
           </div>
         )}
       </div>

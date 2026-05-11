@@ -25,12 +25,14 @@ import {
 	useUpdateUser,
 	useRole,
 } from "../hooks/use-users";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { toast } from "sonner";
 import { useState } from "react";
 import { UserForm } from "./user-form";
 import type { User as UserType } from "../types";
 import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/utils";
+import { canOwnerManageUser } from "@/features/auth/components/auth-guard";
 
 interface UserDetailModalProps {
 	readonly userId: string | null;
@@ -49,6 +51,8 @@ export function UserDetailModal({
 	const deleteUser = useDeleteUser();
 	const updateUser = useUpdateUser();
 	const user = data?.data;
+	const currentUser = useAuthStore((state) => state.user);
+	const canManageTargetUser = canOwnerManageUser(currentUser, user);
 	// Fetch the full role (with permissions) separately — the user-detail endpoint
 	// does not always embed role.permissions in its response.
 	const { data: roleData } = useRole(user?.role_id ?? "");
@@ -115,43 +119,47 @@ export function UserDetailModal({
 						</div>
 					)}
 
-					{!isLoading && !error && user && (
-						<div className="space-y-6">
-							{/* User Header */}
-							<div className="flex items-center gap-4 pb-4 border-b">
-								<Avatar className="h-20 w-20">
-									<AvatarImage src={getAvatarUrl(user)} alt={user.name} />
-								</Avatar>
-								<div className="flex-1">
-									<h2 className="text-2xl font-semibold tracking-tight">
-										{user.name}
-									</h2>
-									<p className="text-sm text-muted-foreground mt-1">
-										{user.email}
-									</p>
-								</div>
-								<div className="flex items-center gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => setIsEditDialogOpen(true)}
-									>
-										<Edit className="h-4 w-4 mr-2" />
-										{t("header.edit")}
-									</Button>
-									<Button
-										variant="destructive"
-										size="sm"
-										onClick={() => setIsDeleteDialogOpen(true)}
-										disabled={deleteUser.isPending}
-									>
-										<Trash2 className="h-4 w-4 mr-2" />
-										{t("header.delete")}
-									</Button>
-								</div>
-							</div>
+{!isLoading && !error && user && (
+<div className="space-y-6">
+{/* User Header */}
+<div className="flex items-center gap-4 pb-4 border-b">
+<Avatar className="h-20 w-20">
+<AvatarImage src={getAvatarUrl(user)} alt={user.name} />
+</Avatar>
+<div className="flex-1">
+<h2 className="text-2xl font-semibold tracking-tight">
+{user.name}
+</h2>
+<p className="text-sm text-muted-foreground mt-1">
+{user.email}
+</p>
+</div>
+<div className="flex items-center gap-2">
+{canManageTargetUser && (
+<Button
+variant="outline"
+size="sm"
+onClick={() => setIsEditDialogOpen(true)}
+>
+<Edit className="h-4 w-4 mr-2" />
+{t("header.edit")}
+</Button>
+)}
+{canManageTargetUser && (
+<Button
+variant="destructive"
+size="sm"
+onClick={() => setIsDeleteDialogOpen(true)}
+disabled={deleteUser.isPending}
+>
+<Trash2 className="h-4 w-4 mr-2" />
+{t("header.delete")}
+</Button>
+)}
+</div>
+</div>
 
-							{/* User Info Card */}
+{/* User Info Card */}
 							<Card>
 								<CardHeader>
 									<CardTitle>{t("userInfo.title")}</CardTitle>
@@ -277,28 +285,6 @@ export function UserDetailModal({
 												{user.role.code}
 											</Badge>
 										</div>
-
-										{(() => {
-											const permissions = roleData?.permissions ?? user.role.permissions ?? [];
-											return permissions.length > 0 ? (
-												<div className="space-y-3">
-													<div className="text-sm font-medium">
-														{t("roleInfo.permissions", { count: permissions.length })}
-													</div>
-													<div className="flex flex-wrap gap-2">
-														{permissions.map((permission) => (
-															<Badge key={permission.id} variant="outline" className="font-normal">
-																{permission.name}
-															</Badge>
-														))}
-													</div>
-												</div>
-											) : (
-												<div className="text-sm text-muted-foreground">
-													{t("roleInfo.noPermissions")}
-												</div>
-											);
-										})()}
 									</CardContent>
 								</Card>
 							)}

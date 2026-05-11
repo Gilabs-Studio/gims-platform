@@ -10,6 +10,8 @@ import (
 func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, receiptH *handler.POSReceiptHandler) {
 	// POS catalog endpoint (read-only, per outlet)
 	rg.GET("/catalog/outlet/:outletID", middleware.RequirePermission("pos.order.create"), h.GetCatalog)
+	// POS available outlets (filtered by scope)
+	rg.GET("/outlets", middleware.RequirePermission("pos.order.read"), h.ListOutlets)
 
 	orders := rg.Group("/orders")
 	orders.Use(middleware.RequirePermission("pos.order.create"))

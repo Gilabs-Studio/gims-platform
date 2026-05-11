@@ -9,6 +9,7 @@ import type {
   UpdateDealData,
   MoveDealStageData,
   ConvertToQuotationRequest,
+  DealProductItem,
   ApiResponse,
 } from "../types";
 import type { LeadProductItem } from "@/features/crm/lead/types";
@@ -118,11 +119,17 @@ export function useUpdateDeal() {
       );
 
       if (!data.items) {
-        return { previousProductItems };
+        return { previousProductItems, previousQueries: null };
       }
 
       await qc.cancelQueries({ queryKey: dealKeys.productItems(id) });
+      await qc.cancelQueries({ queryKey: dealKeys.byStage() });
 
+      const previousQueries = qc.getQueriesData<ApiResponse<Deal[]>>({
+        queryKey: dealKeys.byStage(),
+      });
+
+      // --- Optimistic update: Product Items cache ---
       const cachedItems = previousProductItems?.data ?? [];
       const cachedByKey = new Map(
         cachedItems.map((item) => [
@@ -132,7 +139,7 @@ export function useUpdateDeal() {
       );
 
       const now = new Date().toISOString();
-      const optimisticItems: LeadProductItem[] = data.items.map((item, index) => {
+      const optimisticProductItems: LeadProductItem[] = data.items.map((item, index) => {
         const cacheKey = item.product_id ?? `${item.product_name}::${item.product_sku ?? ""}`;
         const previous = cachedByKey.get(cacheKey);
         const leadId = previous?.lead_id ?? cachedItems[0]?.lead_id ?? "";
@@ -156,21 +163,86 @@ export function useUpdateDeal() {
 
       qc.setQueryData<ApiResponse<LeadProductItem[]>>(dealKeys.productItems(id), {
         ...(previousProductItems ?? { success: true, data: [] }),
-        data: optimisticItems,
+        data: optimisticProductItems,
       });
 
-      return { previousProductItems };
+      // --- Optimistic update: By-Stage Kanban caches ---
+      // Compute the optimistically expected deal value from items
+      const optimisticValue = data.items.reduce((sum, item) => {
+        const price = Number(item.unit_price) || 0;
+        const qty = Number(item.quantity) || 1;
+        const lineTotal = price * qty;
+        const discountPct = Number(item.discount_percent) || 0;
+        const discountAmt = Number(item.discount_amount) || 0;
+        const discount = discountPct ? lineTotal * (discountPct / 100) : discountAmt;
+        const subtotal = lineTotal - discount;
+        return sum + (isFinite(subtotal) ? subtotal : 0);
+      }, 0);
+
+      const optimisticDealItems: DealProductItem[] = data.items.map((item, index) => {
+        const price = Number(item.unit_price) || 0;
+        const qty = Number(item.quantity) || 1;
+        const lineTotal = price * qty;
+        const discountPct = Number(item.discount_percent) || 0;
+        const discountAmt = Number(item.discount_amount) || 0;
+        const discount = discountPct ? lineTotal * (discountPct / 100) : discountAmt;
+
+        return {
+          id: `optimistic-${id}-${index}`,
+          deal_id: id,
+          product_id: item.product_id || null,
+          product_name: item.product_name,
+          product_sku: item.product_sku ?? "",
+          unit_price: price,
+          quantity: qty,
+          discount_percent: discountPct,
+          discount_amount: discountAmt,
+          subtotal: lineTotal - discount,
+          notes: item.notes ?? "",
+          interest_level: 0,
+          is_deleted: false,
+        };
+      });
+
+      for (const [queryKey, cache] of previousQueries) {
+        if (!cache?.data) continue;
+        const dealIndex = cache.data.findIndex((d: Deal) => d.id === id);
+        if (dealIndex === -1) continue;
+
+        const updatedDeals = [...cache.data];
+        const existingDeal = updatedDeals[dealIndex]!;
+        updatedDeals[dealIndex] = {
+          ...existingDeal,
+          value: optimisticValue,
+          items: optimisticDealItems,
+          probability: data.pipeline_stage_id
+            ? existingDeal.probability
+            : existingDeal.probability,
+        } as Deal;
+
+        qc.setQueryData<ApiResponse<Deal[]>>(queryKey, {
+          ...cache,
+          data: updatedDeals,
+        });
+      }
+
+      return { previousProductItems, previousQueries };
     },
     onError: (_error, { id }, context) => {
       if (context?.previousProductItems) {
         qc.setQueryData(dealKeys.productItems(id), context.previousProductItems);
       }
+      if (context?.previousQueries) {
+        for (const [queryKey, data] of context.previousQueries) {
+          qc.setQueryData(queryKey, data);
+        }
+      }
     },
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: dealKeys.detail(id) });
-      qc.invalidateQueries({ queryKey: dealKeys.productItems(id) });
       qc.invalidateQueries({ queryKey: dealKeys.byStage() });
       qc.invalidateQueries({ queryKey: dealKeys.lists() });
+      qc.invalidateQueries({ queryKey: dealKeys.summary() });
     },
   });
 }
@@ -387,5 +459,6 @@ export function useDealProductItems(id: string, options?: { enabled?: boolean })
     queryKey: dealKeys.productItems(id),
     queryFn: () => dealService.getProductItems(id),
     enabled: (options?.enabled ?? true) && !!id,
+    staleTime: 2 * 1000,
   });
 }

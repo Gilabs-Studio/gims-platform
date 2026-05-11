@@ -70,6 +70,7 @@ export interface NonTradePayableInput {
 
 export interface PayNonTradePayableInput {
   payment_date: string;
+  amount: number;
   chart_of_account_id?: string;
   bank_account_id: string;
   bank_reference?: string;

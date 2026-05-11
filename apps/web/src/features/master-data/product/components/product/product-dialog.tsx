@@ -123,6 +123,17 @@ export function ProductDialog({
   const packagingId = watch("packaging_id");
   const procurementTypeId = watch("procurement_type_id");
 
+  const validationErrors = [
+    { label: t("form.name"), message: errors.name?.message },
+    { label: t("conversion"), message: errors.purchase_uom_conversion?.message },
+    { label: t("form.costPrice"), message: errors.cost_price?.message },
+    { label: t("form.sellingPrice"), message: errors.selling_price?.message },
+    { label: `${t("leadTime")} (${t("days")})`, message: errors.lead_time_days?.message },
+    { label: t("form.minStock"), message: errors.min_stock?.message },
+    { label: t("form.maxStock"), message: errors.max_stock?.message },
+    { label: t("recipe.title"), message: errors.recipe_items?.message },
+  ].filter((item): item is { label: string; message: string } => typeof item.message === "string" && item.message.length > 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="2xl" className="max-h-[90vh] overflow-hidden flex flex-col p-0">
@@ -134,6 +145,25 @@ export function ProductDialog({
           onSubmit={onSubmit}
           className="flex-1 flex flex-col overflow-hidden"
         >
+          {validationErrors.length > 0 && (
+            <div
+              role="alert"
+              className="mx-6 mb-4 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3"
+            >
+              <p className="text-sm font-semibold text-destructive">
+                {tCommon("error")}
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-foreground">
+                {validationErrors.map((error) => (
+                  <li key={error.label} className="flex gap-2">
+                    <span className="font-medium">{error.label}:</span>
+                    <span className="text-destructive">{error.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto px-6 space-y-6">
             {/* Basic Information */}
             <Section title={t("section.basicInfo")}>
@@ -143,6 +173,7 @@ export function ProductDialog({
                   <ImageUpload
                     value={watch("image_url")}
                     onChange={(url) => setValue("image_url", url || null, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                     disabled={isSubmitting}
                     enableUrlInput
                     enableImageSearch
@@ -281,7 +312,7 @@ export function ProductDialog({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel>{t("conversion")}</FieldLabel>
+                  <FieldLabel className="required">{t("conversion")}</FieldLabel>
                   <Controller
                     name="purchase_uom_conversion"
                     control={control}
@@ -293,6 +324,9 @@ export function ProductDialog({
                       />
                     )}
                   />
+                  {errors.purchase_uom_conversion && (
+                    <FieldError>{errors.purchase_uom_conversion.message}</FieldError>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {t("unitsPerPurchase")}
                   </p>
@@ -330,12 +364,15 @@ export function ProductDialog({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel>{t("leadTime")} ({t("days")})</FieldLabel>
+                  <FieldLabel className="required">{t("leadTime")} ({t("days")})</FieldLabel>
                   <Input
                     type="number"
                     placeholder="0"
                     {...register("lead_time_days", { valueAsNumber: true })}
                   />
+                  {errors.lead_time_days && (
+                    <FieldError>{errors.lead_time_days.message}</FieldError>
+                  )}
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -401,7 +438,7 @@ export function ProductDialog({
                   )}
                 </Field>
                 <Field className="col-span-1">
-                  <FieldLabel>{t("form.sellingPrice")}</FieldLabel>
+                  <FieldLabel className="required">{t("form.sellingPrice")}</FieldLabel>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
                       Rp
@@ -423,7 +460,7 @@ export function ProductDialog({
                   )}
                 </Field>
                 <Field>
-                  <FieldLabel>{t("form.minStock")}</FieldLabel>
+                  <FieldLabel className="required">{t("form.minStock")}</FieldLabel>
                   <Controller
                     name="min_stock"
                     control={control}
@@ -434,9 +471,12 @@ export function ProductDialog({
                       />
                     )}
                   />
+                  {errors.min_stock && (
+                    <FieldError>{errors.min_stock.message}</FieldError>
+                  )}
                 </Field>
                 <Field>
-                  <FieldLabel>{t("form.maxStock")}</FieldLabel>
+                  <FieldLabel className="required">{t("form.maxStock")}</FieldLabel>
                   <Controller
                     name="max_stock"
                     control={control}
@@ -447,6 +487,9 @@ export function ProductDialog({
                       />
                     )}
                   />
+                  {errors.max_stock && (
+                    <FieldError>{errors.max_stock.message}</FieldError>
+                  )}
                 </Field>
               </div>
             </Section>

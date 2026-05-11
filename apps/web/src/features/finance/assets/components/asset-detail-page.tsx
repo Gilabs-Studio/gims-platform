@@ -4,10 +4,7 @@ import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {
-  useRouter,
-  Link,
-} from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 import {
   Archive,
   ArrowLeft,
@@ -20,15 +17,11 @@ import {
   Download,
   FileText,
   History,
-  MoreHorizontal,
-  Package,
   Paperclip,
   Pencil,
   RotateCcw,
-  Settings,
   Shield,
   ShieldCheck,
-  ShoppingCart,
   SlidersHorizontal,
   Trash2,
   TrendingDown,
@@ -48,7 +41,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
@@ -61,7 +53,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
-import type { Asset } from "../types";
 import {
   useFinanceAsset,
   useAssetAttachments,
@@ -210,10 +201,8 @@ interface AssetDetailPageProps {
 export function AssetDetailPage({ id }: AssetDetailPageProps) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
-  const router = useRouter();
-
   const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.update");
+  const canDepreciate = useUserPermission("asset.depreciate");
 
   const { data, isLoading } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;

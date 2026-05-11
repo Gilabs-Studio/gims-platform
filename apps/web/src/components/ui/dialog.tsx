@@ -7,9 +7,14 @@ import { cn } from "@/lib/utils";
 
 const sizeClasses = {
   default: "sm:max-w-lg",
+  sm: "sm:max-w-sm",
+  md: "sm:max-w-xl",
   lg: "sm:max-w-2xl",
   xl: "sm:max-w-4xl",
   "2xl": "sm:max-w-7xl",
+  "3xl": "sm:max-w-[80rem]",
+  "4xl": "sm:max-w-[90rem]",
+  "5xl": "sm:max-w-[100rem]",
   full: "sm:max-w-[95vw]",
 };
 
@@ -56,12 +61,11 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  showCloseButton = true,
   size = "default",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
-  size?: "default" | "lg" | "xl" | "2xl" | "full";
+  size?: "default" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">

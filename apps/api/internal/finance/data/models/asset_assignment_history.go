@@ -10,6 +10,7 @@ import (
 // AssetAssignmentHistory tracks the assignment history of assets to employees
 type AssetAssignmentHistory struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID     *uuid.UUID `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	AssetID      uuid.UUID  `gorm:"type:uuid;not null;index:idx_assignment_asset" json:"asset_id"`
 	EmployeeID   *uuid.UUID `gorm:"type:uuid;index" json:"employee_id,omitempty"`
 	DepartmentID *uuid.UUID `gorm:"type:uuid;index" json:"department_id,omitempty"`
@@ -31,7 +32,7 @@ type AssetAssignmentHistory struct {
 
 // TableName specifies the table name for AssetAssignmentHistory
 func (AssetAssignmentHistory) TableName() string {
-	return "asset_assignment_history"
+	return "asset_assignment_histories"
 }
 
 // BeforeCreate hook untuk generate UUID dan set timestamp

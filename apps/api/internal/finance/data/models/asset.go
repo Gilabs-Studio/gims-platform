@@ -11,6 +11,7 @@ type AssetStatus string
 
 const (
 	AssetStatusDraft                 AssetStatus = "draft"
+	AssetStatusPendingApproval      AssetStatus = "pending_approval"
 	AssetStatusPendingCapitalization AssetStatus = "pending_capitalization"
 	AssetStatusActive                AssetStatus = "active"
 	AssetStatusInUse                 AssetStatus = "in_use"
@@ -28,20 +29,25 @@ type AssetLifecycleStage string
 const (
 	AssetLifecycleDraft                 AssetLifecycleStage = "draft"
 	AssetLifecyclePendingCapitalization AssetLifecycleStage = "pending_capitalization"
+	AssetLifecyclePending               AssetLifecycleStage = "pending"
 	AssetLifecycleActive                AssetLifecycleStage = "active"
 	AssetLifecycleInUse                 AssetLifecycleStage = "in_use"
+	AssetLifecycleIdle                  AssetLifecycleStage = "idle"
 	AssetLifecycleUnderMaintenance      AssetLifecycleStage = "under_maintenance"
 	AssetLifecycleDisposed              AssetLifecycleStage = "disposed"
+	AssetLifecycleRetired               AssetLifecycleStage = "retired"
+	AssetLifecycleSold                  AssetLifecycleStage = "sold"
 	AssetLifecycleWrittenOff            AssetLifecycleStage = "written_off"
 )
 
 type Asset struct {
 	// Core Identity
-	ID          string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Code        string `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
-	Name        string `gorm:"type:varchar(200);not null;index" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
+	ID          string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID    string  `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	Code        string  `gorm:"type:varchar(50);not null;index" json:"code"`
+	Name        string  `gorm:"type:varchar(200);not null;index" json:"name"`
+	Description string  `gorm:"type:text" json:"description"`
+	AssetTypeID *string `gorm:"type:varchar(20);index" json:"asset_type_id,omitempty"`
 
 	// NEW: Additional Identifiers
 	SerialNumber *string `gorm:"type:varchar(100);index" json:"serial_number,omitempty"`
@@ -81,6 +87,8 @@ type Asset struct {
 	PurchaseOrder     *PurchaseOrder   `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 	SupplierInvoiceID *string          `gorm:"type:uuid" json:"supplier_invoice_id,omitempty"`
 	SupplierInvoice   *SupplierInvoice `gorm:"foreignKey:SupplierInvoiceID" json:"supplier_invoice,omitempty"`
+	CustodianUserID   *string          `gorm:"type:uuid;index" json:"custodian_user_id,omitempty"`
+	CustodianUser     *User            `gorm:"foreignKey:CustodianUserID" json:"custodian_user,omitempty"`
 
 	// NEW: Cost Breakdown
 	ShippingCost     float64 `gorm:"type:numeric(18,2);default:0" json:"shipping_cost"`
@@ -176,7 +184,7 @@ func (a *Asset) BeforeCreate(tx *gorm.DB) error {
 
 // TotalAcquisitionCost returns the total cost including additional costs
 func (a *Asset) TotalAcquisitionCost() float64 {
-	return a.AcquisitionCost + a.ShippingCost + a.InstallationCost + a.TaxAmount + a.OtherCosts
+	return a.ShippingCost + a.InstallationCost + a.TaxAmount + a.OtherCosts
 }
 
 // IsUnderWarranty checks if the asset is currently under warranty

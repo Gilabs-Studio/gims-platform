@@ -1,8 +1,6 @@
 package usecase
 
 import (
-	"context"
-	"strings"
 	"testing"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
@@ -12,18 +10,15 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	dbtest "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 )
 
 func TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain(t *testing.T) {
 	t.Parallel()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
-		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
-	}
-	require.NoError(t, err)
+	db, cleanup := dbtest.OpenTestDB(t)
+	defer cleanup()
+	var err error
 
 	err = db.AutoMigrate(
 		&coreModels.AuditLog{},
@@ -31,6 +26,8 @@ func TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain(t *testing.
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
+		&models.AccountingPeriod{},
+		&models.FiscalYear{},
 	)
 	require.NoError(t, err)
 
@@ -46,7 +43,7 @@ func TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain(t *testing.
 	auditService := audit.NewAuditService(db)
 	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 
-	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	ctx := financeTestContext()
 
 	// 1. Run Valuation (Skeleton)
 	res, err := uc.RunValuation(ctx)

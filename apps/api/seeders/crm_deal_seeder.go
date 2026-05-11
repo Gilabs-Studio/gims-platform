@@ -6,7 +6,6 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
-	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"gorm.io/gorm/clause"
 )
 
@@ -17,19 +16,12 @@ const (
 	DealID3 = "da000001-0000-0000-0000-000000000003"
 	DealID4 = "da000001-0000-0000-0000-000000000004"
 
-	// Deal Product Item UUIDs (prefix: db — hex-only)
-	DealItemID1 = "db000001-0000-0000-0000-000000000001"
-	DealItemID2 = "db000001-0000-0000-0000-000000000002"
-	DealItemID3 = "db000001-0000-0000-0000-000000000003"
-	DealItemID4 = "db000001-0000-0000-0000-000000000004"
-	DealItemID5 = "db000001-0000-0000-0000-000000000005"
-
 	// Deal History UUIDs (prefix: dc — hex-only, not conflicting with CRM seeder cc)
 	DealHistoryID1 = "dc000001-0000-0000-0000-000000000001"
 	DealHistoryID2 = "dc000001-0000-0000-0000-000000000002"
 )
 
-// SeedCRMDeals seeds sample CRM deals across pipeline stages with product items
+// SeedCRMDeals seeds sample CRM deals across pipeline stages
 func SeedCRMDeals() error {
 	log.Println("Seeding CRM deals...")
 
@@ -57,38 +49,6 @@ func SeedCRMDeals() error {
 	closeDate60 := now.Add(60 * 24 * time.Hour)
 	closeDate90 := now.Add(90 * 24 * time.Hour)
 	actualClose := now.Add(-7 * 24 * time.Hour)
-
-	// Fetch first few products from DB to use as product items
-	var products []productModels.Product
-	if err := database.DB.Limit(3).Find(&products).Error; err != nil {
-		log.Printf("Warning: Could not fetch products for deal items: %v", err)
-	}
-
-	// Build product snapshots for items
-	type productSnapshot struct {
-		ID    string
-		Name  string
-		SKU   string
-		Price float64
-	}
-	snapshots := make([]productSnapshot, 0, 3)
-	for _, p := range products {
-		snapshots = append(snapshots, productSnapshot{
-			ID:    p.ID,
-			Name:  p.Name,
-			SKU:   p.Sku,
-			Price: p.SellingPrice,
-		})
-	}
-
-	// Fallback product snapshots when no products are seeded yet
-	if len(snapshots) == 0 {
-		snapshots = []productSnapshot{
-			{ID: "", Name: "Medical Supply Kit A", SKU: "MSK-001", Price: 5000000},
-			{ID: "", Name: "Laboratory Reagent B", SKU: "LRG-002", Price: 3500000},
-			{ID: "", Name: "Diagnostic Equipment C", SKU: "DEQ-003", Price: 25000000},
-		}
-	}
 
 	deals := []crm.Deal{
 		{
@@ -184,81 +144,6 @@ func SeedCRMDeals() error {
 			DoUpdates: clause.AssignmentColumns([]string{"updated_at", "title", "value", "status", "lead_id", "pipeline_stage_id"}),
 		}).Create(&deal).Error; err != nil {
 			log.Printf("Warning: Failed to seed deal %s: %v", deal.ID, err)
-		}
-	}
-
-	// Seed deal product items (only if we have product data)
-	if len(snapshots) > 0 {
-		items := []crm.DealProductItem{
-			{
-				ID:              DealItemID1,
-				DealID:          DealID1,
-				ProductID:       nilIfEmpty(snapshots[0].ID),
-				ProductName:     snapshots[0].Name,
-				ProductSKU:      snapshots[0].SKU,
-				UnitPrice:       snapshots[0].Price,
-				Quantity:        10,
-				DiscountPercent: 5,
-				DiscountAmount:  snapshots[0].Price * 10 * 0.05,
-				Subtotal:        snapshots[0].Price * 10 * 0.95,
-			},
-			{
-				ID:              DealItemID2,
-				DealID:          DealID1,
-				ProductID:       nilIfEmpty(snapshots[1%len(snapshots)].ID),
-				ProductName:     snapshots[1%len(snapshots)].Name,
-				ProductSKU:      snapshots[1%len(snapshots)].SKU,
-				UnitPrice:       snapshots[1%len(snapshots)].Price,
-				Quantity:        5,
-				DiscountPercent: 0,
-				DiscountAmount:  0,
-				Subtotal:        snapshots[1%len(snapshots)].Price * 5,
-			},
-			{
-				ID:              DealItemID3,
-				DealID:          DealID2,
-				ProductID:       nilIfEmpty(snapshots[2%len(snapshots)].ID),
-				ProductName:     snapshots[2%len(snapshots)].Name,
-				ProductSKU:      snapshots[2%len(snapshots)].SKU,
-				UnitPrice:       snapshots[2%len(snapshots)].Price,
-				Quantity:        3,
-				DiscountPercent: 10,
-				DiscountAmount:  snapshots[2%len(snapshots)].Price * 3 * 0.10,
-				Subtotal:        snapshots[2%len(snapshots)].Price * 3 * 0.90,
-			},
-			{
-				ID:              DealItemID4,
-				DealID:          DealID3,
-				ProductID:       nilIfEmpty(snapshots[0].ID),
-				ProductName:     snapshots[0].Name,
-				ProductSKU:      snapshots[0].SKU,
-				UnitPrice:       snapshots[0].Price,
-				Quantity:        8,
-				DiscountPercent: 3,
-				DiscountAmount:  snapshots[0].Price * 8 * 0.03,
-				Subtotal:        snapshots[0].Price * 8 * 0.97,
-			},
-			{
-				ID:              DealItemID5,
-				DealID:          DealID4,
-				ProductID:       nilIfEmpty(snapshots[2%len(snapshots)].ID),
-				ProductName:     snapshots[2%len(snapshots)].Name,
-				ProductSKU:      snapshots[2%len(snapshots)].SKU,
-				UnitPrice:       snapshots[2%len(snapshots)].Price,
-				Quantity:        8,
-				DiscountPercent: 0,
-				DiscountAmount:  0,
-				Subtotal:        snapshots[2%len(snapshots)].Price * 8,
-			},
-		}
-
-		for _, item := range items {
-			if err := database.DB.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"unit_price", "quantity", "subtotal"}),
-			}).Create(&item).Error; err != nil {
-				log.Printf("Warning: Failed to seed deal item %s: %v", item.ID, err)
-			}
 		}
 	}
 

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 type AnimationVariant =
@@ -100,7 +100,6 @@ const createAnimation = (
   variant: AnimationVariant,
   start: AnimationStart = "center",
   blur = false,
-  url?: string,
 ) => {
   const svg = generateSVG(variant, start);
   const transformOrigin = getTransformOrigin(start);
@@ -265,19 +264,13 @@ export const useThemeToggle = ({
   variant = "circle",
   start = "top-right",
   blur = false,
-  gifUrl = "",
 }: {
   variant?: AnimationVariant;
   start?: AnimationStart;
   blur?: boolean;
-  gifUrl?: string;
 } = {}) => {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(resolvedTheme === "dark");
-  }, [resolvedTheme]);
+  const isDark = resolvedTheme === "dark";
 
   const styleId = "theme-transition-styles";
 
@@ -296,9 +289,7 @@ export const useThemeToggle = ({
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setIsDark(!isDark);
-
-    const animation = createAnimation(variant, start, blur, gifUrl);
+    const animation = createAnimation(variant, start, blur);
     updateStyles(animation.css);
 
     if (typeof window === "undefined") return;
@@ -319,15 +310,11 @@ export const useThemeToggle = ({
     variant,
     start,
     blur,
-    gifUrl,
     updateStyles,
-    isDark,
-    setIsDark,
   ]);
 
   return {
     isDark,
-    setIsDark,
     toggleTheme,
   };
 };
@@ -337,19 +324,16 @@ export const ThemeToggleButton = ({
   variant = "circle",
   start = "top-right",
   blur = false,
-  gifUrl = "",
 }: {
   className?: string;
   variant?: AnimationVariant;
   start?: AnimationStart;
   blur?: boolean;
-  gifUrl?: string;
 }) => {
   const { isDark, toggleTheme } = useThemeToggle({
     variant,
     start,
     blur,
-    gifUrl,
   });
 
   return (

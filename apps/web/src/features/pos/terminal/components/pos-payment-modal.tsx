@@ -776,7 +776,7 @@ function CustomerSelectionStep({
       <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Customer</p>
-          <p className="text-sm text-muted-foreground">{t("customerName")} ({t("optional")})</p>
+          <p className="text-sm text-muted-foreground">{t("customerName")}</p>
         </div>
 
         <Tabs

@@ -23,6 +23,7 @@ export interface CreatableComboboxProps {
   options: ComboboxOption[];
   value?: string;
   onValueChange: (value: string) => void;
+  selectedLabel?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
@@ -52,6 +53,7 @@ export function CreatableCombobox({
   options,
   value,
   onValueChange,
+  selectedLabel,
   placeholder = "Select…",
   searchPlaceholder = "Search…",
   emptyText = "No results found.",
@@ -83,10 +85,11 @@ export function CreatableCombobox({
   const hasCreatePermission = useUserPermission(createPermission ?? "");
   const canCreate = !!createPermission && hasCreatePermission && !!onCreateClick;
 
-  const selectedLabel = React.useMemo(
+  const derivedSelectedLabel = React.useMemo(
     () => options.find((o) => o.value === value)?.label ?? "",
     [options, value],
   );
+  const displayLabel = selectedLabel ?? derivedSelectedLabel;
 
   const filteredOptions = React.useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -115,7 +118,7 @@ export function CreatableCombobox({
   }, [localHasMore, onLoadMore]);
 
   React.useEffect(() => {
-    setLocalVisibleCount(LOCAL_COMBOBOX_PAGE_SIZE);
+    queueMicrotask(() => setLocalVisibleCount(LOCAL_COMBOBOX_PAGE_SIZE));
   }, [open, search]);
 
   React.useEffect(() => {
@@ -235,7 +238,7 @@ export function CreatableCombobox({
           aria-haspopup="listbox"
           disabled={disabled || isLoading || isCreating}
           aria-invalid={ariaInvalid}
-          data-placeholder={!selectedLabel ? "" : undefined}
+          data-placeholder={!displayLabel ? "" : undefined}
           className={cn(
             "border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground",
             "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:shadow-[0_0_0_3px] focus-visible:shadow-primary/10",
@@ -260,7 +263,7 @@ export function CreatableCombobox({
                 Creating…
               </span>
             ) : (
-              selectedLabel || (
+              displayLabel || (
                 <span className="text-muted-foreground">{placeholder}</span>
               )
             )}

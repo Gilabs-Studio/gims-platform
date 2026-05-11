@@ -1,10 +1,11 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -19,6 +20,7 @@ type FiscalYearListParams struct {
 type FiscalYearRepository interface {
 	Create(ctx context.Context, item *financeModels.FiscalYear) error
 	Update(ctx context.Context, item *financeModels.FiscalYear) error
+	Delete(ctx context.Context, id string) error
 	FindByID(ctx context.Context, id string) (*financeModels.FiscalYear, error)
 	List(ctx context.Context, params FiscalYearListParams) ([]financeModels.FiscalYear, int64, error)
 	FindActiveByCompany(ctx context.Context, companyID string) (*financeModels.FiscalYear, error)
@@ -53,9 +55,22 @@ func (r *fiscalYearRepository) Update(ctx context.Context, item *financeModels.F
 	return r.getDB(ctx).Save(item).Error
 }
 
+func (r *fiscalYearRepository) Delete(ctx context.Context, id string) error {
+	q := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.FiscalYear{}), ctx, security.FinanceScopeQueryOptions())
+	res := q.Where("id = ?", id).Delete(&financeModels.FiscalYear{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r *fiscalYearRepository) FindByID(ctx context.Context, id string) (*financeModels.FiscalYear, error) {
 	var item financeModels.FiscalYear
-	if err := r.getDB(ctx).First(&item, "id = ?", id).Error; err != nil {
+	q := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.FiscalYear{}), ctx, security.FinanceScopeQueryOptions())
+	if err := q.First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -69,7 +84,7 @@ func (r *fiscalYearRepository) List(ctx context.Context, params FiscalYearListPa
 		params.PerPage = 20
 	}
 
-	query := r.getDB(ctx).Model(&financeModels.FiscalYear{}).Where("company_id = ?", params.CompanyID)
+	query := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.FiscalYear{}), ctx, security.FinanceScopeQueryOptions()).Where("company_id = ?", params.CompanyID)
 	if params.Status != nil {
 		query = query.Where("status = ?", *params.Status)
 	}
@@ -90,7 +105,8 @@ func (r *fiscalYearRepository) List(ctx context.Context, params FiscalYearListPa
 
 func (r *fiscalYearRepository) FindActiveByCompany(ctx context.Context, companyID string) (*financeModels.FiscalYear, error) {
 	var item financeModels.FiscalYear
-	if err := r.getDB(ctx).Where("company_id = ? AND status = ?", companyID, financeModels.FiscalYearStatusActive).First(&item).Error; err != nil {
+	q := security.ApplyScopeFilter(r.getDB(ctx).Model(&financeModels.FiscalYear{}), ctx, security.FinanceScopeQueryOptions())
+	if err := q.Where("company_id = ? AND status = ?", companyID, financeModels.FiscalYearStatusActive).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil

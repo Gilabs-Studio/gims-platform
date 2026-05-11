@@ -289,6 +289,7 @@ func (u *stockOpnameUsecase) SaveItems(ctx context.Context, opnameID string, req
 		}
 
 		items = append(items, models.StockOpnameItem{
+			TenantID:      opname.TenantID,
 			StockOpnameID: opnameID,
 			ProductID:     itemReq.ProductID,
 			SystemQty:     systemQty,
@@ -341,6 +342,8 @@ func (u *stockOpnameUsecase) SaveLines(ctx context.Context, opnameID string, req
 		}
 
 		merged = append(merged, models.StockOpnameItem{
+			ID:            item.ID,
+			TenantID:      item.TenantID,
 			StockOpnameID: opnameID,
 			ProductID:     item.ProductID,
 			SystemQty:     item.SystemQty,

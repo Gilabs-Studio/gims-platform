@@ -2,7 +2,6 @@ package handler
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -33,21 +32,6 @@ func getOutletUserID(c *gin.Context) string {
 	return ""
 }
 
-func shouldFilterOutletByUserWarehouse(c *gin.Context) bool {
-	scopeVal, exists := c.Get("permission_scope")
-	if !exists {
-		return false
-	}
-
-	scope, ok := scopeVal.(string)
-	if !ok {
-		return false
-	}
-
-	normalized := strings.ToUpper(strings.TrimSpace(scope))
-	return normalized == "OUTLET" || normalized == "WAREHOUSE"
-}
-
 // Create handles POST /outlets
 func (h *OutletHandler) Create(c *gin.Context) {
 	var req dto.CreateOutletRequest
@@ -62,6 +46,12 @@ func (h *OutletHandler) Create(c *gin.Context) {
 
 	result, err := h.uc.Create(c.Request.Context(), req)
 	if err != nil {
+		if err == usecase.ErrOutletLimitReached {
+			errors.ErrorResponse(c, "OUTLET_LIMIT_REACHED", map[string]interface{}{
+				"reason": "outlet limit for this tenant has been reached; purchase add-on outlet to continue",
+			}, nil)
+			return
+		}
 		errors.ErrorResponse(c, "OUTLET_CREATE_FAILED", map[string]interface{}{
 			"message": err.Error(),
 		}, nil)
@@ -99,18 +89,12 @@ func (h *OutletHandler) GetByID(c *gin.Context) {
 
 // List handles GET /outlets
 func (h *OutletHandler) List(c *gin.Context) {
-	userID := ""
-	if shouldFilterOutletByUserWarehouse(c) {
-		userID = getOutletUserID(c)
-	}
-
 	params := repositories.OutletListParams{
 		Search:      c.Query("search"),
 		SortBy:      c.DefaultQuery("sort_by", "name"),
 		SortDir:     c.DefaultQuery("sort_dir", "asc"),
 		CompanyID:   c.Query("company_id"),
 		WarehouseID: c.Query("warehouse_id"),
-		UserID:      userID,
 	}
 
 	// Parse is_active filter
@@ -233,4 +217,15 @@ func (h *OutletHandler) GetFormData(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, formData, nil)
+}
+
+// GetLimit returns current outlet count and maximum outlet limit for active tenant.
+func (h *OutletHandler) GetLimit(c *gin.Context) {
+	limit, err := h.uc.GetLimit(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, limit, nil)
 }

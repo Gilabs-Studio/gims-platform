@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -76,18 +76,20 @@ export function ProductIngredientCreateDialog({
   // Sync from editingItem or initialName when dialog opens
   useEffect(() => {
     if (open) {
-      if (editingItem) {
-        setName(editingItem.name ?? "");
-        setDescription(editingItem.description ?? "");
-        setImageUrl(editingItem.image_url ?? null);
-        setCategoryId(editingItem.category_id ?? "");
-        setUomId(editingItem.uom_id ?? "");
-        setCostPrice(editingItem.cost_price ?? 0);
-        setMinStock(editingItem.min_stock ?? 0);
-        setMaxStock(editingItem.max_stock ?? 0);
-      } else if (initialName) {
-        setName(initialName);
-      }
+      startTransition(() => {
+        if (editingItem) {
+          setName(editingItem.name ?? "");
+          setDescription(editingItem.description ?? "");
+          setImageUrl(editingItem.image_url ?? null);
+          setCategoryId(editingItem.category_id ?? "");
+          setUomId(editingItem.uom_id ?? "");
+          setCostPrice(editingItem.cost_price ?? 0);
+          setMinStock(editingItem.min_stock ?? 0);
+          setMaxStock(editingItem.max_stock ?? 0);
+        } else if (initialName) {
+          setName(initialName);
+        }
+      });
     }
   }, [open, editingItem, initialName]);
 
@@ -160,7 +162,7 @@ export function ProductIngredientCreateDialog({
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
-        image_url: imageUrl || undefined,
+        image_url: isEditing ? (imageUrl && imageUrl.trim() !== "" ? imageUrl : "") : (imageUrl || undefined),
         category_id: categoryId || null,
         uom_id: uomId,
         product_kind: "STOCK" as const,
@@ -249,6 +251,7 @@ export function ProductIngredientCreateDialog({
                 <ImageUpload
                   value={imageUrl}
                   onChange={(url) => setImageUrl(url)}
+                  uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                   disabled={createMutation.isPending}
                   enableUrlInput
                   enableImageSearch

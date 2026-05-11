@@ -37,7 +37,9 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import type { Feature, FeatureCollection } from "geojson";
 
-const getImageSrc = (img: string | { src: string } | { default: string } | { default: { src: string } } | null | undefined): string => {
+type ImageSourceParam = string | { src: string } | { default: string } | { default: { src: string } } | null | undefined;
+
+const getImageSrc = (img: ImageSourceParam): string => {
   if (!img) return "";
   if (typeof img === "string") return img;
   if ("src" in img && typeof img.src === "string") return img.src;
@@ -52,9 +54,9 @@ const getImageSrc = (img: string | { src: string } | { default: string } | { def
 // Fix for default marker icons in Next.js (static imports avoid CDN dependency)
 (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl = undefined;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: getImageSrc(markerIcon2x as any),
-  iconUrl: getImageSrc(markerIcon as any),
-  shadowUrl: getImageSrc(markerShadow as any),
+  iconRetinaUrl: getImageSrc(markerIcon2x as ImageSourceParam),
+  iconUrl: getImageSrc(markerIcon as ImageSourceParam),
+  shadowUrl: getImageSrc(markerShadow as ImageSourceParam),
 });
 
 type MapStyle = "auto" | "light" | "dark" | "satellite";
@@ -206,9 +208,11 @@ function GeographicMapViewComponent() {
   // Use a derived key for the GeoJSON layer to force remount when data changes.
   // We also clear the layer tracking ref whenever the data object changes.
   const geoJsonKey = useMemo(() => {
-    layerByGroupRef.current.clear();
     return geoJsonData ? JSON.stringify(visibleGroups) : "empty";
   }, [geoJsonData, visibleGroups]);
+  useEffect(() => {
+    layerByGroupRef.current.clear();
+  }, [geoJsonKey]);
   const colorMap = useMemo(() => buildColorMap(visibleGroups), [visibleGroups]);
 
   // Load GeoJSON on mount

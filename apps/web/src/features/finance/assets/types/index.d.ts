@@ -236,16 +236,22 @@ export interface Asset {
   code: string;
   name: string;
   description: string;
+  asset_type_id?: string;
   category_id: string;
   category?: AssetCategoryLite | null;
+  category_name?: string;
+  asset_type?: string;
   location_id: string;
   location?: AssetLocationLite | null;
+  location_name?: string;
+  dept_name?: string;
   acquisition_date: string;
   acquisition_cost: number;
   salvage_value: number;
   accumulated_depreciation: number;
   book_value: number;
   status: AssetStatus;
+  display_status?: string;
   disposed_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -262,6 +268,9 @@ export interface Asset {
   company_id?: string;
   business_unit_id?: string;
   department_id?: string;
+  custodian_user_id?: string;
+  vendor_id?: string;
+  purchase_invoice_id?: string;
 
   // Assignment (flat)
   assigned_to_employee_id?: string;
@@ -300,6 +309,7 @@ export interface Asset {
   warranty_terms?: string;
   is_under_warranty: boolean;
   warranty_days_remaining: number;
+  warranty_expiry_days?: number | null;
 
   // Insurance (flat)
   insurance_policy_number?: string;
@@ -341,42 +351,34 @@ export interface ListAssetsParams {
   page?: number;
   per_page?: number;
   search?: string;
+  status?: AssetStatus | AssetStatus[] | string | string[];
+  category_id?: string;
+  location_id?: string;
+  dept_id?: string;
+  date_from?: string;
+  date_to?: string;
+  warranty_expiring_days?: 30 | 60 | 90;
+  is_capitalized?: boolean;
+  sort?: string;
+  order?: "asc" | "desc";
 
-  // Status filters
-  status?: AssetStatus | AssetStatus[];
+  // Legacy / advanced filters kept for compatibility
   lifecycle_stage?: AssetLifecycleStage | AssetLifecycleStage[];
-
-  // Category & Location
-  category_id?: string | string[];
-  location_id?: string | string[];
-
-  // Company & Organization
   company_id?: string;
   business_unit_id?: string;
   department_id?: string | string[];
   assigned_to_employee_id?: string | string[];
-
-  // Date range filters
   acquisition_date_from?: string;
   acquisition_date_to?: string;
-
-  // Value range filters
   acquisition_cost_min?: number;
   acquisition_cost_max?: number;
   book_value_min?: number;
   book_value_max?: number;
-
-  // Boolean filters
-  is_capitalized?: boolean;
   is_depreciable?: boolean;
   is_fully_depreciated?: boolean;
   has_warranty?: boolean;
-  warranty_expiring_soon?: boolean; // Within 30 days
-
-  // Assignment filter
+  warranty_expiring_soon?: boolean;
   assigned_or_unassigned?: "assigned" | "unassigned";
-
-  // Sorting
   sort_by?: string;
   sort_dir?: "asc" | "desc";
 }
@@ -385,15 +387,26 @@ export interface ListAssetsParams {
 export interface AssetInput {
   // Required fields
   name: string;
-  category_id: string;
+  asset_type_id: string;
+  asset_category_id: string;
   location_id: string;
   acquisition_date: string;
+  purchase_price?: number;
   acquisition_cost: number;
+
+  // Legacy alias kept for existing forms during migration
+  category_id?: string;
 
   // Optional fields
   code?: string; // Auto-generated if not provided
   description?: string;
   salvage_value?: number;
+  shipping_cost?: number;
+  installation_cost?: number;
+  tax_amount?: number;
+  other_costs?: number;
+  useful_life_months?: number;
+  depreciation_method?: "SL" | "DB" | "SYD" | "UOP" | "NONE";
 
   // NEW: Identity
   serial_number?: string;
@@ -405,8 +418,10 @@ export interface AssetInput {
   business_unit_id?: string;
   department_id?: string;
   assigned_to_employee_id?: string;
+  custodian_user_id?: string;
 
   // NEW: Acquisition
+  vendor_id?: string;
   supplier_id?: string;
   purchase_order_id?: string;
   supplier_invoice_id?: string;
@@ -426,6 +441,10 @@ export interface AssetInput {
   warranty_end?: string;
   warranty_provider?: string;
   warranty_terms?: string;
+
+  // NEW: Initial assignment and ownership metadata
+  assigned_to_employee_id?: string;
+  parent_asset_id?: string;
 
   // NEW: Insurance
   insurance_policy_number?: string;

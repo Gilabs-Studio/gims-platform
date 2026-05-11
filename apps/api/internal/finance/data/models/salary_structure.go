@@ -18,7 +18,7 @@ const (
 
 type SalaryStructure struct {
 	ID            string                `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID      string                `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	EmployeeID    string                `gorm:"type:uuid;not null;index" json:"employee_id"`
 	Employee      *orgModels.Employee   `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 	EffectiveDate time.Time             `gorm:"type:date;not null;index" json:"effective_date"`

@@ -324,7 +324,9 @@ export function CategoryTree({
         }
       };
       findMatchingParents(data);
-      setInternalExpandedIds((prev) => new Set([...prev, ...idsToExpand]));
+      React.startTransition(() => {
+        setInternalExpandedIds((prev) => new Set([...prev, ...idsToExpand]));
+      });
     }
   }, [searchTerm, data, externalExpandedIds]);
 

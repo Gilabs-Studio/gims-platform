@@ -22,6 +22,7 @@ type subscriptionAccessSnapshot struct {
 	State                string
 	Enforcement          string
 	Status               string
+	TenantStatus         string
 	DaysOverdue          int
 	GracePeriodDays      int
 	ForceBillingRedirect bool
@@ -45,6 +46,11 @@ type tenantSubscriptionRow struct {
 	Status        string
 	NextBillingAt *time.Time
 	ExpiresAt     *time.Time
+}
+
+type tenantDeletionRow struct {
+	Status              string
+	DeletionScheduledAt *time.Time
 }
 
 func enforceSubscriptionAccess(c *gin.Context, userRole, tenantID string) {
@@ -96,6 +102,31 @@ func resolveSubscriptionAccessSnapshot(ctx context.Context, tenantID string) sub
 
 	snapshot := defaultSubscriptionAccessSnapshot()
 	snapshot.GracePeriodDays = currentGracePeriodDays()
+
+	var tenantRow tenantDeletionRow
+	if err := database.DB.WithContext(ctx).
+		Table("tenants").
+		Select("status, deletion_scheduled_at").
+		Where("id = ? AND deleted_at IS NULL", tenantID).
+		Limit(1).
+		Scan(&tenantRow).Error; err == nil {
+		snapshot.TenantStatus = strings.ToLower(strings.TrimSpace(tenantRow.Status))
+	}
+
+	if snapshot.TenantStatus == "pending_deletion" {
+		snapshot.State = "suspended"
+		snapshot.Enforcement = "hard_lock"
+		snapshot.AllowRead = false
+		snapshot.AllowWrite = false
+		snapshot.ForceBillingRedirect = false
+		if tenantRow.DeletionScheduledAt != nil {
+			snapshot.Message = "Account deletion has been requested. This tenant is locked until recovery or permanent deletion. Scheduled deletion at " + tenantRow.DeletionScheduledAt.Format(time.RFC3339)
+		} else {
+			snapshot.Message = "Account deletion has been requested. This tenant is locked until recovery or permanent deletion."
+		}
+		setSubscriptionAccessCache(tenantID, snapshot, now)
+		return snapshot
+	}
 
 	var row tenantSubscriptionRow
 	err := database.DB.WithContext(ctx).
@@ -201,6 +232,7 @@ func defaultSubscriptionAccessSnapshot() subscriptionAccessSnapshot {
 		State:                "active",
 		Enforcement:          "full_access",
 		Status:               string(tenantModels.SubscriptionActive),
+		TenantStatus:         "active",
 		DaysOverdue:          0,
 		GracePeriodDays:      7,
 		ForceBillingRedirect: false,

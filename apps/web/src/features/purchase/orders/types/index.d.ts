@@ -44,14 +44,18 @@ export interface PurchaseOrderGRSummary {
   status: string;
   total_items?: number;
   total_items_received?: number;
+  created_at: string;
 }
 
 export interface PurchaseOrderSISummary {
   id: string;
   code: string;
   status: string;
+  amount?: number;
+  paid_amount?: number;
   goods_receipt_id?: string | null;
   goods_receipt_code?: string | null;
+  created_at: string;
 }
 
 export interface POFulfillmentSummary {

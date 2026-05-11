@@ -2,9 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { BarChart2, ShoppingCart, DollarSign, LayoutDashboard, Grid2X2, Store, Users2, Headset } from "lucide-react";
+import { BarChart2, ShoppingCart, Store, Users2, Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_WIDGETS } from "../config/widget-registry";
 import type { WidgetConfig } from "../types";
 
 // ─── Template definitions ────────────────────────────────────────────────────

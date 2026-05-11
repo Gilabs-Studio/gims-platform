@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useEffect, useState, useMemo } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
@@ -48,6 +49,8 @@ import type {
   Gender,
   PTKPStatus,
   AreaAssignment,
+  OutletAssignment,
+  WarehouseAssignment,
   ContractType,
   CreateEmployeeData,
 } from "../types";
@@ -57,13 +60,14 @@ import {
   useAvailableUsers,
   useEmployeeFormData,
   useBulkUpdateEmployeeAreas,
+  useBulkUpdateEmployeeOutlets,
+  useBulkUpdateEmployeeWarehouses,
   useEmployee,
 } from "../hooks/use-employees";
 import { useDivisions, useCreateDivision } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions, useCreateJobPosition } from "@/features/master-data/organization/hooks/use-job-positions";
 import { DivisionForm } from "@/features/master-data/organization/components/division/division-form";
 import { JobPositionForm } from "@/features/master-data/organization/components/job-position/job-position-form";
-import { useCompanies, useCreateCompany } from "@/features/master-data/organization/hooks/use-companies";
 import { useCreateUser, useRoles } from "@/features/master-data/user-management/hooks/use-users";
 import { useUserLimit } from "@/features/master-data/user-management/hooks/use-user-limit";
 import { ButtonLoading } from "@/components/loading";
@@ -116,6 +120,10 @@ export function EmployeeForm({
   // Area assignments state (managed separately from the main form)
   const [areaAssignments, setAreaAssignments] = useState<AreaAssignment[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [outletAssignments, setOutletAssignments] = useState<OutletAssignment[]>([]);
+  const [warehouseAssignments, setWarehouseAssignments] = useState<WarehouseAssignment[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
 
   const [divisionFormOpen, setDivisionFormOpen] = useState(false);
   const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
@@ -125,10 +133,6 @@ export function EmployeeForm({
     { enabled: open },
   );
   const { data: positionsData } = useJobPositions(
-    { per_page: 20 },
-    { enabled: open },
-  );
-  const { data: companiesData } = useCompanies(
     { per_page: 20 },
     { enabled: open },
   );
@@ -142,10 +146,11 @@ export function EmployeeForm({
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const bulkUpdateAreas = useBulkUpdateEmployeeAreas();
+  const bulkUpdateOutlets = useBulkUpdateEmployeeOutlets();
+  const bulkUpdateWarehouses = useBulkUpdateEmployeeWarehouses();
 
   const createDivision = useCreateDivision();
   const createJobPosition = useCreateJobPosition();
-  const createCompany = useCreateCompany();
 
   const createUser = useCreateUser();
   const { data: rolesData } = useRoles({ enabled: open });
@@ -153,7 +158,6 @@ export function EmployeeForm({
 
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
-  const companies = sortOptions(companiesData?.data ?? [], (c) => c.name);
   const roles = sortOptions(rolesData?.data ?? [], (r) => r.name);
 
   const availableUsers = useMemo(
@@ -169,6 +173,14 @@ export function EmployeeForm({
     () => sortOptions(formDataResp?.data?.areas ?? [], (a) => a.name),
     [formDataResp],
   );
+  const outletOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.outlets ?? [], (o) => o.name),
+    [formDataResp],
+  );
+  const warehouseOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.warehouses ?? [], (w) => w.name),
+    [formDataResp],
+  );
 
   // Filter out already-assigned areas from the dropdown
   const unassignedAreas = useMemo(
@@ -177,6 +189,20 @@ export function EmployeeForm({
         (a) => !areaAssignments.some((aa) => aa.area_id === a.id),
       ),
     [areaOptions, areaAssignments],
+  );
+  const unassignedOutlets = useMemo(
+    () =>
+      outletOptions.filter(
+        (o) => !outletAssignments.some((oa) => oa.outlet_id === o.id),
+      ),
+    [outletOptions, outletAssignments],
+  );
+  const unassignedWarehouses = useMemo(
+    () =>
+      warehouseOptions.filter(
+        (w) => !warehouseAssignments.some((wa) => wa.warehouse_id === w.id),
+      ),
+    [warehouseOptions, warehouseAssignments],
   );
 
   const {
@@ -283,7 +309,18 @@ export function EmployeeForm({
           area_id: ea.area_id,
           is_supervisor: ea.is_supervisor,
         })) ?? [];
+      const existingOutlets: OutletAssignment[] =
+        employeeData.outlets?.map((eo) => ({
+          outlet_id: eo.outlet_id,
+        })) ?? [];
+      const existingWarehouses: WarehouseAssignment[] =
+        employeeData.warehouses?.map((ew) => ({
+          warehouse_id: ew.warehouse_id,
+          is_auto: ew.is_auto,
+        })) ?? [];
       setAreaAssignments(existingAreas);
+      setOutletAssignments(existingOutlets);
+      setWarehouseAssignments(existingWarehouses);
     } else {
       reset({
         employee_code: "",
@@ -316,6 +353,8 @@ export function EmployeeForm({
         password: "",
       });
       setAreaAssignments([]);
+      setOutletAssignments([]);
+      setWarehouseAssignments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee?.id, employeeData]);
@@ -349,6 +388,11 @@ export function EmployeeForm({
       const supervisorAreaIds = areaAssignments
         .filter((a) => a.is_supervisor)
         .map((a) => a.area_id);
+      const outletIds = outletAssignments.map((o) => o.outlet_id);
+      const manualWarehouseAssignments = warehouseAssignments.filter(
+        (w) => !w.is_auto,
+      );
+      const warehouseIds = manualWarehouseAssignments.map((w) => w.warehouse_id);
 
       let finalUserId = data.user_id || undefined;
 
@@ -375,7 +419,6 @@ export function EmployeeForm({
           email: data.email,
           password: data.password,
           role_id: data.role_id,
-          status: "active",
         });
         finalUserId = newUser.data.id;
       }
@@ -404,6 +447,8 @@ export function EmployeeForm({
         is_active: data.is_active,
         area_ids: memberAreaIds,
         supervised_area_ids: supervisorAreaIds,
+        outlet_ids: outletIds,
+        warehouse_ids: warehouseIds,
       };
 
       if (isEditing && employee) {
@@ -423,6 +468,14 @@ export function EmployeeForm({
             data: { assignments: areaAssignments },
           });
         }
+        await bulkUpdateOutlets.mutateAsync({
+          id: employee.id,
+          data: { assignments: outletAssignments },
+        });
+        await bulkUpdateWarehouses.mutateAsync({
+          id: employee.id,
+          data: { assignments: manualWarehouseAssignments },
+        });
         toast.success(t("updateSuccess"));
       } else {
         const cleanData: CreateEmployeeData = {
@@ -470,9 +523,10 @@ export function EmployeeForm({
     createEmployee.isPending ||
     updateEmployee.isPending ||
     bulkUpdateAreas.isPending ||
+    bulkUpdateOutlets.isPending ||
+    bulkUpdateWarehouses.isPending ||
     createDivision.isPending ||
-    createJobPosition.isPending ||
-    createCompany.isPending;
+    createJobPosition.isPending;
 
   const handleAddArea = () => {
     if (!selectedAreaId) {
@@ -499,9 +553,46 @@ export function EmployeeForm({
     return areaOptions.find((a) => a.id === areaId)?.name ?? areaId;
   };
 
+  const handleAddOutlet = () => {
+    if (!selectedOutletId) {
+      return;
+    }
+    setOutletAssignments((prev) => [...prev, { outlet_id: selectedOutletId }]);
+    setSelectedOutletId("");
+  };
+
+  const handleRemoveOutlet = (outletId: string) => {
+    setOutletAssignments((prev) => prev.filter((o) => o.outlet_id !== outletId));
+  };
+
+  const getOutletName = (outletId: string): string => {
+    return outletOptions.find((o) => o.id === outletId)?.name ?? outletId;
+  };
+
+  const handleAddWarehouse = () => {
+    if (!selectedWarehouseId) {
+      return;
+    }
+    setWarehouseAssignments((prev) => [
+      ...prev,
+      { warehouse_id: selectedWarehouseId, is_auto: false },
+    ]);
+    setSelectedWarehouseId("");
+  };
+
+  const handleRemoveWarehouse = (warehouseId: string) => {
+    setWarehouseAssignments((prev) =>
+      prev.filter((w) => w.warehouse_id !== warehouseId || w.is_auto),
+    );
+  };
+
+  const getWarehouseName = (warehouseId: string): string => {
+    return warehouseOptions.find((w) => w.id === warehouseId)?.name ?? warehouseId;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("editTitle") : t("createTitle")}
@@ -518,24 +609,27 @@ export function EmployeeForm({
         >
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
-              className={cn(
-                "grid w-full",
-                isEditing ? "grid-cols-3" : "grid-cols-4",
-              )}
+              className="flex w-full justify-start overflow-x-auto overflow-y-hidden"
             >
-              <TabsTrigger value="basic" className="cursor-pointer">
+              <TabsTrigger value="basic" className="flex-1 cursor-pointer">
                 {t("tabs.basic")}
               </TabsTrigger>
-              <TabsTrigger value="employment" className="cursor-pointer">
+              <TabsTrigger value="employment" className="flex-1 cursor-pointer">
                 {t("tabs.employment")}
               </TabsTrigger>
               {!isEditing && (
-                <TabsTrigger value="contract" className="cursor-pointer">
+                <TabsTrigger value="contract" className="flex-1 cursor-pointer">
                   {t("tabs.contract")}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="areas" className="cursor-pointer">
+              <TabsTrigger value="areas" className="flex-1 cursor-pointer">
                 {t("tabs.areas")}
+              </TabsTrigger>
+              <TabsTrigger value="outlets" className="flex-1 cursor-pointer">
+                {t("form.outletsLabel")}
+              </TabsTrigger>
+              <TabsTrigger value="warehouses" className="flex-1 cursor-pointer">
+                {t("form.warehousesLabel")}
               </TabsTrigger>
             </TabsList>
 
@@ -861,39 +955,6 @@ export function EmployeeForm({
                   />
                 </Field>
               </div>
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.company")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="company_id"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      options={companies.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                      }))}
-                      value={field.value || ""}
-                      onValueChange={field.onChange}
-                      placeholder={t("form.companyPlaceholder")}
-                      createPermission="company.create"
-                      onCreateClick={async (query) => {
-                        try {
-                          const res = await createCompany.mutateAsync({
-                            name: query,
-                            is_active: true,
-                          });
-                          field.onChange(res.data.id);
-                          toast.success(t("createSuccess"));
-                        } catch {
-                          toast.error("Failed to create company");
-                        }
-                      }}
-                      isLoading={createCompany.isPending}
-                      disabled={createCompany.isPending}
-                    />
-                  )}
-                />
-              </Field>
               <Field orientation="vertical">
                 <FieldLabel>{t("form.totalLeaveQuota")}</FieldLabel>
                 <Input
@@ -1250,6 +1311,138 @@ export function EmployeeForm({
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="outlets" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                {t("form.scopeDescription")}
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.outletsLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedOutletId}
+                    onValueChange={setSelectedOutletId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectOutlet")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedOutlets.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddOutlet}
+                    disabled={!selectedOutletId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {outletAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noOutletsAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {outletAssignments.map((assignment) => (
+                      <div
+                        key={assignment.outlet_id}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <span className="text-sm font-medium">
+                          {getOutletName(assignment.outlet_id)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveOutlet(assignment.outlet_id)}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="warehouses" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.warehousesLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedWarehouseId}
+                    onValueChange={setSelectedWarehouseId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectWarehouse")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedWarehouses.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddWarehouse}
+                    disabled={!selectedWarehouseId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {warehouseAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noWarehousesAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {warehouseAssignments.map((assignment) => (
+                      <div
+                        key={`${assignment.warehouse_id}-${assignment.is_auto ? "auto" : "manual"}`}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {getWarehouseName(assignment.warehouse_id)}
+                          </span>
+                          <Badge variant={assignment.is_auto ? "secondary" : "outline"}>
+                            {assignment.is_auto ? t("form.auto") : t("form.manual")}
+                          </Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveWarehouse(assignment.warehouse_id)}
+                          disabled={!!assignment.is_auto}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
 

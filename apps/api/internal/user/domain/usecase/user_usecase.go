@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
@@ -29,10 +30,12 @@ import (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrUserLimitReached  = errors.New("user limit reached")
+	ErrUserNotFound                = errors.New("user not found")
+	ErrUserAlreadyExists           = errors.New("user already exists")
+	ErrRoleNotFound                = errors.New("role not found")
+	ErrUserLimitReached            = errors.New("user limit reached")
+	ErrOwnerMutationForbidden = errors.New("owner user cannot be modified")
+	ErrDeleteAccountForbidden = errors.New("only tenant owner can request account deletion")
 )
 
 // UserLimitResponse carries the current and maximum allowed user count for a tenant.
@@ -58,6 +61,7 @@ type UserUsecase interface {
 	ChangePassword(ctx context.Context, id string, req *dto.ChangePasswordRequest) error
 	UpdateAvatar(ctx context.Context, id string, avatarURL string) error
 	Delete(ctx context.Context, id string) error
+	RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error)
 }
 
 type userUsecase struct {
@@ -347,6 +351,42 @@ func (u *userUsecase) Create(ctx context.Context, req *dto.CreateUserRequest) (*
 	return mapper.ToUserResponse(createdUser), nil
 }
 
+func (u *userUsecase) ensureOwnerMutationAllowed(ctx context.Context, targetUser *models.User) error {
+	if middleware.IsSystemAdmin(ctx) {
+		return nil
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	if actorID == "" || targetUser == nil {
+		return nil
+	}
+
+	if actorID == targetUser.ID {
+		if targetUser.Role != nil && targetUser.Role.IsProtected {
+			return ErrOwnerMutationForbidden
+		}
+		return nil
+	}
+
+	actorUser, err := u.userRepo.FindByID(ctx, actorID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if actorUser.Role == nil || !actorUser.Role.IsProtected {
+		return nil
+	}
+
+	if targetUser.Role != nil && targetUser.Role.IsProtected {
+		return ErrOwnerMutationForbidden
+	}
+
+	return nil
+}
+
 func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	// Find user
 	usr, err := u.userRepo.FindByID(ctx, id)
@@ -354,6 +394,10 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
+		return nil, err
+	}
+
+	if err := u.ensureOwnerMutationAllowed(ctx, usr); err != nil {
 		return nil, err
 	}
 
@@ -384,6 +428,9 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 			return nil, err
 		}
 		usr.RoleID = req.RoleID
+		// Clear preloaded role to prevent GORM from reverting role_id during Save()
+		// This happens because FindByID preloads Role, and GORM may restore the association
+		usr.Role = nil
 	}
 
 	if req.Status != "" {
@@ -430,11 +477,15 @@ func (u *userUsecase) Update(ctx context.Context, id string, req *dto.UpdateUser
 
 func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	// Check if user exists
-	_, err := u.userRepo.FindByID(ctx, id)
+	usr, err := u.userRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
+		return err
+	}
+
+	if err := u.ensureOwnerMutationAllowed(ctx, usr); err != nil {
 		return err
 	}
 
@@ -462,6 +513,85 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	}))
 
 	return nil
+}
+
+func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error) {
+	usr, err := u.userRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	if usr.Role == nil || !usr.Role.IsProtected {
+		return nil, ErrDeleteAccountForbidden
+	}
+
+	tenant, err := u.tenantRepo.FindByID(ctx, usr.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	if tenant.OwnerUserID == nil || strings.TrimSpace(*tenant.OwnerUserID) != strings.TrimSpace(usr.ID) {
+		return nil, ErrDeleteAccountForbidden
+	}
+
+	now := apptime.Now()
+	scheduledAt := now.AddDate(0, 0, 30)
+
+	if strings.EqualFold(strings.TrimSpace(tenant.Status), "pending_deletion") && tenant.DeletionScheduledAt != nil {
+		requestedAt := now
+		if tenant.DeletionRequestedAt != nil {
+			requestedAt = *tenant.DeletionRequestedAt
+		}
+		return &dto.TenantDeletionScheduleResponse{
+			TenantID:            tenant.ID,
+			DeletionRequestedAt: requestedAt.Format(time.RFC3339),
+			DeletionScheduledAt: tenant.DeletionScheduledAt.Format(time.RFC3339),
+			GracePeriodDays:     30,
+		}, nil
+	}
+
+	previousStatus := strings.TrimSpace(tenant.Status)
+	if previousStatus == "" {
+		previousStatus = "active"
+	}
+
+	tenant.Status = "pending_deletion"
+	tenant.DeletionRequestedAt = &now
+	tenant.DeletionScheduledAt = &scheduledAt
+	tenant.DeletionRequestedBy = &usr.ID
+	tenant.DeletionPreviousStatus = &previousStatus
+	tenant.DeletionRecoveredAt = nil
+
+	if err := u.tenantRepo.Update(ctx, tenant); err != nil {
+		return nil, err
+	}
+
+	// Immediately disable tenant users while retaining data during the grace period.
+	_ = database.DB.WithContext(ctx).
+		Table("users").
+		Where("tenant_id = ? AND deleted_at IS NULL", tenant.ID).
+		Updates(map[string]interface{}{"status": "inactive", "updated_at": now}).Error
+
+	// Revoke active refresh tokens so existing sessions are not silently extended.
+	_ = database.DB.WithContext(ctx).
+		Table("refresh_tokens").
+		Where("tenant_id = ? AND revoked = false", tenant.ID).
+		Updates(map[string]interface{}{"revoked": true, "updated_at": now}).Error
+
+	u.auditService.Log(ctx, "tenant.deletion.requested", tenant.ID, map[string]interface{}{
+		"requested_by": usr.ID,
+		"scheduled_at": scheduledAt.Format(time.RFC3339),
+	})
+
+	return &dto.TenantDeletionScheduleResponse{
+		TenantID:            tenant.ID,
+		DeletionRequestedAt: now.Format(time.RFC3339),
+		DeletionScheduledAt: scheduledAt.Format(time.RFC3339),
+		GracePeriodDays:     30,
+	}, nil
 }
 
 func (u *userUsecase) UpdateProfile(ctx context.Context, id string, req *dto.UpdateProfileRequest) (*dto.UserResponse, error) {

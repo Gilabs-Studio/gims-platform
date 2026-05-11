@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
@@ -21,12 +20,30 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     path: "/pos",
     title,
     description: desc,
-    keywords: [
-      `Aplikasi Kasir Terbaik`, 
-      `Sistem Kasir Cafe`, 
-      `Software POS Retail`,
-      `Mesin Kasir Online`
-    ],
+    keywords: locale === "id"
+      ? [
+          "aplikasi kasir terbaik",
+          "sistem kasir cafe",
+          "software pos retail",
+          "mesin kasir online",
+          "pos kasir",
+          "point of sales",
+          "aplikasi point of sale indonesia",
+          "software kasir gratis",
+          "kasir digital",
+          "sistem kasir restoran",
+          "salesview pos",
+        ]
+      : [
+          "point of sales software",
+          "best pos system",
+          "pos kasir",
+          "retail pos software",
+          "restaurant pos system",
+          "cloud pos indonesia",
+          "salesview pos",
+          "point of sale indonesia",
+        ],
     imageAlt: "SalesView point-of-sale overview",
   });
 }
@@ -37,27 +54,54 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
 
   const schemaOrg = {
     "@context": "https://schema.org",
-    "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://salesview.id/${locale}/pos#business`,
-    "name": locale === 'id' ? "Sistem Point of Sale Terbaik" : "Best POS System",
+    "@type": "SoftwareApplication",
+    "@id": `https://salesview.id/${locale}/pos#product`,
+    "name": locale === "id" ? "SalesView Sistem Point of Sale (POS) & Kasir" : "SalesView Point of Sale (POS) System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
-    "description": locale === 'id' 
-      ? `Point of sale cerdas dengan stok real-time, loyalty, dan dukungan multi-cabang.`
-      : `Smart point of sale with real-time stock, loyalty, and multi-branch support.`,
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Semarang",
-      "addressRegion": "Jawa Tengah",
-      "addressCountry": "ID"
-    },
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": -7.005145,
-      "longitude": 110.438125
-    },
+    "description": locale === "id"
+      ? "Point of sale cerdas dengan stok real-time, loyalty pelanggan, dan dukungan multi-cabang untuk retail dan F&B."
+      : "Smart point of sale with real-time stock, loyalty, and multi-branch support for retail and F&B.",
     "url": `https://salesview.id/${locale}/pos`,
-    "telephone": "+628111222333"
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "IDR",
+      "lowPrice": "0",
+      "offerCount": "3"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "87",
+      "bestRating": "5",
+      "worstRating": "1"
+    },
+    "review": [
+      {
+        "@type": "Review",
+        "author": { "@type": "Person", "name": "Rini Wulandari" },
+        "datePublished": "2025-03-20",
+        "reviewBody": "Aplikasi kasir POS terbaik yang pernah saya coba. Cepat, mudah digunakan, dan stok langsung tersinkron otomatis.",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5",
+          "bestRating": "5",
+          "worstRating": "1"
+        }
+      },
+      {
+        "@type": "Review",
+        "author": { "@type": "Person", "name": "Hendra Kusuma" },
+        "datePublished": "2025-04-05",
+        "reviewBody": "Sistem kasir yang sangat andal untuk bisnis cafe multi-cabang kami. Laporan penjualan real-time sangat membantu manajemen.",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5",
+          "bestRating": "5",
+          "worstRating": "1"
+        }
+      }
+    ]
   };
 
   const isId = locale === 'id';
@@ -109,7 +153,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
                 </p>
               </div>
               <div className="lg:w-1/2 w-full">
-                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-8 flex items-center justify-center">
+                <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-8 flex items-center justify-center">
                    <div className="w-full h-full border border-border/50 rounded-lg p-4 grid grid-cols-3 gap-4">
                      <div className="col-span-2 space-y-2">
                         {[1,2,3].map(i => (

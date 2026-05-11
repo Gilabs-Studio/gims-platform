@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { LayoutGrid, Filter, Users, ArrowRight } from "lucide-react";
@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { usePosOutletOverview } from "../hooks/use-pos-outlet-overview";
 import { Button } from "@/components/ui/button";
 import { useFloorLayout } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 
 interface PosLiveTableWidgetProps {
   readonly widget: WidgetConfig;
@@ -32,6 +33,8 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
   const pageSize = 6;
   const registry = WIDGET_REGISTRY[widget.type];
   const canView = useUserPermission(registry?.permission ?? "");
+  const permissionScope = usePermissionScope(registry?.permission ?? "");
+  const allowAllOutlets = permissionScope?.trim().toUpperCase() === "ALL";
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const {
     posSummary: pos,
@@ -40,17 +43,18 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
     selectedOutletId,
     setSelectedOutletId,
     hasOutletFilter,
+    allowAllOutlets: canSelectAllOutlets,
     isSingleOutletScope,
     focusedOutlet,
     isLoading,
     isError,
     refetch,
-  } = usePosOutletOverview(widget.type, canView);
-
-  if (!canView) return null;
+  } = usePosOutletOverview(widget.type, canView, { allowAllOutlets });
 
   useEffect(() => {
-    setVisibleCount(pageSize);
+    startTransition(() => {
+      setVisibleCount(pageSize);
+    });
   }, [selectedOutletId]);
 
   const displayedOutlets = useMemo(() => filteredOutlets.slice(0, visibleCount), [filteredOutlets, visibleCount]);
@@ -142,6 +146,8 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
     widget.type,
   ]);
 
+  if (!canView) return null;
+
   return (
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
       <Card className="h-full">
@@ -158,7 +164,9 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
+                  {canSelectAllOutlets && (
+                    <SelectItem value="all">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
+                  )}
                   {visibleOutlets.map((o) => (
                     <SelectItem key={o.outlet_id} value={o.outlet_id}>
                       {o.outlet_name}

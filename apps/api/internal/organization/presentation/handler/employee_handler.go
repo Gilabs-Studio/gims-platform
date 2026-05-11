@@ -8,11 +8,10 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"path/filepath"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
@@ -1052,9 +1051,7 @@ func (h *EmployeeHandler) UploadEmployeeSignature(c *gin.Context) {
 
 	// Save file to storage using the existing utility
 	uploadConfig := utils.FileUploadConfig{
-		UploadDir:    filepath.Join(config.AppConfig.Storage.UploadDir, "signatures"),
 		MaxSize:      5 * 1024 * 1024, // 5MB
-		BaseURL:      "/uploads/signatures",
 		OriginalName: employee.Name + " signature",
 	}
 
@@ -1094,7 +1091,10 @@ func (h *EmployeeHandler) UploadEmployeeSignature(c *gin.Context) {
 		height = bounds.Dy()
 	}
 
-	signature, err := h.employeeUC.UploadEmployeeSignature(c.Request.Context(), id, uploadedFile.Path, uploadedFile.Filename, uploadedFile.Size, fileHash, uploadedFile.MimeType, width, height, userID)
+	signature, err := h.employeeUC.UploadEmployeeSignature(c.Request.Context(), id, uploadedFile.URL, uploadedFile.Filename, uploadedFile.Size, fileHash, uploadedFile.MimeType, width, height, userID)
+			// Best-effort cleanup: remove the uploaded file if DB update fails
+			_ = storage.Delete(c.Request.Context(), uploadedFile.Path)
+
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
 			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{

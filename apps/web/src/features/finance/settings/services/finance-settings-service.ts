@@ -82,16 +82,29 @@ export const financeSettingsService = {
   },
 
   activateFiscalYear: async (id: string, companyId: string): Promise<ApiResponse<FiscalYear>> => {
-    const response = await apiClient.patch<ApiResponse<FiscalYear>>(`/finance/fiscal-years/${id}/activate`, null, {
+    const response = await apiClient.patch<ApiResponse<FiscalYear>>(`/finance/fiscal-years/${id}/activate`, {}, {
       params: { company_id: companyId },
     });
     return response.data;
   },
 
   lockFiscalYear: async (id: string, companyId: string): Promise<ApiResponse<FiscalYear>> => {
-    const response = await apiClient.patch<ApiResponse<FiscalYear>>(`/finance/fiscal-years/${id}/lock`, null, {
+    const response = await apiClient.patch<ApiResponse<FiscalYear>>(`/finance/fiscal-years/${id}/lock`, {}, {
       params: { company_id: companyId },
     });
+    return response.data;
+  },
+
+  deleteFiscalYear: async (
+    id: string,
+    companyId: string,
+  ): Promise<ApiResponse<{ deleted: boolean; id: string; company_id: string }>> => {
+    const response = await apiClient.delete<ApiResponse<{ deleted: boolean; id: string; company_id: string }>>(
+      `/finance/fiscal-years/${id}`,
+      {
+        params: { company_id: companyId },
+      },
+    );
     return response.data;
   },
 

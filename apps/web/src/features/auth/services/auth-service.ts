@@ -14,6 +14,8 @@ export interface SubscriptionPlanConfig {
   billing_type: "per_user" | "flat";
   price_monthly_idr: number;
   price_yearly_idr: number;
+  outlet_addon_monthly_idr?: number;
+  outlet_addon_yearly_idr?: number;
   min_users: number;
   max_users: number;
   is_highlighted: boolean;

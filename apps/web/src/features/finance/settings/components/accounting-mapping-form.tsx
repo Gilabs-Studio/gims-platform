@@ -1,6 +1,7 @@
 "use client";
 
 import { useForm, type Resolver } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -35,7 +36,7 @@ export const AccountingMappingForm = () => {
   const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings();
   const canUpdate = useUserPermission("account_mappings.update");
 
-  const settings = settingsResponse?.data ?? [];
+  const settings = useMemo(() => settingsResponse?.data ?? [], [settingsResponse?.data]);
   const UNMAPPED_VALUE = "__UNMAPPED__";
 
   const coaList = useMemo<ChartOfAccount[]>(() => coaResponse?.data ?? [], [coaResponse?.data]);
@@ -101,7 +102,8 @@ export const AccountingMappingForm = () => {
     }
   }, [form, mappingDefinitions, settingsResponse?.data]);
 
-  const settingRows = form.watch("settings") ?? [];
+  const watchedSettings = useWatch({ control: form.control, name: "settings" });
+  const settingRows = useMemo(() => watchedSettings ?? [], [watchedSettings]);
   const fieldIndexByKey = useMemo(() => {
     return new Map(settingRows.map((row, index) => [row.setting_key, index]));
   }, [settingRows]);
@@ -215,7 +217,7 @@ export const AccountingMappingForm = () => {
                     {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
                   </div>
                   <Select
-                    value={form.watch(`settings.${fieldIndex}.value`) || UNMAPPED_VALUE}
+                    value={settingRows[fieldIndex]?.value || UNMAPPED_VALUE}
                     onValueChange={(val) =>
                       form.setValue(
                         `settings.${fieldIndex}.value`,

@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser, useDeleteUser, useUserPermissions, useUpdateUser } from "../hooks/use-users";
 import { useHasPermission } from "../hooks/use-has-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { toast } from "sonner";
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
+import { canOwnerManageUser } from "@/features/auth/components/auth-guard";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +38,8 @@ export function UserDetail({ userId }: UserDetailProps) {
 
   const user = data?.data;
   const userPermissions = permissionsData?.data?.permissions || [];
+  const currentUser = useAuthStore((state) => state.user);
+  const canManageTargetUser = canOwnerManageUser(currentUser, user);
 
   // Permission checks
   const hasEditPermission = useHasPermission("EDIT_USER");
@@ -113,7 +117,7 @@ export function UserDetail({ userId }: UserDetailProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {hasEditPermission && (
+          {hasEditPermission && canManageTargetUser && (
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(true)}
@@ -131,7 +135,7 @@ export function UserDetail({ userId }: UserDetailProps) {
               {t("actions.permissions")}
             </Button>
           )}
-          {hasDeletePermission && (
+          {hasDeletePermission && canManageTargetUser && (
             <Button
               variant="destructive"
               onClick={handleDelete}
