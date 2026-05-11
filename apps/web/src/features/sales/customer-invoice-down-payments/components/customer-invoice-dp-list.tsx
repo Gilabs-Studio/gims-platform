@@ -191,12 +191,6 @@ export function CustomerInvoiceDPList() {
   const cancelMutation = useCancelCustomerInvoiceDP();
 
   useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const searchParams = new URLSearchParams(window.location.search);

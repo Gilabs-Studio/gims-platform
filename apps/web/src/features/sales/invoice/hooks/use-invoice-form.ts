@@ -253,6 +253,12 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     { enabled: open && !!watchedSalesOrderId },
   );
 
+  const isDefaultSalesOrderPrefillReady = useMemo(() => {
+    if (isEdit || !open || !defaultSalesOrderId) return true;
+    if ((watchedSalesOrderId ?? "") !== defaultSalesOrderId) return false;
+    return !!(selectedOrderData?.data || isSelectedOrderError || isSelectedOrderFetched);
+  }, [defaultSalesOrderId, isEdit, isSelectedOrderError, isSelectedOrderFetched, open, selectedOrderData?.data, watchedSalesOrderId]);
+
   const selectedSalesOrderLabel = useMemo(() => {
     const salesOrder = selectedOrderData?.data ?? selectedInvoice?.sales_order ?? null;
     if (!salesOrder) return "";
@@ -424,22 +430,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     }
   }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace, defaultSalesOrderId]);
 
-  useEffect(() => {
-    if (isEdit || !open || !defaultSalesOrderId) return;
-    if ((watchedSalesOrderId ?? "") !== defaultSalesOrderId) return;
 
-    if (selectedOrderData?.data || isSelectedOrderError || isSelectedOrderFetched) {
-      setIsDefaultSalesOrderPrefillReady(true);
-    }
-  }, [
-    defaultSalesOrderId,
-    isEdit,
-    isSelectedOrderError,
-    isSelectedOrderFetched,
-    open,
-    selectedOrderData?.data,
-    watchedSalesOrderId,
-  ]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
