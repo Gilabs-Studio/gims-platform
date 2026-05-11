@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"context"
 	"fmt"
 
@@ -23,6 +24,9 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 	var total int64
 
 	query := database.GetDB(ctx, r.db).Model(&models.EmployeeEvaluation{})
+
+	// Enforce HRD scope (OWN/DIVISION/AREA/OUTLET/ALL) before additional filters.
+	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
 	// Apply search filter on employee name, evaluation group name, and notes
 	if search != "" {

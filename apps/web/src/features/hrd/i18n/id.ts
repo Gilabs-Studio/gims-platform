@@ -70,6 +70,10 @@ export const hrdId = {
       today: "Hari Ini",
       todayAttendance: "Absensi Hari Ini",
       notClockedIn: "Belum absen masuk",
+      permissionsRequired: "Perlu izin akses",
+      permissionsUnavailableTitle: "Fitur HR Tidak Tersedia",
+      permissionsUnavailableDescription:
+        "Peran Anda saat ini belum memiliki akses ke layanan mandiri HR. Hubungi administrator untuk meminta akses.",
       alreadyClockedOut: "Sudah absen pulang",
       holiday: "Hari Libur",
       offDay: "Hari Libur",

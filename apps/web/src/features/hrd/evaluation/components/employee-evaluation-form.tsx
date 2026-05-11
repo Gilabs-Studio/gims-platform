@@ -66,6 +66,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
     reset,
     control,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateEmployeeEvaluationFormData>({
     resolver: zodResolver(schema),
@@ -97,6 +98,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
   });
 
   const selectedGroupId = watch("evaluation_group_id");
+  const selectedEmployeeId = watch("employee_id");
 
   // Fetch criteria for selected group (for scoring)
   const { data: criteriaData } = useEvaluationCriteriaByGroup(
@@ -155,6 +157,17 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
       }
     }
   }, [open, evaluation, reset]);
+
+  useEffect(() => {
+    if (isEdit || selectedEmployeeId || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [employees, isEdit, selectedEmployeeId, setValue]);
 
   const onSubmit = async (data: CreateEmployeeEvaluationFormData) => {
     try {

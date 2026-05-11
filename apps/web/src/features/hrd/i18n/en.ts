@@ -70,6 +70,10 @@ export const hrdEn = {
       today: "Today",
       todayAttendance: "Today's Attendance",
       notClockedIn: "Not clocked in yet",
+      permissionsRequired: "Permission required",
+      permissionsUnavailableTitle: "HR Features Unavailable",
+      permissionsUnavailableDescription:
+        "Your role currently has no access to HR self-service actions. Contact your administrator to request access.",
       alreadyClockedOut: "Already clocked out",
       holiday: "Holiday",
       offDay: "Day Off",

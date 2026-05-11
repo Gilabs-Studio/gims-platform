@@ -922,7 +922,7 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 // GetFormData returns data for form dropdowns (employees, leave types, and current user's balance)
 func (u *leaveRequestUsecase) GetFormData(ctx context.Context, currentUserID string) (*dto.FormDataResponseDTO, error) {
 	// 1. Fetch all active employees
-	employees, err := u.employeeRepo.FindAll(ctx)
+	employees, err := listScopedActiveEmployees(ctx, u.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch employees: %w", err)
 	}

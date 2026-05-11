@@ -779,7 +779,7 @@ func (u *attendanceRecordUsecase) GetEmployeeSchedule(ctx context.Context, emplo
 // GetFormData returns form data for attendance management (manual entry)
 func (u *attendanceRecordUsecase) GetFormData(ctx context.Context) (*dto.AttendanceFormDataResponse, error) {
 	// Get active employees
-	employees, err := u.employeeRepo.FindAll(ctx)
+	employees, err := listScopedActiveEmployees(ctx, database.DB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch employees: %w", err)
 	}

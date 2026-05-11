@@ -127,6 +127,17 @@ export function LeaveRequestForm({
     [employees, selectedEmployeeId],
   );
 
+  useEffect(() => {
+    if (isEdit || selectedEmployeeId || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [employees, isEdit, selectedEmployeeId, setValue]);
+
   // Create date range object for DateRangePicker
   const dateRange: DateRange | undefined = useMemo(() => {
     if (!startDate || !endDate) return undefined;
