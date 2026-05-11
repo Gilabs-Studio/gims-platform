@@ -39,6 +39,10 @@ type ListSalesTargetsRequest struct {
 	Search     string `form:"search"`
 	SortBy     string `form:"sort_by"`
 	SortDir    string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
+	// Note: Scope is determined by permission middleware (RequirePermission),
+	// not by query params. These fields are for reference/logging only.
+	Scope   string `form:"scope"`   // Optional: reflect the resolved scope (OWN, AREA, DIVISION, ALL)
+	ScopeID string `form:"scope_id"` // Optional: area_id or division_id for scoped queries
 }
 
 // SalesTargetResponse represents the response for a sales target

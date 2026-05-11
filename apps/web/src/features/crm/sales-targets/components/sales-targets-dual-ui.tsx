@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { SalesTargetForm } from "./sales-target-form";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import type { EmployeeSalesTarget } from "../types";
 import { toast } from "sonner";
 
@@ -19,9 +20,12 @@ export function SalesTargetsDualUI() {
   const t = useTranslations("salesTargets");
   const { user } = useAuthStore();
   
-  const readScope = user?.permissions?.["sales_target.read"] || user?.permissions?.["sales_target.*"];
-  const canReadAll = readScope === "ALL";
-  const canReadOwn = readScope === "OWN" || readScope === "ALL";
+  // Resolve permission scope for sales_target.read (OWN, AREA, DIVISION, ALL, etc.)
+  const readScopeRaw = usePermissionScope("sales_target.read") || (user?.permissions?.["sales_target.read"] as string | null) || (user?.permissions?.["sales_target.*"] as string | null);
+  const readScope = (readScopeRaw ?? "").toString().trim().toUpperCase();
+  const isOwnScope = readScope === "OWN";
+  // Any scope other than OWN should be treated as manager view (table)
+  const isManagerScope = !isOwnScope && readScope.length > 0;
 
   const canCreate = useUserPermission("sales_target.create");
   const canUpdate = useUserPermission("sales_target.update");
@@ -33,10 +37,12 @@ export function SalesTargetsDualUI() {
 
   const deleteTarget = useDeleteSalesTarget();
 
-  // Fetch only the current year for OWN view
+  // Fetch only the current year for OWN view. For manager scopes, pass scope so backend can filter accordingly.
   const currentYear = new Date().getFullYear();
   const { data, isLoading } = useSalesTargets({
-    year: canReadAll ? undefined : currentYear, // only filter by year for OWN view
+    year: isOwnScope ? currentYear : undefined,
+    scope: isManagerScope ? readScope : undefined,
+    employee_id: isOwnScope ? user?.employee_id : undefined,
   });
 
   const handleDelete = async () => {
@@ -65,13 +71,13 @@ export function SalesTargetsDualUI() {
     );
   }
 
-  // If user has ALL permission, they are a manager/admin. Show the list.
-  if (canReadAll) {
+  // If user has a manager scope (AREA, DIVISION, ALL, etc.), show the list.
+  if (isManagerScope) {
     return <SalesTargetsList />;
   }
 
   // If user only has OWN permission, they are a sales rep. Show their personal target.
-  if (canReadOwn) {
+  if (isOwnScope) {
     const target = data?.data?.[0]; // Backend automatically filters by employee_id for OWN scope
     
     return (
