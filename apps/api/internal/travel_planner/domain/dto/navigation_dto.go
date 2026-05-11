@@ -20,7 +20,7 @@ const (
 
 type NavigationCheckpointInput struct {
 	ID    *string  `json:"id"`
-	Type  string   `json:"type" binding:"required,oneof=lead deal customer"`
+	Type  string   `json:"type" binding:"required,oneof=lead deal customer pipeline"`
 	RefID *string  `json:"ref_id"`
 	Lat   *float64 `json:"lat"`
 	Lng   *float64 `json:"lng"`
@@ -67,21 +67,21 @@ type VisitLogLocationInput struct {
 }
 
 type UpsertVisitLogRequest struct {
-	EmployeeID   *string                `json:"employee_id" binding:"omitempty,uuid"`
-	VisitID      *string                `json:"visit_id" binding:"omitempty,uuid"`
-	RouteID      *string                `json:"route_id" binding:"omitempty,uuid"`
-	CheckpointID *string                `json:"checkpoint_id"`
-	LeadID       *string                `json:"lead_id" binding:"omitempty,uuid"`
-	DealID       *string                `json:"deal_id" binding:"omitempty,uuid"`
-	CustomerID   *string                `json:"customer_id" binding:"omitempty,uuid"`
-	Action       VisitActionType        `json:"action" binding:"required,oneof=check_in check_out submit_visit"`
-	Timestamp    *string                `json:"timestamp"`
-	Location     *VisitLogLocationInput `json:"location"`
-	Photos       []string               `json:"photos"`
-	Notes        string                 `json:"notes"`
-	Outcome      string                 `json:"outcome"`
-	ActivityType string                 `json:"activity_type"`
-	DistanceM    *float64               `json:"distance_m"`
+	EmployeeID       *string                     `json:"employee_id" binding:"omitempty,uuid"`
+	VisitID          *string                     `json:"visit_id" binding:"omitempty,uuid"`
+	RouteID          *string                     `json:"route_id" binding:"omitempty,uuid"`
+	CheckpointID     *string                     `json:"checkpoint_id"`
+	LeadID           *string                     `json:"lead_id" binding:"omitempty,uuid"`
+	DealID           *string                     `json:"deal_id" binding:"omitempty,uuid"`
+	CustomerID       *string                     `json:"customer_id" binding:"omitempty,uuid"`
+	Action           VisitActionType             `json:"action" binding:"required,oneof=check_in check_out submit_visit"`
+	Timestamp        *string                     `json:"timestamp"`
+	Location         *VisitLogLocationInput      `json:"location"`
+	Photos           []string                    `json:"photos"`
+	Notes            string                      `json:"notes"`
+	Outcome          string                      `json:"outcome"`
+	ActivityType     string                      `json:"activity_type"`
+	DistanceM        *float64                    `json:"distance_m"`
 	ProductInterests []VisitProductInterestInput `json:"product_interests"`
 }
 
@@ -113,14 +113,14 @@ type LocationUpdateRequest struct {
 }
 
 type LocationUpdateResponse struct {
-	EmployeeID        string   `json:"employee_id"`
-	RouteID           *string  `json:"route_id,omitempty"`
-	CheckpointID      *string  `json:"checkpoint_id,omitempty"`
-	Lat               float64  `json:"lat"`
-	Lng               float64  `json:"lng"`
-	Heading           *float64 `json:"heading,omitempty"`
-	NavigationStatus  string   `json:"navigation_status,omitempty"`
-	Timestamp         string   `json:"timestamp"`
+	EmployeeID       string   `json:"employee_id"`
+	RouteID          *string  `json:"route_id,omitempty"`
+	CheckpointID     *string  `json:"checkpoint_id,omitempty"`
+	Lat              float64  `json:"lat"`
+	Lng              float64  `json:"lng"`
+	Heading          *float64 `json:"heading,omitempty"`
+	NavigationStatus string   `json:"navigation_status,omitempty"`
+	Timestamp        string   `json:"timestamp"`
 }
 
 // StartNavigationRequest is sent by the sales employee's device when they begin
@@ -204,12 +204,12 @@ type VisitPlannerFormDataRequest struct {
 }
 
 type VisitPlannerFormDataResponse struct {
-	Employees []EmployeeFormOption    `json:"employees"`
-	Leads     []VisitPlannerCandidate `json:"leads"`
-	Deals     []VisitPlannerCandidate `json:"deals"`
-	Customers []VisitPlannerCandidate `json:"customers"`
+	Employees []EmployeeFormOption        `json:"employees"`
+	Leads     []VisitPlannerCandidate     `json:"leads"`
+	Deals     []VisitPlannerCandidate     `json:"deals"`
+	Customers []VisitPlannerCandidate     `json:"customers"`
 	Products  []VisitPlannerProductOption `json:"products"`
-	Warnings  []string                `json:"warnings"`
+	Warnings  []string                    `json:"warnings"`
 }
 
 type VisitPlannerProductOption struct {

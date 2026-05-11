@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "@/i18n/routing";
 import { useQueries } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import {
 	Check,
 	Camera,
@@ -353,6 +354,31 @@ function formatLatLng(
 	}
 
 	return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+	const apiError = error as {
+		message?: string;
+		response?: {
+			data?: {
+				message?: string;
+				error?: {
+					message?: string;
+					details?: { detail?: string };
+				};
+				details?: { detail?: string };
+			};
+		};
+	};
+
+	return (
+		apiError.response?.data?.error?.message ??
+		apiError.response?.data?.message ??
+		apiError.response?.data?.details?.detail ??
+		apiError.response?.data?.error?.details?.detail ??
+		apiError.message ??
+		fallback
+	);
 }
 
 function parseMovementStopNote(note: string | null | undefined): {
@@ -1051,11 +1077,27 @@ export function TravelPlannerMapWorkspace() {
 			return;
 		}
 
+		if (newPlanTitle.trim().length === 0) {
+			toast.error("Plan title is required.");
+			return;
+		}
+
 		const safeBudget =
 			Number.isFinite(newPlanBudget) && newPlanBudget >= 0 ? newPlanBudget : 0;
 
+		const validInitialExpenses = initialExpenseItems.filter(
+			(item) => Number(item.amount) > 0,
+		);
+		const invalidExpenseRow = validInitialExpenses.find(
+			(item) => !item.expense_type || !Number.isFinite(Number(item.amount)),
+		);
+		if (invalidExpenseRow) {
+			toast.error("Please complete expense type and amount for all expense rows.");
+			return;
+		}
+
 		const payload = buildCreatePlanPayload(
-			newPlanTitle.trim() || "Travel Plan",
+			newPlanTitle.trim(),
 			newPlanMode,
 		);
 		payload.budget_amount = safeBudget;
@@ -1081,35 +1123,44 @@ export function TravelPlannerMapWorkspace() {
 			];
 		}
 
-		const response = await createPlanMutation.mutateAsync(payload);
-		const createdId = response.data?.id ?? "";
-		if (!createdId) {
-			return;
-		}
+		try {
+			const response = await createPlanMutation.mutateAsync(payload);
+			const createdId = response.data?.id ?? "";
+			if (!createdId) {
+				toast.error("Failed to create plan. Missing plan ID from server response.");
+				return;
+			}
 
-		const startDate = payload.start_date;
+			const startDate = payload.start_date;
 
-		await Promise.all(
-			initialExpenseItems
-				.filter((item) => item.amount > 0)
-				.map((item) =>
+			await Promise.all(
+				validInitialExpenses.map((item) =>
 					createExpenseMutation.mutateAsync({
 						planId: createdId,
 						payload: {
 							expense_type: item.expense_type,
-							amount: item.amount,
+							amount: Number(item.amount),
 							expense_date: startDate,
 							description: item.description,
 						},
 					}),
 				),
-		);
+			);
 
-		setSelectedVisitId("");
-		setSelectedPlanId(createdId);
-		setDetailParticipantDraftIDs(null);
-		resetCreatePlanForm();
-		setIsCreateDialogOpen(false);
+			setSelectedVisitId("");
+			setSelectedPlanId(createdId);
+			setDetailParticipantDraftIDs(null);
+			resetCreatePlanForm();
+			setIsCreateDialogOpen(false);
+			toast.success("Travel plan created.");
+		} catch (error) {
+			toast.error(
+				extractApiErrorMessage(
+					error,
+					"Failed to create travel plan. Please review your input and try again.",
+				),
+			);
+		}
 	};
 
 	const handleCreateDetailExpense = async () => {
@@ -1122,24 +1173,40 @@ export function TravelPlannerMapWorkspace() {
 		}
 
 		if (detailExpenseAmount <= 0) {
+			toast.error("Expense amount must be greater than 0.");
+			return;
+		}
+
+		if (!detailExpenseType) {
+			toast.error("Expense type is required.");
 			return;
 		}
 
 		const expenseDate =
 			activePlan?.start_date ?? new Date().toISOString().slice(0, 10);
 
-		await createExpenseMutation.mutateAsync({
-			planId: activePlanId,
-			payload: {
-				expense_type: detailExpenseType,
-				amount: detailExpenseAmount,
-				expense_date: expenseDate,
-				description: detailExpenseDescription,
-			},
-		});
+		try {
+			await createExpenseMutation.mutateAsync({
+				planId: activePlanId,
+				payload: {
+					expense_type: detailExpenseType,
+					amount: detailExpenseAmount,
+					expense_date: expenseDate,
+					description: detailExpenseDescription,
+				},
+			});
 
-		setDetailExpenseAmount(0);
-		setDetailExpenseDescription("");
+			setDetailExpenseAmount(0);
+			setDetailExpenseDescription("");
+			toast.success("Expense added.");
+		} catch (error) {
+			toast.error(
+				extractApiErrorMessage(
+					error,
+					"Failed to add expense. Please verify required fields and try again.",
+				),
+			);
+		}
 	};
 
 	const handleConfirmWaypoints = async () => {

@@ -92,6 +92,10 @@ func (h *PurchaseRequisitionHandler) Create(c *gin.Context) {
 
 	res, err := h.uc.Create(c.Request.Context(), &req)
 	if err != nil {
+		if err == usecase.ErrRequestDateInPast {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error(), "field": "request_date"}, nil)
+			return
+		}
 		// Duplicate code (unique constraint) should be a conflict, not a 500.
 		errStr := err.Error()
 		if strings.Contains(errStr, "idx_purchase_requisitions_code") || strings.Contains(errStr, "SQLSTATE 23505") {
@@ -156,6 +160,10 @@ func (h *PurchaseRequisitionHandler) Update(c *gin.Context) {
 	if err != nil {
 		if err == usecase.ErrPurchaseRequisitionNotFound {
 			errors.NotFoundResponse(c, "purchase_requisition", id)
+			return
+		}
+		if err == usecase.ErrRequestDateInPast {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error(), "field": "request_date"}, nil)
 			return
 		}
 		if err == usecase.ErrInvalidStatus {

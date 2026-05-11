@@ -568,6 +568,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />

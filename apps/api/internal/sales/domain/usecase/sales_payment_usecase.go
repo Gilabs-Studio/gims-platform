@@ -30,8 +30,9 @@ import (
 )
 
 var (
-	ErrSalesPaymentNotFound = errors.New("sales payment not found")
-	ErrSalesPaymentConflict = errors.New("sales payment conflict")
+	ErrSalesPaymentNotFound          = errors.New("sales payment not found")
+	ErrSalesPaymentConflict          = errors.New("sales payment conflict")
+	ErrSalesPaymentDeletePendingOnly = errors.New("only pending sales payments can be deleted")
 )
 
 const (
@@ -563,7 +564,7 @@ func lockPendingSalesPayment(tx *gorm.DB, paymentID string) (*models.SalesPaymen
 		return nil, err
 	}
 	if pay.Status != models.SalesPaymentStatusPending {
-		return nil, ErrSalesPaymentConflict
+		return nil, ErrSalesPaymentDeletePendingOnly
 	}
 
 	return &pay, nil
@@ -792,7 +793,12 @@ func (uc *salesPaymentUsecase) prepareConfirmSalesPayment(
 }
 
 func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error {
-	if status == models.CustomerInvoiceStatusApproved || status == models.CustomerInvoiceStatusUnpaid || status == models.CustomerInvoiceStatusPartial || status == models.CustomerInvoiceStatusWaitingPayment || status == models.CustomerInvoiceStatusWaitingApproval {
+	if status == models.CustomerInvoiceStatusApproved ||
+		status == models.CustomerInvoiceStatusUnpaid ||
+		status == models.CustomerInvoiceStatusPartial ||
+		status == models.CustomerInvoiceStatusWaitingPayment ||
+		status == models.CustomerInvoiceStatusWaitingApproval ||
+		status == models.CustomerInvoiceStatusOverdue {
 		return nil
 	}
 

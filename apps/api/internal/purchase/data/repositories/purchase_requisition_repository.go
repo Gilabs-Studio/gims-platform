@@ -63,8 +63,11 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
+		query = query.Joins("LEFT JOIN suppliers ON suppliers.id = purchase_requisitions.supplier_id")
 		query = query.Where(
-			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
+			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR suppliers.name ILIKE ? OR suppliers.code ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
+			pattern,
+			pattern,
 			pattern,
 			pattern,
 			pattern,

@@ -210,6 +210,19 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	}
 
 	invoiceType := parseCustomerInvoiceType(req.Type)
+	if req.SalesOrderID != nil {
+		salesOrderID := strings.TrimSpace(*req.SalesOrderID)
+		if salesOrderID != "" && (invoiceType == models.CustomerInvoiceTypeRegular || invoiceType == models.CustomerInvoiceTypeProforma) {
+			hasActive, checkErr := uc.hasActiveInvoiceForSalesOrder(ctx, salesOrderID)
+			if checkErr != nil {
+				return nil, checkErr
+			}
+			if hasActive {
+				return nil, errors.New("sales order already has an active invoice")
+			}
+		}
+	}
+
 	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
 	if err != nil {
 		return nil, err
@@ -229,7 +242,9 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		Status:               models.CustomerInvoiceStatusDraft,
 		CreatedBy:            createdBy,
 	}
-	applyInvoiceDueDate(invoice, req.DueDate)
+	if err := applyInvoiceDueDate(invoice, req.DueDate); err != nil {
+		return nil, err
+	}
 
 	items, subtotal, err := uc.buildCreateInvoiceItems(ctx, req, soItemMap)
 	if err != nil {
@@ -280,15 +295,37 @@ func parseCustomerInvoiceType(raw string) models.CustomerInvoiceType {
 	return models.CustomerInvoiceType(raw)
 }
 
-func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) {
+func (uc *customerInvoiceUsecase) hasActiveInvoiceForSalesOrder(ctx context.Context, salesOrderID string) (bool, error) {
+	if uc.db == nil {
+		return false, errors.New("database connection is not initialized")
+	}
+
+	var count int64
+	err := database.GetDB(ctx, uc.db).
+		Model(&models.CustomerInvoice{}).
+		Where("sales_order_id = ?", salesOrderID).
+		Where("type IN ?", []models.CustomerInvoiceType{models.CustomerInvoiceTypeRegular, models.CustomerInvoiceTypeProforma}).
+		Where("status NOT IN ?", []string{"CANCELLED", "REJECTED", "VOID"}).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) error {
 	if invoice == nil || dueDateRaw == nil || strings.TrimSpace(*dueDateRaw) == "" {
-		return
+		return fmt.Errorf("due_date is required")
 	}
 
 	dueDate, err := time.Parse(dateFormat, *dueDateRaw)
-	if err == nil {
-		invoice.DueDate = &dueDate
+	if err != nil {
+		return fmt.Errorf("invalid due_date format, expected YYYY-MM-DD")
 	}
+	invoice.DueDate = &dueDate
+	return nil
 }
 
 func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(

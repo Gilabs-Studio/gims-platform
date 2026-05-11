@@ -237,7 +237,13 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   const lastAutoFilledSORef = useRef<string | undefined>(undefined);
   const hasAutoPopulatedRef = useRef(false);
 
-  const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
+  const {
+    data: selectedOrderData,
+    isLoading: isLoadingSelectedOrder,
+    isFetching: isFetchingSelectedOrder,
+    isFetched: isSelectedOrderFetched,
+    isError: isSelectedOrderError,
+  } = useOrder(watchedSalesOrderId ?? "", {
     enabled: !isEdit && open && !!watchedSalesOrderId,
   });
 
@@ -417,6 +423,23 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       hasAutoPopulatedRef.current = true;
     }
   }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace, defaultSalesOrderId]);
+
+  useEffect(() => {
+    if (isEdit || !open || !defaultSalesOrderId) return;
+    if ((watchedSalesOrderId ?? "") !== defaultSalesOrderId) return;
+
+    if (selectedOrderData?.data || isSelectedOrderError || isSelectedOrderFetched) {
+      setIsDefaultSalesOrderPrefillReady(true);
+    }
+  }, [
+    defaultSalesOrderId,
+    isEdit,
+    isSelectedOrderError,
+    isSelectedOrderFetched,
+    open,
+    selectedOrderData?.data,
+    watchedSalesOrderId,
+  ]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -665,9 +688,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   };
 
   const isLoading = createInvoice.isPending || updateInvoice.isPending;
+  const isWaitingDefaultSalesOrderPrefill =
+    !isEdit &&
+    !!defaultSalesOrderId &&
+    !isDefaultSalesOrderPrefillReady &&
+    (isLoadingSelectedOrder || isFetchingSelectedOrder);
   const isFormLoading = (
     isEdit && (isLoadingInvoice || isFetchingInvoice) && !fullInvoiceData?.data
-  );
+  ) || isWaitingDefaultSalesOrderPrefill;
 
   const getItemProductLabel = useCallback((productId: string | undefined) => {
     if (!productId) return "";

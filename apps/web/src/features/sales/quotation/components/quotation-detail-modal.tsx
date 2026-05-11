@@ -119,6 +119,7 @@ export function QuotationDetailModal({
           id: `${displayQuotation.id}-updated`,
           action: "sales_quotation.update",
           at: displayQuotation.updated_at,
+          user: displayQuotation.created_by,
           metadata:
             displayQuotation.updated_at && displayQuotation.updated_at !== displayQuotation.created_at
               ? { details: "Quotation data updated" }
@@ -147,6 +148,7 @@ export function QuotationDetailModal({
           id: `${displayQuotation.id}-converted`,
           action: "sales_quotation.convert",
           at: displayQuotation.converted_at,
+          user: displayQuotation.created_by,
           metadata: {
             status: "converted",
           },

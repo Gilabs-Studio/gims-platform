@@ -58,6 +58,7 @@ import {
   useDeleteCustomerInvoiceDP,
   usePendingCustomerInvoiceDP,
   useApproveCustomerInvoiceDP,
+  useCancelCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPListItem, CustomerInvoiceDPStatus } from "../types";
@@ -187,6 +188,13 @@ export function CustomerInvoiceDPList() {
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
+  const cancelMutation = useCancelCustomerInvoiceDP();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -205,6 +213,7 @@ export function CustomerInvoiceDPList() {
   const canDelete = useUserPermission("customer_invoice_dp.delete");
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canApprove = useUserPermission("customer_invoice_dp.approve");
+  const canCancel = useUserPermission("customer_invoice_dp.cancel");
   const canExport = useUserPermission("customer_invoice_dp.export");
   const canPrint = useUserPermission("customer_invoice_dp.print");
   const canCreatePayment = useUserPermission("sales_payment.create");
@@ -255,11 +264,21 @@ export function CustomerInvoiceDPList() {
     }
   }
 
+  async function handleCancel(id: string) {
+    try {
+      const response = await cancelMutation.mutateAsync(id);
+      if (!response.success) throw new Error(response.error ?? "cancel_failed");
+      toast.success(t("statusUpdated"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  }
+
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
   const canShowActions =
-    canUpdate || canPending || canApprove || canDelete || canPrint || canCreatePayment;
+    canUpdate || canPending || canApprove || canCancel || canDelete || canPrint || canCreatePayment;
 
   const getStatusBadge = (status: CustomerInvoiceDPStatus) => {
     switch (normalizeStatus(status)) {
@@ -550,6 +569,18 @@ export function CustomerInvoiceDPList() {
                             </DropdownMenuItem>
                           ) : null}
 
+                          {canCancel &&
+                          (normalizeStatus(row.status) === "draft" ||
+                            normalizeStatus(row.status) === "submitted") ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                              onClick={() => handleCancel(row.id)}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              {t("actions.cancel")}
+                            </DropdownMenuItem>
+                          ) : null}
+
                           {canDelete && normalizeStatus(row.status) === "draft" ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-destructive focus:text-destructive"
@@ -562,7 +593,11 @@ export function CustomerInvoiceDPList() {
                           {canPrint ? (
                             <DropdownMenuItem
                               className="cursor-pointer text-primary focus:text-primary"
-                              onClick={() => { customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error("Print failed")); }}
+                              onClick={() => {
+                                customerInvoiceDPService
+                                  .openPrintWindow(row.id)
+                                  .catch(() => toast.error(t("toast.failed")));
+                              }}
                             >
                               <Printer className="h-4 w-4 mr-2" />
                               {tCommon("print")}

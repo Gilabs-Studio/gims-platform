@@ -1079,7 +1079,7 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 	}
 
 	var siID string
-	today := apptime.Now().Format("2006-01-02")
+	today := apptime.Now()
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Generate unique SI code using advisory lock.

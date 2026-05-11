@@ -20,13 +20,20 @@ var contextKeysToPropagate = []string{
 	"is_system_admin",
 }
 
-// propagateRequestContext copies important values from the gin request context
-// into a new background context so async jobs have proper tenant/auth context.
+// propagateRequestContext copies important values from both the request context
+// and gin context into a new background context so async jobs keep tenant/auth data
+// even when some middleware only sets values on gin.Context.
 func propagateRequestContext(c *gin.Context) context.Context {
 	ctx := context.Background()
 	reqCtx := c.Request.Context()
 	for _, key := range contextKeysToPropagate {
-		if val := reqCtx.Value(key); val != nil {
+		val := reqCtx.Value(key)
+		if val == nil {
+			if ginVal, exists := c.Get(key); exists {
+				val = ginVal
+			}
+		}
+		if val != nil {
 			ctx = context.WithValue(ctx, key, val)
 		}
 	}
