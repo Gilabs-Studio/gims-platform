@@ -210,18 +210,6 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 	}
 
 	invoiceType := parseCustomerInvoiceType(req.Type)
-	if req.SalesOrderID != nil {
-		salesOrderID := strings.TrimSpace(*req.SalesOrderID)
-		if salesOrderID != "" && (invoiceType == models.CustomerInvoiceTypeRegular || invoiceType == models.CustomerInvoiceTypeProforma) {
-			hasActive, checkErr := uc.hasActiveInvoiceForSalesOrder(ctx, salesOrderID)
-			if checkErr != nil {
-				return nil, checkErr
-			}
-			if hasActive {
-				return nil, errors.New("sales order already has an active invoice")
-			}
-		}
-	}
 
 	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
 	if err != nil {
@@ -293,26 +281,6 @@ func parseCustomerInvoiceType(raw string) models.CustomerInvoiceType {
 	}
 
 	return models.CustomerInvoiceType(raw)
-}
-
-func (uc *customerInvoiceUsecase) hasActiveInvoiceForSalesOrder(ctx context.Context, salesOrderID string) (bool, error) {
-	if uc.db == nil {
-		return false, errors.New("database connection is not initialized")
-	}
-
-	var count int64
-	err := database.GetDB(ctx, uc.db).
-		Model(&models.CustomerInvoice{}).
-		Where("sales_order_id = ?", salesOrderID).
-		Where("type IN ?", []models.CustomerInvoiceType{models.CustomerInvoiceTypeRegular, models.CustomerInvoiceTypeProforma}).
-		Where("status NOT IN ?", []string{"CANCELLED", "REJECTED", "VOID"}).
-		Count(&count).Error
-
-	if err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
 }
 
 func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) error {

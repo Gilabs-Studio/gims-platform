@@ -159,17 +159,6 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			return errors.New("purchase order supplier is empty")
 		}
 
-		var draftCount int64
-		if err := tx.Model(&models.GoodsReceipt{}).
-			Where("purchase_order_id = ?", po.ID).
-			Where("status = ?", models.GoodsReceiptStatusDraft).
-			Count(&draftCount).Error; err != nil {
-			return err
-		}
-		if draftCount > 0 {
-			return ErrGoodsReceiptConflict
-		}
-
 		code, err := getNextGoodsReceiptCodeLocked(ctx, tx, "GR")
 		if err != nil {
 			return err
