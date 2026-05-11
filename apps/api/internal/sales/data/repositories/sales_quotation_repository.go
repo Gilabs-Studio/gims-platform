@@ -158,7 +158,7 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 		sortBy = "quotation_date"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads

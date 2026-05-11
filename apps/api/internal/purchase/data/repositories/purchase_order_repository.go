@@ -110,7 +110,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		sortBy = "created_at"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	if params.Limit > 0 {
