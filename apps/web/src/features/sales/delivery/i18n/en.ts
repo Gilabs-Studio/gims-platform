@@ -137,9 +137,13 @@ export const deliveryEn = {
 			batch: "Batch",
 			selectBatch: "Select Batch",
 			selectProduct: "Select Product",
+			selectWarehouseFirst: "Select warehouse first",
+			selectProductFirst: "Select product first",
 			searchProduct: "Search product...",
 			noProductSelected: "No product selected",
 			noBatchSelected: "No batch selected",
+			autoSelectedBatch: "Batch auto-selected",
+			noBatchesHint: "No available batch found in this warehouse. Try a different warehouse or product.",
 			installationStatus: "Installation Status",
 			functionTestStatus: "Function Test Status",
 			noBatchesAvailable: "No batches available",
@@ -199,6 +203,7 @@ export const deliveryEn = {
 			invalidStatus: "Invalid status",
 			invalidMethod: "Method must be FIFO or FEFO",
 			insufficientStock: "Insufficient stock available",
+			noBatchesAvailable: "No available batches for this product in the selected warehouse",
 		},
 		// Dialogs
 		dialogs: {

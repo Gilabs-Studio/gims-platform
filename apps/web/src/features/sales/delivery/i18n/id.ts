@@ -137,9 +137,13 @@ export const deliveryId = {
 			batch: "Batch",
 			selectBatch: "Pilih Batch",
 			selectProduct: "Pilih Produk",
+			selectWarehouseFirst: "Pilih gudang terlebih dahulu",
+			selectProductFirst: "Pilih produk terlebih dahulu",
 			searchProduct: "Cari produk...",
 			noProductSelected: "Tidak ada produk dipilih",
 			noBatchSelected: "Tidak ada batch dipilih",
+			autoSelectedBatch: "Batch dipilih otomatis",
+			noBatchesHint: "Tidak ada batch tersedia di gudang ini. Coba gudang atau produk lain.",
 			installationStatus: "Status Instalasi",
 			functionTestStatus: "Status Uji Fungsi",
 			noBatchesAvailable: "Tidak ada batch tersedia",
@@ -199,6 +203,7 @@ export const deliveryId = {
 			invalidStatus: "Status tidak valid",
 			invalidMethod: "Metode harus FIFO atau FEFO",
 			insufficientStock: "Stok tidak mencukupi",
+			noBatchesAvailable: "Tidak ada batch tersedia untuk produk ini pada gudang yang dipilih",
 		},
 		// Dialogs
 		dialogs: {
