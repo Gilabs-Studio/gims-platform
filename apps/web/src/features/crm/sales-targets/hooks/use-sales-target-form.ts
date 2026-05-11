@@ -60,6 +60,13 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
     }
   }, [months, setValue, totalTarget]);
 
+  // Auto-select employee if only 1 is available (useful for OWN scope)
+  useEffect(() => {
+    if (employees.length === 1 && !form.getValues("employee_id")) {
+      setValue("employee_id", employees[0].id, { shouldValidate: true });
+    }
+  }, [employees, form, setValue]);
+
   // Reset form when modal opens/closes or target changes
   useEffect(() => {
     if (open) {
