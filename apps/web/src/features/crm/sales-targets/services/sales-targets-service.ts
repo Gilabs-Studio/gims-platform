@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api-client";
-import type { ApiResponse } from "@/features/crm/targets/types";
+type ApiResponse<T> = { success: boolean; data: T; meta?: unknown; error?: unknown };
 import type {
   EmployeeSalesTarget,
   ListSalesTargetsParams,

@@ -262,16 +262,10 @@ func SeedPermissions() error {
 		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
 		{"/sales/receivables-recap", "receivables_recap.read", "View Receivables Recap", "VIEW", "receivables_recap"},
 
-		{"/crm/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
-		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
-		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
-		{"/crm/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
-
-		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
-		{"/crm/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
-		{"/crm/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
-		{"/crm/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
-		{"/crm/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
+		{"/crm/sales-targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
+		{"/crm/sales-targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
+		{"/crm/sales-targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
+		{"/crm/sales-targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
 
 		// Sales Payments
 		// POS - Loyalty

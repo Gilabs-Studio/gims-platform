@@ -144,8 +144,8 @@ type monthlySalesActualRow struct {
 	ActualAmount  float64
 }
 
-// hydrateMonthlySalesActualAmounts fills the actual amounts from customer_invoices (status=POSTED)
-// aggregated by employee per month, calculated from sales orders linked to those invoices.
+// hydrateMonthlySalesActualAmounts aggregates actual revenue from sales_orders per month,
+// using the same revenue source as GetMonthlySalesOverview for data consistency.
 func (r *salesTargetRepository) hydrateMonthlySalesActualAmounts(ctx context.Context, targets *[]models.SalesTarget) {
 	if targets == nil || len(*targets) == 0 {
 		return
@@ -162,24 +162,21 @@ func (r *salesTargetRepository) hydrateMonthlySalesActualAmounts(ctx context.Con
 		return
 	}
 
-	// Query: aggregate POSTED customer invoices grouped by (sales_target_id, month)
-	// Uses the employee_id + year from sales_targets to scope the data
+	// Single batch query: aggregate orders by (sales_target_id, month) using sales_rep_id + year
+	// from the parent sales_target row. Status filter mirrors GetMonthlySalesOverview.
 	query := `
 		SELECT
 			st.id AS sales_target_id,
-			EXTRACT(MONTH FROM ci.posting_date)::int AS month,
-			COALESCE(SUM(ci.total_amount), 0) AS actual_amount
+			EXTRACT(MONTH FROM so.order_date)::int AS month,
+			COALESCE(SUM(so.total_amount), 0) AS actual_amount
 		FROM sales_targets st
-		INNER JOIN customer_invoices ci
-			ON ci.deleted_at IS NULL
-			AND ci.status = 'POSTED'
-			AND EXTRACT(YEAR FROM ci.posting_date)::int = st.year
 		INNER JOIN sales_orders so
-			ON so.id = ci.sales_order_id
+			ON so.sales_rep_id = st.employee_id
 			AND so.deleted_at IS NULL
-			AND so.employee_id = st.employee_id
+			AND EXTRACT(YEAR FROM so.order_date)::int = st.year
+			AND so.status NOT IN ('draft', 'cancelled')
 		WHERE st.id IN @targetIDs
-		GROUP BY st.id, EXTRACT(MONTH FROM ci.posting_date)
+		GROUP BY st.id, EXTRACT(MONTH FROM so.order_date)::int
 	`
 
 	var rows []monthlySalesActualRow

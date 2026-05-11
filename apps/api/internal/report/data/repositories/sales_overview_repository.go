@@ -35,11 +35,12 @@ type SalesOverviewRepository interface {
 	// GetSalesRepCustomers returns paginated customer data for a rep
 	GetSalesRepCustomers(ctx context.Context, employeeID string, params CustomerParams) ([]CustomerSalesRow, utils.PaginationResult, error)
 
-	// GetMonthlyTargets returns monthly target amounts within a date range
+	// GetMonthlyTargets returns monthly target amounts within a date range, scoped by caller's RBAC.
 	GetMonthlyTargets(ctx context.Context, startDate, endDate time.Time) ([]MonthlyTargetRow, error)
 
-	// GetSalesRepYearlyTarget returns the target amount for a sales rep's area for a given year
-	GetSalesRepYearlyTarget(ctx context.Context, employeeID string, year int) (float64, error)
+	// GetEmployeeTargetAmounts returns a map of employee_id → aggregated monthly target for the given
+	// date range. Single batch query — callers must not loop per-employee to avoid N+1.
+	GetEmployeeTargetAmounts(ctx context.Context, employeeIDs []string, startDate, endDate time.Time) (map[string]float64, error)
 }
 
 // --- Parameter structs ---
@@ -255,6 +256,15 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 		queryParams["search"] = params.Search + "%"
 	}
 
+	// Apply RBAC scope to restrict which employees are visible
+	scopeSQL, scopeParams := buildScopeConditionRaw(ctx, "e.id")
+	if scopeSQL != "" {
+		baseQuery += "\n\t\t" + scopeSQL
+		for k, v := range scopeParams {
+			queryParams[k] = v
+		}
+	}
+
 	// Count total
 	var total int64
 	countSQL := "SELECT COUNT(*) " + baseQuery
@@ -326,7 +336,11 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 		return nil, tenantErr
 	}
 
-	query := `
+	// Build RBAC scope conditions; both share the same named params.
+	orderScopeSQL, scopeParams := buildScopeConditionRaw(ctx, "so.sales_rep_id")
+	visitScopeSQL, _ := buildScopeConditionRaw(ctx, "sv.employee_id")
+
+	query := fmt.Sprintf(`
 		SELECT
 			EXTRACT(MONTH FROM so.order_date)::int AS month,
 			EXTRACT(YEAR FROM so.order_date)::int AS year,
@@ -345,6 +359,7 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 			WHERE sv.deleted_at IS NULL
 				AND (@tenantFilter = false OR sv.tenant_id = @tenantID)
 				AND sv.visit_date BETWEEN @startDate AND @endDate
+				%s
 			GROUP BY EXTRACT(MONTH FROM sv.visit_date), EXTRACT(YEAR FROM sv.visit_date)
 		) visit_counts ON visit_counts.month = EXTRACT(MONTH FROM so.order_date) AND visit_counts.year = EXTRACT(YEAR FROM so.order_date)
 		LEFT JOIN (
@@ -375,16 +390,22 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 			AND (@tenantFilter = false OR so.tenant_id = @tenantID)
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
+			%s
 		GROUP BY EXTRACT(MONTH FROM so.order_date), EXTRACT(YEAR FROM so.order_date),
 			payment_counts.total_cash_in, visit_counts.total_visits, delivery_counts.total_deliveries
 		ORDER BY year, month
-	`
+	`, visitScopeSQL, orderScopeSQL)
 
-	var rows []MonthlySalesRow
-	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
+	qp := withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)
+	for k, v := range scopeParams {
+		qp[k] = v
+	}
+
+	var rows []MonthlySalesRow
+	if err := database.GetDB(ctx, r.db).Raw(query, qp).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly sales overview: %w", err)
 	}
 
@@ -397,25 +418,35 @@ func (r *salesOverviewRepository) GetMonthlyTargets(ctx context.Context, startDa
 		return nil, tenantErr
 	}
 
-	query := `
+	scopeSQL, scopeParams := buildScopeConditionRaw(ctx, "st.employee_id")
+
+	query := fmt.Sprintf(`
 		SELECT
-			mt.month,
-			yt.year,
-			COALESCE(SUM(mt.target_amount), 0) AS target_amount
-		FROM monthly_targets mt
-		INNER JOIN yearly_targets yt ON yt.id = mt.yearly_target_id
-		WHERE yt.deleted_at IS NULL
-			AND (@tenantFilter = false OR yt.tenant_id = @tenantID)
-			AND mt.deleted_at IS NULL
-			AND yt.year BETWEEN EXTRACT(YEAR FROM @startDate::date) AND EXTRACT(YEAR FROM @endDate::date)
-		GROUP BY mt.month, yt.year
-		ORDER BY yt.year, mt.month
-	`
-	var rows []MonthlyTargetRow
-	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
+			mst.month,
+			st.year,
+			COALESCE(NULLIF(SUM(mst.target_amount), 0), st.total_target / 12.0, 0) AS target_amount
+		FROM monthly_sales_targets mst
+		INNER JOIN sales_targets st ON st.id = mst.sales_target_id
+			AND st.deleted_at IS NULL
+			AND (@tenantFilter = false OR st.tenant_id = @tenantID)
+		WHERE mst.deleted_at IS NULL
+			AND MAKE_DATE(st.year, mst.month, 1) <= @endDate::date
+			AND (MAKE_DATE(st.year, mst.month, 1) + INTERVAL '1 month' - INTERVAL '1 day') >= @startDate::date
+			%s
+		GROUP BY mst.month, st.year
+		ORDER BY st.year, mst.month
+	`, scopeSQL)
+
+	qp := withReportTenantParams(map[string]interface{}{
 		"startDate": startDate,
 		"endDate":   endDate,
-	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
+	}, tenantID, tenantFilter)
+	for k, v := range scopeParams {
+		qp[k] = v
+	}
+
+	var rows []MonthlyTargetRow
+	if err := database.GetDB(ctx, r.db).Raw(query, qp).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly targets: %w", err)
 	}
 	return rows, nil
@@ -761,35 +792,104 @@ func (r *salesOverviewRepository) GetSalesRepCustomers(ctx context.Context, empl
 	return rows, pagination, nil
 }
 
-func (r *salesOverviewRepository) GetSalesRepYearlyTarget(ctx context.Context, employeeID string, year int) (float64, error) {
-	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
-	if tenantErr != nil {
-		return 0, tenantErr
+type employeeTargetAmountRow struct {
+	EmployeeID   string
+	TargetAmount float64
+}
+
+// GetEmployeeTargetAmounts fetches the sum of monthly targets for each given employee
+// within the date range in a single batch query. Returns a map of employee_id → total target.
+func (r *salesOverviewRepository) GetEmployeeTargetAmounts(ctx context.Context, employeeIDs []string, startDate, endDate time.Time) (map[string]float64, error) {
+	if len(employeeIDs) == 0 {
+		return map[string]float64{}, nil
 	}
 
-	// Find target through employee's area assignments, or fall back to global targets (area_id IS NULL)
-	query := `
-		SELECT COALESCE(SUM(yt.total_target), 0)
-		FROM yearly_targets yt
-		WHERE yt.year = @year
-			AND yt.deleted_at IS NULL
-			AND (@tenantFilter = false OR yt.tenant_id = @tenantID)
-			AND (
-				yt.area_id IS NULL
-				OR yt.area_id IN (
-					SELECT DISTINCT area_id
-					FROM employee_areas
-					WHERE employee_id = @employeeID
-						AND deleted_at IS NULL
-				)
-			)
-	`
-	var target float64
-	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
-		"employeeID": employeeID,
-		"year":       year,
-	}, tenantID, tenantFilter)).Scan(&target).Error; err != nil {
-		return 0, fmt.Errorf("failed to get yearly target: %w", err)
+	tenantID, tenantFilter, tenantErr := resolveReportTenantScope(ctx)
+	if tenantErr != nil {
+		return nil, tenantErr
 	}
-	return target, nil
+
+	query := `
+		SELECT
+			st.employee_id,
+			COALESCE(NULLIF(SUM(mst.target_amount), 0), st.total_target, 0) AS target_amount
+		FROM monthly_sales_targets mst
+		INNER JOIN sales_targets st ON st.id = mst.sales_target_id
+			AND st.deleted_at IS NULL
+			AND (@tenantFilter = false OR st.tenant_id = @tenantID)
+		WHERE mst.deleted_at IS NULL
+			AND st.employee_id IN @employeeIDs
+			AND MAKE_DATE(st.year, mst.month, 1) >= @startDate::date
+			AND MAKE_DATE(st.year, mst.month, 1) <= @endDate::date
+		GROUP BY st.employee_id
+	`
+
+	var rows []employeeTargetAmountRow
+	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
+		"employeeIDs": employeeIDs,
+		"startDate":   startDate,
+		"endDate":     endDate,
+	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("failed to get employee target amounts: %w", err)
+	}
+
+	result := make(map[string]float64, len(rows))
+	for _, row := range rows {
+		result[row.EmployeeID] = row.TargetAmount
+	}
+	return result, nil
+}
+
+// buildScopeConditionRaw extracts the RBAC scope from the request context and returns
+// a raw SQL fragment (using @-named params) and the corresponding param map to restrict
+// query results by the caller's data visibility scope.
+// employeeIDColumn is the SQL column reference that holds the employee ID
+// (e.g. "e.id", "so.sales_rep_id", "sv.employee_id").
+// Returns ("", nil) when scope is ALL or unset — no extra filtering applied.
+func buildScopeConditionRaw(ctx context.Context, employeeIDColumn string) (string, map[string]interface{}) {
+	scope, _ := ctx.Value("permission_scope").(string)
+
+	switch scope {
+	case "OWN":
+		empID, _ := ctx.Value("scope_employee_id").(string)
+		if empID == "" {
+			return "AND 1 = 0", nil // no employee resolved — block all rows for safety
+		}
+		return "AND " + employeeIDColumn + " = @scopeEmployeeID",
+			map[string]interface{}{"scopeEmployeeID": empID}
+
+	case "DIVISION":
+		divID, _ := ctx.Value("scope_division_id").(string)
+		if divID == "" {
+			// No division assigned — fall back to OWN scope
+			empID, _ := ctx.Value("scope_employee_id").(string)
+			return "AND " + employeeIDColumn + " = @scopeEmployeeID",
+				map[string]interface{}{"scopeEmployeeID": empID}
+		}
+		return "AND " + employeeIDColumn + " IN (SELECT id FROM employees WHERE division_id = @scopeDivisionID AND deleted_at IS NULL)",
+			map[string]interface{}{"scopeDivisionID": divID}
+
+	case "AREA":
+		areaIDs, _ := ctx.Value("scope_area_ids").([]string)
+		if len(areaIDs) == 0 {
+			empID, _ := ctx.Value("scope_employee_id").(string)
+			return "AND " + employeeIDColumn + " = @scopeEmployeeID",
+				map[string]interface{}{"scopeEmployeeID": empID}
+		}
+		return "AND " + employeeIDColumn + " IN (SELECT employee_id FROM employee_areas WHERE area_id IN @scopeAreaIDs AND deleted_at IS NULL)",
+			map[string]interface{}{"scopeAreaIDs": areaIDs}
+
+	case "OUTLET":
+		outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+		if len(outletIDs) == 0 {
+			empID, _ := ctx.Value("scope_employee_id").(string)
+			return "AND " + employeeIDColumn + " = @scopeEmployeeID",
+				map[string]interface{}{"scopeEmployeeID": empID}
+		}
+		return "AND " + employeeIDColumn + " IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN @scopeOutletIDs AND deleted_at IS NULL)",
+			map[string]interface{}{"scopeOutletIDs": outletIDs}
+
+	default: // ALL or empty — no restriction
+		return "", nil
+	}
 }

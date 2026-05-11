@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +34,7 @@ import {
   Plus, 
   Search, 
   Pencil, 
-  Trash2, 
+  Trash2,
   Eye, 
   Target, 
   TrendingUp, 
@@ -52,6 +54,8 @@ import { Progress } from "@/components/ui/progress";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 export function SalesTargetsList() {
+  const params = useParams<{ locale?: string }>();
+  const localePrefix = params.locale ? `/${params.locale}` : "";
   const t = useTranslations("salesTargets");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -60,7 +64,6 @@ export function SalesTargetsList() {
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<EmployeeSalesTarget | null>(null);
-  const [viewingTarget, setViewingTarget] = useState<EmployeeSalesTarget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError, error } = useSalesTargets({
@@ -76,17 +79,16 @@ export function SalesTargetsList() {
   const canView = useUserPermission("sales_target.read");
 
   const deleteTarget = useDeleteSalesTarget();
-  const targets = data?.data ?? [];
-  const pagination = data?.meta?.pagination;
+  const targets: EmployeeSalesTarget[] = (data?.data as EmployeeSalesTarget[]) ?? [];
+  const pagination = (data?.meta as { pagination?: { page: number; per_page: number; total: number } } | undefined)
+    ?.pagination;
 
   const handleEdit = (target: EmployeeSalesTarget) => {
     setEditingTarget(target);
     setIsFormOpen(true);
   };
 
-  const handleView = (target: EmployeeSalesTarget) => {
-    setViewingTarget(target);
-  };
+  
 
   const handleDelete = async () => {
     if (deletingId) {
@@ -119,10 +121,10 @@ export function SalesTargetsList() {
   };
 
   // Overall stats
-  const overallStats = {
-     totalTarget: targets.reduce((acc, curr) => acc + curr.total_target, 0),
-     totalActual: targets.reduce((acc, curr) => acc + curr.total_actual, 0),
-  };
+    const overallStats = {
+      totalTarget: targets.reduce((acc: number, curr: EmployeeSalesTarget) => acc + (curr.total_target ?? 0), 0),
+      totalActual: targets.reduce((acc: number, curr: EmployeeSalesTarget) => acc + (curr.total_actual ?? 0), 0),
+    };
   const overallProgress = calculateProgress(overallStats.totalActual, overallStats.totalTarget);
 
   if (isError) {
@@ -274,7 +276,7 @@ export function SalesTargetsList() {
                       </TableCell>
                    </TableRow>
                 ) : (
-                   targets.map((target) => {
+                   targets.map((target: EmployeeSalesTarget) => {
                       const progress = target.achievement_percent;
                       
                       return (
@@ -300,8 +302,8 @@ export function SalesTargetsList() {
                                   <span className="text-xs text-muted-foreground">/ {formatCurrency(target.total_target)}</span>
                                </div>
                             </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                               {(canUpdate || canDelete) && (
+                             <TableCell onClick={(e) => e.stopPropagation()}>
+                               {(canView || canUpdate || canDelete) && (
                                   <DropdownMenu>
                                      <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-foreground">
@@ -309,6 +311,14 @@ export function SalesTargetsList() {
                                         </Button>
                                      </DropdownMenuTrigger>
                                      <DropdownMenuContent align="end">
+                                         {canView && (
+                                       <DropdownMenuItem asChild className="cursor-pointer">
+                                             <Link href={`${localePrefix}/crm/sales-targets/${target.id}`}>
+                                                 <Eye className="h-4 w-4 mr-2" />
+                                                 {t("common.view")}
+                                         </Link>
+                                       </DropdownMenuItem>
+                                        )}
                                          {canUpdate && (
                                            <DropdownMenuItem onClick={() => handleEdit(target)} className="cursor-pointer">
                                               <Pencil className="h-4 w-4 mr-2" />

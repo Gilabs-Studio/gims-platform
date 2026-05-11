@@ -102,8 +102,12 @@ func (uc *salesOverviewUsecase) ListSalesRepPerformance(ctx context.Context, req
 		return nil, utils.PaginationResult{}, err
 	}
 
-	// Get yearly targets for each employee
-	year := endDate.Year()
+	// Batch-fetch targets for all visible employees in a single query to avoid N+1.
+	employeeIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		employeeIDs = append(employeeIDs, row.EmployeeID)
+	}
+	targetAmounts, _ := uc.repo.GetEmployeeTargetAmounts(ctx, employeeIDs, startDate, endDate)
 
 	results := make([]dto.SalesRepPerformanceResponse, 0, len(rows))
 	for _, row := range rows {
@@ -137,12 +141,8 @@ func (uc *salesOverviewUsecase) ListSalesRepPerformance(ctx context.Context, req
 			AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
 		}
 
-		// Always provide target fields (0 if none) to avoid nulls in UI.
-		target := float64(0)
-		targetResult, targetErr := uc.repo.GetSalesRepYearlyTarget(ctx, row.EmployeeID, year)
-		if targetErr == nil {
-			target = targetResult
-		}
+		// Always provide target fields (0 if none found) to avoid nulls in UI.
+		target := targetAmounts[row.EmployeeID]
 		formatted := formatCurrencyIDR(target)
 		achievement := float64(0)
 		if target > 0 {
