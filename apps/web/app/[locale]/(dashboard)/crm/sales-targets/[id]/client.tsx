@@ -99,57 +99,7 @@ export function SalesTargetDetailPageClient({ targetId }: SalesTargetDetailPageC
 
       <SalesTargetProgress target={target} />
 
-      <Card className="shadow-sm border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg">{t("monthlyBreakdown")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="w-[100px]">{t("month")}</TableHead>
-                  <TableHead className="text-right">{t("targetAmount")}</TableHead>
-                  <TableHead className="text-right">{t("actualAmount")}</TableHead>
-                  <TableHead className="w-[200px] text-center">{t("progress")}</TableHead>
-                  <TableHead className="text-right">{t("achievement")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {target.monthly_targets && target.monthly_targets.length > 0 ? (
-                  target.monthly_targets.map((month: MonthlySalesTarget) => (
-                    <TableRow key={month.id}>
-                      <TableCell className="font-medium text-muted-foreground">{monthNames[month.month - 1]}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(month.target_amount)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(month.actual_amount)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 flex-1 rounded-full bg-muted/40 overflow-hidden">
-                            <div
-                              className={`h-full ${getProgressColor(month.achievement_percent)}`}
-                              style={{ width: `${Math.min(100, Math.max(0, month.achievement_percent))}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium w-8 text-right">{month.achievement_percent.toFixed(0)}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm font-medium">{month.achievement_percent.toFixed(1)}%</span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No monthly targets configured
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Monthly Breakdown moved into SalesTargetProgress to avoid duplicate rendering */}
 
       {target.notes && (
         <Card className="shadow-sm border-border/50">

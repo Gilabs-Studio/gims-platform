@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // SalesTargetHandler handles sales target HTTP requests
@@ -88,6 +89,12 @@ func (h *SalesTargetHandler) ListAvailableEmployees(c *gin.Context) {
 // GetByID handles get sales target by ID request
 func (h *SalesTargetHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
+
+	// Validate UUID to avoid passing non-UUID path segments (eg. "available-employees")
+	if _, err := uuid.Parse(id); err != nil {
+		coreErrors.ErrorResponse(c, "INVALID_ID", nil, nil)
+		return
+	}
 
 	target, err := h.targetUC.GetByID(c.Request.Context(), id)
 	if err != nil {
