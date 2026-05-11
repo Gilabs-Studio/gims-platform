@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 type ApiResponse<T> = { success: boolean; data: T; meta?: unknown; error?: unknown };
 import type {
   EmployeeSalesTarget,
+  SalesTargetEmployeeOption,
   ListSalesTargetsParams,
   CreateSalesTargetInput,
   UpdateSalesTargetInput,
@@ -37,6 +38,19 @@ export const salesTargetsService = {
 
   async delete(id: string) {
     const response = await apiClient.delete<ApiResponse<void>>(`${BASE_PATH}/${id}`);
+    return response.data;
+  },
+
+  async listAvailableEmployees(year: number, includeEmployeeId?: string) {
+    const response = await apiClient.get<ApiResponse<SalesTargetEmployeeOption[]>>(
+      `${BASE_PATH}/available-employees`,
+      {
+        params: {
+          year,
+          include_employee_id: includeEmployeeId || undefined,
+        },
+      }
+    );
     return response.data;
   },
 };

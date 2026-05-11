@@ -45,6 +45,13 @@ type ListSalesTargetsRequest struct {
 	ScopeID string `form:"scope_id"` // Optional: area_id or division_id for scoped queries
 }
 
+// ListAvailableSalesTargetEmployeesRequest represents request to list employees
+// that do not yet have a sales target for a given year.
+type ListAvailableSalesTargetEmployeesRequest struct {
+	Year              int    `form:"year" binding:"required,min=2020,max=2100"`
+	IncludeEmployeeID string `form:"include_employee_id"`
+}
+
 // SalesTargetResponse represents the response for a sales target
 type SalesTargetResponse struct {
 	ID                 string                       `json:"id"`

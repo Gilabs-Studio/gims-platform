@@ -17,11 +17,17 @@ export function useSalesTargets(params?: ListSalesTargetsParams) {
   });
 }
 
-export function useSalesTarget(id: string) {
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isSalesTargetId(value: string) {
+  return UUID_REGEX.test(value);
+}
+
+export function useSalesTarget(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [SALES_TARGETS_KEY, id],
     queryFn: () => salesTargetsService.getById(id),
-    enabled: !!id,
+    enabled: !!id && isSalesTargetId(id) && (options?.enabled ?? true),
   });
 }
 
@@ -53,5 +59,17 @@ export function useDeleteSalesTarget() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SALES_TARGETS_KEY] });
     },
+  });
+}
+
+export function useAvailableSalesTargetEmployees(
+  year: number,
+  includeEmployeeId?: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [SALES_TARGETS_KEY, "available-employees", year, includeEmployeeId],
+    queryFn: () => salesTargetsService.listAvailableEmployees(year, includeEmployeeId),
+    enabled: (options?.enabled ?? true) && Number.isFinite(year),
   });
 }

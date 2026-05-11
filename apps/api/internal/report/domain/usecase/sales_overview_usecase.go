@@ -233,6 +233,19 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		avgOrderValue = row.TotalRevenue / float64(row.TotalOrders)
 	}
 
+	// Calculate target achievement percentage
+	var targetAmount *float64
+	var targetAmountFormatted *string
+	var targetAchievementPercent *float64
+	if row.TargetAmount > 0 {
+		targetAmount = &row.TargetAmount
+		formatted := formatCurrencyIDR(row.TargetAmount)
+		targetAmountFormatted = &formatted
+		
+		achievementPercent := math.Round((row.TotalRevenue/row.TargetAmount)*10000) / 100
+		targetAchievementPercent = &achievementPercent
+	}
+
 	stats := &dto.SalesRepStatisticsResponse{
 		TotalRevenue:               row.TotalRevenue,
 		TotalRevenueFormatted:      formatCurrencyIDR(row.TotalRevenue),
@@ -242,6 +255,9 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		ConversionRate:             conversionRate,
 		AverageOrderValue:          avgOrderValue,
 		AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
+		TargetAmount:               targetAmount,
+		TargetAmountFormatted:      targetAmountFormatted,
+		TargetAchievementPercent:   targetAchievementPercent,
 	}
 
 	// Period comparison: calculate percentage change vs previous period

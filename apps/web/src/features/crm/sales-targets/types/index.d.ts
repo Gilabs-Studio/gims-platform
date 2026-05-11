@@ -65,3 +65,11 @@ export interface UpdateSalesTargetInput {
   notes?: string;
   months?: UpdateMonthlyTargetInput[];
 }
+
+export interface SalesTargetEmployeeOption {
+  id: string;
+  employee_code: string;
+  name: string;
+  email: string;
+  phone: string;
+}

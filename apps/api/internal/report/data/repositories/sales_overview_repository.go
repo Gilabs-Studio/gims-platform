@@ -127,6 +127,8 @@ type SalesRepDetailRow struct {
 	TotalOrders     int
 	VisitsCompleted int
 	TasksCompleted  int
+	// Target data
+	TargetAmount float64
 	// Previous period stats for comparison
 	PrevRevenue float64
 	PrevOrders  int
@@ -417,29 +419,41 @@ func (r *salesOverviewRepository) GetMonthlyTargets(ctx context.Context, startDa
 	if tenantErr != nil {
 		return nil, tenantErr
 	}
+	startDateStr := startDate.Format("2006-01-02")
+	endDateStr := endDate.Format("2006-01-02")
 
 	scopeSQL, scopeParams := buildScopeConditionRaw(ctx, "st.employee_id")
 
+	// Aggregate monthly targets from the annual sales target rows.
+	// If a monthly row is missing or zero, fall back to total_target/12 so the
+	// report still shows a non-zero target when the annual target exists.
 	query := fmt.Sprintf(`
+		WITH months AS (
+			SELECT generate_series(1, 12)::int AS month
+		)
 		SELECT
-			mst.month,
+			months.month,
 			st.year,
-			COALESCE(NULLIF(SUM(mst.target_amount), 0), st.total_target / 12.0, 0) AS target_amount
-		FROM monthly_sales_targets mst
-		INNER JOIN sales_targets st ON st.id = mst.sales_target_id
-			AND st.deleted_at IS NULL
+			COALESCE(
+				SUM(COALESCE(NULLIF(mst.target_amount, 0), st.total_target / 12.0)),
+				0
+			) AS target_amount
+		FROM sales_targets st
+		CROSS JOIN months
+		LEFT JOIN monthly_sales_targets mst ON mst.sales_target_id = st.id
+			AND mst.month = months.month
+			AND mst.deleted_at IS NULL
+		WHERE st.deleted_at IS NULL
 			AND (@tenantFilter = false OR st.tenant_id = @tenantID)
-		WHERE mst.deleted_at IS NULL
-			AND MAKE_DATE(st.year, mst.month, 1) <= @endDate::date
-			AND (MAKE_DATE(st.year, mst.month, 1) + INTERVAL '1 month' - INTERVAL '1 day') >= @startDate::date
+			AND st.year BETWEEN EXTRACT(YEAR FROM '%s'::date)::int AND EXTRACT(YEAR FROM '%s'::date)::int
+			AND MAKE_DATE(st.year::int, months.month::int, 1) <= '%s'::date
+			AND (MAKE_DATE(st.year::int, months.month::int, 1) + INTERVAL '1 month' - INTERVAL '1 day') >= '%s'::date
 			%s
-		GROUP BY mst.month, st.year
-		ORDER BY st.year, mst.month
-	`, scopeSQL)
+		GROUP BY months.month, st.year
+		ORDER BY st.year, months.month
+	`, startDateStr, endDateStr, endDateStr, startDateStr, scopeSQL)
 
 	qp := withReportTenantParams(map[string]interface{}{
-		"startDate": startDate,
-		"endDate":   endDate,
 	}, tenantID, tenantFilter)
 	for k, v := range scopeParams {
 		qp[k] = v
@@ -476,6 +490,7 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 			COALESCE(curr_orders.total_orders, 0) AS total_orders,
 			COALESCE(curr_visits.visits_completed, 0) AS visits_completed,
 			COALESCE(curr_visits.tasks_completed, 0) AS tasks_completed,
+			COALESCE(target_agg.target_amount, 0) AS target_amount,
 			COALESCE(prev_orders.total_revenue, 0) AS prev_revenue,
 			COALESCE(prev_orders.total_orders, 0) AS prev_orders,
 			COALESCE(prev_visits.visits_completed, 0) AS prev_visits
@@ -505,6 +520,17 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 			GROUP BY sv.employee_id
 		) curr_visits ON curr_visits.employee_id = e.id
 		LEFT JOIN (
+			SELECT st.employee_id,
+				COALESCE(SUM(COALESCE(NULLIF(mst.target_amount, 0), st.total_target / 12.0)), 0) AS target_amount
+			FROM sales_targets st
+			LEFT JOIN monthly_sales_targets mst ON mst.sales_target_id = st.id
+				AND mst.deleted_at IS NULL
+			WHERE st.deleted_at IS NULL
+				AND (@tenantFilter = false OR st.tenant_id = @tenantID)
+				AND st.year = @targetYear
+			GROUP BY st.employee_id
+		) target_agg ON target_agg.employee_id = e.id
+		LEFT JOIN (
 			SELECT so.sales_rep_id,
 				SUM(so.total_amount) AS total_revenue,
 				COUNT(so.id) AS total_orders
@@ -531,11 +557,12 @@ func (r *salesOverviewRepository) GetSalesRepDetail(ctx context.Context, employe
 
 	var row SalesRepDetailRow
 	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
-		"employeeID": employeeID,
-		"startDate":  startDate,
-		"endDate":    endDate,
-		"prevStart":  prevStart,
-		"prevEnd":    prevEnd,
+		"employeeID":  employeeID,
+		"startDate":   startDate,
+		"endDate":     endDate,
+		"prevStart":   prevStart,
+		"prevEnd":     prevEnd,
+		"targetYear":  startDate.Year(),
 	}, tenantID, tenantFilter)).Scan(&row).Error; err != nil {
 		return nil, fmt.Errorf("failed to get sales rep detail: %w", err)
 	}
@@ -809,27 +836,33 @@ func (r *salesOverviewRepository) GetEmployeeTargetAmounts(ctx context.Context, 
 		return nil, tenantErr
 	}
 
-	query := `
+	var rows []employeeTargetAmountRow
+	placeholders := make([]string, len(employeeIDs))
+	params := map[string]interface{}{
+		"tenantID":     tenantID,
+		"tenantFilter": tenantFilter,
+		"startYear":    startDate.Year(),
+		"endYear":      endDate.Year(),
+	}
+	for i, employeeID := range employeeIDs {
+		placeholder := fmt.Sprintf("@employeeID%d", i)
+		placeholders[i] = placeholder
+		params[fmt.Sprintf("employeeID%d", i)] = employeeID
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
 			st.employee_id,
-			COALESCE(NULLIF(SUM(mst.target_amount), 0), st.total_target, 0) AS target_amount
-		FROM monthly_sales_targets mst
-		INNER JOIN sales_targets st ON st.id = mst.sales_target_id
-			AND st.deleted_at IS NULL
+			COALESCE(SUM(st.total_target), 0) AS target_amount
+		FROM sales_targets st
+		WHERE st.deleted_at IS NULL
 			AND (@tenantFilter = false OR st.tenant_id = @tenantID)
-		WHERE mst.deleted_at IS NULL
-			AND st.employee_id IN @employeeIDs
-			AND MAKE_DATE(st.year, mst.month, 1) >= @startDate::date
-			AND MAKE_DATE(st.year, mst.month, 1) <= @endDate::date
+			AND st.employee_id IN (%s)
+			AND st.year BETWEEN @startYear AND @endYear
 		GROUP BY st.employee_id
-	`
+	`, strings.Join(placeholders, ", "))
 
-	var rows []employeeTargetAmountRow
-	if err := database.GetDB(ctx, r.db).Raw(query, withReportTenantParams(map[string]interface{}{
-		"employeeIDs": employeeIDs,
-		"startDate":   startDate,
-		"endDate":     endDate,
-	}, tenantID, tenantFilter)).Scan(&rows).Error; err != nil {
+	if err := database.GetDB(ctx, r.db).Raw(query, params).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("failed to get employee target amounts: %w", err)
 	}
 

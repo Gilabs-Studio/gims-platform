@@ -4,8 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { createSalesTargetSchema, type CreateSalesTargetFormData } from "../schemas/sales-target.schema";
-import { useCreateSalesTarget, useUpdateSalesTarget } from "./use-sales-targets";
-import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import {
+  useAvailableSalesTargetEmployees,
+  useCreateSalesTarget,
+  useUpdateSalesTarget,
+} from "./use-sales-targets";
 import type { EmployeeSalesTarget } from "../types";
 
 interface UseSalesTargetFormProps {
@@ -21,12 +24,6 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear - 1 + i);
-
-  // Fetch employees for dropdown
-  const { data: employeesData, isLoading: isLoadingEmployees } = useEmployees({
-    per_page: 100, // Reasonable default to get most active sales reps
-  });
-  const employees = employeesData?.data ?? [];
 
   const createTarget = useCreateSalesTarget();
   const updateTarget = useUpdateSalesTarget();
@@ -48,7 +45,16 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
 
   const { watch, setValue, reset, control } = form;
   const months = useWatch({ control, name: "months" });
+  const selectedYear = useWatch({ control, name: "year" });
   const totalTarget = watch("total_target");
+
+  const { data: availableEmployeesData, isLoading: isLoadingEmployees } =
+    useAvailableSalesTargetEmployees(
+      Number.isFinite(selectedYear) ? selectedYear : currentYear,
+      isEdit ? target?.employee_id : undefined,
+      { enabled: open },
+    );
+  const employees = availableEmployeesData?.data ?? [];
 
   // Calculate total whenever months change
   useEffect(() => {
@@ -134,12 +140,30 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
       }
       onClose();
     } catch (error: any) {
-      // Check if it's a conflict error (409)
-      if (error.response?.status === 409) {
+      const statusCode = error?.response?.status;
+      const apiCode = error?.response?.data?.error?.code;
+      const detailMessage = error?.response?.data?.error?.details?.message;
+      const fallbackMessage = error?.response?.data?.error?.message;
+      const message = String(detailMessage || fallbackMessage || error?.message || "").toLowerCase();
+
+      if (
+        statusCode === 409 ||
+        apiCode === "SALES_TARGET_CONFLICT" ||
+        message.includes("already exists") ||
+        message.includes("already exist") ||
+        message.includes("sudah ada")
+      ) {
         toast.error(t("conflict"));
       } else {
-        toast.error(error.message || t("common.error"));
+        toast.error(error?.message || t("common.error"));
       }
+    }
+  };
+
+  const setAllMonthsTarget = (targetAmount: number) => {
+    const safeAmount = Number.isFinite(targetAmount) && targetAmount > 0 ? targetAmount : 0;
+    for (let i = 0; i < 12; i += 1) {
+      setValue(`months.${i}.target_amount`, safeAmount, { shouldValidate: true, shouldDirty: true });
     }
   };
 
@@ -164,12 +188,13 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
     activeTab,
     setActiveTab,
     isLoading: createTarget.isPending || updateTarget.isPending,
-    isFormLoading: open && !employeesData && isLoadingEmployees,
+    isFormLoading: open && !availableEmployeesData && isLoadingEmployees,
     employees,
     totalTarget,
     years,
     fields: months || [],
     getMonthName,
+    setAllMonthsTarget,
     handleNext,
     handleFormSubmit,
     onInvalid,

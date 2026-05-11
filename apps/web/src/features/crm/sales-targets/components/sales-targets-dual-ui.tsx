@@ -37,10 +37,10 @@ export function SalesTargetsDualUI() {
 
   const deleteTarget = useDeleteSalesTarget();
 
-  // Fetch only the current year for OWN view. For manager scopes, pass scope so backend can filter accordingly.
+  // For OWN scope, fetch all visible targets and choose the most relevant record.
   const currentYear = new Date().getFullYear();
   const { data, isLoading } = useSalesTargets({
-    year: isOwnScope ? currentYear : undefined,
+    year: undefined,
     scope: isManagerScope ? readScope : undefined,
     employee_id: isOwnScope ? user?.employee_id : undefined,
   });
@@ -78,7 +78,10 @@ export function SalesTargetsDualUI() {
 
   // If user only has OWN permission, they are a sales rep. Show their personal target.
   if (isOwnScope) {
-    const target = data?.data?.[0]; // Backend automatically filters by employee_id for OWN scope
+    const ownTargets = (data?.data ?? []) as EmployeeSalesTarget[];
+    const target =
+      ownTargets.find((item) => item.year === currentYear) ||
+      [...ownTargets].sort((a, b) => b.year - a.year)[0];
     
     return (
       <div className="space-y-4">

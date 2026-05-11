@@ -1000,6 +1000,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// CRM Sales Targets menu
+	if _, err := createChildMenu("Sales Targets", "target", "/crm/sales-targets", &crmMenu.ID, 8); err != nil {
+		return err
+	}
+
 	// CRM Settings Group
 	crmSettingsMenu, err := createChildMenu("CRM Settings", "settings", "/crm/settings", &crmMenu.ID, 10)
 	if err != nil {

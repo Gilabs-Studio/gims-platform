@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Controller } from "react-hook-form";
 import { Loader2, Calculator } from "lucide-react";
 
@@ -28,6 +29,8 @@ interface SalesTargetFormProps {
 }
 
 export function SalesTargetForm({ open, onClose, target }: SalesTargetFormProps) {
+  const [applyAllValue, setApplyAllValue] = useState<string>("");
+
   const {
     form,
     t,
@@ -41,6 +44,7 @@ export function SalesTargetForm({ open, onClose, target }: SalesTargetFormProps)
     totalTarget,
     years,
     getMonthName,
+    setAllMonthsTarget,
     handleNext,
     handleFormSubmit,
     onInvalid,
@@ -148,6 +152,27 @@ export function SalesTargetForm({ open, onClose, target }: SalesTargetFormProps)
               </TabsContent>
 
               <TabsContent value="months" className="space-y-4">
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
+                    <Field orientation="vertical">
+                      <FieldLabel>{t("applyAllTarget")}</FieldLabel>
+                      <NumericInput
+                        value={applyAllValue === "" ? 0 : Number(applyAllValue)}
+                        onChange={(value) => setApplyAllValue(String(value ?? 0))}
+                        min={0}
+                      />
+                    </Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() => setAllMonthsTarget(Number(applyAllValue || 0))}
+                    >
+                      {t("applyAll")}
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     {fields.map((field, index) => (
                         <div key={field.month} className="p-4 border rounded-lg space-y-3 bg-card">

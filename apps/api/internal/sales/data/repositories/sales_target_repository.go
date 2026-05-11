@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ import (
 type SalesTargetRepository interface {
 	FindByID(ctx context.Context, id string) (*models.SalesTarget, error)
 	List(ctx context.Context, req *dto.ListSalesTargetsRequest) ([]models.SalesTarget, int64, error)
+	ListAvailableEmployeesByYear(ctx context.Context, year int, includeEmployeeID string) ([]dto.EmployeeResponse, error)
 	ExistsByYearAndEmployee(ctx context.Context, year int, employeeID string, excludeID *string) (bool, error)
 	Create(ctx context.Context, st *models.SalesTarget) error
 	Update(ctx context.Context, st *models.SalesTarget) error
@@ -136,6 +138,51 @@ func (r *salesTargetRepository) List(ctx context.Context, req *dto.ListSalesTarg
 	r.hydrateMonthlySalesActualAmounts(ctx, &targets)
 
 	return targets, total, nil
+}
+
+func salesTargetEmployeeScopeQueryOptions() security.ScopeQueryOptions {
+	return security.ScopeQueryOptions{
+		OwnerEmployeeIDColumn: "id",
+		DivisionJoinSQL:       "id IN (SELECT id FROM employees WHERE division_id = ? AND deleted_at IS NULL)",
+		AreaJoinSQL:           "id IN (SELECT employee_id FROM employee_areas WHERE area_id IN ? AND deleted_at IS NULL)",
+		OutletJoinSQL:         "id IN (SELECT employee_id FROM employee_outlets WHERE outlet_id IN ? AND deleted_at IS NULL)",
+		WarehouseJoinSQL:      "id IN (SELECT employee_id FROM employee_warehouses WHERE warehouse_id IN ? AND deleted_at IS NULL)",
+	}
+}
+
+func (r *salesTargetRepository) ListAvailableEmployeesByYear(ctx context.Context, year int, includeEmployeeID string) ([]dto.EmployeeResponse, error) {
+	query := r.db.WithContext(ctx).
+		Model(&orgModels.Employee{}).
+		Select("employees.id, employees.employee_code, employees.name, COALESCE(employees.email, '') AS email, COALESCE(employees.phone, '') AS phone")
+
+	var err error
+	query, err = applyTenantFilter(ctx, query, "employees.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	query = security.ApplyScopeFilter(query, ctx, salesTargetEmployeeScopeQueryOptions())
+	query = query.Where("employees.deleted_at IS NULL")
+	query = query.Where("employees.is_active = ?", true)
+	query = query.Joins(
+		"LEFT JOIN sales_targets st ON st.employee_id = employees.id AND st.year = ? AND st.deleted_at IS NULL",
+		year,
+	)
+
+	if strings.TrimSpace(includeEmployeeID) != "" {
+		query = query.Where("st.id IS NULL OR employees.id = ?", includeEmployeeID)
+	} else {
+		query = query.Where("st.id IS NULL")
+	}
+
+	query = query.Order("employees.name ASC")
+
+	var employees []dto.EmployeeResponse
+	if err := query.Scan(&employees).Error; err != nil {
+		return nil, err
+	}
+
+	return employees, nil
 }
 
 type monthlySalesActualRow struct {
