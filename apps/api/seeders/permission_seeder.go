@@ -365,6 +365,8 @@ func SeedPermissions() error {
 		{"/stock/inventory", "inventory.update", "Edit Inventory", "EDIT", "inventory"},
 		{"/stock/inventory", "inventory.delete", "Delete Inventory", "DELETE", "inventory"},
 
+		{"/stock/ledger", "ledger.read", "View Stock Ledger", "VIEW", "ledger"},
+
 		{"/stock/movements", "stock_movement.read", "View Stock Movements", "VIEW", "stock_movement"},
 		{"/stock/movements", "stock_movement.create", "Create Stock Movements", "CREATE", "stock_movement"},
 		{"/stock/movements", "stock_movement.update", "Edit Stock Movements", "EDIT", "stock_movement"},

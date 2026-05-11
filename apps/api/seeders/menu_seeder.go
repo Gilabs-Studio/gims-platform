@@ -552,8 +552,9 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Inventory", "package", "/stock/inventory", 1},
-		{"Stock Movement", "arrow-right-left", "/stock/movements", 2},
-		{"Stock Opname", "clipboard-check", "/stock/opname", 3},
+		{"Stock Ledger", "scroll-text", "/stock/ledger", 2},
+		{"Stock Movement", "arrow-right-left", "/stock/movements", 3},
+		{"Stock Opname", "clipboard-check", "/stock/opname", 4},
 	}
 	for _, child := range stockChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &stockMenu.ID, child.order); err != nil {
