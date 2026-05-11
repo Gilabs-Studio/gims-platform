@@ -260,6 +260,7 @@ export function CreateAssetDialog({
               onChange={(url) => setAssetImage(url ?? "")}
               accept=".jpg,.jpeg,.png,.webp"
               uploadEndpoint="/upload/image"
+              uploadFolder="hrd/assets"
             />
             <p className="text-xs text-muted-foreground">
               {t("asset.form.imageHint")}

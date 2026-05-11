@@ -66,9 +66,8 @@ export const visitReportService = {
   uploadImage: async (file: File, folder?: string): Promise<ApiResponse<{ url: string; filename: string }>> => {
     const formData = new FormData();
     formData.append("file", file);
-    const endpoint = folder
-      ? `/upload/image?folder=${encodeURIComponent(folder)}`
-      : "/upload/image";
+    const folderPath = folder?.trim() || "crm/visits";
+    const endpoint = `/upload/image?folder=${encodeURIComponent(folderPath)}`;
     const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>(endpoint, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });

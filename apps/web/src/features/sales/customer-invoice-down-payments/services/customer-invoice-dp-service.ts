@@ -76,7 +76,9 @@ export const customerInvoiceDPService = {
     formData.append("file", file);
 
     const isDocument = file.type === "application/pdf";
-    const endpoint = isDocument ? "/upload/document" : "/upload/image";
+    const endpoint = isDocument
+      ? "/upload/document?folder=sales/customer-invoice-dp/documents"
+      : "/upload/image?folder=sales/customer-invoice-dp/images";
 
     const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>(endpoint, formData, {
       headers: { "Content-Type": "multipart/form-data" },

@@ -134,7 +134,7 @@ export const attendanceRecordService = {
     const formData = new FormData();
     formData.append("file", file);
     const response = await apiClient.post<{ success: boolean; data: { url: string; filename: string } }>(
-      "/upload/image",
+      "/upload/image?folder=attendance",
       formData,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
