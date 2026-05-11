@@ -25,7 +25,6 @@ type SalesDeps struct {
 	OrderUC           usecase.SalesOrderUsecase
 	DeliveryOrderUC   usecase.DeliveryOrderUsecase
 	CustomerInvoiceUC usecase.CustomerInvoiceUsecase
-	YearlyTargetUC    usecase.YearlyTargetUsecase
 	SalesTargetUC     usecase.SalesTargetUsecase
 }
 
@@ -57,7 +56,6 @@ func RegisterRoutes(
 	deliveryRepo := salesRepos.NewDeliveryOrderRepository(db)
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	visitRepo := salesRepos.NewSalesVisitRepository(db)
-	yearlyTargetRepo := salesRepos.NewYearlyTargetRepository(db)
 	salesTargetRepo := salesRepos.NewSalesTargetRepository(db)
 	salesReturnRepo := salesRepos.NewSalesReturnRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
@@ -72,7 +70,6 @@ func RegisterRoutes(
 	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, deps.JournalUC, deps.CoaUC, auditService, deps.Engine, salesJournalSvc)
 	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
-	yearlyTargetUC := usecase.NewYearlyTargetUsecase(db, yearlyTargetRepo, auditService)
 	salesTargetUC := usecase.NewSalesTargetUsecase(db, salesTargetRepo)
 	salesReturnUC := usecase.NewSalesReturnUsecase(db, salesReturnRepo, deps.InventoryUC, deps.JournalUC, deps.CoaUC, auditService, deps.Engine)
 
@@ -95,7 +92,6 @@ func RegisterRoutes(
 	invoiceDpHandler := handler.NewCustomerInvoiceDownPaymentHandler(invoiceDpUC)
 	invoiceDpPrintHandler := handler.NewCustomerInvoiceDPPrintHandler(invoiceDpUC, db)
 	visitHandler := handler.NewSalesVisitHandler(visitUC)
-	yearlyTargetHandler := handler.NewYearlyTargetHandler(yearlyTargetUC)
 	salesTargetHandler := handler.NewSalesTargetHandler(salesTargetUC)
 	salesReturnHandler := handler.NewSalesReturnHandler(salesReturnUC)
 	salesPaymentHandler := handler.NewSalesPaymentHandler(salesPaymentUC)
@@ -115,7 +111,6 @@ func RegisterRoutes(
 	router.RegisterCustomerInvoiceRoutes(salesGroup, invoiceHandler, invoicePrintHandler)
 	router.RegisterCustomerInvoiceDownPaymentRoutes(salesGroup, invoiceDpHandler, invoiceDpPrintHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
-	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
 	router.RegisterSalesTargetRoutes(salesGroup, salesTargetHandler)
 	router.RegisterSalesReturnRoutes(salesGroup, salesReturnHandler)
 	router.RegisterSalesPaymentRoutes(salesGroup, salesPaymentHandler, salesPaymentPrintHandler)
@@ -126,7 +121,6 @@ func RegisterRoutes(
 		OrderUC:           orderUC,
 		DeliveryOrderUC:   deliveryUC,
 		CustomerInvoiceUC: invoiceUC,
-		YearlyTargetUC:    yearlyTargetUC,
 		SalesTargetUC:     salesTargetUC,
 	}
 }

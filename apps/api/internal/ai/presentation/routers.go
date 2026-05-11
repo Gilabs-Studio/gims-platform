@@ -36,7 +36,6 @@ type AIDeps struct {
 	SalesOrderUC      salesUsecase.SalesOrderUsecase
 	DeliveryOrderUC   salesUsecase.DeliveryOrderUsecase
 	CustomerInvoiceUC salesUsecase.CustomerInvoiceUsecase
-	YearlyTargetUC    salesUsecase.YearlyTargetUsecase
 	InventoryUC       inventoryUsecase.InventoryUsecase
 	PurchaseOrderUC   purchaseUsecase.PurchaseOrderUsecase
 	PurchaseReqUC     purchaseUsecase.PurchaseRequisitionUsecase
@@ -89,7 +88,6 @@ func RegisterRoutes(
 		executorDeps.SalesOrderUsecase = deps.SalesOrderUC
 		executorDeps.DeliveryOrderUsecase = deps.DeliveryOrderUC
 		executorDeps.CustomerInvoiceUsecase = deps.CustomerInvoiceUC
-		executorDeps.YearlyTargetUsecase = deps.YearlyTargetUC
 		executorDeps.InventoryUsecase = deps.InventoryUC
 		executorDeps.PurchaseOrderUsecase = deps.PurchaseOrderUC
 		executorDeps.PurchaseRequisitionUsecase = deps.PurchaseReqUC

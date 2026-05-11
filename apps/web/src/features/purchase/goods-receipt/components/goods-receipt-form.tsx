@@ -545,6 +545,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                     <ImageUpload
                       value={field.value ?? ""}
                       onChange={(value) => field.onChange(value || null)}
+                      uploadFolder="purchase/goods-receipt"
                     />
                   )}
                 />

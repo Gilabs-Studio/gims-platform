@@ -83,6 +83,8 @@ interface EmployeeFormProps {
   onCreated?: (item: { id: string; name: string }) => void;
 }
 
+type UserAccountMode = "select" | "create";
+
 const GENDER_OPTIONS: Gender[] = ["male", "female"];
 const CONTRACT_TYPE_OPTIONS: ContractType[] = ["PKWTT", "PKWT", "Intern"];
 const PTKP_OPTIONS: PTKPStatus[] = [
@@ -124,6 +126,9 @@ export function EmployeeForm({
   const [warehouseAssignments, setWarehouseAssignments] = useState<WarehouseAssignment[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<string>("");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
+  const [userAccountMode, setUserAccountMode] = useState<UserAccountMode>(
+    isEditing ? "create" : "select",
+  );
 
   const [divisionFormOpen, setDivisionFormOpen] = useState(false);
   const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
@@ -210,6 +215,7 @@ export function EmployeeForm({
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<EmployeeFormData>({
@@ -293,6 +299,9 @@ export function EmployeeForm({
         total_leave_quota: employeeData.total_leave_quota ?? 12,
         ptkp_status: employeeData.ptkp_status || undefined,
         is_active: employeeData.is_active,
+        create_user: !userId,
+        role_id: undefined,
+        password: "",
       };
       reset(formData, {
         keepDefaultValues: false,
@@ -321,6 +330,7 @@ export function EmployeeForm({
       setAreaAssignments(existingAreas);
       setOutletAssignments(existingOutlets);
       setWarehouseAssignments(existingWarehouses);
+      setUserAccountMode(userId ? "select" : "create");
     } else {
       reset({
         employee_code: "",
@@ -355,9 +365,29 @@ export function EmployeeForm({
       setAreaAssignments([]);
       setOutletAssignments([]);
       setWarehouseAssignments([]);
+      setUserAccountMode("select");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee?.id, employeeData]);
+
+  const selectedUserId = watch("user_id");
+  const createUserEnabled = watch("create_user");
+  const selectedAvailableUser = useMemo(
+    () => availableUsers.find((u) => u.id === selectedUserId),
+    [availableUsers, selectedUserId],
+  );
+  const hasLinkedUser = Boolean(employeeData?.user_id || employeeData?.user?.id);
+  const shouldLockNameEmailFromSelectedUser =
+    !isEditing && userAccountMode === "select" && !!selectedAvailableUser;
+
+  useEffect(() => {
+    if (isEditing || userAccountMode !== "select" || !selectedAvailableUser) {
+      return;
+    }
+
+    setValue("name", selectedAvailableUser.name, { shouldDirty: true });
+    setValue("email", selectedAvailableUser.email, { shouldDirty: true });
+  }, [isEditing, userAccountMode, selectedAvailableUser, setValue]);
 
   const contractType = watch("contract_type");
   const includeContract = watch("include_contract");
@@ -365,6 +395,11 @@ export function EmployeeForm({
 
   const onSubmit: SubmitHandler<EmployeeFormData> = async (data) => {
     try {
+      if (!isEditing && userAccountMode === "select" && !data.user_id) {
+        toast.error(t("form.userRequiredWhenSelectMode"));
+        return;
+      }
+
       const wantsContract = !isEditing && data.include_contract && data.contract_type;
 
       if (wantsContract) {
@@ -396,7 +431,11 @@ export function EmployeeForm({
 
       let finalUserId = data.user_id || undefined;
 
-      if (!isEditing && data.create_user) {
+      const shouldCreateLinkedUser =
+        (!isEditing && userAccountMode === "create") ||
+        (isEditing && !hasLinkedUser && !!data.create_user);
+
+      if (shouldCreateLinkedUser) {
         if (hasUserQuota === false) {
           toast.error("Tenant user quota is full. Cannot create a new linked user account.");
           return;
@@ -653,6 +692,7 @@ export function EmployeeForm({
                   <Input
                     placeholder={t("form.namePlaceholder")}
                     {...register("name")}
+                    disabled={shouldLockNameEmailFromSelectedUser}
                   />
                   {errors.name && (
                     <FieldError>{errors.name.message}</FieldError>
@@ -666,6 +706,7 @@ export function EmployeeForm({
                     type="email"
                     placeholder={t("form.emailPlaceholder")}
                     {...register("email")}
+                    disabled={shouldLockNameEmailFromSelectedUser}
                   />
                   {errors.email && (
                     <FieldError>{errors.email.message}</FieldError>
@@ -691,6 +732,47 @@ export function EmployeeForm({
               {/* User account link */}
               <div className="space-y-4 p-4 border rounded-lg">
                 {!isEditing && (
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.userAccountMode")}</FieldLabel>
+                    <Select
+                      value={userAccountMode}
+                      onValueChange={(value) => {
+                        const nextMode = value as UserAccountMode;
+                        setUserAccountMode(nextMode);
+
+                        if (nextMode === "create") {
+                          setValue("user_id", "", { shouldDirty: true });
+                          setValue("create_user", true, { shouldDirty: true });
+                          return;
+                        }
+
+                        setValue("create_user", false, { shouldDirty: true });
+                        setValue("role_id", undefined, { shouldDirty: true });
+                        setValue("password", "", { shouldDirty: true });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("form.userAccountModePlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="select">
+                          {t("form.userAccountModeSelect")}
+                        </SelectItem>
+                        <SelectItem value="create" disabled={hasUserQuota === false}>
+                          {t("form.userAccountModeCreate")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+
+                {isEditing && hasLinkedUser && (
+                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                    {t("form.userAlreadyLinkedHint")}
+                  </div>
+                )}
+
+                {isEditing && !hasLinkedUser && (
                   hasUserQuota === null ? (
                     <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
                       Checking tenant user quota...
@@ -701,8 +783,8 @@ export function EmployeeForm({
                       className="flex justify-between items-center"
                     >
                       <div className="space-y-0.5">
-                        <FieldLabel className="text-base text-foreground">Create User Account</FieldLabel>
-                        <p className="text-sm text-muted-foreground">Automatically create and link a system user.</p>
+                        <FieldLabel className="text-base text-foreground">{t("form.createUserAccount")}</FieldLabel>
+                        <p className="text-sm text-muted-foreground">{t("form.createUserAccountEditHint")}</p>
                       </div>
                       <Controller
                         control={control}
@@ -723,7 +805,8 @@ export function EmployeeForm({
                   )
                 )}
 
-                {watch("create_user") && !isEditing && hasUserQuota === true ? (
+                {((!isEditing && userAccountMode === "create") ||
+                  (isEditing && !hasLinkedUser && createUserEnabled)) && hasUserQuota === true ? (
                   <div className="grid grid-cols-2 gap-4">
                     <Field orientation="vertical">
                       <FieldLabel>Role *</FieldLabel>
@@ -762,42 +845,44 @@ export function EmployeeForm({
                     </Field>
                   </div>
                 ) : (
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.user")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="user_id"
-                      render={({ field }) => {
-                        return (
-                          <Select
-                            value={field.value || ""}
-                            onValueChange={(v) =>
-                              field.onChange(v === "__none__" ? "" : v)
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("form.userPlaceholder")}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                {t("form.noUser")}
-                              </SelectItem>
-                              {availableUsers.map((u) => (
-                                <SelectItem key={u.id} value={u.id}>
-                                  {u.name} ({u.email})
+                  !isEditing && userAccountMode === "select" && (
+                    <Field orientation="vertical">
+                      <FieldLabel>{t("form.user")}</FieldLabel>
+                      <Controller
+                        control={control}
+                        name="user_id"
+                        render={({ field }) => {
+                          return (
+                            <Select
+                              value={field.value || ""}
+                              onValueChange={(v) =>
+                                field.onChange(v === "__none__" ? "" : v)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={t("form.userPlaceholder")}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">
+                                  {t("form.noUser")}
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      }}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("form.userHint")}
-                    </p>
-                  </Field>
+                                {availableUsers.map((u) => (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    {u.name} ({u.email})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("form.userSelectAutofillHint")}
+                      </p>
+                    </Field>
+                  )
                 )}
               </div>
 

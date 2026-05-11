@@ -1,12 +1,15 @@
 package handler
 
 import (
-	"github.com/gilabs/gims/api/internal/core/errors"
+	stdErrors "errors"
+
+	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // SalesTargetHandler handles sales target HTTP requests
@@ -24,16 +27,16 @@ func (h *SalesTargetHandler) List(c *gin.Context) {
 	var req dto.ListSalesTargetsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidQueryParamResponse(c)
+		coreErrors.InvalidQueryParamResponse(c)
 		return
 	}
 
 	targets, pagination, err := h.targetUC.List(c.Request.Context(), &req)
 	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -62,19 +65,46 @@ func (h *SalesTargetHandler) List(c *gin.Context) {
 	response.SuccessResponse(c, targets, meta)
 }
 
+// ListAvailableEmployees handles list of employees available for sales target creation for a specific year.
+func (h *SalesTargetHandler) ListAvailableEmployees(c *gin.Context) {
+	var req dto.ListAvailableSalesTargetEmployeesRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			coreErrors.HandleValidationError(c, validationErrors)
+			return
+		}
+		coreErrors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	employees, err := h.targetUC.ListAvailableEmployees(c.Request.Context(), &req)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, employees, nil)
+}
+
 // GetByID handles get sales target by ID request
 func (h *SalesTargetHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
+	// Validate UUID to avoid passing non-UUID path segments (eg. "available-employees")
+	if _, err := uuid.Parse(id); err != nil {
+		coreErrors.ErrorResponse(c, "INVALID_ID", nil, nil)
+		return
+	}
+
 	target, err := h.targetUC.GetByID(c.Request.Context(), id)
 	if err != nil {
-		if err == usecase.ErrSalesTargetNotFound {
-			errors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
+		if stdErrors.Is(err, usecase.ErrSalesTargetNotFound) {
+			coreErrors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
 				"target_id": id,
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -86,22 +116,22 @@ func (h *SalesTargetHandler) Create(c *gin.Context) {
 	var req dto.CreateSalesTargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
 	target, err := h.targetUC.Create(c.Request.Context(), &req)
 	if err != nil {
-		if err == usecase.ErrSalesTargetConflict {
-			errors.ErrorResponse(c, "SALES_TARGET_CONFLICT", map[string]interface{}{
+		if stdErrors.Is(err, usecase.ErrSalesTargetConflict) {
+			coreErrors.ErrorResponse(c, "SALES_TARGET_CONFLICT", map[string]interface{}{
 				"message": err.Error(),
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -121,28 +151,28 @@ func (h *SalesTargetHandler) Update(c *gin.Context) {
 	var req dto.UpdateSalesTargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
+			coreErrors.HandleValidationError(c, validationErrors)
 			return
 		}
-		errors.InvalidRequestBodyResponse(c)
+		coreErrors.InvalidRequestBodyResponse(c)
 		return
 	}
 
 	target, err := h.targetUC.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		if err == usecase.ErrSalesTargetNotFound {
-			errors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
+		if stdErrors.Is(err, usecase.ErrSalesTargetNotFound) {
+			coreErrors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
 				"target_id": id,
 			}, nil)
 			return
 		}
-		if err == usecase.ErrSalesTargetConflict {
-			errors.ErrorResponse(c, "SALES_TARGET_CONFLICT", map[string]interface{}{
+		if stdErrors.Is(err, usecase.ErrSalesTargetConflict) {
+			coreErrors.ErrorResponse(c, "SALES_TARGET_CONFLICT", map[string]interface{}{
 				"message": err.Error(),
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
@@ -162,13 +192,13 @@ func (h *SalesTargetHandler) Delete(c *gin.Context) {
 
 	err := h.targetUC.Delete(c.Request.Context(), id)
 	if err != nil {
-		if err == usecase.ErrSalesTargetNotFound {
-			errors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
+		if stdErrors.Is(err, usecase.ErrSalesTargetNotFound) {
+			coreErrors.ErrorResponse(c, "SALES_TARGET_NOT_FOUND", map[string]interface{}{
 				"target_id": id,
 			}, nil)
 			return
 		}
-		errors.InternalServerErrorResponse(c, err.Error())
+		coreErrors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 

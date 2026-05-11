@@ -228,6 +228,7 @@ export function CreateCertificationDialog({
               onChange={(url) => setCertificateFile(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               uploadEndpoint="/upload/document"
+              uploadFolder="hrd/certifications"
             />
           </div>
 

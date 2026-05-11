@@ -33,6 +33,8 @@ export interface ListSalesTargetsParams {
   per_page?: number;
   year?: number;
   employee_id?: string;
+  scope?: string; // e.g. OWN | AREA | DIVISION | ALL
+  scope_id?: string; // optional identifier for scoped filters (e.g. area_id, division_id)
   search?: string;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
@@ -62,4 +64,12 @@ export interface UpdateSalesTargetInput {
   total_target?: number;
   notes?: string;
   months?: UpdateMonthlyTargetInput[];
+}
+
+export interface SalesTargetEmployeeOption {
+  id: string;
+  employee_code: string;
+  name: string;
+  email: string;
+  phone: string;
 }

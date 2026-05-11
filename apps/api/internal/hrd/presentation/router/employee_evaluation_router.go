@@ -10,8 +10,8 @@ import (
 func SetupEmployeeEvaluationRoutes(router *gin.RouterGroup, handler *handler.EmployeeEvaluationHandler) {
 	evaluations := router.Group("/employee-evaluations")
 	{
-		// Form data endpoint (auth only, no specific permission)
-		evaluations.GET("/form-data", handler.GetFormData)
+		// Form data endpoint
+		evaluations.GET("/form-data", middleware.RequirePermission("evaluation.read"), handler.GetFormData)
 
 		// CRUD routes
 		evaluations.GET("", middleware.RequirePermission("evaluation.read"), handler.GetAll)

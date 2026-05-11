@@ -37,6 +37,7 @@ import { cn, formatAttendanceTime, getUserTimezone } from "@/lib/utils";
 import { ClockInLateReasonDialog } from "./clock-in-late-reason-dialog";
 import { ClockInCameraDialog } from "./clock-in-camera-dialog";
 import { useSelfAttendanceActions } from "../hooks/use-self-attendance-actions";
+import { useUserPermission } from "@/hooks/use-user-permission";
 
 type AttendanceDrawerTab = "calendar" | "leave" | "overtime";
 
@@ -128,6 +129,16 @@ export function HeaderAttendanceButton({
   onOpenDrawer,
 }: HeaderAttendanceButtonProps) {
   const t = useTranslations("hrd.attendance");
+  const canClockInAction = useUserPermission("attendance.create");
+  const canAttendanceHistory = useUserPermission("attendance.read");
+  const canRequestLeave = useUserPermission("leave_request.create");
+  const canMyOvertime = useUserPermission("overtime.create");
+  const allArtifactsDisabled =
+    !canClockInAction &&
+    !canAttendanceHistory &&
+    !canRequestLeave &&
+    !canMyOvertime;
+
   const {
     today,
     isLoading,
@@ -179,6 +190,7 @@ export function HeaderAttendanceButton({
             type="button"
             className={cn(
               "inline-flex items-center h-8 rounded-full border px-3 gap-1.5 text-xs font-medium cursor-pointer select-none",
+              allArtifactsDisabled && "opacity-50",
               visual.pillClass,
             )}
           >
@@ -198,6 +210,17 @@ export function HeaderAttendanceButton({
           <div className="px-2 py-1 text-xs text-muted-foreground">
             {statusLine}
           </div>
+
+          {allArtifactsDisabled && (
+            <div className="mx-2 my-2 rounded-md border border-border bg-muted/40 p-2">
+              <p className="text-xs font-medium text-foreground">
+                {t("permissionsUnavailableTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("permissionsUnavailableDescription")}
+              </p>
+            </div>
+          )}
 
           {/* Location permission denied alert */}
           {isDenied && (
@@ -255,18 +278,25 @@ export function HeaderAttendanceButton({
           <DropdownMenuSeparator />
 
           {!hasCheckedIn ? (
-            isHolidayOrOffDay ? (
+            !canClockInAction ? (
               <DropdownMenuItem disabled className="opacity-50">
                 <LogIn className="h-4 w-4" />
                 <span>
-                  {t("clockIn")} — {blockReason}
+                  {t("clockIn")} - {t("permissionsRequired")}
+                </span>
+              </DropdownMenuItem>
+            ) : isHolidayOrOffDay ? (
+              <DropdownMenuItem disabled className="opacity-50">
+                <LogIn className="h-4 w-4" />
+                <span>
+                  {t("clockIn")} - {blockReason}
                 </span>
               </DropdownMenuItem>
             ) : isDenied ? (
               <DropdownMenuItem disabled className="opacity-50">
                 <LogIn className="h-4 w-4" />
                 <span>
-                  {t("clockIn")} — {t("location.denied")}
+                  {t("clockIn")} - {t("location.denied")}
                 </span>
               </DropdownMenuItem>
             ) : (
@@ -310,8 +340,9 @@ export function HeaderAttendanceButton({
             )
           ) : (
             <DropdownMenuItem
-              className="cursor-pointer"
+              className={cn(!canClockInAction && "opacity-50")}
               disabled={
+                !canClockInAction ||
                 hasCheckedOut || isPending || !!isHolidayOrOffDay || isDenied
               }
               onClick={handleClockOut}
@@ -323,32 +354,51 @@ export function HeaderAttendanceButton({
               )}
               <span>
                 {t("clockOut")}
-                {isHolidayOrOffDay && hasCheckedIn ? ` — ${blockReason}` : ""}
+                {isHolidayOrOffDay && hasCheckedIn ? ` - ${blockReason}` : ""}
                 {isDenied && hasCheckedIn && !isHolidayOrOffDay
-                  ? ` — ${t("location.denied")}`
+                  ? ` - ${t("location.denied")}`
                   : ""}
+                {!canClockInAction ? ` - ${t("permissionsRequired")}` : ""}
               </span>
             </DropdownMenuItem>
           )}
 
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => onOpenDrawer("calendar")}
+            className={cn(canAttendanceHistory && "cursor-pointer")}
+            disabled={!canAttendanceHistory}
+            onClick={() => {
+              if (!canAttendanceHistory) {
+                return;
+              }
+              onOpenDrawer("calendar");
+            }}
           >
             <CalendarDays className="h-4 w-4" />
             <span>{t("historyAction")}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => onOpenDrawer("leave")}
+            className={cn(canRequestLeave && "cursor-pointer")}
+            disabled={!canRequestLeave}
+            onClick={() => {
+              if (!canRequestLeave) {
+                return;
+              }
+              onOpenDrawer("leave");
+            }}
           >
             <Plane className="h-4 w-4" />
             <span>{t("requestLeaveAction")}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => onOpenDrawer("overtime")}
+            className={cn(canMyOvertime && "cursor-pointer")}
+            disabled={!canMyOvertime}
+            onClick={() => {
+              if (!canMyOvertime) {
+                return;
+              }
+              onOpenDrawer("overtime");
+            }}
           >
             <Clock4 className="h-4 w-4" />
             <span>{t("overtimeAction")}</span>

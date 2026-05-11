@@ -325,6 +325,7 @@ export function EditEducationDialog({
               onChange={(url) => setDocumentPath(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               uploadEndpoint="/upload/document"
+              uploadFolder="hrd/education"
             />
           </div>
         </div>

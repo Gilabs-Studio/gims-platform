@@ -12,6 +12,26 @@ import { Input } from "@/components/ui/input";
 
 const DATA_IMAGE_PREFIX = "data:image/";
 
+function inferUploadFolderFromPath(pathname?: string): string {
+  if (!pathname) return "general";
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return "general";
+
+  const localeSet = new Set(["en", "id"]);
+  const normalized = localeSet.has(segments[0]) ? segments.slice(1) : segments;
+  if (normalized.length === 0) return "general";
+
+  const root = normalized[0].toLowerCase();
+  const child = normalized[1]?.toLowerCase();
+
+  if (child) {
+    return `${root}/${child}`;
+  }
+
+  return root;
+}
+
 interface ImageUploadProps {
   value?: string | null;
   onChange: (url: string) => void;
@@ -107,6 +127,12 @@ export function ImageUpload({
   const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery ?? "");
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<ImageSearchResponse["data"]>([]);
+  const inferredFolder = React.useMemo(() => {
+    if (typeof window === "undefined") {
+      return "general";
+    }
+    return inferUploadFolderFromPath(window.location.pathname);
+  }, []);
 
   const sanitizeImageSrc = React.useCallback((raw?: string | null): string | undefined => {
     if (!raw) return undefined;
@@ -189,10 +215,8 @@ export function ImageUpload({
       formData.append("file", file);
 
       try {
-        const folder = uploadFolder?.trim();
-        const endpoint = folder
-          ? `/upload/image?folder=${encodeURIComponent(folder)}`
-          : "/upload/image";
+        const folder = uploadFolder?.trim() || inferredFolder;
+        const endpoint = `/upload/image?folder=${encodeURIComponent(folder)}`;
 
         const res = await apiClient.post<UploadResponse>(endpoint, formData, {
           headers: {
@@ -223,7 +247,7 @@ export function ImageUpload({
         setLoading(false);
       }
     },
-    [onChange, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess, uploadFolder]
+    [inferredFolder, onChange, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess, uploadFolder]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

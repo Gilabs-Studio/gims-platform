@@ -172,7 +172,7 @@ func (u *employeeEvaluationUsecase) GetByID(ctx context.Context, id string) (*dt
 
 func (u *employeeEvaluationUsecase) GetFormData(ctx context.Context) (*dto.EmployeeEvaluationFormDataResponse, error) {
 	// Fetch all employees
-	employees, err := u.employeeRepo.FindAll(ctx)
+	employees, err := listScopedActiveEmployees(ctx, u.db)
 	if err != nil {
 		return nil, err
 	}

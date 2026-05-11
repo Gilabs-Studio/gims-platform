@@ -80,6 +80,9 @@ type SalesRepStatisticsResponse struct {
 	ConversionRate             float64               `json:"conversion_rate"`
 	AverageOrderValue          float64               `json:"average_order_value"`
 	AverageOrderValueFormatted string                `json:"average_order_value_formatted"`
+	TargetAmount               *float64              `json:"target_amount,omitempty"`
+	TargetAmountFormatted      *string               `json:"target_amount_formatted,omitempty"`
+	TargetAchievementPercent   *float64              `json:"target_achievement_percent,omitempty"`
 	PeriodComparison           *PeriodComparisonData `json:"period_comparison,omitempty"`
 }
 
