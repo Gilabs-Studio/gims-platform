@@ -23,16 +23,41 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDashboardWidgetOverview, isOverviewWidget, isOwnerKpiWidget } from "../hooks/use-dashboard";
 import { useOwnerKpi } from "../hooks/use-owner-kpi";
-import { ChartWidget } from "./chart-widget";
+import dynamic from "next/dynamic";
+import { ChartWidget as _ChartWidgetType } from "./chart-widget";
 import { BalanceWidget } from "./balance-widget";
 import { CostsCategoryWidget } from "./costs-category-widget";
 import { InvoicesSummaryWidget } from "./invoices-summary-widget";
 import { RecentInvoicesWidget } from "./recent-invoices-widget";
 import { DeliveryWidget } from "./delivery-widget";
 import { SalesPerformanceWidget } from "./sales-performance-widget";
-import { GeoWidget } from "./geo-widget";
+// Dynamically import heavy widgets to avoid bundling charting and map libraries
+const ChartWidget = dynamic<Parameters<typeof _ChartWidgetType>[0]>(() =>
+  import("./chart-widget").then((m) => m.ChartWidget),
+  {
+    ssr: false,
+    loading: () => (
+      <Card className="h-full border-dashed">
+        <CardContent className="flex h-48 items-center justify-center">
+          <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+        </CardContent>
+      </Card>
+    ),
+  },
+);
+
+const GeoWidget = dynamic(() => import("./geo-widget").then((m) => m.GeoWidget), { ssr: false });
 import { WarehouseWidget } from "./warehouse-widget";
-import { RevenueBarChartCard } from "./revenue-bar-chart-card";
+const RevenueBarChartCard = dynamic(() => import("./revenue-bar-chart-card").then((m) => m.RevenueBarChartCard), {
+  ssr: false,
+  loading: () => (
+    <Card className="h-full border-dashed">
+      <CardContent className="flex h-48 items-center justify-center">
+        <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+      </CardContent>
+    </Card>
+  ),
+});
 import { StatSummaryCard } from "./stat-summary-card";
 import { BestSellingCard } from "./best-selling-card";
 import { TrackOrderCard } from "./track-order-card";

@@ -19,12 +19,12 @@ import {
 } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { PageMotion } from "@/components/motion/page-motion";
 import type { DateRange } from "react-day-picker";
 import { useDashboardLayout, useSaveLayout } from "../hooks/use-dashboard";
 import { useDashboardStore } from "../stores/useDashboardStore";
 import { SortableWidget } from "./sortable-widget";
 import { WidgetRenderer } from "./widget-renderer";
+import { LazyMount } from "./lazy-mount";
 import { WidgetPicker } from "./widget-picker";
 import { OnboardingWizard } from "./onboarding-wizard";
 import {
@@ -176,8 +176,7 @@ export function DashboardGrid() {
   }
 
   return (
-    <PageMotion>
-      <div className="space-y-4">
+    <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
@@ -251,7 +250,9 @@ export function DashboardGrid() {
                   onResizeCol={resizeWidgetCol}
                   onResizeRow={resizeWidgetRow}
                 >
-                  <WidgetRenderer widget={widget} />
+                  <LazyMount>
+                    <WidgetRenderer widget={widget} />
+                  </LazyMount>
                 </SortableWidget>
               ))}
             </div>
@@ -264,6 +265,5 @@ export function DashboardGrid() {
           </div>
         )}
       </div>
-    </PageMotion>
   );
 }
