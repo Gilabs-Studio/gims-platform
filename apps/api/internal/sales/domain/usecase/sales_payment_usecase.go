@@ -119,7 +119,6 @@ func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAd
 			Currency:      ba.Currency,
 		})
 	}
-
 	// Fetch eligible invoices (unpaid or partial, both regular and down_payment)
 	var invoices []*models.CustomerInvoice
 	if err := database.GetDB(ctx, uc.db).
@@ -254,7 +253,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 			return err
 		}
 
-		ba, err := resolveBankAccountForPaymentCreate(tx, trimOptionalString(req.BankAccountID), method, actorID)
+		ba, err := resolveBankAccountForPaymentCreate(tx, trimOptionalString(req.BankAccountID), method, actorID, ctx, uc.settingsUC, uc.coaUC)
 		if err != nil {
 			return err
 		}
@@ -263,6 +262,12 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 		if err != nil {
 			return err
 		}
+
+		transactionCOAID, err := uc.resolveTransactionCOAForJournal(ctx, payment, ba)
+		if err != nil {
+			return err
+		}
+		payment.SnapshotCOAID = &transactionCOAID
 
 		if err := tx.Create(payment).Error; err != nil {
 			return err
@@ -316,14 +321,16 @@ func ensureNoPendingSalesPayment(tx *gorm.DB, invoiceID string) error {
 	if err := tx.Model(&models.SalesPayment{}).
 		Where("customer_invoice_id = ? AND status = ?", invoiceID, models.SalesPaymentStatusPending).
 		Count(&pendingCount).Error; err != nil {
+		log.Printf("[SALES_PAYMENT_CONFLICT] Failed to count pending payments for invoice %s: %v", invoiceID, err)
 		return err
 	}
 
 	if pendingCount > 0 {
-		log.Printf("sales_payment_conflict: another payment is already pending for invoice %s", invoiceID)
+		log.Printf("[SALES_PAYMENT_CONFLICT] Another payment is already pending for invoice %s (count=%d)", invoiceID, pendingCount)
 		return fmt.Errorf("another payment is already pending for this invoice")
 	}
 
+	log.Printf("[PAYMENT_DEBUG] No pending payments found for invoice %s", invoiceID)
 	return nil
 }
 
@@ -340,13 +347,36 @@ func resolveBankAccountForPaymentCreate(
 	bankAccountID string,
 	method models.SalesPaymentMethod,
 	actorID string,
+	ctx context.Context,
+	settingsUC financesettings.SettingsService,
+	coaUC finUsecase.ChartOfAccountUsecase,
 ) (*coreModels.BankAccount, error) {
-	if bankAccountID != "" {
-		return lockActiveBankAccount(tx, bankAccountID)
+	if method == models.SalesPaymentMethodCash {
+		companyID, err := resolveActorCompanyID(tx, actorID)
+		if err != nil {
+			return nil, err
+		}
+
+		cashBankAccount, err := resolveCashBankAccountForCompany(ctx, tx, companyID, settingsUC, coaUC)
+		if err != nil {
+			cashBankAccount, err = lockAnyActiveBankAccountForCompany(tx, companyID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if bankAccountID != "" {
+			selectedBankAccount, err := lockActiveBankAccount(tx, bankAccountID)
+			if err == nil && selectedBankAccount.ChartOfAccountID != nil && cashBankAccount.ChartOfAccountID != nil && strings.TrimSpace(*selectedBankAccount.ChartOfAccountID) == strings.TrimSpace(*cashBankAccount.ChartOfAccountID) {
+				return selectedBankAccount, nil
+			}
+		}
+
+		return cashBankAccount, nil
 	}
 
-	if method != models.SalesPaymentMethodCash {
-		return nil, errors.New("bank account is required for bank transfers")
+	if bankAccountID != "" {
+		return lockActiveBankAccount(tx, bankAccountID)
 	}
 
 	companyID, err := resolveActorCompanyID(tx, actorID)
@@ -416,6 +446,52 @@ func lockActiveBankAccount(tx *gorm.DB, bankAccountID string) (*coreModels.BankA
 	}
 
 	return &ba, nil
+}
+
+func resolveCashBankAccountForCompany(
+	ctx context.Context,
+	tx *gorm.DB,
+	companyID string,
+	settingsUC financesettings.SettingsService,
+	coaUC finUsecase.ChartOfAccountUsecase,
+) (*coreModels.BankAccount, error) {
+	if settingsUC == nil || coaUC == nil {
+		return nil, errors.New("finance settings/coA dependency is required for cash payments")
+	}
+
+	coaCode, err := settingsUC.GetCOAByKey(ctx, "finance.cash_default")
+	if err != nil || strings.TrimSpace(coaCode) == "" {
+		coaCode, err = settingsUC.GetCOACode(ctx, "coa.cash")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	coa, err := coaUC.GetByCode(ctx, strings.TrimSpace(coaCode))
+	if err != nil {
+		return nil, err
+	}
+
+	var bankAccounts []coreModels.BankAccount
+	if err := tx.Where("company_id = ? AND is_active = ?", strings.TrimSpace(companyID), true).
+		Order("updated_at DESC").
+		Order("created_at DESC").
+		Find(&bankAccounts).Error; err != nil {
+		return nil, err
+	}
+
+	for i := range bankAccounts {
+		bankAccount := &bankAccounts[i]
+		if bankAccount.ChartOfAccountID != nil && strings.TrimSpace(*bankAccount.ChartOfAccountID) == strings.TrimSpace(coa.ID) {
+			return bankAccount, nil
+		}
+	}
+
+	if len(bankAccounts) > 0 {
+		return &bankAccounts[0], nil
+	}
+
+	return nil, gorm.ErrRecordNotFound
 }
 
 func buildPendingSalesPayment(
@@ -717,12 +793,15 @@ func (uc *salesPaymentUsecase) reverse(ctx context.Context, id string, reason st
 }
 
 func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymentID string) (string, error) {
+	log.Printf("[CONFIRM_SALES_PAYMENT] Starting confirmation for payment %s", paymentID)
 	confirmedID := ""
 	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		payment, invoice, confirmedTotal, err := uc.prepareConfirmSalesPayment(tx, paymentID)
 		if err != nil {
+			log.Printf("[CONFIRM_SALES_PAYMENT_ERROR] prepareConfirmSalesPayment failed for %s: %v", paymentID, err)
 			return err
 		}
+		log.Printf("[CONFIRM_SALES_PAYMENT] Prepared payment %s for invoice %s, confirmedTotal=%.2f", payment.ID, invoice.ID, confirmedTotal)
 
 		appliedAmount := appliedSalesPaymentAmount(payment)
 		if err := ensurePaymentWithinInvoiceLimit(appliedAmount, invoice.RemainingAmount); err != nil {
@@ -749,15 +828,20 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 		txCtx := database.WithTx(ctx, tx)
 		loadedPay, loadErr := uc.repo.GetByID(txCtx, payment.ID)
 		if loadErr != nil {
+			log.Printf("[JOURNAL_ERROR] Failed to load payment %s for journal: %v", payment.ID, loadErr)
 			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
 		}
 		// Preload CustomerInvoice for proper journal profile selection
 		if err := tx.Model(loadedPay).Association("CustomerInvoice").Find(&loadedPay.CustomerInvoice); err != nil {
+			log.Printf("[JOURNAL_ERROR] Failed to load customer invoice for payment %s: %v", payment.ID, err)
 			return fmt.Errorf("failed to load customer invoice for payment journal: %w", err)
 		}
+		log.Printf("[JOURNAL_DEBUG] Triggering journal entry for payment %s (amount=%.2f, method=%s)", loadedPay.ID, loadedPay.Amount, loadedPay.Method)
 		if err := uc.triggerJournalEntry(txCtx, loadedPay); err != nil {
+			log.Printf("[JOURNAL_ERROR] Failed to create journal for sales payment %s: %v", payment.ID, err)
 			return fmt.Errorf("failed to create journal for sales payment: %w", err)
 		}
+		log.Printf("[CONFIRM_SALES_PAYMENT] Journal created successfully for payment %s", loadedPay.ID)
 
 		confirmedID = payment.ID
 		return nil
@@ -772,15 +856,20 @@ func (uc *salesPaymentUsecase) prepareConfirmSalesPayment(
 ) (*models.SalesPayment, *models.CustomerInvoice, float64, error) {
 	payment, err := lockPendingSalesPayment(tx, paymentID)
 	if err != nil {
+		log.Printf("[SALES_PAYMENT_CONFLICT] Failed to lock pending payment %s: %v", paymentID, err)
 		return nil, nil, 0, err
 	}
+	log.Printf("[PAYMENT_DEBUG] Payment %s locked successfully with status=%s", payment.ID, payment.Status)
 
 	invoice, err := lockInvoiceForSalesPayment(tx, payment.CustomerInvoiceID)
 	if err != nil {
+		log.Printf("[SALES_PAYMENT_CONFLICT] Failed to lock invoice %s: %v", payment.CustomerInvoiceID, err)
 		return nil, nil, 0, err
 	}
+	log.Printf("[PAYMENT_DEBUG] Invoice %s locked successfully with status=%s, remaining=%.2f", invoice.ID, invoice.Status, invoice.RemainingAmount)
 
 	if err := validateInvoiceStatusForConfirm(invoice.Status); err != nil {
+		log.Printf("[SALES_PAYMENT_CONFLICT] Invoice %s has invalid status for confirm: %s (expected APPROVED/UNPAID/PARTIAL/OVERDUE)", invoice.ID, invoice.Status)
 		return nil, nil, 0, err
 	}
 
@@ -793,12 +882,17 @@ func (uc *salesPaymentUsecase) prepareConfirmSalesPayment(
 }
 
 func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error {
-	if status == models.CustomerInvoiceStatusApproved ||
-		status == models.CustomerInvoiceStatusUnpaid ||
-		status == models.CustomerInvoiceStatusPartial ||
-		status == models.CustomerInvoiceStatusWaitingPayment ||
-		status == models.CustomerInvoiceStatusWaitingApproval ||
-		status == models.CustomerInvoiceStatusOverdue {
+	// Invoice can be confirmed when in these statuses:
+	// - APPROVED: Explicitly approved by supervisor
+	// - UNPAID: Invoice exists but no payment yet
+	// - PARTIAL: Some payment already made
+	// - OVERDUE: Past due date
+	// - WAITING_APPROVAL: Payment created (PENDING), waiting confirmation to trigger journal
+	if status == models.CustomerInvoiceStatusApproved || 
+		status == models.CustomerInvoiceStatusUnpaid || 
+		status == models.CustomerInvoiceStatusPartial || 
+		status == models.CustomerInvoiceStatusOverdue ||
+		status == models.CustomerInvoiceStatusWaitingApproval {
 		return nil
 	}
 
@@ -1013,39 +1107,34 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 		return fmt.Errorf("failed to resolve company for sales payment journal: %w", err)
 	}
 
-	// Resolve Bank Account COA for the DEBIT side
-	var ba coreModels.BankAccount
-	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
-		ba = *pay.BankAccount
-	} else {
-		if err := database.GetDB(ctx, uc.db).First(&ba, "id = ?", pay.BankAccountID).Error; err != nil {
-			return fmt.Errorf("bank account not found for payment: %w", err)
-		}
+	resolvedBankAccount, err := resolveBankAccountForPaymentCreate(
+		database.GetDB(ctx, uc.db),
+		pay.BankAccountID,
+		pay.Method,
+		pay.CreatedBy,
+		ctx,
+		uc.settingsUC,
+		uc.coaUC,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to resolve bank account for payment: %w", err)
 	}
 
-	var transactionCOAID string
-	if ba.ChartOfAccountID != nil {
-		transactionCOAID = *ba.ChartOfAccountID
-	} else {
-		if uc.settingsUC == nil {
-			return errors.New("system account mapping untuk 'finance.bank_default' belum dikonfigurasi")
-		}
-
-		defaultKey := "finance.bank_default"
-		if strings.EqualFold(string(pay.Method), string(models.SalesPaymentMethodCash)) {
-			defaultKey = "finance.cash_default"
-		}
-
-		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, defaultKey)
+	transactionCOAID := ""
+	if pay.SnapshotCOAID != nil {
+		transactionCOAID = strings.TrimSpace(*pay.SnapshotCOAID)
+	}
+	if transactionCOAID == "" {
+		transactionCOAID, err = uc.resolveTransactionCOAForJournal(ctx, pay, resolvedBankAccount)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to resolve transaction COA for sales payment journal: %w", err)
 		}
-
-		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
-		if err != nil {
-			return fmt.Errorf("account with code '%s' for mapping '%s' not found", defaultCode, defaultKey)
+		pay.SnapshotCOAID = &transactionCOAID
+		if err := database.GetDB(ctx, uc.db).Model(&models.SalesPayment{}).
+			Where("id = ?", pay.ID).
+			Updates(map[string]interface{}{"snapshot_coa_id": transactionCOAID, "updated_at": apptime.Now()}).Error; err != nil {
+			return fmt.Errorf("failed to persist snapshot COA for sales payment: %w", err)
 		}
-		transactionCOAID = def.ID
 	}
 
 	// Choose profile based on invoice type
@@ -1081,7 +1170,7 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 		Description:      fmt.Sprintf("%s %s", descPrefix, refNum),
 		TotalAmount:      pay.Amount,
 		TransactionCOAID: transactionCOAID,
-		DescriptionArgs:  []interface{}{refNum, pay.BankAccountNameSnapshot},
+		DescriptionArgs:  []interface{}{refNum, resolvedBankAccount.Name},
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, profile, data)
@@ -1104,12 +1193,50 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 		return fmt.Errorf("failed to post sales payment journal: %w", err)
 	}
 
+	pay.ResolvedCOAID = &transactionCOAID
+	if err := database.GetDB(ctx, uc.db).Model(&models.SalesPayment{}).
+		Where("id = ?", pay.ID).
+		Updates(map[string]interface{}{"resolved_coa_id": transactionCOAID, "updated_at": apptime.Now()}).Error; err != nil {
+		return fmt.Errorf("failed to persist resolved COA for sales payment: %w", err)
+	}
+
 	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSalesPayment, pay.ID)
 	return nil
 }
 
 func (uc *salesPaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.SalesPayment) error {
 	return uc.triggerJournalEntry(ctx, pay)
+}
+
+func (uc *salesPaymentUsecase) resolveTransactionCOAForJournal(ctx context.Context, pay *models.SalesPayment, resolvedBankAccount *coreModels.BankAccount) (string, error) {
+	if pay == nil {
+		return "", errors.New("sales payment is nil")
+	}
+	if uc.settingsUC == nil || uc.coaUC == nil {
+		return "", errors.New("finance settings/coA dependency is required for payment posting")
+	}
+
+	if strings.EqualFold(string(pay.Method), string(models.SalesPaymentMethodCash)) {
+		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, "finance.cash_default")
+		if err != nil || strings.TrimSpace(defaultCode) == "" {
+			return "", fmt.Errorf("failed to resolve finance.cash_default mapping: %w", err)
+		}
+
+		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch COA for finance.cash_default (%s): %w", defaultCode, err)
+		}
+		return def.ID, nil
+	}
+
+	if resolvedBankAccount != nil && resolvedBankAccount.ChartOfAccountID != nil {
+		chartOfAccountID := strings.TrimSpace(*resolvedBankAccount.ChartOfAccountID)
+		if chartOfAccountID != "" {
+			return chartOfAccountID, nil
+		}
+	}
+
+	return "", errors.New("bank account must have ChartOfAccountID linked for BANK payments")
 }
 
 func (uc *salesPaymentUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {

@@ -50,8 +50,12 @@ func (m *PurchasePaymentMapper) ToListResponse(p *models.PurchasePayment) *dto.P
 		strings.TrimSpace(p.BankAccountNumberSnapshot) != "" ||
 		strings.TrimSpace(p.BankAccountHolderSnapshot) != "" ||
 		strings.TrimSpace(p.BankAccountCurrencySnapshot) != "" {
+		id := ""
+		if p.BankAccountID != nil {
+			id = strings.TrimSpace(*p.BankAccountID)
+		}
 		bankSummary = &dto.PurchasePaymentBankAccountSummary{
-			ID:            p.BankAccountID,
+			ID:            id,
 			Name:          p.BankAccountNameSnapshot,
 			AccountNumber: p.BankAccountNumberSnapshot,
 			AccountHolder: p.BankAccountHolderSnapshot,
@@ -68,7 +72,7 @@ func (m *PurchasePaymentMapper) ToListResponse(p *models.PurchasePayment) *dto.P
 	}
 	return &dto.PurchasePaymentListResponse{
 		ID:           p.ID,
-		CompanyID:    p.CompanyID,
+		CompanyID:    &p.CompanyID,
 		FiscalYearID: p.FiscalYearID,
 		Invoice:      m.toInvoiceSummary(p.SupplierInvoice),
 		BankAccount:  bankSummary,

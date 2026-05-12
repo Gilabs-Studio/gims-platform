@@ -31,6 +31,8 @@ type SalesPayment struct {
 	CustomerInvoiceID string           `gorm:"type:uuid;not null;index" json:"invoice_id"`
 	CustomerInvoice   *CustomerInvoice `gorm:"foreignKey:CustomerInvoiceID" json:"invoice,omitempty"`
 
+	// BankAccountID is always stored for operational tracking (cash drawer or bank account).
+	// Journal COA resolution happens at confirm time and does not read this field directly.
 	BankAccountID               string                  `gorm:"type:uuid;not null;index" json:"bank_account_id"`
 	BankAccount                 *coreModels.BankAccount `gorm:"foreignKey:BankAccountID" json:"bank_account,omitempty"`
 	BankAccountNameSnapshot     string                  `gorm:"type:varchar(150)" json:"bank_account_name_snapshot,omitempty"`
@@ -48,6 +50,8 @@ type SalesPayment struct {
 
 	ReferenceNumber *string `gorm:"type:varchar(100);index" json:"reference_number,omitempty"`
 	Notes           *string `gorm:"type:text" json:"notes,omitempty"`
+	SnapshotCOAID   *string `gorm:"type:uuid;index" json:"snapshot_coa_id,omitempty"`
+	ResolvedCOAID   *string `gorm:"type:uuid;index" json:"resolved_coa_id,omitempty"`
 
 	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`

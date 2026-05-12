@@ -62,6 +62,7 @@ const (
 	MappingKeyCOAGRIR                        = "coa.gr_ir"
 	MappingKeyCOAPurchaseGRIR                = "coa.purchase_gr_ir"
 	MappingKeyCOAPurchaseVATIn               = "coa.purchase_vat_in"
+	MappingKeyCOAPurchasePriceDiff           = "coa.purchase_price_diff"
 	MappingKeyCOAVATIn                       = "coa.vat_in"
 	MappingKeyCOAPurchaseExpense             = "coa.purchase_expense"
 	MappingKeyCOAPurchaseReturn              = "coa.purchase_return"
@@ -70,6 +71,8 @@ const (
 	MappingKeyCOAInventoryGain               = "coa.inventory_gain"
 	MappingKeyCOAInventoryLoss               = "coa.inventory_loss"
 	MappingKeyCOAInventoryRevaluationReserve = "coa.inventory_revaluation_reserve"
+	MappingKeyCOASalesReceivableDP           = "coa.sales_receivable_dp"
+	MappingKeyCOAPurchasePayableDP           = "coa.purchase_payable_dp"
 	MappingKeyCOACOGS                        = "coa.cogs"
 
 	// Sales related

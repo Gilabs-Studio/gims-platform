@@ -242,6 +242,7 @@ func SeedIntegrationFlow() error {
 			si := purchaseModels.SupplierInvoice{
 				Type:            purchaseModels.SupplierInvoiceTypeNormal,
 				PurchaseOrderID: po.ID,
+				CompanyID:       &companyID,
 				SupplierID:      supplier.ID,
 				PaymentTermsID:  &pt.ID,
 				Code:            fmt.Sprintf("SI-INT-%s", tag),
@@ -292,9 +293,8 @@ func SeedIntegrationFlow() error {
 
 			// D) Purchase Payment (Triggers Payment Journal)  only for the last two APPROVED sets.
 			if i >= 4 {
-				pp := purchaseModels.PurchasePayment{
-					SupplierInvoiceID: si.ID,
-					BankAccountID:     bankAccount.ID,
+				pp := purchaseModels.PurchasePayment{				CompanyID:         companyID,					SupplierInvoiceID: si.ID,
+					BankAccountID:     &bankAccount.ID,
 					PaymentDate:       now,
 					Amount:            total,
 					Method:            purchaseModels.PurchasePaymentMethodBank,

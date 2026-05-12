@@ -22,6 +22,7 @@ import (
 	"github.com/gilabs/gims/api/internal/pos/presentation/handler"
 	"github.com/gilabs/gims/api/internal/pos/presentation/router"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	salesUsecase "github.com/gilabs/gims/api/internal/sales/domain/usecase"
 )
 
 // RegisterRoutes registers all POS domain routes under /api/v1/pos.
@@ -29,7 +30,7 @@ import (
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase) {
+}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase, customerInvoiceUC salesUsecase.CustomerInvoiceUsecase, salesPaymentUC salesUsecase.SalesPaymentUsecase) {
 	credentialCipher, err := securityInfra.NewCredentialCipher(config.AppConfig.Security.XenditCredentialEncryptionKey)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Xendit credential cipher: %v", err))
@@ -58,7 +59,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo, credentialCipher)
+	paymentUC := usecase.NewPOSPaymentUsecase(db, paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, customerInvoiceUC, salesPaymentUC, salesPaymentRepo, bankAccountRepo, credentialCipher)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 	sessionUC := usecase.NewPOSSessionUsecase(sessionRepo, outletRepo)

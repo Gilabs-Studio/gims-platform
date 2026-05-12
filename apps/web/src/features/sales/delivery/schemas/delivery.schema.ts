@@ -64,6 +64,8 @@ export const getDeliveryItemSchema = (t?: TranslationFn) =>
 				.optional(),
 			installation_status: z.string().optional().or(z.literal("")),
 			function_test_status: z.string().optional().or(z.literal("")),
+			row_type: z.enum(["primary", "allocation"] as const).optional(),
+			allocation_parent_index: z.number().int().nonnegative().optional(),
 		})
 		.refine(
 			(data) => {

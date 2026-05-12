@@ -64,6 +64,18 @@ func SeedBankAccounts() error {
 		return err
 	}
 
+	// Ensure the canonical Cash COA exists so mapping finance.cash_default -> 11101 resolves
+	cashCOA := financeModels.ChartOfAccount{
+		TenantID: DefaultTenantID,
+		Code:     "11101",
+		Name:     "Kas",
+		Type:     financeModels.AccountTypeCashBank,
+		IsActive: true,
+	}
+	if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "tenant_id"}, {Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&cashCOA).Error; err != nil {
+		log.Printf("Warning: Failed to ensure Cash COA 11101: %v", err)
+	}
+
 	// 1) Resolve currency ID mapping.
 	currencyIDs := map[string]string{}
 	var currencies []coreModels.Currency
