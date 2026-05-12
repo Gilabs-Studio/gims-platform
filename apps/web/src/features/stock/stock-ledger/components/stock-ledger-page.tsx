@@ -44,6 +44,9 @@ import { formatCurrency } from "@/lib/utils";
 import { productService } from "@/features/master-data/product/services/product-service";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import type { Product } from "@/features/master-data/product/types";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
+import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
 import { useStockLedger } from "../hooks/use-stock-ledger";
 
 type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER";
@@ -161,6 +164,13 @@ export function StockLedgerPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const canViewGR = useUserPermission("goods_receipt.read");
+  const canViewOpname = useUserPermission("stock_opname.read");
+
+  const [refEntityOpen, setRefEntityOpen] = useState(false);
+  const [refEntityType, setRefEntityType] = useState<string | null>(null);
+  const [refEntityId, setRefEntityId] = useState<string | null>(null);
+
   const selectedProductQuery = useProduct(productId, { enabled: !!productId });
   const selectedProduct = selectedProductQuery.data?.data ?? null;
   const productDefaultOptions = selectedProduct ? [selectedProduct] : [];
@@ -234,6 +244,20 @@ export function StockLedgerPage() {
       case "OPNAME": return "warning";
       default: return "info";
     }
+  };
+
+  const refHasPermission = (refType: string) =>
+    (refType === "GR" && canViewGR) ||
+    (refType === "OPNAME" && canViewOpname);
+
+  const handleRefClick = (row: { transaction_type: string; transaction_id: string }) => {
+    const hasPermission =
+      (row.transaction_type === "GR" && canViewGR) ||
+      (row.transaction_type === "OPNAME" && canViewOpname);
+    if (!hasPermission) return;
+    setRefEntityType(row.transaction_type);
+    setRefEntityId(row.transaction_id);
+    setRefEntityOpen(true);
   };
 
   /* ── render ── */
@@ -527,7 +551,14 @@ export function StockLedgerPage() {
                       </TableCell>
 
                       <TableCell className="py-3">
-                        <span className="font-mono text-xs text-muted-foreground">
+                        <span
+                          className={
+                            refHasPermission(row.transaction_type)
+                              ? "cursor-pointer font-mono text-xs font-bold text-primary hover:underline"
+                              : "font-mono text-xs font-medium text-muted-foreground"
+                          }
+                          onClick={() => handleRefClick(row)}
+                        >
                           {row.transaction_id}
                         </span>
                       </TableCell>
@@ -597,6 +628,17 @@ export function StockLedgerPage() {
           />
         </div>
       )}
+      <GoodsReceiptDetail
+        open={refEntityOpen && refEntityType === "GR"}
+        onClose={() => setRefEntityOpen(false)}
+        goodsReceiptId={refEntityId}
+      />
+
+      <StockOpnameDetailDialog
+        open={refEntityOpen && refEntityType === "OPNAME"}
+        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
+        opnameId={refEntityType === "OPNAME" ? refEntityId : null}
+      />
     </PageMotion>
   );
 }
