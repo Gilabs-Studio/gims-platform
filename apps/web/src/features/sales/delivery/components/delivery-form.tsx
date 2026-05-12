@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Controller,
@@ -106,7 +106,6 @@ export function DeliveryForm({
 		handleAddItem,
 		handleDialogChange,
 		onInvalid,
-		watchedSalesOrderId,
 		quickCreate,
 		openQuickCreate,
 		closeQuickCreate,
@@ -118,6 +117,12 @@ export function DeliveryForm({
 		courierAgenciesCombobox,
 		warehousesCombobox,
 	} = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
+
+	const watchedItems = useWatch({ control: form.control, name: "items" });
+	const hasLockedSalesOrderItems = useMemo(
+		() => (watchedItems ?? []).some((item) => !!item?.sales_order_item_id),
+		[watchedItems],
+	);
 
 	const {
 		register,
@@ -568,7 +573,7 @@ export function DeliveryForm({
                                 Maybe allow deleting if partial delivery of LINES. 
                                 Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
                             */}
-															{!watchedSalesOrderId && (
+																{!currentItem?.sales_order_item_id && (
 															<Button
 																type="button"
 																variant="ghost"
@@ -655,7 +660,7 @@ export function DeliveryForm({
 													<FieldError>{errors.items.message}</FieldError>
 												)}
 
-											{!watchedSalesOrderId && (
+															{!hasLockedSalesOrderItems && (
 												<Button
 													type="button"
 													variant="outline"
@@ -893,7 +898,11 @@ function BatchSelectionField({
 	const quantity = useWatch({ control, name: `items.${index}.quantity` }) as
 		| number
 		| undefined;
-	const { setValue } = useFormContext();
+	const selectedBatchId = useWatch({
+		control,
+		name: `items.${index}.inventory_batch_id`,
+	});
+	const { setValue, setError, clearErrors } = useFormContext();
 
 	const { data: batchesData, isLoading } = useProductBatches(
 		warehouseId ?? "",
@@ -906,6 +915,113 @@ function BatchSelectionField({
 	const batches = useMemo(() => {
 		return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
 	}, [batchesData]);
+	const availableBatches = useMemo(
+		() => batches.filter((batch: InventoryBatchItem) => (batch.available ?? 0) > 0),
+		[batches],
+	);
+	const selectedBatch = useMemo(
+		() => batches.find((batch: InventoryBatchItem) => batch.id === selectedBatchId) ?? null,
+		[batches, selectedBatchId],
+	);
+	const preferredBatch = useMemo(
+		() =>
+			availableBatches.find(
+				(batch: InventoryBatchItem) => (batch.available ?? 0) >= (quantity ?? 0),
+			) ?? availableBatches[0] ?? null,
+		[availableBatches, quantity],
+	);
+	const preferredBatchId = preferredBatch?.id;
+	const preferredBatchAvailable = preferredBatch?.available ?? 0;
+
+	useEffect(() => {
+		if (!open || !warehouseId || !productId) {
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
+
+		if (isLoading) {
+			return;
+		}
+
+		if (availableBatches.length === 0) {
+			setError(`items.${index}.inventory_batch_id`, {
+				type: "manual",
+				message: t("validation.noBatchesAvailable"),
+			});
+			return;
+		}
+
+		if (!selectedBatch || (selectedBatch.available ?? 0) <= 0) {
+			setValue(`items.${index}.inventory_batch_id`, preferredBatchId ?? "", {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			setValue(`items.${index}.max_quantity`, preferredBatchAvailable, {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
+
+		if ((quantity ?? 0) > (selectedBatch.available ?? 0) && preferredBatchId !== selectedBatch.id) {
+			setValue(`items.${index}.inventory_batch_id`, preferredBatchId ?? "", {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			setValue(`items.${index}.max_quantity`, preferredBatchAvailable, {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
+
+		setValue(`items.${index}.max_quantity`, selectedBatch.available ?? 0, {
+			shouldValidate: true,
+		});
+		clearErrors(`items.${index}.inventory_batch_id`);
+	}, [
+		availableBatches,
+		clearErrors,
+		index,
+		preferredBatchAvailable,
+		preferredBatchId,
+		isLoading,
+		open,
+		productId,
+		quantity,
+		selectedBatch,
+		setError,
+		setValue,
+		warehouseId,
+		t,
+	]);
+
+	const batchHelperMessage = useMemo(() => {
+		if (!warehouseId) {
+			return t("item.selectWarehouseFirst");
+		}
+
+		if (!productId) {
+			return t("item.selectProductFirst");
+		}
+
+		if (isLoading) {
+			return t("common.loading");
+		}
+
+		if (availableBatches.length === 0) {
+			return t("item.noBatchesHint");
+		}
+
+		if (preferredBatch && selectedBatch?.id === preferredBatch.id) {
+			return t("item.autoSelectedBatch") +
+				(preferredBatch.batch_number ? `: ${preferredBatch.batch_number}` : "");
+		}
+
+		return "";
+	}, [availableBatches.length, isLoading, preferredBatch, productId, selectedBatch?.id, t, warehouseId]);
 
 	// Aggregate available stock across all batches in the selected warehouse
 	const totalAvailable = batches.reduce(
@@ -997,12 +1113,11 @@ function BatchSelectionField({
 				</>
 			)}
 
-			{error && <FieldError>{error}</FieldError>}
-			{!warehouseId && (
-				<p className="text-xs text-muted-foreground mt-1">
-					Select warehouse first
-				</p>
-			)}
+			{error ? (
+				<FieldError>{error}</FieldError>
+			) : batchHelperMessage ? (
+				<FieldDescription>{batchHelperMessage}</FieldDescription>
+			) : null}
 		</Field>
 	);
 }

@@ -9,6 +9,7 @@ export const salesOverviewReportId = {
     performance_list_description:
       "Metrik performa untuk semua sales representative",
     search_placeholder: "Cari berdasarkan nama atau kode...",
+    target_revenue: "Target / Pendapatan",
     total_revenue: "Total Pendapatan",
     total_orders: "Total Pesanan",
     visits_completed: "Kunjungan Selesai",

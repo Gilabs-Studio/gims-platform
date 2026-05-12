@@ -27,7 +27,7 @@ const (
 )
 
 type PurchasePayment struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	CompanyID string              `gorm:"type:uuid;index;not null" json:"company_id"`
@@ -45,8 +45,8 @@ type PurchasePayment struct {
 	BankAccountHolderSnapshot   string                  `gorm:"type:varchar(150)" json:"bank_account_holder_snapshot,omitempty"`
 	BankAccountCurrencySnapshot string                  `gorm:"type:varchar(10)" json:"bank_account_currency_snapshot,omitempty"`
 
-	PaymentDate string  `gorm:"type:varchar(20);not null;index" json:"payment_date"`
-	Amount      float64 `gorm:"type:decimal(15,2);not null;default:0" json:"amount"`
+	PaymentDate time.Time `gorm:"type:date;not null;index" json:"payment_date"`
+	Amount      float64   `gorm:"type:decimal(15,2);not null;default:0" json:"amount"`
 
 	Method PurchasePaymentMethod `gorm:"type:varchar(20);not null;index" json:"method"`
 	Status PurchasePaymentStatus `gorm:"type:varchar(20);not null;default:'PENDING';index" json:"status"`

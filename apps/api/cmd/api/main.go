@@ -528,7 +528,7 @@ func main() {
 			SalesOrderUC:      salesDeps.OrderUC,
 			DeliveryOrderUC:   salesDeps.DeliveryOrderUC,
 			CustomerInvoiceUC: salesDeps.CustomerInvoiceUC,
-			YearlyTargetUC:    salesDeps.YearlyTargetUC,
+
 			InventoryUC:       invUC,
 			PurchaseOrderUC:   purchaseDeps.OrderUC,
 			PurchaseReqUC:     purchaseDeps.RequisitionUC,

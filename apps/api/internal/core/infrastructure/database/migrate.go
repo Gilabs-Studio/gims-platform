@@ -255,9 +255,6 @@ func AutoMigrate() error {
 		&sales.SalesVisit{},
 		&sales.SalesVisitDetail{},
 		&sales.SalesVisitProgressHistory{},
-		// Sales Targets entities (Sprint 7)
-		&sales.YearlyTarget{},
-		&sales.MonthlyTarget{},
 		// Sales Targets per Employee (Sales Target feature)
 		&sales.SalesTarget{},
 		&sales.MonthlySalesTarget{},

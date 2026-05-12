@@ -115,6 +115,14 @@ export function AttendanceRecordForm({
     }
   }, [isTimeDisabled, setValue]);
 
+  useEffect(() => {
+    if (isEdit || employeeIdValue || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, { shouldValidate: true });
+  }, [employees, employeeIdValue, isEdit, setValue]);
+
   // Effect: Auto-fill time fields from work schedule when status is PRESENT
   useEffect(() => {
     if (!schedule) return;

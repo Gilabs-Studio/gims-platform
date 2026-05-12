@@ -102,8 +102,12 @@ func (uc *salesOverviewUsecase) ListSalesRepPerformance(ctx context.Context, req
 		return nil, utils.PaginationResult{}, err
 	}
 
-	// Get yearly targets for each employee
-	year := endDate.Year()
+	// Batch-fetch targets for all visible employees in a single query to avoid N+1.
+	employeeIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		employeeIDs = append(employeeIDs, row.EmployeeID)
+	}
+	targetAmounts, _ := uc.repo.GetEmployeeTargetAmounts(ctx, employeeIDs, startDate, endDate)
 
 	results := make([]dto.SalesRepPerformanceResponse, 0, len(rows))
 	for _, row := range rows {
@@ -137,12 +141,8 @@ func (uc *salesOverviewUsecase) ListSalesRepPerformance(ctx context.Context, req
 			AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
 		}
 
-		// Always provide target fields (0 if none) to avoid nulls in UI.
-		target := float64(0)
-		targetResult, targetErr := uc.repo.GetSalesRepYearlyTarget(ctx, row.EmployeeID, year)
-		if targetErr == nil {
-			target = targetResult
-		}
+		// Always provide target fields (0 if none found) to avoid nulls in UI.
+		target := targetAmounts[row.EmployeeID]
 		formatted := formatCurrencyIDR(target)
 		achievement := float64(0)
 		if target > 0 {
@@ -223,6 +223,13 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		return nil, nil
 	}
 
+	// Use the same target source as list endpoint to keep target values consistent.
+	targetAmounts, err := uc.repo.GetEmployeeTargetAmounts(ctx, []string{employeeID}, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	targetFromRange := targetAmounts[employeeID]
+
 	conversionRate := float64(0)
 	if row.VisitsCompleted > 0 {
 		conversionRate = math.Round((float64(row.TotalOrders)/float64(row.VisitsCompleted))*10000) / 100
@@ -231,6 +238,16 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 	avgOrderValue := float64(0)
 	if row.TotalOrders > 0 {
 		avgOrderValue = row.TotalRevenue / float64(row.TotalOrders)
+	}
+
+	// Calculate target achievement percentage
+	targetAmount := targetFromRange
+	formatted := formatCurrencyIDR(targetAmount)
+	targetAmountFormatted := &formatted
+	targetAchievementPercent := float64(0)
+	if targetAmount > 0 {
+		achievementPercent := math.Round((row.TotalRevenue/targetAmount)*10000) / 100
+		targetAchievementPercent = achievementPercent
 	}
 
 	stats := &dto.SalesRepStatisticsResponse{
@@ -242,6 +259,9 @@ func (uc *salesOverviewUsecase) GetSalesRepDetail(ctx context.Context, employeeI
 		ConversionRate:             conversionRate,
 		AverageOrderValue:          avgOrderValue,
 		AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
+		TargetAmount:               &targetAmount,
+		TargetAmountFormatted:      targetAmountFormatted,
+		TargetAchievementPercent:   &targetAchievementPercent,
 	}
 
 	// Period comparison: calculate percentage change vs previous period

@@ -191,7 +191,7 @@ func (r *PayableRecapRepository) FindAll(ctx context.Context, params PayableReca
 	}
 
 	// Sort
-	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
+	orderBy := " ORDER BY last_transaction DESC, outstanding_amount DESC, aging_days DESC"
 	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
@@ -251,7 +251,7 @@ func (r *PayableRecapRepository) FindAllForExport(ctx context.Context, params Pa
 		queryParams["search"] = "%" + search + "%"
 	}
 
-	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
+	orderBy := " ORDER BY last_transaction DESC, outstanding_amount DESC, aging_days DESC"
 	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {

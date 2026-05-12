@@ -104,13 +104,7 @@ func NewAssetUsecase(
 	return uc
 }
 
-func parseAssetDateStrict(value string) (time.Time, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return time.Time{}, errors.New("date is required")
-	}
-	return time.Parse("2006-01-02", value)
-}
+// parseAssetDateStrict is consolidated in helpers.go and is used throughout the finance package
 
 func ymPeriod(t time.Time) string {
 	return fmt.Sprintf("%04d-%02d", t.Year(), int(t.Month()))
@@ -335,7 +329,7 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		return nil, errors.New("tenant is required")
 	}
 
-	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
+	acqDate, err := parseDate(req.AcquisitionDate)
 	if err != nil {
 		return nil, err
 	}
@@ -639,7 +633,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 		return nil, ErrAssetDisposedImmutable
 	}
 
-	acqDate, err := parseAssetDateStrict(req.AcquisitionDate)
+	acqDate, err := parseDate(req.AcquisitionDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,7 +1264,7 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 		return nil, errors.New("user not authenticated")
 	}
 
-	asOfDate, err := parseAssetDateStrict(req.AsOfDate)
+	asOfDate, err := parseDate(req.AsOfDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1725,7 +1719,7 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 		return nil, errors.New("user not authenticated")
 	}
 
-	transferDate, err := parseAssetDateStrict(req.TransferDate)
+	transferDate, err := parseDate(req.TransferDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1808,7 +1802,7 @@ func (uc *assetUsecase) PreviewDisposal(ctx context.Context, id string, req *dto
 		return nil, errors.New("request is required")
 	}
 
-	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
+	disposalDate, err := parseDate(req.DisposalDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1868,7 +1862,7 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 	}
 	tenantID := tenantIDFromContext(ctx)
 
-	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
+	disposalDate, err := parseDate(req.DisposalDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1957,7 +1951,7 @@ func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetR
 	}
 	tenantID := tenantIDFromContext(ctx)
 
-	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
+	disposalDate, err := parseDate(req.DisposalDate)
 	if err != nil {
 		return nil, err
 	}
@@ -2596,7 +2590,7 @@ func (uc *assetUsecase) Return(ctx context.Context, id string, req *dto.ReturnAs
 		return nil, errors.New("request is required")
 	}
 
-	returnDate, err := parseAssetDateStrict(req.ReturnDate)
+	returnDate, err := parseDate(req.ReturnDate)
 	if err != nil {
 		return nil, err
 	}

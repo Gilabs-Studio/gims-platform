@@ -58,11 +58,11 @@ type SupplierInvoice struct {
 	PaymentTermsNameSnapshot string                   `gorm:"type:varchar(150)" json:"payment_terms_name_snapshot,omitempty"`
 	PaymentTermsDaysSnapshot *int                     `gorm:"type:int" json:"payment_terms_days_snapshot,omitempty"`
 
-	Code             string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	InvoiceNumber    string `gorm:"type:varchar(100);index;not null" json:"invoice_number"`
-	InvoiceDate      string `gorm:"type:varchar(20);index;not null" json:"invoice_date"`
-	DueDate          string `gorm:"type:varchar(20);index;not null" json:"due_date"`
-	TaxInvoiceNumber string `gorm:"type:varchar(100);index" json:"tax_invoice_number,omitempty"`
+	Code             string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	InvoiceNumber    string    `gorm:"type:varchar(100);index;not null" json:"invoice_number"`
+	InvoiceDate      time.Time `gorm:"type:date;index;not null" json:"invoice_date"`
+	DueDate          time.Time `gorm:"type:date;index;not null" json:"due_date"`
+	TaxInvoiceNumber string    `gorm:"type:varchar(100);index" json:"tax_invoice_number,omitempty"`
 
 	TaxRate           float64 `gorm:"type:decimal(5,2);default:0" json:"tax_rate"`
 	TaxAmount         float64 `gorm:"type:decimal(15,2);default:0" json:"tax_amount"`

@@ -65,7 +65,7 @@ const (
 
 type TravelPlan struct {
 	ID           string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID     string           `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code         string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Title        string           `gorm:"type:varchar(255);not null" json:"title"`
 	PlanType     TravelPlanType   `gorm:"type:varchar(30);default:'up_country_cost';index;not null" json:"plan_type"`
@@ -98,6 +98,7 @@ func (t *TravelPlan) BeforeCreate(tx *gorm.DB) error {
 
 type TravelPlanDay struct {
 	ID           string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID     string    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	TravelPlanID string    `gorm:"type:uuid;not null;index;uniqueIndex:idx_travel_plan_day_order,priority:1" json:"travel_plan_id"`
 	DayIndex     int       `gorm:"not null;uniqueIndex:idx_travel_plan_day_order,priority:2" json:"day_index"`
 	DayDate      time.Time `gorm:"type:date;not null" json:"day_date"`
@@ -124,6 +125,7 @@ func (t *TravelPlanDay) BeforeCreate(tx *gorm.DB) error {
 
 type TravelPlanStop struct {
 	ID              string             `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID        string             `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	TravelPlanDayID string             `gorm:"type:uuid;not null;index" json:"travel_plan_day_id"`
 	PlaceName       string             `gorm:"type:varchar(255);not null" json:"place_name"`
 	Latitude        float64            `gorm:"type:numeric(10,6);not null" json:"latitude"`
@@ -153,6 +155,7 @@ func (t *TravelPlanStop) BeforeCreate(tx *gorm.DB) error {
 
 type TravelPlanDayNote struct {
 	ID              string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID        string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	TravelPlanDayID string `gorm:"type:uuid;not null;index" json:"travel_plan_day_id"`
 	IconTag         string `gorm:"type:varchar(40)" json:"icon_tag"`
 	NoteText        string `gorm:"type:text;not null" json:"note_text"`
@@ -177,6 +180,7 @@ func (t *TravelPlanDayNote) BeforeCreate(tx *gorm.DB) error {
 
 type TravelPlanExpense struct {
 	ID           string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID     string            `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	TravelPlanID string            `gorm:"type:uuid;not null;index" json:"travel_plan_id"`
 	ExpenseType  TravelExpenseType `gorm:"type:varchar(30);not null;index" json:"expense_type"`
 	Description  string            `gorm:"type:text" json:"description"`

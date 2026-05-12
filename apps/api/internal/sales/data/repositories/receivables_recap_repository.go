@@ -190,7 +190,7 @@ func (r *ReceivablesRecapRepository) FindAll(ctx context.Context, params Receiva
 	}
 
 	// Sort
-	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
+	orderBy := " ORDER BY last_transaction DESC, outstanding_amount DESC, aging_days DESC"
 	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {
@@ -250,7 +250,7 @@ func (r *ReceivablesRecapRepository) FindAllForExport(ctx context.Context, param
 		queryParams["search"] = "%" + search + "%"
 	}
 
-	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"
+	orderBy := " ORDER BY last_transaction DESC, outstanding_amount DESC, aging_days DESC"
 	if sortBy, ok := allowedSortCols[params.SortBy]; ok {
 		dir := "ASC"
 		if strings.EqualFold(params.SortDir, "desc") {

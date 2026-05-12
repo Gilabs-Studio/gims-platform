@@ -35,6 +35,7 @@ import (
 var (
 	ErrPurchasePaymentNotFound     = errors.New("purchase payment not found")
 	ErrPurchasePaymentConflict     = errors.New("purchase payment conflict")
+	ErrInvalidPaymentDate          = errors.New("invalid payment date format")
 	payableSupplierInvoiceStatuses = []models.SupplierInvoiceStatus{
 		models.SupplierInvoiceStatusUnpaid,
 		models.SupplierInvoiceStatusPartial,
@@ -294,7 +295,7 @@ func isSamePendingPaymentRequest(
 	if pendingBA != strings.TrimSpace(bankAccountID) {
 		return false
 	}
-	if strings.TrimSpace(pending.PaymentDate) != strings.TrimSpace(paymentDate) {
+	if pending.PaymentDate.Format("2006-01-02") != strings.TrimSpace(paymentDate) {
 		return false
 	}
 	if pending.Method != method {
@@ -353,8 +354,8 @@ func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePay
 			Code:            inv.Code,
 			InvoiceNumber:   inv.InvoiceNumber,
 			Type:            string(inv.Type),
-			InvoiceDate:     inv.InvoiceDate,
-			DueDate:         inv.DueDate,
+			InvoiceDate:     inv.InvoiceDate.Format("2006-01-02"),
+			DueDate:         inv.DueDate.Format("2006-01-02"),
 			Amount:          inv.Amount,
 			PaidAmount:      inv.PaidAmount,
 			RemainingAmount: inv.RemainingAmount,
@@ -475,10 +476,15 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			resolvedCompanyID = strings.TrimSpace(*inv.CompanyID)
 		}
 
+		paymentDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.PaymentDate))
+		if err != nil {
+			return ErrInvalidPaymentDate
+		}
+
 		p := &models.PurchasePayment{
 			SupplierInvoiceID: inv.ID,
 			BankAccountID:     bankAccountID,
-			PaymentDate:       strings.TrimSpace(req.PaymentDate),
+			PaymentDate:       paymentDateParsed,
 			Amount:            amount,
 			Method:            method,
 			Status:            models.PurchasePaymentStatusPending,
@@ -489,7 +495,7 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 		p.CompanyID = resolvedCompanyID
 		p.FiscalYearID = inv.FiscalYearID
 		if p.CompanyID == "" || p.FiscalYearID == nil {
-			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate.Format("2006-01-02"))
 			if err != nil {
 				return err
 			}
@@ -555,6 +561,11 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 	paymentDate := strings.TrimSpace(req.PaymentDate)
 	if paymentDate == "" {
 		return nil, ErrPurchasePaymentConflict
+	}
+
+	paymentDateParsed, err := time.Parse("2006-01-02", paymentDate)
+	if err != nil {
+		return nil, ErrInvalidPaymentDate
 	}
 
 	normalizedItems := make([]dto.CreatePurchasePaymentBatchItemRequest, 0, len(req.Items))
@@ -629,7 +640,7 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 
 			pay := &models.PurchasePayment{
 				SupplierInvoiceID: inv.ID,
-				PaymentDate:       paymentDate,
+				PaymentDate:       paymentDateParsed,
 				Amount:            item.Amount,
 				Method:            method,
 				Status:            models.PurchasePaymentStatusPending,
@@ -645,7 +656,7 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 			}
 			pay.FiscalYearID = inv.FiscalYearID
 			if pay.CompanyID == "" || pay.FiscalYearID == nil {
-				companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
+				companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate.Format("2006-01-02"))
 				if err != nil {
 					return err
 				}
@@ -1415,7 +1426,7 @@ func (uc *purchasePaymentUsecase) createCashBankTransactionForPayment(ctx contex
 		CompanyID:       strings.TrimSpace(bankAccount.CompanyID),
 		BankAccountID:   strings.TrimSpace(bankAccount.ID),
 		Type:            financeModels.CashBankTransactionTypePaymentOut,
-		Date:            strings.TrimSpace(pay.PaymentDate),
+		Date:            pay.PaymentDate.Format("2006-01-02"),
 		Amount:          pay.Amount,
 		Reference:       referenceValue,
 		Description:     description,
@@ -1560,7 +1571,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		profile = accounting.ProfilePurchasePaymentDP
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, &pay.CompanyID, pay.FiscalYearID, pay.PaymentDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, &pay.CompanyID, pay.FiscalYearID, pay.PaymentDate.Format("2006-01-02"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve purchase payment journal scope: %w", err)
 	}
@@ -1570,7 +1581,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		ReferenceID:      pay.ID,
 		CompanyID:        companyID,
 		FiscalYearID:     fiscalYearID,
-		EntryDate:        pay.PaymentDate,
+		EntryDate:        pay.PaymentDate.Format("2006-01-02"),
 		Description:      fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, reqRefNum),
 		TotalAmount:      pay.Amount,
 		TransactionCOAID: baCOAID,
@@ -1772,7 +1783,7 @@ func (uc *purchasePaymentUsecase) ExportCSV(ctx context.Context, params reposito
 			it.ID,
 			invCode,
 			bankName,
-			it.PaymentDate,
+			it.PaymentDate.Format("2006-01-02"),
 			strconv.FormatFloat(it.Amount, 'f', 2, 64),
 			string(it.Method),
 			string(it.Status),

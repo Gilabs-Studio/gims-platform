@@ -80,6 +80,7 @@ export function DeliverDialog({
               <ImageUpload
                 value={signatureUrl}
                 onChange={setSignatureUrl}
+                uploadFolder="sales/delivery-orders"
                 disabled={isLoading}
               />
             </div>

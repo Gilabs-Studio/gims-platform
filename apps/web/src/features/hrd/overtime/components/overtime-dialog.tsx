@@ -92,6 +92,7 @@ export function OvertimeDialog({
     handleSubmit,
     control,
     watch,
+    setValue,
     reset,
     formState: { errors },
   } = useForm<OvertimeFormData>({
@@ -108,6 +109,7 @@ export function OvertimeDialog({
 
   const startTime = watch("start_time");
   const endTime = watch("end_time");
+  const selectedEmployeeId = watch("employee_id");
 
   useEffect(() => {
     if (editingItem) {
@@ -130,6 +132,17 @@ export function OvertimeDialog({
       });
     }
   }, [editingItem, reset]);
+
+  useEffect(() => {
+    if (isEditing || selectedEmployeeId || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [employees, isEditing, selectedEmployeeId, setValue]);
 
   const onSubmit = async (data: OvertimeFormData) => {
     // Validate employee_id exists in the list

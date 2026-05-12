@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
@@ -92,6 +93,63 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     enabled: open && !!requisitionId,
   });
   const pr = data?.data;
+  const fallbackAuditEvents = useMemo(() => {
+    if (!pr) return [];
+
+    return [
+      {
+        id: `${pr.id}-created`,
+        action: "purchase_requisition.create",
+        at: pr.created_at,
+        user: pr.user?.name ?? pr.user?.email ?? null,
+        metadata: {
+          details: `Created purchase requisition with total ${formatCurrency(pr.total_amount ?? 0)}`,
+        },
+      },
+      {
+        id: `${pr.id}-updated`,
+        action: "purchase_requisition.update",
+        at: pr.updated_at,
+        user: pr.user?.name ?? pr.user?.email ?? null,
+        metadata:
+          pr.updated_at && pr.updated_at !== pr.created_at
+            ? { details: "Purchase requisition data updated" }
+            : null,
+      },
+      {
+        id: `${pr.id}-submitted`,
+        action: "purchase_requisition.submit",
+        at: pr.submitted_at,
+        metadata: {
+          status: "submitted",
+        },
+      },
+      {
+        id: `${pr.id}-approved`,
+        action: "purchase_requisition.approve",
+        at: pr.approved_at,
+        metadata: {
+          status: "approved",
+        },
+      },
+      {
+        id: `${pr.id}-rejected`,
+        action: "purchase_requisition.reject",
+        at: pr.rejected_at,
+        metadata: {
+          status: "rejected",
+        },
+      },
+      {
+        id: `${pr.id}-converted`,
+        action: "purchase_requisition.convert",
+        at: pr.converted_at,
+        metadata: {
+          status: "converted",
+        },
+      },
+    ];
+  }, [pr]);
 
   const deleteMutation = useDeletePurchaseRequisition();
   const submitMutation = useSubmitPurchaseRequisition();
@@ -524,6 +582,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   <PurchaseRequisitionAuditTrailContent
                     enabled={open && !!requisitionId && activeTab === "audit_trail"}
                     requisitionId={requisitionId}
+                    fallbackEvents={fallbackAuditEvents}
                   />
                 </TabsContent>
               )}

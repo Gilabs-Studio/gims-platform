@@ -38,6 +38,7 @@ import type { SalesQuotation } from "../../quotation/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
+import { useDeliveryOrders } from "../../delivery/hooks/use-deliveries";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
 import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
@@ -112,12 +113,36 @@ export function OrderDetailModal({
   // Fetch invoices and DPs for the SO to compute financial overview
   const { data: invoicesData } = useInvoices(
     { sales_order_id: displayOrder?.id, per_page: 20 },
-    { enabled: open && !!displayOrder?.id && activeTab === "general" },
+    { enabled: open && !!displayOrder?.id },
+  );
+  const { data: deliveriesData } = useDeliveryOrders(
+    { sales_order_id: displayOrder?.id, per_page: 20 },
+    { enabled: open && !!displayOrder?.id },
   );
   const { data: dpData } = useCustomerInvoiceDPs(
     { sales_order_id: displayOrder?.id, per_page: 20 },
-    { enabled: open && !!displayOrder?.id && activeTab === "general" },
+    { enabled: open && !!displayOrder?.id },
   );
+
+  const hasActiveDeliveryOrder = useMemo(() => {
+    const fromList = deliveriesData?.data ?? [];
+    if (fromList.length > 0) {
+      return fromList.some((entry) => entry.status !== "cancelled");
+    }
+
+    const fromOrder = displayOrder?.delivery_orders ?? [];
+    return fromOrder.some((entry) => entry.status !== "cancelled");
+  }, [deliveriesData?.data, displayOrder?.delivery_orders]);
+
+  const hasActiveInvoice = useMemo(() => {
+    const fromList = invoicesData?.data ?? [];
+    if (fromList.length > 0) {
+      return fromList.some((entry) => !["cancelled", "void"].includes(entry.status));
+    }
+
+    const fromOrder = displayOrder?.customer_invoices ?? [];
+    return fromOrder.some((entry) => !["cancelled", "void"].includes(entry.status));
+  }, [displayOrder?.customer_invoices, invoicesData?.data]);
 
   // Fetch customer credit info for display
   const { data: customerCreditData } = useCustomer(
@@ -171,6 +196,7 @@ export function OrderDetailModal({
           id: `${displayOrder.id}-updated`,
           action: "sales_order.update",
           at: displayOrder.updated_at,
+          user: displayOrder.created_by,
           metadata:
             displayOrder.updated_at && displayOrder.updated_at !== displayOrder.created_at
               ? { details: "Order data updated" }
@@ -357,7 +383,7 @@ export function OrderDetailModal({
                   </Button>
                 )}
                 {displayOrder?.status === "approved" && canCreateDO &&
-                  !(displayOrder?.delivery_orders?.some((do_) => do_.status !== "cancelled")) && (
+                  !hasActiveDeliveryOrder && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -369,7 +395,7 @@ export function OrderDetailModal({
                   </Button>
                 )}
                 {displayOrder?.status === "approved" && canCreateInvoice &&
-                  !(displayOrder?.customer_invoices?.some((ci) => !["cancelled", "void"].includes(ci.status))) && (
+                  !hasActiveInvoice && (
                   <Button
                     variant="ghost"
                     size="icon"

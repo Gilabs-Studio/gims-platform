@@ -58,6 +58,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     handleAddItem,
     handlePreviewJournal,
     handleProductChange,
+    handleQuantityChange,
     handleDialogChange,
     onInvalid,
     quickCreate,
@@ -524,7 +525,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                             render={({ field }) => (
                               <NumericInput
                                 value={field.value}
-                                onChange={field.onChange}
+                                onChange={(value) => handleQuantityChange(index, value)}
                                 min={0.001}
                                 max={getItemMaxQuantity(item?.sales_order_item_id, item?.quantity)}
                               />
@@ -568,6 +569,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />

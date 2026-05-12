@@ -113,10 +113,7 @@ func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepo
 	return uc
 }
 
-// parseDate is kept as an alias for backward compatibility within this file.
-func parseDate(value string) (time.Time, error) {
-	return parseDateRequired(value)
-}
+// parseDate is consolidated in helpers.go and is used throughout the finance package
 
 func journalReferenceTypesForDomain(domain *string) []string {
 	if domain == nil {

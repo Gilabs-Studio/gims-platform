@@ -80,8 +80,21 @@ export const employeeId: EmployeeTranslations = {
     user: "Akun Pengguna",
     userPlaceholder: "Pilih akun pengguna",
     noUser: "Tidak ada pengguna terkait",
+    userAccountMode: "Mode Akun Pengguna",
+    userAccountModePlaceholder: "Pilih cara menghubungkan akun pengguna",
+    userAccountModeSelect: "Pilih akun pengguna yang sudah ada",
+    userAccountModeCreate: "Buat akun pengguna baru",
     userHint:
       "Hubungkan karyawan ini ke akun pengguna sistem untuk akses login.",
+    userRequiredWhenSelectMode:
+      "Silakan pilih akun pengguna saat mode Pilih Akun aktif.",
+    userSelectAutofillHint:
+      "Saat memilih akun pengguna, nama lengkap dan email akan otomatis diisi dari akun yang dipilih.",
+    userAlreadyLinkedHint:
+      "Karyawan ini sudah memiliki akun pengguna terhubung. Untuk mengubahnya, silakan kelola dari Manajemen Pengguna.",
+    createUserAccount: "Buat Akun Pengguna",
+    createUserAccountEditHint:
+      "Buat dan hubungkan akun pengguna baru menggunakan nama lengkap dan email karyawan ini.",
     division: "Divisi",
     divisionPlaceholder: "Pilih divisi",
     jobPosition: "Jabatan",

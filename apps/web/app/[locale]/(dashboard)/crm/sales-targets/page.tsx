@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { PageMotion } from "@/components/motion";
 import { SalesTargetsDualUI } from "@/features/crm/sales-targets/components/sales-targets-dual-ui";
 import SalesTargetsLoading from "./loading";
@@ -19,10 +20,12 @@ export async function generateMetadata({
 
 export default function SalesTargetsPage() {
   return (
-    <PageMotion>
-      <Suspense fallback={<SalesTargetsLoading />}>
-        <SalesTargetsDualUI />
-      </Suspense>
-    </PageMotion>
+    <PermissionGuard requiredPermission="sales_target.read">
+      <PageMotion>
+        <Suspense fallback={<SalesTargetsLoading />}>
+          <SalesTargetsDualUI />
+        </Suspense>
+      </PageMotion>
+    </PermissionGuard>
   );
 }

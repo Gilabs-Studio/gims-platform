@@ -129,6 +129,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusConflict,
 		Message:    "Resource already exists",
 	},
+	"SALES_TARGET_CONFLICT": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Sales target for selected employee and year already exists",
+	},
 	"EMAIL_ALREADY_TAKEN": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Email is already registered",

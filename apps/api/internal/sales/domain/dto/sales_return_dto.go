@@ -22,7 +22,7 @@ type SalesReturnFormDataResponse struct {
 
 type CreateSalesReturnItemRequest struct {
 	InvoiceItemID *string `json:"invoice_item_id"`
-	ProductID     string  `json:"product_id" binding:"required"`
+	ProductID     string  `json:"product_id" binding:"required,uuid"`
 	UOMID         *string `json:"uom_id"`
 	Condition     string  `json:"condition" binding:"required"`
 	Notes         *string `json:"notes"`
@@ -43,7 +43,7 @@ type CreateSalesReturnRequest struct {
 
 type UpdateSalesReturnItemRequest struct {
 	InvoiceItemID *string `json:"invoice_item_id"`
-	ProductID     string  `json:"product_id" binding:"required"`
+	ProductID     string  `json:"product_id" binding:"required,uuid"`
 	UOMID         *string `json:"uom_id"`
 	Condition     string  `json:"condition" binding:"required"`
 	Notes         *string `json:"notes"`

@@ -2,12 +2,21 @@ package mapper
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 )
 
 type SupplierInvoiceMapper struct{}
+
+// formatDateToISO formats a time.Time to ISO8601 date string (YYYY-MM-DD)
+func formatDateToISO(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02")
+}
 
 // resolveSupplierName returns the best available supplier name, falling back through
 // the snapshot hierarchy to handle legacy records that predate snapshot columns.
@@ -82,8 +91,8 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 			ID:            si.DownPaymentInvoice.ID,
 			Code:          si.DownPaymentInvoice.Code,
 			InvoiceNumber: si.DownPaymentInvoice.InvoiceNumber,
-			InvoiceDate:   si.DownPaymentInvoice.InvoiceDate,
-			DueDate:       si.DownPaymentInvoice.DueDate,
+			InvoiceDate:   formatDateToISO(si.DownPaymentInvoice.InvoiceDate),
+			DueDate:       formatDateToISO(si.DownPaymentInvoice.DueDate),
 			Amount:        si.DownPaymentInvoice.Amount,
 			Status:        string(si.DownPaymentInvoice.Status),
 		}
@@ -102,8 +111,8 @@ func (m *SupplierInvoiceMapper) ToListResponse(si *models.SupplierInvoice) *dto.
 		Type:               string(si.Type),
 		Code:               si.Code,
 		InvoiceNumber:      si.InvoiceNumber,
-		InvoiceDate:        si.InvoiceDate,
-		DueDate:            si.DueDate,
+		InvoiceDate:        formatDateToISO(si.InvoiceDate),
+		DueDate:            formatDateToISO(si.DueDate),
 		SupplierID:         resolveSupplierID(si),
 		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
@@ -169,8 +178,8 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 			ID:            si.DownPaymentInvoice.ID,
 			Code:          si.DownPaymentInvoice.Code,
 			InvoiceNumber: si.DownPaymentInvoice.InvoiceNumber,
-			InvoiceDate:   si.DownPaymentInvoice.InvoiceDate,
-			DueDate:       si.DownPaymentInvoice.DueDate,
+			InvoiceDate:   formatDateToISO(si.DownPaymentInvoice.InvoiceDate),
+			DueDate:       formatDateToISO(si.DownPaymentInvoice.DueDate),
 			Amount:        si.DownPaymentInvoice.Amount,
 			Status:        string(si.DownPaymentInvoice.Status),
 		}
@@ -218,8 +227,8 @@ func (m *SupplierInvoiceMapper) ToDetailResponse(si *models.SupplierInvoice) *dt
 		Type:               string(si.Type),
 		Code:               si.Code,
 		InvoiceNumber:      si.InvoiceNumber,
-		InvoiceDate:        si.InvoiceDate,
-		DueDate:            si.DueDate,
+		InvoiceDate:        formatDateToISO(si.InvoiceDate),
+		DueDate:            formatDateToISO(si.DueDate),
 		SupplierID:         resolveSupplierID(si),
 		SupplierName:       resolveSupplierName(si),
 		TaxRate:            si.TaxRate,
@@ -269,8 +278,8 @@ func (m *SupplierInvoiceMapper) ToDownPaymentListResponse(si *models.SupplierInv
 		SupplierName:    resolveSupplierName(si),
 		Code:            si.Code,
 		InvoiceNumber:   si.InvoiceNumber,
-		InvoiceDate:     si.InvoiceDate,
-		DueDate:         si.DueDate,
+		InvoiceDate:     formatDateToISO(si.InvoiceDate),
+		DueDate:         formatDateToISO(si.DueDate),
 		Amount:          si.Amount,
 		PaidAmount:      si.PaidAmount,
 		RemainingAmount: si.RemainingAmount,
@@ -318,8 +327,8 @@ func (m *SupplierInvoiceMapper) ToDownPaymentDetailResponse(si *models.SupplierI
 		SupplierName:    resolveSupplierName(si),
 		Code:            si.Code,
 		InvoiceNumber:   si.InvoiceNumber,
-		InvoiceDate:     si.InvoiceDate,
-		DueDate:         si.DueDate,
+		InvoiceDate:     formatDateToISO(si.InvoiceDate),
+		DueDate:         formatDateToISO(si.DueDate),
 		Amount:          si.Amount,
 		PaidAmount:      si.PaidAmount,
 		RemainingAmount: si.RemainingAmount,

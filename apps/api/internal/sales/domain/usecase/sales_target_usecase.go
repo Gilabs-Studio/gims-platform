@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
@@ -21,6 +22,7 @@ var (
 // SalesTargetUsecase defines the interface for sales target business logic
 type SalesTargetUsecase interface {
 	List(ctx context.Context, req *dto.ListSalesTargetsRequest) ([]dto.SalesTargetResponse, *utils.PaginationResult, error)
+	ListAvailableEmployees(ctx context.Context, req *dto.ListAvailableSalesTargetEmployeesRequest) ([]dto.EmployeeResponse, error)
 	GetByID(ctx context.Context, id string) (*dto.SalesTargetResponse, error)
 	Create(ctx context.Context, req *dto.CreateSalesTargetRequest) (*dto.SalesTargetResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateSalesTargetRequest) (*dto.SalesTargetResponse, error)
@@ -70,6 +72,10 @@ func (u *salesTargetUsecase) List(ctx context.Context, req *dto.ListSalesTargets
 	return responses, pagination, nil
 }
 
+func (u *salesTargetUsecase) ListAvailableEmployees(ctx context.Context, req *dto.ListAvailableSalesTargetEmployeesRequest) ([]dto.EmployeeResponse, error) {
+	return u.targetRepo.ListAvailableEmployeesByYear(ctx, req.Year, req.IncludeEmployeeID)
+}
+
 func (u *salesTargetUsecase) GetByID(ctx context.Context, id string) (*dto.SalesTargetResponse, error) {
 	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesTarget{}, id, security.SalesTargetScopeQueryOptions()) {
 		return nil, ErrSalesTargetNotFound
@@ -98,6 +104,9 @@ func (u *salesTargetUsecase) Create(ctx context.Context, req *dto.CreateSalesTar
 
 	target := mapper.ToSalesTargetModel(req)
 	if err := u.targetRepo.Create(ctx, target); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate key") || strings.Contains(strings.ToLower(err.Error()), "already exists") {
+			return nil, ErrSalesTargetConflict
+		}
 		return nil, err
 	}
 

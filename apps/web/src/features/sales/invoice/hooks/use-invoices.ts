@@ -133,6 +133,7 @@ export function useCreateInvoice() {
     mutationFn: (data: CreateCustomerInvoiceData) => invoiceService.create(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
     onError: (error) => {
@@ -173,6 +174,7 @@ export function useUpdateInvoice() {
       });
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
     onError: (error) => {
@@ -191,6 +193,7 @@ export function useDeleteInvoice() {
     mutationFn: (id: string) => invoiceService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
     onError: (error) => {
       toast.error(getSalesErrorMessage(error, "Failed to delete invoice"));
@@ -217,6 +220,7 @@ export function useUpdateInvoiceStatus() {
       });
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
     onError: (error) => {
@@ -234,6 +238,7 @@ export function useApproveInvoice() {
     onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: invoiceKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       applyCustomerInvoiceToSalesOrderLists(queryClient, res?.data);
     },
     onError: (error) => {

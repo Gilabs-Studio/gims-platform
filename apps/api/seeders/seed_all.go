@@ -292,11 +292,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Targets seeder (Sprint 7)
-	if err := SeedSalesTargets(); err != nil {
-		return err
-	}
-
 	// HRD - Work Schedules seeder (Sprint 13)
 	if err := SeedWorkSchedules(); err != nil {
 		return err
