@@ -46,7 +46,7 @@ import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import type { Product } from "@/features/master-data/product/types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
-import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
+// StockOpnameDetailDialog removed: open opname page instead of dialog
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
 import { useStockLedger } from "../hooks/use-stock-ledger";
@@ -270,9 +270,15 @@ export function StockLedgerPage() {
       setSoOpen(true);
       return;
     }
+
+    if (row.transaction_type === "OPNAME" && canViewOpname) {
+      // Open opname in its dedicated page
+      router.push(`/stock/opname/${row.transaction_id}`);
+      return;
+    }
+
     const hasPermission =
       (row.transaction_type === "GR" && canViewGR) ||
-      (row.transaction_type === "OPNAME" && canViewOpname) ||
       (row.transaction_type === "TRANSFER" && canViewTransfer);
     if (!hasPermission) return;
     setRefEntityType(row.transaction_type);
@@ -652,12 +658,6 @@ export function StockLedgerPage() {
         open={refEntityOpen && refEntityType === "GR"}
         onClose={() => setRefEntityOpen(false)}
         goodsReceiptId={refEntityId}
-      />
-
-      <StockOpnameDetailDialog
-        open={refEntityOpen && refEntityType === "OPNAME"}
-        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
-        opnameId={refEntityType === "OPNAME" ? refEntityId : null}
       />
 
       <OrderDetailModal

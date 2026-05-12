@@ -83,6 +83,9 @@ export const stockMovementEn = {
       qty: "Qty",
       batch: "Batch",
       batchAuto: "Auto (FIFO)",
+      add: "Add",
+      selectBatch: "Please select a batch",
+      invalidQty: "Invalid quantity",
       // Details
       referenceNumber: "Reference Number",
       referenceNumberPlaceholder: "e.g. TRF-2026-001 (auto-generated if left blank)",
