@@ -199,6 +199,22 @@ export function authPost(url, body, auth, params = {}) {
 }
 
 /**
+ * Helper: perform an authenticated PATCH request.
+ *
+ * @param {string} url - Full URL
+ * @param {object} body - JSON body
+ * @param {object} auth - Auth token object
+ * @param {object} [params] - Additional k6 http params
+ * @returns {object} k6 response
+ */
+export function authPatch(url, body, auth, params = {}) {
+	return http.patch(url, JSON.stringify(body), {
+		...params,
+		headers: { ...authHeaders(auth), ...(params.headers || {}) },
+	});
+}
+
+/**
  * Clear the token cache. Call in teardown() if needed.
  */
 export function clearTokenCache() {

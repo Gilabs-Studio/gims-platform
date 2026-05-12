@@ -2,6 +2,49 @@
 
 ## Quick Navigation
 
+### 🏗 Clean Structure
+- **[architecture/CLEAN_ARCHITECTURE_MAP.md](./architecture/CLEAN_ARCHITECTURE_MAP.md)**
+  - Menjelaskan struktur folder dokumentasi berlapis
+  - Menunjukkan pemetaan strategy, use case, dan infrastructure
+  - Titik mulai terbaik untuk membaca dokumentasi baru
+
+### 🧪 Use Cases
+- **[use-cases/modules/MODULE_TRANSACTION_COVERAGE.md](./use-cases/modules/MODULE_TRANSACTION_COVERAGE.md)**
+  - Ringkasan coverage workflow transaksi per modul
+  - Menjelaskan mana yang implemented, partial, dan planned
+
+- **[use-cases/TRANSACTION_TEST_DETAILED.md](./use-cases/TRANSACTION_TEST_DETAILED.md)**
+  - Penjelasan paling detail tentang apa yang terjadi di `transaction-test.js`
+  - Menjelaskan setup, helper, flow, concurrency check, dan failure modes
+  - Dokumen utama untuk investigasi workflow Sales
+
+- **[use-cases/modules/sales/SALES_REVENUE_CYCLE_IMPLEMENTED.md](./use-cases/modules/sales/SALES_REVENUE_CYCLE_IMPLEMENTED.md)**
+  - Breakdown terperinci workflow transaksi modul Sales
+  - Menjelaskan step per step dari SQ sampai confirm payment
+
+- **[use-cases/modules/finance/FINANCE_TRANSACTION_COVERAGE.md](./use-cases/modules/finance/FINANCE_TRANSACTION_COVERAGE.md)**
+  - Menjelaskan coverage Finance saat ini yang masih tidak langsung
+
+- **[use-cases/modules/purchase/PURCHASE_TRANSACTION_WORKFLOW_PLANNED.md](./use-cases/modules/purchase/PURCHASE_TRANSACTION_WORKFLOW_PLANNED.md)**
+  - Menjelaskan workflow Purchase yang direncanakan
+
+- **[use-cases/modules/hrd/HRD_TRANSACTION_WORKFLOW_PLANNED.md](./use-cases/modules/hrd/HRD_TRANSACTION_WORKFLOW_PLANNED.md)**
+  - Menjelaskan workflow HRD yang direncanakan
+
+- **[use-cases/LOAD_TEST_DETAILED.md](./use-cases/LOAD_TEST_DETAILED.md)**
+  - Menjelaskan traffic mix dan tujuan baseline load
+
+- **[use-cases/STRESS_TEST_DETAILED.md](./use-cases/STRESS_TEST_DETAILED.md)**
+  - Menjelaskan pattern pressure test dan arti abort-on-fail
+
+- **[use-cases/SMOKE_TEST_DETAILED.md](./use-cases/SMOKE_TEST_DETAILED.md)**
+  - Menjelaskan smoke gate dan arti hasilnya
+
+### 🧱 Infrastructure
+- **[infrastructure/FOUNDATION_COMPONENTS.md](./infrastructure/FOUNDATION_COMPONENTS.md)**
+  - Menjelaskan `config.js`, `auth-helper.js`, benchmark policy, dan reports
+  - Cocok untuk memahami komponen bersama yang dipakai semua script
+
 ### 📋 Strategic Planning & Requirements
 - **[K6_PRD.md](./K6_PRD.md)** 📄 **OFFICIAL REQUIREMENTS**
   - Problem statement & business impact
@@ -33,6 +76,22 @@
   - Module SLOs & threshold tuning
   - *Use after Phase 1.5 is complete*
 
+### 🧭 Implementation Reference
+- **[K6_TEST_SUITE_ARCHITECTURE.md](./K6_TEST_SUITE_ARCHITECTURE.md)**
+  - Struktur suite k6 saat ini
+  - Hubungan antara fondasi, script skenario, artefak, dan roadmap
+  - Cocok untuk memahami kenapa file tertentu ada di repo
+
+- **[K6_FILE_PURPOSE_MAP.md](./K6_FILE_PURPOSE_MAP.md)**
+  - Peta tujuan setiap file penting di `k6/`
+  - Menjelaskan kapan file dipakai dan area ownership-nya
+  - Cocok untuk onboarding engineer baru
+
+- **[K6_EXECUTION_PLAYBOOK.md](./K6_EXECUTION_PLAYBOOK.md)**
+  - Panduan menjalankan suite berdasarkan tujuan engineering
+  - Menjelaskan kapan memakai smoke, load, stress, atau transaction
+  - Cocok untuk QA, backend, dan perf investigation
+
 ### 📖 Detailed Guides (Coming Soon)
 - `CI-CD-INTEGRATION.md` — GitHub Actions setup, secrets, troubleshooting
 - `SYNTHETIC-MONITORING.md` — k6 Cloud, Grafana, Prometheus setup
@@ -60,17 +119,20 @@
 → Read **[K6_MATURITY_ROADMAP.md](./K6_MATURITY_ROADMAP.md)** (Executive Summary + Big Picture Goal)
 
 ### For Implementation Engineers
-→ Start with **[PHASE2_QUICKSTART.md](./PHASE2_QUICKSTART.md)** (Checklist + Quick Reference)  
-→ Then **[K6_MATURITY_ROADMAP.md](./K6_MATURITY_ROADMAP.md)** (Detailed Phase 2 section)
+→ Start with **[architecture/CLEAN_ARCHITECTURE_MAP.md](./architecture/CLEAN_ARCHITECTURE_MAP.md)**  
+→ Then **[use-cases/modules/MODULE_TRANSACTION_COVERAGE.md](./use-cases/modules/MODULE_TRANSACTION_COVERAGE.md)**  
+→ Then **[use-cases/modules/sales/SALES_REVENUE_CYCLE_IMPLEMENTED.md](./use-cases/modules/sales/SALES_REVENUE_CYCLE_IMPLEMENTED.md)**  
+→ Then **[infrastructure/FOUNDATION_COMPONENTS.md](./infrastructure/FOUNDATION_COMPONENTS.md)**
 
 ### For Team Training
 → Watch Phase 2 demo (link TBD)  
 → Read [../README.md](../README.md) (existing test suite overview)  
-→ Reference module SLOs in [PHASE2_QUICKSTART.md](./PHASE2_QUICKSTART.md)
+→ Reference execution flow in [K6_EXECUTION_PLAYBOOK.md](./K6_EXECUTION_PLAYBOOK.md)
+→ Read detailed use cases in [use-cases/TRANSACTION_TEST_DETAILED.md](./use-cases/TRANSACTION_TEST_DETAILED.md)
 
 ### For Troubleshooting
 → CI/CD errors: `CI-CD-INTEGRATION.md` (coming soon)  
-→ Test failures: [../README.md](../README.md)  
+→ Test failures: [../README.md](../README.md), [K6_EXECUTION_PLAYBOOK.md](./K6_EXECUTION_PLAYBOOK.md), and [use-cases/TRANSACTION_TEST_DETAILED.md](./use-cases/TRANSACTION_TEST_DETAILED.md)  
 → Threshold questions: [../benchmark-matrix.md](../benchmark-matrix.md)
 
 ---
@@ -142,6 +204,22 @@ k6/
 ```
 START
   │
+  ├─ "Saya ingin dokumentasi detail sesuai struktur folder" → architecture/CLEAN_ARCHITECTURE_MAP.md
+  │
+  ├─ "Saya ingin tahu apa yang terjadi di transaction test" → use-cases/TRANSACTION_TEST_DETAILED.md
+  │
+  ├─ "Saya ingin detail flow transaksi per modul" → use-cases/modules/MODULE_TRANSACTION_COVERAGE.md
+  │
+  ├─ "Saya ingin detail penuh flow Sales" → use-cases/modules/sales/SALES_REVENUE_CYCLE_IMPLEMENTED.md
+  │
+  ├─ "Saya ingin tahu fondasi teknis yang dipakai semua script" → infrastructure/FOUNDATION_COMPONENTS.md
+  │
+  ├─ "Saya ingin tahu tujuan tiap file" → K6_FILE_PURPOSE_MAP.md
+  │
+  ├─ "Saya ingin paham struktur suite saat ini" → K6_TEST_SUITE_ARCHITECTURE.md
+  │
+  ├─ "Saya ingin tahu harus menjalankan script yang mana" → K6_EXECUTION_PLAYBOOK.md
+  │
   ├─ "What's the big picture?" → K6_MATURITY_ROADMAP.md
   │
   ├─ "What should I do next?" → PHASE1.5_ENHANCED_TEST_SUITE.md (Phase 1.5 is next!)
@@ -161,6 +239,9 @@ START
 
 For questions about:
 - **Strategy**: See K6_MATURITY_ROADMAP.md (Decision Gate section)
+- **Suite architecture**: See K6_TEST_SUITE_ARCHITECTURE.md
+- **File ownership/purpose**: See K6_FILE_PURPOSE_MAP.md
+- **Execution choice**: See K6_EXECUTION_PLAYBOOK.md
 - **Phase 2 setup**: See PHASE2_QUICKSTART.md (Checklist)
 - **Test failures**: See ../README.md (Troubleshooting)
 - **Threshold tuning**: See ../benchmark-matrix.md (SLO definitions)
