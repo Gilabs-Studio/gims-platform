@@ -697,7 +697,90 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 			return fmt.Errorf("delivery order %s has no items", deliveryOrder.Code)
 		}
 
-		// Mark DO as shipped after logistics is confirmed.
+		// 1. Process stock changes, delivery qty updates, and COGS snapshots per item
+		for i := range deliveryOrder.Items {
+			item := &deliveryOrder.Items[i]
+			isInventoryTracked := item.Product == nil || item.Product.IsInventoryTracked
+
+			avgCostSnapshot := resolveDeliveryOrderItemCost(item)
+			cogsAmount := 0.0
+
+			if isInventoryTracked {
+				if item.InventoryBatchID == nil || strings.TrimSpace(*item.InventoryBatchID) == "" {
+					return fmt.Errorf("inventory batch is required for product %s", item.ProductID)
+				}
+
+				log.Printf("[Sales] Deducting stock for Product %s, Batch %s, Qty %.3f", item.ProductID, *item.InventoryBatchID, item.Quantity)
+
+				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return fmt.Errorf("release batch stock: %w", err)
+				}
+
+				if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return fmt.Errorf("release product stock: %w", err)
+				}
+
+				// Use sales order code as reference (not delivery order) so ledger shows SO code
+				soCode := deliveryOrder.Code
+				if deliveryOrder.SalesOrder != nil && strings.TrimSpace(deliveryOrder.SalesOrder.Code) != "" {
+					soCode = deliveryOrder.SalesOrder.Code
+				}
+
+				if err := u.inventoryUC.DeductStock(txCtx, *item.InventoryBatchID, item.Quantity, "SO", soCode); err != nil {
+					return fmt.Errorf("deduct stock: %w", err)
+				}
+
+				movementReq := &inventoryDto.StockMovementRequest{
+					InventoryBatchID: *item.InventoryBatchID,
+					ProductID:        item.ProductID,
+					WarehouseID:      *deliveryOrder.WarehouseID,
+					Type:             "OUT",
+					Quantity:         item.Quantity,
+					ReferenceType:    "SALES_ORDER",
+					ReferenceID:      deliveryOrder.SalesOrderID,
+					ReferenceNumber:  soCode,
+					Description:      "Sales Order Fulfillment",
+					Cost:             avgCostSnapshot,
+					CreatedBy:        userID,
+					SkipJournaling:   true,
+				}
+
+				if _, err := u.inventoryUC.CreateStockMovement(txCtx, movementReq); err != nil {
+					return fmt.Errorf("create movement: %w", err)
+				}
+
+				cogsAmount = roundCurrency(avgCostSnapshot * item.Quantity)
+			} else {
+				// Keep reservation ledger clean even for non-stock products when previous flows reserved stock.
+				_ = u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity)
+			}
+
+			item.AvgCostSnapshot = avgCostSnapshot
+			item.COGSAmount = cogsAmount
+
+			if err := tx.Model(&models.DeliveryOrderItem{}).
+				Where("id = ?", item.ID).
+				Updates(map[string]interface{}{
+					"avg_cost_snapshot": roundCost(avgCostSnapshot),
+					"cogs_amount":       cogsAmount,
+				}).Error; err != nil {
+				return fmt.Errorf("update delivery item costing: %w", err)
+			}
+
+			if item.SalesOrderItemID != nil {
+				if err := u.salesOrderRepo.UpdateItemDeliveredQty(txCtx, *item.SalesOrderItemID, item.Quantity); err != nil {
+					return fmt.Errorf("update sales order delivered qty: %w", err)
+				}
+			}
+		}
+
+		// 2. Post logistics journal (COGS and inventory release only)
+		journalEntry, err := u.salesJournalSvc.GenerateSalesJournal(txCtx, deliveryOrder)
+		if err != nil {
+			return fmt.Errorf("post delivery sales journal: %w", err)
+		}
+
+		// 3. Mark DO as shipped only after stock and accounting completed
 		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
 			return fmt.Errorf("repo ship: %w", err)
 		}

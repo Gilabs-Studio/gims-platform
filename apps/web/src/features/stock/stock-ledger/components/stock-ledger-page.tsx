@@ -276,8 +276,9 @@ export function StockLedgerPage() {
     if (row.transaction_type === "SO" && canViewSalesOrder) {
       (async () => {
         try {
-          const res = await orderService.getById(row.transaction_id);
-          const order = res.data ?? null;
+          // transaction_id is now the SO code (e.g., "SO-2024-0001"), search for it
+          const res = await orderService.list({ search: row.transaction_id, page: 1, per_page: 1 });
+          const order = res.data?.[0] ?? null;
           setSoItem(order);
           setSoOpen(true);
         } catch {
