@@ -68,6 +68,7 @@ import { AssetForm } from "./asset-form";
 import { AssetAcquisitionTab } from "./asset-tabs/asset-acquisition-tab";
 import { AssetDepreciationConfigTab } from "./asset-tabs/asset-depreciation-config-tab";
 import { AssetComponentsTab } from "./asset-tabs/asset-components-tab";
+import { TransfersList } from "./transfers-list";
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -407,6 +408,9 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
                 {attachments.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="transfers" className="flex-shrink-0">
+            {t("detail.tabs.transfers")}
           </TabsTrigger>
           <TabsTrigger value="assignment-history" className="flex-shrink-0">
             {t("detail.tabs.assignmentHistory")}
@@ -770,6 +774,18 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
                   </TableBody>
                 </Table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transfers" className="space-y-6 py-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("detail.sections.transfers")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Lazy load transfers for this asset */}
+              <TransfersList assetId={id} />
             </CardContent>
           </Card>
         </TabsContent>

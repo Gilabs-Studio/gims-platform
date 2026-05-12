@@ -12,6 +12,7 @@ const (
 	assetUpdate     = "asset.update"
 	assetDelete     = "asset.delete"
 	assetDepreciate = "asset.depreciate"
+	assetTransferRequest = "asset.transfer.request"
 	depreciationRead = "depreciation.read"
 	depreciationRun  = "depreciation.run"
 )
@@ -47,7 +48,7 @@ func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 		g.PATCH("/:id", middleware.RequirePermission(assetUpdate), h.EditAsset)
 	g.POST("/:id/depreciate", middleware.RequirePermission(assetDepreciate), h.Depreciate)
 	g.POST("/depreciations/:dep_id/approve", middleware.RequirePermission(assetDepreciate), h.ApproveDepreciation)
-	g.POST("/:id/transfer", middleware.RequirePermission(assetUpdate), h.Transfer)
+	g.POST("/:id/transfer", middleware.RequirePermission(assetTransferRequest), h.Transfer)
 	g.POST("/:id/disposal-preview", middleware.RequirePermission(assetUpdate), h.PreviewDisposal)
 	g.POST("/:id/dispose", middleware.RequirePermission(assetUpdate), h.Dispose)
 	g.POST("/:id/sell", middleware.RequirePermission(assetUpdate), h.Sell)

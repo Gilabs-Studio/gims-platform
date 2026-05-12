@@ -70,6 +70,7 @@ export const hrdId = {
       today: "Hari Ini",
       todayAttendance: "Absensi Hari Ini",
       notClockedIn: "Belum absen masuk",
+      checkInAvailableAt: "Absen masuk tersedia pada {time}",
       permissionsRequired: "Perlu izin akses",
       permissionsUnavailableTitle: "Fitur HR Tidak Tersedia",
       permissionsUnavailableDescription:
