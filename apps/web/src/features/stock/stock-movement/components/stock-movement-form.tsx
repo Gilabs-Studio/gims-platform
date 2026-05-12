@@ -58,7 +58,7 @@ function ProductAllocation({
     staleTime: 60_000,
   });
 
-  const batches = data?.data?.data ?? [];
+  const batches = useMemo(() => data?.data?.data ?? [], [data?.data?.data]);
   const batchLabelMap = useMemo(
     () => new Map(batches.map((batch) => [batch.id, batch.batch_number])),
     [batches]
