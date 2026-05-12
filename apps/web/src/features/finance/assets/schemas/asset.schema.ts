@@ -45,9 +45,13 @@ export const depreciateAssetSchema = z.object({
 export type DepreciateAssetValues = z.infer<typeof depreciateAssetSchema>;
 
 export const transferAssetSchema = z.object({
-  location_id: z.string().uuid(),
-  transfer_date: z.string().trim().min(1),
-  description: z.string().optional(),
+  // New transfer contract supporting approval workflow
+  to_location_id: z.string().uuid(),
+  to_department_id: z.string().or(z.literal("")).optional(),
+  custodian_user_id: z.string().or(z.literal("")).optional(),
+  is_intercompany: z.boolean().default(false).optional(),
+  effective_date: z.string().trim().min(1),
+  notes: z.string().optional(),
 });
 
 export type TransferAssetValues = z.infer<typeof transferAssetSchema>;
