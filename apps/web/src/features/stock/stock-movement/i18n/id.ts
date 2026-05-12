@@ -81,6 +81,8 @@ export const stockMovementId = {
       loadingMoreWarehouses: "Memuat gudang lainnya...",
       available: "Tersedia",
       qty: "Jumlah",
+      batch: "Batch",
+      batchAuto: "Auto (FIFO)",
       // Detail
       referenceNumber: "Nomor Referensi",
       referenceNumberPlaceholder: "cth. TRF-2026-001 (otomatis jika dikosongkan)",

@@ -306,6 +306,8 @@ func stockLedgerTypeLabel(transactionType string) string {
 		return "Goods Issue"
 	case "OPNAME":
 		return "Stock Opname"
+	case "TRANSFER":
+		return "Transfer"
 	default:
 		if strings.TrimSpace(transactionType) == "" {
 			return "Unknown"
@@ -720,32 +722,68 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				return "", ErrInsufficientStock
 			}
 
-			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
-			if err != nil {
-				return "", err
+			// Determine ledger transaction type based on movement type
+			ledgerType := "GI"
+			if strings.ToUpper(movementType) == "TRANSFER" {
+				ledgerType = "TRANSFER"
+			}
+
+			// Determine reference type for stock movement record
+			refType := "INVENTORY_ADJUSTMENT"
+			if strings.ToUpper(movementType) == "TRANSFER" {
+				refType = "TRANSFER"
+			}
+
+			// Build a unified list of (id, available) pairs to deduct from
+			type batchDeductItem struct {
+				id        string
+				available float64
+			}
+			var batchesToDeduct []batchDeductItem
+
+			// If a specific batch is requested, validate and use only that batch
+			if req.BatchID != nil && *req.BatchID != "" {
+				specificBatch, err := u.repo.GetBatchByID(ctx, *req.BatchID)
+				if err != nil {
+					return "", fmt.Errorf("failed to fetch specified batch: %w", err)
+				}
+				if specificBatch == nil {
+					return "", ErrBatchNotFound
+				}
+				if specificBatch.Available < qty {
+					return "", ErrInsufficientBatchStock
+				}
+				batchesToDeduct = []batchDeductItem{{id: specificBatch.ID, available: specificBatch.Available}}
+			} else {
+				allBatches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
+				if err != nil {
+					return "", err
+				}
+				for _, b := range allBatches {
+					batchesToDeduct = append(batchesToDeduct, batchDeductItem{id: b.ID, available: b.Available})
+				}
 			}
 
 			remaining := qty
 			var lastMovementID string
-			for _, batch := range batches {
+			for _, batch := range batchesToDeduct {
 				if remaining <= 0 {
 					break
 				}
 
-				available := batch.Available
-				if available <= 0 {
+				if batch.available <= 0 {
 					continue
 				}
 
-				toDeduct := math.Min(available, remaining)
+				toDeduct := math.Min(batch.available, remaining)
 
 				movReq := &dto.StockMovementRequest{
-					InventoryBatchID:  batch.ID,
+					InventoryBatchID:  batch.id,
 					ProductID:         req.ProductID,
 					WarehouseID:       warehouseID,
 					Type:              movementType,
 					Quantity:          toDeduct,
-					ReferenceType:     "INVENTORY_ADJUSTMENT",
+					ReferenceType:     refType,
 					ReferenceID:       zeroUUID,
 					ReferenceNumber:   req.ReferenceNumber,
 					Description:       req.Description,
@@ -758,7 +796,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				}
 				lastMovementID = movID
 
-				if err := u.repo.UpdateBatchQuantity(ctx, batch.ID, -toDeduct); err != nil {
+				if err := u.repo.UpdateBatchQuantity(ctx, batch.id, -toDeduct); err != nil {
 					return "", err
 				}
 
@@ -774,7 +812,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				return "", ErrInsufficientStock
 			}
 			stockValue := runningQty * currentHpp
-			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, "GI", -qty, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, ledgerType, -qty, currentHpp, currentHpp, stockValue, runningQty); err != nil {
 				return "", err
 			}
 
@@ -794,10 +832,22 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				return "", err
 			}
 
+			// Determine ledger transaction type based on movement type
+			ledgerType := "GR"
+			if strings.ToUpper(movementType) == "TRANSFER" {
+				ledgerType = "TRANSFER"
+			}
+
+			// Determine reference type for stock movement record
+			refType := "INVENTORY_ADJUSTMENT"
+			if strings.ToUpper(movementType) == "TRANSFER" {
+				refType = "TRANSFER"
+			}
+
 			newAvg := calculateNewAverageCost(currentStock, currentHpp, qty, currentHpp)
 			runningQty := currentStock + qty
 			stockValue := runningQty * newAvg
-			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, "GR", qty, currentHpp, newAvg, stockValue, runningQty); err != nil {
+			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, ledgerType, qty, currentHpp, newAvg, stockValue, runningQty); err != nil {
 				return "", err
 			}
 
@@ -824,7 +874,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				WarehouseID:       warehouseID,
 				Type:              movementType,
 				Quantity:          qty,
-				ReferenceType:     "INVENTORY_ADJUSTMENT",
+				ReferenceType:     refType,
 				ReferenceID:       zeroUUID,
 				ReferenceNumber:   req.ReferenceNumber,
 				Description:       req.Description,

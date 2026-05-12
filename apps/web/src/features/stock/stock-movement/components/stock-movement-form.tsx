@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@/i18n/routing";
 import { PageMotion } from "@/components/motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,10 +24,70 @@ import {
   Package,
   Search,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { inventoryService } from "@/features/stock/inventory/services/inventory-service";
 import { useStockMovementProducts, type MovementType, type StockMovementSelectableProduct as SelectableProduct } from "../hooks/use-stock-movement-products";
 import { useStockMovementWarehouses } from "../hooks/use-stock-movement-warehouses";
 import { stockMovementService } from "../services/movement-service";
+
+// ─── Batch Selector sub-component ────────────────────────────────────────────
+function BatchSelector({
+  productId,
+  warehouseId,
+  value,
+  onChange,
+  t,
+}: {
+  productId: string;
+  warehouseId: string;
+  value: string;
+  onChange: (batchId: string) => void;
+  t: ReturnType<typeof useTranslations<"stock_movement">>;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["movement-batches", warehouseId, productId],
+    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId, { page: 1, per_page: 100 }),
+    enabled: !!productId && !!warehouseId,
+    staleTime: 60_000,
+  });
+
+  // getTreeBatches returns ApiResponse<InventoryBatchesResponse>; unwrap both layers.
+  const batches = data?.data?.data ?? [];
+
+  // The Select component requires each <SelectItem /> to have a non-empty value string.
+  // We represent the "auto" choice internally as the sentinel "__AUTO__" but
+  // translate it to an empty string when invoking the external onChange so the
+  // parent still stores "" for auto selection.
+  const INTERNAL_AUTO = "__AUTO__";
+  const internalValue = value === "" ? INTERNAL_AUTO : value;
+
+  return (
+    <Select value={internalValue} onValueChange={(v) => onChange(v === INTERNAL_AUTO ? "" : v)} disabled={isLoading}>
+      <SelectTrigger className="h-8 text-sm w-56 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+        <SelectValue placeholder={t("form.batchAuto")} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={INTERNAL_AUTO} className="cursor-pointer">{t("form.batchAuto")}</SelectItem>
+        {batches.map((b) => (
+          <SelectItem key={b.id} value={b.id} className="cursor-pointer">
+            <span className="font-mono text-xs">{b.batch_number}</span>
+            <span className="text-muted-foreground ml-2">&middot; {b.available} avail</span>
+            {b.expiry_date && (
+              <span className="text-muted-foreground ml-1">&middot; exp {b.expiry_date}</span>
+            )}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export function StockMovementForm() {
   const t = useTranslations("stock_movement");
@@ -41,6 +101,7 @@ export function StockMovementForm() {
   const [targetWarehouseId, setTargetWarehouseId] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [batchSelections, setBatchSelections] = useState<Record<string, string>>({});
   const [referenceNumber, setReferenceNumber] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,6 +205,7 @@ export function StockMovementForm() {
     setType(newType);
     setSelectedIds(new Set());
     setQuantities({});
+    setBatchSelections({});
     if (newType !== "TRANSFER") setTargetWarehouseId("");
   };
 
@@ -151,6 +213,7 @@ export function StockMovementForm() {
     setSourceWarehouseId(id);
     setSelectedIds(new Set());
     setQuantities({});
+    setBatchSelections({});
     setProductSearch("");
   };
 
@@ -175,6 +238,11 @@ export function StockMovementForm() {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(product.product_id)) {
       newSelected.delete(product.product_id);
+      setBatchSelections((prev) => {
+        const next = { ...prev };
+        delete next[product.product_id];
+        return next;
+      });
     } else {
       newSelected.add(product.product_id);
       setQuantities((prev) => ({
@@ -229,6 +297,7 @@ export function StockMovementForm() {
           quantity: quantities[productId] ?? 0,
           reference_number: batchReferenceNumber,
           description: description || undefined,
+          batch_id: type !== "IN" ? (batchSelections[productId] || undefined) : undefined,
         });
       }
 
@@ -503,70 +572,92 @@ export function StockMovementForm() {
                   const isSelected = selectedIds.has(product.product_id);
                   const qty =
                     quantities[product.product_id] ?? (type === "IN" ? 1 : product.available);
+                  const showBatchSelector = isSelected && type !== "IN";
 
                   return (
                     <div
                       key={product.product_id}
                       className={cn(
-                        "flex items-center gap-4 px-6 py-4 transition-colors",
+                        "flex flex-col px-6 py-4 transition-colors gap-2",
                         isSelected && "bg-primary/5",
                         !isSelected && isSelectable && "hover:bg-muted/20",
                         !isSelectable && "opacity-40 pointer-events-none"
                       )}
                     >
-                      <Checkbox
-                        id={`p-${product.product_id}`}
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggleProduct(product)}
-                        disabled={!isSelectable}
-                        className="cursor-pointer shrink-0"
-                      />
-                      <label
-                        htmlFor={`p-${product.product_id}`}
-                        className="flex flex-1 items-center gap-4 cursor-pointer min-w-0"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm truncate">{product.product_name}</p>
-                          <p className="text-xs text-muted-foreground">{product.product_code}</p>
-                        </div>
-                        {type !== "IN" && (
-                          <div className="text-right shrink-0">
-                            <p className="text-xs text-muted-foreground">{t("form.available")}</p>
-                            <p className="text-sm font-semibold">
-                              {product.available}
-                              {product.uom_name && (
-                                <span className="text-xs text-muted-foreground ml-1">
-                                  {product.uom_name}
-                                </span>
-                              )}
-                            </p>
+                      {/* Main row: checkbox + product info + qty input */}
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          id={`p-${product.product_id}`}
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleProduct(product)}
+                          disabled={!isSelectable}
+                          className="cursor-pointer shrink-0"
+                        />
+                        <label
+                          htmlFor={`p-${product.product_id}`}
+                          className="flex flex-1 items-center gap-4 cursor-pointer min-w-0"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{product.product_name}</p>
+                            <p className="text-xs text-muted-foreground">{product.product_code}</p>
+                          </div>
+                          {type !== "IN" && (
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-muted-foreground">{t("form.available")}</p>
+                              <p className="text-sm font-semibold">
+                                {product.available}
+                                {product.uom_name && (
+                                  <span className="text-xs text-muted-foreground ml-1">
+                                    {product.uom_name}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          )}
+                        </label>
+
+                        {/* Quantity input — shown only when row is selected */}
+                        {isSelected && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground hidden sm:block">
+                              {t("form.qty")}
+                            </span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              max={type !== "IN" ? product.available : undefined}
+                              value={qty}
+                              onChange={(e) =>
+                                handleQuantityChange(product.product_id, e.target.value)
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-24 h-8 text-right text-sm"
+                            />
+                            {product.uom_name && (
+                              <span className="text-xs text-muted-foreground hidden sm:block">
+                                {product.uom_name}
+                              </span>
+                            )}
                           </div>
                         )}
-                      </label>
+                      </div>
 
-                      {/* Quantity input — shown only when row is selected */}
-                      {isSelected && (
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-muted-foreground hidden sm:block">
-                            {t("form.qty")}
+                      {/* Batch selector row — OUT/TRANSFER only when product is selected */}
+                      {showBatchSelector && (
+                        <div className="ml-8 flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {t("form.batch")}
                           </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            max={type !== "IN" ? product.available : undefined}
-                            value={qty}
-                            onChange={(e) =>
-                              handleQuantityChange(product.product_id, e.target.value)
+                          <BatchSelector
+                            productId={product.product_id}
+                            warehouseId={sourceWarehouseId}
+                            value={batchSelections[product.product_id] ?? ""}
+                            onChange={(batchId) =>
+                              setBatchSelections((prev) => ({ ...prev, [product.product_id]: batchId }))
                             }
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-24 h-8 text-right text-sm"
+                            t={t}
                           />
-                          {product.uom_name && (
-                            <span className="text-xs text-muted-foreground hidden sm:block">
-                              {product.uom_name}
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>

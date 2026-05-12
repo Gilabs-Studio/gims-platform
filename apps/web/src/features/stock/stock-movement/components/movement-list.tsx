@@ -7,7 +7,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Plus, FileText } from "lucide-react";
+import { Search, Download, Plus, FileText, Info } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
@@ -25,10 +25,11 @@ import { DeliveryDetailModal } from "@/features/sales/delivery/components/delive
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
+import type { SalesOrder } from "@/features/sales/order/types";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+
 
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
@@ -38,6 +39,8 @@ export function MovementList() {
   const canViewDelivery = useUserPermission("delivery_order.read");
   const canViewGR = useUserPermission("goods_receipt.read");
   const canViewOpname = useUserPermission("stock_opname.read");
+  const canViewMovement = useUserPermission("stock_movement.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -61,6 +64,10 @@ export function MovementList() {
   // Journal detail state
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalId, setJournalId] = useState<string | null>(null);
+
+  // Sales order detail state
+  const [soOpen, setSoOpen] = useState(false);
+  const [soItem, setSoItem] = useState<SalesOrder | null>(null);
 
   const handleExport = () => {
     const rows: StockMovement[] = data?.data?.data ?? [];
@@ -98,6 +105,16 @@ export function MovementList() {
 
   const handleRefClick = (item: StockMovement, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (item.ref_type === "TRANSFER" && canViewMovement) {
+      setSelectedItem(item);
+      setDialogOpen(true);
+      return;
+    }
+    if (item.ref_type === "SalesOrder" && canViewSalesOrder) {
+      setSoItem({ id: item.ref_id } as SalesOrder);
+      setSoOpen(true);
+      return;
+    }
     const hasPermission =
       (item.ref_type === "DeliveryOrder" && canViewDelivery) ||
       (item.ref_type === "GoodsReceipt" && canViewGR) ||
@@ -111,7 +128,9 @@ export function MovementList() {
   const refHasPermission = (refType: string) =>
     (refType === "DeliveryOrder" && canViewDelivery) ||
     (refType === "GoodsReceipt" && canViewGR) ||
-    (refType === "StockOpname" && canViewOpname);
+    (refType === "StockOpname" && canViewOpname) ||
+    (refType === "TRANSFER" && canViewMovement) ||
+    (refType === "SalesOrder" && canViewSalesOrder);
 
   // Data Fetching
   const { data, isLoading, isError } = useStockMovements({
@@ -215,12 +234,12 @@ export function MovementList() {
             <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground">{t("description")}</p>
           </div>
-          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2 flex items-center gap-2">
-            <Info className="h-4 w-4 text-primary shrink-0" />
-            <AlertDescription className="text-sm font-medium leading-none">
+          <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-muted/50 px-3 py-2">
+            <Info className="h-4 w-4 shrink-0 text-primary" />
+            <span className="text-sm font-medium text-muted-foreground leading-tight">
               All inventory movements are recorded via Stock. The Inventory Journal will be automatically managed.
-            </AlertDescription>
-          </Alert>
+            </span>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
           <Button variant="outline" className="cursor-pointer w-full sm:w-auto" onClick={handleExport} disabled={!movements.length}>
@@ -437,6 +456,12 @@ export function MovementList() {
         open={journalOpen}
         onOpenChange={setJournalOpen}
         id={journalId}
+      />
+
+      <OrderDetailModal
+        open={soOpen}
+        onClose={() => setSoOpen(false)}
+        order={soItem}
       />
     </div>
   );

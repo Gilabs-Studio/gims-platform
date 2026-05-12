@@ -96,10 +96,7 @@ func (uc *goodsReceiptUsecase) List(ctx context.Context, params repositories.Goo
 }
 
 func (uc *goodsReceiptUsecase) GetByID(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
-	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.GoodsReceipt{}, id, security.PurchaseScopeQueryOptions()) {
-		return nil, ErrGoodsReceiptNotFound
-	}
-
+	// Fetch first (repo accepts UUID or code), then verify data-scope access using the real UUID.
 	gr, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -107,6 +104,11 @@ func (uc *goodsReceiptUsecase) GetByID(ctx context.Context, id string) (*dto.Goo
 		}
 		return nil, err
 	}
+
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.GoodsReceipt{}, gr.ID, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrGoodsReceiptNotFound
+	}
+
 	return uc.mapper.ToDetailResponse(gr), nil
 }
 

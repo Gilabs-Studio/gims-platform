@@ -8,8 +8,29 @@ import type {
   CreateGoodsReceiptInput,
   GoodsReceiptDetail,
   GoodsReceiptListParams,
+  GoodsReceiptStatus,
   UpdateGoodsReceiptInput,
 } from "../types";
+
+function getGoodsReceiptQuantity(goodsReceipt: GoodsReceiptDetail | undefined): number {
+  if (!goodsReceipt?.items?.length) return 0;
+
+  return goodsReceipt.items.reduce((sum, item) => sum + (item.quantity_received ?? 0), 0);
+}
+
+function getGoodsReceiptFulfillmentBucket(status?: GoodsReceiptStatus | string | null): "pending" | "received" | "inactive" {
+  const normalizedStatus = (status ?? "").toUpperCase();
+
+  if (normalizedStatus === "REJECTED") {
+    return "inactive";
+  }
+
+  if (normalizedStatus === "APPROVED" || normalizedStatus === "PARTIAL" || normalizedStatus === "CLOSED" || normalizedStatus === "CONFIRMED") {
+    return "received";
+  }
+
+  return "pending";
+}
 
 function upsertGoodsReceiptSummaryAtFront(
   receipts: PurchaseOrderGRSummary[],
@@ -51,9 +72,32 @@ function applyGoodsReceiptToPurchaseOrderLists(
             created_at: found?.created_at ?? new Date().toISOString(),
           };
 
+          const previousBucket = getGoodsReceiptFulfillmentBucket(found?.status);
+          const nextBucket = getGoodsReceiptFulfillmentBucket(nextEntry.status);
+          const quantity = getGoodsReceiptQuantity(goodsReceipt);
+          const currentFulfillment = purchaseOrder.fulfillment;
+
+          let nextFulfillment = currentFulfillment;
+          if (currentFulfillment) {
+            const deltaReceived = (nextBucket === "received" ? quantity : 0) - (previousBucket === "received" ? quantity : 0);
+            const deltaPending = (nextBucket === "pending" ? quantity : 0) - (previousBucket === "pending" ? quantity : 0);
+
+            const totalReceived = Math.max(0, (currentFulfillment.total_received ?? 0) + deltaReceived);
+            const totalPending = Math.max(0, (currentFulfillment.total_pending ?? 0) + deltaPending);
+            const totalOrdered = currentFulfillment.total_ordered ?? 0;
+
+            nextFulfillment = {
+              total_ordered: totalOrdered,
+              total_received: totalReceived,
+              total_pending: totalPending,
+              total_remaining: Math.max(0, totalOrdered - totalReceived - totalPending),
+            };
+          }
+
           return {
             ...purchaseOrder,
             goods_receipts: upsertGoodsReceiptSummaryAtFront(existing, nextEntry),
+            fulfillment: nextFulfillment,
           };
         }),
       } as { data: PurchaseOrderListItem[] };

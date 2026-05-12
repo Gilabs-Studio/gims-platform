@@ -81,6 +81,8 @@ export const stockMovementEn = {
       loadingMoreWarehouses: "Loading more warehouses...",
       available: "Available",
       qty: "Qty",
+      batch: "Batch",
+      batchAuto: "Auto (FIFO)",
       // Details
       referenceNumber: "Reference Number",
       referenceNumberPlaceholder: "e.g. TRF-2026-001 (auto-generated if left blank)",

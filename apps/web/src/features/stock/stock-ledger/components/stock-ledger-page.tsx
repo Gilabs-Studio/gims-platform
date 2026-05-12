@@ -44,9 +44,14 @@ import { formatCurrency } from "@/lib/utils";
 import { productService } from "@/features/master-data/product/services/product-service";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import type { Product } from "@/features/master-data/product/types";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
+import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
+import type { SalesOrder } from "@/features/sales/order/types";
 import { useStockLedger } from "../hooks/use-stock-ledger";
 
-type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER";
+type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER" | "SO";
 type LedgerBadgeVariant = "success" | "destructive" | "warning" | "info";
 
 const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> =
@@ -56,6 +61,7 @@ const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> =
     { value: "GI", labelKey: "transactionTypes.GI" },
     { value: "OPNAME", labelKey: "transactionTypes.OPNAME" },
     { value: "TRANSFER", labelKey: "transactionTypes.TRANSFER" },
+    { value: "SO", labelKey: "transactionTypes.SO" },
   ];
 
 function getTransactionTypeLabel(
@@ -71,6 +77,8 @@ function getTransactionTypeLabel(
       return t("transactionTypes.OPNAME");
     case "TRANSFER":
       return t("transactionTypes.TRANSFER");
+    case "SO":
+      return t("transactionTypes.SO");
     default:
       return t("filter.allTypes");
   }
@@ -161,6 +169,18 @@ export function StockLedgerPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const canViewGR = useUserPermission("goods_receipt.read");
+  const canViewOpname = useUserPermission("stock_opname.read");
+  const canViewTransfer = useUserPermission("stock_movement.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
+
+  const [refEntityOpen, setRefEntityOpen] = useState(false);
+  const [refEntityType, setRefEntityType] = useState<string | null>(null);
+  const [refEntityId, setRefEntityId] = useState<string | null>(null);
+
+  const [soOpen, setSoOpen] = useState(false);
+  const [soItem, setSoItem] = useState<SalesOrder | null>(null);
+
   const selectedProductQuery = useProduct(productId, { enabled: !!productId });
   const selectedProduct = selectedProductQuery.data?.data ?? null;
   const productDefaultOptions = selectedProduct ? [selectedProduct] : [];
@@ -232,8 +252,32 @@ export function StockLedgerPage() {
       case "GR": return "success";
       case "GI": return "destructive";
       case "OPNAME": return "warning";
+      case "TRANSFER": return "info";
+      case "SO": return "info";
       default: return "info";
     }
+  };
+
+  const refHasPermission = (refType: string) =>
+    (refType === "GR" && canViewGR) ||
+    (refType === "OPNAME" && canViewOpname) ||
+    (refType === "TRANSFER" && canViewTransfer) ||
+    (refType === "SO" && canViewSalesOrder);
+
+  const handleRefClick = (row: { transaction_type: string; transaction_id: string }) => {
+    if (row.transaction_type === "SO" && canViewSalesOrder) {
+      setSoItem({ id: row.transaction_id } as SalesOrder);
+      setSoOpen(true);
+      return;
+    }
+    const hasPermission =
+      (row.transaction_type === "GR" && canViewGR) ||
+      (row.transaction_type === "OPNAME" && canViewOpname) ||
+      (row.transaction_type === "TRANSFER" && canViewTransfer);
+    if (!hasPermission) return;
+    setRefEntityType(row.transaction_type);
+    setRefEntityId(row.transaction_id);
+    setRefEntityOpen(true);
   };
 
   /* ── render ── */
@@ -527,7 +571,14 @@ export function StockLedgerPage() {
                       </TableCell>
 
                       <TableCell className="py-3">
-                        <span className="font-mono text-xs text-muted-foreground">
+                        <span
+                          className={
+                            refHasPermission(row.transaction_type)
+                              ? "cursor-pointer font-mono text-xs font-bold text-primary hover:underline"
+                              : "font-mono text-xs font-medium text-muted-foreground"
+                          }
+                          onClick={() => handleRefClick(row)}
+                        >
                           {row.transaction_id}
                         </span>
                       </TableCell>
@@ -597,6 +648,23 @@ export function StockLedgerPage() {
           />
         </div>
       )}
+      <GoodsReceiptDetail
+        open={refEntityOpen && refEntityType === "GR"}
+        onClose={() => setRefEntityOpen(false)}
+        goodsReceiptId={refEntityId}
+      />
+
+      <StockOpnameDetailDialog
+        open={refEntityOpen && refEntityType === "OPNAME"}
+        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
+        opnameId={refEntityType === "OPNAME" ? refEntityId : null}
+      />
+
+      <OrderDetailModal
+        open={soOpen}
+        onClose={() => setSoOpen(false)}
+        order={soItem}
+      />
     </PageMotion>
   );
 }
