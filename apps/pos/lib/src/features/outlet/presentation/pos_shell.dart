@@ -114,7 +114,7 @@ class _PosShellState extends State<PosShell> {
         body = FloorEditorScreen(outlet: outlet);
         break;
       case PosFeature.loyalty:
-        body = LoyaltyScreen(outlet: outlet);
+        body = LoyaltyScreen(outlet: outlet, user: widget.user);
         break;
       case PosFeature.feedback:
         body = FeedbackScreen(outlet: outlet);
