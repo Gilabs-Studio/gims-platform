@@ -36,6 +36,7 @@ export interface StockOpnameItem {
   product_id: string;
   product_name?: string;
   product_code?: string;
+  product_image_url?: string | null;
   
   system_qty: number;
   physical_qty: number | null;

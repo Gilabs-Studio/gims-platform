@@ -75,6 +75,7 @@ type StockOpnameItemResponse struct {
 	ProductID        string   `json:"product_id"`
 	ProductName      string   `json:"product_name,omitempty"`
 	ProductCode      string   `json:"product_code,omitempty"`
+	ProductImageURL  *string  `json:"product_image_url,omitempty"`
 	SystemQty        float64  `json:"system_qty"`
 	PhysicalQty      *float64 `json:"physical_qty"`
 	VarianceQty      float64  `json:"variance_qty"`

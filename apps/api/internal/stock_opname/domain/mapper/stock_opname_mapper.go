@@ -85,6 +85,7 @@ func ToStockOpnameItemResponse(m *models.StockOpnameItem) dto.StockOpnameItemRes
 		ProductID:        m.ProductID,
 		ProductName:      m.Product.Name,
 		ProductCode:      m.Product.Code,
+		ProductImageURL:  m.Product.ImageURL,
 		SystemQty:        m.SystemQty,
 		PhysicalQty:      m.PhysicalQty,
 		VarianceQty:      m.VarianceQty,
