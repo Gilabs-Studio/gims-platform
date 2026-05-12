@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Download, Plus, FileText, Info } from "lucide-react";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
 import { MovementBadge } from "./movement-badge";
@@ -23,7 +23,6 @@ import { MovementDetailDialog } from "./movement-detail-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryDetailModal } from "@/features/sales/delivery/components/delivery-detail-modal";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
-import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
@@ -34,6 +33,7 @@ import type { SalesOrder } from "@/features/sales/order/types";
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   // Ref-entity permissions
   const canViewDelivery = useUserPermission("delivery_order.read");
@@ -115,10 +115,15 @@ export function MovementList() {
       setSoOpen(true);
       return;
     }
+    // Open stock opname as a dedicated page (no dialog)
+    if (item.ref_type === "StockOpname" && canViewOpname) {
+      router.push(`/stock/opname/${item.ref_id}`);
+      return;
+    }
+
     const hasPermission =
       (item.ref_type === "DeliveryOrder" && canViewDelivery) ||
-      (item.ref_type === "GoodsReceipt" && canViewGR) ||
-      (item.ref_type === "StockOpname" && canViewOpname);
+      (item.ref_type === "GoodsReceipt" && canViewGR);
     if (!hasPermission) return;
     setRefEntityType(item.ref_type);
     setRefEntityId(item.ref_id);
@@ -444,12 +449,6 @@ export function MovementList() {
         open={refEntityOpen && refEntityType === "GoodsReceipt"}
         onClose={() => setRefEntityOpen(false)}
         goodsReceiptId={refEntityId}
-      />
-
-      <StockOpnameDetailDialog
-        open={refEntityOpen && refEntityType === "StockOpname"}
-        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
-        opnameId={refEntityType === "StockOpname" ? refEntityId : null}
       />
 
       <JournalDetailModal

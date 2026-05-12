@@ -465,7 +465,8 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, [activeParentId, parentItems, isMounted]);
 
   const contentMarginLeft = useMemo(() => {
-    if (isMobile || !isMounted) return "0";
+    if (!isMounted) return undefined;
+    if (isMobile) return "0";
     if (isDetailSidebarOpen && shouldShowDetailSidebar)
       return "calc(4rem + 14rem)";
     return "4rem";
@@ -513,14 +514,14 @@ export const DashboardLayout = memo(function DashboardLayout({
         />
 
         <main
-          className="relative min-h-screen transition-[margin] duration-300 ease-out"
-          style={{ marginLeft: contentMarginLeft }}
+          className={cn(
+            "relative min-h-screen md:ml-16",
+            isMounted && "transition-[margin] duration-300 ease-out",
+          )}
+          style={contentMarginLeft ? { marginLeft: contentMarginLeft } : undefined}
         >
           <div
-            className={cn(
-              "relative min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]",
-              isDashboardOnboardingMode && "md:rounded-none md:shadow-none",
-            )}
+            className="relative min-h-full bg-background md:rounded-none md:shadow-none"
           >
             {shouldShowDashboardHeader &&
               (isDashboardOnboardingMode ? (

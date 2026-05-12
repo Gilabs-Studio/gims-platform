@@ -52,15 +52,18 @@ type StockOpname struct {
 }
 
 type StockOpnameItem struct {
-	ID            string   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	TenantID      string   `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	StockOpnameID string   `gorm:"type:uuid;not null;index"`
-	Product       *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-	ProductID     string   `gorm:"type:uuid;not null;index"`
-	SystemQty     float64  `gorm:"type:decimal(15,2);not null;default:0"`
-	PhysicalQty   *float64 `gorm:"type:decimal(15,2)"` // Nullable until counted
-	VarianceQty   float64  `gorm:"type:decimal(15,2);default:0"`
-	Notes         string   `gorm:"type:text"`
+	ID               string                    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	TenantID         string                    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	StockOpnameID    string                    `gorm:"type:uuid;not null;index"`
+	Product          *productModels.Product    `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	ProductID        string                    `gorm:"type:uuid;not null;index"`
+	InventoryBatchID *string                   `gorm:"type:uuid;index" json:"inventory_batch_id,omitempty"`
+	BatchNumber      string                    `gorm:"type:varchar(100);default:''" json:"batch_number,omitempty"`
+	BatchQty         float64                   `gorm:"type:decimal(15,2);default:0" json:"batch_qty,omitempty"`
+	SystemQty        float64                   `gorm:"type:decimal(15,2);not null;default:0"`
+	PhysicalQty      *float64                  `gorm:"type:decimal(15,2)"` // Nullable until counted
+	VarianceQty      float64                   `gorm:"type:decimal(15,2);default:0"`
+	Notes            string                    `gorm:"type:text"`
     
     // Audit
     CreatedAt     time.Time `gorm:"autoCreateTime"`

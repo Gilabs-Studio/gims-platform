@@ -176,7 +176,7 @@ func (r *stockOpnameRepository) ListWarehouseStockSnapshot(ctx context.Context, 
 
 	query := r.db.WithContext(ctx).
 		Table("inventory_batches ib").
-		Select("ib.product_id AS product_id, COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) AS system_qty").
+		Select("ib.product_id AS product_id, COALESCE(ib.current_quantity - ib.reserved_quantity, 0) AS system_qty, ib.id AS batch_id, ib.batch_number AS batch_number, ib.current_quantity AS batch_qty").
 		Joins("JOIN products p ON p.id = ib.product_id AND p.deleted_at IS NULL").
 		Where("ib.warehouse_id = ? AND ib.deleted_at IS NULL", warehouseID)
 
@@ -196,8 +196,8 @@ func (r *stockOpnameRepository) ListWarehouseStockSnapshot(ctx context.Context, 
 	}
 
 	err := query.
-		Group("ib.product_id").
-		Having("COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) <> 0").
+		Where("COALESCE(ib.current_quantity - ib.reserved_quantity, 0) <> 0").
+		Order("ib.product_id ASC, ib.batch_number ASC").
 		Scan(&rows).Error
 
 	if err != nil {

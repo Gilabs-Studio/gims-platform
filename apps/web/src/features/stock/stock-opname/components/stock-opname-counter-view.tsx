@@ -29,6 +29,9 @@ interface PendingCounterLine {
   system_qty: number;
   physical_qty: number | null;
   notes: string;
+  inventory_batch_id?: string | null;
+  batch_number?: string;
+  batch_qty?: number;
 }
 
 export const StockOpnameCounterView = forwardRef<StockOpnameDraftActions, Props>(function StockOpnameCounterView({ opname, readOnly }: Props, ref) {
@@ -150,6 +153,9 @@ export const StockOpnameCounterView = forwardRef<StockOpnameDraftActions, Props>
               system_qty: line.system_qty,
               physical_qty: line.physical_qty,
               notes: line.notes,
+              inventory_batch_id: line.inventory_batch_id,
+              batch_number: line.batch_number,
+              batch_qty: line.batch_qty,
             })),
           },
         });
@@ -216,6 +222,9 @@ export const StockOpnameCounterView = forwardRef<StockOpnameDraftActions, Props>
       system_qty: item.system_qty,
       physical_qty: newQty,
       notes: item.notes ?? "",
+      inventory_batch_id: item.inventory_batch_id,
+      batch_number: item.batch_number,
+      batch_qty: item.batch_qty,
     };
     setHasPendingDraft(true);
 
@@ -339,6 +348,11 @@ export const StockOpnameCounterView = forwardRef<StockOpnameDraftActions, Props>
                     </span>
                   )}
                 </div>
+                {item.batch_number && (
+                  <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1 py-0.5 rounded">
+                    Batch: {item.batch_number}
+                  </span>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {t("counterView.systemQty")}: <span className="font-semibold text-foreground">{item.system_qty}</span>
                 </p>

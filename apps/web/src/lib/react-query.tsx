@@ -4,12 +4,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
+const ENABLE_REACT_QUERY_DEVTOOLS =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_REACT_QUERY_DEVTOOLS === "true";
+
 // Load React Query Devtools dynamically (module scope to avoid creating
 // a component during render which would reset state every render).
-const ReactQueryDevtools = dynamic(
-  () => import("@tanstack/react-query-devtools").then((m) => m.ReactQueryDevtools),
-  { ssr: false, loading: () => null },
-);
+const ReactQueryDevtools = ENABLE_REACT_QUERY_DEVTOOLS
+  ? dynamic(
+      () => import("@tanstack/react-query-devtools").then((m) => m.ReactQueryDevtools),
+      { ssr: false, loading: () => null },
+    )
+  : null;
 
 export function ReactQueryProvider({
   children,
@@ -38,7 +44,7 @@ export function ReactQueryProvider({
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {process.env.NODE_ENV === "development" && <ReactQueryDevtools />}
+      {ReactQueryDevtools ? <ReactQueryDevtools /> : null}
     </QueryClientProvider>
   );
 }

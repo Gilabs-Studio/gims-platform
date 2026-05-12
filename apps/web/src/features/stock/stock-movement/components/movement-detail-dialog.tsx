@@ -259,6 +259,11 @@ export function MovementDetailDialog({
             <div className="flex-1">
               <h3 className="font-bold text-lg">{item.product?.name ?? "Unknown Product"}</h3>
               <p className="text-sm text-muted-foreground font-mono">{item.product?.code}</p>
+              {item.inventory_batch?.batch_number && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("batchNumber")}: <span className="font-mono">{item.inventory_batch.batch_number}</span>
+                </p>
+              )}
             </div>
             <div className="text-right">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">

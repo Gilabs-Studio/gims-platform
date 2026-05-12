@@ -1,14 +1,16 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useCallback } from "react";
+import Image from "next/image";
+import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Download } from "lucide-react";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { resolveImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSaveStockOpnameLines, useStockOpnameItemsInfinite } from "../hooks/use-stock-opnames";
 import type { StockOpname } from "../types";
@@ -31,6 +33,9 @@ interface DraftLinePayload {
   system_qty: number;
   physical_qty: number | null;
   notes: string;
+  inventory_batch_id?: string | null;
+  batch_number?: string;
+  batch_qty?: number;
 }
 
 export interface StockOpnameDraftActions {
@@ -49,7 +54,7 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
     isFetchingNextPage,
     fetchNextPage,
   } = useStockOpnameItemsInfinite(opname.id, 20);
-  const items = itemsData?.pages.flatMap((page) => page.data) ?? [];
+  const items = useMemo(() => itemsData?.pages.flatMap((page) => page.data) ?? [], [itemsData]);
   const saveLinesMutation = useSaveStockOpnameLines();
 
   const [activeTab, setActiveTab] = useState("items");
@@ -73,7 +78,48 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
   const needsRefetchRef = useRef(false);
   const [hasPendingDraft, setHasPendingDraft] = useState(false);
   const [isQueueSaving, setIsQueueSaving] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
   const draftStorageKey = `stock-opname:manager:${opname.id}`;
+
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, {
+      productId: string;
+      productName: string;
+      productImageUrl: string | null;
+      items: (typeof items)[number][];
+    }>();
+
+    for (const item of items) {
+      const existing = groups.get(item.product_id);
+      if (existing) {
+        existing.items.push(item);
+        continue;
+      }
+
+      groups.set(item.product_id, {
+        productId: item.product_id,
+        productName: item.product_name || "-",
+        productImageUrl: item.product_image_url ?? null,
+        items: [item],
+      });
+    }
+
+    return Array.from(groups.values());
+  }, [items]);
+
+  const getInitials = (name: string): string => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "PR";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  };
+
+  const toggleProductExpansion = (productId: string) => {
+    setExpandedProducts((prev) => ({
+      ...prev,
+      [productId]: !(prev[productId] ?? true),
+    }));
+  };
 
   const getPhysicalQty = useCallback((itemId: string, fallback: number | null) => {
     const local = draftState[itemId];
@@ -180,6 +226,9 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
               system_qty: line.system_qty,
               physical_qty: line.physical_qty,
               notes: line.notes,
+              inventory_batch_id: line.inventory_batch_id,
+              batch_number: line.batch_number,
+              batch_qty: line.batch_qty,
             })),
           },
         });
@@ -258,6 +307,9 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
       system_qty: item.system_qty,
       physical_qty: physicalQty,
       notes,
+      inventory_batch_id: item.inventory_batch_id,
+      batch_number: item.batch_number,
+      batch_qty: item.batch_qty,
     };
     setHasPendingDraft(true);
 
@@ -315,8 +367,8 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
     };
 
     const headers = [
-      t("dialog.columns.productCode"),
       t("dialog.columns.productName"),
+      t("managerView.columns.batchNumber"),
       t("dialog.columns.systemQty"),
       t("dialog.columns.physicalQty"),
       t("dialog.columns.varianceQty"),
@@ -325,8 +377,8 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
     ];
 
     const rows = items.map((item) => [
-      escapeCSV(item.product_code ?? ""),
       escapeCSV(item.product_name ?? ""),
+      escapeCSV(item.batch_number ?? ""),
       escapeCSV(item.system_qty),
       escapeCSV(item.physical_qty ?? ""),
       escapeCSV(item.variance_qty),
@@ -396,8 +448,8 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("dialog.columns.productCode")}</TableHead>
                     <TableHead>{t("dialog.columns.productName")}</TableHead>
+                    <TableHead>{t("managerView.columns.batchNumber")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.systemQty")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.physicalQty")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.varianceQty")}</TableHead>
@@ -412,67 +464,143 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items.map((item) => {
-                      const currentPhysical = getPhysicalQty(item.id, item.physical_qty);
-                      const variance = currentPhysical === null ? null : currentPhysical - item.system_qty;
-                      const isShrinkage = variance !== null && variance < 0;
-                      const isOverstock = variance !== null && variance > 0;
-                      const isUncounted = currentPhysical === null;
+                    groupedItems.map((group) => {
+                      const isExpanded = expandedProducts[group.productId] ?? true;
+                      const parentSystemQty = group.items.reduce((acc, child) => acc + child.system_qty, 0);
+                      const parentPhysicalValues = group.items.map((child) => getPhysicalQty(child.id, child.physical_qty));
+                      const hasUncountedChild = parentPhysicalValues.some((value) => value === null);
+                      const parentPhysicalQty = hasUncountedChild
+                        ? null
+                        : group.items.reduce((acc, child) => acc + (getPhysicalQty(child.id, child.physical_qty) ?? 0), 0);
+                      const parentVariance = parentPhysicalQty === null ? null : parentPhysicalQty - parentSystemQty;
 
                       return (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
-                          <TableCell>{item.product_name}</TableCell>
-                          <TableCell className="text-right">{item.system_qty}</TableCell>
-                          <TableCell className="text-right">
-                            {isDraftEditable ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={1}
-                                  value={currentPhysical ?? ""}
-                                  className="w-28 text-right"
-                                  placeholder="-"
-                                  onChange={(e) => {
-                                    const next = e.target.value === "" ? null : Number(e.target.value);
-                                    queueDraftLine(item, Number.isNaN(next) ? null : next, getNotes(item.id, item.notes ?? ""));
-                                  }}
-                                />
-                              </div>
-                            ) : isUncounted ? (
-                              <Badge variant="outline" className="text-xs">
-                                {t("counterView.notCounted")}
-                              </Badge>
-                            ) : (
-                              currentPhysical
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {isUncounted ? (
-                              <span className="text-muted-foreground">-</span>
-                            ) : isShrinkage ? (
-                              <span className="text-destructive font-medium">{variance}</span>
-                            ) : isOverstock ? (
-                              <span className="text-green-600 font-medium">+{variance}</span>
-                            ) : (
-                              <span className="text-muted-foreground">0</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {isDraftEditable ? (
-                              <Input
-                                value={getNotes(item.id, item.notes ?? "")}
-                                placeholder={t("dialog.columns.notes")}
-                                onChange={(e) => {
-                                  queueDraftLine(item, getPhysicalQty(item.id, item.physical_qty), e.target.value);
-                                }}
-                              />
-                            ) : (
-                              item.notes
-                            )}
-                          </TableCell>
-                        </TableRow>
+                        <Fragment key={group.productId}>
+                          <TableRow key={`${group.productId}-parent`} className="bg-muted/30">
+                            <TableCell>
+                              <button
+                                type="button"
+                                className="flex items-center gap-3 w-full text-left"
+                                onClick={() => toggleProductExpansion(group.productId)}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                )}
+                                <div className="h-8 w-8 rounded-sm border shrink-0 overflow-hidden bg-muted flex items-center justify-center">
+                                  {group.productImageUrl ? (
+                                    <Image
+                                      src={resolveImageUrl(group.productImageUrl) ?? ""}
+                                      alt={group.productName}
+                                      width={32}
+                                      height={32}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="text-[10px] font-medium text-muted-foreground">
+                                      {getInitials(group.productName)}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-medium">{group.productName}</span>
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {group.items.length} batch
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{parentSystemQty}</TableCell>
+                            <TableCell className="text-right">
+                              {parentPhysicalQty === null ? (
+                                <span className="text-muted-foreground">-</span>
+                              ) : (
+                                <span className="font-medium">{parentPhysicalQty}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {parentVariance === null ? (
+                                <span className="text-muted-foreground">-</span>
+                              ) : parentVariance < 0 ? (
+                                <span className="text-destructive font-medium">{parentVariance}</span>
+                              ) : parentVariance > 0 ? (
+                                <span className="text-green-600 font-medium">+{parentVariance}</span>
+                              ) : (
+                                <span className="text-muted-foreground">0</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">-</TableCell>
+                          </TableRow>
+
+                          {isExpanded && group.items.map((item) => {
+                            const currentPhysical = getPhysicalQty(item.id, item.physical_qty);
+                            const variance = currentPhysical === null ? null : currentPhysical - item.system_qty;
+                            const isShrinkage = variance !== null && variance < 0;
+                            const isOverstock = variance !== null && variance > 0;
+                            const isUncounted = currentPhysical === null;
+
+                            return (
+                              <TableRow key={item.id} className="bg-muted/10">
+                                <TableCell>
+                                  <div className="flex items-center gap-2 pl-11 text-sm text-muted-foreground">
+                                    <span>Batch</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                  {item.batch_number || "-"}
+                                </TableCell>
+                                <TableCell className="text-right">{item.system_qty}</TableCell>
+                                <TableCell className="text-right">
+                                  {isDraftEditable ? (
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        value={currentPhysical ?? ""}
+                                        className="w-28 text-right"
+                                        placeholder="-"
+                                        onChange={(e) => {
+                                          const next = e.target.value === "" ? null : Number(e.target.value);
+                                          queueDraftLine(item, Number.isNaN(next) ? null : next, getNotes(item.id, item.notes ?? ""));
+                                        }}
+                                      />
+                                    </div>
+                                  ) : isUncounted ? (
+                                    <Badge variant="outline" className="text-xs">
+                                      {t("counterView.notCounted")}
+                                    </Badge>
+                                  ) : (
+                                    currentPhysical
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {isUncounted ? (
+                                    <span className="text-muted-foreground">-</span>
+                                  ) : isShrinkage ? (
+                                    <span className="text-destructive font-medium">{variance}</span>
+                                  ) : isOverstock ? (
+                                    <span className="text-green-600 font-medium">+{variance}</span>
+                                  ) : (
+                                    <span className="text-muted-foreground">0</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {isDraftEditable ? (
+                                    <Input
+                                      value={getNotes(item.id, item.notes ?? "")}
+                                      placeholder={t("dialog.columns.notes")}
+                                      onChange={(e) => {
+                                        queueDraftLine(item, getPhysicalQty(item.id, item.physical_qty), e.target.value);
+                                      }}
+                                    />
+                                  ) : (
+                                    item.notes
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </Fragment>
                       );
                     })
                   )}
