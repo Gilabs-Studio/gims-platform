@@ -645,6 +645,10 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 					return fmt.Errorf("inventory batch is required for product %s", item.ProductID)
 				}
 
+				if err := u.inventoryUC.ValidateBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return fmt.Errorf("validate batch stock for product %s: %w", item.ProductID, err)
+				}
+
 				log.Printf("[Sales] Deducting stock for Product %s, Batch %s, Qty %.3f", item.ProductID, *item.InventoryBatchID, item.Quantity)
 
 				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {

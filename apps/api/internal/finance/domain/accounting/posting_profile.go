@@ -11,6 +11,9 @@ type PostingProfile struct {
 	// ReferenceType is the canonical reference type (from reference package).
 	ReferenceType string
 
+	// JournalType is the journal classification to persist for generated journals.
+	JournalType models.JournalType
+
 	// Description template. Use %s placeholders for dynamic values.
 	DescriptionTemplate string
 
@@ -49,6 +52,7 @@ var (
 	// Credit: NTP Liability Account (from settings)
 	ProfileNonTradePayableApproval = PostingProfile{
 		ReferenceType:       reference.RefTypeNonTradePayable,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "NTP Approval: %s - %s",
 		Rules: []PostingRule{
 			{
@@ -71,6 +75,7 @@ var (
 	// Credit: Bank/Cash Account (user-selected)
 	ProfileNonTradePayablePayment = PostingProfile{
 		ReferenceType:       reference.RefTypeNTPPayment,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "NTP Payment: %s - Ref: %s",
 		Rules: []PostingRule{
 			{
@@ -93,6 +98,7 @@ var (
 	// Credit: Accrued Expense Account (from settings)
 	ProfileUpCountryApproval = PostingProfile{
 		ReferenceType:       reference.RefTypeUpCountryCost,
+		JournalType:         models.JournalTypeAdjustment,
 		DescriptionTemplate: "Up-Country Cost Approval: %s - %s",
 		Rules: []PostingRule{
 			{
@@ -115,6 +121,7 @@ var (
 	// Credit: Counter-party accounts (line items)
 	ProfileCashBankCashIn = PostingProfile{
 		ReferenceType:       reference.RefTypeCashBank,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "%s",
 		Rules: []PostingRule{
 			{
@@ -132,6 +139,7 @@ var (
 	// Credit: Bank Account COA (from bank_account.chart_of_account_id)
 	ProfileCashBankCashOut = PostingProfile{
 		ReferenceType:       reference.RefTypeCashBank,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "%s",
 		Rules: []PostingRule{
 			{
@@ -148,6 +156,7 @@ var (
 	// Credit: Source Bank Account COA
 	ProfileCashBankTransfer = PostingProfile{
 		ReferenceType:       reference.RefTypeCashBank,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "%s",
 		Rules: []PostingRule{
 			{
@@ -164,6 +173,7 @@ var (
 	// Credit: Bank Account COA
 	ProfilePayment = PostingProfile{
 		ReferenceType:       reference.RefTypePayment,
+		JournalType:         models.JournalTypeGeneral,
 		DescriptionTemplate: "%s",
 		Rules: []PostingRule{
 			{
@@ -179,6 +189,7 @@ var (
 	// Debit/Credit: Revenue/Expense summary → Retained Earnings
 	ProfilePeriodClosing = PostingProfile{
 		ReferenceType:       reference.RefTypePeriodClosing,
+		JournalType:         models.JournalTypeClosing,
 		DescriptionTemplate: "Year-End Closing: %s",
 		Rules: []PostingRule{
 			{
@@ -196,6 +207,7 @@ var (
 	// Credit: VAT Out (coa.sales_vat_out) if applicable
 	ProfileSalesInvoice = PostingProfile{
 		ReferenceType:       reference.RefTypeSalesInvoice,
+		JournalType:         models.JournalTypeSales,
 		DescriptionTemplate: "Invoice %s: %s",
 		Rules: []PostingRule{
 			{
@@ -224,6 +236,7 @@ var (
 	// Credit: Trade Payables (coa.purchase_payable)
 	ProfileSupplierInvoice = PostingProfile{
 		ReferenceType:       reference.RefTypeSupplierInvoice,
+		JournalType:         models.JournalTypePurchase,
 		DescriptionTemplate: "Supplier Invoice %s: %s",
 		Rules: []PostingRule{
 			{
@@ -245,6 +258,12 @@ var (
 				MemoTemplate:  "Clearing GR/IR for received goods",
 			},
 			{
+				COASettingKey: "coa.purchase_price_diff",
+				Side:          "dynamic",
+				AmountSource:  "gr_ir_variance",
+				MemoTemplate:  "GR/IR Variance",
+			},
+			{
 				COASettingKey: "coa.purchase_vat_in",
 				Side:          "debit",
 				AmountSource:  "tax_total",
@@ -262,6 +281,7 @@ var (
 	// ProfileSalesPayment generates journal for regular customer payments.
 	ProfileSalesPayment = PostingProfile{
 		ReferenceType:       reference.RefTypeSalesPayment,
+		JournalType:         models.JournalTypeSales,
 		DescriptionTemplate: "Customer Payment %s: %s",
 		Rules: []PostingRule{
 			{
@@ -282,6 +302,7 @@ var (
 	// ProfileSalesPaymentDP generates journal for down payment payments.
 	ProfileSalesPaymentDP = PostingProfile{
 		ReferenceType:       reference.RefTypeSalesPayment,
+		JournalType:         models.JournalTypeSales,
 		DescriptionTemplate: "Customer Down Payment %s: %s",
 		Rules: []PostingRule{
 			{
@@ -302,6 +323,7 @@ var (
 	// ProfileSalesInvoiceDP generates journal for customer down payment invoice approval.
 	ProfileSalesInvoiceDP = PostingProfile{
 		ReferenceType:       "SALES_INVOICE_DP",
+		JournalType:         models.JournalTypeSales,
 		DescriptionTemplate: "Customer DP Invoice %s: %s",
 		Rules: []PostingRule{
 			{
@@ -322,6 +344,7 @@ var (
 	// ProfileSupplierInvoiceDP generates journal for supplier down payment invoice approval.
 	ProfileSupplierInvoiceDP = PostingProfile{
 		ReferenceType:       "SUPPLIER_INVOICE_DP",
+		JournalType:         models.JournalTypePurchase,
 		DescriptionTemplate: "Supplier DP Invoice %s: %s",
 		Rules: []PostingRule{
 			{
@@ -342,6 +365,7 @@ var (
 	// ProfileSalesReturn generates journal for sales return processing.
 	ProfileSalesReturn = PostingProfile{
 		ReferenceType:       "SALES_RETURN",
+		JournalType:         models.JournalTypeSales,
 		DescriptionTemplate: "Sales Return %s",
 		Rules: []PostingRule{
 			{
@@ -368,6 +392,7 @@ var (
 	// ProfilePurchaseReturn generates journal for purchase return processing.
 	ProfilePurchaseReturn = PostingProfile{
 		ReferenceType:       "PURCHASE_RETURN",
+		JournalType:         models.JournalTypePurchase,
 		DescriptionTemplate: "Purchase Return %s",
 		Rules: []PostingRule{
 			{
@@ -394,6 +419,7 @@ var (
 	// ProfilePurchasePayment generates journal for regular supplier payments.
 	ProfilePurchasePayment = PostingProfile{
 		ReferenceType:       "PURCHASE_PAYMENT",
+		JournalType:         models.JournalTypePurchase,
 		DescriptionTemplate: "Supplier Payment %s: %s",
 		Rules: []PostingRule{
 			{
@@ -403,10 +429,10 @@ var (
 				MemoTemplate:  "Payment for Regular Invoice",
 			},
 			{
-				COASource:    "bank_account",
-				Side:         "credit",
-				AmountSource: "total",
-				MemoTemplate: "Outbound Payment from Bank/Cash",
+				UseTransactionCOA: true,
+				Side:              "credit",
+				AmountSource:      "total",
+				MemoTemplate:      "Outbound Payment from Bank/Cash (via mapping)",
 			},
 		},
 	}
@@ -414,6 +440,7 @@ var (
 	// ProfilePurchasePaymentDP generates journal for supplier down payments.
 	ProfilePurchasePaymentDP = PostingProfile{
 		ReferenceType:       "PURCHASE_PAYMENT_DP",
+		JournalType:         models.JournalTypePurchase,
 		DescriptionTemplate: "Supplier Down Payment %s: %s",
 		Rules: []PostingRule{
 			{
@@ -423,10 +450,10 @@ var (
 				MemoTemplate:  "Supplier Advance Payment",
 			},
 			{
-				COASource:    "bank_account",
-				Side:         "credit",
-				AmountSource: "total",
-				MemoTemplate: "Outbound Payment from Bank/Cash",
+				UseTransactionCOA: true,
+				Side:              "credit",
+				AmountSource:      "total",
+				MemoTemplate:      "Outbound Payment from Bank/Cash (via mapping)",
 			},
 		},
 	}

@@ -120,13 +120,40 @@ func resolvePurchasePaymentBankAccountForCreate(
 	method models.PurchasePaymentMethod,
 	actorID string,
 	companyID string,
+	ctx context.Context,
+	settingsUC financesettings.SettingsService,
+	coaUC finUsecase.ChartOfAccountUsecase,
 ) (*coreModels.BankAccount, error) {
-	if bankAccountID != "" {
-		return lockActivePurchasePaymentBankAccount(tx, bankAccountID)
+	if method == models.PurchasePaymentMethodCash {
+		resolvedCompanyID := strings.TrimSpace(companyID)
+		if resolvedCompanyID == "" {
+			derivedCompanyID, err := resolvePurchasePaymentActorCompanyID(tx, actorID)
+			if err != nil {
+				return nil, err
+			}
+			resolvedCompanyID = derivedCompanyID
+		}
+
+		cashBankAccount, err := resolvePurchaseCashBankAccountForCompany(ctx, tx, resolvedCompanyID, settingsUC, coaUC)
+		if err != nil {
+			cashBankAccount, err = lockAnyActivePurchasePaymentBankAccountForCompany(tx, resolvedCompanyID)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if bankAccountID != "" {
+			selectedBankAccount, err := lockActivePurchasePaymentBankAccount(tx, bankAccountID)
+			if err == nil && selectedBankAccount.ChartOfAccountID != nil && cashBankAccount.ChartOfAccountID != nil && strings.TrimSpace(*selectedBankAccount.ChartOfAccountID) == strings.TrimSpace(*cashBankAccount.ChartOfAccountID) {
+				return selectedBankAccount, nil
+			}
+		}
+
+		return cashBankAccount, nil
 	}
 
-	if method != models.PurchasePaymentMethodCash {
-		return nil, errors.New("bank account is required for bank transfers")
+	if bankAccountID != "" {
+		return lockActivePurchasePaymentBankAccount(tx, bankAccountID)
 	}
 
 	resolvedCompanyID := strings.TrimSpace(companyID)
@@ -201,6 +228,44 @@ func lockActivePurchasePaymentBankAccount(tx *gorm.DB, bankAccountID string) (*c
 	return &ba, nil
 }
 
+func resolvePurchaseCashBankAccountForCompany(
+	ctx context.Context,
+	tx *gorm.DB,
+	companyID string,
+	settingsUC financesettings.SettingsService,
+	coaUC finUsecase.ChartOfAccountUsecase,
+) (*coreModels.BankAccount, error) {
+	if settingsUC == nil || coaUC == nil {
+		return nil, errors.New("finance settings/coA dependency is required for cash payments")
+	}
+
+	coaCode, err := settingsUC.GetCOAByKey(ctx, "finance.cash_default")
+	if err != nil || strings.TrimSpace(coaCode) == "" {
+		coaCode, err = settingsUC.GetCOACode(ctx, "coa.cash")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	coa, err := coaUC.GetByCode(ctx, strings.TrimSpace(coaCode))
+	if err != nil {
+		return nil, err
+	}
+
+	var bankAccount coreModels.BankAccount
+	if err := tx.Where("company_id = ? AND is_active = ? AND chart_of_account_id = ?", strings.TrimSpace(companyID), true, coa.ID).
+		Order("updated_at DESC").
+		Order("created_at DESC").
+		First(&bankAccount).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	return &bankAccount, nil
+}
+
 func isPayableSupplierInvoiceStatus(status models.SupplierInvoiceStatus) bool {
 	for _, allowed := range payableSupplierInvoiceStatuses {
 		if status == allowed {
@@ -222,7 +287,11 @@ func isSamePendingPaymentRequest(
 		return false
 	}
 
-	if strings.TrimSpace(pending.BankAccountID) != strings.TrimSpace(bankAccountID) {
+	pendingBA := ""
+	if pending.BankAccountID != nil {
+		pendingBA = strings.TrimSpace(*pending.BankAccountID)
+	}
+	if pendingBA != strings.TrimSpace(bankAccountID) {
 		return false
 	}
 	if strings.TrimSpace(pending.PaymentDate) != strings.TrimSpace(paymentDate) {
@@ -361,6 +430,9 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			method,
 			actorID,
 			companyID,
+			ctx,
+			uc.settingsUC,
+			uc.coaUC,
 		)
 		if err != nil {
 			return err
@@ -382,7 +454,6 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			}
 			return ErrPurchasePaymentConflict
 		}
-
 		if req.Amount > inv.RemainingAmount+0.0001 {
 			return ErrPurchasePaymentConflict
 		}
@@ -392,9 +463,21 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			return ErrPurchasePaymentConflict
 		}
 
+		// For CASH payments, do not store bank account ID (COA resolved from mapping at journal time)
+		var bankAccountID *string
+		if method != models.PurchasePaymentMethodCash {
+			id := strings.TrimSpace(ba.ID)
+			bankAccountID = &id
+		}
+
+		resolvedCompanyID := strings.TrimSpace(companyID)
+		if resolvedCompanyID == "" && inv.CompanyID != nil {
+			resolvedCompanyID = strings.TrimSpace(*inv.CompanyID)
+		}
+
 		p := &models.PurchasePayment{
 			SupplierInvoiceID: inv.ID,
-			BankAccountID:     strings.TrimSpace(ba.ID),
+			BankAccountID:     bankAccountID,
 			PaymentDate:       strings.TrimSpace(req.PaymentDate),
 			Amount:            amount,
 			Method:            method,
@@ -403,17 +486,27 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			Notes:             req.Notes,
 			CreatedBy:         actorID,
 		}
-		p.CompanyID = inv.CompanyID
+		p.CompanyID = resolvedCompanyID
 		p.FiscalYearID = inv.FiscalYearID
-		if p.CompanyID == nil || p.FiscalYearID == nil {
+		if p.CompanyID == "" || p.FiscalYearID == nil {
 			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
 			if err != nil {
 				return err
 			}
-			p.CompanyID = &companyID
+			p.CompanyID = companyID
 			p.FiscalYearID = &fiscalYearID
 		}
-		snapshotPurchasePayment(p, ba)
+		// Only snapshot bank account for BANK method
+		if method == models.PurchasePaymentMethodBank {
+			snapshotPurchasePayment(p, ba)
+		}
+
+		transactionCOAID, err := uc.resolveTransactionCOAForJournal(ctx, p, ba)
+		if err != nil {
+			return err
+		}
+		p.SnapshotCOAID = &transactionCOAID
+
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}
@@ -499,6 +592,9 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 			method,
 			actorID,
 			"",
+			ctx,
+			uc.settingsUC,
+			uc.coaUC,
 		)
 		if err != nil {
 			return err
@@ -533,7 +629,6 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 
 			pay := &models.PurchasePayment{
 				SupplierInvoiceID: inv.ID,
-				BankAccountID:     strings.TrimSpace(ba.ID),
 				PaymentDate:       paymentDate,
 				Amount:            item.Amount,
 				Method:            method,
@@ -542,17 +637,32 @@ func (uc *purchasePaymentUsecase) CreateBatch(ctx context.Context, req *dto.Crea
 				Notes:             req.Notes,
 				CreatedBy:         actorID,
 			}
-			pay.CompanyID = inv.CompanyID
+			// assign bank account id pointer
+			baID := strings.TrimSpace(ba.ID)
+			pay.BankAccountID = &baID
+			if inv.CompanyID != nil {
+				pay.CompanyID = strings.TrimSpace(*inv.CompanyID)
+			}
 			pay.FiscalYearID = inv.FiscalYearID
-			if pay.CompanyID == nil || pay.FiscalYearID == nil {
+			if pay.CompanyID == "" || pay.FiscalYearID == nil {
 				companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, inv.InvoiceDate)
 				if err != nil {
 					return err
 				}
-				pay.CompanyID = &companyID
+				pay.CompanyID = companyID
 				pay.FiscalYearID = &fiscalYearID
 			}
-			snapshotPurchasePayment(pay, ba)
+			// Only snapshot bank account for BANK method
+			if method == models.PurchasePaymentMethodBank {
+				snapshotPurchasePayment(pay, ba)
+			}
+
+			transactionCOAID, err := uc.resolveTransactionCOAForJournal(ctx, pay, ba)
+			if err != nil {
+				return err
+			}
+			pay.SnapshotCOAID = &transactionCOAID
+
 			if err := tx.Create(pay).Error; err != nil {
 				return err
 			}
@@ -1000,11 +1110,15 @@ func (uc *purchasePaymentUsecase) confirmPaymentTx(ctx context.Context, tx *gorm
 	txCtx := database.WithTx(ctx, tx)
 	loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
 	if loadErr != nil {
+		log.Printf("[JOURNAL_ERROR] Failed to load payment %s for journal: %v", pay.ID, loadErr)
 		return "", fmt.Errorf("failed to load payment for journal: %w", loadErr)
 	}
+	log.Printf("[JOURNAL_DEBUG] Posting accounting for purchase payment %s (amount=%.2f, method=%s)", loadedPay.ID, loadedPay.Amount, loadedPay.Method)
 	if err := uc.postPaymentAccounting(txCtx, loadedPay); err != nil {
+		log.Printf("[JOURNAL_ERROR] Failed to post purchase payment accounting for %s: %v", loadedPay.ID, err)
 		return "", fmt.Errorf("failed to post purchase payment accounting: %w", err)
 	}
+	log.Printf("[PURCHASE_PAYMENT_CONFIRM] Accounting posted successfully for payment %s", loadedPay.ID)
 
 	return pay.ID, nil
 }
@@ -1236,13 +1350,15 @@ func (uc *purchasePaymentUsecase) postPaymentAccounting(ctx context.Context, pay
 		return nil
 	}
 
-	if uc.cashBankTxnUC != nil {
+	if uc.cashBankTxnUC != nil && pay.Method != models.PurchasePaymentMethodCash {
+		log.Printf("[ACCOUNTING_DEBUG] postPaymentAccounting: Using Cash/Bank Transaction for payment %s", pay.ID)
 		if err := uc.createCashBankTransactionForPayment(ctx, pay); err != nil {
 			return err
 		}
 		return nil
 	}
 
+	log.Printf("[ACCOUNTING_DEBUG] postPaymentAccounting: Using Journal Entry trigger for payment %s", pay.ID)
 	return uc.triggerJournalEntry(ctx, pay)
 }
 
@@ -1255,13 +1371,24 @@ func (uc *purchasePaymentUsecase) createCashBankTransactionForPayment(ctx contex
 		return nil
 	}
 
+	// Cash payments do not require a bank account; only BANK method payments need one
+	if pay.Method == models.PurchasePaymentMethodCash {
+		return nil
+	}
+
 	var bankAccount coreModels.BankAccount
 	if pay.BankAccount != nil {
 		bankAccount = *pay.BankAccount
 	} else {
-		if err := database.GetDB(ctx, uc.db).First(&bankAccount, "id = ?", pay.BankAccountID).Error; err != nil {
+		if pay.BankAccountID == nil || strings.TrimSpace(*pay.BankAccountID) == "" {
+			return errors.New("bank account is required for purchase payment approval")
+		}
+		if err := database.GetDB(ctx, uc.db).First(&bankAccount, "id = ?", strings.TrimSpace(*pay.BankAccountID)).Error; err != nil {
 			return err
 		}
+	}
+	if strings.TrimSpace(bankAccount.ID) == "" {
+		return errors.New("bank account is required for purchase payment approval")
 	}
 
 	contraAccountID, err := uc.resolvePaymentContraAccountID(ctx, pay)
@@ -1377,38 +1504,43 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		return nil
 	}
 
-	// Fetch BankAccount COA ID
-	var baCOAID string
-	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
-		baCOAID = *pay.BankAccount.ChartOfAccountID
-	} else {
-		var ba coreModels.BankAccount
-		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err == nil && ba.ChartOfAccountID != nil {
-			baCOAID = *ba.ChartOfAccountID
-		}
+	companyID := strings.TrimSpace(pay.CompanyID)
+
+	// prepare bank account id for resolver (may be nil)
+	var payBankAccountID string
+	if pay.BankAccountID != nil {
+		payBankAccountID = strings.TrimSpace(*pay.BankAccountID)
 	}
 
-	// Default to cash if bank account has no COA
+	resolvedBankAccount, err := resolvePurchasePaymentBankAccountForCreate(
+		uc.db.WithContext(ctx),
+		payBankAccountID,
+		pay.Method,
+		pay.CreatedBy,
+		companyID,
+		ctx,
+		uc.settingsUC,
+		uc.coaUC,
+	)
+	if err != nil {
+		return err
+	}
+
+	baCOAID := ""
+	if pay.SnapshotCOAID != nil {
+		baCOAID = strings.TrimSpace(*pay.SnapshotCOAID)
+	}
 	if baCOAID == "" {
-		if uc.settingsUC == nil {
-			return errors.New("system account mapping untuk 'finance.bank_default' belum dikonfigurasi")
-		}
-
-		defaultKey := "finance.bank_default"
-		if strings.EqualFold(string(pay.Method), string(models.PurchasePaymentMethodCash)) {
-			defaultKey = "finance.cash_default"
-		}
-
-		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, defaultKey)
+		baCOAID, err = uc.resolveTransactionCOAForJournal(ctx, pay, resolvedBankAccount)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to resolve transaction COA for purchase payment journal: %w", err)
 		}
-
-		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
-		if err != nil {
-			return fmt.Errorf("account with code '%s' for mapping '%s' not found", defaultCode, defaultKey)
+		pay.SnapshotCOAID = &baCOAID
+		if err := database.GetDB(ctx, uc.db).Model(&models.PurchasePayment{}).
+			Where("id = ?", pay.ID).
+			Updates(map[string]interface{}{"snapshot_coa_id": baCOAID, "updated_at": apptime.Now()}).Error; err != nil {
+			return fmt.Errorf("failed to persist snapshot COA for purchase payment: %w", err)
 		}
-		baCOAID = def.ID
 	}
 
 	reqRefNum := ""
@@ -1428,7 +1560,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		profile = accounting.ProfilePurchasePaymentDP
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, pay.CompanyID, pay.FiscalYearID, pay.PaymentDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, &pay.CompanyID, pay.FiscalYearID, pay.PaymentDate)
 	if err != nil {
 		return fmt.Errorf("failed to resolve purchase payment journal scope: %w", err)
 	}
@@ -1441,7 +1573,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		EntryDate:        pay.PaymentDate,
 		Description:      fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, reqRefNum),
 		TotalAmount:      pay.Amount,
-		BankAccountCOAID: baCOAID,
+		TransactionCOAID: baCOAID,
 		DescriptionArgs:  []interface{}{invoiceCode, reqRefNum},
 	}
 
@@ -1478,6 +1610,13 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		return fmt.Errorf("failed to post purchase payment journal: %w", err)
 	}
 
+	pay.ResolvedCOAID = &baCOAID
+	if err := database.GetDB(ctx, uc.db).Model(&models.PurchasePayment{}).
+		Where("id = ?", pay.ID).
+		Updates(map[string]interface{}{"resolved_coa_id": baCOAID, "updated_at": apptime.Now()}).Error; err != nil {
+		return fmt.Errorf("failed to persist resolved COA for purchase payment: %w", err)
+	}
+
 	log.Printf("journal_observability event=trigger.success module=purchase_payment reference_id=%s", pay.ID)
 	return nil
 }
@@ -1494,6 +1633,37 @@ func (uc *purchasePaymentUsecase) TriggerJournalForPayment(ctx context.Context, 
 	}
 
 	return uc.triggerJournalEntry(ctx, pay)
+}
+
+func (uc *purchasePaymentUsecase) resolveTransactionCOAForJournal(ctx context.Context, pay *models.PurchasePayment, resolvedBankAccount *coreModels.BankAccount) (string, error) {
+	if pay == nil {
+		return "", errors.New("purchase payment is nil")
+	}
+	if uc.settingsUC == nil || uc.coaUC == nil {
+		return "", errors.New("finance settings/coA dependency is required for purchase payment posting")
+	}
+
+	if strings.EqualFold(string(pay.Method), string(models.PurchasePaymentMethodCash)) {
+		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, "finance.cash_default")
+		if err != nil || strings.TrimSpace(defaultCode) == "" {
+			return "", fmt.Errorf("failed to resolve finance.cash_default mapping: %w", err)
+		}
+
+		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch COA for finance.cash_default (%s): %w", defaultCode, err)
+		}
+		return def.ID, nil
+	}
+
+	if resolvedBankAccount != nil && resolvedBankAccount.ChartOfAccountID != nil {
+		chartOfAccountID := strings.TrimSpace(*resolvedBankAccount.ChartOfAccountID)
+		if chartOfAccountID != "" {
+			return chartOfAccountID, nil
+		}
+	}
+
+	return "", errors.New("bank account must have ChartOfAccountID linked for BANK payments")
 }
 
 func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error) {

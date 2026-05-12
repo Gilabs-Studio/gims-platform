@@ -45,15 +45,15 @@ func (r *systemAccountMappingRepository) GetMappingByKey(ctx context.Context, ke
 	db := r.getDB(ctx).Where("key = ?", key)
 
 	if normalizedCompanyID, ok := normalizeMappingCompanyID(companyID); ok {
-		// Try company specific first, then global
-		var cm financeModels.SystemAccountMapping
-		err := db.Where("company_id = ?", normalizedCompanyID).First(&cm).Error
-		if err == nil {
-			return &cm, nil
+		if err := db.
+			Where("company_id = ? OR company_id IS NULL", normalizedCompanyID).
+			Order(clause.Expr{SQL: "CASE WHEN company_id = ? THEN 0 ELSE 1 END", Vars: []interface{}{normalizedCompanyID}}).
+			First(&m).Error; err != nil {
+			return nil, err
 		}
+		return &m, nil
 	}
 
-	// Global default
 	if err := db.Where("company_id IS NULL").First(&m).Error; err != nil {
 		return nil, err
 	}

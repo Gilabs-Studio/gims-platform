@@ -35,7 +35,7 @@ const (
 )
 
 type SupplierInvoice struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	Type SupplierInvoiceType `gorm:"type:varchar(20);not null;index" json:"type"`
@@ -43,9 +43,9 @@ type SupplierInvoice struct {
 	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 
-	CompanyID *string              `gorm:"type:uuid;index" json:"company_id,omitempty"`
-	Company   *orgModels.Company   `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
-	FiscalYearID *string                 `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	CompanyID    *string                   `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company      *orgModels.Company        `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID *string                   `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
 	FiscalYear   *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 
 	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
@@ -80,15 +80,16 @@ type SupplierInvoice struct {
 	DownPaymentInvoiceID *string          `gorm:"type:uuid;index" json:"down_payment_invoice_id,omitempty"`
 	DownPaymentInvoice   *SupplierInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
-	Status      SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
-	IsPosted    bool                  `gorm:"default:false;index" json:"is_posted"`
-	JournalEntryID *string            `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
-	PaymentAt   *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
-	SubmittedAt *time.Time            `gorm:"type:timestamp" json:"submitted_at,omitempty"`
-	ApprovedAt  *time.Time            `gorm:"type:timestamp" json:"approved_at,omitempty"`
-	RejectedAt  *time.Time            `gorm:"type:timestamp" json:"rejected_at,omitempty"`
-	CancelledAt *time.Time            `gorm:"type:timestamp" json:"cancelled_at,omitempty"`
-	Notes       *string               `gorm:"type:text" json:"notes,omitempty"`
+	Status            SupplierInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	IsPosted          bool                  `gorm:"default:false;index" json:"is_posted"`
+	JournalEntryID    *string               `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
+	GRIRVarianceTotal float64               `gorm:"-" json:"gr_ir_variance_total,omitempty"`
+	PaymentAt         *time.Time            `gorm:"type:timestamp" json:"payment_at,omitempty"`
+	SubmittedAt       *time.Time            `gorm:"type:timestamp" json:"submitted_at,omitempty"`
+	ApprovedAt        *time.Time            `gorm:"type:timestamp" json:"approved_at,omitempty"`
+	RejectedAt        *time.Time            `gorm:"type:timestamp" json:"rejected_at,omitempty"`
+	CancelledAt       *time.Time            `gorm:"type:timestamp" json:"cancelled_at,omitempty"`
+	Notes             *string               `gorm:"type:text" json:"notes,omitempty"`
 
 	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`

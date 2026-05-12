@@ -47,6 +47,29 @@ func SeedPurchaseFinanceE2E() error {
 		return db.Transaction(func(tx *gorm.DB) error {
 			adminID := getAdminID(tx)
 
+			// Get company - use hardcoded company ID if retrieval fails
+			var company *orgModels.Company
+			companyID := "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d" // Default company from seeding
+			
+			var adminEmployee orgModels.Employee
+			if err := tx.Where("user_id = ?", adminID).First(&adminEmployee).Error; err == nil && adminEmployee.CompanyID != nil && *adminEmployee.CompanyID != "" {
+				companyID = *adminEmployee.CompanyID
+			}
+			
+			if err := tx.Where("id = ?", companyID).First(&company).Error; err != nil {
+				log.Printf("Warning: Could not find company %s, trying first active company", companyID)
+				if err := tx.Where("is_active = ?", true).First(&company).Error; err != nil {
+					log.Println("Warning: Could not find any active company for seeding")
+					return nil // Skip seeding if no company available
+				}
+			}
+			
+			if company == nil {
+				log.Println("Warning: Company is nil after retrieval, skipping seeding")
+				return nil
+			}
+			log.Printf("Using company: %s (%s)", company.Name, company.ID)
+
 			var suppliers []supplierModels.Supplier
 			if err := tx.Where("is_active = ?", true).Limit(2).Find(&suppliers).Error; err != nil || len(suppliers) == 0 {
 				log.Println("Warning: No suppliers found. Skipping minimal Purchase-Finance seeder.")
@@ -81,6 +104,25 @@ func SeedPurchaseFinanceE2E() error {
 			bankCOA := getCOAID(tx, "11101")
 
 			now := time.Now()
+			
+			// Ensure fiscal year 2025 exists (for historical data)
+			if company != nil {
+				var fy financeModels.FiscalYear
+				if err := tx.Where("company_id = ? AND EXTRACT(YEAR FROM start_date) = ?", company.ID, 2025).First(&fy).Error; err != nil {
+					// Create fiscal year 2025
+					fy = financeModels.FiscalYear{
+						CompanyID:  company.ID,
+						Name:       "2025",
+						Status:     "active",
+						StartDate:  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+						EndDate:    time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC),
+					}
+					if err := tx.Create(&fy).Error; err != nil {
+						log.Printf("Warning: Failed to create fiscal year 2025: %v", err)
+					}
+				}
+			}
+			
 			if err := seedMinimalPurchaseFlow(tx, purchaseFlowInput{
 				year:        now.Year(),
 				month:       int(now.Month()),
@@ -92,6 +134,7 @@ func SeedPurchaseFinanceE2E() error {
 				warehouse:   warehouse,
 				bankAccount: bankAccount,
 				pt:          pt,
+				company:     company,
 				adminID:     adminID,
 				withDP:      true,
 				dpAmount:    50000,
@@ -133,6 +176,7 @@ func SeedPurchaseFinanceE2E() error {
 				warehouse:   warehouse,
 				bankAccount: bankAccount,
 				pt:          pt,
+				company:     company,
 				adminID:     adminID,
 				payStatus:   "UNPAID",
 				invCOA:      invCOA,
@@ -161,6 +205,29 @@ func SeedPurchaseFinanceE2E() error {
 		//  Dependencies 
 
 		adminID := getAdminID(tx)
+
+		// Get company - use hardcoded company ID if retrieval fails
+		var company *orgModels.Company
+		companyID := "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d" // Default company from seeding
+		
+		var adminEmployee orgModels.Employee
+		if err := tx.Where("user_id = ?", adminID).First(&adminEmployee).Error; err == nil && adminEmployee.CompanyID != nil && *adminEmployee.CompanyID != "" {
+			companyID = *adminEmployee.CompanyID
+		}
+		
+		if err := tx.Where("id = ?", companyID).First(&company).Error; err != nil {
+			log.Printf("Warning: Could not find company %s, trying first active company", companyID)
+			if err := tx.Where("is_active = ?", true).First(&company).Error; err != nil {
+				log.Println("Warning: Could not find any active company for seeding")
+				return nil // Skip seeding if no company available
+			}
+		}
+		
+		if company == nil {
+			log.Println("Warning: Company is nil after retrieval, skipping seeding")
+			return nil
+		}
+		log.Printf("Using company: %s (%s)", company.Name, company.ID)
 
 		var suppliers []supplierModels.Supplier
 		if err := tx.Where("is_active = ?", true).Limit(3).Find(&suppliers).Error; err != nil || len(suppliers) == 0 {
@@ -300,6 +367,7 @@ func SeedPurchaseFinanceE2E() error {
 				supplier:    suppliers[sc.suppIdx%len(suppliers)],
 				pt:          paymentTerms[0],
 				bu:          businessUnits[0],
+				company:     company,
 				warehouse:   warehouse,
 				bankAccount: bankAccount,
 				adminID:     adminID,
@@ -337,6 +405,7 @@ func SeedPurchaseFinanceE2E() error {
 				supplier:    suppliers[sc.suppIdx%len(suppliers)],
 				pt:          paymentTerms[0],
 				bu:          businessUnits[0],
+				company:     company,
 				warehouse:   warehouse,
 				bankAccount: bankAccount,
 				adminID:     adminID,
@@ -580,6 +649,7 @@ type purchaseFlowInput struct {
 	supplier                                supplierModels.Supplier
 	pt                                      coreModels.PaymentTerms
 	bu                                      orgModels.BusinessUnit
+	company                                 *orgModels.Company
 	warehouse                               warehouseModels.Warehouse
 	bankAccount                             coreModels.BankAccount
 	adminID                                 string
@@ -720,6 +790,10 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			Status:          purchaseModels.SupplierInvoiceStatusPaid,
 			CreatedBy:       in.adminID,
 		}
+		if in.company != nil {
+			companyID := in.company.ID
+			dp.CompanyID = &companyID
+		}
 		now := time.Now()
 		dp.PaymentAt = &now
 		if err := tx.Create(&dp).Error; err != nil {
@@ -737,13 +811,16 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			}
 			dpPayment := purchaseModels.PurchasePayment{
 				SupplierInvoiceID: dp.ID,
-				BankAccountID:     in.bankAccount.ID,
+				BankAccountID:     &in.bankAccount.ID,
 				PaymentDate:       orderDate.AddDate(0, 0, 5).Format("2006-01-02"),
 				Amount:            in.dpAmount,
 				Method:            purchaseModels.PurchasePaymentMethodBank,
 				Status:            dpPayStatus,
 				ReferenceNumber:   &dpRefNum,
 				CreatedBy:         in.adminID,
+			}
+			if in.company != nil {
+				dpPayment.CompanyID = in.company.ID
 			}
 			if err := tx.Create(&dpPayment).Error; err != nil {
 				log.Printf("Warning: Failed to create DP payment: %v", err)
@@ -806,6 +883,10 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			},
 		},
 	}
+	if in.company != nil {
+		companyID := in.company.ID
+		si.CompanyID = &companyID
+	}
 
 	if siStatus == purchaseModels.SupplierInvoiceStatusPaid {
 		now := time.Now()
@@ -848,13 +929,16 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		}
 		pp := purchaseModels.PurchasePayment{
 			SupplierInvoiceID: si.ID,
-			BankAccountID:     in.bankAccount.ID,
+			BankAccountID:     &in.bankAccount.ID,
 			PaymentDate:       payDate.Format("2006-01-02"),
 			Amount:            cashPayAmount,
 			Method:            purchaseModels.PurchasePaymentMethodBank,
 			Status:            payStatus,
 			ReferenceNumber:   &refNum,
 			CreatedBy:         in.adminID,
+		}
+		if in.company != nil {
+			pp.CompanyID = in.company.ID
 		}
 		if err := tx.Create(&pp).Error; err != nil {
 			return fmt.Errorf("create payment %s: %w", refNum, err)
@@ -973,7 +1057,7 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 			dpRefNum := fmt.Sprintf("PAY-DP-%s", prefix)
 			dpPayment := purchaseModels.PurchasePayment{
 				SupplierInvoiceID: dp.ID,
-				BankAccountID:     in.bankAccount.ID,
+				BankAccountID:     &in.bankAccount.ID,
 				PaymentDate:       orderDate.AddDate(0, 0, 5).Format("2006-01-02"),
 				Amount:            in.dpAmount,
 				Method:            purchaseModels.PurchasePaymentMethodBank,
@@ -1046,7 +1130,7 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	if cashPayAmount > 0.01 {
 		pp := purchaseModels.PurchasePayment{
 			SupplierInvoiceID: si.ID,
-			BankAccountID:     in.bankAccount.ID,
+			BankAccountID:     &in.bankAccount.ID,
 			PaymentDate:       payDate.Format("2006-01-02"),
 			Amount:            cashPayAmount,
 			Method:            purchaseModels.PurchasePaymentMethodBank,
