@@ -103,6 +103,9 @@ type DeliveryOrderItem struct {
 	DeliveryOrderID string         `gorm:"type:uuid;not null;index" json:"delivery_order_id"`
 	DeliveryOrder   *DeliveryOrder `gorm:"foreignKey:DeliveryOrderID" json:"delivery_order,omitempty"`
 
+	WarehouseID *string           `gorm:"type:uuid;index" json:"warehouse_id,omitempty"`
+	Warehouse   *warehouseModels.Warehouse `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
+
 	SalesOrderItemID *string         `gorm:"type:uuid;index" json:"sales_order_item_id"`
 	SalesOrderItem   *SalesOrderItem `gorm:"foreignKey:SalesOrderItemID" json:"sales_order_item,omitempty"`
 

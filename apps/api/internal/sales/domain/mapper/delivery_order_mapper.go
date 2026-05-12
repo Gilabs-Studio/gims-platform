@@ -120,6 +120,7 @@ func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryO
 	response := dto.DeliveryOrderItemResponse{
 		ID:                m.ID,
 		DeliveryOrderID:   m.DeliveryOrderID,
+		WarehouseID:       m.WarehouseID,
 		ProductID:         m.ProductID,
 		Quantity:          m.Quantity,
 		Price:             m.Price,
@@ -130,6 +131,14 @@ func ToDeliveryOrderItemResponse(m *salesModels.DeliveryOrderItem) dto.DeliveryO
 		InstallationNotes: m.InstallationNotes,
 		CreatedAt:         m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         m.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if m.Warehouse != nil {
+		response.Warehouse = &dto.WarehouseResponse{
+			ID:   m.Warehouse.ID,
+			Code: m.Warehouse.Code,
+			Name: m.Warehouse.Name,
+		}
 	}
 
 	if m.SalesOrderItemID != nil {
@@ -226,6 +235,7 @@ func ToDeliveryOrderModel(req *dto.CreateDeliveryOrderRequest, code string, crea
 		deliveryOrder.Items = make([]salesModels.DeliveryOrderItem, len(req.Items))
 		for i, itemReq := range req.Items {
 			deliveryOrder.Items[i] = salesModels.DeliveryOrderItem{
+				WarehouseID:      itemReq.WarehouseID,
 				SalesOrderItemID: itemReq.SalesOrderItemID,
 				ProductID:        itemReq.ProductID,
 				InventoryBatchID: itemReq.InventoryBatchID,
@@ -289,6 +299,7 @@ func UpdateDeliveryOrderModel(m *salesModels.DeliveryOrder, req *dto.UpdateDeliv
 		m.Items = make([]salesModels.DeliveryOrderItem, len(req.Items))
 		for i, itemReq := range req.Items {
 			m.Items[i] = salesModels.DeliveryOrderItem{
+				WarehouseID:      itemReq.WarehouseID,
 				SalesOrderItemID: itemReq.SalesOrderItemID,
 				ProductID:        itemReq.ProductID,
 				InventoryBatchID: itemReq.InventoryBatchID,

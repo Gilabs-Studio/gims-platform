@@ -61,7 +61,7 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  size = "default",
+  size = "xl",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
