@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
+import {
+  LANDING_THEME_IMAGES_BY_FEATURE,
+  type LandingScreenshotKey,
+} from "@/lib/landing-theme-images";
 import {
   LayoutDashboard,
   Database,
@@ -69,17 +73,6 @@ const MODULE_ICONS = [
 ];
 
 const BENEFIT_ICONS = [LayoutDashboard, Package, CreditCard, Users, LineChart, Sparkles];
-
-const SCREENSHOT_IMAGES = [
-  "/screenshot/pipeline.webp",
-  "/screenshot/dashboard.webp",
-  "/screenshot/sales-order.webp",
-  "/screenshot/stock-inventory.webp",
-  "/screenshot/profit-loss.webp",
-  "/screenshot/master-customer.webp",
-  "/screenshot/geo-peformance.webp",
-  "/screenshot/salary.webp",
-];
 
 function FaqItem({
   q,
@@ -162,7 +155,7 @@ export default function LandingPage() {
     "automation",
   ] as const;
 
-  const SCREENSHOT_KEYS = [
+  const SCREENSHOT_KEYS: readonly LandingScreenshotKey[] = [
     "pipeline",
     "dashboard",
     "salesOrder",
@@ -250,8 +243,9 @@ export default function LandingPage() {
               className="relative mt-12 w-full overflow-hidden rounded-2xl bg-card/60 shadow-lg"
             >
               <div className="relative aspect-video w-full">
-                <Image
-                  src="/screenshot/dashboard.webp"
+                <ThemeAwareImage
+                  lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.light}
+                  darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.dark}
                   alt="SalesView Dashboard"
                   fill
                   className="object-cover object-top"
@@ -369,8 +363,9 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="relative aspect-video w-full overflow-hidden bg-muted/20">
-                <Image
-                  src={SCREENSHOT_IMAGES[activeScreenshot]}
+                <ThemeAwareImage
+                  lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[SCREENSHOT_KEYS[activeScreenshot]].light}
+                  darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[SCREENSHOT_KEYS[activeScreenshot]].dark}
                   alt={t(`screenshots.items.${SCREENSHOT_KEYS[activeScreenshot]}.title`)}
                   fill
                   className="object-contain p-2 sm:p-4"
