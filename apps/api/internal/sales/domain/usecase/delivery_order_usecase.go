@@ -780,6 +780,15 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 			return fmt.Errorf("post delivery sales journal: %w", err)
 		}
 
+		// Link journal entry to delivery order before shipping
+		if journalEntry != nil && strings.TrimSpace(journalEntry.ID) != "" {
+			if err := tx.Model(&models.DeliveryOrder{}).
+				Where("id = ?", id).
+				Updates(map[string]interface{}{"journal_entry_id": journalEntry.ID, "is_posted": true}).Error; err != nil {
+				return fmt.Errorf("link delivery order journal: %w", err)
+			}
+		}
+
 		// 3. Mark DO as shipped only after stock and accounting completed
 		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
 			return fmt.Errorf("repo ship: %w", err)
