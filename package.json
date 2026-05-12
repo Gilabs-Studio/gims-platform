@@ -15,7 +15,14 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "type-check": "turbo run check-types && turbo run lint --filter=@repo/web",
     "test": "turbo run test",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "k6:smoke": "k6 run k6/smoke-test.js",
+    "k6:smoke:local": "k6 run -e RELAXED=1 k6/smoke-test.js",
+    "k6:load:baseline": "k6 run -e VUS=20 -e DURATION=10m k6/load-test.js",
+    "k6:load:peak": "k6 run -e VUS=50 -e DURATION=15m k6/load-test.js",
+    "k6:soak": "k6 run -e VUS=30 -e DURATION=60m k6/load-test.js",
+    "k6:stress:quick": "k6 run -e QUICK=1 -e MAX_VUS=20 k6/stress-test.js",
+    "k6:stress:full": "k6 run -e MAX_VUS=100 k6/stress-test.js"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
