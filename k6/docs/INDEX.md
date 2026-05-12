@@ -2,6 +2,10 @@
 
 ## Quick Navigation
 
+## Agent Skills
+
+- **k6 Skill**: User-level skill for implementing, documenting, and maintaining k6 transaction workflow tests. See `.agents/skills/k6/` and `../../README_SKILL.md` for details.
+
 ### 🏗 Clean Structure
 - **[architecture/CLEAN_ARCHITECTURE_MAP.md](./architecture/CLEAN_ARCHITECTURE_MAP.md)**
   - Menjelaskan struktur folder dokumentasi berlapis
