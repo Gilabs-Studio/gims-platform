@@ -642,16 +642,18 @@ func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.A
 				return err
 			}
 
-			// Find the oldest batch for this product+warehouse to attach the movement
-			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
-			if err != nil {
-				return err
-			}
-
-			// Determine batch ID — use the first (oldest) batch if available
+			// Determine batch ID — use the specific batch from opname if provided
 			batchID := ""
-			if len(batches) > 0 {
-				batchID = batches[0].ID
+			if item.BatchID != nil && *item.BatchID != "" {
+				batchID = *item.BatchID
+			} else {
+				batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
+				if err != nil {
+					return err
+				}
+				if len(batches) > 0 {
+					batchID = batches[0].ID
+				}
 			}
 
 			// Create the ADJUST stock movement

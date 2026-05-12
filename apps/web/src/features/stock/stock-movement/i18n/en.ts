@@ -43,6 +43,8 @@ export const stockMovementEn = {
       transferWarehouse: "Warehouse",
       transferLinkedMovement: "This transfer is linked to the matching in/out movements shown above.",
       transferSingleMovement: "Only one transfer leg is available in the current page.",
+      batchNumber: "Batch",
+      batchUnknown: "N/A",
     },
     form: {
       createTitle: "Create Stock Movement",

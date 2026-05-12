@@ -31,6 +31,9 @@ interface DraftLinePayload {
   system_qty: number;
   physical_qty: number | null;
   notes: string;
+  inventory_batch_id?: string | null;
+  batch_number?: string;
+  batch_qty?: number;
 }
 
 export interface StockOpnameDraftActions {
@@ -180,6 +183,9 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
               system_qty: line.system_qty,
               physical_qty: line.physical_qty,
               notes: line.notes,
+              inventory_batch_id: line.inventory_batch_id,
+              batch_number: line.batch_number,
+              batch_qty: line.batch_qty,
             })),
           },
         });
@@ -258,6 +264,9 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
       system_qty: item.system_qty,
       physical_qty: physicalQty,
       notes,
+      inventory_batch_id: item.inventory_batch_id,
+      batch_number: item.batch_number,
+      batch_qty: item.batch_qty,
     };
     setHasPendingDraft(true);
 
@@ -317,6 +326,7 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
     const headers = [
       t("dialog.columns.productCode"),
       t("dialog.columns.productName"),
+      t("managerView.columns.batchNumber"),
       t("dialog.columns.systemQty"),
       t("dialog.columns.physicalQty"),
       t("dialog.columns.varianceQty"),
@@ -327,6 +337,7 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
     const rows = items.map((item) => [
       escapeCSV(item.product_code ?? ""),
       escapeCSV(item.product_name ?? ""),
+      escapeCSV(item.batch_number ?? ""),
       escapeCSV(item.system_qty),
       escapeCSV(item.physical_qty ?? ""),
       escapeCSV(item.variance_qty),
@@ -398,6 +409,7 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
                   <TableRow>
                     <TableHead>{t("dialog.columns.productCode")}</TableHead>
                     <TableHead>{t("dialog.columns.productName")}</TableHead>
+                    <TableHead>{t("managerView.columns.batchNumber")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.systemQty")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.physicalQty")}</TableHead>
                     <TableHead className="text-right">{t("dialog.columns.varianceQty")}</TableHead>
@@ -407,7 +419,7 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                         {tCommon("noData")}
                       </TableCell>
                     </TableRow>
@@ -423,6 +435,9 @@ export const StockOpnameManagerView = forwardRef<StockOpnameDraftActions, Props>
                         <TableRow key={item.id}>
                           <TableCell className="font-mono text-xs">{item.product_code}</TableCell>
                           <TableCell>{item.product_name}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {item.batch_number || "-"}
+                          </TableCell>
                           <TableCell className="text-right">{item.system_qty}</TableCell>
                           <TableCell className="text-right">
                             {isDraftEditable ? (

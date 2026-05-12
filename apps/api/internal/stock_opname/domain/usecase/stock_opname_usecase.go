@@ -136,12 +136,20 @@ func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpn
 
 	items := make([]models.StockOpnameItem, 0, len(stockSnapshots))
 	for _, row := range stockSnapshots {
+		batchID := row.BatchID
+		batchIDPtr := &batchID
+		if batchID == "" {
+			batchIDPtr = nil
+		}
 		items = append(items, models.StockOpnameItem{
-			StockOpnameID: model.ID,
-			ProductID:     row.ProductID,
-			SystemQty:     row.SystemQty,
-			PhysicalQty:   nil,
-			VarianceQty:   0,
+			StockOpnameID:    model.ID,
+			ProductID:        row.ProductID,
+			InventoryBatchID: batchIDPtr,
+			BatchNumber:      row.BatchNumber,
+			BatchQty:         row.BatchQty,
+			SystemQty:        row.SystemQty,
+			PhysicalQty:      nil,
+			VarianceQty:      0,
 		})
 	}
 
@@ -322,15 +330,24 @@ func (u *stockOpnameUsecase) SaveLines(ctx context.Context, opnameID string, req
 		return nil, err
 	}
 
-	updatesByProductID := make(map[string]dto.StockOpnameItemRequest, len(req.Items))
+	updatesByItemID := make(map[string]dto.StockOpnameItemRequest, len(req.Items))
 	for _, line := range req.Items {
-		updatesByProductID[line.ProductID] = line
+		key := line.ProductID
+		if line.InventoryBatchID != nil && *line.InventoryBatchID != "" {
+			key = *line.InventoryBatchID
+		}
+		updatesByItemID[key] = line
 	}
 
 	merged := make([]models.StockOpnameItem, 0, len(existingItems))
 	for _, existing := range existingItems {
 		item := existing
-		if incoming, ok := updatesByProductID[item.ProductID]; ok {
+		lookupKey := item.ProductID
+		if item.InventoryBatchID != nil && *item.InventoryBatchID != "" {
+			lookupKey = *item.InventoryBatchID
+		}
+
+		if incoming, ok := updatesByItemID[lookupKey]; ok {
 			physicalQty := incoming.PhysicalQty
 			item.PhysicalQty = physicalQty
 			if physicalQty != nil {
@@ -342,14 +359,17 @@ func (u *stockOpnameUsecase) SaveLines(ctx context.Context, opnameID string, req
 		}
 
 		merged = append(merged, models.StockOpnameItem{
-			ID:            item.ID,
-			TenantID:      item.TenantID,
-			StockOpnameID: opnameID,
-			ProductID:     item.ProductID,
-			SystemQty:     item.SystemQty,
-			PhysicalQty:   item.PhysicalQty,
-			VarianceQty:   item.VarianceQty,
-			Notes:         item.Notes,
+			ID:               item.ID,
+			TenantID:         item.TenantID,
+			StockOpnameID:    opnameID,
+			ProductID:        item.ProductID,
+			InventoryBatchID: item.InventoryBatchID,
+			BatchNumber:      item.BatchNumber,
+			BatchQty:         item.BatchQty,
+			SystemQty:        item.SystemQty,
+			PhysicalQty:      item.PhysicalQty,
+			VarianceQty:      item.VarianceQty,
+			Notes:            item.Notes,
 		})
 	}
 
@@ -594,6 +614,7 @@ func (u *stockOpnameUsecase) Post(ctx context.Context, id string, postedBy *stri
 		adjustItems = append(adjustItems, inventoryDTO.AdjustStockItem{
 			ProductID:   item.ProductID,
 			VarianceQty: item.VarianceQty,
+			BatchID:     item.InventoryBatchID,
 		})
 	}
 

@@ -80,16 +80,19 @@ func getEmployeeName(e *employeeModels.Employee) *string {
 
 func ToStockOpnameItemResponse(m *models.StockOpnameItem) dto.StockOpnameItemResponse {
 	return dto.StockOpnameItemResponse{
-		ID:            m.ID,
-		StockOpnameID: m.StockOpnameID,
-		ProductID:     m.ProductID,
-		ProductName:   m.Product.Name,
-		ProductCode:   m.Product.Code,
-		SystemQty:     m.SystemQty,
-		PhysicalQty:   m.PhysicalQty,
-		VarianceQty:   m.VarianceQty,
-		UnitCost:      m.Product.CurrentHpp,
-		Notes:         m.Notes,
+		ID:               m.ID,
+		StockOpnameID:    m.StockOpnameID,
+		ProductID:        m.ProductID,
+		ProductName:      m.Product.Name,
+		ProductCode:      m.Product.Code,
+		SystemQty:        m.SystemQty,
+		PhysicalQty:      m.PhysicalQty,
+		VarianceQty:      m.VarianceQty,
+		UnitCost:         m.Product.CurrentHpp,
+		Notes:            m.Notes,
+		InventoryBatchID: m.InventoryBatchID,
+		BatchNumber:      m.BatchNumber,
+		BatchQty:         m.BatchQty,
 	}
 }
 

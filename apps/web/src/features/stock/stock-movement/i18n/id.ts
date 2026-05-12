@@ -43,6 +43,8 @@ export const stockMovementId = {
       transferWarehouse: "Gudang",
       transferLinkedMovement: "Transfer ini terhubung dengan pergerakan masuk/keluar yang cocok di atas.",
       transferSingleMovement: "Hanya satu sisi transfer yang tersedia pada halaman ini.",
+      batchNumber: "Batch",
+      batchUnknown: "N/A",
     },
     form: {
       createTitle: "Buat Pergerakan Stok",
