@@ -1,9 +1,10 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 // ArrowRight not used — removed
 import { Link } from "@/i18n/routing";
+import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
+import { LANDING_THEME_IMAGES_BY_FEATURE } from "@/lib/landing-theme-images";
 import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -113,8 +114,9 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
           <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
             {/* Using abstract Apple-like minimalist representation or screenshot if available */}
             <div className="absolute inset-0 bg-linear-to-tr from-background to-secondary/30" />
-            <Image 
-              src="/screenshot/pipeline.webp" 
+            <ThemeAwareImage
+              lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.pipeline.light}
+              darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.pipeline.dark}
               alt="CRM Interface" 
               fill 
               className="object-cover object-top"
