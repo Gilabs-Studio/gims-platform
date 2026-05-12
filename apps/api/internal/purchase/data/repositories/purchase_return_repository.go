@@ -2,8 +2,10 @@ package repositories
 
 import (
 	"context"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"strings"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/google/uuid"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -75,7 +77,12 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 		q = q.Where("purchase_returns.action = ?", strings.ToUpper(a))
 	}
 	if gr := strings.TrimSpace(params.GoodsReceiptID); gr != "" {
-		q = q.Where("purchase_returns.goods_receipt_id = ?", gr)
+		// Accept UUID or code/reference number for goods_receipt_id filter.
+		if _, err := uuid.Parse(gr); err == nil {
+			q = q.Where("purchase_returns.goods_receipt_id = ?", gr)
+		} else {
+			q = q.Where("purchase_returns.goods_receipt_id = (SELECT id FROM goods_receipts WHERE code = ? LIMIT 1)", gr)
+		}
 	}
 
 	if err := q.Count(&total).Error; err != nil {

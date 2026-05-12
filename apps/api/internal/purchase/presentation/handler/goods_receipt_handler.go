@@ -103,10 +103,7 @@ func (h *GoodsReceiptHandler) GetByID(c *gin.Context) {
 		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
 		return
 	}
-	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
-		return
-	}
+	// Accept both UUID and code/reference number — usecase resolves accordingly.
 	res, err := h.uc.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrGoodsReceiptNotFound {

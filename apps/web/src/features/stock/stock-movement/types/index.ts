@@ -69,6 +69,7 @@ export interface CreateStockMovementRequest {
   warehouse_id: string;
   target_warehouse_id?: string;
   quantity: number;
+  batch_id?: string;
   reference_number?: string;
   description?: string;
 }
