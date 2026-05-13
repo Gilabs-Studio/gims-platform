@@ -1075,7 +1075,11 @@ function PermissionsSelector({
   const entitledModuleSet = useMemo(() => new Set(effectiveEntitledModules), [effectiveEntitledModules]);
   const hasGranularPolicy = entitledMenuURLSet.size > 0 || entitledPermissionCodeSet.size > 0;
   const hasModuleEntitlements = entitledModuleSet.size > 0;
-  const hasEntitlementRestriction = hasModuleEntitlements || hasGranularPolicy;
+  const roleCode = role.code.trim().toLowerCase();
+  const bypassEntitlementRestriction =
+    isSystemAdmin || roleCode === "system_admin" || roleCode === "admin";
+  const hasEntitlementRestriction =
+    !bypassEntitlementRestriction && (hasModuleEntitlements || hasGranularPolicy);
 
   const isPermissionAllowedByPlanPolicy = useCallback(
     (permission: Permission): boolean => {
@@ -1100,6 +1104,9 @@ function PermissionsSelector({
 
   const isPermissionAllowedByPlan = useCallback(
     (permission: Permission): boolean => {
+      if (bypassEntitlementRestriction) {
+        return true;
+      }
       if (isAlwaysAllowedPermission(permission.code)) {
         return true;
       }
@@ -1115,7 +1122,13 @@ function PermissionsSelector({
       }
       return isPermissionAllowedByPlanPolicy(permission);
     },
-    [entitledModuleSet, hasEntitlementRestriction, hasModuleEntitlements, isPermissionAllowedByPlanPolicy],
+    [
+      bypassEntitlementRestriction,
+      entitledModuleSet,
+      hasEntitlementRestriction,
+      hasModuleEntitlements,
+      isPermissionAllowedByPlanPolicy,
+    ],
   );
 
   const getNodeLockMeta = useMemo(

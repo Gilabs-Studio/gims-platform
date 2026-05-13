@@ -1,8 +1,8 @@
 package mapper
 
 import (
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
-	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	hrdModels "github.com/gilabs/gims/api/internal/hrd/data/models"
+	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 )
 
 type SalaryStructureMapper struct{}
@@ -11,7 +11,7 @@ func NewSalaryStructureMapper() *SalaryStructureMapper {
 	return &SalaryStructureMapper{}
 }
 
-func (m *SalaryStructureMapper) ToResponse(item *financeModels.SalaryStructure) dto.SalaryStructureResponse {
+func (m *SalaryStructureMapper) ToResponse(item *hrdModels.SalaryStructure) dto.SalaryStructureResponse {
 	if item == nil {
 		return dto.SalaryStructureResponse{}
 	}

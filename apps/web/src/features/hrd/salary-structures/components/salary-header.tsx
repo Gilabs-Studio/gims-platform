@@ -32,7 +32,7 @@ export function SalaryHeader({
   onRefreshClick,
   isRefreshing = false,
 }: SalaryHeaderProps) {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
   const canCreate = useUserPermission("salary.create");
 
   const { data: statsData, isLoading: statsLoading } = useFinanceSalaryStats();

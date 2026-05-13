@@ -19,7 +19,7 @@ export function SalaryDeleteDialog({
   onConfirm,
   isLoading = false,
 }: SalaryDeleteDialogProps) {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
 
   const handleConfirm = async () => {
     if (salary?.id) {

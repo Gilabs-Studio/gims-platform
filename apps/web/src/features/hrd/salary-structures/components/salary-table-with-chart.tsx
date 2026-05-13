@@ -105,7 +105,7 @@ export function SalaryTableWithChart({
   page,
   onPageChange,
 }: SalaryTableWithChartProps) {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
   const tCommon = useTranslations("common");
 
   const canCreate = useUserPermission("salary.create");

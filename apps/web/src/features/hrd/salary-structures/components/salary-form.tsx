@@ -68,7 +68,7 @@ export function SalaryForm({
   initialData,
   defaultEmployeeId,
 }: Props) {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
 
   const createMutation = useCreateFinanceSalary();
   const updateMutation = useUpdateFinanceSalary();

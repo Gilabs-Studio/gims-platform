@@ -9,7 +9,7 @@ import type {
   ListSalaryParams,
 } from "../types";
 
-const BASE_URL = "/finance/salary-structures";
+const BASE_URL = "/hrd/salary";
 
 export const financeSalaryService = {
   list: async (params?: ListSalaryParams): Promise<ApiResponse<SalaryStructure[]>> => {

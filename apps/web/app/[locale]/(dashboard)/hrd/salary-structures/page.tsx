@@ -6,9 +6,9 @@ import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
-const FinanceSalaryContainer = dynamic(
+const HRDSalaryContainer = dynamic(
   () =>
-    import("@/features/finance/salary/components").then((mod) => ({
+    import("@/features/hrd/salary-structures/components").then((mod) => ({
       default: mod.SalaryPage,
     })),
   { loading: () => null },
@@ -22,7 +22,7 @@ export async function generateMetadata({
   params,
 }: GenerateMetadataProps): Promise<Metadata> {
   const { locale } = await Promise.resolve(params);
-  const t = await getTranslations({ locale, namespace: "financeSalary" });
+  const t = await getTranslations({ locale, namespace: "hrdSalary" });
   return {
     title: `${t("title")} | SalesView`,
     description: t("description"),
@@ -45,11 +45,11 @@ function SalarySkeleton() {
   );
 }
 
-export default function FinanceSalaryPage() {
+export default function HRDSalaryStructuresPage() {
   return (
     <PermissionGuard requiredPermission="salary.read">
       <Suspense fallback={<SalarySkeleton />}>
-        <FinanceSalaryContainer />
+        <HRDSalaryContainer />
       </Suspense>
     </PermissionGuard>
   );

@@ -22,7 +22,7 @@ import {
 import type { SalaryStructure } from "../types";
 
 export function SalaryPage() {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
   const queryClient = useQueryClient();
 
   // Modal/dialog state

@@ -73,6 +73,7 @@ const EXTRA_VALID_ROUTES = [
   "/hrd/recruitment",
   "/hrd/work-schedule",
   "/hrd/holidays",
+  "/hrd/salary-structures",
   // CRM
   "/crm/leads",
   "/crm/pipeline",

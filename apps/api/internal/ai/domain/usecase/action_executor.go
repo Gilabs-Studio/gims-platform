@@ -71,7 +71,7 @@ type ActionExecutorDeps struct {
 	CashBankUsecase            financeUsecase.CashBankJournalUsecase
 	TaxInvoiceUsecase          financeUsecase.TaxInvoiceUsecase
 	AssetUsecase               financeUsecase.AssetUsecase
-	SalaryUsecase              financeUsecase.SalaryStructureUsecase
+	SalaryUsecase              hrdUsecase.SalaryStructureUsecase
 	BankAccountUsecase         coreUsecase.BankAccountUsecase
 }
 
@@ -2194,7 +2194,7 @@ func (e *ActionExecutor) executeListSalary(ctx context.Context, params map[strin
 		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Salary service is not available"}
 	}
 
-	req := &financeDTO.ListSalaryStructuresRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	req := &hrdDTO.ListSalaryStructuresRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
 	if p := getIntParam(params, "page"); p > 0 {
 		req.Page = p
 	}

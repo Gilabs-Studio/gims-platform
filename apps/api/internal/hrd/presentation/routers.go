@@ -8,7 +8,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeRepos "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
+	hrdMapper "github.com/gilabs/gims/api/internal/hrd/domain/mapper"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/handler"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/router"
@@ -24,17 +27,25 @@ type HRDDeps struct {
 	HolidayUC      usecase.HolidayUsecase
 	LeaveRequestUC usecase.LeaveRequestUsecase
 	AttendanceUC   usecase.AttendanceRecordUsecase
+	SalaryUC       usecase.SalaryStructureUsecase
+}
+
+type HRDFinanceDeps struct {
+	JournalUC  financeUsecase.JournalEntryUsecase
+	CoaUC      financeUsecase.ChartOfAccountUsecase
+	SettingsUC financesettings.SettingsService
 }
 
 // RegisterRoutes registers all HRD routes and returns shared dependencies
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}) *HRDDeps {
+}, financeDeps *HRDFinanceDeps) *HRDDeps {
 	// Initialize repositories
 	workScheduleRepo := repositories.NewWorkScheduleRepository(db)
 	holidayRepo := repositories.NewHolidayRepository(db)
 	attendanceRepo := repositories.NewAttendanceRecordRepository(db)
+	salaryRepo := repositories.NewSalaryStructureRepository(db)
 	overtimeRepo := repositories.NewOvertimeRequestRepository(db)
 	leaveRequestRepo := repositories.NewLeaveRequestRepository(db)
 	evaluationGroupRepo := repositories.NewEvaluationGroupRepository(db)
@@ -80,6 +91,16 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo, auditService)
 	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(db, employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo, auditService)
 	recruitmentUC := usecase.NewRecruitmentRequestUsecase(recruitmentRepo, employeeRepo, divisionRepo, positionRepo)
+	salaryMapper := hrdMapper.NewSalaryStructureMapper()
+	var financeJournalUC financeUsecase.JournalEntryUsecase
+	var financeSettingsUC financesettings.SettingsService
+	var financeCoaUC financeUsecase.ChartOfAccountUsecase
+	if financeDeps != nil {
+		financeJournalUC = financeDeps.JournalUC
+		financeSettingsUC = financeDeps.SettingsUC
+		financeCoaUC = financeDeps.CoaUC
+	}
+	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper, financeJournalUC, financeSettingsUC, financeCoaUC)
 	signatureRepo := orgRepos.NewEmployeeSignatureRepository(db)
 	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, employeeOutletRepo, employeeWarehouseRepo, divisionRepo, positionRepo, companyRepo, areaRepo, outletRepo, warehouseRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 	applicantUC := usecase.NewRecruitmentApplicantUsecase(applicantRepo, applicantStageRepo, applicantActivityRepo, recruitmentRepo, employeeUC)
@@ -95,6 +116,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeEvaluationHandler := handler.NewEmployeeEvaluationHandler(employeeEvaluationUC)
 	recruitmentHandler := handler.NewRecruitmentRequestHandler(recruitmentUC)
 	applicantHandler := handler.NewRecruitmentApplicantHandler(applicantUC)
+	salaryHandler := handler.NewSalaryStructureHandler(salaryUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -112,10 +134,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
 	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler, applicantHandler)
 	router.SetupRecruitmentApplicantRoutes(hrdGroup, applicantHandler)
+	router.RegisterSalaryStructureRoutes(hrdGroup, salaryHandler)
 
 	return &HRDDeps{
 		HolidayUC:      holidayUC,
 		LeaveRequestUC: leaveRequestUC,
 		AttendanceUC:   attendanceUC,
+		SalaryUC:       salaryUC,
 	}
 }

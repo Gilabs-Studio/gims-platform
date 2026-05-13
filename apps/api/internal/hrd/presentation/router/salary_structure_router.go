@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
-	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
+	"github.com/gilabs/gims/api/internal/hrd/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +15,7 @@ const (
 )
 
 func RegisterSalaryStructureRoutes(r *gin.RouterGroup, h *handler.SalaryStructureHandler) {
-	g := r.Group("/salary-structures")
+	g := r.Group("/salary")
 	{
 		g.GET("", middleware.RequirePermission(salaryRead), h.List)
 		g.POST("", middleware.RequirePermission(salaryCreate), h.Create)
