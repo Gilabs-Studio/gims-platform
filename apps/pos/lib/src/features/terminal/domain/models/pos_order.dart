@@ -155,6 +155,8 @@ class PosPayment {
     required this.method,
     required this.status,
     required this.amount,
+    this.tenderAmount,
+    this.changeAmount,
     this.paymentUrl,
     this.qrCode,
     this.vaNumber,
@@ -166,6 +168,8 @@ class PosPayment {
   final String method;
   final String status;
   final double amount;
+  final double? tenderAmount;
+  final double? changeAmount;
   final String? paymentUrl;
   final String? qrCode;
   final String? vaNumber;
@@ -178,6 +182,12 @@ class PosPayment {
       method: json['method'] as String? ?? '',
       status: json['status'] as String? ?? '',
       amount: asDouble(json['amount']),
+        tenderAmount: json['tender_amount'] == null
+          ? null
+          : asDouble(json['tender_amount']),
+        changeAmount: json['change_amount'] == null
+          ? null
+          : asDouble(json['change_amount']),
       paymentUrl: json['payment_url'] as String?,
       qrCode: json['qr_code'] as String?,
       vaNumber: json['va_number'] as String?,

@@ -3,6 +3,7 @@
 import '../../../core/network/api_client.dart';
 import '../domain/models/cart_line.dart';
 import '../domain/models/catalog_item.dart';
+import '../domain/models/pos_customer.dart';
 import '../domain/models/pos_config.dart';
 import '../domain/models/pos_order.dart';
 
@@ -75,9 +76,15 @@ class TerminalService {
     return PosOrder.fromJson(_dataMap(response.data));
   }
 
+  Future<PosOrder> getOrderById(String orderId) async {
+    final response = await _api.get<Map<String, dynamic>>('/pos/orders/$orderId');
+    return PosOrder.fromJson(_dataMap(response.data));
+  }
+
   Future<PosOrder> confirmOrder(String orderId) async {
     final response = await _api.post<Map<String, dynamic>>(
       '/pos/orders/$orderId/confirm',
+      data: <String, dynamic>{},
     );
     return PosOrder.fromJson(_dataMap(response.data));
   }
@@ -136,8 +143,11 @@ class TerminalService {
 
   Future<PosPayment> processCash(
     String orderId, {
-    required double amount,
+    required num amount,
+    String? customerId,
     String? customerName,
+    String? customerPhone,
+    String? customerEmail,
     String? loyaltyMemberId,
     String? loyaltyRewardId,
   }) async {
@@ -145,8 +155,17 @@ class TerminalService {
       'method': PosPaymentMethod.cash.value,
       'amount': amount,
     };
+    if (customerId != null && customerId.isNotEmpty) {
+      data['customer_id'] = customerId;
+    }
     if (customerName != null && customerName.isNotEmpty) {
       data['customer_name'] = customerName;
+    }
+    if (customerPhone != null && customerPhone.isNotEmpty) {
+      data['customer_phone'] = customerPhone;
+    }
+    if (customerEmail != null && customerEmail.isNotEmpty) {
+      data['customer_email'] = customerEmail;
     }
     if (loyaltyMemberId != null) data['loyalty_member_id'] = loyaltyMemberId;
     if (loyaltyRewardId != null) data['loyalty_reward_id'] = loyaltyRewardId;
@@ -161,7 +180,10 @@ class TerminalService {
     String orderId, {
     required double amount,
     String channelCode = 'QRIS',
+    String? customerId,
     String? customerName,
+    String? customerPhone,
+    String? customerEmail,
     String? loyaltyMemberId,
     String? loyaltyRewardId,
   }) async {
@@ -170,8 +192,17 @@ class TerminalService {
       'amount': amount,
       'channel_code': channelCode,
     };
+    if (customerId != null && customerId.isNotEmpty) {
+      data['customer_id'] = customerId;
+    }
     if (customerName != null && customerName.isNotEmpty) {
       data['customer_name'] = customerName;
+    }
+    if (customerPhone != null && customerPhone.isNotEmpty) {
+      data['customer_phone'] = customerPhone;
+    }
+    if (customerEmail != null && customerEmail.isNotEmpty) {
+      data['customer_email'] = customerEmail;
     }
     if (loyaltyMemberId != null) data['loyalty_member_id'] = loyaltyMemberId;
     if (loyaltyRewardId != null) data['loyalty_reward_id'] = loyaltyRewardId;
@@ -180,6 +211,67 @@ class TerminalService {
       data: data,
     );
     return PosPayment.fromJson(_dataMap(response.data));
+  }
+
+  Future<List<PosPayment>> getPaymentsByOrderId(String orderId) async {
+    final response = await _api.get<Map<String, dynamic>>('/pos/orders/$orderId/payments');
+    final raw = response.data?['data'];
+    if (raw is List) {
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosPayment.fromJson)
+          .toList();
+    }
+    return const [];
+  }
+
+  Future<XenditConnectionStatus> getXenditConnectionStatus() async {
+    final response = await _api.get<Map<String, dynamic>>('/pos/payment/status');
+    return XenditConnectionStatus.fromJson(_dataMap(response.data));
+  }
+
+  Future<List<PosCustomer>> listCustomers({
+    String? search,
+    int perPage = 10,
+  }) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      '/customer/customers',
+      queryParameters: {
+        'per_page': perPage,
+        'search': search,
+      },
+    );
+    final raw = response.data?['data'];
+    if (raw is List) {
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosCustomer.fromJson)
+          .toList();
+    }
+    return const [];
+  }
+
+  Future<PosCustomer> createCustomer({
+    required String name,
+    String? phone,
+    String? email,
+  }) async {
+    final data = <String, dynamic>{
+      'name': name,
+      'is_active': true,
+    };
+    if (phone != null && phone.isNotEmpty) {
+      data['contact_person'] = phone;
+    }
+    if (email != null && email.isNotEmpty) {
+      data['email'] = email;
+    }
+
+    final response = await _api.post<Map<String, dynamic>>(
+      '/customer/customers',
+      data: data,
+    );
+    return PosCustomer.fromJson(_dataMap(response.data));
   }
 
   Map<String, dynamic> _dataMap(Map<String, dynamic>? envelope) {

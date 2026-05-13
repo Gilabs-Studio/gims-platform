@@ -114,6 +114,6 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		reason := "Failed to create digital payment invoice"
 		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": reason}, nil)
 	default:
-		coreErrors.InternalServerErrorResponse(c, "")
+		coreErrors.ErrorResponse(c, "INTERNAL_SERVER_ERROR", map[string]interface{}{"reason": err.Error()}, nil)
 	}
 }

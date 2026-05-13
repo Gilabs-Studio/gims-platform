@@ -12,25 +12,19 @@ class CartPanel extends StatelessWidget {
     required this.currency,
     required this.cart,
     required this.order,
-    required this.customerName,
     required this.total,
     required this.onQtyChanged,
     required this.onRemove,
     required this.onOpenOrder,
-    required this.onReceipt,
-    required this.onWhatsApp,
   });
 
   final String currency;
   final List<CartLine> cart;
   final PosOrder? order;
-  final TextEditingController customerName;
   final double total;
   final void Function(CartLine line, double qty) onQtyChanged;
   final ValueChanged<CartLine> onRemove;
   final VoidCallback onOpenOrder;
-  final VoidCallback? onReceipt;
-  final VoidCallback? onWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +39,6 @@ class CartPanel extends StatelessWidget {
               const Expanded(child: Text('Order', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
               if (order != null) Chip(label: Text(order!.status.value)),
             ]),
-            const SizedBox(height: 10),
-            TextField(controller: customerName, decoration: const InputDecoration(labelText: 'Customer / member', prefixIcon: Icon(Icons.person_outline))),
             const SizedBox(height: 10),
             Expanded(
               child: cart.isEmpty && order == null
@@ -67,10 +59,11 @@ class CartPanel extends StatelessWidget {
             if (order == null)
               FilledButton.icon(onPressed: cart.isEmpty ? null : onOpenOrder, icon: const Icon(Icons.lock_outline), label: const Text('Confirm order'))
             else
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                OutlinedButton.icon(onPressed: onReceipt, icon: const Icon(Icons.receipt_long), label: const Text('Nota')),
-                OutlinedButton.icon(onPressed: onWhatsApp, icon: const Icon(Icons.send_outlined), label: const Text('WA')),
-              ]),
+              const Text(
+                'Selesaikan pembayaran untuk lanjut ke receipt dan WhatsApp.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: GimsColors.mutedForeground),
+              ),
           ],
         ),
       ),

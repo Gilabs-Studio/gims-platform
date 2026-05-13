@@ -269,7 +269,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 		}
 		payment.SnapshotCOAID = &transactionCOAID
 
-		if err := tx.Create(payment).Error; err != nil {
+		if err := createSalesPaymentCompat(tx, payment); err != nil {
 			return err
 		}
 
@@ -1133,7 +1133,10 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 		if err := database.GetDB(ctx, uc.db).Model(&models.SalesPayment{}).
 			Where("id = ?", pay.ID).
 			Updates(map[string]interface{}{"snapshot_coa_id": transactionCOAID, "updated_at": apptime.Now()}).Error; err != nil {
-			return fmt.Errorf("failed to persist snapshot COA for sales payment: %w", err)
+			if !isMissingSalesPaymentCOAColumnErr(err) {
+				return fmt.Errorf("failed to persist snapshot COA for sales payment: %w", err)
+			}
+			log.Printf("sales_payment_legacy_schema: skipping snapshot_coa_id persist for payment %s: %v", pay.ID, err)
 		}
 	}
 
@@ -1197,7 +1200,10 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	if err := database.GetDB(ctx, uc.db).Model(&models.SalesPayment{}).
 		Where("id = ?", pay.ID).
 		Updates(map[string]interface{}{"resolved_coa_id": transactionCOAID, "updated_at": apptime.Now()}).Error; err != nil {
-		return fmt.Errorf("failed to persist resolved COA for sales payment: %w", err)
+		if !isMissingSalesPaymentCOAColumnErr(err) {
+			return fmt.Errorf("failed to persist resolved COA for sales payment: %w", err)
+		}
+		log.Printf("sales_payment_legacy_schema: skipping resolved_coa_id persist for payment %s: %v", pay.ID, err)
 	}
 
 	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSalesPayment, pay.ID)
@@ -1237,6 +1243,26 @@ func (uc *salesPaymentUsecase) resolveTransactionCOAForJournal(ctx context.Conte
 	}
 
 	return "", errors.New("bank account must have ChartOfAccountID linked for BANK payments")
+}
+
+func createSalesPaymentCompat(tx *gorm.DB, payment *models.SalesPayment) error {
+	if err := tx.Create(payment).Error; err != nil {
+		if isMissingSalesPaymentCOAColumnErr(err) {
+			return tx.Omit("SnapshotCOAID", "ResolvedCOAID").Create(payment).Error
+		}
+		return err
+	}
+	return nil
+}
+
+func isMissingSalesPaymentCOAColumnErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	return (strings.Contains(msg, "snapshot_coa_id") || strings.Contains(msg, "resolved_coa_id")) &&
+		(strings.Contains(msg, "does not exist") || strings.Contains(msg, "undefined column") || strings.Contains(msg, "sqlstate 42703"))
 }
 
 func (uc *salesPaymentUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {

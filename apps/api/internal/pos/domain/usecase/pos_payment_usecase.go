@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 
@@ -637,29 +638,25 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 		}
 	}
 
-	// Atomic block: order status update + ERP document creation.
-	// If any step fails (e.g., invoice creation), the entire transaction rolls back
-	// and the order status remains unchanged, allowing safe retry.
-	err := u.db.Transaction(func(tx *gorm.DB) error {
-		// Step 1: Update order status to PAID within the transaction
-		txCtx := coreDatabase.WithTx(ctx, tx)
-		order.Status = models.PosOrderStatusPaid
-		if err := u.orderRepo.Update(txCtx, order); err != nil {
-			return fmt.Errorf("failed to update order status: %w", err)
-		}
+	// Commit POS paid status first so operational checkout is not blocked by ERP sync.
+	order.Status = models.PosOrderStatusPaid
+	if err := u.orderRepo.Update(ctx, order); err != nil {
+		return fmt.Errorf("failed to update order status: %w", err)
+	}
 
-		// Step 2: Create Sales Order in ERP. On failure, transaction rolls back.
+	// Best-effort ERP sync in a separate transaction. If this fails, POS payment stays valid
+	// and operations can reconcile the ERP documents later.
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
+
 		soID := u.createSalesOrderFromPOS(txCtx, order, userID)
 		if soID == "" {
-			// SO creation failed; rollback order status update and keep finalization atomic.
 			return errors.New("failed to create sales order from POS order")
 		}
 		order.SalesOrderID = &soID
 
-		// Step 3: Create Customer Invoice. On failure, rolls back SO + order status.
 		invoiceID := u.createCustomerInvoiceFromPOS(txCtx, soID, order, userID)
 		if invoiceID == "" {
-			// Invoice creation failed; rollback the SO and order status.
 			return errors.New("failed to create customer invoice from POS order")
 		}
 		order.CustomerInvoiceID = &invoiceID
@@ -668,27 +665,24 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 			return err
 		}
 
-		// Step 4: Create Sales Payment. On failure, rolls back Invoice + SO + order status.
 		if payment != nil {
-			paymentID := u.createSalesPaymentFromPOS(txCtx, invoiceID, payment, order, userID)
+			paymentID, err := u.createSalesPaymentFromPOS(txCtx, invoiceID, payment, order, userID)
+			if err != nil {
+				return fmt.Errorf("failed to create sales payment from POS payment: %w", err)
+			}
 			if paymentID == "" {
-				// Payment creation failed; rollback Invoice, SO, and order status.
-				return errors.New("failed to create sales payment from POS payment")
+				return errors.New("failed to create sales payment from POS payment: empty payment id")
 			}
 		}
 
-		// Step 5: Persist order references (SO ID, Invoice ID) with final status.
 		if err := u.orderRepo.Update(txCtx, order); err != nil {
 			return fmt.Errorf("failed to link ERP documents to order: %w", err)
 		}
 
 		return nil
 	})
-
 	if err != nil {
-		// Transaction failed; order status and ERP docs were not created/rolled back.
-		// Log error and return; POS payment remains source-of-truth, can be retried later.
-		return err
+		log.Printf("pos_payment_erp_sync_failed order_id=%s payment_id=%s err=%v", order.ID, paymentIDOrEmpty(payment), err)
 	}
 
 	// Deduct inventory. Non-blocking: on failure, order finalization is not reversed;
@@ -711,6 +705,13 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	}
 
 	return nil
+}
+
+func paymentIDOrEmpty(payment *models.POSPayment) string {
+	if payment == nil {
+		return ""
+	}
+	return payment.ID
 }
 
 // createSalesOrderFromPOS creates a closed SalesOrder record from a paid POS order.
@@ -867,7 +868,7 @@ func (u *posPaymentUsecase) approveCustomerInvoiceFromPOS(ctx context.Context, i
 }
 
 // createSalesPaymentFromPOS creates a confirmed sales payment and marks invoice paid.
-func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoiceID string, payment *models.POSPayment, order *models.PosOrder, userID string) string {
+func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoiceID string, payment *models.POSPayment, order *models.PosOrder, userID string) (string, error) {
 	now := apptime.Now()
 	method := salesModels.SalesPaymentMethodCash
 	if payment != nil && payment.Method != models.POSPaymentMethodCash {
@@ -876,7 +877,10 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 
 	bank, err := u.resolveAutoPaymentBankAccount(ctx, method)
 	if err != nil || bank == nil {
-		return ""
+		if err != nil {
+			return "", fmt.Errorf("resolve auto payment bank account: %w", err)
+		}
+		return "", errors.New("resolve auto payment bank account: bank account not found")
 	}
 
 	noteText := fmt.Sprintf("Auto-generated from POS order %s", order.OrderNumber)
@@ -934,11 +938,11 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 	}
 
 	if err := u.salesPaymentRepo.Create(ctx, pay); err != nil {
-		return ""
+		return "", fmt.Errorf("persist sales payment: %w", err)
 	}
 
 	if u.salesPaymentUC == nil {
-		return ""
+		return "", errors.New("sales payment usecase is not configured")
 	}
 
 	actorIDForJournal := strings.TrimSpace(userID)
@@ -947,7 +951,7 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 	}
 	journalCtx := context.WithValue(ctx, "user_id", actorIDForJournal)
 	if err := u.salesPaymentUC.TriggerJournalForPayment(journalCtx, pay); err != nil {
-		return ""
+		return "", fmt.Errorf("trigger sales payment journal: %w", err)
 	}
 
 	paidAmount := appliedAmount
@@ -960,10 +964,10 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 		&paidAt,
 		optionalActorIDPointer(userID),
 	); err != nil {
-		return ""
+		return "", fmt.Errorf("mark invoice paid: %w", err)
 	}
 
-	return pay.ID
+	return pay.ID, nil
 }
 
 func normalizedActorID(raw string) string {
