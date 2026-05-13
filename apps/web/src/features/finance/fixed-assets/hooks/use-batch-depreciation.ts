@@ -22,6 +22,21 @@ export function useBatchDepreciation() {
   const [runData, setRunData] = useState<BatchDepreciationRunResponse | null>(null);
   const [periodValidationError, setPeriodValidationError] = useState<PeriodValidationError | null>(null);
 
+  const getErrorResponse = (error: unknown): { error?: string; message?: string } | null => {
+    if (!error || typeof error !== 'object' || !('response' in error)) {
+      return null;
+    }
+
+    const response = (error as { response?: { data?: unknown } }).response;
+    const data = response?.data;
+
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    return data as { error?: string; message?: string };
+  };
+
   const preview = useMutation({
     mutationFn: ({ month, year }: { month: number; year: number }) =>
       fixedAssetsService.previewBatchDepreciation(month, year),
@@ -29,9 +44,10 @@ export function useBatchDepreciation() {
       setPreviewData(response.data);
       setPeriodValidationError(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // Check if error is due to closed period
-      const errorMessage = error?.response?.data?.error || error?.message || "Unknown error";
+      const errorResponse = getErrorResponse(error);
+      const errorMessage = (errorResponse?.error || errorResponse?.message || (error instanceof Error ? error.message : "Unknown error")) as string;
       if (errorMessage.includes("sudah ditutup") || errorMessage.includes("closed")) {
         setPeriodValidationError({
           type: "closed_period",
@@ -55,9 +71,10 @@ export function useBatchDepreciation() {
       setPeriodValidationError(null);
       queryClient.invalidateQueries({ queryKey: fixedAssetsKeys.batchDepreciation() });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // Check if error is due to closed period or already run
-      const errorMessage = error?.response?.data?.error || error?.message || "Unknown error";
+      const errorResponse = getErrorResponse(error);
+      const errorMessage = (errorResponse?.error || errorResponse?.message || (error instanceof Error ? error.message : "Unknown error")) as string;
       if (errorMessage.includes("sudah ditutup") || errorMessage.includes("closed")) {
         setPeriodValidationError({
           type: "closed_period",

@@ -7,14 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PermissionGuard } from '@/features/auth/components/permission-guard';
 import { fixedAssetsService } from '@/features/finance/fixed-assets/services/fixed-assets-service';
-import type { DepreciationHistoryResponse, DepreciationScheduleResponse, RunDepreciationRequest } from '@/features/finance/fixed-assets/types';
+import type { BatchDepreciationRunResponse, DepreciationHistoryResponse, DepreciationScheduleResponse, RunDepreciationRequest } from '@/features/finance/fixed-assets/types';
 
 function formatCurrency(value: number, currency = 'IDR') {
   const safeValue = Number.isFinite(value) ? value : 0;
@@ -38,7 +37,7 @@ export default function DepreciationSchedulePage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [schedule, setSchedule] = useState<DepreciationScheduleResponse | null>(null);
   const [history, setHistory] = useState<DepreciationHistoryResponse | null>(null);
-  const [runResult, setRunResult] = useState<any>(null);
+  const [runResult, setRunResult] = useState<BatchDepreciationRunResponse | null>(null);
 
   const requestPayload = useMemo<RunDepreciationRequest>(() => ({
     period,
@@ -74,7 +73,6 @@ export default function DepreciationSchedulePage() {
   const totalItems = schedule?.total_assets ?? 0;
   const postedCount = schedule?.posted ?? 0;
   const pendingCount = schedule?.pending ?? 0;
-  const totalAmount = schedule?.total_amount ?? 0;
   const highlightedCount = schedule?.items.filter((item) => item.highlighted).length ?? 0;
 
   return (
@@ -256,10 +254,10 @@ export default function DepreciationSchedulePage() {
                 <CardDescription>Depreciation batch posted successfully for {period}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm md:grid-cols-4">
-                <Stat label="Posted" value={String(runResult.posted ?? 0)} />
+                <Stat label="Posted" value={String(runResult.successful ?? 0)} />
                 <Stat label="Skipped" value={String(runResult.skipped ?? 0)} />
                 <Stat label="Failed" value={String(runResult.failed ?? 0)} />
-                <Stat label="Processed" value={String(runResult.processed ?? runResult.items?.length ?? 0)} />
+                <Stat label="Processed" value={String(runResult.total_assets ?? runResult.items?.length ?? 0)} />
               </CardContent>
             </Card>
           )}

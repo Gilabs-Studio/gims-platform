@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -54,7 +54,7 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
       isEdit ? target?.employee_id : undefined,
       { enabled: open },
     );
-  const employees = availableEmployeesData?.data ?? [];
+  const employees = useMemo(() => availableEmployeesData?.data ?? [], [availableEmployeesData]);
 
   // Calculate total whenever months change
   useEffect(() => {
@@ -139,12 +139,13 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
         toast.success(t("created"));
       }
       onClose();
-    } catch (error: any) {
-      const statusCode = error?.response?.status;
-      const apiCode = error?.response?.data?.error?.code;
-      const detailMessage = error?.response?.data?.error?.details?.message;
-      const fallbackMessage = error?.response?.data?.error?.message;
-      const message = String(detailMessage || fallbackMessage || error?.message || "").toLowerCase();
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string; details?: { message?: string }; message?: string }; message?: string } }; message?: string };
+      const statusCode = axiosError.response?.status;
+      const apiCode = axiosError.response?.data?.error?.code;
+      const detailMessage = axiosError.response?.data?.error?.details?.message;
+      const fallbackMessage = axiosError.response?.data?.error?.message;
+      const message = String(detailMessage || fallbackMessage || axiosError.message || "").toLowerCase();
 
       if (
         statusCode === 409 ||
@@ -155,7 +156,7 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
       ) {
         toast.error(t("conflict"));
       } else {
-        toast.error(error?.message || t("common.error"));
+        toast.error((error as Error)?.message || t("common.error"));
       }
     }
   };

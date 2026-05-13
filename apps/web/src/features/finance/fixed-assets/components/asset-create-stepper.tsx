@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import type { FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -357,8 +357,8 @@ export function AssetCreateStepper({
 // Step Renderer Component
 interface AssetStepRendererProps {
   step: number;
-  form: any;
-  errors: any;
+  form: ReturnType<typeof useForm<AssetFormData>>;
+  errors: FieldErrors<AssetFormData>;
   assetType: string;
   categoryOptions: Array<{ id: string; name: string }>;
   locationOptions: Array<{ id: string; name: string }>;
@@ -397,7 +397,15 @@ function FieldError({ message }: { message?: string }) {
 // ===== STEP COMPONENTS =====
 // (Import these from separate component files)
 
-function AssetBasicInfoStep({ form, errors }: any) {
+interface StepComponentProps {
+  form: ReturnType<typeof useForm<AssetFormData>>;
+  errors?: FieldErrors<AssetFormData>;
+  assetType?: string;
+  categoryOptions?: Array<{ id: string; name: string }>;
+  locationOptions?: Array<{ id: string; name: string }>;
+}
+
+function AssetBasicInfoStep({ form, errors }: StepComponentProps) {
   return (
     <div className="space-y-4">
       {/* Asset name input */}
@@ -415,7 +423,7 @@ function AssetBasicInfoStep({ form, errors }: any) {
   );
 }
 
-function AssetClassificationStep({ form, errors, categoryOptions, locationOptions }: any) {
+function AssetClassificationStep({ form, errors, categoryOptions = [], locationOptions = [] }: StepComponentProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -437,7 +445,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {categoryOptions.map((category: { id: string; name: string }) => (
+              {categoryOptions.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -454,7 +462,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              {locationOptions.map((location: { id: string; name: string }) => (
+              {locationOptions.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
                   {location.name}
                 </SelectItem>
@@ -468,7 +476,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
   );
 }
 
-function AssetFinancialStep({ form, errors, assetType }: any) {
+function AssetFinancialStep({ form, errors, assetType = '' }: StepComponentProps) {
   const isDepreciable = assetType === 'TANGIBLE';
 
   return (
@@ -527,7 +535,7 @@ function AssetFinancialStep({ form, errors, assetType }: any) {
   );
 }
 
-function AssetProcurementStep({ form, errors }: any) {
+function AssetProcurementStep({ form, errors }: StepComponentProps) {
   return (
     <div className="space-y-4">
       {/* Supplier information */}
@@ -545,7 +553,7 @@ function AssetProcurementStep({ form, errors }: any) {
   );
 }
 
-function AssetReviewStep({ form }: any) {
+function AssetReviewStep({ form }: StepComponentProps) {
   const formData = form.getValues();
 
   return (
@@ -585,7 +593,7 @@ function AssetReviewStep({ form }: any) {
   );
 }
 
-function DepreciationPreviewCard({ formData }: any) {
+function DepreciationPreviewCard({ formData }: { formData: Partial<AssetFormData> }) {
   return (
     <Card>
       <CardHeader>
@@ -600,7 +608,7 @@ function DepreciationPreviewCard({ formData }: any) {
                 style: 'currency',
                 currency: formData.currencyCode,
               }).format(
-                (formData.acquisitionCost - (formData.salvageValue || 0)) /
+                ((formData.acquisitionCost ?? 0) - (formData.salvageValue || 0)) /
                   (formData.usefulLifeMonths || 1)
               )}
             </span>

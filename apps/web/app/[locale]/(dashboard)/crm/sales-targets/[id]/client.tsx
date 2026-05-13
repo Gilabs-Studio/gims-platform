@@ -6,18 +6,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { SalesTargetProgress } from "@/features/crm/sales-targets/components/sales-target-progress";
 import { isSalesTargetId, useSalesTarget } from "@/features/crm/sales-targets/hooks/use-sales-targets";
-import type { MonthlySalesTarget } from "@/features/crm/sales-targets/types";
-import { formatCurrency } from "@/lib/utils";
 
 interface SalesTargetDetailPageClientProps {
   targetId: string;
@@ -60,28 +50,6 @@ export function SalesTargetDetailPageClient({ targetId }: SalesTargetDetailPageC
   if (!target) {
     return <div className="text-center py-8 text-muted-foreground">{t("notFound")}</div>;
   }
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const getProgressColor = (percent: number) => {
-    if (percent >= 100) return "bg-purple-500";
-    if (percent >= 80) return "bg-success";
-    if (percent >= 50) return "bg-warning";
-    return "bg-destructive";
-  };
 
   return (
     <div className="space-y-6">

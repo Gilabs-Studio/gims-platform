@@ -26,14 +26,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -56,7 +48,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
-import type { Asset } from "../types";
+import type { Asset, AssetInput } from "../types";
 import {
   useDeleteFinanceAsset,
   useFinanceAssets,
@@ -135,13 +127,6 @@ export function AssetsList() {
   const canUpdate = useUserPermission("asset.update");
   const canDelete = useUserPermission("asset.delete");
   const canDepreciate = useUserPermission("asset.depreciate");
-  const canTransfer = useUserPermission("asset.transfer");
-  const canDispose = useUserPermission("asset.dispose");
-  const canSell = useUserPermission("asset.sell");
-  const canRevalue = useUserPermission("asset.revalue");
-  const canAdjust = useUserPermission("asset.adjust");
-  const canAssign = useUserPermission("asset.assign");
-  const canReturn = useUserPermission("asset.return");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -152,11 +137,11 @@ export function AssetsList() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Filters
-  const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterCategory, setFilterCategory] = useState<string>("");
-  const [filterLocation, setFilterLocation] = useState<string>("");
-  const [filterCapitalized, setFilterCapitalized] = useState<string>("");
-  const [filterWarrantyExpiring, setFilterWarrantyExpiring] = useState<30 | 60 | 90 | null>(null);
+  const [filterStatus] = useState<string>("");
+  const [filterCategory] = useState<string>("");
+  const [filterLocation] = useState<string>("");
+  const [filterCapitalized] = useState<string>("");
+  const [filterWarrantyExpiring] = useState<30 | 60 | 90 | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -192,21 +177,18 @@ export function AssetsList() {
   const pagination = data?.meta?.pagination;
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
 
-  const { data: categoriesData } = useFinanceAssetCategories({
+  useFinanceAssetCategories({
     page: 1,
     per_page: 100,
     sort_by: "name",
     sort_dir: "asc",
   });
-  const { data: locationsData } = useFinanceAssetLocations({
+  useFinanceAssetLocations({
     page: 1,
     per_page: 100,
     sort_by: "name",
     sort_dir: "asc",
   });
-
-  const categoryOptions = categoriesData?.data ?? [];
-  const locationOptions = locationsData?.data ?? [];
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -553,7 +535,7 @@ export function AssetsList() {
         onClose={() => setStepperOpen(false)}
         onComplete={async (data: AssetFormData) => {
           try {
-            const payload = {
+            const payload: Record<string, unknown> = {
               name: data.name,
               asset_type_id: data.assetType,
               asset_category_id: data.categoryId,
@@ -567,8 +549,8 @@ export function AssetsList() {
               useful_life_months: data.usefulLifeMonths,
               warranty_start: data.warrantyStartDate ? data.warrantyStartDate.toISOString().slice(0, 10) : undefined,
               warranty_end: data.warrantyEndDate ? data.warrantyEndDate.toISOString().slice(0, 10) : undefined,
-            } as any;
-            await createMutation.mutateAsync(payload);
+            };
+            await createMutation.mutateAsync(payload as unknown as AssetInput);
             toast.success(t("toast.created"));
             setStepperOpen(false);
           } catch (err) {

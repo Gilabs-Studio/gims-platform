@@ -34,7 +34,7 @@ import { useEmployees } from "@/features/master-data/employee/hooks/use-employee
 import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 
 import { assetFormSchema, type AssetFormValues } from "../schemas/asset.schema";
-import type { Asset } from "../types";
+import type { Asset, AssetInput } from "../types";
 import {
   useCreateFinanceAsset,
   useUploadAttachment,
@@ -84,10 +84,10 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
     is_active: true,
   });
 
-  const categoryOptions = categoriesData?.data ?? [];
-  const locationOptions = locationsData?.data ?? [];
-  const departmentOptions = divisionsData?.data ?? [];
-  const custodianOptions = employeesData?.data ?? [];
+  const categoryOptions = useMemo(() => categoriesData?.data ?? [], [categoriesData]);
+  const locationOptions = useMemo(() => locationsData?.data ?? [], [locationsData]);
+  const departmentOptions = useMemo(() => divisionsData?.data ?? [], [divisionsData]);
+  const custodianOptions = useMemo(() => employeesData?.data ?? [], [employeesData]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat(undefined, {
@@ -147,7 +147,6 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
   const assetTypeId = useWatch({ control: form.control, name: "asset_type_id" });
   const departmentId = useWatch({ control: form.control, name: "department_id" });
   const custodianUserId = useWatch({ control: form.control, name: "custodian_user_id" });
-  const assignedEmployeeId = useWatch({ control: form.control, name: "assigned_to_employee_id" });
   const purchasePrice = useWatch({ control: form.control, name: "purchase_price" });
   const shippingCost = useWatch({ control: form.control, name: "shipping_cost" });
   const installationCost = useWatch({ control: form.control, name: "installation_cost" });
@@ -204,7 +203,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
 
   const onSubmit = async (values: AssetFormValues) => {
     try {
-      const payload = {
+      const payload: AssetInput = {
         code: values.code,
         name: values.name,
         asset_type_id: values.asset_type_id,
@@ -230,14 +229,15 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
         installation_cost: values.installation_cost,
         tax_amount: values.tax_amount,
         other_costs: values.other_costs,
-        vendor_id: undefined,
-        purchase_invoice_id: undefined,
+      };
+      const formValues = values as AssetFormValues & {
+        supplier_invoice_image?: File | File[] | FileList | null;
       };
       if (mode === "create") {
-        const created = await createMutation.mutateAsync(payload as any);
+        const created = await createMutation.mutateAsync(payload);
         // If user uploaded a supplier invoice image, upload it as attachment
         try {
-          const fileInput = (values as any).supplier_invoice_image;
+          const fileInput = formValues.supplier_invoice_image;
           const file: File | undefined = fileInput
             ? fileInput instanceof File
               ? fileInput
@@ -254,28 +254,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
       } else {
         const id = initialData?.id ?? "";
         if (!id) throw new Error("Missing id");
-        await editAsset(id, {
-          code: payload.code,
-          name: payload.name,
-          description: initialData?.description ?? "",
-          asset_type_id: payload.asset_type_id,
-          asset_category_id: payload.asset_category_id,
-          location_id: payload.location_id,
-          acquisition_date: payload.acquisition_date,
-          acquisition_cost: payload.acquisition_cost,
-          salvage_value: payload.salvage_value,
-          status: initialData?.status ?? "active",
-          useful_life_months: payload.useful_life_months,
-          depreciation_method: payload.depreciation_method,
-          department_id: payload.department_id,
-          assigned_to_employee_id: payload.assigned_to_employee_id,
-          custodian_user_id: payload.custodian_user_id,
-          shipping_cost: payload.shipping_cost,
-          installation_cost: payload.installation_cost,
-          tax_amount: payload.tax_amount,
-          other_costs: payload.other_costs,
-          cascade_to_children: false,
-        } as any);
+        await editAsset(id, payload as unknown as Record<string, unknown>);
       }
       onOpenChange(false);
     } catch {

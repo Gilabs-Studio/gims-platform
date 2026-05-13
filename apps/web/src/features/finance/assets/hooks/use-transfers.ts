@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { transferService } from "@/features/finance/assets/services/transfer-service";
 
-export function useTransfers(params?: Record<string, any>, options?: { enabled?: boolean }) {
+export function useTransfers(params?: Record<string, unknown>, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["transfers", params ?? {}],
     queryFn: () => transferService.list(params),
