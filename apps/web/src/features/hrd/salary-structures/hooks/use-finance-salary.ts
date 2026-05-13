@@ -5,7 +5,7 @@ import { financeSalaryService } from "../services/finance-salary-service";
 import type { ListSalaryParams, SalaryStructureInput } from "../types";
 
 export const financeSalaryKeys = {
-  all: ["finance-salary"] as const,
+  all: ["hrd-salary"] as const,
   lists: () => [...financeSalaryKeys.all, "list"] as const,
   list: (params?: ListSalaryParams) => [...financeSalaryKeys.lists(), params] as const,
   detail: (id: string) => [...financeSalaryKeys.all, "detail", id] as const,

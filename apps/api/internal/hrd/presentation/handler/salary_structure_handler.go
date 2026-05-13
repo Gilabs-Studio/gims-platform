@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/gilabs/gims/api/internal/finance/domain/dto"
-	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
+	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gin-gonic/gin"
 )
 

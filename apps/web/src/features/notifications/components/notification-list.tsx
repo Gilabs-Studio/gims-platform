@@ -110,7 +110,7 @@ export function NotificationList() {
       case "stock_opname":
         return `/stock/opname?open_stock_opname=${notification.entity_id}`;
       case "salary":
-        return `/finance/salary?open_salary=${notification.entity_id}`;
+        return `/hrd/salary-structures?open_salary=${notification.entity_id}`;
       case "password_reset_request":
         return `/master-data/users?open_user=${notification.entity_id}`;
       case "pos_order":

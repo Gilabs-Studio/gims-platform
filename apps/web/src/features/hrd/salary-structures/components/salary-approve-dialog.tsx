@@ -30,7 +30,7 @@ export function SalaryApproveDialog({
   onConfirm,
   isLoading = false,
 }: SalaryApproveDialogProps) {
-  const t = useTranslations("financeSalary");
+  const t = useTranslations("hrdSalary");
 
   const handleConfirm = () => {
     if (salary?.id) {

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	hrdModels "github.com/gilabs/gims/api/internal/hrd/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -32,7 +33,7 @@ var salaryStructureAllowedSort = map[string]clause.OrderByColumn{
 type SalaryStructureListParams struct {
 	Search     string
 	EmployeeID *string
-	Status     *financeModels.SalaryStructureStatus
+	Status     *hrdModels.SalaryStructureStatus
 	Limit      int
 	Offset     int
 	SortBy     string
@@ -56,11 +57,11 @@ type SalaryStructureTotalSalaryOverTime struct {
 }
 
 type SalaryStructureRepository interface {
-	FindByID(ctx context.Context, id string) (*financeModels.SalaryStructure, error)
-	List(ctx context.Context, params SalaryStructureListParams) ([]financeModels.SalaryStructure, int64, error)
-	GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error)
+	FindByID(ctx context.Context, id string) (*hrdModels.SalaryStructure, error)
+	List(ctx context.Context, params SalaryStructureListParams) ([]hrdModels.SalaryStructure, int64, error)
+	GetActiveByEmployeeID(ctx context.Context, employeeID string) (*hrdModels.SalaryStructure, error)
 	DeactivateAllByEmployeeID(ctx context.Context, tx *gorm.DB, employeeID string) error
-	UpdateStatus(ctx context.Context, id string, status financeModels.SalaryStructureStatus) error
+	UpdateStatus(ctx context.Context, id string, status hrdModels.SalaryStructureStatus) error
 	GetStats(ctx context.Context) (*SalaryStructureStatsResult, error)
 }
 
@@ -72,8 +73,8 @@ func NewSalaryStructureRepository(db *gorm.DB) SalaryStructureRepository {
 	return &salaryStructureRepository{db: db}
 }
 
-func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*financeModels.SalaryStructure, error) {
-	var item financeModels.SalaryStructure
+func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*hrdModels.SalaryStructure, error) {
+	var item hrdModels.SalaryStructure
 	if err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.User").
@@ -83,12 +84,12 @@ func (r *salaryStructureRepository) FindByID(ctx context.Context, id string) (*f
 	return &item, nil
 }
 
-func (r *salaryStructureRepository) GetActiveByEmployeeID(ctx context.Context, employeeID string) (*financeModels.SalaryStructure, error) {
-	var item financeModels.SalaryStructure
+func (r *salaryStructureRepository) GetActiveByEmployeeID(ctx context.Context, employeeID string) (*hrdModels.SalaryStructure, error) {
+	var item hrdModels.SalaryStructure
 	if err := database.GetDB(ctx, r.db).
 		Preload("Employee").
 		Preload("Employee.User").
-		Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).
+		Where("employee_id = ? AND status = ?", employeeID, hrdModels.SalaryStructureStatusActive).
 		First(&item).Error; err != nil {
 		return nil, err
 	}
@@ -96,25 +97,25 @@ func (r *salaryStructureRepository) GetActiveByEmployeeID(ctx context.Context, e
 }
 
 func (r *salaryStructureRepository) DeactivateAllByEmployeeID(ctx context.Context, tx *gorm.DB, employeeID string) error {
-	return tx.WithContext(ctx).Model(&financeModels.SalaryStructure{}).
-		Where("employee_id = ? AND status = ?", employeeID, financeModels.SalaryStructureStatusActive).
-		Update("status", financeModels.SalaryStructureStatusInactive).Error
+	return tx.WithContext(ctx).Model(&hrdModels.SalaryStructure{}).
+		Where("employee_id = ? AND status = ?", employeeID, hrdModels.SalaryStructureStatusActive).
+		Update("status", hrdModels.SalaryStructureStatusInactive).Error
 }
 
-func (r *salaryStructureRepository) UpdateStatus(ctx context.Context, id string, status financeModels.SalaryStructureStatus) error {
+func (r *salaryStructureRepository) UpdateStatus(ctx context.Context, id string, status hrdModels.SalaryStructureStatus) error {
 	return database.GetDB(ctx, r.db).
-		Model(&financeModels.SalaryStructure{}).
+		Model(&hrdModels.SalaryStructure{}).
 		Where("id = ?", id).
 		Update("status", status).Error
 }
 
-func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStructureListParams) ([]financeModels.SalaryStructure, int64, error) {
-	var items []financeModels.SalaryStructure
+func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStructureListParams) ([]hrdModels.SalaryStructure, int64, error) {
+	var items []hrdModels.SalaryStructure
 	var total int64
 
 	// Use WithContext (not GetDB) because search conditionally JOINs employees which has tenant_id.
 	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
-	q := r.db.WithContext(ctx).Model(&financeModels.SalaryStructure{})
+	q := r.db.WithContext(ctx).Model(&hrdModels.SalaryStructure{})
 	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.EmployeeID != nil {
@@ -166,7 +167,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 
 	var counts []countResult
 	if err := database.GetDB(ctx, r.db).
-		Model(&financeModels.SalaryStructure{}).
+		Model(&hrdModels.SalaryStructure{}).
 		Select("status, COUNT(*) as count").
 		Group("status").
 		Scan(&counts).Error; err != nil {
@@ -176,11 +177,11 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	for _, c := range counts {
 		result.Total += c.Count
 		switch c.Status {
-		case string(financeModels.SalaryStructureStatusActive):
+		case string(hrdModels.SalaryStructureStatusActive):
 			result.Active = c.Count
-		case string(financeModels.SalaryStructureStatusDraft):
+		case string(hrdModels.SalaryStructureStatusDraft):
 			result.Draft = c.Count
-		case string(financeModels.SalaryStructureStatusInactive):
+		case string(hrdModels.SalaryStructureStatusInactive):
 			result.Inactive = c.Count
 		}
 	}
@@ -193,8 +194,8 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	}
 	var agg aggResult
 	if err := database.GetDB(ctx, r.db).
-		Model(&financeModels.SalaryStructure{}).
-		Where("status = ?", financeModels.SalaryStructureStatusActive).
+		Model(&hrdModels.SalaryStructure{}).
+		Where("status = ?", hrdModels.SalaryStructureStatusActive).
 		Select("COALESCE(AVG(basic_salary), 0) as avg, COALESCE(MIN(basic_salary), 0) as min, COALESCE(MAX(basic_salary), 0) as max").
 		Scan(&agg).Error; err != nil {
 		return nil, err
@@ -207,7 +208,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	// This should reflect the sum of active employee salaries for each period,
 	// carrying forward the latest salary for each employee until a new salary record applies.
 	var series []SalaryStructureTotalSalaryOverTime
-	query := `
+	queryTemplate := `
 	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary
 	FROM (
 	    SELECT
@@ -220,6 +221,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	            (SELECT COALESCE(MIN(date_trunc('month', effective_date)), date_trunc('month', CURRENT_DATE))
 	                FROM salary_structures
 	                WHERE status != 'draft'
+	                %s
 	            ),
 	            date_trunc('month', CURRENT_DATE),
 	            INTERVAL '1 month'
@@ -228,6 +230,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	    JOIN salary_structures s
 	        ON s.effective_date <= (m.period + INTERVAL '1 month' - INTERVAL '1 day')
 	        AND s.status != 'draft'
+	        %s
 	        AND (
 	            s.status = 'active'
 	            OR (s.status = 'inactive' AND date_trunc('month', s.updated_at) > m.period)
@@ -239,11 +242,14 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	`
 	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
 	queryArgs := []interface{}{}
+	minSeriesTenantFilter := ""
+	seriesTenantFilter := ""
 	if tenantID != "" {
-		// inject tenant filter into the existing JOIN ON clause
-		query = strings.Replace(query, "AND s.status != 'draft'\n        AND (", "AND s.status != 'draft'\n        AND s.tenant_id = ?\n        AND (", 1)
-		queryArgs = append(queryArgs, tenantID)
+		minSeriesTenantFilter = "AND tenant_id = ?"
+		seriesTenantFilter = "AND s.tenant_id = ?"
+		queryArgs = append(queryArgs, tenantID, tenantID)
 	}
+	query := fmt.Sprintf(queryTemplate, minSeriesTenantFilter, seriesTenantFilter)
 	t := r.db.WithContext(ctx).Raw(query, queryArgs...).Scan(&series)
 	if t.Error != nil {
 		return nil, t.Error

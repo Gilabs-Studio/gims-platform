@@ -3,14 +3,20 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
-	"github.com/gilabs/gims/api/internal/finance/data/repositories"
-	"github.com/gilabs/gims/api/internal/finance/domain/dto"
-	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	financeDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	hrdModels "github.com/gilabs/gims/api/internal/hrd/data/models"
+	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
+	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
+	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
 )
@@ -19,7 +25,11 @@ var (
 	ErrSalaryStructureNotFound = errors.New("salary structure not found")
 )
 
-const salaryStructureIDCondition = "id = ?"
+const (
+	salaryStructureIDCondition = "id = ?"
+	payrollSalaryExpenseKey    = "payroll.salary_expense"
+	payrollPayableSalaryKey    = "payroll.payable_salary"
+)
 
 type SalaryStructureUsecase interface {
 	Create(ctx context.Context, req *dto.CreateSalaryStructureRequest) (*dto.SalaryStructureResponse, error)
@@ -35,13 +45,30 @@ type SalaryStructureUsecase interface {
 }
 
 type salaryStructureUsecase struct {
-	db     *gorm.DB
-	repo   repositories.SalaryStructureRepository
-	mapper *mapper.SalaryStructureMapper
+	db              *gorm.DB
+	repo            repositories.SalaryStructureRepository
+	mapper          *mapper.SalaryStructureMapper
+	journalUC       financeUsecase.JournalEntryUsecase
+	settingsService financesettings.SettingsService
+	coaUC           financeUsecase.ChartOfAccountUsecase
 }
 
-func NewSalaryStructureUsecase(db *gorm.DB, repo repositories.SalaryStructureRepository, mapper *mapper.SalaryStructureMapper) SalaryStructureUsecase {
-	return &salaryStructureUsecase{db: db, repo: repo, mapper: mapper}
+func NewSalaryStructureUsecase(
+	db *gorm.DB,
+	repo repositories.SalaryStructureRepository,
+	mapper *mapper.SalaryStructureMapper,
+	journalUC financeUsecase.JournalEntryUsecase,
+	settingsService financesettings.SettingsService,
+	coaUC financeUsecase.ChartOfAccountUsecase,
+) SalaryStructureUsecase {
+	return &salaryStructureUsecase{
+		db:              db,
+		repo:            repo,
+		mapper:          mapper,
+		journalUC:       journalUC,
+		settingsService: settingsService,
+		coaUC:           coaUC,
+	}
 }
 
 func (uc *salaryStructureUsecase) Create(ctx context.Context, req *dto.CreateSalaryStructureRequest) (*dto.SalaryStructureResponse, error) {
@@ -57,20 +84,21 @@ func (uc *salaryStructureUsecase) Create(ctx context.Context, req *dto.CreateSal
 		return nil, errors.New("invalid effective_date")
 	}
 
-	item := &financeModels.SalaryStructure{
+	item := &hrdModels.SalaryStructure{
 		EmployeeID:    strings.TrimSpace(req.EmployeeID),
 		EffectiveDate: eff,
 		BasicSalary:   req.BasicSalary,
 		Notes:         strings.TrimSpace(req.Notes),
-		Status:        financeModels.SalaryStructureStatusDraft,
-		CreatedBy:     &actorID,
+		Status:        hrdModels.SalaryStructureStatusDraft,
+	}
+	if actorID != "" {
+		item.CreatedBy = &actorID
 	}
 
 	if err := uc.db.WithContext(ctx).Create(item).Error; err != nil {
 		return nil, err
 	}
 
-	// Reload with preloads
 	full, _ := uc.repo.FindByID(ctx, item.ID)
 	res := uc.mapper.ToResponse(full)
 	return &res, nil
@@ -90,7 +118,7 @@ func (uc *salaryStructureUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
-	if existing.Status != financeModels.SalaryStructureStatusDraft {
+	if existing.Status != hrdModels.SalaryStructureStatusDraft {
 		return nil, errors.New("only draft salary structure can be updated")
 	}
 
@@ -99,7 +127,7 @@ func (uc *salaryStructureUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, errors.New("invalid effective_date")
 	}
 
-	if err := uc.db.WithContext(ctx).Model(&financeModels.SalaryStructure{}).Where(salaryStructureIDCondition, id).Updates(map[string]interface{}{
+	if err := uc.db.WithContext(ctx).Model(&hrdModels.SalaryStructure{}).Where(salaryStructureIDCondition, id).Updates(map[string]interface{}{
 		"employee_id":    strings.TrimSpace(req.EmployeeID),
 		"effective_date": eff,
 		"basic_salary":   req.BasicSalary,
@@ -125,15 +153,15 @@ func (uc *salaryStructureUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if existing.Status != financeModels.SalaryStructureStatusDraft {
+	if existing.Status != hrdModels.SalaryStructureStatusDraft {
 		return errors.New("only draft salary structure can be deleted")
 	}
-	return uc.db.WithContext(ctx).Delete(&financeModels.SalaryStructure{}, salaryStructureIDCondition, id).Error
+	return uc.db.WithContext(ctx).Delete(&hrdModels.SalaryStructure{}, salaryStructureIDCondition, id).Error
 }
 
 func (uc *salaryStructureUsecase) GetByID(ctx context.Context, id string) (*dto.SalaryStructureResponse, error) {
 	id = strings.TrimSpace(id)
-	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.SalaryStructure{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &hrdModels.SalaryStructure{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
 		return nil, ErrSalaryStructureNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id)
@@ -160,9 +188,9 @@ func (uc *salaryStructureUsecase) List(ctx context.Context, req *dto.ListSalaryS
 		perPage = 10
 	}
 
-	var status *financeModels.SalaryStructureStatus
+	var status *hrdModels.SalaryStructureStatus
 	if req.Status != nil && *req.Status != "" {
-		s := financeModels.SalaryStructureStatus(*req.Status)
+		s := hrdModels.SalaryStructureStatus(*req.Status)
 		status = &s
 	}
 
@@ -196,17 +224,19 @@ func (uc *salaryStructureUsecase) Approve(ctx context.Context, id string) (*dto.
 		return nil, err
 	}
 
-	if item.Status != financeModels.SalaryStructureStatusDraft {
+	if item.Status != hrdModels.SalaryStructureStatusDraft {
 		return nil, errors.New("only draft salary structure can be approved")
 	}
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Deactivate others
-		if err := uc.repo.DeactivateAllByEmployeeID(ctx, tx, item.EmployeeID); err != nil {
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.repo.DeactivateAllByEmployeeID(txCtx, tx, item.EmployeeID); err != nil {
 			return err
 		}
-		// Activate this one
-		if err := tx.Model(&financeModels.SalaryStructure{}).Where(salaryStructureIDCondition, id).Update("status", financeModels.SalaryStructureStatusActive).Error; err != nil {
+		if err := tx.Model(&hrdModels.SalaryStructure{}).Where(salaryStructureIDCondition, id).Update("status", hrdModels.SalaryStructureStatusActive).Error; err != nil {
+			return err
+		}
+		if err := uc.postApprovalJournal(txCtx, item); err != nil {
 			return err
 		}
 		return nil
@@ -231,22 +261,20 @@ func (uc *salaryStructureUsecase) ToggleStatus(ctx context.Context, id string) (
 		return nil, err
 	}
 
-	if item.Status == financeModels.SalaryStructureStatusDraft {
+	if item.Status == hrdModels.SalaryStructureStatusDraft {
 		return nil, errors.New("cannot toggle status of draft salary structure")
 	}
 
-	if item.Status == financeModels.SalaryStructureStatusActive {
-		// Deactivate this record only
-		if err := uc.repo.UpdateStatus(ctx, id, financeModels.SalaryStructureStatusInactive); err != nil {
+	if item.Status == hrdModels.SalaryStructureStatusActive {
+		if err := uc.repo.UpdateStatus(ctx, id, hrdModels.SalaryStructureStatusInactive); err != nil {
 			return nil, err
 		}
 	} else {
-		// Activate this inactive salary, deactivating any other active salary for the employee
 		err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := uc.repo.DeactivateAllByEmployeeID(ctx, tx, item.EmployeeID); err != nil {
 				return err
 			}
-			if err := uc.repo.UpdateStatus(ctx, id, financeModels.SalaryStructureStatusActive); err != nil {
+			if err := uc.repo.UpdateStatus(ctx, id, hrdModels.SalaryStructureStatusActive); err != nil {
 				return err
 			}
 			return nil
@@ -300,7 +328,6 @@ func (uc *salaryStructureUsecase) ListGrouped(ctx context.Context, req *dto.List
 		perPage = 20
 	}
 
-	// 1. Fetch Employees first to ensure all employees are listed
 	var employees []orgModels.Employee
 	var total int64
 
@@ -327,13 +354,12 @@ func (uc *salaryStructureUsecase) ListGrouped(ctx context.Context, req *dto.List
 		return []dto.SalaryEmployeeGroup{}, total, nil
 	}
 
-	// 2. Fetch all salary structures for these specific employees
 	empIDs := make([]string, 0, len(employees))
 	for _, e := range employees {
 		empIDs = append(empIDs, e.ID)
 	}
 
-	var salaries []financeModels.SalaryStructure
+	var salaries []hrdModels.SalaryStructure
 	if err := uc.db.WithContext(ctx).
 		Where("employee_id IN ?", empIDs).
 		Order("effective_date DESC").
@@ -341,7 +367,6 @@ func (uc *salaryStructureUsecase) ListGrouped(ctx context.Context, req *dto.List
 		return nil, 0, err
 	}
 
-	// 3. Map into groups
 	salaryMap := make(map[string][]dto.SalaryStructureResponse)
 	for i := range salaries {
 		empID := salaries[i].EmployeeID
@@ -384,9 +409,9 @@ func (uc *salaryStructureUsecase) GetFormData(ctx context.Context) (*dto.SalaryF
 		return nil, err
 	}
 
-	options := make([]dto.EmployeeFormOption, 0, len(employees))
+	options := make([]dto.SalaryEmployeeFormOption, 0, len(employees))
 	for _, e := range employees {
-		options = append(options, dto.EmployeeFormOption{
+		options = append(options, dto.SalaryEmployeeFormOption{
 			ID:           e.ID,
 			EmployeeCode: e.EmployeeCode,
 			Name:         e.Name,
@@ -394,4 +419,72 @@ func (uc *salaryStructureUsecase) GetFormData(ctx context.Context) (*dto.SalaryF
 	}
 
 	return &dto.SalaryFormDataResponse{Employees: options}, nil
+}
+
+func (uc *salaryStructureUsecase) postApprovalJournal(ctx context.Context, item *hrdModels.SalaryStructure) error {
+	if uc.journalUC == nil || uc.settingsService == nil || uc.coaUC == nil {
+		return errors.New("salary approval finance journal integration is not configured")
+	}
+
+	if item == nil || item.Employee == nil || item.Employee.CompanyID == nil || strings.TrimSpace(*item.Employee.CompanyID) == "" {
+		return errors.New("salary approval cannot post journal without employee company")
+	}
+
+	companyID := strings.TrimSpace(*item.Employee.CompanyID)
+	salaryExpenseCode, err := uc.settingsService.GetCOAByKey(ctx, payrollSalaryExpenseKey)
+	if err != nil {
+		return fmt.Errorf("failed to resolve salary expense mapping: %w", err)
+	}
+	salaryPayableCode, err := uc.settingsService.GetCOAByKey(ctx, payrollPayableSalaryKey)
+	if err != nil {
+		return fmt.Errorf("failed to resolve salary payable mapping: %w", err)
+	}
+
+	salaryExpenseCOA, err := uc.coaUC.GetByCode(ctx, salaryExpenseCode)
+	if err != nil {
+		return fmt.Errorf("failed to resolve salary expense account: %w", err)
+	}
+	salaryPayableCOA, err := uc.coaUC.GetByCode(ctx, salaryPayableCode)
+	if err != nil {
+		return fmt.Errorf("failed to resolve salary payable account: %w", err)
+	}
+
+	refType := reference.RefTypeSalaryExpense
+	journalType := "GENERAL"
+	entryDate := item.EffectiveDate.Format("2006-01-02")
+	description := "Salary structure approval auto-post"
+	if item.Employee != nil && strings.TrimSpace(item.Employee.Name) != "" {
+		description = fmt.Sprintf("Salary structure approval for %s", strings.TrimSpace(item.Employee.Name))
+	}
+
+	journalReq := &financeDTO.CreateJournalEntryRequest{
+		CompanyID:         companyID,
+		EntryDate:         entryDate,
+		JournalType:       &journalType,
+		ReferenceType:     &refType,
+		ReferenceID:       &item.ID,
+		Reference:         item.ID,
+		Description:       description,
+		IsSystemGenerated: true,
+		Lines: []financeDTO.JournalLineRequest{
+			{
+				ChartOfAccountID: salaryExpenseCOA.ID,
+				Debit:            item.BasicSalary,
+				Credit:           0,
+				Memo:             "Salary expense recognition",
+			},
+			{
+				ChartOfAccountID: salaryPayableCOA.ID,
+				Debit:            0,
+				Credit:           item.BasicSalary,
+				Memo:             "Salary payable recognition",
+			},
+		},
+	}
+
+	if _, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq); err != nil {
+		return fmt.Errorf("failed to post salary approval journal: %w", err)
+	}
+
+	return nil
 }

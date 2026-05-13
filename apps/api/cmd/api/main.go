@@ -471,7 +471,11 @@ func main() {
 		})
 
 		// HRD module (Sprint 13 - Attendance)
-		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, &hrdPresentation.HRDFinanceDeps{
+			JournalUC:  financeDeps.JournalUC,
+			CoaUC:      financeDeps.CoaUC,
+			SettingsUC: financeDeps.SettingsUC,
+		})
 
 		// Start auto-absent worker (runs daily at startup + every 24 hours)
 		// Create a CompanyTimezoneProvider so the worker can iterate companies per-timezone.
@@ -541,7 +545,7 @@ func main() {
 			CashBankUC:        financeDeps.CashBankUC,
 			TaxInvoiceUC:      financeDeps.TaxInvoiceUC,
 			AssetUC:           financeDeps.AssetUC,
-			SalaryUC:          financeDeps.SalaryUC,
+			SalaryUC:          hrdDeps.SalaryUC,
 			BankAccountUC:     bankAccountUC,
 		})
 	}
