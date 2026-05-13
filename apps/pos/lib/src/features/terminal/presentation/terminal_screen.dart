@@ -153,6 +153,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _cart = [];
       _order = null;
     });
+    widget.onBackToLiveTable?.call();
   }
 
   Future<void> _handleOrderCanceled(
@@ -200,13 +201,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
         final catalog = CatalogPanel(
           search: _search,
           products: products,
-          categories: _catalog
-              .map((item) => item.category?.trim())
-              .whereType<String>()
-              .where((value) => value.isNotEmpty)
-              .toSet()
-              .toList()
-            ..sort(),
+          categories:
+              _catalog
+                  .map((item) => item.category?.trim())
+                  .whereType<String>()
+                  .where((value) => value.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort(),
           onChanged: () => setState(() {}),
           onTap: _addToCart,
         );
