@@ -73,19 +73,6 @@ export function useDeletePurchaseOrder() {
   });
 }
 
-export function useConfirmPurchaseOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => purchaseOrdersService.confirm(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
-    },
-  });
-}
-
 export function useSubmitPurchaseOrder() {
   const queryClient = useQueryClient();
 
@@ -108,6 +95,7 @@ export function useApprovePurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+      queryClient.invalidateQueries({ queryKey: ["supplier-invoice-dp", "add"] });
     },
   });
 }
@@ -115,21 +103,30 @@ export function useApprovePurchaseOrder() {
 export function useRejectPurchaseOrder() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<unknown, unknown, string, { previous?: Array<[readonly unknown[], unknown]> }>({
     mutationFn: (id: string) => purchaseOrdersService.reject(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.auditTrail(id) });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: purchaseOrderKeys.lists() });
+
+      const previous = queryClient.getQueriesData({ queryKey: purchaseOrderKeys.lists() });
+      queryClient.setQueriesData({ queryKey: purchaseOrderKeys.lists() }, (old: { data?: Array<{ id: string; status: string }> } | undefined) => {
+        if (!old?.data) return old;
+
+        return {
+          ...old,
+          data: old.data.map((purchaseOrder) =>
+            purchaseOrder.id === id ? { ...purchaseOrder, status: "REJECTED" } : purchaseOrder,
+          ),
+        };
+      });
+
+      return { previous };
     },
-  });
-}
-
-export function useClosePurchaseOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => purchaseOrdersService.close(id),
+    onError: (_error, _id, context) => {
+      context?.previous?.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+    },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.detail(id) });

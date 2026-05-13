@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -119,6 +120,10 @@ func (u *areaUsecase) Create(ctx context.Context, req *dto.CreateAreaRequest) (*
 		return nil, err
 	}
 
+	if err := u.transferCitiesToArea(ctx, area.ID, req.Regency); err != nil {
+		return nil, err
+	}
+
 	return mapper.ToAreaResponse(area), nil
 }
 
@@ -149,6 +154,12 @@ func (u *areaUsecase) Update(ctx context.Context, id string, req *dto.UpdateArea
 		return nil, err
 	}
 
+	if strings.TrimSpace(req.Regency) != "" {
+		if err := u.transferCitiesToArea(ctx, area.ID, area.Regency); err != nil {
+			return nil, err
+		}
+	}
+
 	// Reload with members for correct response
 	updated, err := u.areaRepo.FindByIDWithMembers(ctx, id)
 	if err != nil {
@@ -156,6 +167,79 @@ func (u *areaUsecase) Update(ctx context.Context, id string, req *dto.UpdateArea
 	}
 
 	return mapper.ToAreaResponse(updated), nil
+}
+
+func splitCities(raw string) []string {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == '|'
+	})
+
+	cities := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" {
+			continue
+		}
+		cities = append(cities, trimmed)
+	}
+	return cities
+}
+
+func normalizeCity(city string) string {
+	return strings.ToLower(strings.TrimSpace(city))
+}
+
+func (u *areaUsecase) transferCitiesToArea(ctx context.Context, targetAreaID, regency string) error {
+	targetCities := splitCities(regency)
+	if len(targetCities) == 0 {
+		return nil
+	}
+
+	targetCitySet := make(map[string]struct{}, len(targetCities))
+	for _, city := range targetCities {
+		targetCitySet[normalizeCity(city)] = struct{}{}
+	}
+
+	areas, err := u.areaRepo.FindAll(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i := range areas {
+		area := &areas[i]
+		if area.ID == targetAreaID {
+			continue
+		}
+		if strings.TrimSpace(area.Regency) == "" {
+			continue
+		}
+
+		currentCities := splitCities(area.Regency)
+		if len(currentCities) == 0 {
+			continue
+		}
+
+		filtered := make([]string, 0, len(currentCities))
+		changed := false
+		for _, city := range currentCities {
+			if _, exists := targetCitySet[normalizeCity(city)]; exists {
+				changed = true
+				continue
+			}
+			filtered = append(filtered, city)
+		}
+
+		if !changed {
+			continue
+		}
+
+		area.Regency = strings.Join(filtered, ", ")
+		if err := u.areaRepo.Update(ctx, area); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (u *areaUsecase) Delete(ctx context.Context, id string) error {

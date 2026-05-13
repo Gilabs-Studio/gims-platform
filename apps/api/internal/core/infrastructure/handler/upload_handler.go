@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"fmt"
+	"strings"
+	"unicode"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -14,7 +18,79 @@ func NewUploadHandler() *UploadHandler {
 	return &UploadHandler{}
 }
 
+func sanitizePathSegment(segment string) string {
+	trimmed := strings.TrimSpace(segment)
+	if trimmed == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(trimmed))
+	for _, r := range strings.ToLower(trimmed) {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || r == '-' || r == '_' {
+			b.WriteRune(r)
+		}
+	}
+
+	return strings.Trim(b.String(), "-_")
+}
+
+func sanitizeFolderPath(rawFolder string, fallback string) string {
+	trimmed := strings.Trim(rawFolder, " /")
+	if trimmed == "" {
+		return fallback
+	}
+
+	parts := strings.Split(trimmed, "/")
+	sanitized := make([]string, 0, len(parts))
+	for _, part := range parts {
+		segment := sanitizePathSegment(part)
+		if segment == "" {
+			continue
+		}
+		if segment == "uploads" {
+			continue
+		}
+		sanitized = append(sanitized, segment)
+	}
+
+	if len(sanitized) == 0 {
+		return fallback
+	}
+
+	return strings.Join(sanitized, "/")
+}
+
+func resolveTenantID(c *gin.Context) string {
+	tenantID := sanitizePathSegment(c.GetString("tenant_id"))
+	if tenantID != "" {
+		return tenantID
+	}
+
+	if rawTenantID := c.Request.Context().Value("tenant_id"); rawTenantID != nil {
+		if value, ok := rawTenantID.(string); ok {
+			tenantID = sanitizePathSegment(value)
+			if tenantID != "" {
+				return tenantID
+			}
+		}
+	}
+
+	if c.GetBool("is_system_admin") {
+		return "system"
+	}
+
+	return "unknown"
+}
+
+func buildTenantScopedFolder(c *gin.Context, defaultModule string) string {
+	tenantID := resolveTenantID(c)
+	moduleFolder := sanitizeFolderPath(c.Query("folder"), defaultModule)
+	return fmt.Sprintf("uploads/%s/%s", tenantID, moduleFolder)
+}
+
 // UploadImage handles image upload requests
+// Query params: ?folder=attendance,delivery-orders,etc (default: 'images')
 func (h *UploadHandler) UploadImage(c *gin.Context) {
 	// 1. Get file from form
 	file, header, err := c.Request.FormFile("file")
@@ -27,11 +103,11 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Prepare upload config
+	// 2. Prepare upload config with tenant-first, module-based object key.
+	folder := buildTenantScopedFolder(c, "images")
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize:   config.AppConfig.Storage.MaxUploadSize,
-		UploadDir: config.AppConfig.Storage.UploadDir,
-		BaseURL:   config.AppConfig.Storage.BaseURL,
+		MaxSize: config.AppConfig.Storage.MaxUploadSize,
+		Folder:  folder,
 	}
 
 	// 3. Save and process file
@@ -69,6 +145,7 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 }
 
 // UploadDocument handles document upload requests (PDF, DOCX, XLS, etc.)
+// Query params: ?folder=attendance,delivery-orders,etc (default: 'documents')
 func (h *UploadHandler) UploadDocument(c *gin.Context) {
 	// 1. Get file from form
 	file, header, err := c.Request.FormFile("file")
@@ -81,11 +158,11 @@ func (h *UploadHandler) UploadDocument(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Prepare upload config
+	// 2. Prepare upload config with tenant-first, module-based object key.
+	folder := buildTenantScopedFolder(c, "documents")
 	uploadConfig := utils.FileUploadConfig{
-		MaxSize:   config.AppConfig.Storage.MaxUploadSize,
-		UploadDir: config.AppConfig.Storage.UploadDir,
-		BaseURL:   config.AppConfig.Storage.BaseURL,
+		MaxSize: config.AppConfig.Storage.MaxUploadSize,
+		Folder:  folder,
 	}
 
 	// 3. Save document file

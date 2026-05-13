@@ -15,7 +15,7 @@ export function useAssetRevaluation() {
     sort_dir: "desc",
   });
 
-  const assets = assetsQuery.data?.data ?? [];
+  const assets = useMemo(() => assetsQuery.data?.data ?? [], [assetsQuery.data?.data]);
 
   const revaluations = useMemo<RevaluationTransaction[]>(() => {
     return assets.flatMap((asset) => {

@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  SalesOrder,
   SalesOrderListResponse,
   SalesOrderSingleResponse,
   SalesOrderItemsListResponse,

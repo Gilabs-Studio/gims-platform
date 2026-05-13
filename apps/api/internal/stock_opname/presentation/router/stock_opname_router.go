@@ -76,6 +76,8 @@ func RegisterStockOpnameRoutes(
 
 	inventoryOpname.GET("", middleware.RequirePermission("stock_opname.read"), h.List)
 	inventoryOpname.POST("", middleware.RequirePermission("stock_opname.create"), h.Create)
+	// Static route must be declared before parameterized route to avoid /:id capturing "my-warehouses".
+	inventoryOpname.GET("/my-warehouses", middleware.RequirePermission("stock_opname.read"), h.GetMyWarehouses)
 	inventoryOpname.GET("/:id", middleware.RequirePermission("stock_opname.read"), h.GetByID)
 	inventoryOpname.PUT("/:id", middleware.RequirePermission("stock_opname.update"), h.Update)
 
@@ -83,7 +85,7 @@ func RegisterStockOpnameRoutes(
 	inventoryOpname.GET("/:id/items", middleware.RequirePermission("stock_opname.read"), h.ListItems)
 	inventoryOpname.PUT("/:id/items", middleware.RequirePermission("stock_opname.update"), h.SaveItems)
 	// Backward-compatible path introduced during initial phase rollout
-	inventoryOpname.PUT("/:id/lines", middleware.RequirePermission("stock_opname.update"), h.SaveItems)
+	inventoryOpname.PUT("/:id/lines", middleware.RequirePermission("stock_opname.update"), h.SaveLines)
 	inventoryOpname.POST("/:id/generate-journal", middleware.RequirePermission("stock_opname.update"), h.GenerateJournal)
 	inventoryOpname.POST("/:id/submit-approval", middleware.RequirePermission("stock_opname.update"), h.SubmitApproval)
 	inventoryOpname.DELETE("/:id", middleware.RequirePermission("stock_opname.delete"), h.Delete)

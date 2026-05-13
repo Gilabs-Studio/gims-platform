@@ -53,6 +53,7 @@ function applyInvoiceDPToPurchaseOrderLists(
           id: si.id,
           code: si.code ?? found?.code ?? "",
           status: si.status ?? found?.status ?? "DRAFT",
+          created_at: found?.created_at ?? new Date().toISOString(),
         };
         return {
           ...po,
@@ -100,6 +101,7 @@ export function useCreateSupplierInvoiceDP() {
     mutationFn: (data: CreateSupplierInvoiceDPInput) => supplierInvoiceDPService.create(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.addData() });
       // Optimistically update PO list so DP count shows immediately
       try {
         const si: SupplierInvoiceDPDetail | undefined = res?.data;
@@ -133,6 +135,7 @@ export function useDeleteSupplierInvoiceDP() {
     mutationFn: (id: string) => supplierInvoiceDPService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.addData() });
     },
   });
 }
@@ -184,6 +187,7 @@ export function useRejectSupplierInvoiceDP() {
     onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.addData() });
       applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });
@@ -198,6 +202,7 @@ export function useCancelSupplierInvoiceDP() {
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.auditTrails() });
+      queryClient.invalidateQueries({ queryKey: supplierInvoiceDPKeys.addData() });
       applyInvoiceDPToPurchaseOrderLists(queryClient, res?.data);
     },
   });

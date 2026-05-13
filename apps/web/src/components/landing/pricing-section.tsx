@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, XCircle, Minus, Plus, Phone } from "lucide-react";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
+import { useRouter } from "@/i18n/routing";
 import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,7 @@ interface BundleComparisonRow {
   enterprise: ComparisonCellValue;
 }
 
-const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20GiLabs%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
+const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
 const BUNDLE_COMPARISON_ROWS: BundleComparisonRow[] = [
   { label: "POS", growthSuite: "check", ultimateSuite: "check", enterprise: "check" },
@@ -213,12 +214,13 @@ export function PricingSection() {
   const t = useTranslations("landing");
   const tRegister = useTranslations("auth.register");
   const locale = useLocale();
+  const router = useRouter();
 
   const [pricingTab, setPricingTab] = useState<PlanTab>("bundle");
   const [pricingBilling, setPricingBilling] = useState<BillingPeriod>("monthly");
   const [pricingUsers, setPricingUsers] = useState(1);
-  const [selectedBundle, setSelectedBundle] = useState<string>("ultimate_suite");
-  const [selectedModular, setSelectedModular] = useState<string>("pos_growth");
+  const [selectedBundle] = useState<string>("ultimate_suite");
+  const [selectedModular] = useState<string>("pos_growth");
 
   const { data: apiPlans } = useQuery({
     queryKey: ["landing-subscription-plans"],
@@ -478,13 +480,13 @@ export function PricingSection() {
                             <Button
                               type="button"
                               variant={isSelected ? "default" : "outline"}
-                              onClick={() => setSelectedBundle(bundle.id)}
+                              onClick={() => router.push("/register")}
                               className={cn(
                                 "h-9 w-full text-xs font-bold transition-all duration-300 sm:h-10 sm:text-sm",
                                 isSelected ? "scale-[1.02] shadow-md ring-2 ring-primary/20" : "hover:scale-[1.01]",
                               )}
                             >
-                              {isSelected ? tRegister("selected") : tRegister("chooseBundle", { name: bundle.name.replace(" Suite", "") })}
+                              {isSelected ? tRegister("selected") : t("pricing.selectBundle", { name: bundle.name.replace(" Suite", "") })}
                             </Button>
                           )}
                         </td>
@@ -547,10 +549,10 @@ export function PricingSection() {
                       <Button
                         type="button"
                         variant={isSelected ? "default" : "outline"}
-                        onClick={() => setSelectedModular(plan.id)}
+                        onClick={() => router.push("/register")}
                         className="mt-3 h-9 text-xs font-semibold"
                       >
-                        {isSelected ? tRegister("selected") : t("pricing.chooseModular")}
+                        {isSelected ? tRegister("selected") : t("pricing.selectModular")}
                       </Button>
                     </div>
                   );

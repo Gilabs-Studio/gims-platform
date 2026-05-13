@@ -103,7 +103,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	agingUC := usecase.NewAgingReportUsecase(agingRepo, settingsService)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
-	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
+	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, accountingPeriodRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 	financialClosingUC := usecase.NewFinancialClosingUsecase(
 		db,
 		coaRepo,
@@ -178,6 +178,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAssetCategoryRoutes(group, assetCategoryH)
 	router.RegisterAssetLocationRoutes(group, assetLocationH)
 	router.RegisterAssetRoutes(group, assetH)
+	router.RegisterAssetTransferRoutes(group, assetH)
+	router.RegisterDepreciationRoutes(group, assetH)
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterFiscalYearRoutes(group, fiscalYearH)
 	router.RegisterTaxConfigurationRoutes(group, taxConfigurationH)

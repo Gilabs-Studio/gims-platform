@@ -213,15 +213,6 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
         : undefined,
   });
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setShouldLoadReferenceOptions(true);
-    setShouldLoadProductOptions(true);
-  }, [open]);
-
   const products = useMemo(
     () => sortOptions(productCombobox.items, (a) => (a.code ? `${a.code} - ${a.name}` : a.name)),
     [productCombobox.items],
@@ -392,13 +383,13 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
 
   useEffect(() => {
     if (!watchedCustomerId) {
-      setCustomerDefaultPins({ paymentTerm: null, businessType: null, salesRep: null });
+      queueMicrotask(() => setCustomerDefaultPins({ paymentTerm: null, businessType: null, salesRep: null }));
       return;
     }
     const detailCustomer = selectedCustomerData?.data;
     if (!detailCustomer) return;
 
-    setCustomerDefaultPins({
+    queueMicrotask(() => setCustomerDefaultPins({
       paymentTerm: detailCustomer.default_payment_terms?.id
         ? {
             value: detailCustomer.default_payment_terms.id,
@@ -417,7 +408,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
             label: `${detailCustomer.default_sales_rep.employee_code} - ${detailCustomer.default_sales_rep.name}`,
           }
         : null,
-    });
+    }));
 
     applyCustomerDefaults(detailCustomer);
   }, [watchedCustomerId, selectedCustomerData?.data, applyCustomerDefaults]);
@@ -459,7 +450,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (!open) {
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
       return;
     }
 
@@ -467,7 +458,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (isEdit) {
       if (fullQuotationData?.data) {
         const quotationData = fullQuotationData.data;
-        setSelectedContactId(quotationData.customer_contact_id ?? "");
+        queueMicrotask(() => setSelectedContactId(quotationData.customer_contact_id ?? ""));
         
         // Small delay to ensure form is mounted
         setTimeout(() => {
@@ -508,7 +499,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       try {
         const parsedData = JSON.parse(cached);
         reset(parsedData);
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       } catch {
         // Invalid cache, use defaults
         reset({
@@ -528,7 +519,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           customer_email: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
-        setSelectedContactId("");
+        queueMicrotask(() => setSelectedContactId(""));
       }
     } else {
       reset({
@@ -548,7 +539,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
         customer_email: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
-      setSelectedContactId("");
+      queueMicrotask(() => setSelectedContactId(""));
     }
   }, [open, isEdit, fullQuotationData, reset]);
 

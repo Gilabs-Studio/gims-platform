@@ -69,8 +69,43 @@ func (uc *customerInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	if err != nil {
 		return nil, err
 	}
+
+	// Get IDs of SOs that already have an active down payment invoice
+	var soIDsWithDP []string
+	database.GetDB(ctx, uc.db).Model(&models.CustomerInvoice{}).
+		Where("type = ? AND sales_order_id IS NOT NULL AND status NOT IN ?",
+			models.CustomerInvoiceTypeDownPayment,
+			[]string{"CANCELLED", "VOID"}).
+		Distinct("sales_order_id").
+		Pluck("sales_order_id", &soIDsWithDP)
+	soIDsWithDPSet := make(map[string]struct{}, len(soIDsWithDP))
+	for _, id := range soIDsWithDP {
+		soIDsWithDPSet[id] = struct{}{}
+	}
+
+	// Get IDs of SOs that already have a paid regular invoice (#243)
+	var soIDsPaid []string
+	database.GetDB(ctx, uc.db).Model(&models.CustomerInvoice{}).
+		Where("type = ? AND sales_order_id IS NOT NULL AND status = ?",
+			models.CustomerInvoiceTypeRegular,
+			models.CustomerInvoiceStatusPaid).
+		Distinct("sales_order_id").
+		Pluck("sales_order_id", &soIDsPaid)
+	soIDsPaidSet := make(map[string]struct{}, len(soIDsPaid))
+	for _, id := range soIDsPaid {
+		soIDsPaidSet[id] = struct{}{}
+	}
+
 	soRes := make([]dto.CustomerInvoiceAddSalesOrder, 0, len(sos))
 	for _, so := range sos {
+		// Skip SOs that already have an active down payment invoice (#252)
+		if _, hasDP := soIDsWithDPSet[so.ID]; hasDP {
+			continue
+		}
+		// Skip SOs that already have a fully paid regular invoice (#243)
+		if _, isPaid := soIDsPaidSet[so.ID]; isPaid {
+			continue
+		}
 		items := make([]dto.CustomerInvoiceAddSalesOrderItem, 0, len(so.Items))
 		for _, it := range so.Items {
 			var prod *dto.CustomerInvoiceAddProductMini
@@ -138,6 +173,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
 		Status:             string(ci.Status),
+		AttachmentURL:      ci.AttachmentURL,
 		Notes:              &n,
 		CreatedBy:          ci.CreatedBy,
 		CreatedAt:          ci.CreatedAt,
@@ -184,6 +220,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
 		Status:             string(ci.Status),
+		AttachmentURL:      ci.AttachmentURL,
 		CreatedAt:          ci.CreatedAt,
 	}
 }
@@ -524,6 +561,11 @@ func (uc *customerInvoiceDownPaymentUsecase) createDraftDownPaymentInTx(
 		return nil, ErrCustomerInvoiceInvalid
 	}
 
+	// Validate amount does not exceed SO total (#241)
+	if req.Amount > so.TotalAmount {
+		return nil, errors.New("down payment amount cannot exceed sales order total")
+	}
+
 	code, err := uc.repo.GetNextInvoiceNumber(ctx, "CIDP")
 	if err != nil {
 		return nil, err
@@ -547,6 +589,7 @@ func (uc *customerInvoiceDownPaymentUsecase) createDraftDownPaymentInTx(
 		Amount:        req.Amount,
 		Subtotal:      req.Amount,
 		Status:        models.CustomerInvoiceStatusDraft,
+		AttachmentURL: req.AttachmentURL,
 		Notes:         notes,
 		CreatedBy:     &creatorID,
 	}
@@ -582,6 +625,10 @@ func (uc *customerInvoiceDownPaymentUsecase) updateDraftDownPaymentInTx(
 		return nil, ErrCustomerInvoiceInvalid
 	}
 
+	if req.Amount > so.TotalAmount {
+		return nil, fmt.Errorf("down payment amount cannot exceed sales order total")
+	}
+
 	notes := ""
 	if req.Notes != nil {
 		notes = *req.Notes
@@ -593,6 +640,7 @@ func (uc *customerInvoiceDownPaymentUsecase) updateDraftDownPaymentInTx(
 		"due_date":       dueDate,
 		"amount":         req.Amount,
 		"subtotal":       req.Amount,
+		"attachment_url": req.AttachmentURL,
 		"notes":          notes,
 		"updated_at":     apptime.Now(),
 	}).Error; err != nil {

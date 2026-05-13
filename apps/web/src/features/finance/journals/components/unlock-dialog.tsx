@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { useUnlockFinanceValuation } from "../hooks/use-finance-journals";
 
@@ -62,9 +63,7 @@ export function UnlockDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("unlock_failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("unlock_failed")));
     }
   };
 

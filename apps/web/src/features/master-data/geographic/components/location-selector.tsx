@@ -112,7 +112,7 @@ export function LocationSelector({
   const [shouldLoadDistricts, setShouldLoadDistricts] = useState(!lazyLoad);
   const [provinceExtraPages, setProvinceExtraPages] = useState<Province[]>([]);
   const [provinceCurrentPage, setProvinceCurrentPage] = useState(1);
-  const [provinceHasMore, setProvinceHasMore] = useState(false);
+  const [manualHasMore, setManualHasMore] = useState(false);
   const [isLoadingMoreProvinces, setIsLoadingMoreProvinces] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -140,6 +140,15 @@ export function LocationSelector({
     { city_id: String(cityId ?? ""), per_page: pageSize, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!cityId && (shouldLoadDistricts || !!districtId) }
   );
+
+  const provinceHasMore = useMemo(() => {
+    if (provinceCurrentPage > 1) return manualHasMore;
+    const pagination = provincesData?.meta?.pagination;
+    if (pagination) return pagination.has_next;
+    // Fallback if pagination metadata is missing
+    const itemsLength = provincesData?.data?.length ?? 0;
+    return itemsLength >= pageSize;
+  }, [provinceCurrentPage, manualHasMore, provincesData?.meta?.pagination, provincesData?.data?.length, pageSize]);
 
   const baseProvinces = useMemo(() => provincesData?.data ?? [], [provincesData?.data]);
   const provinces = useMemo(() => {
@@ -183,17 +192,7 @@ export function LocationSelector({
     return Array.from(map.values());
   }, [districtsData?.data, selectedDistrictData?.data]);
 
-  useEffect(() => {
-    if (provinceCurrentPage > 1 || !provincesData) return;
 
-    const pagination = provincesData.meta?.pagination;
-    if (pagination) {
-      setProvinceHasMore(pagination.has_next);
-      return;
-    }
-
-    setProvinceHasMore((provincesData.data?.length ?? 0) >= pageSize);
-  }, [pageSize, provinceCurrentPage, provincesData]);
 
   const handleLoadMoreProvinces = useCallback(async () => {
     if (isProvincesLoading || isLoadingMoreProvinces || !provinceHasMore) return;
@@ -214,12 +213,12 @@ export function LocationSelector({
       const hasMore = pagination ? pagination.has_next : nextItems.length === pageSize;
 
       setProvinceExtraPages((prev) => [...prev, ...nextItems]);
-      setProvinceCurrentPage(nextPage);
-      setProvinceHasMore(hasMore);
+      setProvinceCurrentPage((prev) => prev + 1);
+      setManualHasMore(hasMore);
     } finally {
       setIsLoadingMoreProvinces(false);
     }
-  }, [isLoadingMoreProvinces, isProvincesLoading, pageSize, provinceCurrentPage, provinceHasMore]);
+  }, [isLoadingMoreProvinces, isProvincesLoading, pageSize, provinceHasMore, provinceCurrentPage]);
 
   const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {

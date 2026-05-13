@@ -1,23 +1,25 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
-import { ArrowRight } from "lucide-react";
+// ArrowRight not used — removed
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi CRM Terbaik | GIMS by GILABS` 
-    : `Best CRM Software | GIMS by GILABS`;
+    ? `Aplikasi CRM Terbaik | SalesView` 
+    : `Best CRM Software | SalesView`;
     
   const desc = locale === 'id'
     ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
     : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/crm",
     title,
     description: desc,
     keywords: [
@@ -26,8 +28,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Software CRM Perusahaan`,
       `Aplikasi Sales dan Marketing`,
       `CRM B2B`
-    ]
-  };
+    ],
+    imageAlt: "SalesView CRM overview",
+  });
 }
 
 export default async function CrmLandingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -38,7 +41,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/crm#business`,
+    "@id": `https://salesview.id/${locale}/crm#business`,
     "name": locale === 'id' ? "Sistem CRM Terbaik Terintegrasi" : "Best Integrated CRM System",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -56,7 +59,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/crm`,
+    "url": `https://salesview.id/${locale}/crm`,
     "telephone": "+628111222333"
   };
 
@@ -70,7 +73,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
         {/* APPLE-LIKE HERO (Super Minimalist) */}
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS CRM
+            SalesView CRM
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Customer Relationship` : `Customer Relationship`}
@@ -107,9 +110,9 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
         
         {/* HERO IMAGE SHOWCASE (Clean no heavy borders) */}
         <section className="px-6 max-w-7xl mx-auto w-full pb-24">
-          <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
+          <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
             {/* Using abstract Apple-like minimalist representation or screenshot if available */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-background to-secondary/30" />
+            <div className="absolute inset-0 bg-linear-to-tr from-background to-secondary/30" />
             <Image 
               src="/screenshot/pipeline.webp" 
               alt="CRM Interface" 
@@ -149,7 +152,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                     <div className="w-full h-full flex gap-4">
                       {[1,2,3].map(i => (
                         <div key={i} className="flex-1 bg-secondary/50 rounded-lg p-2 space-y-3">
@@ -171,8 +174,8 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Jadwalkan panggilan, rapat, email, atau penawaran, dan GIMS AI secara otomatis merencanakan aktivitas Anda berikutnya.`
-                      : `Schedule calls, meetings, mailings, or quotations, and GIMS AI automatically plans your next activity.`
+                      ? `Jadwalkan panggilan, rapat, email, atau penawaran, dan SalesView AI secara otomatis merencanakan aktivitas Anda berikutnya.`
+                      : `Schedule calls, meetings, mailings, or quotations, and SalesView AI automatically plans your next activity.`
                     }
                   </p>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
@@ -184,7 +187,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                     <div className="w-full max-w-xs space-y-4">
                       <div className="flex items-start gap-4">
                         <div className="w-8 h-8 rounded-full bg-primary/20 shrink-0" />
@@ -213,19 +216,19 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan GIMS yang akan menangani sisanya.`
-                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let GIMS handle the rest.`
+                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan SalesView yang akan menangani sisanya.`
+                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let SalesView handle the rest.`
                     }
                   </p>
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                      <div className="w-full h-full border border-border/50 rounded-xl bg-card shadow-sm flex flex-col overflow-hidden relative">
                         <div className="h-10 bg-secondary border-b border-border/50 flex items-center px-4" />
                         <div className="flex-1 p-6 space-y-4">
                            <div className="w-1/3 h-4 bg-muted rounded" />
-                           <div className="w-full h-[1px] bg-border my-4" />
+                           <div className="w-full h-px bg-border my-4" />
                            <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
                              <div className="w-1/4 h-2 bg-muted rounded" />
                              <div className="w-1/4 h-2 bg-muted rounded" />

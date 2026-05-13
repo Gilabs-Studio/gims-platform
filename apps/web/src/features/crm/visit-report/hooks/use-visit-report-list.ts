@@ -73,10 +73,6 @@ export function useVisitReportList() {
     router.push("/crm/visits/create");
   };
 
-  const handleEdit = (item: VisitReport) => {
-    router.push(`/crm/visits/${item.id}`);
-  };
-
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
@@ -166,7 +162,6 @@ export function useVisitReportList() {
       setOutcomeFilter,
       setDeleteId,
       handleCreate,
-      handleEdit,
       handleDelete,
       handleDialogClose,
       handleCheckIn,

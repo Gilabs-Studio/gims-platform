@@ -188,6 +188,7 @@ func TestUserUsecaseGetLimit(t *testing.T) {
 		subscriptionRepo: &subscriptionFinderStub{sub: &tenantModels.TenantSubscription{SeatLimit: 12, UserCount: 1}},
 	}
 	fieldsValue.userRepo.On("Count", mock.Anything).Return(int64(1), nil)
+	fieldsValue.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 0}, nil)
 
 	u := usecase.NewUserUsecase(fieldsValue.userRepo, mocks.NewRoleRepository(t), fieldsValue.tenantRepo, fieldsValue.subscriptionRepo, mocks.NewAuditService(t), mocks.NewEventPublisher(t), redis.NewClient(&redis.Options{Addr: "localhost:0"}))
 
@@ -254,6 +255,7 @@ func TestUserUsecase_Create(t *testing.T) {
 			mock: func(f fields) {
 				// Limit check: Count returns 0, tenantRepo returns safe default on empty tenant_id
 				f.userRepo.On("Count", mock.Anything).Return(int64(0), nil)
+				f.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 0}, nil)
 				f.roleRepo.On("FindByID", mock.Anything, "role-1").Return(&models.Role{ID: "role-1"}, nil)
 				f.userRepo.On("FindByEmail", mock.Anything, "new@example.com").Return(nil, gorm.ErrRecordNotFound)
 				f.userRepo.On("Create", mock.Anything, mock.MatchedBy(func(u *userModels.User) bool {
@@ -298,6 +300,7 @@ func TestUserUsecase_Create(t *testing.T) {
 			},
 			mock: func(f fields) {
 				f.userRepo.On("Count", mock.Anything).Return(int64(0), nil)
+				f.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 0}, nil)
 				f.roleRepo.On("FindByID", mock.Anything, "role-99").Return(nil, gorm.ErrRecordNotFound)
 			},
 			want:    nil,

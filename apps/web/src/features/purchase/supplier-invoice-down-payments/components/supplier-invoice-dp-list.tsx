@@ -56,7 +56,7 @@ import { PurchaseOrderDetail } from "../../orders/components/purchase-order-deta
 import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
 import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
-import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
+import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import { SupplierInvoiceDPDetailModal } from "./supplier-invoice-dp-detail-modal";
 import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
@@ -136,7 +136,7 @@ export function SupplierInvoiceDPList() {
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenSupplierInvoiceDPFromURL);
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
+
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
 
@@ -173,7 +173,7 @@ export function SupplierInvoiceDPList() {
 
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 
@@ -511,7 +511,7 @@ export function SupplierInvoiceDPList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-purple focus:text-purple"
-                                onClick={() => setPrintingId(row.id)}
+                                onClick={() => { supplierInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error("Print failed")); }}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
@@ -586,14 +586,6 @@ export function SupplierInvoiceDPList() {
         }}
         purchaseOrderId={selectedPOId}
       />
-
-      {printingId && (
-        <SupplierInvoiceDPPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          invoiceId={printingId}
-        />
-      )}
 
       {isPaymentDetailOpen && selectedInvoiceForPayments && (
         <PurchasePaymentsLinkedDialog

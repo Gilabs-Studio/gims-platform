@@ -86,7 +86,7 @@ export default function SystemAdminLoginForm() {
                   <FieldLabel>Email</FieldLabel>
                   <Input
                     type="email"
-                    placeholder="sysadmin@gims.internal"
+                    placeholder="sysadmin@salesview.internal"
                     autoComplete="email"
                     {...register("email", { onChange: clearError })}
                   />

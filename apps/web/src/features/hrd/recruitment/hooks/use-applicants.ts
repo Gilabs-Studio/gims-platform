@@ -206,7 +206,7 @@ export function useMoveApplicantStage() {
         });
       }
     },
-    onSettled: async (_data, _error, variables) => {
+    onSettled: async () => {
       // Always refetch after error or success
       await queryClient.invalidateQueries({ queryKey: applicantKeys.byStage() });
       // Invalidate all recruitment request queries to update filled_count and progress
@@ -386,7 +386,6 @@ export function useProgressiveApplicantKanban({
 
         const stageData = res.data?.[stageId];
         const newApplicants = stageData?.applicants ?? [];
-        const total = stageData?.total ?? 0;
         const hasMore = newApplicants.length === PER_PAGE;
 
         setStageStates((prev) => {

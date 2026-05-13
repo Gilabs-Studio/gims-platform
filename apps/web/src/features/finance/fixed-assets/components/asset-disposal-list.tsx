@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DisposalPreviewResponse } from "../types";
+import { useTranslations } from "next-intl";
 
 interface AssetDisposalListProps {
   disposals: DisposalPreviewResponse[];
@@ -11,6 +12,8 @@ interface AssetDisposalListProps {
 }
 
 export function AssetDisposalList({ disposals, isLoading }: AssetDisposalListProps) {
+  const t = useTranslations("financeFixedAssets.disposal");
+
   if (isLoading) {
     return (
       <Card>
@@ -30,22 +33,22 @@ export function AssetDisposalList({ disposals, isLoading }: AssetDisposalListPro
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Asset Disposals</CardTitle>
-        <CardDescription>{disposals.length} total disposals</CardDescription>
+        <CardTitle>{t("assetDisposals")}</CardTitle>
+        <CardDescription>{disposals.length} {t("totalDisposals")}</CardDescription>
       </CardHeader>
       <CardContent>
         {disposals.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">No disposals recorded yet</div>
+          <div className="text-center py-8 text-muted-foreground">{t("noDisposals")}</div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Asset ID</TableHead>
-                  <TableHead className="text-right">Book Value</TableHead>
-                  <TableHead className="text-right">Proceeds</TableHead>
-                  <TableHead className="text-right">Gain / Loss</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("assetId")}</TableHead>
+                  <TableHead className="text-right">{t("bookValue")}</TableHead>
+                  <TableHead className="text-right">{t("proceeds")}</TableHead>
+                  <TableHead className="text-right">{t("gainLoss")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -72,7 +75,7 @@ export function AssetDisposalList({ disposals, isLoading }: AssetDisposalListPro
                     </TableCell>
                     <TableCell>
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Completed
+                        {t("completed")}
                       </span>
                     </TableCell>
                   </TableRow>

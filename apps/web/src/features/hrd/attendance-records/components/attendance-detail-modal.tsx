@@ -4,15 +4,10 @@ import { useState } from "react";
 import {
   Trash2,
   Pencil,
-  CheckCircle2,
-  XCircle,
   Clock,
   User,
   FileText,
   CalendarIcon,
-  Home,
-  Coffee,
-  Briefcase,
   Shield,
   AlertCircle,
 } from "lucide-react";
@@ -31,9 +26,15 @@ import {
 } from "../hooks/use-attendance-records";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate, formatAttendanceTime, getUserTimezone } from "@/lib/utils";
-import type { AttendanceRecord, AttendanceStatus } from "../types";
+import {
+  formatDate,
+  formatAttendanceTime,
+  getUserTimezone,
+  resolveImageUrl,
+} from "@/lib/utils";
+import type { AttendanceRecord } from "../types";
 
 function formatTime(value: string | null | undefined, date?: string): string {
   return formatAttendanceTime(value, date, getUserTimezone());
@@ -82,67 +83,20 @@ export function AttendanceDetailModal({
     }
   };
 
-  const getStatusBadge = (status?: AttendanceStatus) => {
-    switch (status) {
-      case "PRESENT":
-        return (
-          <Badge variant="success">
-            <CheckCircle2 className="h-3 w-3 mr-1" /> {t("status.PRESENT")}
-          </Badge>
-        );
-      case "LATE":
-        return (
-          <Badge variant="warning">
-            <Clock className="h-3 w-3 mr-1" /> {t("status.LATE")}
-          </Badge>
-        );
-      case "ABSENT":
-        return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 mr-1" /> {t("status.ABSENT")}
-          </Badge>
-        );
-      case "HALF_DAY":
-        return (
-          <Badge variant="secondary">
-            <Coffee className="h-3 w-3 mr-1" /> {t("status.HALF_DAY")}
-          </Badge>
-        );
-      case "HOLIDAY":
-        return (
-          <Badge variant="info">
-            <CalendarIcon className="h-3 w-3 mr-1" /> {t("status.HOLIDAY")}
-          </Badge>
-        );
-      case "LEAVE":
-        return (
-          <Badge variant="outline">
-            <CalendarIcon className="h-3 w-3 mr-1" /> {t("status.LEAVE")}
-          </Badge>
-        );
-      case "WFH":
-        return (
-          <Badge variant="info">
-            <Home className="h-3 w-3 mr-1" /> WFH
-          </Badge>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
   const getCheckInTypeLabel = (type: string) => {
     switch (type) {
       case "NORMAL":
-        return "Office";
+        return t("checkInType.NORMAL");
       case "WFH":
-        return "Work From Home";
+        return t("checkInType.WFH");
       case "FIELD_WORK":
-        return "Field Work";
+        return t("checkInType.FIELD_WORK");
       default:
         return type;
     }
   };
+
+  const photoUrl = resolveImageUrl(displayRecord.photo_url);
 
   return (
     <>
@@ -154,13 +108,10 @@ export function AttendanceDetailModal({
                 <DialogTitle className="text-xl mb-2">
                   {t("actions.viewDetails")}
                 </DialogTitle>
-                <div className="flex items-center gap-3">
-                  {getStatusBadge(displayRecord.status)}
-                  <span className="text-sm text-muted-foreground flex items-center">
-                    <CalendarIcon className="h-3 w-3 mr-1" />
-                    {formatDate(displayRecord.date)}
-                  </span>
-                </div>
+                <span className="text-sm text-muted-foreground flex items-center">
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  {formatDate(displayRecord.date)}
+                </span>
               </div>
               <div className="flex gap-2">
                 {canEdit && onEdit && (
@@ -189,68 +140,57 @@ export function AttendanceDetailModal({
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t("fields.workingHours")}
-                    </p>
-                    <p className="text-2xl font-semibold">
-                      {displayRecord.working_hours || "-"}
-                    </p>
-                  </div>
-                  <Clock className="h-6 w-6 text-emerald-600" />
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t("fields.workingHours")}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {displayRecord.working_hours || "-"}
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t("stats.totalWorkingHoursDescription")}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t("fields.overtimeHours")}
-                    </p>
-                    <p className="text-2xl font-semibold">
-                      {displayRecord.overtime_hours || "-"}
-                    </p>
-                  </div>
-                  <CheckCircle2 className="h-6 w-6 text-warning" />
+                <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t("fields.overtimeHours")}
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {displayRecord.overtime_hours || "-"}
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t("stats.totalOvertimeDescription")}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
                     <p className="text-xs font-medium text-muted-foreground">
                       {t("fields.lateMinutes")}
                     </p>
-                    <p className="text-2xl font-semibold text-destructive">
-                      {displayRecord.late_minutes > 0
-                        ? `${displayRecord.late_minutes}m`
-                        : "-"}
-                    </p>
+                    <AlertCircle className="h-4 w-4 text-destructive" />
                   </div>
-                  <AlertCircle className="h-6 w-6 text-destructive" />
+                  <p className="mt-1 text-2xl font-semibold text-destructive">
+                    {displayRecord.late_minutes > 0
+                      ? `${displayRecord.late_minutes}m`
+                      : "-"}
+                  </p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t("stats.totalLateDescription")}
-                </p>
               </div>
-              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t("fields.status")}
-                    </p>
-                    <div className="mt-1">
-                      {getStatusBadge(displayRecord.status)}
+
+              <div className="rounded-xl border border-border bg-muted/20 p-3">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  {t("fields.checkInPhoto")}
+                </p>
+                <div className="h-[260px] overflow-hidden rounded-lg border border-border bg-muted/50">
+                  {photoUrl ? (
+                    <Image
+                      src={photoUrl}
+                      alt={t("fields.checkInPhoto")}
+                      width={800}
+                      height={520}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                      {t("detail.notRecorded")}
                     </div>
-                  </div>
-                  <Shield className="h-6 w-6 text-primary" />
+                  )}
                 </div>
               </div>
             </div>
@@ -398,50 +338,6 @@ export function AttendanceDetailModal({
                   </div>
                 </div>
               </div>
-
-              {/* Working Time Stats */}
-              <div className="bg-muted/30 p-4 rounded-xl space-y-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" /> {t("fields.workingMinutes")}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold">
-                      {displayRecord.working_hours || "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("stats.totalWorkingHours")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold">
-                      {displayRecord.overtime_hours || "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("fields.overtimeMinutes")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-destructive">
-                      {displayRecord.late_minutes > 0
-                        ? `${displayRecord.late_minutes}m`
-                        : "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("fields.lateMinutes")}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-warning">
-                      {displayRecord.early_leave_minutes > 0
-                        ? `${displayRecord.early_leave_minutes}m`
-                        : "-"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Early Leave</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Notes & Manual Entry */}
               {(displayRecord.notes || displayRecord.is_manual_entry) && (
                 <div className="bg-muted/30 p-4 rounded-xl space-y-2">

@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const requiredNumber = (fieldLabel: string, minValue: number, minMessage: string) =>
+  z
+    .number({
+      error: `${fieldLabel} is required`,
+    })
+    .min(minValue, minMessage);
+
 export const recipeItemSchema = z.object({
   ingredient_product_id: z.string().min(1, "Ingredient is required"),
   quantity: z.number().positive("Quantity must be > 0"),
@@ -12,7 +19,11 @@ export const productSchema = z.object({
   // Basic Info
   name: z.string().min(2, "Name is required").max(200),
   code: z.string().optional(),
-  manufacturer_part_number: z.string().max(100).optional(),
+  manufacturer_part_number: z
+    .string()
+    .max(100)
+    .regex(/^[A-Za-z0-9\-\.\/]*$/, "MPN may only contain letters, digits, hyphens, dots, or slashes")
+    .optional(),
   description: z.string().max(1000).optional(),
   image_url: z.string().optional().nullable(),
 
@@ -26,7 +37,7 @@ export const productSchema = z.object({
   uom_id: z.string().optional(),
   purchase_uom_id: z.string().optional(),
   packaging_id: z.string().optional().nullable(),
-  purchase_uom_conversion: z.number().min(0.0001, "Conversion factor must be > 0"),
+  purchase_uom_conversion: requiredNumber("Conversion factor", 0.0001, "Conversion factor must be > 0"),
 
   // Procurement & Supply (all optional - nullable in backend)
   procurement_type_id: z.string().optional(),
@@ -34,19 +45,21 @@ export const productSchema = z.object({
   business_unit_id: z.string().optional(),
   tax_type: z.string().optional(),
   is_tax_inclusive: z.boolean(),
-  lead_time_days: z.number().int().min(0),
+  lead_time_days: requiredNumber("Lead Time (Days)", 0, "Lead Time (Days) must be >= 0").int(),
 
   // Pricing & Stock
-  cost_price: z.number().min(0, "Purchase Price must be >= 0"),
-  min_stock: z.number().min(0),
-  max_stock: z.number().min(0),
+  cost_price: requiredNumber("Purchase Price", 0, "Purchase Price must be >= 0"),
+  selling_price: requiredNumber("Selling Price", 0, "Selling Price must be >= 0"),
+  min_stock: requiredNumber("Minimum Stock", 0, "Minimum Stock must be >= 0"),
+  max_stock: requiredNumber("Maximum Stock", 0, "Maximum Stock must be >= 0"),
 
   // POS F&B fields
   product_kind: z.enum(["STOCK", "RECIPE", "SERVICE"]).optional(),
   is_ingredient: z.boolean().optional(),
   is_inventory_tracked: z.boolean().optional(),
-  is_pos_available: z.boolean().optional(),
+  pos_scope: z.enum(["none", "global", "specific"]).default("none"),
   recipe_items: z.array(recipeItemSchema).optional(),
+  outlet_ids: z.array(z.string()).optional().default([]),
 
   // Status
 }).refine(
@@ -62,5 +75,5 @@ export const productSchema = z.object({
   }
 );
 
-export type ProductFormData = z.infer<typeof productSchema>;
-export type RecipeItemFormData = z.infer<typeof recipeItemSchema>;
+export type ProductFormData = z.input<typeof productSchema>;
+export type RecipeItemFormData = z.input<typeof recipeItemSchema>;

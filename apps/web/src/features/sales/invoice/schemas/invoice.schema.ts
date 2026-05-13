@@ -15,6 +15,7 @@ const uuidHexSchema = (t?: TranslationFn, messageKey = "validation.invalidId", d
 // Customer Invoice Item Schema
 export const getInvoiceItemSchema = (t?: TranslationFn) => z.object({
   product_id: uuidHexSchema(t, "validation.invalidId", "Invalid product ID"),
+  sales_order_item_id: uuidHexSchema(t, "validation.invalidId", "Invalid sales order item ID").optional(),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
@@ -33,7 +34,7 @@ export const getInvoiceItemSchema = (t?: TranslationFn) => z.object({
 export const getInvoiceSchema = (t?: TranslationFn) => z.object({
   invoice_date: z.string()
     .min(1, getMsg(t, "validation.required", "Invoice date is required")),
-  due_date: z.string().optional(),
+  due_date: z.string().min(1, "Due date is required"),
   type: z.enum(["regular", "proforma"] as const).default("regular"),
   sales_order_id: uuidHexSchema(t).optional(),
   delivery_order_id: uuidHexSchema(t).optional(),

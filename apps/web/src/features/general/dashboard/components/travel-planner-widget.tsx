@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { ArrowUpRight, Route, CheckCircle2, Clock, Package } from "lucide-react";
+import { ArrowUpRight, Route, CheckCircle2, Package } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";

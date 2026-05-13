@@ -13,6 +13,8 @@ export const crmActivityEn = {
     timelineEmpty: "No timeline entries found",
     myActivities: "My Activities",
     activityFeed: "Your recent activities across all CRM entities",
+    noEmployeeProfile:
+      "No employee profile is linked to your account. Please link an employee in your profile or contact an administrator.",
     relatedEntity: "Related Entity",
     viewEntity: "View Entity",
     sections: {

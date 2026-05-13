@@ -13,7 +13,7 @@ const LiveTablePageClient = dynamic(
 );
 
 export const metadata: Metadata = {
-  title: "Live Table | GIMS",
+  title: "Live Table | SalesView",
   description: "Real-time floor and table management for F&B outlets.",
 };
 

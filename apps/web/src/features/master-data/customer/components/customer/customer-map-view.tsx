@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Link } from "@/i18n/routing";
 import {
   Plus,
@@ -41,6 +42,13 @@ export function CustomerMapView() {
   const { state, actions, data, permissions, layout, translations } = useCustomerMapView();
   const { isMobile } = layout;
   const { t } = translations;
+
+  // Pan map to selected customer when user clicks a sidebar card
+  const flyToPosition = useMemo(() => {
+    const sel = data.selectedCustomer;
+    if (sel?.latitude == null || sel?.longitude == null) return null;
+    return { lat: Number(sel.latitude), lng: Number(sel.longitude) };
+  }, [data.selectedCustomer]);
 
   const renderMarkers = (markerList: MapMarker<Customer>[]) => (
     <>
@@ -263,6 +271,7 @@ export function CustomerMapView() {
             defaultCenter={[-6.2088, 106.8456]}
             defaultZoom={12}
             selectedMarkerId={state.selectedCustomerId}
+            flyToPosition={flyToPosition}
           />
         )}
       </div>

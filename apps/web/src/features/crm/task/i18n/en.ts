@@ -59,7 +59,7 @@ export const crmTaskEn = {
       statusPlaceholder: "Select status",
       dueDate: "Due Date",
       dueDatePlaceholder: "Select due date",
-      dueTime: "Due Time",
+      reminderTime: "Reminder Time",
       assignedTo: "Assigned To",
       assignedToPlaceholder: "Select employee",
       assignedFrom: "Assigned By",

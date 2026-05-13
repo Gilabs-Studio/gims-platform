@@ -88,7 +88,7 @@ func SeedPosRecipeProducts() error {
 
 	strPtr := func(s string) *string { return &s }
 
-	// === Recipe Products (RECIPE kind, is_pos_available=true) ===
+	// === Recipe Products (RECIPE kind, pos_scope=global) ===
 	recipes := []models.Product{
 		{
 			ID:                 RecipeNasiGorengID,
@@ -104,7 +104,7 @@ func SeedPosRecipeProducts() error {
 			ProductKind:        models.ProductKindRecipe,
 			IsIngredient:       false,
 			IsInventoryTracked: false,
-			IsPosAvailable:     true,
+			POSScope:           models.POSScopeGlobal,
 			Status:             models.ProductStatusApproved,
 			IsApproved:         true,
 			IsActive:           true,
@@ -123,7 +123,7 @@ func SeedPosRecipeProducts() error {
 			ProductKind:        models.ProductKindRecipe,
 			IsIngredient:       false,
 			IsInventoryTracked: false,
-			IsPosAvailable:     true,
+			POSScope:           models.POSScopeGlobal,
 			Status:             models.ProductStatusApproved,
 			IsApproved:         true,
 			IsActive:           true,
@@ -142,7 +142,7 @@ func SeedPosRecipeProducts() error {
 			ProductKind:        models.ProductKindRecipe,
 			IsIngredient:       false,
 			IsInventoryTracked: false,
-			IsPosAvailable:     true,
+			POSScope:           models.POSScopeGlobal,
 			Status:             models.ProductStatusApproved,
 			IsApproved:         true,
 			IsActive:           true,
@@ -153,7 +153,7 @@ func SeedPosRecipeProducts() error {
 			Columns: []clause.Column{{Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name", "description", "image_url", "selling_price", "product_kind",
-				"is_inventory_tracked", "is_pos_available", "updated_at",
+				"is_inventory_tracked", "pos_scope", "updated_at",
 			}),
 		}).Create(&r).Error; err != nil {
 			log.Printf("Warning: Failed to seed recipe product %s: %v", r.Code, err)
@@ -174,7 +174,7 @@ func SeedPosRecipeProducts() error {
 			ProductKind:        models.ProductKindService,
 			IsIngredient:       false,
 			IsInventoryTracked: false,
-			IsPosAvailable:     true,
+			POSScope:           models.POSScopeGlobal,
 			Status:             models.ProductStatusApproved,
 			IsApproved:         true,
 			IsActive:           true,
@@ -191,7 +191,7 @@ func SeedPosRecipeProducts() error {
 			ProductKind:        models.ProductKindService,
 			IsIngredient:       false,
 			IsInventoryTracked: false,
-			IsPosAvailable:     true,
+			POSScope:           models.POSScopeGlobal,
 			Status:             models.ProductStatusApproved,
 			IsApproved:         true,
 			IsActive:           true,
@@ -202,7 +202,7 @@ func SeedPosRecipeProducts() error {
 			Columns: []clause.Column{{Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name", "description", "selling_price", "product_kind",
-				"is_inventory_tracked", "is_pos_available", "updated_at",
+				"is_inventory_tracked", "pos_scope", "updated_at",
 			}),
 		}).Create(&s).Error; err != nil {
 			log.Printf("Warning: Failed to seed service product %s: %v", s.Code, err)

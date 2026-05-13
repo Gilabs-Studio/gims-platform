@@ -104,7 +104,7 @@ export function LoyaltyEnrollDialog({ open, onOpenChange }: LoyaltyEnrollDialogP
   // ── Program selection (shared across tabs) ────────────────────────────────
   const [selectedProgramId, setSelectedProgramId] = useState<string>("");
   const { data: programsData, isLoading: programsLoading } = useLoyaltyPrograms({ per_page: 100 });
-  const programs = programsData?.data ?? [];
+  const programs = useMemo(() => programsData?.data ?? [], [programsData?.data]);
   const selectedProgram = useMemo(
     () => programs.find((p) => p.id === selectedProgramId),
     [programs, selectedProgramId],

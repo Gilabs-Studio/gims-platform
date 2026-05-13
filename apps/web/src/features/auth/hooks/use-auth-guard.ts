@@ -1,6 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useSyncExternalStore } from "react";
 import { useAuthStore } from "../stores/use-auth-store";
 import { fullAuthCleanup } from "../utils/clear-auth-cookies";
+
+const subscribeToHydration = (callback: () => void) => {
+  callback();
+  return () => {};
+};
+const getHydrationSnapshot = () => typeof window !== "undefined";
+const getHydrationServerSnapshot = () => false;
 
 /**
  * Auth guard hook that verifies session with backend before allowing access.
@@ -15,43 +22,31 @@ import { fullAuthCleanup } from "../utils/clear-auth-cookies";
  * States:
  * - isLoading: true while verifying session (show loading UI)
  * - isAuthenticated: true only after backend confirms session is valid
- * - isSessionVerified: indicates backend verification completed (success or failure)
+ * - isRateLimited: true when backend returns 429 (show retry UI)
  */
 export function useAuthGuard() {
-  const {
-    isAuthenticated: localStorageAuth,
-    user,
-    setUser,
-    logout,
-    isSessionVerified,
-    setSessionVerified,
-  } = useAuthStore();
+  const { user, setUser, logout, isSessionVerified, setSessionVerified } =
+    useAuthStore();
 
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydrationSnapshot,
+    getHydrationServerSnapshot,
+  );
+
   const [isVerifying, setIsVerifying] = useState(false);
-  // Track if we've completed verification (success or failure)
   const [verificationComplete, setVerificationComplete] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const hasAttemptedVerification = useRef(false);
 
-  // Mark as hydrated after first render (Zustand rehydration complete)
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  // Verify session with backend - ALWAYS runs on protected routes
+  // Deps: exclude `isVerifying` (guarded by ref) and `user` (set inside this fn)
   const verifySession = useCallback(async () => {
-    // Skip if already verified in this session (store level)
-    // This handles the case where user just logged in
-    if (isSessionVerified && user) {
+    if (isSessionVerified) {
       setVerificationComplete(true);
       return;
     }
 
-    // Prevent concurrent verification attempts
-    if (isVerifying || hasAttemptedVerification.current) {
-      return;
-    }
-
+    if (hasAttemptedVerification.current) return;
     hasAttemptedVerification.current = true;
     setIsVerifying(true);
 
@@ -59,80 +54,54 @@ export function useAuthGuard() {
       const { authService } = await import("../services/auth-service");
       const response = await authService.getMe();
 
-      // Session is valid - update user data from backend and mark as verified
       if (response?.data?.user) {
         setUser(response.data.user);
         setSessionVerified(true);
       } else {
-        // No user data - invalid session
         logout();
         await fullAuthCleanup();
       }
     } catch (error: unknown) {
-      // Type guard for error response
       const axiosError = error as { response?: { status?: number } };
+      const status = axiosError?.response?.status;
 
-      // Don't logout on rate limit (429) - let user retry later
-      if (axiosError?.response?.status === 429) {
-        // Still mark verification as complete so UI doesn't hang
-        // User can try again after rate limit expires
+      if (status === 429) {
+        // Don't logout — let user retry after cooldown
+        setIsRateLimited(true);
       } else {
-        // Session invalid - clear auth state completely AND clear cookies
         logout();
         await fullAuthCleanup();
       }
     } finally {
       setIsVerifying(false);
-      // Always mark verification as complete, even on failure
-      // This allows the UI to proceed (redirect to login or show content)
       setVerificationComplete(true);
     }
-  }, [
-    isSessionVerified,
-    isVerifying,
-    setUser,
-    setSessionVerified,
-    logout,
-  ]);
+  }, [isSessionVerified, setUser, setSessionVerified, logout]);
+  //   ^ removed: isVerifying (ref-guarded), user (mutated inside)
 
-  // ALWAYS run session verification when hydrated on protected routes
-  // This ensures we verify even if localStorage was cleared but cookies exist
   useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
+    if (!isHydrated) return;
 
-    // If already verified with user data (e.g., just logged in), mark complete
-    if (isSessionVerified && user) {
-      setVerificationComplete(true);
-      return;
-    }
+    const timeoutId = window.setTimeout(() => {
+      if (isSessionVerified) {
+        setVerificationComplete(true);
+        return;
+      }
+      if (!verificationComplete) {
+        verifySession();
+      }
+    }, 0);
 
-    // Otherwise, verify with backend
-    if (!isVerifying && !verificationComplete) {
-      verifySession();
-    }
-  }, [isHydrated, isSessionVerified, user, isVerifying, verificationComplete, verifySession]);
+    return () => window.clearTimeout(timeoutId);
+  }, [isHydrated, isSessionVerified, verificationComplete, verifySession]);
 
-  /**
-   * Determine loading state:
-   * - Not hydrated yet (SSR/initial load)
-   * - Currently verifying with backend
-   * - Verification not yet complete
-   */
   const isLoading = !isHydrated || isVerifying || !verificationComplete;
-
-  /**
-   * Only consider authenticated if:
-   * 1. Hydration complete
-   * 2. Backend has verified the session successfully
-   * 3. User data exists
-   */
   const isAuthenticated = isHydrated && isSessionVerified && !!user;
 
   return {
     isAuthenticated,
     isLoading,
+    isRateLimited,
     user,
     isSessionVerified,
     verificationComplete,

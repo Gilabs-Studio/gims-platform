@@ -1,13 +1,16 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 // SupplierRepository defines the interface for supplier data access
@@ -24,9 +27,13 @@ type SupplierRepository interface {
 	CreateContact(ctx context.Context, phone *models.SupplierContact) error
 	UpdateContact(ctx context.Context, phone *models.SupplierContact) error
 	DeleteContact(ctx context.Context, id string) error
+	ClearPrimaryContacts(ctx context.Context, supplierID string) error
+	ClearPrimaryContactsExcept(ctx context.Context, contactID string) error
 	CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	UpdateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	DeleteBankAccount(ctx context.Context, id string) error
+	ClearPrimaryBankAccounts(ctx context.Context, supplierID string) error
+	ClearPrimaryBankAccountsExcept(ctx context.Context, bankID string) error
 }
 
 type supplierRepository struct {
@@ -162,24 +169,45 @@ func (r *supplierRepository) Delete(ctx context.Context, id string) error {
 
 // GetNextCode generates the next supplier code in the format SUP-XXXXX
 func (r *supplierRepository) GetNextCode(ctx context.Context) (string, error) {
-	var count int64
-	if err := database.GetDB(ctx, r.db).Model(&models.Supplier{}).Count(&count).Error; err != nil {
+	var latestCode string
+	if err := database.GetDB(ctx, r.db).
+		Model(&models.Supplier{}).
+		Where("code ~ ?", `^SUP-[0-9]+$`).
+		Select("code").
+		Order("LENGTH(code) DESC, code DESC").
+		Limit(1).
+		Scan(&latestCode).Error; err != nil {
 		return "", err
 	}
-	return generateSupplierCode(int(count) + 1), nil
+
+	return generateSupplierCode(extractSupplierCodeSequence(latestCode) + 1), nil
 }
 
 func generateSupplierCode(seq int) string {
 	return "SUP-" + padSupplierNumber(seq, 5)
 }
 
-func padSupplierNumber(n, width int) string {
-	s := ""
-	for i := 0; i < width; i++ {
-		s = string(rune('0'+n%10)) + s
-		n /= 10
+var supplierCodePattern = regexp.MustCompile(`^SUP-(\d+)$`)
+
+func extractSupplierCodeSequence(code string) int {
+	matches := supplierCodePattern.FindStringSubmatch(strings.TrimSpace(strings.ToUpper(code)))
+	if len(matches) != 2 {
+		return 0
 	}
-	return s
+
+	seq, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0
+	}
+
+	return seq
+}
+
+func padSupplierNumber(n, width int) string {
+	if width <= 0 {
+		width = 1
+	}
+	return fmt.Sprintf("%0*d", width, n)
 }
 
 // Nested Phone Number operations
@@ -195,6 +223,17 @@ func (r *supplierRepository) DeleteContact(ctx context.Context, id string) error
 	return database.GetDB(ctx, r.db).Delete(&models.SupplierContact{}, "id = ?", id).Error
 }
 
+func (r *supplierRepository) ClearPrimaryContacts(ctx context.Context, supplierID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierContact{}).Where("supplier_id = ? AND is_primary = true", supplierID).Update("is_primary", false).Error
+}
+
+func (r *supplierRepository) ClearPrimaryContactsExcept(ctx context.Context, contactID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierContact{}).Where(
+		"supplier_id = (SELECT supplier_id FROM supplier_contacts WHERE id = ?) AND id != ? AND is_primary = true",
+		contactID, contactID,
+	).Update("is_primary", false).Error
+}
+
 // Nested Bank Account operations
 func (r *supplierRepository) CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error {
 	return database.GetDB(ctx, r.db).Create(bank).Error
@@ -206,4 +245,15 @@ func (r *supplierRepository) UpdateBankAccount(ctx context.Context, bank *models
 
 func (r *supplierRepository) DeleteBankAccount(ctx context.Context, id string) error {
 	return database.GetDB(ctx, r.db).Delete(&models.SupplierBank{}, "id = ?", id).Error
+}
+
+func (r *supplierRepository) ClearPrimaryBankAccounts(ctx context.Context, supplierID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierBank{}).Where("supplier_id = ? AND is_primary = true", supplierID).Update("is_primary", false).Error
+}
+
+func (r *supplierRepository) ClearPrimaryBankAccountsExcept(ctx context.Context, bankID string) error {
+	return database.GetDB(ctx, r.db).Model(&models.SupplierBank{}).Where(
+		"supplier_id = (SELECT supplier_id FROM supplier_banks WHERE id = ?) AND id != ? AND is_primary = true",
+		bankID, bankID,
+	).Update("is_primary", false).Error
 }

@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMyActivities } from "../hooks/use-activities";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
-import { getActivityTypeIcon, parseVisitMetadata } from "../utils";
+import { aggregateVisitProducts, getActivityTypeIcon, parseVisitMetadata } from "../utils";
 import { VisitActivityCard } from "./visit-activity-card";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
@@ -58,8 +59,12 @@ export function ActivityFeedDialog({
     ...(typeFilter !== "all" ? { activity_type_id: typeFilter } : {}),
   };
 
+  const { user } = useAuthStore();
+  const hasEmployee = !!user?.employee_id;
+
+  // Only call backend when drawer is open and user has linked employee profile
   const { data, isLoading, isError } = useMyActivities(params, {
-    enabled: open,
+    enabled: open && hasEmployee,
   });
   const { data: typesData } = useActivityTypes({
     per_page: 20,
@@ -124,6 +129,11 @@ export function ActivityFeedDialog({
                   <div className="h-3 w-3/4 rounded bg-muted" />
                 </div>
               ))}
+            </div>
+          ) : !hasEmployee ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+              <Package className="h-8 w-8 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">{t("noEmployeeProfile")}</p>
             </div>
           ) : isError ? (
             <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
@@ -215,7 +225,8 @@ export function ActivityFeedDialog({
                             {/* Product table for non-visit activities */}
                             {activity.type !== "visit" && (() => {
                               const meta = parseVisitMetadata(activity.metadata);
-                              if (!meta?.products?.length) return null;
+                              const displayProducts = aggregateVisitProducts(meta?.products);
+                              if (!displayProducts.length) return null;
                               return (
                                 <div className="mt-1 space-y-1">
                                   <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -233,7 +244,7 @@ export function ActivityFeedDialog({
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {meta.products.map((p, idx) => (
+                                        {displayProducts.map((p, idx) => (
                                           <tr key={`${p.product_name}-${idx}`} className="border-t">
                                             <td className="px-2 py-1">
                                               {p.product_name}

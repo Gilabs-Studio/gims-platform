@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -22,12 +23,13 @@ type GoodsReceiptRepository interface {
 }
 
 type GoodsReceiptListParams struct {
-	Search  string
-	Status  string
-	SortBy  string
-	SortDir string
-	Limit   int
-	Offset  int
+	Search      string
+	Status      string
+	WarehouseID string
+	SortBy      string
+	SortDir     string
+	Limit       int
+	Offset      int
 }
 
 type goodsReceiptRepository struct {
@@ -58,6 +60,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	if strings.TrimSpace(params.Status) != "" {
 		base = base.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
 	}
+	if strings.TrimSpace(params.WarehouseID) != "" {
+		base = base.Where("warehouse_id = ?", strings.TrimSpace(params.WarehouseID))
+	}
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -70,6 +75,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	if s := strings.TrimSpace(params.Search); s != "" {
 		pattern := "%" + s + "%"
 		query = query.Where("goods_receipts.supplier_name_snapshot ILIKE ? OR goods_receipts.code ILIKE ? OR goods_receipts.notes ILIKE ?", pattern, pattern, pattern)
+	}
+	if strings.TrimSpace(params.WarehouseID) != "" {
+		query = query.Where("warehouse_id = ?", strings.TrimSpace(params.WarehouseID))
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
@@ -90,7 +98,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 		sortBy = "created_at"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	if params.Limit > 0 {
@@ -113,7 +121,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 
 func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*models.GoodsReceipt, error) {
 	var gr models.GoodsReceipt
-	err := r.getDB(ctx).
+	q := r.getDB(ctx).
 		Model(&models.GoodsReceipt{}).
 		Preload("Supplier").
 		Preload("Warehouse").
@@ -121,9 +129,16 @@ func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*model
 		Preload("PurchaseOrder.Supplier").
 		Preload("PurchaseOrder.Items.Product").
 		Preload("Items.Product").
-		Preload("Items.PurchaseOrderItem.Product").
-		First(&gr, "id = ?", id).Error
-	if err != nil {
+		Preload("Items.PurchaseOrderItem.Product")
+
+	// Accept either a UUID (primary key) or a code/reference number.
+	if _, err := uuid.Parse(id); err == nil {
+		q = q.Where("goods_receipts.id = ?", id)
+	} else {
+		q = q.Where("goods_receipts.code = ?", id)
+	}
+
+	if err := q.First(&gr).Error; err != nil {
 		return nil, err
 	}
 	return &gr, nil

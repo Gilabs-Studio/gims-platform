@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
+import type { Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
@@ -47,6 +47,12 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { productService } from "@/features/master-data/product/services/product-service";
 import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
 import type { PurchaseOrderAddSupplierContact } from "../types";
+import {
+  applyPurchaseFormErrors,
+  extractPurchaseFieldErrors,
+  getPurchaseErrorMessage,
+  getPurchaseFieldLabel,
+} from "@/features/purchase/utils/error-utils";
 
 type ProductOption = { id: string; code?: string; name: string; cost_price?: number };
 
@@ -61,27 +67,6 @@ function todayISO(): string {
 }
 
 const NONE_VALUE = "__none__";
-
-function collectErrorPaths(errs: FieldErrors, prefix = ""): string[] {
-  const out: string[] = [];
-  for (const [key, value] of Object.entries(errs)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (!value) continue;
-    if (Array.isArray(value)) {
-      value.forEach((child, idx) => {
-        if (child) out.push(...collectErrorPaths(child as FieldErrors, `${path}[${idx}]`));
-      });
-      continue;
-    }
-    const maybeLeaf = value as { message?: unknown };
-    if (typeof maybeLeaf.message === "string" && maybeLeaf.message.length > 0) {
-      out.push(path);
-      continue;
-    }
-    out.push(...collectErrorPaths(value as FieldErrors, path));
-  }
-  return Array.from(new Set(out));
-}
 
 interface PurchaseOrderFormProps {
   readonly open: boolean;
@@ -170,9 +155,10 @@ export function PurchaseOrderForm({
     register,
     handleSubmit,
     control,
+    getFieldState,
+    setError,
     setValue,
     reset,
-    watch,
     trigger,
     formState: { errors },
   } = useForm<PurchaseOrderFormData>({
@@ -197,7 +183,7 @@ export function PurchaseOrderForm({
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const source = watch("source");
+  const source = useWatch({ control, name: "source" });
 
   const approvedPRsQuery = useApprovedPurchaseRequisitions({ enabled: open && !isEdit && source === "pr" });
   const approvedSOsQuery = useApprovedSalesOrders({ enabled: open && !isEdit && source === "so" });
@@ -206,14 +192,16 @@ export function PurchaseOrderForm({
     if (!open) {
       return;
     }
-    setShouldLoadSelectData(false);
-    setShouldLoadProductOptions(false);
+    queueMicrotask(() => {
+      setShouldLoadSelectData(false);
+      setShouldLoadProductOptions(false);
+    });
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     if (isEdit) return;
-    setActiveTab("basic");
+    queueMicrotask(() => setActiveTab("basic"));
     reset({
       source: "manual",
       supplier_id: null,
@@ -234,35 +222,37 @@ export function PurchaseOrderForm({
 
   useEffect(() => {
     if (!open || !isEdit || !po) return;
-    setActiveTab("basic");
-    reset(
-      {
-        source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
-        supplier_id: po.supplier_id ?? null,
-        supplier_contact_id: null,
-        payment_terms_id: po.payment_terms_id ?? null,
-        business_unit_id: po.business_unit_id ?? null,
-        purchase_requisitions_id: po.purchase_requisitions_id ?? null,
-        sales_order_id: po.sales_order_id ?? null,
-        order_date: po.order_date,
-        due_date: po.due_date ?? null,
-        tax_rate: po.tax_rate ?? 0,
-        delivery_cost: po.delivery_cost ?? 0,
-        other_cost: po.other_cost ?? 0,
-        notes: po.notes ?? "",
-        items:
-          po.items?.length > 0
-            ? po.items.map((it) => ({
-              product_id: it.product_id,
-              quantity: it.quantity,
-              price: it.price,
-              discount: it.discount ?? 0,
-              notes: it.notes ?? null,
-            }))
-            : [{ product_id: "", quantity: 1, price: 0, discount: 0, notes: null }],
-      },
-      { keepDefaultValues: false },
-    );
+    queueMicrotask(() => {
+      setActiveTab("basic");
+      reset(
+        {
+          source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
+          supplier_id: po.supplier_id ?? null,
+          supplier_contact_id: null,
+          payment_terms_id: po.payment_terms_id ?? null,
+          business_unit_id: po.business_unit_id ?? null,
+          purchase_requisitions_id: po.purchase_requisitions_id ?? null,
+          sales_order_id: po.sales_order_id ?? null,
+          order_date: po.order_date,
+          due_date: po.due_date ?? null,
+          tax_rate: po.tax_rate ?? 0,
+          delivery_cost: po.delivery_cost ?? 0,
+          other_cost: po.other_cost ?? 0,
+          notes: po.notes ?? "",
+          items:
+            po.items?.length > 0
+              ? po.items.map((it) => ({
+                  product_id: it.product_id,
+                  quantity: it.quantity,
+                  price: it.price,
+                  discount: it.discount ?? 0,
+                  notes: it.notes ?? null,
+                }))
+              : [{ product_id: "", quantity: 1, price: 0, discount: 0, notes: null }],
+        },
+        { keepDefaultValues: false },
+      );
+    });
   }, [open, isEdit, po, reset]);
 
   const selectedSupplierId = useWatch<PurchaseOrderFormData, "supplier_id">({ control, name: "supplier_id" });
@@ -300,15 +290,12 @@ export function PurchaseOrderForm({
       return;
     }
 
-    if (!selectedSupplierWithDetail) return;
-
-    // Keep source-derived values when PO is loaded from PR/SO.
     // This prevents supplier defaults from overriding PR/SO payment terms or business unit.
     const keepSourceDerivedValues =
       (source === "pr" && !!selectedPurchaseRequisitionId) ||
       (source === "so" && !!selectedSalesOrderId);
 
-    if (!keepSourceDerivedValues) {
+    if (!keepSourceDerivedValues && selectedSupplierWithDetail) {
       setValue("payment_terms_id", selectedSupplierWithDetail.payment_terms_id ?? null, {
         shouldValidate: true,
         shouldDirty: true,
@@ -319,7 +306,7 @@ export function PurchaseOrderForm({
       });
     }
 
-    const contacts = (selectedSupplierWithDetail.contacts ?? []) as PurchaseOrderAddSupplierContact[];
+    const contacts = (selectedSupplierWithDetail?.contacts ?? []) as PurchaseOrderAddSupplierContact[];
     const defaultContact = contacts.find((ct) => ct.is_primary) ?? contacts[0];
     setValue("supplier_contact_id", defaultContact?.id ?? null, {
       shouldValidate: true,
@@ -363,6 +350,35 @@ export function PurchaseOrderForm({
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
   const isProductOptionsLoading =
     shouldLoadProductOptions && productCombobox.isLoading;
+
+  const fieldLabels = useMemo<Record<string, string>>(() => ({
+    supplier_id: t("fields.supplier"),
+    order_date: t("fields.orderDate"),
+    purchase_requisitions_id: t("fields.purchaseRequisitionId"),
+    sales_order_id: t("fields.salesOrderId"),
+    "items.*.product_id": t("items.fields.product"),
+    "items.*.quantity": t("items.fields.quantity"),
+    "items.*.price": t("items.fields.price"),
+  }), [t]);
+
+  const openTabForPaths = useCallback((paths: string[]) => {
+    if (paths.some((path) => path.startsWith("items"))) {
+      setActiveTab("items");
+      return;
+    }
+
+    setActiveTab("basic");
+  }, []);
+
+  const showInvalidToast = useCallback((paths: string[]) => {
+    if (paths.length === 0) {
+      toast.error(t("form.invalid"));
+      return;
+    }
+
+    const labels = Array.from(new Set(paths.map((path) => getPurchaseFieldLabel(path, fieldLabels))));
+    toast.error(`${t("form.invalid")}: ${labels.join(", ")}`);
+  }, [fieldLabels, t]);
 
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });
@@ -428,15 +444,29 @@ export function PurchaseOrderForm({
         toast.success(t("toast.created"));
       }
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      const hasFieldErrors = applyPurchaseFormErrors<PurchaseOrderFormData>(
+        error,
+        setError,
+        fieldLabels,
+        t("validation.required"),
+      );
+
+      if (hasFieldErrors) {
+        const paths = extractPurchaseFieldErrors(error)
+          .map((fieldError) => fieldError.field?.trim())
+          .filter((field): field is string => Boolean(field));
+        openTabForPaths(paths);
+        showInvalidToast(paths);
+        return;
+      }
+
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
-  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = (errs) => {
-    const paths = collectErrorPaths(errs);
-    console.warn("PurchaseOrderForm invalid", { paths, errs });
-    toast.error(paths.length ? `${t("form.invalid")}: ${paths.join(", ")}` : t("form.invalid"));
+  const onInvalid: SubmitErrorHandler<PurchaseOrderFormData> = () => {
+    toast.error(t("form.invalid"));
   };
 
   const subtotal = useMemo(() =>
@@ -448,9 +478,12 @@ export function PurchaseOrderForm({
     }, 0),
     [watchedItems],
   );
-  const taxRate = watch("tax_rate") ?? 0;
-  const deliveryCost = watch("delivery_cost") ?? 0;
-  const otherCost = watch("other_cost") ?? 0;
+  const watchedTaxRate = useWatch({ control, name: "tax_rate" }) ?? 0;
+  const watchedDeliveryCost = useWatch({ control, name: "delivery_cost" }) ?? 0;
+  const watchedOtherCost = useWatch({ control, name: "other_cost" }) ?? 0;
+  const taxRate = watchedTaxRate;
+  const deliveryCost = watchedDeliveryCost;
+  const otherCost = watchedOtherCost;
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
   const formatMoney = useCallback((v: number) => formatCurrency(v), []);
@@ -465,19 +498,10 @@ export function PurchaseOrderForm({
     if (isValid) {
       setActiveTab("items");
     } else {
-        const fieldNameMap: Record<string, string> = {
-        order_date: t("fields.orderDate") || "Order Date",
-        purchase_requisitions_id: t("fields.purchaseRequisitionId") || "Purchase Requisition ID",
-        sales_order_id: t("fields.salesOrderId") || "Sales Order ID",
-      };
-      const fieldNames = fieldsToValidate
-        .filter((f) => errors[f])
-        .map((f) => fieldNameMap[f] || f);
-      toast.error(
-        fieldNames.length
-          ? `${t("validation.required") || "Required"}: ${fieldNames.join(", ")}`
-          : t("validation.required") || "Please fill all required fields"
-      );
+      const invalidFields = fieldsToValidate.filter((fieldName) => getFieldState(fieldName).invalid);
+      const invalidPaths = invalidFields.map((fieldName) => String(fieldName));
+      openTabForPaths(invalidPaths);
+      showInvalidToast(invalidPaths);
     }
   };
 
@@ -744,6 +768,7 @@ export function PurchaseOrderForm({
                       />
                     )}
                   />
+                  {errors.supplier_id && <FieldError>{errors.supplier_id.message ?? t("validation.required")}</FieldError>}
                 </Field>
 
                 <Field orientation="vertical">
@@ -787,7 +812,7 @@ export function PurchaseOrderForm({
                             setShouldLoadSelectData(true);
                           }
                         }}
-                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}
@@ -930,7 +955,11 @@ export function PurchaseOrderForm({
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
+                                    options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name })).filter((o) => {
+                                      const currentVal = watchedItems?.[idx]?.product_id;
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     createPermission="product.create"
                                     onCreateClick={() => {
                                       setPendingProductItemIdx(idx);
@@ -950,6 +979,7 @@ export function PurchaseOrderForm({
                               <Controller control={control} name={`items.${idx}.quantity`}
                                 render={({ field }) => <NumericInput value={field.value ?? 1} onChange={field.onChange} />}
                               />
+                              {errors.items?.[idx]?.quantity && <FieldError>{errors.items[idx]?.quantity?.message ?? t("validation.required")}</FieldError>}
                             </Field>
 
                             <Field orientation="vertical">
@@ -957,6 +987,7 @@ export function PurchaseOrderForm({
                               <Controller control={control} name={`items.${idx}.price`}
                                 render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
                               />
+                              {errors.items?.[idx]?.price && <FieldError>{errors.items[idx]?.price?.message ?? t("validation.required")}</FieldError>}
                             </Field>
 
                             <Field orientation="vertical">
@@ -1013,7 +1044,7 @@ export function PurchaseOrderForm({
                         <span className="font-medium ml-auto">{formatMoney(subtotal)}</span>
                       </div>
                       <div className="flex flex-wrap items-end gap-1">
-                        <span className="text-muted-foreground text-sm">{t("summary.taxAmount")} ({taxRate}%):</span>
+                        <span className="text-muted-foreground text-sm">{t("summary.taxAmount")} ({Number(taxRate)}%):</span>
                         <span className="font-medium ml-auto">{formatMoney(taxAmount)}</span>
                       </div>
                       <div className="flex flex-wrap items-end gap-1">

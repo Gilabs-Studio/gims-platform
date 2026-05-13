@@ -44,8 +44,8 @@ import {
 } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
-import { useLeadById, useUpdateLead, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
+import { useDealById, useDeleteDeal, useDealFormData, useDealProductItems } from "../hooks/use-deals";
+import { useLeadById, useUpdateLead } from "@/features/crm/lead/hooks/use-leads";
 import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
@@ -70,7 +70,6 @@ import { ProductDetailDialog } from "@/features/master-data/product/components/p
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
 import type { Deal } from "../types";
-import type { LeadProductItem } from "@/features/crm/lead/types";
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 
 interface DealDetailPageProps {
@@ -91,7 +90,6 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
 export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const t = useTranslations("crmDeal");
   const tCommon = useTranslations("common");
-  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
@@ -130,18 +128,15 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const deal: Deal | undefined = response?.data;
   const { totalCount: activitiesCount } = useDealActivityTimeline(dealId, deal?.lead_id ?? undefined);
   const updateLeadMutation = useUpdateLead();
-  // Fetch the lead's current product items for live interest levels, deleted state, and survey answers
+  // Fetch unified product interest items for the deal (from lead if linked, else from deal snapshot)
   const isItemsTabVisited = visitedTabs.has("items");
-  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", {
-    enabled: isItemsTabVisited && !!deal?.lead_id,
+  const { data: dealProductItemsData } = useDealProductItems(dealId, {
+    enabled: isItemsTabVisited,
   });
   const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isItemsTabVisited });
   const surveyQuestions = visitFormDataRes?.data?.interest_questions ?? [];
 
-  const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);
-  const leadInterestMap = new Map<string, number>(leadItems.map((p) => [p.product_id!, p.interest_level]));
-  const leadDeletedSet = new Set<string>(leadItems.filter((p) => p.is_deleted).map((p) => p.product_id!));
-  const leadItemByProductId = new Map<string, LeadProductItem>(leadItems.map((p) => [p.product_id!, p]));
+  const productItems = (dealProductItemsData?.data ?? []).filter((p) => p.product_id);
 
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
     return resolveVisitSurveyAnswers(raw, surveyQuestions);
@@ -400,9 +395,9 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <TabsTrigger value="items" className="cursor-pointer gap-1.5">
                   <Package className="h-4 w-4" />
                   {t("productItems")}
-                  {(deal.items?.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length ?? 0) > 0 && (
+                  {productItems.filter(i => !i.is_deleted).length > 0 && (
                     <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                      {deal.items!.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length}
+                      {productItems.filter(i => !i.is_deleted).length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -453,7 +448,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               <TabsContent value="items" className="mt-3">
                 {visitedTabs.has("items") && (
                   <>
-                    {!deal.items || deal.items.length === 0 ? (
+                    {productItems.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-6">
                         {t("noItems")}
                       </p>
@@ -473,12 +468,9 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                               </tr>
                             </thead>
                             <tbody>
-                              {deal.items.map((item) => {
-                                const isEffectivelyDeleted = item.is_deleted || (item.product_id ? leadDeletedSet.has(item.product_id) : false);
-                                const interestLevel = item.product_id
-                                  ? (leadInterestMap.get(item.product_id) ?? item.interest_level ?? 0)
-                                  : (item.interest_level ?? 0);
-                                const leadItem = item.product_id ? leadItemByProductId.get(item.product_id) : undefined;
+                              {productItems.map((item) => {
+                                const isEffectivelyDeleted = item.is_deleted ?? false;
+                                const interestLevel = item.interest_level ?? 0;
                                 return (
                                   <tr
                                     key={item.id}
@@ -527,11 +519,11 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                                         <TooltipContent side="top" className="max-w-[260px] p-2">
                                           <div className="space-y-1">
                                             <p className="font-semibold text-xs">{t("interest")}: {interestLevel}/5</p>
-                                            {leadItem?.notes && (
-                                              <p className="text-xs text-muted-foreground italic border-t pt-1">{leadItem.notes}</p>
+                                            {item.notes && (
+                                              <p className="text-xs text-muted-foreground italic border-t pt-1">{item.notes}</p>
                                             )}
                                             {(() => {
-                                              const resolved = resolveLastSurveyAnswers(leadItem?.last_survey_answers);
+                                              const resolved = resolveLastSurveyAnswers(item.last_survey_answers);
                                               if (!resolved.length) return null;
                                               return (
                                                 <ul className="space-y-1 border-t pt-1">
@@ -575,7 +567,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                                           <div className="border-t border-muted-foreground/50" />
                                         </div>
                                       )}
-                                      {formatCurrency(item.subtotal)}
+                                      {formatCurrency(item.unit_price * item.quantity)}
                                     </td>
                                     <td className="px-3 py-2 text-muted-foreground relative">
                                       {isEffectivelyDeleted && (
@@ -597,9 +589,9 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                           <div className="text-right">
                             <div className="text-sm font-semibold text-muted-foreground">{t("productsTotal")}</div>
                             <div className="text-sm font-semibold">{formatCurrency(
-                              (deal.items ?? [])
-                                .filter((i) => !(i.is_deleted || (i.product_id ? leadDeletedSet.has(i.product_id) : false)))
-                                .reduce((s, it) => s + (it.subtotal ?? 0), 0)
+                              productItems
+                                .filter((i) => !i.is_deleted)
+                                .reduce((s, it) => s + it.unit_price * it.quantity, 0)
                             )}</div>
                           </div>
 
@@ -612,7 +604,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     )}
 
                     {/* Stock availability check for deal items */}
-                    {deal.items && deal.items.filter(i => !i.is_deleted && !(i.product_id && leadDeletedSet.has(i.product_id))).length > 0 && (
+                    {productItems.filter(i => !i.is_deleted).length > 0 && (
                       <div className="mt-4">
                         <DealStockCheck dealId={deal.id} />
                       </div>

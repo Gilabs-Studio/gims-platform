@@ -8,11 +8,31 @@ import { cn } from "@/lib/utils";
 /** Read CSRF token from cookie (same as api-client). Required for POST to API when CSRF is enabled. */
 function getCSRFToken(): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)salesview_csrf_token=([^;]*)/);;
   return match ? decodeURIComponent(match[1]) : null;
 }
 
 const UUID_PREFIX_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_(.+)$/i;
+
+function inferUploadFolderFromPath(pathname?: string): string {
+  if (!pathname) return "general";
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return "general";
+
+  const localeSet = new Set(["en", "id"]);
+  const normalized = localeSet.has(segments[0]) ? segments.slice(1) : segments;
+  if (normalized.length === 0) return "general";
+
+  const root = normalized[0].toLowerCase();
+  const child = normalized[1]?.toLowerCase();
+
+  if (child) {
+    return `${root}/${child}`;
+  }
+
+  return root;
+}
 
 /**
  * Extract a human-readable filename from a URL.
@@ -35,6 +55,7 @@ interface FileUploadProps {
   readonly disabled?: boolean;
   readonly placeholder?: string;
   readonly uploadEndpoint?: "/upload/image" | "/upload/document";
+  readonly uploadFolder?: string;
 }
 
 export function FileUpload({
@@ -46,6 +67,7 @@ export function FileUpload({
   disabled = false,
   placeholder = "Click to upload file",
   uploadEndpoint = "/upload/document",
+  uploadFolder,
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [displayName, setDisplayName] = useState<string | undefined>();
@@ -71,7 +93,14 @@ export function FileUpload({
       formData.append("file", file);
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
-      const uploadUrl = `${baseUrl}/api/v1${uploadEndpoint}`;
+      const inferredFolder = typeof window !== "undefined"
+        ? inferUploadFolderFromPath(window.location.pathname)
+        : "general";
+      const folder = uploadFolder?.trim() || inferredFolder;
+      const endpointWithFolder = folder
+        ? `${uploadEndpoint}?folder=${encodeURIComponent(folder)}`
+        : uploadEndpoint;
+      const uploadUrl = `${baseUrl}/api/v1${endpointWithFolder}`;
       const csrfToken = getCSRFToken();
       const headers: HeadersInit = {};
       if (csrfToken) {

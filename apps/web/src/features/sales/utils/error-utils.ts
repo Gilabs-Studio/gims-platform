@@ -9,6 +9,9 @@ type ApiErrorPayload = {
     code?: string;
     details?: {
       message?: string;
+      error_id?: string;
+      field?: string;
+      resource?: string;
       [key: string]: unknown;
     };
     field_errors?: ApiFieldError[];
@@ -44,6 +47,7 @@ export function getSalesErrorMessage(error: unknown, fallback: string): string {
         INSUFFICIENT_STOCK: "Insufficient stock to fulfill this order.",
         DUPLICATE_JOURNAL: "A journal entry already exists for this transaction.",
         OVERPAYMENT: "Payment amount exceeds the remaining invoice balance.",
+        OVER_DELIVERY: "Delivered quantity cannot exceed the remaining available quantity.",
         PERIOD_CLOSED: "Cannot modify transactions in a closed financial period.",
         INVALID_STATUS_TRANSITION: "This status change is not allowed.",
       };
@@ -53,6 +57,23 @@ export function getSalesErrorMessage(error: unknown, fallback: string): string {
         return typeof apiDetail === "string" && apiDetail.trim().length > 0
           ? apiDetail
           : knownErrors[errorCode];
+      }
+
+      const errorId = responseData?.error?.details?.error_id;
+      if (typeof errorId === "string" && errorId.trim().length > 0) {
+        const normalizedErrorId = errorId.trim().toUpperCase();
+
+        if (
+          normalizedErrorId.includes("OVER_DELIVERY") ||
+          normalizedErrorId.includes("OVER-DELIVERY") ||
+          normalizedErrorId.includes("REMAINING QUANTITY")
+        ) {
+          return "Delivered quantity cannot exceed the remaining available quantity.";
+        }
+
+        if (normalizedErrorId in knownErrors) {
+          return knownErrors[normalizedErrorId];
+        }
       }
     }
 

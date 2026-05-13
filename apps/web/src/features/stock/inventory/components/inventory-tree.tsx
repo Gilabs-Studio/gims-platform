@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -15,11 +16,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
 import { useInventoryTree, useInventoryTreeBatches } from "../hooks/use-inventory-tree";
 import { useProgressiveInventory } from "../hooks/use-progressive-inventory";
 import type { InventoryStockItem, InventoryTreeWarehouse, TreeProductsSummary } from "../types";
 import { formatDate, resolveImageUrl } from "@/lib/utils";
+
+function formatInventoryStatus(status: string): string {
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 function StatusBadge({
   count,
@@ -177,9 +183,11 @@ function ProductNode({
         <div className="flex items-center gap-3 flex-1">
           <div className="h-8 w-8 rounded-sm border shrink-0 overflow-hidden bg-muted flex items-center justify-center">
             {product.product_image_url ? (
-              <img
-                src={resolveImageUrl(product.product_image_url)}
+              <Image
+                src={resolveImageUrl(product.product_image_url) ?? ""}
                 alt={product.product_name}
+                width={32}
+                height={32}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -214,7 +222,7 @@ function ProductNode({
             <span className="font-bold text-sm">{product.available}</span>
           </div>
           <div className={`min-w-20 text-right ${getStatusColor(product.status)}`}>
-            {product.status.replace("_", " ")}
+            {formatInventoryStatus(product.status)}
           </div>
         </div>
       </div>

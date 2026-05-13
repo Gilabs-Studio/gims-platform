@@ -52,15 +52,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     isFormLoading,
     fields,
     remove,
-    paymentTerms,
-    businessUnits,
-    businessTypes,
-    quotations,
-    customers,
     contacts,
     selectedContactId,
-    employees,
-    products,
     isProductsLoading,
     calculations,
     handleNext,
@@ -95,7 +88,12 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     quotationCombobox,
     productCombobox,
     customerCreditInfo,
+    watchedQuotationId,
+    selectedQuotationLabel,
+    getProductLabel,
   } = useOrderForm({ order, open, onClose });
+
+  const isItemsLocked = !!watchedQuotationId;
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -150,7 +148,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       disabled={isEdit} 
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={t("salesQuotation")} />
+                        <SelectValue placeholder={t("salesQuotation")} selectedLabel={selectedQuotationLabel} />
                       </SelectTrigger>
                       <SelectContent
                         onLoadMore={quotationCombobox.onLoadMore}
@@ -549,7 +547,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                         >
                           <div className="absolute top-2 right-2 flex items-center gap-2">
                             <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
-                            {fields.length > 1 && (
+                            {fields.length > 1 && !isItemsLocked && (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -571,6 +569,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 render={({ field }) => (
                                   <CreatableCombobox
                                     value={field.value || ""}
+                                    selectedLabel={getProductLabel(field.value || "")}
                                     onValueChange={(value) => {
                                       field.onChange(value);
                                       handleProductChange(index, value);
@@ -586,9 +585,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={productCombobox.options}
+                                    options={productCombobox.options.filter((o) => {
+                                      const currentVal = field.value || "";
+                                      if (o.value === currentVal) return true;
+                                      return !(watchedItems ?? []).some((it) => it?.product_id && it.product_id === o.value);
+                                    })}
                                     isLoading={isProductsLoading}
                                     placeholder={t("item.selectProduct")}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -619,6 +623,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0.001}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -639,6 +644,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0.01}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -659,6 +665,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     value={field.value}
                                     onChange={field.onChange}
                                     min={0}
+                                    disabled={isItemsLocked}
                                   />
                                 )}
                               />
@@ -683,7 +690,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <FieldError>{errors.items.message}</FieldError>
                     )}
 
-                    {/* Add Item Button - Positioned below last item */}
+                    {/* Add Item Button - hidden when items are locked from quotation */}
+                    {!isItemsLocked && (
                     <Button
                       type="button"
                       variant="outline"
@@ -694,6 +702,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       <Plus className="h-4 w-4 mr-2" />
                       {t("addItem")}
                     </Button>
+                    )}
                   </div>
                 </div>
 

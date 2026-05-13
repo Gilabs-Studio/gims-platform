@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -59,8 +60,12 @@ type VisitActivityMetadata struct {
 	Products      []VisitActivityProductInfo `json:"products,omitempty"`
 }
 
-// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata
+// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata.
+// QuestionID and OptionID are included so consumers can restore radio-button state from the
+// metadata alone, without an additional roundtrip to lead_product_items.
 type SurveyAnswerInfo struct {
+	QuestionID   string `json:"question_id,omitempty"`
+	OptionID     string `json:"option_id,omitempty"`
 	QuestionText string `json:"question_text"`
 	OptionText   string `json:"option_text"`
 	Score        int    `json:"score"`
@@ -250,6 +255,17 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 		return nil, err
 	}
 
+	// Create the activity feed entry immediately so pipeline/deal timelines can
+	// show the visit as soon as it is logged.
+	u.autoCreateVisitActivity(ctx, report.ID)
+
+	// Sync product interests to the associated lead immediately after create so the
+	// Product Items tab reflects the visit data without requiring Submit.
+	// Runs in a background goroutine to avoid blocking the Create response.
+	if report.LeadID != nil {
+		go u.syncProductItemsToLead(context.Background(), report.ID)
+	}
+
 	created, err := u.visitRepo.FindByID(ctx, report.ID)
 	if err != nil {
 		return nil, err
@@ -354,8 +370,24 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 }
 
 func (u *visitReportUsecase) Delete(ctx context.Context, id string) error {
-	if _, err := u.visitRepo.FindByID(ctx, id); err != nil {
+	report, err := u.visitRepo.FindByID(ctx, id)
+	if err != nil {
 		return ErrVisitReportNotFound
+	}
+
+	// Delete all associated photos from R2 (best-effort cleanup)
+	if report.Photos != nil && *report.Photos != "" {
+		var photoURLs []string
+		if err := json.Unmarshal([]byte(*report.Photos), &photoURLs); err == nil {
+			for _, photoURL := range photoURLs {
+				if photoURL != "" {
+					key := storage.KeyFromURL(photoURL)
+					if key != "" {
+						_ = storage.Delete(ctx, key)
+					}
+				}
+			}
+		}
 	}
 
 	return u.visitRepo.Delete(ctx, id)
@@ -474,9 +506,6 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
 	}
-
-	// Auto-create activity on submit
-	u.autoCreateVisitActivity(ctx, id)
 
 	// Sync product interests to the associated lead
 	u.syncProductItemsToLead(ctx, id)
@@ -630,6 +659,16 @@ func (u *visitReportUsecase) UploadPhotos(ctx context.Context, id string, photoU
 
 	photosStr := string(photosJSON)
 	if err := u.visitRepo.UpdatePhotos(ctx, id, photosStr); err != nil {
+		// Best-effort cleanup: if DB save fails, delete NEW photos from R2
+		// (keep existing photos that were already saved)
+		for _, newPhotoURL := range photoURLs {
+			if newPhotoURL != "" {
+				key := storage.KeyFromURL(newPhotoURL)
+				if key != "" {
+					_ = storage.Delete(ctx, key)
+				}
+			}
+		}
 		return nil, err
 	}
 
@@ -637,6 +676,9 @@ func (u *visitReportUsecase) UploadPhotos(ctx context.Context, id string, photoU
 	if err != nil {
 		return nil, err
 	}
+
+	// Update the associated activity with the new photos in metadata
+	u.updateVisitActivityMetadata(ctx, updated)
 
 	return mapper.MapVisitReportToResponse(updated), nil
 }
@@ -909,72 +951,23 @@ func (u *visitReportUsecase) ListByEmployee(ctx context.Context, req *dto.ListBy
 	return summaries, pagination, nil
 }
 
-// autoCreateVisitActivity creates an immutable Activity record from a submitted visit report
+// autoCreateVisitActivity creates an immutable Activity record from a logged visit report.
 func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitReportID string) {
+	if existing, err := u.activityRepo.FindByVisitReportID(ctx, visitReportID); err == nil && existing != nil {
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		fmt.Printf("[WARN] failed to check existing activity for visit %s: %v\n", visitReportID, err)
+		return
+	}
+
 	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
 	if err != nil {
 		fmt.Printf("[WARN] failed to fetch visit report %s for activity creation: %v\n", visitReportID, err)
 		return
 	}
 
-	// Parse photos from JSONB
-	var photos []string
-	if visit.Photos != nil {
-		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
-	}
-
-	// Extract GPS coordinates from check-in/check-out locations
-	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
-	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
-
-	// Build product interest list from visit report details
-	var products []VisitActivityProductInfo
-	for _, detail := range visit.Details {
-		p := VisitActivityProductInfo{
-			ProductID:     detail.ProductID,
-			InterestLevel: detail.InterestLevel,
-			Notes:         detail.Notes,
-		}
-		if detail.Product != nil {
-			p.ProductName = detail.Product.Name
-			p.ProductSKU = detail.Product.Code
-		}
-		if detail.Quantity != nil {
-			p.Quantity = int(*detail.Quantity)
-		}
-		if detail.Price != nil {
-			p.UnitPrice = *detail.Price
-		}
-		for _, a := range detail.Answers {
-			sa := SurveyAnswerInfo{Score: a.Score}
-			if a.Question != nil {
-				sa.QuestionText = a.Question.QuestionText
-			}
-			if a.Option != nil {
-				sa.OptionText = a.Option.OptionText
-			}
-			p.SurveyAnswers = append(p.SurveyAnswers, sa)
-		}
-		products = append(products, p)
-	}
-
-	metadata := VisitActivityMetadata{
-		VisitCode:     visit.Code,
-		Purpose:       visit.Purpose,
-		Outcome:       visit.Outcome,
-		Result:        visit.Result,
-		Photos:        photos,
-		CheckInAt:     formatTimePtr(visit.CheckInAt),
-		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
-		CheckInLat:    checkInLat,
-		CheckInLng:    checkInLng,
-		CheckOutLat:   checkOutLat,
-		CheckOutLng:   checkOutLng,
-		Address:       visit.Address,
-		ContactPerson: visit.ContactPerson,
-		Products:      products,
-	}
-
+	// Build activity metadata using shared helper
+	metadata := u.buildVisitActivityMetadata(visit)
 	metadataJSON, marshalErr := json.Marshal(metadata)
 	if marshalErr != nil {
 		fmt.Printf("[WARN] failed to marshal visit activity metadata: %v\n", marshalErr)
@@ -1128,6 +1121,38 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
 		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
 	}
+
+	// If the visit is linked to a deal (directly or via a converted lead), also sync to
+	// crm_deal_product_items so the deal's Products & BANT tab stays up-to-date.
+	dealID := ""
+	if visit.DealID != nil {
+		dealID = *visit.DealID
+	} else if visit.Lead != nil && visit.Lead.DealID != nil {
+		dealID = *visit.Lead.DealID
+	}
+	if dealID != "" {
+		dealItems := make([]models.DealProductItem, 0, len(items))
+		for _, li := range items {
+			if li.ProductID == nil {
+				continue
+			}
+			di := models.DealProductItem{
+				DealID:        dealID,
+				ProductID:     li.ProductID,
+				ProductName:   li.ProductName,
+				ProductSKU:    li.ProductSKU,
+				InterestLevel: li.InterestLevel,
+				UnitPrice:     li.UnitPrice,
+				Quantity:      li.Quantity,
+				Notes:         li.Notes,
+			}
+			di.Subtotal = di.UnitPrice * float64(di.Quantity)
+			dealItems = append(dealItems, di)
+		}
+		if err := u.dealRepo.UpsertProductItemsFromVisit(ctx, dealID, dealItems); err != nil {
+			fmt.Printf("[WARN] failed to sync product items to deal %s: %v\n", dealID, err)
+		}
+	}
 }
 
 // ensureTravelPlannerVisitReport creates a visit_report travel plan and links the submitted visit.
@@ -1203,6 +1228,99 @@ func extractCoords(locationJSON *string) (*float64, *float64) {
 		lng = &v
 	}
 	return lat, lng
+}
+
+// buildVisitActivityMetadata constructs the activity metadata struct from a visit report.
+// Extracted to a separate method so it can be reused by both autoCreateVisitActivity and updateVisitActivityMetadata.
+func (u *visitReportUsecase) buildVisitActivityMetadata(visit *models.VisitReport) *VisitActivityMetadata {
+	// Parse photos from JSONB
+	var photos []string
+	if visit.Photos != nil {
+		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
+	}
+
+	// Extract GPS coordinates from check-in/check-out locations
+	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
+	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
+
+	// Build product interest list from visit report details
+	var products []VisitActivityProductInfo
+	for _, detail := range visit.Details {
+		p := VisitActivityProductInfo{
+			ProductID:     detail.ProductID,
+			InterestLevel: detail.InterestLevel,
+			Notes:         detail.Notes,
+		}
+		if detail.Product != nil {
+			p.ProductName = detail.Product.Name
+			p.ProductSKU = detail.Product.Code
+		}
+		if detail.Quantity != nil {
+			p.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			p.UnitPrice = *detail.Price
+		}
+		for _, a := range detail.Answers {
+			sa := SurveyAnswerInfo{
+				Score:      a.Score,
+				QuestionID: a.QuestionID,
+				OptionID:   a.OptionID,
+			}
+			if a.Question != nil {
+				sa.QuestionText = a.Question.QuestionText
+			}
+			if a.Option != nil {
+				sa.OptionText = a.Option.OptionText
+			}
+			p.SurveyAnswers = append(p.SurveyAnswers, sa)
+		}
+		products = append(products, p)
+	}
+
+	return &VisitActivityMetadata{
+		VisitCode:     visit.Code,
+		Purpose:       visit.Purpose,
+		Outcome:       visit.Outcome,
+		Result:        visit.Result,
+		Photos:        photos,
+		CheckInAt:     formatTimePtr(visit.CheckInAt),
+		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
+		CheckInLat:    checkInLat,
+		CheckInLng:    checkInLng,
+		CheckOutLat:   checkOutLat,
+		CheckOutLng:   checkOutLng,
+		Address:       visit.Address,
+		ContactPerson: visit.ContactPerson,
+		Products:      products,
+	}
+}
+
+// updateVisitActivityMetadata updates the metadata of an existing activity record for a visit.
+// Called when photos or other visit details are updated after the activity is created.
+func (u *visitReportUsecase) updateVisitActivityMetadata(ctx context.Context, visit *models.VisitReport) {
+	activity, err := u.activityRepo.FindByVisitReportID(ctx, visit.ID)
+	if err != nil {
+		// Activity might not exist yet; this is OK for new visits
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Printf("[WARN] failed to fetch activity for visit %s to update metadata: %v\n", visit.Code, err)
+		}
+		return
+	}
+
+	metadata := u.buildVisitActivityMetadata(visit)
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		fmt.Printf("[WARN] failed to marshal updated activity metadata for visit %s: %v\n", visit.Code, err)
+		return
+	}
+
+	metadataStr := string(metadataJSON)
+	activity.Metadata = &metadataStr
+
+	if err := u.activityRepo.Update(ctx, activity); err != nil {
+		fmt.Printf("[WARN] failed to update activity metadata for visit %s: %v\n", visit.Code, err)
+	}
 }
 
 // formatTimePtr formats a *time.Time to ISO 8601 string pointer

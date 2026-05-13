@@ -481,6 +481,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// Contact Roles (CRM Settings surfaced in Master Data)
+	if _, err := createChildMenu("Contact Roles", "users", "/master-data/contact-roles", &masterDataMenu.ID, 9); err != nil {
+		return err
+	}
+
 	// Users (RBAC)
 	if _, err := createChildMenu("Users", "users", "/master-data/users", &masterDataMenu.ID, 99); err != nil {
 		return err
@@ -547,8 +552,9 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Inventory", "package", "/stock/inventory", 1},
-		{"Stock Movement", "arrow-right-left", "/stock/movements", 2},
-		{"Stock Opname", "clipboard-check", "/stock/opname", 3},
+		{"Stock Ledger", "scroll-text", "/stock/ledger", 2},
+		{"Stock Movement", "arrow-right-left", "/stock/movements", 3},
+		{"Stock Opname", "clipboard-check", "/stock/opname", 4},
 	}
 	for _, child := range stockChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &stockMenu.ID, child.order); err != nil {
@@ -622,7 +628,7 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Journal Entries", "file-text", "/finance/accounting/journal-entries", 1},
-		{"Sales Journal", "receipt", "/finance/ar/customer-invoices", 2},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
 		{"Purchase Journal", "shopping-cart", "/finance/accounting/journal-entries/purchase", 3},
 		{"Adjustment Journal", "edit-3", "/finance/accounting/journal-entries/adjustment", 4},
 	}
@@ -638,13 +644,21 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Customer Invoices", "receipt", "/finance/ar/customer-invoices", 1},
-		{"Customer Payments", "credit-card", "/finance/ar/customer-payments", 2},
-		{"Credit Notes", "rotate-ccw", "/finance/ar/credit-notes", 3},
-		{"AR Aging Reports", "clock", "/finance/ar/aging-reports", 4},
+		{"AR Aging Reports", "clock", "/finance/ar/aging-reports", 1},
 	}
 	for _, child := range arChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &arMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	removedARChildrenURLs := []string{
+		"/finance/ar/customer-invoices",
+		"/finance/ar/customer-payments",
+		"/finance/ar/credit-notes",
+	}
+	for _, url := range removedARChildrenURLs {
+		if err := deactivateMenuURLByParent(url, &arMenu.ID); err != nil {
 			return err
 		}
 	}
@@ -655,14 +669,22 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Supplier Invoices", "receipt", "/finance/ap/supplier-invoices", 1},
-		{"Supplier Payments", "credit-card", "/finance/ap/supplier-payments", 2},
-		{"Debit Notes", "rotate-ccw", "/finance/ap/debit-notes", 3},
-		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 4},
-		{"AP Aging Reports", "clock", "/finance/ap/aging-reports", 5},
+		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 1},
+		{"AP Aging Reports", "clock", "/finance/ap/aging-reports", 2},
 	}
 	for _, child := range apChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &apMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	removedAPChildrenURLs := []string{
+		"/finance/ap/supplier-invoices",
+		"/finance/ap/supplier-payments",
+		"/finance/ap/debit-notes",
+	}
+	for _, url := range removedAPChildrenURLs {
+		if err := deactivateMenuURLByParent(url, &apMenu.ID); err != nil {
 			return err
 		}
 	}
@@ -979,8 +1001,8 @@ func SeedMenus() error {
 		return err
 	}
 
-	// Sales Target (moved from Sales to CRM)
-	if _, err := createChildMenu("Sales Target", "check-square", "/crm/targets", &crmMenu.ID, 8); err != nil {
+	// CRM Sales Targets menu
+	if _, err := createChildMenu("Sales Targets", "target", "/crm/sales-targets", &crmMenu.ID, 8); err != nil {
 		return err
 	}
 
@@ -999,8 +1021,7 @@ func SeedMenus() error {
 		{"Pipeline Stages", "git-branch", "/crm/settings/pipeline-stages", 1},
 		{"Lead Sources", "target", "/crm/settings/lead-sources", 2},
 		{"Lead Statuses", "tag", "/crm/settings/lead-statuses", 3},
-		{"Contact Roles", "users", "/crm/settings/contact-roles", 4},
-		{"Activity Types", "calendar-check", "/crm/settings/activity-types", 5},
+		{"Activity Types", "calendar-check", "/crm/settings/activity-types", 4},
 	}
 	for _, child := range crmSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &crmSettingsMenu.ID, child.order); err != nil {

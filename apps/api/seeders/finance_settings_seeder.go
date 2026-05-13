@@ -38,13 +38,13 @@ func SeedFinanceSettings() error {
 		},
 		{
 			SettingKey:  models.SettingCOASalesReturn,
-			Value:       "41200",
+			Value:       "41210",
 			Description: "Sales Returns & Allowances (reduction to revenue)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesVATOut,
-			Value:       "21210",
+			Value:       "41200",
 			Description: "VAT Output Tax Payable (PPN Keluaran)",
 			Category:    "coa",
 		},
@@ -84,31 +84,31 @@ func SeedFinanceSettings() error {
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseGRIR,
-			Value:       "11440",
+			Value:       "91100",
 			Description: "GR/IR Accrual (Goods Received Not Invoiced - temporary payable)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAGoodReceiptInvoiceReceipt,
-			Value:       "11440",
+			Value:       "91100",
 			Description: "GR/IR Clearing (alias used by accounting posting profile)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseVATIn,
-			Value:       "11420",
+			Value:       "21200",
 			Description: "VAT Input Tax (PPN Masukan - asset/receivable)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseAdvance,
-			Value:       "11410",
+			Value:       "21220",
 			Description: "Purchase Advances (Down Payment Paid - prepaid/asset)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseAdvances,
-			Value:       "11410",
+			Value:       "21220",
 			Description: "Purchase Advances (same as PurchaseAdvance, for backwards compatibility)",
 			Category:    "coa",
 		},
@@ -148,7 +148,7 @@ func SeedFinanceSettings() error {
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryLoss,
-			Value:       "52100",
+			Value:       "51900",
 			Description: "Inventory Loss (opname shortage, waste - expense)",
 			Category:    "coa",
 		},
@@ -160,7 +160,7 @@ func SeedFinanceSettings() error {
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryAdjustment,
-			Value:       "52100",
+			Value:       "51900",
 			Description: "Inventory Adjustment (temporary clearing account)",
 			Category:    "coa",
 		},
@@ -291,9 +291,15 @@ func SeedFinanceSettings() error {
 			Category:    "valuation",
 		},
 		{
-			SettingKey:  models.SettingAgingBucketConfig,
+			SettingKey:  models.AgingBucketConfigSettingKey(models.AgingReportTypeAR),
 			Value:       `[{"key":"current","label":"Current","min_days":null,"max_days":0},{"key":"days_1_30","label":"1-30 Days","min_days":1,"max_days":30},{"key":"days_31_60","label":"31-60 Days","min_days":31,"max_days":60},{"key":"days_61_90","label":"61-90 Days","min_days":61,"max_days":90},{"key":"over_90","label":">90 Days","min_days":91,"max_days":null}]`,
-			Description: "Aging bucket configuration in JSON array format for AR/AP aging reports",
+			Description: "Aging bucket configuration in JSON array format for AR aging reports",
+			Category:    "report",
+		},
+		{
+			SettingKey:  models.AgingBucketConfigSettingKey(models.AgingReportTypeAP),
+			Value:       `[{"key":"current","label":"Current","min_days":null,"max_days":0},{"key":"days_1_30","label":"1-30 Days","min_days":1,"max_days":30},{"key":"days_31_60","label":"31-60 Days","min_days":31,"max_days":60},{"key":"days_61_90","label":"61-90 Days","min_days":61,"max_days":90},{"key":"over_90","label":">90 Days","min_days":91,"max_days":null}]`,
+			Description: "Aging bucket configuration in JSON array format for AP aging reports",
 			Category:    "report",
 		},
 	}

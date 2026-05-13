@@ -2,6 +2,7 @@ export interface SystemAdmin {
   id: string;
   email: string;
   name: string;
+  username?: string;
   status: string;
 }
 
@@ -23,7 +24,31 @@ export interface SystemAdminMeResponse {
   data: {
     id: string;
     email: string;
+    name: string;
+    username: string;
     role: string;
+  };
+}
+
+export interface SystemAdminUpdateProfileRequest {
+  username: string;
+  email: string;
+}
+
+export interface SystemAdminUpdateProfileResponse {
+  success: boolean;
+  data: SystemAdmin;
+}
+
+export interface SystemAdminChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface SystemAdminChangePasswordResponse {
+  success: boolean;
+  data: {
+    message: string;
   };
 }
 
@@ -41,6 +66,10 @@ export interface Tenant {
   owner_user_id?: string;
   owner_name?: string;
   owner_email?: string;
+  deletion_requested_at?: string;
+  deletion_scheduled_at?: string;
+  deletion_requested_by?: string;
+  deletion_previous_status?: string;
   created_at?: string;
 }
 

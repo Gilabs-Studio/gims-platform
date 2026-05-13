@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -183,6 +184,7 @@ export function POSPaymentModal({
   const autoOpenedPaymentUrlRef = useRef<string | null>(null);
 
   const t = useTranslations("posTerminal.payment");
+  const queryClient = useQueryClient();
   const enrollMutation = useEnrollLoyaltyMember();
 
   // Fetch loyalty member for selected existing customer
@@ -311,9 +313,10 @@ export function POSPaymentModal({
           toast.error(t("enrollError"));
         });
       }
+      queryClient.invalidateQueries({ queryKey: ["pos", "catalog", order.outlet_id] });
       onSuccess(customerPayload?.customer_name, customerPayload?.customer_phone);
     }
-  }, [paymentsData, onSuccess, enrollLoyalty, order.id, order.outlet_id, enrollMutation, t, buildCustomerPayload]);
+  }, [paymentsData, onSuccess, enrollLoyalty, order.id, order.outlet_id, enrollMutation, t, buildCustomerPayload, queryClient]);
 
   useEffect(() => {
     const paymentUrl = digitalPayment?.payment_url?.trim() ?? "";
@@ -773,7 +776,7 @@ function CustomerSelectionStep({
       <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Customer</p>
-          <p className="text-sm text-muted-foreground">{t("customerName")} ({t("optional")})</p>
+          <p className="text-sm text-muted-foreground">{t("customerName")}</p>
         </div>
 
         <Tabs

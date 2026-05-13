@@ -21,7 +21,7 @@ export const landingEn = {
       eyebrow: "Core advantages",
       title: "Features you'll feel in daily operations",
       subtitle:
-        "GIMS is built so that data entered once is available across all modules. Sales, warehouse, finance, HRD, and management see the same information without manual reconciliation.",
+        "SalesView is built so that data entered once is available across all modules. Sales, warehouse, finance, HRD, and management see the same information without manual reconciliation.",
       items: {
         singleSource: {
           title: "Single source of truth",
@@ -97,7 +97,7 @@ export const landingEn = {
       title2: "connects, and reports",
       title3: "automatically",
       subtitle:
-        "GIMS is designed so that data entered in one area is immediately available across the entire system — no manual imports, no duplicate copies.",
+        "SalesView is designed so that data entered in one area is immediately available across the entire system — no manual imports, no duplicate copies.",
     },
     map: {
       title1: "See your entire",
@@ -116,7 +116,7 @@ export const landingEn = {
       title1: "Ask your data",
       title2: "in everyday language",
       subtitle:
-        "GIMS Assistant understands commands in Bahasa Indonesia. Check stock, create a purchase order, or pull a sales report — just type a regular sentence.",
+        "SalesView Assistant understands commands in Bahasa Indonesia. Check stock, create a purchase order, or pull a sales report — just type a regular sentence.",
       detail:
         "No more navigating menus back and forth or waiting for IT to create an ad-hoc report.",
       chat: {
@@ -125,7 +125,7 @@ export const landingEn = {
         user2: "Create a PO to the supplier for 500 units.",
         ai2: "Purchase Order {po} successfully created — 500 units SKU-201 to CV Maju Sejahtera. Awaiting approval.",
         labelUser: "You",
-        labelAi: "GIMS AI",
+        labelAi: "SalesView AI",
       },
     },
     pricing: {
@@ -143,7 +143,8 @@ export const landingEn = {
       users: "Users",
       perMonthSeat: "/month per seat",
       totalInvoice: "Total invoice",
-      chooseModular: "Choose modular",
+      selectBundle: "Select {name}",
+      selectModular: "Select modular",
       modularCtaHint: "For single-team rollout",
       comparisonTitle: "Bundle comparison",
       guarantee: "30-day money-back guarantee. Cancel anytime.",
@@ -154,7 +155,7 @@ export const landingEn = {
       nowPrice: "Now {price}",
     },
     modules: {
-      eyebrow: "GIMS core modules",
+      eyebrow: "SalesView core modules",
       title1: "All core modules",
       title2: "in one platform",
       subtitle:
@@ -217,18 +218,18 @@ export const landingEn = {
         "Can't find the answer you're looking for? Contact our team — we usually reply within hours.",
       contactCta: "Contact team",
       items: {
-        q1: "Is GIMS suitable for multi-warehouse distribution?",
-        a1: "Yes. GIMS is designed from the ground up for multi-warehouse scenarios — stock at each location is recorded in real-time, inter-warehouse transfers are automated, and consolidated reports are available without manual reconciliation.",
+        q1: "Is SalesView suitable for multi-warehouse distribution?",
+        a1: "Yes. SalesView is designed from the ground up for multi-warehouse scenarios — stock at each location is recorded in real-time, inter-warehouse transfers are automated, and consolidated reports are available without manual reconciliation.",
         q2: "How long does the onboarding process take?",
         a2: "Most companies are fully operational within 1–2 business days. Our team guides data migration, initial configuration, and brief training sessions for each department.",
         q3: "Can it be integrated with existing systems?",
-        a3: "GIMS uses an open REST API. Integration with digital scales, barcode scanners, existing accounting systems, or marketplaces can be done without touching the platform's core code.",
+        a3: "SalesView uses an open REST API. Integration with digital scales, barcode scanners, existing accounting systems, or marketplaces can be done without touching the platform's core code.",
         q4: "How is our data security maintained?",
         a4: "Data is stored in cloud infrastructure with at-rest and in-transit encryption. Access is controlled per role and per entity — warehouse staff in Surabaya only see their own warehouse data.",
         q5: "Is there a mobile version for field teams?",
-        a5: "GIMS interface runs in modern browsers including on Android and iOS smartphones. Sales teams can enter orders, check stock, and log customer visits directly from their phones.",
-        q6: "What makes GIMS different from generic ERP?",
-        a6: "GIMS is built specifically for Indonesia's distribution operational patterns — including surat jalan, goods returns, multi-VAT, and delivery areas based on Indonesian administrative maps down to kelurahan level.",
+        a5: "SalesView interface runs in modern browsers including on Android and iOS smartphones. Sales teams can enter orders, check stock, and log customer visits directly from their phones.",
+        q6: "What makes SalesView different from generic ERP?",
+        a6: "SalesView is built specifically for Indonesia's distribution operational patterns — including surat jalan, goods returns, multi-VAT, and delivery areas based on Indonesian administrative maps down to kelurahan level.",
       },
     },
     cta: {

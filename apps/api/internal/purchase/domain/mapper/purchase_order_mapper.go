@@ -39,13 +39,6 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 			Code: po.Supplier.Code,
 			Name: po.Supplier.Name,
 		}
-	} else if po.Supplier != nil {
-		// Fall back to preloaded relation when snapshot fields were not captured at order time.
-		supplierSummary = &dto.PurchaseOrderPartySummary{
-			ID:   po.Supplier.ID,
-			Code: po.Supplier.Code,
-			Name: po.Supplier.Name,
-		}
 	}
 
 	var prRef *dto.PurchaseOrderRequisitionRef
@@ -68,6 +61,7 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 			Status:              string(gr.Status),
 			TotalItems:          len(gr.Items),
 			TotalItemsReceived:  totalReceivedForGR,
+			CreatedAt:           gr.CreatedAt,
 		})
 	}
 
@@ -83,29 +77,35 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 			ID:               si.ID,
 			Code:             si.Code,
 			Status:           string(si.Status),
+			Amount:           si.Amount,
+			PaidAmount:       si.PaidAmount,
 			GoodsReceiptID:   grID,
 			GoodsReceiptCode: grCode,
+			CreatedAt:        si.CreatedAt,
 		})
 	}
 
-	// Compute receipt fulfillment for approved POs.
+	// Compute receipt fulfillment only for active APPROVED POs.
 	var fulfillment *dto.POFulfillmentSummary
-	if po.Status == models.PurchaseOrderStatusApproved && len(po.Items) > 0 {
+	status := strings.TrimSpace(string(po.Status))
+	if strings.EqualFold(status, string(models.PurchaseOrderStatusApproved)) && len(po.Items) > 0 {
 		var totalOrdered, totalReceived, totalPending float64
 		for _, item := range po.Items {
 			totalOrdered += item.Quantity
 		}
 		for _, gr := range po.GoodsReceipts {
+			grStatus := strings.ToUpper(strings.TrimSpace(string(gr.Status)))
 			for _, grItem := range gr.Items {
-				switch gr.Status {
-				// Items are physically received once the GR is approved, closed, or confirmed (legacy).
-				case models.GoodsReceiptStatusApproved,
-					models.GoodsReceiptStatusClosed,
-					models.GoodsReceiptStatusConfirmed:
+				switch grStatus {
+				// Items are physically received once the GR is approved/partial/closed/confirmed (legacy).
+				case string(models.GoodsReceiptStatusApproved),
+					string(models.GoodsReceiptStatusPartial),
+					string(models.GoodsReceiptStatusClosed),
+					string(models.GoodsReceiptStatusConfirmed):
 					totalReceived += grItem.QuantityReceived
 				// Items are in-flight when the GR is still a draft or awaiting approval.
-				case models.GoodsReceiptStatusDraft,
-					models.GoodsReceiptStatusSubmitted:
+				case string(models.GoodsReceiptStatusDraft),
+					string(models.GoodsReceiptStatusSubmitted):
 					totalPending += grItem.QuantityReceived
 				// REJECTED GRs do not contribute to fulfillment.
 				}

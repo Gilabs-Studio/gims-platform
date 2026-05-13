@@ -18,6 +18,8 @@ const (
 	CustomerInvoiceStatusApproved       CustomerInvoiceStatus = "APPROVED"
 	CustomerInvoiceStatusRejected       CustomerInvoiceStatus = "REJECTED"
 	CustomerInvoiceStatusUnpaid         CustomerInvoiceStatus = "UNPAID"
+	CustomerInvoiceStatusOverdue        CustomerInvoiceStatus = "OVERDUE"
+	CustomerInvoiceStatusWaitingApproval CustomerInvoiceStatus = "WAITING_APPROVAL"
 	CustomerInvoiceStatusWaitingPayment CustomerInvoiceStatus = "WAITING_PAYMENT"
 	CustomerInvoiceStatusPartial        CustomerInvoiceStatus = "PARTIAL"
 	CustomerInvoiceStatusPaid           CustomerInvoiceStatus = "PAID"
@@ -37,7 +39,7 @@ const (
 // CustomerInvoice represents a customer invoice document
 type CustomerInvoice struct {
 	ID            string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID      string              `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Code          string              `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	InvoiceNumber *string             `gorm:"type:varchar(100);uniqueIndex" json:"invoice_number"`
 	Type          CustomerInvoiceType `gorm:"type:varchar(20);default:'regular'" json:"type"`
@@ -72,9 +74,10 @@ type CustomerInvoice struct {
 	DownPaymentInvoice   *CustomerInvoice `gorm:"foreignKey:DownPaymentInvoiceID" json:"down_payment_invoice,omitempty"`
 
 	// Status and workflow
-	Status CustomerInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
-	Notes  string                `gorm:"type:text" json:"notes"`
-	IsPosted bool                `gorm:"default:false;index" json:"is_posted"`
+	Status        CustomerInvoiceStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	AttachmentURL *string               `gorm:"type:text" json:"attachment_url,omitempty"`
+	Notes         string                `gorm:"type:text" json:"notes"`
+	IsPosted      bool                  `gorm:"default:false;index" json:"is_posted"`
 
 	// Accounting linkage
 	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`

@@ -25,7 +25,6 @@ const (
 
 	// Subscription IDs for pre-seeded tenants
 	Tenant1SubscriptionID = "d0000001-0000-0000-0000-000000000001"
-	Tenant2SubscriptionID = "d0000002-0000-0000-0000-000000000002"
 )
 
 // SeedCoupons creates the initial coupon set needed for development and trial production.
@@ -36,10 +35,10 @@ func SeedCoupons() error {
 		{
 			ID:           DevCouponID,
 			Code:         DevCouponCode,
-			Description:  "Internal dev coupon — full access, no expiry, multi-use",
+			Description:  "Internal dev coupon — full access, no expiry, single-use (owner godmode)",
 			CouponType:   tenantModels.CouponTypeFullAccess,
 			DurationDays: 36500, // ~100 years effective lifetime
-			MaxUses:      9999,
+			MaxUses:      1,
 			IsActive:     true,
 			ExpiresAt:    nil,
 			CreatedBy:    SystemAdminEmail,
@@ -96,15 +95,12 @@ func SeedCoupons() error {
 // SeedSubscriptions creates subscription records for the pre-seeded tenants.
 //
 //   - Tenant 1 (default / GiLabs dev): lifetime subscription — no expiry
-//   - Tenant 2 (empty test tenant): 30-day monthly trial subscription
 func SeedSubscriptions() error {
 	log.Println("Seeding tenant subscriptions...")
 
 	now := time.Now().UTC()
-	tenant2Expires := now.AddDate(0, 1, 0) // +1 month
 
 	devCouponID := DevCouponID
-	trialCouponID := TrialCouponID
 
 	subscriptions := []tenantModels.TenantSubscription{
 		{
@@ -117,17 +113,6 @@ func SeedSubscriptions() error {
 			ExpiresAt:     nil, // lifetime — no expiry
 			CouponID:      &devCouponID,
 			Notes:         "admin@example.com — Ultimate Suite, lifetime subscription",
-		},
-		{
-			ID:            Tenant2SubscriptionID,
-			TenantID:      Tenant2ID,
-			Plan:          tenantModels.PlanPOSGrowth,
-			BillingPeriod: tenantModels.BillingMonthly,
-			Status:        tenantModels.SubscriptionTrial,
-			StartsAt:      now,
-			ExpiresAt:     &tenant2Expires,
-			CouponID:      &trialCouponID,
-			Notes:         "Tenant 2 trial — POS full plan (pos_growth) via GIMSTRIAL30",
 		},
 	}
 

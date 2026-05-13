@@ -209,19 +209,14 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		return nil, err
 	}
 
-	code, err := uc.invoiceRepo.GetNextInvoiceNumber(ctx, "INV")
-	if err != nil {
-		return nil, err
-	}
-
 	invoiceType := parseCustomerInvoiceType(req.Type)
+
 	soItemMap, err := uc.buildSalesOrderItemMapForCreate(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	invoice := &models.CustomerInvoice{
-		Code:                 code,
 		Type:                 invoiceType,
 		InvoiceDate:          invoiceDate,
 		SalesOrderID:         req.SalesOrderID,
@@ -235,7 +230,9 @@ func (uc *customerInvoiceUsecase) Create(ctx context.Context, req *dto.CreateCus
 		Status:               models.CustomerInvoiceStatusDraft,
 		CreatedBy:            createdBy,
 	}
-	applyInvoiceDueDate(invoice, req.DueDate)
+	if err := applyInvoiceDueDate(invoice, req.DueDate); err != nil {
+		return nil, err
+	}
 
 	items, subtotal, err := uc.buildCreateInvoiceItems(ctx, req, soItemMap)
 	if err != nil {
@@ -286,15 +283,17 @@ func parseCustomerInvoiceType(raw string) models.CustomerInvoiceType {
 	return models.CustomerInvoiceType(raw)
 }
 
-func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) {
+func applyInvoiceDueDate(invoice *models.CustomerInvoice, dueDateRaw *string) error {
 	if invoice == nil || dueDateRaw == nil || strings.TrimSpace(*dueDateRaw) == "" {
-		return
+		return fmt.Errorf("due_date is required")
 	}
 
 	dueDate, err := time.Parse(dateFormat, *dueDateRaw)
-	if err == nil {
-		invoice.DueDate = &dueDate
+	if err != nil {
+		return fmt.Errorf("invalid due_date format, expected YYYY-MM-DD")
 	}
+	invoice.DueDate = &dueDate
+	return nil
 }
 
 func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(
@@ -678,6 +677,10 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 
 	// Update items if provided
 	if req.Items != nil {
+		// Prevent editing items if invoice is sourced from a Sales Order
+		if invoice.SalesOrderID != nil && strings.TrimSpace(*invoice.SalesOrderID) != "" {
+			return nil, fmt.Errorf("cannot modify items on a Sales Order-linked invoice")
+		}
 		// Rollback old invoiced quantities on SO items before replacing
 		for _, item := range invoice.Items {
 			if item.SalesOrderItemID != nil {
@@ -763,8 +766,8 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 
 	beforeSnapshot := customerInvoiceAuditSnapshot(invoice)
 
-	// Allow deletion of draft or unpaid invoices only
-	if invoice.Status != models.CustomerInvoiceStatusDraft && invoice.Status != models.CustomerInvoiceStatusUnpaid {
+	// Allow deletion of draft invoices only
+	if invoice.Status != models.CustomerInvoiceStatusDraft {
 		return ErrInvalidInvoiceStatus
 	}
 
@@ -1159,20 +1162,20 @@ func (uc *customerInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 	totalAmount := subtotal + taxAmount + req.DeliveryCost + req.OtherCost
 
 	tempInvoice := &models.CustomerInvoice{
-		Code:             "PREVIEW",
-		InvoiceDate:      parsePreviewInvoiceDate(req.InvoiceDate),
-		Type:             models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
-		SalesOrderID:     req.SalesOrderID,
+		Code:              "PREVIEW",
+		InvoiceDate:       parsePreviewInvoiceDate(req.InvoiceDate),
+		Type:              models.CustomerInvoiceType(strings.ToLower(strings.TrimSpace(req.Type))),
+		SalesOrderID:      req.SalesOrderID,
 		DeliveryOrderID:   req.DeliveryOrderID,
-		TaxRate:          taxRate,
-		TaxAmount:        taxAmount,
-		DeliveryCost:     req.DeliveryCost,
-		OtherCost:        req.OtherCost,
-		Subtotal:         subtotal,
-		Amount:           totalAmount,
-		RemainingAmount:  totalAmount,
+		TaxRate:           taxRate,
+		TaxAmount:         taxAmount,
+		DeliveryCost:      req.DeliveryCost,
+		OtherCost:         req.OtherCost,
+		Subtotal:          subtotal,
+		Amount:            totalAmount,
+		RemainingAmount:   totalAmount,
 		DownPaymentAmount: 0,
-		Items:            items,
+		Items:             items,
 	}
 	if tempInvoice.Type == "" {
 		tempInvoice.Type = models.CustomerInvoiceTypeRegular

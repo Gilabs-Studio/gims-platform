@@ -30,7 +30,7 @@ const (
 
 // ValuationRun tracks each valuation run with lifecycle status, totals, and link to generated journal.
 type ValuationRun struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	ReferenceID   string             `gorm:"type:varchar(255);uniqueIndex;not null" json:"reference_id"`
@@ -53,9 +53,9 @@ type ValuationRun struct {
 	LockedAt *time.Time `json:"locked_at,omitempty"`
 
 	// Approval Tracking (audit trail)
-	ApprovedBy   *string    `gorm:"type:uuid" json:"approved_by,omitempty"`
-	ApprovedAt   *time.Time `json:"approved_at,omitempty"`
-	ApprovalNotes string    `gorm:"type:text" json:"approval_notes,omitempty"`
+	ApprovedBy    *string    `gorm:"type:uuid" json:"approved_by,omitempty"`
+	ApprovedAt    *time.Time `json:"approved_at,omitempty"`
+	ApprovalNotes string     `gorm:"type:text" json:"approval_notes,omitempty"`
 
 	CreatedBy   *string    `gorm:"type:uuid" json:"created_by"`
 	CompletedAt *time.Time `json:"completed_at"`

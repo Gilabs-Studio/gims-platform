@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
@@ -145,7 +146,8 @@ func (r *bankAccountRepository) Create(ctx context.Context, bankAccount *models.
 
 func (r *bankAccountRepository) FindByID(ctx context.Context, id string) (*models.BankAccount, error) {
 	var bankAccount models.BankAccount
-	if err := database.GetDB(ctx, r.db).Preload("CurrencyDetail").First(&bankAccount, "id = ?", id).Error; err != nil {
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions()).Preload("CurrencyDetail")
+	if err := q.First(&bankAccount, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &bankAccount, nil
@@ -166,6 +168,7 @@ func (r *bankAccountRepository) List(ctx context.Context, params BankAccountList
 	var total int64
 
 	q := database.GetDB(ctx, r.db).Model(&models.BankAccount{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	// Phase 2: Company scoping
 	if params.CompanyID != "" {
@@ -226,6 +229,7 @@ func (r *bankAccountRepository) ListUnified(ctx context.Context, params BankAcco
 
 	var companyAccounts []models.BankAccount
 	companyQuery := database.GetDB(ctx, r.db).Preload("CurrencyDetail").Model(&models.BankAccount{})
+	companyQuery = security.ApplyScopeFilter(companyQuery, ctx, security.FinanceScopeQueryOptions())
 	if params.IsActive != nil {
 		companyQuery = companyQuery.Where("is_active = ?", *params.IsActive)
 	}
@@ -465,6 +469,10 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 		offset = 0
 	}
 
+	if _, err := r.FindByID(ctx, bankAccountID); err != nil {
+		return nil, 0, err
+	}
+
 	const baseQuery = `
 		FROM (
 			SELECT
@@ -577,7 +585,8 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 }
 
 func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {
-	return database.GetDB(ctx, r.db).Delete(&models.BankAccount{}, "id = ?", id).Error
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions())
+	return q.Delete(&models.BankAccount{}, "id = ?", id).Error
 }
 
 // ========== PHASE 2 METHODS ==========
@@ -585,7 +594,7 @@ func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {
 // FindByIDWithBalance retrieves bank account with computed current balance from GL
 func (r *bankAccountRepository) FindByIDWithBalance(ctx context.Context, id string) (*BankAccountDetail, error) {
 	var bankAccount models.BankAccount
-	if err := database.GetDB(ctx, r.db).
+	if err := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions()).
 		Preload("CurrencyDetail").
 		First(&bankAccount, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -631,7 +640,7 @@ func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, co
 	var bankAccounts []models.BankAccount
 	var total int64
 
-	q := database.GetDB(ctx, r.db).
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions()).
 		Where("company_id = ?", companyID).
 		Preload("CurrencyDetail")
 
@@ -712,7 +721,7 @@ func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, co
 // Returns: SUM(debit - credit) for the bank account's COA account
 func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankAccountID string) (float64, error) {
 	var bankAccount models.BankAccount
-	if err := database.GetDB(ctx, r.db).
+	if err := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions()).
 		Select("chart_of_account_id").
 		First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
 		return 0, err
@@ -749,7 +758,7 @@ func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankA
 // ToggleStatus toggles the is_active flag of a bank account
 func (r *bankAccountRepository) ToggleStatus(ctx context.Context, bankAccountID string) error {
 	var bankAccount models.BankAccount
-	if err := database.GetDB(ctx, r.db).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
+	if err := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&models.BankAccount{}), ctx, security.FinanceScopeQueryOptions()).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
 		return err
 	}
 

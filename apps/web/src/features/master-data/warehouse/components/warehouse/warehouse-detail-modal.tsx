@@ -49,7 +49,11 @@ export function WarehouseDetailModal({
   const city = cityVillage ?? entity.city;
   const province = provinceVillage ?? entity.province;
 
-  const areaText = [village?.name, district?.name, city?.name, province?.name]
+  // village_name is returned as a plain string even when the village relation is absent.
+  // Use it as fallback so the Village row is never blank.
+  const villageName = village?.name ?? entity.village_name;
+
+  const areaText = [villageName, district?.name, city?.name, province?.name]
     .filter(Boolean)
     .join(", ");
 
@@ -65,11 +69,6 @@ export function WarehouseDetailModal({
                 <Badge variant={entity.is_active ? "default" : "secondary"} className="text-xs font-medium">
                   {entity.is_active ? t("common.active") : t("common.inactive")}
                 </Badge>
-                {entity.capacity != null && (
-                  <Badge variant="outline" className="text-xs">
-                    Cap: {entity.capacity}
-                  </Badge>
-                )}
                 {entity.outlet_id && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Store className="h-3 w-3" />
@@ -116,8 +115,6 @@ export function WarehouseDetailModal({
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.description")}</TableCell>
                       <TableCell>{entity.description || "-"}</TableCell>
-                      <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.capacity")}</TableCell>
-                      <TableCell>{entity.capacity != null ? String(entity.capacity) : "-"}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50">{t("common.createdAt")}</TableCell>
@@ -145,7 +142,7 @@ export function WarehouseDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("warehouse.form.district")}</TableCell>
                         <TableCell>{district?.name ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("warehouse.form.village")}</TableCell>
-                        <TableCell>{village?.name ?? "-"}</TableCell>
+                        <TableCell>{villageName ?? "-"}</TableCell>
                       </TableRow>
                       {areaText && (
                         <TableRow>

@@ -11,7 +11,7 @@ import type { Outlet } from "../types";
 export const outletFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
   description: z.string().max(500).optional(),
-  phone: z.string().max(50).optional(),
+  phone: z.string().max(50).regex(/^\d*$/, "Phone number must contain digits only").optional(),
   email: z.string().email().max(100).optional().or(z.literal("")),
   address: z.string().max(500).optional(),
   province_id: z.string().optional(),
@@ -21,7 +21,6 @@ export const outletFormSchema = z.object({
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   manager_id: z.string().optional(),
-  company_id: z.string().optional(),
   is_active: z.boolean(),
   create_warehouse: z.boolean(),
 });
@@ -72,7 +71,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
       latitude: null,
       longitude: null,
       manager_id: undefined,
-      company_id: undefined,
       is_active: true,
       create_warehouse: true,
     },
@@ -101,7 +99,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
           manager_id: entity.manager_id ?? undefined,
-          company_id: entity.company_id ?? undefined,
           is_active: entity.is_active,
           create_warehouse: false,
         });
@@ -120,7 +117,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
         latitude: null,
         longitude: null,
         manager_id: undefined,
-        company_id: undefined,
         is_active: true,
         create_warehouse: true,
       });
@@ -145,7 +141,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
             latitude: data.latitude,
             longitude: data.longitude,
             manager_id: data.manager_id || null,
-            company_id: data.company_id || null,
             is_active: data.is_active,
           },
         });
@@ -164,7 +159,6 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
           latitude: data.latitude,
           longitude: data.longitude,
           manager_id: data.manager_id || undefined,
-          company_id: data.company_id || undefined,
           is_active: data.is_active,
           create_warehouse: data.create_warehouse,
         });
@@ -172,8 +166,34 @@ export function useOutletForm({ open, onOpenChange, editingItem, onSuccess }: Us
       }
       onOpenChange(false);
       onSuccess?.();
-    } catch {
-      toast.error(t("outlet.saveError"));
+    } catch (err: unknown) {
+      // Attempt to surface server error message when available. If the error
+      // indicates the outlet limit has been reached, suggest the addon flow and
+      // open the addon dialog (via window event) so users can increase quota.
+      let serverMessage: string | undefined;
+      if (typeof err === "object" && err !== null) {
+        const maybe = err as Record<string, unknown>;
+        const resp = maybe.response as Record<string, unknown> | undefined;
+        const data = resp?.data as Record<string, unknown> | undefined;
+        serverMessage = (data?.message as string) || (maybe.message as string | undefined);
+      }
+      const message = serverMessage || t("outlet.saveError");
+      toast.error(message);
+
+      // If the server message contains 'limit' or 'outlet limit', request addon dialog
+      try {
+        const lower = String(message).toLowerCase();
+        if (lower.includes("limit") || lower.includes("outlet")) {
+          if (typeof window !== "undefined") {
+            // Set a resume intent so after invoice flow the create can be resumed
+            window.localStorage.setItem("outlet_create_resume_intent", new Date().toISOString().slice(0,10));
+            window.dispatchEvent(new CustomEvent("open-outlet-addon"));
+            onOpenChange(false);
+          }
+        }
+      } catch {
+        // ignore errors from event dispatch
+      }
     }
   };
 

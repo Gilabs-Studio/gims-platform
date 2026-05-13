@@ -1142,7 +1142,7 @@ func (u *aiChatUsecase) buildSalesTargetConfirmationMessage(intent *IntentResult
 	}
 	total := getFloatParam(intent.Parameters, "total_target")
 	if total <= 0 {
-		total = inferAnnualSalesTarget(intent.Parameters)
+		total = 180000000.0
 	}
 
 	return fmt.Sprintf("Saya akan membuat Sales Target tahunan dengan detail:\n- **Area**: %s\n- **Tahun**: %d\n- **Total Target**: %.0f\n\nApakah Anda setuju?", area, year, total)

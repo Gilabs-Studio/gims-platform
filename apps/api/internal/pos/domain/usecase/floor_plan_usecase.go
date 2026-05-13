@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -62,7 +63,7 @@ func (u *floorPlanUsecase) resolveCompanyID(ctx context.Context, plan *models.Fl
 	return *outlet.CompanyID
 }
 
-func (u *floorPlanUsecase) getOutletForCreate(ctx context.Context, req *dto.CreateFloorPlanRequest) (*orgModels.Outlet, error) {
+func (u *floorPlanUsecase) getOutletForCreate(ctx context.Context, req *dto.CreateFloorPlanRequest, userCompanyID string, isOwner bool) (*orgModels.Outlet, error) {
 	if req.OutletID != "" {
 		outlet, err := u.outletRepo.GetByID(ctx, req.OutletID)
 		if err != nil {
@@ -74,14 +75,40 @@ func (u *floorPlanUsecase) getOutletForCreate(ctx context.Context, req *dto.Crea
 		return outlet, nil
 	}
 
-	if req.CompanyID == "" {
+	companyID := req.CompanyID
+	
+	// For tenant owners without employee record: use their company ID or resolve from tenant's first outlet
+	if companyID == "" && isOwner {
+		if userCompanyID != "" {
+			companyID = userCompanyID
+		} else {
+			// Tenant owner without company ID: resolve first outlet for this tenant (auto-scoped by GetDB)
+			isActive := true
+			list, _, err := u.outletRepo.List(ctx, orgRepo.OutletListParams{
+				IsActive: &isActive,
+				Limit:    1,
+				Offset:   0,
+			})
+			if err != nil {
+				return nil, err
+			}
+			if len(list) > 0 {
+				return list[0], nil
+			}
+			// No outlets found for tenant
+			return nil, ErrFloorPlanNotFound
+		}
+	}
+
+	// If still no company ID, fail
+	if companyID == "" {
 		return nil, ErrFloorPlanForbidden
 	}
 
-	// Deprecated fallback: resolve first active outlet from company_id.
+	// Resolve first active outlet from company_id
 	isActive := true
 	list, _, err := u.outletRepo.List(ctx, orgRepo.OutletListParams{
-		CompanyID: req.CompanyID,
+		CompanyID: companyID,
 		IsActive:  &isActive,
 		Limit:     1,
 		Offset:    0,
@@ -96,18 +123,26 @@ func (u *floorPlanUsecase) getOutletForCreate(ctx context.Context, req *dto.Crea
 }
 
 func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanRequest, userID string, userCompanyID string, isOwner bool) (*dto.FloorPlanResponse, error) {
-	outlet, err := u.getOutletForCreate(ctx, req)
+	outlet, err := u.getOutletForCreate(ctx, req, userCompanyID, isOwner)
 	if err != nil {
 		return nil, err
 	}
 
+	// If outlet has no company assigned, allow tenant owners to proceed.
 	if outlet.CompanyID == nil {
-		return nil, ErrFloorPlanForbidden
-	}
-
-	// Non-owner can only create for outlet under their own company.
-	if !isOwner && *outlet.CompanyID != userCompanyID {
-		return nil, ErrFloorPlanForbidden
+		if !isOwner {
+			// Non-owners must have an outlet.company association
+			log.Printf("[floorplan] forbidden: outlet has no company outlet_id=%s tenant_id=%v user_id=%s isOwner=%v userCompanyID=%s", outlet.ID, outlet.TenantID, userID, isOwner, userCompanyID)
+			return nil, ErrFloorPlanForbidden
+		}
+		// Tenant owner: allow creation for outlet without company. plan.CompanyID will be nil.
+	} else {
+		// Non-owner can only create for outlet under their own company.
+		if !isOwner && *outlet.CompanyID != userCompanyID {
+			// Debug log to help trace ownership mismatch
+			log.Printf("[floorplan] forbidden: non-owner company mismatch outlet_id=%s outlet_company=%s user_company=%s user_id=%s", outlet.ID, func() string { if outlet.CompanyID != nil { return *outlet.CompanyID }; return "<nil>" }(), userCompanyID, userID)
+			return nil, ErrFloorPlanForbidden
+		}
 	}
 
 	existingPlans, _, err := u.repo.List(ctx, repositories.FloorPlanListParams{
@@ -122,11 +157,14 @@ func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanR
 		return nil, ErrFloorPlanAlreadyExists
 	}
 
-	companyID := *outlet.CompanyID
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	plan := &models.FloorPlan{
 		ID:          uuid.New().String(),
+		TenantID:    tenantID,
 		OutletID:    outlet.ID,
-		CompanyID:   &companyID,
+		CompanyID:   outlet.CompanyID,
 		Name:        req.Name,
 		FloorNumber: req.FloorNumber,
 		Status:      models.FloorPlanStatusDraft,
@@ -285,6 +323,9 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 		return nil, ErrFloorPlanAlreadyPublished
 	}
 
+	// Extract tenant_id from context for version record
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	now := apptime.Now()
 	plan.Version++
 	plan.Status = models.FloorPlanStatusPublished
@@ -294,6 +335,7 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 	// Create immutable version snapshot
 	version := &models.LayoutVersion{
 		ID:          uuid.New().String(),
+		TenantID:    tenantID,
 		FloorPlanID: plan.ID,
 		Version:     plan.Version,
 		LayoutData:  plan.LayoutData,

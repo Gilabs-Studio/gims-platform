@@ -10,7 +10,7 @@ interface NumericInputProps
 }
 
 const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
-  ({ className, value, onChange, currency, ...props }, ref) => {
+  ({ className, value, onChange, ...props }, ref) => {
     // Internal state for the display value
     const [displayValue, setDisplayValue] = React.useState("");
 
@@ -44,7 +44,7 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
         } else {
             if (value === undefined) setDisplayValue("");
         }
-    }, [value]);
+    }, [value, displayValue]);
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -51,7 +51,7 @@ type AssignPermissionsRequest struct {
 // PermissionAssignment represents a single permission-scope pair for assignment
 type PermissionAssignment struct {
 	PermissionID string `json:"permission_id" binding:"required,uuid"`
-	Scope        string `json:"scope" binding:"required,oneof=OWN DIVISION AREA ALL"`
+	Scope        string `json:"scope" binding:"required,oneof=OWN DIVISION AREA WAREHOUSE OUTLET ALL"`
 }
 
 // RoleMenuAccessRequest represents menu-level access assignment request.

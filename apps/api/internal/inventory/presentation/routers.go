@@ -64,6 +64,6 @@ func RegisterRoutes(
 		inventory.GET("/stock/:product_id", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockByProduct)
 		inventory.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
 
-		inventory.GET("/products/:id/ledgers", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetProductLedgers)
+		inventory.GET("/products/:id/ledgers", middleware.PermissionMiddleware("ledger.read"), inventoryHandler.GetProductLedgers)
 	}
 }

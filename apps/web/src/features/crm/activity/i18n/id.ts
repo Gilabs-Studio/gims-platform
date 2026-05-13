@@ -13,6 +13,8 @@ export const crmActivityId = {
     timelineEmpty: "Tidak ada entri timeline ditemukan",
     myActivities: "Aktivitas Saya",
     activityFeed: "Aktivitas terbaru Anda di seluruh entitas CRM",
+    noEmployeeProfile:
+      "Tidak ada profil karyawan yang terhubung ke akun Anda. Silakan hubungkan karyawan di profil Anda atau hubungi administrator.",
     relatedEntity: "Entitas Terkait",
     viewEntity: "Lihat Entitas",
     sections: {

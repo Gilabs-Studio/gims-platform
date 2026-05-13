@@ -1,9 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"database/sql"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"sort"
 	"strings"
 	"time"
@@ -91,7 +91,13 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 				OR COALESCE(c.name, so.customer_name, '') ILIKE ?
 			)
 	`
-	if err := database.GetDB(ctx, r.db).Raw(countSQL, asOf, search, like, like, like).Scan(&total).Error; err != nil {
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	countArgs := []interface{}{asOf, search, like, like, like}
+	if tenantID != "" {
+		countSQL += " AND ci.tenant_id = ?"
+		countArgs = append(countArgs, tenantID)
+	}
+	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -101,7 +107,7 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 			'CUSTOMER_INVOICE' as source_type,
 			ci.code, 
 			ci.invoice_number, 
-			COALESCE(so.customer_id, '') as customer_id,
+			COALESCE(so.customer_id::text, '') as customer_id,
 			COALESCE(c.name, so.customer_name, 'Customer') as customer_name,
 			ci.invoice_date, 
 			COALESCE(ci.due_date, ci.invoice_date) as due_date, 
@@ -130,7 +136,13 @@ func (r *agingReportRepository) ListARAging(ctx context.Context, params AgingLis
 		params.Offset = 0
 	}
 
-	if err := database.GetDB(ctx, r.db).Raw(listSQL, asOf, search, like, like, like, params.Limit, params.Offset).Scan(&rows).Error; err != nil {
+	listArgs := []interface{}{asOf, search, like, like, like, params.Limit, params.Offset}
+	if tenantID != "" {
+		listSQL = strings.Replace(listSQL, "WHERE ci.deleted_at IS NULL", "WHERE ci.deleted_at IS NULL AND ci.tenant_id = ?", 1)
+		// tenant_id placeholder is injected first in WHERE clause, so args must start with tenantID.
+		listArgs = []interface{}{tenantID, asOf, search, like, like, like, params.Limit, params.Offset}
+	}
+	if err := r.db.WithContext(ctx).Raw(listSQL, listArgs...).Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -158,6 +170,8 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	asOf := params.AsOfDate.Format("2006-01-02")
 	search := strings.TrimSpace(params.Search)
 
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+
 	// SupplierInvoice invoice_date and due_date are stored as varchar in this codebase.
 	// We still filter by as_of_date using to_date; invalid formats will be excluded by the condition.
 	countSQL := `
@@ -182,7 +196,13 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 		) x
 	`
 	like := "%" + search + "%"
-	if err := database.GetDB(ctx, r.db).Raw(countSQL, asOf, search, like, like).Scan(&total).Error; err != nil {
+	countArgs2 := []interface{}{asOf, search, like, like}
+	if tenantID != "" {
+		// inject tenant filter into inner subquery WHERE
+		countSQL = strings.Replace(countSQL, "WHERE si.deleted_at IS NULL", "WHERE si.deleted_at IS NULL AND si.tenant_id = ?", 1)
+		countArgs2 = []interface{}{tenantID, asOf, search, like, like}
+	}
+	if err := r.db.WithContext(ctx).Raw(countSQL, countArgs2...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -225,7 +245,12 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 	if params.Offset < 0 {
 		params.Offset = 0
 	}
-	if err := database.GetDB(ctx, r.db).Raw(listSQL, asOf, search, like, like, like, params.Limit, params.Offset).Scan(&scanRows).Error; err != nil {
+	listArgs2 := []interface{}{asOf, search, like, like, like, params.Limit, params.Offset}
+	if tenantID != "" {
+		listSQL = strings.Replace(listSQL, "WHERE si.deleted_at IS NULL", "WHERE si.deleted_at IS NULL AND si.tenant_id = ?", 1)
+		listArgs2 = []interface{}{tenantID, asOf, search, like, like, like, params.Limit, params.Offset}
+	}
+	if err := r.db.WithContext(ctx).Raw(listSQL, listArgs2...).Scan(&scanRows).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -301,8 +326,9 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 	asOf := params.AsOfDate.Format("2006-01-02")
 	search := strings.TrimSpace(params.Search)
 	like := "%" + search + "%"
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
 
-	const query = `
+	query := `
 		SELECT
 			ntp.id as invoice_id,
 			'NON_TRADE_PAYABLE' as source_type,
@@ -319,7 +345,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0) as paid_amount,
 			GREATEST(ntp.amount - COALESCE((
 				SELECT SUM(je.debit_total)
@@ -327,7 +353,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0), 0) as remaining_amount
 		FROM non_trade_payables ntp
 		WHERE ntp.deleted_at IS NULL
@@ -345,13 +371,18 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				WHERE je.deleted_at IS NULL
 					AND je.status = 'posted'
 					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id OR je.reference_id = ntp.id)
+					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
 			), 0), 0) > 0
 		ORDER BY COALESCE(ntp.due_date, ntp.transaction_date) ASC, ntp.code ASC
 	`
 
 	rows := make([]APAgingRow, 0)
-	if err := r.db.WithContext(ctx).Raw(query, asOf, search, like, like, like).Scan(&rows).Error; err != nil {
+	queryArgs := []interface{}{asOf, search, like, like, like}
+	if tenantID != "" {
+		query = strings.Replace(query, "WHERE ntp.deleted_at IS NULL", "WHERE ntp.deleted_at IS NULL AND ntp.tenant_id = ?", 1)
+		queryArgs = []interface{}{tenantID, asOf, search, like, like, like}
+	}
+	if err := r.db.WithContext(ctx).Raw(query, queryArgs...).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

@@ -33,7 +33,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { SalesQuotation } from "../types";
-import { QuotationPrintDialog } from "./quotation-print-dialog";
+import { quotationService } from "../services/quotation-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
@@ -53,7 +53,7 @@ export function QuotationDetailModal({
   const updateStatus = useUpdateQuotationStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
@@ -119,6 +119,7 @@ export function QuotationDetailModal({
           id: `${displayQuotation.id}-updated`,
           action: "sales_quotation.update",
           at: displayQuotation.updated_at,
+          user: displayQuotation.created_by,
           metadata:
             displayQuotation.updated_at && displayQuotation.updated_at !== displayQuotation.created_at
               ? { details: "Quotation data updated" }
@@ -147,6 +148,7 @@ export function QuotationDetailModal({
           id: `${displayQuotation.id}-converted`,
           action: "sales_quotation.convert",
           at: displayQuotation.converted_at,
+          user: displayQuotation.created_by,
           metadata: {
             status: "converted",
           },
@@ -302,7 +304,7 @@ export function QuotationDetailModal({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintDialogOpen(true)}
+                    onClick={() => { quotationService.openPrintWindow(quotation!.id).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -737,13 +739,6 @@ export function QuotationDetailModal({
         />
       )}
 
-      {quotation?.id && (
-        <QuotationPrintDialog
-          open={isPrintDialogOpen}
-          onClose={() => setIsPrintDialogOpen(false)}
-          quotationId={quotation.id}
-        />
-      )}
     </>
   );
 }

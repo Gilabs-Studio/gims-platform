@@ -18,6 +18,7 @@ export const financeReportsId = {
   description: "Deskripsi",
   debit: "Debit",
   credit: "Kredit",
+  amount: "Jumlah",
   balance: "Saldo",
   no_transactions: "Tidak ada transaksi di periode ini.",
   export: "Ekspor Excel",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,13 @@ import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Package, Truck, Send, Receipt, Printer, Banknote, Download } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
+import { useCustomerInvoiceDPAddData } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
-import { OrderPrintDialog } from "./order-print-dialog";
+import { orderService } from "../services/order-service";
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
@@ -94,7 +95,7 @@ export function OrderList() {
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
-  const canCreateInvoiceDP = useUserPermission("customer_invoice_down_payment.create");
+  const canCreateInvoiceDP = useUserPermission("customer_invoice_dp.create");
   const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
@@ -105,8 +106,15 @@ export function OrderList() {
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
   const [createInvoiceDPForOrderId, setCreateInvoiceDPForOrderId] = useState<string | null>(null);
   const [createInvoiceDPDefaultAmount, setCreateInvoiceDPDefaultAmount] = useState<number | undefined>(undefined);
-  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+  const [createInvoiceDPDefaultLabel, setCreateInvoiceDPDefaultLabel] = useState<string | undefined>(undefined);
+
   const exportProgress = useExportProgress();
+
+  const dpAddDataQuery = useCustomerInvoiceDPAddData({ enabled: canCreateInvoiceDP });
+  const eligibleInvoiceDPOrderIds = useMemo(
+    () => new Set((dpAddDataQuery.data?.data?.sales_orders ?? []).map((so) => so.id)),
+    [dpAddDataQuery.data?.data?.sales_orders],
+  );
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -121,6 +129,46 @@ export function OrderList() {
 
   const handleView = (order: SalesOrder) => {
     setViewingOrder(order);
+  };
+
+  const getCodeNumericSuffix = (code: string | undefined): number => {
+    if (!code) return 0;
+    const match = code.match(/\d+$/); // extract last sequence of digits
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  const getLatestDeliveryOrder = (order: SalesOrder) => {
+    const deliveryOrders = [...(order.delivery_orders ?? [])].sort((a, b) => {
+      const dateA = new Date(a.delivery_date ?? "").getTime();
+      const dateB = new Date(b.delivery_date ?? "").getTime();
+
+      // Primary: sort by delivery_date (newest first)
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      // Secondary: if dates are equal, sort by code numeric suffix descending (e.g., 0006 > 0005)
+      return getCodeNumericSuffix(b.code) - getCodeNumericSuffix(a.code);
+    });
+
+    return deliveryOrders[0] ?? null;
+  };
+
+  const getLatestInvoice = (order: SalesOrder) => {
+    const invoices = [...(order.customer_invoices ?? [])].sort((a, b) => {
+      const dateA = new Date(a.invoice_date ?? "").getTime();
+      const dateB = new Date(b.invoice_date ?? "").getTime();
+
+      // Primary: sort by invoice_date (newest first)
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      // Secondary: if dates are equal, sort by code numeric suffix descending (e.g., 0006 > 0005)
+      return getCodeNumericSuffix(b.code) - getCodeNumericSuffix(a.code);
+    });
+
+    return invoices[0] ?? null;
   };
 
   const handleDelete = async () => {
@@ -169,6 +217,51 @@ export function OrderList() {
     } catch {
       toast.error(t("common.error"));
     }
+  };
+
+  const getInvoicedAmount = (order: SalesOrder): number => {
+    const invoices = order.customer_invoices ?? [];
+    return invoices
+      .filter((invoice) => {
+        const status = (invoice.status ?? "").toLowerCase();
+        return status !== "cancelled" && status !== "rejected";
+      })
+      .reduce((sum, invoice) => sum + (invoice.amount ?? 0), 0);
+  };
+
+  const canCreateInvoiceForOrder = (order: SalesOrder): boolean => {
+    if (!canCreateInvoice || order.status !== "approved") return false;
+    const totalAmount = order.total_amount ?? 0;
+    if (totalAmount <= 0) return false;
+    const invoicedAmount = getInvoicedAmount(order);
+    return invoicedAmount + 0.0001 < totalAmount;
+  };
+
+  const canCreateDeliveryForOrder = (order: SalesOrder): boolean => {
+    if (!canCreateDO || order.status !== "approved") return false;
+    const fulfillment = order.fulfillment;
+    if (!fulfillment) return true;
+
+    return (fulfillment.total_remaining ?? 0) > 0;
+  };
+
+  const canCreateInvoiceDPForOrder = (order: SalesOrder): boolean => {
+    if (!canCreateInvoiceDP || order.status !== "approved") return false;
+    const totalAmount = order.total_amount ?? 0;
+    if (totalAmount <= 0) return false;
+    if (dpAddDataQuery.isLoading) return false;
+    if (!dpAddDataQuery.data?.data?.sales_orders) return false;
+    return eligibleInvoiceDPOrderIds.has(order.id);
+  };
+
+  const handleOpenCreateInvoiceDP = (order: SalesOrder) => {
+    const availableAmount = Math.max(
+      0,
+      (order.total_amount ?? 0) - getInvoicedAmount(order),
+    );
+    setCreateInvoiceDPForOrderId(order.id);
+    setCreateInvoiceDPDefaultAmount(availableAmount);
+    setCreateInvoiceDPDefaultLabel(`${order.code} - ${formatCurrency(order.total_amount ?? 0)}`);
   };
 
   if (isError) {
@@ -370,7 +463,7 @@ export function OrderList() {
                         title={`${order.delivery_orders.length} Delivery Order(s)`}
                       >
                         <span className="flex items-center gap-1">
-                          <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          <DOStatusBadge status={getLatestDeliveryOrder(order)?.status ?? order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
                           {order.delivery_orders.length > 1 && (
                             <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
                           )}
@@ -391,7 +484,7 @@ export function OrderList() {
                         title={`${order.customer_invoices.length} Invoice(s)`}
                       >
                         <span className="flex items-center gap-1">
-                          <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          <InvoiceStatusBadge status={getLatestInvoice(order)?.status ?? order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
                           {order.customer_invoices.length > 1 && (
                             <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
                           )}
@@ -441,7 +534,15 @@ export function OrderList() {
                             <>
                               {canApprove && (
                                 <DropdownMenuItem
-                                  onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch((error) => toast.error(getSalesErrorMessage(error, t("common.error"))))}
+                                  onClick={() =>
+                                    approveOrder
+                                      .mutateAsync(order.id)
+                                      .then(() => {
+                                        dpAddDataQuery.refetch();
+                                        toast.success(t("statusUpdated"));
+                                      })
+                                      .catch((error) => toast.error(getSalesErrorMessage(error, t("common.error"))))
+                                  }
                                   className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -459,7 +560,7 @@ export function OrderList() {
                               )}
                             </>
                           )}
-                          {canCreateDO && order.status === "approved" && (
+                          {canCreateDeliveryForOrder(order) && (
                             <DropdownMenuItem
                               onClick={() => setCreateDOForOrderId(order.id)}
                               className="cursor-pointer text-primary focus:text-primary"
@@ -468,21 +569,20 @@ export function OrderList() {
                               {t("actions.createDelivery")}
                             </DropdownMenuItem>
                           )}
-                          {canCreateInvoice && order.status === "approved" && (
+                          {canCreateInvoiceForOrder(order) && (
                             <DropdownMenuItem
-                              onClick={() => setCreateInvoiceForOrderId(order.id)}
+                              onClick={() => {
+                                setCreateInvoiceForOrderId((current) => (current === order.id ? current : order.id));
+                              }}
                               className="cursor-pointer text-success focus:text-success"
                             >
                               <Receipt className="h-4 w-4 mr-2" />
                               {t("actions.createInvoice")}
                             </DropdownMenuItem>
                           )}
-                          {canCreateInvoiceDP && order.status === "approved" && (
+                          {canCreateInvoiceDPForOrder(order) && (
                             <DropdownMenuItem
-                              onClick={() => {
-                                setCreateInvoiceDPForOrderId(order.id);
-                                setCreateInvoiceDPDefaultAmount(order.total_amount ?? 0);
-                              }}
+                              onClick={() => handleOpenCreateInvoiceDP(order)}
                               className="cursor-pointer text-success focus:text-success"
                             >
                               <Banknote className="h-4 w-4 mr-2" />
@@ -491,7 +591,7 @@ export function OrderList() {
                           )}
                           {canPrint && (
                             <DropdownMenuItem
-                              onClick={() => setPrintingOrderId(order.id)}
+                              onClick={() => { orderService.openPrintWindow(order.id).catch(() => toast.error("Print failed")); }}
                               className="cursor-pointer text-purple focus:text-purple"
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -616,6 +716,7 @@ export function OrderList() {
       {/* Create Invoice from approved SO */}
       {createInvoiceForOrderId && (
         <InvoiceForm
+          key={`create-invoice-${createInvoiceForOrderId}`}
           open={!!createInvoiceForOrderId}
           onClose={() => setCreateInvoiceForOrderId(null)}
           defaultSalesOrderId={createInvoiceForOrderId}
@@ -626,19 +727,19 @@ export function OrderList() {
       {createInvoiceDPForOrderId && (
         <CustomerInvoiceDPFormDialog
           open={!!createInvoiceDPForOrderId}
-          onOpenChange={(open) => { if (!open) { setCreateInvoiceDPForOrderId(null); setCreateInvoiceDPDefaultAmount(undefined); } }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateInvoiceDPForOrderId(null);
+              setCreateInvoiceDPDefaultAmount(undefined);
+              setCreateInvoiceDPDefaultLabel(undefined);
+            }
+          }}
           defaultSalesOrderId={createInvoiceDPForOrderId}
+          defaultSalesOrderLabel={createInvoiceDPDefaultLabel}
           defaultAmount={createInvoiceDPDefaultAmount}
         />
       )}
 
-      {printingOrderId && (
-        <OrderPrintDialog
-          open={!!printingOrderId}
-          onClose={() => setPrintingOrderId(null)}
-          orderId={printingOrderId}
-        />
-      )}
     </div>
   );
 }

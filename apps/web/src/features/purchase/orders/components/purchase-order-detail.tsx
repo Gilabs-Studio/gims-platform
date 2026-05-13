@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
@@ -9,7 +9,7 @@ import {
   XCircle,
   Send,
   Printer,
-  Lock,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,17 +42,18 @@ import {
   usePurchaseOrder,
   useDeletePurchaseOrder,
   useSubmitPurchaseOrder,
-  useConfirmPurchaseOrder,
   useApprovePurchaseOrder,
   useRejectPurchaseOrder,
-  useClosePurchaseOrder,
 } from "../hooks/use-purchase-orders";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderAuditTrailContent } from "./purchase-order-audit-trail";
 import { PurchaseOrderForm } from "./purchase-order-form";
-import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { purchaseOrdersService } from "../services/purchase-orders-service";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
+import { SupplierInvoiceDPFormDialog } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-form";
+import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { useSupplierInvoiceDPAddData, useSupplierInvoiceDPs } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 
 interface PurchaseOrderDetailProps {
   readonly open: boolean;
@@ -69,8 +70,8 @@ export function PurchaseOrderDetail({
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isSIFormOpen, setIsSIFormOpen] = useState(false);
+  const [isSIDPFormOpen, setIsSIDPFormOpen] = useState(false);
   const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("general");
@@ -82,13 +83,12 @@ export function PurchaseOrderDetail({
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
   const canEdit = useUserPermission("purchase_order.update");
-  const canDelete = useUserPermission("purchase_order.delete");
   const canSubmit = useUserPermission("purchase_order.submit");
   const canApprove = useUserPermission("purchase_order.approve");
   const canReject = useUserPermission("purchase_order.reject");
-  const canClose = useUserPermission("purchase_order.close");
   const canPrint = useUserPermission("purchase_order.print");
   const canCreateSI = useUserPermission("supplier_invoice.create");
+  const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
   const canAuditTrail = useUserPermission("purchase_order.read");
@@ -99,12 +99,53 @@ export function PurchaseOrderDetail({
   });
   const po = data?.data;
 
+  const { data: siData } = useSupplierInvoices(
+    { purchase_order_id: id, per_page: 20 },
+    { enabled: open && !!purchaseOrderId },
+  );
+  const { data: siDPData } = useSupplierInvoiceDPs(
+    { purchase_order_id: id, per_page: 20 },
+    { enabled: open && !!purchaseOrderId },
+  );
+  const sidpAddDataQuery = useSupplierInvoiceDPAddData({
+    enabled: open && !!purchaseOrderId && canCreateSIDP,
+  });
+  const eligibleSIDPOrderIds = useMemo(() => {
+    const rows = sidpAddDataQuery.data?.data?.purchase_orders ?? [];
+    return new Set(rows.map((row) => row.id));
+  }, [sidpAddDataQuery.data]);
+  const canCreateSIDPForOrder =
+    (po?.status ?? "").toUpperCase() === "APPROVED" &&
+    canCreateSIDP &&
+    !!purchaseOrderId &&
+    !sidpAddDataQuery.isLoading &&
+    eligibleSIDPOrderIds.has(purchaseOrderId);
+
+  const financialOverview = useMemo(() => {
+    if (!po) return null;
+    const siList = siData?.data ?? [];
+    const dpList = siDPData?.data ?? [];
+    const totalInvoiced = siList.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    const totalPaidInvoice = siList.reduce((sum, inv) => sum + (inv.paid_amount ?? 0), 0);
+    const totalDP = dpList.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
+    const orderTotal = po.total_amount ?? 0;
+    const totalPaid = totalPaidInvoice;
+    const remainingBalance = orderTotal - totalPaid;
+    return {
+      orderTotal,
+      totalInvoiced,
+      totalDP,
+      totalPaid,
+      remainingBalance,
+      invoiceCount: siList.length,
+      dpCount: dpList.length,
+    };
+  }, [po, siData, siDPData]);
+
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
-  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
-  const closeMutation = useClosePurchaseOrder();
 
   if (!purchaseOrderId) return null;
 
@@ -155,16 +196,6 @@ export function PurchaseOrderDetail({
     }
   };
 
-  const handleClose = async () => {
-    if (!id) return;
-    try {
-      await closeMutation.mutateAsync(id);
-      toast.success(t("toast.closed"));
-    } catch (error) {
-      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
-    }
-  };
-
   const supplierObj = po?.supplier as { id?: string; name?: string } | undefined;
   const paymentTermsName = (po?.payment_terms as { name?: string } | undefined)?.name ?? "-";
   const businessUnitName = (po?.business_unit as { name?: string } | undefined)?.name ?? "-";
@@ -192,10 +223,9 @@ export function PurchaseOrderDetail({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (purchaseOrderId) purchaseOrdersService.openPrintWindow(purchaseOrderId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
-                    title={t("print")}
-                  >
+                    title={t("print")}>
                     <Printer className="h-4 w-4" />
                   </Button>
                 )}
@@ -246,39 +276,7 @@ export function PurchaseOrderDetail({
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
-                {status === "APPROVED" && canApprove && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={async () => {
-                      if (!id) return;
-                      try {
-                        await confirmMutation.mutateAsync(id);
-                        toast.success(t("toast.confirmed"));
-                      } catch (error) {
-                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
-                      }
-                    }}
-                    disabled={confirmMutation.isPending}
-                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
-                    title={t("actions.confirm")}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "APPROVED" && canClose && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleClose}
-                    disabled={closeMutation.isPending}
-                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
-                    title={t("actions.close")}
-                  >
-                    <Lock className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "APPROVED" && canCreateSI && hasGoodsReceipt && (
+                {status === "APPROVED" && canCreateSI && hasGoodsReceipt && (financialOverview?.invoiceCount ?? 0) === 0 && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -287,6 +285,17 @@ export function PurchaseOrderDetail({
                     title={t("actions.createSI")}
                   >
                     <FileText className="h-4 w-4" />
+                  </Button>
+                )}
+                {canCreateSIDPForOrder && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSIDPFormOpen(true)}
+                    className="cursor-pointer text-success hover:text-success hover:bg-success/10"
+                    title={t("actions.createSIDP")}
+                  >
+                    <DollarSign className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -427,6 +436,43 @@ export function PurchaseOrderDetail({
                     </Table>
                   </div>
                 </div>
+
+                {/* Payment Overview - n/n style like sales order */}
+                {financialOverview && (financialOverview.invoiceCount > 0 || financialOverview.dpCount > 0) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                        {t("paymentOverview.title")}
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">{t("paymentOverview.orderTotal")}</p>
+                          <p className="text-sm font-bold">{formatCurrency(financialOverview.orderTotal)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">
+                            {t("paymentOverview.downPayment")} ({financialOverview.dpCount})
+                          </p>
+                          <p className="text-sm font-bold text-primary">{formatCurrency(financialOverview.totalDP)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">
+                            {t("paymentOverview.invoiced")} ({financialOverview.invoiceCount})
+                          </p>
+                          <p className="text-sm font-bold text-success">{formatCurrency(financialOverview.totalInvoiced)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">{t("paymentOverview.remaining")}</p>
+                          <p className={`text-sm font-bold ${financialOverview.remainingBalance > 0 ? "text-warning" : "text-success"}`}>
+                            {formatCurrency(financialOverview.remainingBalance)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Workflow History */}
                 {(po.submitted_at || po.approved_at || po.closed_at) && (
@@ -582,14 +628,6 @@ export function PurchaseOrderDetail({
         isLoading={deleteMutation.isPending}
       />
 
-      {purchaseOrderId && (
-        <PurchaseOrderPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          orderId={purchaseOrderId}
-        />
-      )}
-
       <SupplierInvoiceFormDialog
         open={isSIFormOpen}
         onOpenChange={(open) => setIsSIFormOpen(open)}
@@ -607,6 +645,12 @@ export function PurchaseOrderDetail({
           setSelectedSIId(null);
         }}
         invoiceId={selectedSIId}
+      />
+
+      <SupplierInvoiceDPFormDialog
+        open={isSIDPFormOpen}
+        onOpenChange={(open) => setIsSIDPFormOpen(open)}
+        defaultPurchaseOrderId={purchaseOrderId}
       />
     </>
   );

@@ -17,7 +17,7 @@ const (
 
 // ValuationRunDetail stores granular valuation item rows for auditability.
 type ValuationRunDetail struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	ValuationRunID string        `gorm:"type:uuid;not null;index" json:"valuation_run_id"`
@@ -33,9 +33,9 @@ type ValuationRunDetail struct {
 	Direction   ValuationDirection `gorm:"type:varchar(10);not null;index" json:"direction"`
 
 	// Snapshots (immutable for audit trail)
-	CostPriceSnapshot      *float64 `gorm:"type:numeric(18,6)" json:"cost_price_snapshot,omitempty"`
-	CurrencyCodeSnapshot   *string  `gorm:"type:varchar(3)" json:"currency_code_snapshot,omitempty"`
-	ExchangeRateSnapshot   *float64 `gorm:"type:numeric(15,8)" json:"exchange_rate_snapshot,omitempty"`
+	CostPriceSnapshot    *float64 `gorm:"type:numeric(18,6)" json:"cost_price_snapshot,omitempty"`
+	CurrencyCodeSnapshot *string  `gorm:"type:varchar(3)" json:"currency_code_snapshot,omitempty"`
+	ExchangeRateSnapshot *float64 `gorm:"type:numeric(15,8)" json:"exchange_rate_snapshot,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 }

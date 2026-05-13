@@ -10,6 +10,10 @@ import type {
   SystemAdminLoginRequest,
   SystemAdminLoginResponse,
   SystemAdminMeResponse,
+  SystemAdminUpdateProfileRequest,
+  SystemAdminUpdateProfileResponse,
+  SystemAdminChangePasswordRequest,
+  SystemAdminChangePasswordResponse,
   SystemAdminDashboardResponse,
   TenantListResponse,
   TenantDetailResponse,
@@ -28,7 +32,9 @@ import type {
 } from "../types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
+  typeof window === "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087"
+    : "";
 
 const SYS_ADMIN_CSRF_BOOTSTRAP_COOLDOWN_MS = 2000;
 
@@ -204,6 +210,26 @@ export const systemAdminService = {
     return data;
   },
 
+  async updateProfile(
+    payload: SystemAdminUpdateProfileRequest,
+  ): Promise<SystemAdminUpdateProfileResponse> {
+    const { data } = await sysAdminClient.patch<SystemAdminUpdateProfileResponse>(
+      "/me",
+      payload,
+    );
+    return data;
+  },
+
+  async changePassword(
+    payload: SystemAdminChangePasswordRequest,
+  ): Promise<SystemAdminChangePasswordResponse> {
+    const { data } = await sysAdminClient.patch<SystemAdminChangePasswordResponse>(
+      "/me/password",
+      payload,
+    );
+    return data;
+  },
+
   async logout(): Promise<void> {
     await sysAdminClient.post("/sys-logout");
   },
@@ -223,6 +249,11 @@ export const systemAdminService = {
 
   async getTenantDetail(id: string): Promise<TenantDetailResponse> {
     const { data } = await sysAdminClient.get<TenantDetailResponse>(`/tenants/${id}`);
+    return data;
+  },
+
+  async recoverTenantDeletion(id: string): Promise<TenantDetailResponse> {
+    const { data } = await sysAdminClient.post<TenantDetailResponse>(`/tenants/${id}/recover-deletion`);
     return data;
   },
 

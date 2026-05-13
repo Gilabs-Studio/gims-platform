@@ -112,7 +112,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
       reset({
         invoice_id: payment.invoice?.id ?? null,
         dp_id: null,
-        bank_account_id: payment.bank_account?.id ?? null,
+        bank_account_id: payment.method === "CASH" ? null : (payment.bank_account?.id ?? null),
         payment_date: payment.payment_date,
         amount: payment.amount,
         method: payment.method,
@@ -254,6 +254,13 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     }
   }, [computedAmount, amount, method, setValue]);
 
+  // Ensure bank_account_id is always null when method is CASH
+  useEffect(() => {
+    if (method === "CASH" && bankAccountId) {
+      setValue("bank_account_id", null, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [method, bankAccountId, setValue]);
+
   const submitting = createMutation.isPending || updateMutation.isPending;
   const isFetchingReference = addDataQuery.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
@@ -296,7 +303,9 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                 await updateMutation.mutateAsync({
                   id: payment.id,
                   data: {
-                    bank_account_id: values.bank_account_id ?? payment.bank_account?.id ?? "",
+                    bank_account_id: values.method === "CASH"
+                      ? null
+                      : (values.bank_account_id ?? payment.bank_account?.id ?? ""),
                     payment_date: values.payment_date,
                     amount: submittedAmount,
                     method: values.method,

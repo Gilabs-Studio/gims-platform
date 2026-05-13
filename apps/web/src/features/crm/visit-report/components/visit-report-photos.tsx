@@ -54,7 +54,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
       // Upload each file to the image upload endpoint first
       const uploadedUrls: string[] = [];
       for (const file of filesToUpload) {
-        const result = await uploadImageMutation.mutateAsync(file);
+        const result = await uploadImageMutation.mutateAsync({ file, visitId });
         if (result?.data?.url) {
           uploadedUrls.push(result.data.url);
         }

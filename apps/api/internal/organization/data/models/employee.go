@@ -41,7 +41,7 @@ const (
 type Employee struct {
 	ID           string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	EmployeeCode string `gorm:"type:varchar(50);uniqueIndex;not null" json:"employee_code"`
+	EmployeeCode string `gorm:"type:varchar(50);index;not null" json:"employee_code"`
 	Name         string `gorm:"type:varchar(200);not null;index" json:"name"`
 	Email        string `gorm:"type:varchar(100);index" json:"email"`
 	Phone        string `gorm:"type:varchar(20)" json:"phone"`
@@ -88,6 +88,12 @@ type Employee struct {
 	// IsAreaSupervisor is a derived field (not stored in DB).
 	// It is set to true when at least one EmployeeArea record has IsSupervisor=true.
 	IsAreaSupervisor bool `gorm:"-" json:"is_area_supervisor"`
+
+	// Outlet assignments (M:N via EmployeeOutlet)
+	Outlets []EmployeeOutlet `gorm:"foreignKey:EmployeeID" json:"outlets,omitempty"`
+
+	// Warehouse assignments (M:N via EmployeeWarehouse — includes auto-selected from outlets)
+	Warehouses []EmployeeWarehouse `gorm:"foreignKey:EmployeeID" json:"warehouses,omitempty"`
 
 	// Creator tracking
 	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`

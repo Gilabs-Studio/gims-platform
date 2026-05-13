@@ -28,9 +28,9 @@ type RegisterTenantRequest struct {
 	// BillingPeriod is required when Plan is set. Values: "monthly", "yearly".
 	BillingPeriod string `json:"billing_period" binding:"omitempty,oneof=monthly yearly"`
 	// UserCount is the number of users for per-user billing. Defaults to 1 when omitted.
-	UserCount int `json:"user_count" binding:"omitempty,min=1,max=500"`
-	// CompanyName is optional; defaults to the user's Name when omitted.
-	CompanyName string `json:"company_name" binding:"omitempty,min=2,max=150"`
+	UserCount int `json:"user_count" binding:"omitempty,min=1,max=999"`
+	// CompanyName is required because every registration must be tied to at least one company.
+	CompanyName string `json:"company_name" binding:"required,min=2,max=150"`
 }
 
 // RegisterInitResponse is returned when a paid plan is selected during registration.

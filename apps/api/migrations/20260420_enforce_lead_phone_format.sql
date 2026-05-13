@@ -15,22 +15,44 @@
 -- Step 1: Sanitize existing data
 -- Remove any character that is NOT a digit, +, -, space, or parenthesis.
 -- This prevents the upcoming CHECK constraint from rejecting pre-existing rows.
-UPDATE crm_leads
-SET phone = regexp_replace(phone, '[^0-9+\-\s()]', '', 'g')
-WHERE phone IS NOT NULL
-  AND phone <> ''
-  AND phone ~ '[^0-9+\-\s()]';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'crm_leads'
+      AND column_name = 'phone'
+  ) THEN
+    UPDATE crm_leads
+    SET phone = regexp_replace(phone, '[^0-9+\-\s()]', '', 'g')
+    WHERE phone IS NOT NULL
+      AND phone <> ''
+      AND phone ~ '[^0-9+\-\s()]';
+  END IF;
+END $$;
 
 -- Truncate any remaining values that still exceed 20 characters after cleanup
 -- (extremely unlikely, but guards against edge cases).
-UPDATE crm_leads
-SET phone = left(phone, 20)
-WHERE length(phone) > 20;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'crm_leads'
+      AND column_name = 'phone'
+  ) THEN
+    UPDATE crm_leads
+    SET phone = left(phone, 20)
+    WHERE length(phone) > 20;
+  END IF;
+END $$;
 
 -- Step 2: Resize the column from varchar(30) → varchar(20)
 -- PostgreSQL allows shrinking a varchar column in-place as long as all existing
 -- values fit within the new limit (guaranteed by the truncation step above).
-ALTER TABLE crm_leads
+ALTER TABLE IF EXISTS crm_leads
   ALTER COLUMN phone TYPE varchar(20);
 
 -- Step 3: Add CHECK constraint for phone format
@@ -40,7 +62,13 @@ ALTER TABLE crm_leads
 --   • digits (0-9), spaces, hyphens (-), and parentheses ( )
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'crm_leads'
+      AND column_name = 'phone'
+  ) AND NOT EXISTS (
     SELECT 1
     FROM pg_constraint
     WHERE conname = 'chk_crm_leads_phone_format'

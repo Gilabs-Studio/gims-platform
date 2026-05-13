@@ -66,6 +66,8 @@ func normalizePlanSlug(slug string) string {
 		return "crm_growth"
 	case "hr", "hr_modular":
 		return "hr_growth"
+	case "full_access":
+		return "ultimate_suite"
 	default:
 		return normalized
 	}
@@ -185,20 +187,22 @@ func (r *subscriptionPlanRepository) FindBySlug(ctx context.Context, slug string
 
 func (r *subscriptionPlanRepository) Upsert(ctx context.Context, plan *models.SubscriptionPlanConfig) error {
 	values := map[string]any{
-		"slug":              plan.Slug,
-		"name":              plan.Name,
-		"category":          plan.Category,
-		"description":       plan.Description,
-		"billing_type":      plan.BillingType,
-		"price_monthly_idr": plan.PriceMonthlyIDR,
-		"price_yearly_idr":  plan.PriceYearlyIDR,
-		"min_users":         plan.MinUsers,
-		"max_users":         plan.MaxUsers,
-		"is_active":         plan.IsActive,
-		"is_highlighted":    plan.IsHighlighted,
-		"sort_order":        plan.SortOrder,
-		"features":          plan.Features,
-		"role_templates":    plan.RoleTemplates,
+		"slug":                     plan.Slug,
+		"name":                     plan.Name,
+		"category":                 plan.Category,
+		"description":              plan.Description,
+		"billing_type":             plan.BillingType,
+		"price_monthly_idr":        plan.PriceMonthlyIDR,
+		"price_yearly_idr":         plan.PriceYearlyIDR,
+		"outlet_addon_monthly_idr": plan.OutletAddonMonthlyIDR,
+		"outlet_addon_yearly_idr":  plan.OutletAddonYearlyIDR,
+		"min_users":                plan.MinUsers,
+		"max_users":                plan.MaxUsers,
+		"is_active":                plan.IsActive,
+		"is_highlighted":           plan.IsHighlighted,
+		"sort_order":               plan.SortOrder,
+		"features":                 plan.Features,
+		"role_templates":           plan.RoleTemplates,
 	}
 
 	return r.getDB(ctx).
@@ -206,20 +210,22 @@ func (r *subscriptionPlanRepository) Upsert(ctx context.Context, plan *models.Su
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "slug"}},
 			DoUpdates: clause.Assignments(map[string]any{
-				"name":              plan.Name,
-				"category":          plan.Category,
-				"description":       plan.Description,
-				"billing_type":      plan.BillingType,
-				"price_monthly_idr": plan.PriceMonthlyIDR,
-				"price_yearly_idr":  plan.PriceYearlyIDR,
-				"min_users":         plan.MinUsers,
-				"max_users":         plan.MaxUsers,
-				"is_active":         plan.IsActive,
-				"is_highlighted":    plan.IsHighlighted,
-				"sort_order":        plan.SortOrder,
-				"features":          plan.Features,
-				"role_templates":    plan.RoleTemplates,
-				"updated_at":        gorm.Expr("NOW()"),
+				"name":                     plan.Name,
+				"category":                 plan.Category,
+				"description":              plan.Description,
+				"billing_type":             plan.BillingType,
+				"price_monthly_idr":        plan.PriceMonthlyIDR,
+				"price_yearly_idr":         plan.PriceYearlyIDR,
+				"outlet_addon_monthly_idr": plan.OutletAddonMonthlyIDR,
+				"outlet_addon_yearly_idr":  plan.OutletAddonYearlyIDR,
+				"min_users":                plan.MinUsers,
+				"max_users":                plan.MaxUsers,
+				"is_active":                plan.IsActive,
+				"is_highlighted":           plan.IsHighlighted,
+				"sort_order":               plan.SortOrder,
+				"features":                 plan.Features,
+				"role_templates":           plan.RoleTemplates,
+				"updated_at":               gorm.Expr("NOW()"),
 			}),
 		}).
 		Create(values).Error

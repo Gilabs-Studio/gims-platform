@@ -181,7 +181,7 @@ export const loyaltyEn = {
         alreadyMember: "You are already a member!",
       },
       error: "Registration failed. Please try again.",
-      poweredBy: "Powered by GIMS",
+      poweredBy: "Powered by SalesView",
     },
   },
 };

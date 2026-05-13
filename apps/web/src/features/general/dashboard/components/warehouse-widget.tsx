@@ -28,7 +28,7 @@ const PIE_COLORS = {
 
 export function WarehouseWidget({ data }: WarehouseWidgetProps) {
   const t = useTranslations("dashboard");
-  const warehouses = data?.warehouses ?? [];
+  const warehouses = useMemo(() => data?.warehouses ?? [], [data?.warehouses]);
 
   // Aggregate stock status totals across all warehouses for the pie chart
   const pieData = useMemo(() => {

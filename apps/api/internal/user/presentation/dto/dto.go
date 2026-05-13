@@ -8,6 +8,7 @@ type UserResponseDTO struct {
 	Name                 string    `json:"name"`
 	Email                string    `json:"email"`
 	AvatarURL            string    `json:"avatar_url"`
+	RoleID               string    `json:"role_id"`
 	Role                 RoleDTO   `json:"role"`
 	Status               string    `json:"status"`
 	PasswordResetPending bool      `json:"password_reset_pending"`

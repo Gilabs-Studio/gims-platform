@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import {
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteDialog } from "@/components/ui/delete-dialog";
 import {
   Table,
   TableBody,
@@ -45,7 +47,7 @@ import type { SupplierBank, CreateSupplierBankData } from "../../types";
 const bankSchema = z.object({
   bank_id: z.string().min(1, "Bank is required"),
   currency_id: z.string().min(1, "Currency is required"),
-  account_number: z.string().min(3, "Account number is required"),
+  account_number: z.string().min(3, "Account number is required").regex(/^\d+$/, "Account number must contain digits only"),
   account_name: z.string().min(3, "Account name is required"),
   branch: z.string().optional(),
   is_primary: z.boolean().default(false),
@@ -83,6 +85,10 @@ export function SupplierBankList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingItem, setEditingItem] = useState<SupplierBankListItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    index: number;
+    item: SupplierBankListItem;
+  } | null>(null);
 
   const addMutation = useAddBankAccount();
   const updateMutation = useUpdateBankAccount();
@@ -92,6 +98,10 @@ export function SupplierBankList({
   const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 20, sort_by: "code", sort_dir: "asc" });
   const bankOptions = bankOptionsData?.data ?? [];
   const currencyOptions = currencyOptionsData?.data ?? [];
+  const bankComboboxOptions = bankOptions.map((bank) => ({
+    value: bank.id,
+    label: `${bank.name} - ${bank.code}`,
+  }));
 
   const isSubmitting = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
@@ -144,8 +154,6 @@ export function SupplierBankList({
   };
 
   const handleDelete = async (index: number, item: SupplierBankListItem) => {
-    if (!confirm(tCommon("deleteConfirm") || "Are you sure?")) return;
-
     if (supplierId && isPersistedSupplierBank(item)) {
       try {
         await deleteMutation.mutateAsync({ supplierId, bankId: item.id });
@@ -174,7 +182,7 @@ export function SupplierBankList({
             supplierId,
             data,
           });
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added"); // Fallback if key missing
+          toast.success(t("createSuccess"));
         }
       } else {
         if (editingIndex !== null && onUpdate) {
@@ -182,17 +190,17 @@ export function SupplierBankList({
           toast.success(t("updateSuccess"));
         } else if (onAdd) {
           onAdd(data);
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added");
+          toast.success(t("createSuccess"));
         }
       }
       setDialogOpen(false);
     } catch {
-      toast.error("Failed to save bank account");
+      toast.error(t("saveError"));
     }
   };
 
   const getBankName = (id: string) => {
-    return bankOptions.find((b) => b.id === id)?.name || "Unknown Bank";
+    return bankOptions.find((b) => b.id === id)?.name || t("unknownBank");
   };
 
   const getCurrencyCode = (id?: string | null) => {
@@ -252,7 +260,7 @@ export function SupplierBankList({
                   <TableCell>
                     {bank.is_primary && (
                       <Badge variant="secondary" className="text-xs">
-                        Primary
+                        {tCommon("primary")}
                       </Badge>
                     )}
                   </TableCell>
@@ -272,7 +280,7 @@ export function SupplierBankList({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(index, bank)}
+                          onClick={() => setPendingDelete({ index, item: bank })}
                           className="h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -302,21 +310,15 @@ export function SupplierBankList({
           >
             <Field>
               <FieldLabel>{t("form.bank")}</FieldLabel>
-              <Select
+              <CreatableCombobox
                 value={bankId}
-                onValueChange={(val) => setValue("bank_id", val, { shouldValidate: true })}
-              >
-                <SelectTrigger className="cursor-pointer">
-                  <SelectValue placeholder={t("form.bankPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {bankOptions.map((b) => (
-                    <SelectItem key={b.id} value={b.id} className="cursor-pointer">
-                      {b.name} - {b.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) => setValue("bank_id", value, { shouldValidate: true })}
+                options={bankComboboxOptions}
+                placeholder={t("form.bankPlaceholder")}
+                searchPlaceholder={t("form.bankSearchPlaceholder")}
+                emptyText={t("emptyBankOptions")}
+                ariaInvalid={!!errors.bank_id}
+              />
               {errors.bank_id && <FieldError>{tValidation("bankRequired")}</FieldError>}
             </Field>
 
@@ -343,8 +345,18 @@ export function SupplierBankList({
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>{t("form.accountNumber")}</FieldLabel>
-                <Input placeholder={t("form.accountNumberPlaceholder")} {...register("account_number")} />
-                {errors.account_number && <FieldError>{tValidation("accountNumberRequired")}</FieldError>}
+                <Input
+                  placeholder={t("form.accountNumberPlaceholder")}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                        !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  {...register("account_number")}
+                />
+                {errors.account_number && <FieldError>{errors.account_number.message ?? tValidation("accountNumberRequired")}</FieldError>}
               </Field>
 
               <Field>
@@ -364,7 +376,7 @@ export function SupplierBankList({
               <div className="space-y-0.5">
                 <FieldLabel>{t("form.isPrimary")}</FieldLabel>
                 <p className="text-xs text-muted-foreground">
-                  Set as main bank account
+                  {t("form.primaryDescription")}
                 </p>
               </div>
               <Switch
@@ -385,6 +397,24 @@ export function SupplierBankList({
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await handleDelete(pendingDelete.index, pendingDelete.item);
+          setPendingDelete(null);
+        }}
+        title={tCommon("deleteConfirm") || "Are you sure?"}
+        description={t("deleteDescription") || undefined}
+        itemName={t("title") || "bank account"}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

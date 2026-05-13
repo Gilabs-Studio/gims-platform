@@ -52,13 +52,7 @@ func NewPaymentUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepositor
 	return &paymentUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
 }
 
-func parseDateStrict(value string) (time.Time, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return time.Time{}, errors.New("date is required")
-	}
-	return time.Parse("2006-01-02", value)
-}
+// parseDateStrict is consolidated in helpers.go and is used throughout the finance package
 
 func validateAllocations(allocs []dto.PaymentAllocationRequest) (float64, error) {
 	if len(allocs) < 1 {
@@ -92,7 +86,7 @@ func (uc *paymentUsecase) Create(ctx context.Context, req *dto.CreatePaymentRequ
 		return nil, errors.New("request is required")
 	}
 
-	payDate, err := parseDateStrict(req.PaymentDate)
+	payDate, err := parseDate(req.PaymentDate)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +201,7 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 		return nil, ErrPaymentPostedImmutable
 	}
 
-	payDate, err := parseDateStrict(req.PaymentDate)
+	payDate, err := parseDate(req.PaymentDate)
 	if err != nil {
 		return nil, err
 	}

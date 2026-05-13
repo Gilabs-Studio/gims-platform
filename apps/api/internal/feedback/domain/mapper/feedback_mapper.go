@@ -43,6 +43,7 @@ func ToFeedbackResponseItem(m *models.FeedbackResponse) dto.FeedbackResponseItem
 		FormID:       m.FormID,
 		FormTitle:    formTitle,
 		OutletID:     m.OutletID,
+		SalesOrderID: m.SalesOrderID,
 		PosOrderID:   m.PosOrderID,
 		CustomerName: m.CustomerName,
 		Answers:      json.RawMessage(m.Answers),

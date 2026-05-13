@@ -50,6 +50,7 @@ func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*mod
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
+		Preload("Items.Warehouse").
 		Preload("Items.SalesOrderItem").
 		Preload("Items.InventoryBatch").
 		Where("id = ?", id).
@@ -68,6 +69,7 @@ func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
+		Preload("Items.Warehouse").
 		Preload("Items.SalesOrderItem").
 		Preload("Items.InventoryBatch").
 		Where("code = ?", code).
@@ -89,7 +91,7 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 		query = r.db.WithContext(ctx).Model(&models.DeliveryOrder{}).
 			Joins("LEFT JOIN sales_orders ON sales_orders.id = delivery_orders.sales_order_id").
 			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
-		
+
 		// Apply tenant filter manually since we are using joins
 		var err error
 		query, err = applyTenantFilter(ctx, query, "delivery_orders.tenant_id", "sales_orders.tenant_id")
@@ -110,24 +112,26 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 	}
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
-	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OwnerUserIDColumn: "delivery_orders.created_by",
+	})
 
 	// Apply status filter
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("delivery_orders.status = ?", req.Status)
 	}
 
 	// Apply date range filter
 	if req.DateFrom != "" {
-		query = query.Where("delivery_date >= ?", req.DateFrom)
+		query = query.Where("delivery_orders.delivery_date >= ?", req.DateFrom)
 	}
 	if req.DateTo != "" {
-		query = query.Where("delivery_date <= ?", req.DateTo)
+		query = query.Where("delivery_orders.delivery_date <= ?", req.DateTo)
 	}
 
 	// Apply sales order filter
 	if req.SalesOrderID != "" {
-		query = query.Where("sales_order_id = ?", req.SalesOrderID)
+		query = query.Where("delivery_orders.sales_order_id = ?", req.SalesOrderID)
 	}
 
 	// Count total
@@ -151,20 +155,20 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"code":          "code",
-		"delivery_date": "delivery_date",
-		"status":        "status",
-		"created_at":    "created_at",
-		"updated_at":    "updated_at",
+		"code":          "delivery_orders.code",
+		"delivery_date": "delivery_orders.delivery_date",
+		"status":        "delivery_orders.status",
+		"created_at":    "delivery_orders.created_at",
+		"updated_at":    "delivery_orders.updated_at",
 	}
 
 	sortByFromReq := strings.ToLower(strings.TrimSpace(req.SortBy))
 	sortBy := allowedSortColumns[sortByFromReq]
 	if sortBy == "" {
-		sortBy = "delivery_date"
+		sortBy = "delivery_orders.delivery_date"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads
@@ -189,8 +193,6 @@ func (r *deliveryOrderRepository) Create(ctx context.Context, do *models.Deliver
 		if err := tx.Create(do).Error; err != nil {
 			return err
 		}
-
-
 
 		return nil
 	})
@@ -274,7 +276,7 @@ func (r *deliveryOrderRepository) GetNextDeliveryNumber(ctx context.Context, pre
 
 	// Format sequence with 4 digits
 	code := prefixWithDate + "-" + formatSequence(sequence)
-	
+
 	return code, nil
 }
 
@@ -300,9 +302,9 @@ func (r *deliveryOrderRepository) UpdateStatus(ctx context.Context, id string, s
 func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *string, trackingNumber string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
-		"status":         models.DeliveryOrderStatusShipped,
-		"shipped_by":     userID,
-		"shipped_at":     now,
+		"status":          models.DeliveryOrderStatusShipped,
+		"shipped_by":      userID,
+		"shipped_at":      now,
 		"tracking_number": trackingNumber,
 	}
 
@@ -314,8 +316,8 @@ func (r *deliveryOrderRepository) Ship(ctx context.Context, id string, userID *s
 func (r *deliveryOrderRepository) Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	updates := map[string]interface{}{
-		"status":            models.DeliveryOrderStatusDelivered,
-		"delivered_at":      now,
+		"status":             models.DeliveryOrderStatusDelivered,
+		"delivered_at":       now,
 		"receiver_signature": receiverSignature,
 		"receiver_name":      receiverName,
 	}
@@ -363,7 +365,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 		Limit(perPage).
 		Offset(offset).
 		Find(&items).Error
-	
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -372,7 +374,7 @@ func (r *deliveryOrderRepository) ListItems(ctx context.Context, deliveryOrderID
 }
 
 // GetPendingDeliveryQtyBySalesOrder returns a map of sales_order_item_id -> total pending quantity
-// from all non-cancelled delivery orders for the given sales order.
+// from active (non-finalized) delivery orders for the given sales order.
 func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.Context, salesOrderID string) (map[string]float64, error) {
 	type result struct {
 		SalesOrderItemID string  `json:"sales_order_item_id"`
@@ -381,7 +383,7 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 
 	var results []result
 	query := r.db.WithContext(ctx).Table("delivery_order_items doi")
-	
+
 	// Apply tenant filter with prefix
 	var err error
 	query, err = applyTenantFilter(ctx, query, "doi.tenant_id")
@@ -393,7 +395,11 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 		Select("doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
 		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
 		Where("dord.sales_order_id = ?", salesOrderID).
-		Where("dord.status != ?", models.DeliveryOrderStatusCancelled).
+		Where("UPPER(dord.status) NOT IN ?", []string{
+			strings.ToUpper(string(models.DeliveryOrderStatusCancelled)),
+			strings.ToUpper(string(models.DeliveryOrderStatusDelivered)),
+			strings.ToUpper(string(models.DeliveryOrderStatusRejected)),
+		}).
 		Where("dord.deleted_at IS NULL").
 		Where("doi.deleted_at IS NULL").
 		Where("doi.sales_order_item_id IS NOT NULL").

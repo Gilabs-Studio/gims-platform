@@ -181,7 +181,7 @@ func (h *SalesPaymentHandler) Delete(c *gin.Context) {
 			errors.NotFoundResponse(c, "sales_payment", id)
 			return
 		}
-		if err == usecase.ErrSalesPaymentConflict {
+		if err == usecase.ErrSalesPaymentConflict || err == usecase.ErrSalesPaymentDeletePendingOnly {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}

@@ -73,7 +73,7 @@ export function usePurchaseRequisitionOverview({
 		if (!paymentTermsId) return "";
 		const pt = paymentTerms.find((x) => x.id === paymentTermsId);
 		if (!pt) return String(paymentTermsId);
-		return pt.code ? `${pt.code} - ${pt.name ?? ""}`.trim() : (pt.name ?? "");
+		return pt.name ?? "";
 	}, [paymentTerms, paymentTermsId]);
 
 	const businessUnitLabel = useMemo(() => {

@@ -67,9 +67,13 @@ func (r *overtimeRequestRepository) FindByEmployeeAndDate(ctx context.Context, e
 
 func (r *overtimeRequestRepository) FindPendingByManager(ctx context.Context, managerID string) ([]models.OvertimeRequest, error) {
 	var requests []models.OvertimeRequest
-	// This assumes there's a relation between employee and manager via division/department
-	// For now, we'll get all pending requests (to be refined based on org structure)
-	err := r.getDB(ctx).
+	_ = managerID
+	query := r.getDB(ctx).Model(&models.OvertimeRequest{})
+
+	// Enforce scope on pending queue so approvers only see records inside their data scope.
+	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
+
+	err := query.
 		Where("status = ?", models.OvertimeStatusPending).
 		Order("created_at ASC").
 		Find(&requests).Error

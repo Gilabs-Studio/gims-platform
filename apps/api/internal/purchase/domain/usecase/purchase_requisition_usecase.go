@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -28,6 +29,7 @@ var (
 	ErrPurchaseRequisitionNotFound = errors.New("purchase requisition not found")
 	ErrInvalidStatus               = errors.New("invalid purchase requisition status")
 	ErrNotImplemented              = errors.New("not implemented")
+	ErrRequestDateInPast           = errors.New("request_date cannot be in the past")
 )
 
 type PurchaseRequisitionUsecase interface {
@@ -86,6 +88,9 @@ func (uc *purchaseRequisitionUsecase) GetByID(ctx context.Context, id string) (*
 func (uc *purchaseRequisitionUsecase) Create(ctx context.Context, req *dto.CreatePurchaseRequisitionRequest) (*dto.PurchaseRequisitionDetailResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
+	}
+	if err := validateRequestDateNotPast(req.RequestDate); err != nil {
+		return nil, err
 	}
 
 	pr := &models.PurchaseRequisition{
@@ -155,6 +160,9 @@ func (uc *purchaseRequisitionUsecase) Create(ctx context.Context, req *dto.Creat
 func (uc *purchaseRequisitionUsecase) Update(ctx context.Context, id string, req *dto.UpdatePurchaseRequisitionRequest) (*dto.PurchaseRequisitionDetailResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
+	}
+	if err := validateRequestDateNotPast(req.RequestDate); err != nil {
+		return nil, err
 	}
 
 	existing, err := uc.repo.GetByID(ctx, id)
@@ -303,6 +311,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 		for _, ph := range s.Contacts {
 			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierContact{
 				ID:          ph.ID,
+				Name:        ph.Name,
 				PhoneNumber: ph.Phone,
 				Label:       ph.Position,
 				IsPrimary:   ph.IsPrimary,
@@ -633,9 +642,9 @@ func prAuditItems(items []models.PurchaseRequisitionItem) []map[string]interface
 func calcItemSubtotal(qty, price, discount float64) float64 {
 	raw := qty * price
 	if discount <= 0 {
-		return raw
+		return roundTo2Decimals(raw)
 	}
-	return raw - (raw * (discount / 100))
+	return roundTo2Decimals(raw - (raw * (discount / 100)))
 }
 
 func calcTotals(items []models.PurchaseRequisitionItem, taxRate, deliveryCost, otherCost float64) (subtotal, taxAmount, total float64) {
@@ -648,12 +657,17 @@ func calcTotals(items []models.PurchaseRequisitionItem, taxRate, deliveryCost, o
 	return
 }
 
-func clamp(val, minVal, maxVal float64) float64 {
-	if val < minVal {
-		return minVal
+func validateRequestDateNotPast(requestDate string) error {
+	reqDate, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(requestDate), apptime.Now().Location())
+	if err != nil {
+		return errors.New("invalid request_date format")
 	}
-	if val > maxVal {
-		return maxVal
+
+	now := apptime.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	if reqDate.Before(today) {
+		return ErrRequestDateInPast
 	}
-	return val
+
+	return nil
 }

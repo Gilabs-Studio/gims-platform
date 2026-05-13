@@ -33,6 +33,7 @@ export const employeeEn = {
     certifications: "Certifications",
     assets: "Assets",
     areas: "Areas",
+    scope: "Outlet & Warehouse",
   },
   sections: {
     personalInfo: "Personal Information",
@@ -42,6 +43,7 @@ export const employeeEn = {
     taxInfo: "Tax & Leave Information",
     areasInfo: "Area Assignments",
     userInfo: "User Account",
+    scopeInfo: "Outlet & Warehouse Assignments",
   },
   filters: {
     all: "All",
@@ -76,7 +78,20 @@ export const employeeEn = {
     user: "User Account",
     userPlaceholder: "Select user account",
     noUser: "No user linked",
+    userAccountMode: "User Account Mode",
+    userAccountModePlaceholder: "Choose how to link user account",
+    userAccountModeSelect: "Select existing user account",
+    userAccountModeCreate: "Create new user account",
     userHint: "Link this employee to a system user account for login access.",
+    userRequiredWhenSelectMode:
+      "Please select a user account when Select User mode is active.",
+    userSelectAutofillHint:
+      "Selecting a user will auto-fill full name and email from the selected account.",
+    userAlreadyLinkedHint:
+      "This employee already has a linked user account. To change it, update from User Management.",
+    createUserAccount: "Create User Account",
+    createUserAccountEditHint:
+      "Create and link a new user account using this employee full name and email.",
     division: "Division",
     divisionPlaceholder: "Select division",
     jobPosition: "Job Position",
@@ -135,6 +150,16 @@ export const employeeEn = {
     member: "Member",
     setSupervisor: "Set Supervisor",
     setMember: "Set Member",
+    outletsLabel: "Outlets",
+    selectOutlet: "Select outlet",
+    noOutletsAssigned: "No outlets assigned",
+    warehousesLabel: "Warehouses",
+    selectWarehouse: "Select warehouse",
+    noWarehousesAssigned: "No warehouses assigned",
+    auto: "Auto",
+    manual: "Manual",
+    scopeDescription:
+      "Assign employee outlets and warehouses. Warehouses linked to selected outlets are auto-added after save.",
     isActive: "Active",
     rejectReason: "Rejection Reason",
     rejectReasonPlaceholder: "Enter reason for rejection (optional)",

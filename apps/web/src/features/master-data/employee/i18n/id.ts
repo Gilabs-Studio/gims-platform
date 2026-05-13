@@ -35,6 +35,7 @@ export const employeeId: EmployeeTranslations = {
     certifications: "Sertifikasi",
     assets: "Aset",
     areas: "Area",
+    scope: "Outlet & Gudang",
   },
   sections: {
     personalInfo: "Informasi Pribadi",
@@ -44,6 +45,7 @@ export const employeeId: EmployeeTranslations = {
     taxInfo: "Informasi Pajak & Cuti",
     areasInfo: "Penugasan Area",
     userInfo: "Akun Pengguna",
+    scopeInfo: "Penugasan Outlet & Gudang",
   },
   filters: {
     all: "Semua",
@@ -78,8 +80,21 @@ export const employeeId: EmployeeTranslations = {
     user: "Akun Pengguna",
     userPlaceholder: "Pilih akun pengguna",
     noUser: "Tidak ada pengguna terkait",
+    userAccountMode: "Mode Akun Pengguna",
+    userAccountModePlaceholder: "Pilih cara menghubungkan akun pengguna",
+    userAccountModeSelect: "Pilih akun pengguna yang sudah ada",
+    userAccountModeCreate: "Buat akun pengguna baru",
     userHint:
       "Hubungkan karyawan ini ke akun pengguna sistem untuk akses login.",
+    userRequiredWhenSelectMode:
+      "Silakan pilih akun pengguna saat mode Pilih Akun aktif.",
+    userSelectAutofillHint:
+      "Saat memilih akun pengguna, nama lengkap dan email akan otomatis diisi dari akun yang dipilih.",
+    userAlreadyLinkedHint:
+      "Karyawan ini sudah memiliki akun pengguna terhubung. Untuk mengubahnya, silakan kelola dari Manajemen Pengguna.",
+    createUserAccount: "Buat Akun Pengguna",
+    createUserAccountEditHint:
+      "Buat dan hubungkan akun pengguna baru menggunakan nama lengkap dan email karyawan ini.",
     division: "Divisi",
     divisionPlaceholder: "Pilih divisi",
     jobPosition: "Jabatan",
@@ -138,6 +153,16 @@ export const employeeId: EmployeeTranslations = {
     member: "Anggota",
     setSupervisor: "Jadikan Supervisor",
     setMember: "Jadikan Anggota",
+    outletsLabel: "Outlet",
+    selectOutlet: "Pilih outlet",
+    noOutletsAssigned: "Tidak ada outlet yang ditetapkan",
+    warehousesLabel: "Gudang",
+    selectWarehouse: "Pilih gudang",
+    noWarehousesAssigned: "Tidak ada gudang yang ditetapkan",
+    auto: "Otomatis",
+    manual: "Manual",
+    scopeDescription:
+      "Tetapkan outlet dan gudang karyawan. Gudang yang terkait dengan outlet yang dipilih akan ditambahkan secara otomatis setelah disimpan.",
     isActive: "Aktif",
     rejectReason: "Alasan Penolakan",
     rejectReasonPlaceholder: "Masukkan alasan penolakan (opsional)",

@@ -1,15 +1,17 @@
-﻿package seeders
+package seeders
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -26,14 +28,30 @@ type coaSeed struct {
 	Depth       int
 }
 
-func deterministicCOAID(code string) string {
-	return uuid.NewSHA1(coaDeterministicNamespace, []byte(code)).String()
+func deterministicCOAID(tenantID, code string) string {
+	return uuid.NewSHA1(coaDeterministicNamespace, []byte(tenantID+":"+code)).String()
 }
 
 // SeedChartOfAccounts creates the canonical commercial ERP COA hierarchy using 5-digit codes.
 func SeedChartOfAccounts() error {
+	return EnsureTenantChartOfAccounts(database.DB, DefaultTenantID)
+}
+
+// EnsureTenantChartOfAccounts provisions canonical COA rows for a tenant.
+// Idempotent: existing rows are updated to latest defaults.
+func EnsureTenantChartOfAccounts(db *gorm.DB, tenantID string) error {
+	if db == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	tenantID = strings.TrimSpace(tenantID)
+	if tenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+	if err := ensureChartOfAccountTenantScopedUniqueIndex(db); err != nil {
+		return fmt.Errorf("failed to ensure chart_of_accounts tenant unique index: %w", err)
+	}
+
 	log.Println("Seeding Chart of Accounts (5-digit hierarchy)...")
-	db := database.DB
 	ctx := context.Background()
 
 	seeds := []coaSeed{
@@ -49,7 +67,8 @@ func SeedChartOfAccounts() error {
 		{Code: "11113", Name: "Bank BRI", Type: models.AccountTypeCashBank, ParentCode: "11110", IsActive: true, IsPostable: true, Depth: 4},
 		{Code: "11200", Name: "Piutang", Type: models.AccountTypeAsset, ParentCode: "11000", IsActive: true, IsPostable: false, Depth: 2},
 		{Code: "11210", Name: "Piutang Usaha", Type: models.AccountTypeAsset, ParentCode: "11200", IsActive: true, IsPostable: true, Depth: 3},
-		{Code: "11220", Name: "Piutang Lain-lain", Type: models.AccountTypeAsset, ParentCode: "11200", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "11220", Name: "Uang Muka Pelanggan", Type: models.AccountTypeAsset, ParentCode: "11200", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "11221", Name: "Piutang Lain-lain", Type: models.AccountTypeAsset, ParentCode: "11200", IsActive: true, IsPostable: true, Depth: 3},
 		{Code: "11290", Name: "Penyisihan Piutang Tak Tertagih", Type: models.AccountTypeAsset, ParentCode: "11200", IsActive: true, IsPostable: true, Depth: 3},
 		{Code: "11300", Name: "Persediaan", Type: models.AccountTypeAsset, ParentCode: "11000", IsActive: true, IsPostable: false, Depth: 2},
 		{Code: "11310", Name: "Persediaan Barang Dagangan", Type: models.AccountTypeAsset, ParentCode: "11300", IsActive: true, IsPostable: true, Depth: 3},
@@ -84,16 +103,18 @@ func SeedChartOfAccounts() error {
 		{Code: "20000", Name: "KEWAJIBAN", Type: models.AccountTypeLiability, IsActive: true, IsPostable: false, Depth: 0},
 		{Code: "21000", Name: "Kewajiban Jangka Pendek", Type: models.AccountTypeLiability, ParentCode: "20000", IsActive: true, IsPostable: false, Depth: 1},
 		{Code: "21100", Name: "Utang Usaha", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
-		{Code: "21200", Name: "Hutang Pajak", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: false, Depth: 2},
-		{Code: "21210", Name: "Hutang PPN Keluaran", Type: models.AccountTypeLiability, ParentCode: "21200", IsActive: true, IsPostable: true, Depth: 3},
-		{Code: "21220", Name: "Hutang PPh 21", Type: models.AccountTypeLiability, ParentCode: "21200", IsActive: true, IsPostable: true, Depth: 3},
-		{Code: "21230", Name: "Hutang PPh 23", Type: models.AccountTypeLiability, ParentCode: "21200", IsActive: true, IsPostable: true, Depth: 3},
-		{Code: "21240", Name: "Hutang PPh 25", Type: models.AccountTypeLiability, ParentCode: "21200", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21200", Name: "Piutang PPN Masukan", Type: models.AccountTypeAsset, ParentCode: "11400", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21210", Name: "Hutang PPN Keluaran", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21220", Name: "Uang Muka Supplier", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21221", Name: "Hutang PPh 21", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21230", Name: "Hutang PPh 23", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 3},
+		{Code: "21240", Name: "Hutang PPh 25", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 3},
 		{Code: "21300", Name: "Hutang Gaji dan Tunjangan", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "21400", Name: "Uang Muka Penjualan", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "21500", Name: "Pendapatan Diterima Dimuka", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "21600", Name: "Hutang Lain-lain", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "21700", Name: "Bagian Lancar Hutang Jangka Panjang", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
+		{Code: "91100", Name: "GR/IR Clearing", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "22000", Name: "Kewajiban Jangka Panjang", Type: models.AccountTypeLiability, ParentCode: "20000", IsActive: true, IsPostable: false, Depth: 1},
 		{Code: "22100", Name: "Hutang Bank Jangka Panjang", Type: models.AccountTypeLiability, ParentCode: "22000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "22200", Name: "Hutang Obligasi", Type: models.AccountTypeLiability, ParentCode: "22000", IsActive: true, IsPostable: true, Depth: 2},
@@ -111,14 +132,17 @@ func SeedChartOfAccounts() error {
 		{Code: "40000", Name: "PENDAPATAN", Type: models.AccountTypeRevenue, IsActive: true, IsPostable: false, Depth: 0},
 		{Code: "41000", Name: "Pendapatan Usaha", Type: models.AccountTypeRevenue, ParentCode: "40000", IsActive: true, IsPostable: false, Depth: 1},
 		{Code: "41100", Name: "Penjualan", Type: models.AccountTypeRevenue, ParentCode: "41000", IsActive: true, IsPostable: true, Depth: 2},
-		{Code: "41200", Name: "Retur Penjualan", Type: models.AccountTypeRevenue, ParentCode: "41000", IsActive: true, IsPostable: true, Depth: 2},
+		{Code: "41200", Name: "Hutang PPN Keluaran", Type: models.AccountTypeLiability, ParentCode: "21000", IsActive: true, IsPostable: true, Depth: 2},
+		{Code: "41210", Name: "Retur Penjualan", Type: models.AccountTypeRevenue, ParentCode: "41000", IsActive: true, IsPostable: true, Depth: 2},
 		{Code: "41300", Name: "Potongan Penjualan", Type: models.AccountTypeRevenue, ParentCode: "41000", IsActive: true, IsPostable: true, Depth: 2},
+ 		{Code: "41900", Name: "Keuntungan Selisih Stok", Type: models.AccountTypeRevenue, ParentCode: "41000", IsActive: true, IsPostable: true, Depth: 2},
 
 		// COGS
 		{Code: "50000", Name: "HARGA POKOK PENJUALAN", Type: models.AccountTypeCOGS, IsActive: true, IsPostable: false, Depth: 0},
 		{Code: "51000", Name: "Harga Pokok Penjualan", Type: models.AccountTypeCOGS, ParentCode: "50000", IsActive: true, IsPostable: true, Depth: 1},
 		{Code: "52000", Name: "Penyesuaian Persediaan", Type: models.AccountTypeExpense, ParentCode: "50000", IsActive: true, IsPostable: false, Depth: 1},
-		{Code: "52100", Name: "Kerugian Selisih Stok", Type: models.AccountTypeExpense, ParentCode: "52000", IsActive: true, IsPostable: true, Depth: 2},
+		{Code: "51300", Name: "Selisih Harga Pembelian", Type: models.AccountTypeExpense, ParentCode: "52000", IsActive: true, IsPostable: true, Depth: 2},
+		{Code: "51900", Name: "Kerugian Selisih Stok", Type: models.AccountTypeExpense, ParentCode: "52000", IsActive: true, IsPostable: true, Depth: 2},
 
 		// Operational expenses
 		{Code: "60000", Name: "BEBAN OPERASIONAL", Type: models.AccountTypeOperational, IsActive: true, IsPostable: false, Depth: 0},
@@ -187,7 +211,8 @@ func SeedChartOfAccounts() error {
 		}
 
 		item := models.ChartOfAccount{
-			ID:          deterministicCOAID(seed.Code),
+			ID:          deterministicCOAID(tenantID, seed.Code),
+			TenantID:    tenantID,
 			Code:        seed.Code,
 			Name:        seed.Name,
 			Type:        seed.Type,
@@ -198,7 +223,7 @@ func SeedChartOfAccounts() error {
 		}
 
 		if err := db.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "code"}},
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name",
 				"type",
@@ -212,7 +237,7 @@ func SeedChartOfAccounts() error {
 		}
 
 		var persisted models.ChartOfAccount
-		if err := db.Where("code = ?", seed.Code).First(&persisted).Error; err != nil {
+		if err := db.Where("tenant_id = ? AND code = ?", tenantID, seed.Code).First(&persisted).Error; err != nil {
 			return fmt.Errorf("failed to fetch persisted COA %s: %w", seed.Code, err)
 		}
 		idByCode[seed.Code] = persisted.ID
@@ -225,6 +250,24 @@ func SeedChartOfAccounts() error {
 
 	log.Println("Chart of Accounts seeded successfully with hierarchical parent-child structure")
 	return nil
+}
+
+func ensureChartOfAccountTenantScopedUniqueIndex(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	_ = db.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS chart_of_accounts_code_key`).Error
+	_ = db.Exec(`ALTER TABLE chart_of_accounts DROP CONSTRAINT IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS public.idx_chart_of_accounts_code`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS chart_of_accounts_code_key`).Error
+	_ = db.Exec(`DROP INDEX IF EXISTS public.chart_of_accounts_code_key`).Error
+
+	return db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_chart_of_accounts_tenant_code_active
+		ON chart_of_accounts (tenant_id, code)
+	`).Error
 }
 
 

@@ -967,14 +967,14 @@ func (uc *travelPlanUsecase) CreateVisitPlannerPlan(ctx context.Context, req *dt
 			}
 
 			visit := crmModels.VisitReport{
-				Code:         visitCode,
-				EmployeeID:   effectiveEmployeeID,
-				VisitDate:    routeDate,
-				Purpose:      "Visit navigation checkpoint",
-				Status:       crmModels.VisitReportStatusDraft,
-				CreatedBy:    createdBy,
-				Latitude:     &checkpoint.Lat,
-				Longitude:    &checkpoint.Lng,
+				Code:       visitCode,
+				EmployeeID: effectiveEmployeeID,
+				VisitDate:  routeDate,
+				Purpose:    "Visit navigation checkpoint",
+				Status:     crmModels.VisitReportStatusDraft,
+				CreatedBy:  createdBy,
+				Latitude:   &checkpoint.Lat,
+				Longitude:  &checkpoint.Lng,
 			}
 
 			switch checkpoint.Type {
@@ -1185,11 +1185,11 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 	if input.RefID != nil {
 		refID = strings.TrimSpace(*input.RefID)
 	}
-	typeName := strings.TrimSpace(input.Type)
+	typeName := normalizeCheckpointType(input.Type)
 
 	if refID == "" {
 		if !hasCoords {
-			return nil, "", ErrInvalidCheckpoint
+			return nil, "", fmt.Errorf("%w: checkpoint %d requires ref_id or coordinates", ErrInvalidCheckpoint, index+1)
 		}
 		return &resolvedNavigationCheckpoint{
 			CheckpointID: checkpointID,
@@ -1220,14 +1220,14 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, "", ErrInvalidCheckpoint
+				return nil, "", fmt.Errorf("%w: lead not found", ErrInvalidCheckpoint)
 			}
 			return nil, "", err
 		}
 
 		if scope != "ALL" && effectiveEmployeeID != "" {
-			if row.AssignedTo == nil || strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
-				return nil, "", ErrInvalidCheckpoint
+			if row.AssignedTo != nil && strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
+				return nil, "", fmt.Errorf("%w: lead is assigned to another employee", ErrInvalidCheckpoint)
 			}
 		}
 
@@ -1236,12 +1236,13 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
+		}
+
+		if !hasCoords && row.Latitude == nil && row.Longitude == nil {
+			return nil, "", fmt.Errorf("%w: lead location is missing", ErrInvalidCheckpoint)
 		}
 
 		return &resolvedNavigationCheckpoint{
@@ -1270,14 +1271,14 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, "", ErrInvalidCheckpoint
+				return nil, "", fmt.Errorf("%w: deal not found", ErrInvalidCheckpoint)
 			}
 			return nil, "", err
 		}
 
 		if scope != "ALL" && effectiveEmployeeID != "" {
-			if row.AssignedTo == nil || strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
-				return nil, "", ErrInvalidCheckpoint
+			if row.AssignedTo != nil && strings.TrimSpace(*row.AssignedTo) != effectiveEmployeeID {
+				return nil, "", fmt.Errorf("%w: deal is assigned to another employee", ErrInvalidCheckpoint)
 			}
 		}
 
@@ -1286,12 +1287,13 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
+		}
+
+		if !hasCoords && row.Latitude == nil && row.Longitude == nil {
+			return nil, "", fmt.Errorf("%w: deal location is missing", ErrInvalidCheckpoint)
 		}
 
 		return &resolvedNavigationCheckpoint{
@@ -1317,7 +1319,7 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			First(&row).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, "", ErrInvalidCheckpoint
+				return nil, "", fmt.Errorf("%w: customer not found", ErrInvalidCheckpoint)
 			}
 			return nil, "", err
 		}
@@ -1327,12 +1329,13 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 		if hasCoords {
 			lat = *input.Lat
 			lng = *input.Lng
-		} else {
-			if row.Latitude == nil || row.Longitude == nil {
-				return nil, "", ErrInvalidCheckpoint
-			}
+		} else if row.Latitude != nil && row.Longitude != nil {
 			lat = *row.Latitude
 			lng = *row.Longitude
+		}
+
+		if !hasCoords && row.Latitude == nil && row.Longitude == nil {
+			return nil, "", fmt.Errorf("%w: customer location is missing", ErrInvalidCheckpoint)
 		}
 
 		return &resolvedNavigationCheckpoint{
@@ -1344,8 +1347,17 @@ func (uc *travelPlanUsecase) resolveNavigationCheckpoint(
 			Label:        strings.TrimSpace(row.Name),
 		}, "", nil
 	default:
-		return nil, "", ErrInvalidCheckpoint
+		return nil, "", fmt.Errorf("%w: unsupported checkpoint type %q", ErrInvalidCheckpoint, strings.TrimSpace(input.Type))
 	}
+}
+
+func normalizeCheckpointType(raw string) string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if normalized == "pipeline" {
+		return "deal"
+	}
+
+	return normalized
 }
 
 func (uc *travelPlanUsecase) findOrCreateVisitForAction(
@@ -1414,16 +1426,16 @@ func (uc *travelPlanUsecase) findOrCreateVisitForAction(
 
 	visitDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	newVisit := &crmModels.VisitReport{
-		Code:         code,
-		VisitDate:    visitDate,
-		EmployeeID:   effectiveEmployeeID,
-		LeadID:       req.LeadID,
-		DealID:       req.DealID,
-		CustomerID:   req.CustomerID,
-		Status:       crmModels.VisitReportStatusDraft,
-		Purpose:      "Visit checkpoint",
-		Notes:        strings.TrimSpace(req.Notes),
-		CreatedBy:    pointerIfNotEmpty(actorID),
+		Code:       code,
+		VisitDate:  visitDate,
+		EmployeeID: effectiveEmployeeID,
+		LeadID:     req.LeadID,
+		DealID:     req.DealID,
+		CustomerID: req.CustomerID,
+		Status:     crmModels.VisitReportStatusDraft,
+		Purpose:    "Visit checkpoint",
+		Notes:      strings.TrimSpace(req.Notes),
+		CreatedBy:  pointerIfNotEmpty(actorID),
 	}
 
 	if err := tx.Create(newVisit).Error; err != nil {

@@ -127,7 +127,7 @@ export const navigationConfig: NavItem[] = [
       {
         name: "Sales Target",
         i18nKey: "salesTarget",
-        url: "/crm/targets",
+        url: "/crm/sales-targets",
         icon: "check-square",
         permission: "sales_target.read",
       },
@@ -157,13 +157,6 @@ export const navigationConfig: NavItem[] = [
             url: "/crm/settings/lead-statuses",
             icon: "tag",
             permission: "crm_lead_status.read",
-          },
-          {
-            name: "Contact Roles",
-            i18nKey: "contactRoles",
-            url: "/crm/settings/contact-roles",
-            icon: "user-cog",
-            permission: "crm_contact_role.read",
           },
           {
             name: "Activity Types",
@@ -345,7 +338,7 @@ export const navigationConfig: NavItem[] = [
         i18nKey: "stockLedger",
         url: "/stock/ledger",
         icon: "scroll-text",
-        permission: "inventory.read",
+        permission: "ledger.read",
       },
       {
         name: "Stock Movement",
@@ -426,20 +419,6 @@ export const navigationConfig: NavItem[] = [
         icon: "receipt",
         children: [
           {
-            name: "Customer Payments",
-            i18nKey: "payments",
-            url: "/finance/ar/customer-payments",
-            icon: "credit-card",
-            permission: "payment.read",
-          },
-          {
-            name: "Credit Notes",
-            i18nKey: "returns",
-            url: "/finance/ar/credit-notes",
-            icon: "rotate-ccw",
-            permission: "sales_return.read",
-          },
-          {
             name: "AR Aging Reports",
             i18nKey: "agingReports",
             url: "/finance/ar/aging-reports",
@@ -454,20 +433,6 @@ export const navigationConfig: NavItem[] = [
         url: "",
         icon: "receipt",
         children: [
-          {
-            name: "Supplier Payments",
-            i18nKey: "payments",
-            url: "/finance/ap/supplier-payments",
-            icon: "credit-card",
-            permission: "payment.read",
-          },
-          {
-            name: "Debit Notes",
-            i18nKey: "returns",
-            url: "/finance/ap/debit-notes",
-            icon: "rotate-ccw",
-            permission: "purchase_return.read",
-          },
           {
             name: "Non-Trade Payables",
             i18nKey: "nonTradePayables",
@@ -521,7 +486,7 @@ export const navigationConfig: NavItem[] = [
         ],
       },
       {
-        name: "Fixed Assets",
+        name: "Asset Management",
         i18nKey: "fixedAssets",
         url: "",
         icon: "building-2",
@@ -1009,6 +974,13 @@ export const navigationConfig: NavItem[] = [
         url: "/master-data/leave-types",
         icon: "calendar",
         permission: "leave_type.read",
+      },
+      {
+        name: "Contact Roles",
+        i18nKey: "contactRoles",
+        url: "/master-data/contact-roles",
+        icon: "user-cog",
+        permission: "crm_contact_role.read",
       },
       
     ],

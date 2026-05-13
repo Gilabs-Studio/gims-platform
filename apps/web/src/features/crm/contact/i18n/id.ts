@@ -47,6 +47,7 @@ export const crmContactId = {
       emailMax: "Email maksimal 100 karakter",
     },
     tab: "Kontak",
+    singular: "Kontak",
     contactsCount: "{count} kontak",
     noContacts: "Tidak ada kontak",
     tooltipTitle: "Kontak",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, Receipt, CheckCircle2 } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -58,6 +58,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     handleAddItem,
     handlePreviewJournal,
     handleProductChange,
+    handleQuantityChange,
     handleDialogChange,
     onInvalid,
     quickCreate,
@@ -73,10 +74,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     productsCombobox,
     paymentTermsCombobox,
     ordersCombobox,
+    selectedSalesOrderLabel,
+    selectedPaymentTermsLabel,
+    getItemProductLabel,
+    getItemMaxQuantity,
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
-  const isSalesOrderLocked = !isEdit && !!defaultSalesOrderId;
+  const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+  const isSalesOrderLocked = (!!defaultSalesOrderId || (isEdit && !!watchedSalesOrderId));
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -127,6 +133,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                       value={field.value}
                       onValueChange={field.onChange}
                       disabled={isSalesOrderLocked}
+                      selectedLabel={selectedSalesOrderLabel}
                       onOpenChange={(isOpen) => {
                         if (isSalesOrderLocked) return;
                         if (isOpen) {
@@ -262,6 +269,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     <CreatableCombobox
                       options={paymentTerms.map(term => ({ value: term.id, label: term.name }))}
                       value={field.value || ""}
+                      selectedLabel={selectedPaymentTermsLabel}
                       onValueChange={field.onChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
@@ -453,7 +461,6 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                             variant="ghost"
                             size="icon"
                             onClick={() => remove(index)}
-                            disabled={isSalesOrderLocked}
                             className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -487,7 +494,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 disabled={isSalesOrderLocked}
                               >
                                 <SelectTrigger disabled={isSalesOrderLocked} className={isSalesOrderLocked ? "opacity-100 disabled:opacity-100" : undefined}>
-                                  <SelectValue placeholder={t("item.selectProduct")} />
+                                  <SelectValue placeholder={t("item.selectProduct")} selectedLabel={getItemProductLabel(field.value)} />
                                 </SelectTrigger>
                                 <SelectContent
                                   onLoadMore={productsCombobox.onLoadMore}
@@ -518,9 +525,9 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                             render={({ field }) => (
                               <NumericInput
                                 value={field.value}
-                                onChange={field.onChange}
+                                onChange={(value) => handleQuantityChange(index, value)}
                                 min={0.001}
-                                disabled={isSalesOrderLocked}
+                                max={getItemMaxQuantity(item?.sales_order_item_id, item?.quantity)}
                               />
                             )}
                           />
@@ -562,6 +569,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />

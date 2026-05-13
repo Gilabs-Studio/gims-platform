@@ -174,4 +174,11 @@ export const purchaseOrderId = {
   printConfirm: "Cetak",
   printCancel: "Batal",
   printError: "Terjadi kesalahan",
+  paymentOverview: {
+    title: "Ringkasan Pembayaran",
+    orderTotal: "Total Order",
+    downPayment: "Uang Muka",
+    invoiced: "Ditagih",
+    remaining: "Sisa",
+  },
 };

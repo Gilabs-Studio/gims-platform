@@ -14,6 +14,8 @@ export interface SubscriptionPlanConfig {
   billing_type: "per_user" | "flat";
   price_monthly_idr: number;
   price_yearly_idr: number;
+  outlet_addon_monthly_idr?: number;
+  outlet_addon_yearly_idr?: number;
   min_users: number;
   max_users: number;
   is_highlighted: boolean;
@@ -48,7 +50,7 @@ export const authService = {
    * Prefetch CSRF token from the API.
    *
    * Performs a GET /auth/csrf which causes the backend CSRF middleware to:
-   *  1. Generate/reuse the gims_csrf_token cookie (SameSite=None; Secure)
+   *  1. Generate/reuse the salesview_csrf_token cookie (SameSite=None; Secure)
    *  2. Echo the token in the X-CSRF-Token response header
    *
    * The response interceptor in api-client already captures the header into

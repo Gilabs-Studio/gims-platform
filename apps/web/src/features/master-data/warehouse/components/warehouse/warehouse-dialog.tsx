@@ -1,6 +1,5 @@
 "use client";
 
-import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -108,25 +107,6 @@ export function WarehouseDialog({
                   rows={2}
                 />
               </Field>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field orientation="vertical">
-                  <FieldLabel>{t("warehouse.form.capacity")}</FieldLabel>
-                  <Controller
-                    control={control}
-                    name="capacity"
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        placeholder={t("warehouse.form.capacityPlaceholder")}
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber || null)}
-                      />
-                    )}
-                  />
-                </Field>
-              </div>
             </div>
           </div>
 

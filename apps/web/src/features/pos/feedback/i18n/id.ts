@@ -96,7 +96,7 @@ export const feedbackId = {
       invalid: "Tautan umpan balik ini tidak valid.",
       error: "Tidak dapat memuat formulir umpan balik.",
       greeting: "Halo, {name}!",
-      poweredBy: "Didukung oleh GIMS",
+      poweredBy: "Didukung oleh SalesView",
     },
   },
 };

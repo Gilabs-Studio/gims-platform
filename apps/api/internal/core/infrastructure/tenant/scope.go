@@ -82,6 +82,10 @@ func setTenantOnCreate(tx *gorm.DB) {
 		return
 	}
 
+	if !statementHasTenantColumn(tx) {
+		return
+	}
+
 	tx.Statement.SetColumn("tenant_id", tenantID, true)
 }
 

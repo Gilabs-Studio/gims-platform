@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
   Banknote,
@@ -49,15 +49,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 import {
   useApprovePurchaseOrder,
-  useClosePurchaseOrder,
-  useConfirmPurchaseOrder,
   useDeletePurchaseOrder,
   usePurchaseOrders,
   useRejectPurchaseOrder,
@@ -74,11 +71,12 @@ import { SILinkedDialog } from "./si-linked-dialog";
 import { PurchaseOrderDetail } from "./purchase-order-detail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
-import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { purchaseOrdersService } from "../services/purchase-orders-service";
 import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 import { SupplierInvoiceDPFormDialog } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-form";
+import { useSupplierInvoiceDPAddData } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 
 function getInitialOpenPurchaseOrderFromURL(): string | null {
   if (typeof window === "undefined") {
@@ -103,10 +101,10 @@ export function PurchaseOrdersList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
+  const [initialOpenPurchaseOrderId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
+  const [detailOpen, setDetailOpen] = useState(Boolean(initialOpenPurchaseOrderId));
+  const [detailId, setDetailId] = useState<string | null>(initialOpenPurchaseOrderId);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
   const exportProgress = useExportProgress();
 
   // Supplier detail dialog
@@ -146,7 +144,6 @@ export function PurchaseOrdersList() {
   const canSubmit = useUserPermission("purchase_order.submit");
   const canApprove = useUserPermission("purchase_order.approve");
   const canReject = useUserPermission("purchase_order.reject");
-  const canClose = useUserPermission("purchase_order.close");
   const canDelete = useUserPermission("purchase_order.delete");
   const canPrint = useUserPermission("purchase_order.print");
   const canViewSupplier = useUserPermission("supplier.read");
@@ -156,13 +153,6 @@ export function PurchaseOrdersList() {
   const canCreateGR = useUserPermission("goods_receipt.create");
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
-
-  // Auto-open detail modal when detailId is set from URL query param
-  useEffect(() => {
-    if (detailId) {
-      setDetailOpen(true);
-    }
-  }, [detailId]);
 
   // Clear URL query param after modal is opened
   useEffect(() => {
@@ -188,13 +178,16 @@ export function PurchaseOrdersList() {
 
   const items: PurchaseOrderListItem[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const dpAddDataQuery = useSupplierInvoiceDPAddData({ enabled: canCreateSIDP });
+  const eligibleSIDPOrderIds = useMemo(() => {
+    const rows = dpAddDataQuery.data?.data?.purchase_orders ?? [];
+    return new Set(rows.map((row) => row.id));
+  }, [dpAddDataQuery.data]);
 
   const deleteMutation = useDeletePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
-  const confirmMutation = useConfirmPurchaseOrder();
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
-  const closeMutation = useClosePurchaseOrder();
 
   // Note: cache subscribe removed to avoid refetch loops. Supplier-invoice hooks
   // already apply typed optimistic updates to purchase-order list cache.
@@ -230,7 +223,9 @@ export function PurchaseOrdersList() {
 
   /** Renders first GR status badge + received items count; clicking opens the GR linked list dialog. */
   const renderGRBadges = (it: PurchaseOrderListItem) => {
-    const grItems = it.goods_receipts;
+    const grItems = [...(it.goods_receipts ?? [])].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
     if (!grItems?.length) return <span className="text-muted-foreground text-xs">—</span>;
     return (
       <button
@@ -256,7 +251,9 @@ export function PurchaseOrdersList() {
 
   /** Renders first SI status badge; clicking opens the SI linked list dialog. */
   const renderSIBadges = (it: PurchaseOrderListItem) => {
-    const items = it.supplier_invoices;
+    const items = [...(it.supplier_invoices ?? [])].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
     if (!items?.length) return <span className="text-muted-foreground text-xs">—</span>;
     return (
       <button
@@ -279,6 +276,62 @@ export function PurchaseOrdersList() {
   };
 
   const normalStatus = (it: PurchaseOrderListItem) => (it.status ?? "").toUpperCase();
+
+  const getActiveRegularInvoices = (it: PurchaseOrderListItem) => {
+    const invoices = it.supplier_invoices ?? [];
+    return invoices.filter((inv) => {
+      const status = (inv.status ?? "").toUpperCase();
+      return !!inv.goods_receipt_id && status !== "CANCELLED" && status !== "REJECTED";
+    });
+  };
+
+  const getPaidAmount = (it: PurchaseOrderListItem): number => {
+    const invoices = (it.supplier_invoices ?? []).filter((inv) => {
+      const status = (inv.status ?? "").toUpperCase();
+      return status !== "CANCELLED" && status !== "REJECTED";
+    });
+
+    return invoices.reduce((sum, inv) => {
+      const status = (inv.status ?? "").toUpperCase();
+      const amount = inv.amount ?? 0;
+      const paidAmount = inv.paid_amount ?? 0;
+      return sum + (status === "PAID" ? amount : paidAmount);
+    }, 0);
+  };
+
+  const canCreateGoodsReceiptForPO = (it: PurchaseOrderListItem): boolean => {
+    if (!canCreateGR || normalStatus(it) !== "APPROVED") return false;
+    const fulfillment = it.fulfillment;
+    if (!fulfillment) return true;
+
+    return (fulfillment.total_remaining ?? 0) > 0;
+  };
+
+  const canCreateInvoiceForPO = (it: PurchaseOrderListItem): boolean => {
+    if (!canCreateSI || normalStatus(it) !== "APPROVED") return false;
+    const goodsReceipts = it.goods_receipts ?? [];
+    const invoiceableGRs = goodsReceipts.filter((gr) => {
+      const status = (gr.status ?? "").toUpperCase();
+      return status === "APPROVED" || status === "PARTIAL" || status === "CLOSED" || status === "CONFIRMED";
+    });
+    if (invoiceableGRs.length === 0) return false;
+
+    const invoicedGRIDs = new Set(
+      getActiveRegularInvoices(it)
+        .map((invoice) => invoice.goods_receipt_id)
+        .filter((id): id is string => !!id),
+    );
+
+    return invoiceableGRs.some((gr) => !invoicedGRIDs.has(gr.id));
+  };
+
+  const canCreateInvoiceDPForPO = (it: PurchaseOrderListItem): boolean => {
+    if (!canCreateSIDP || normalStatus(it) !== "APPROVED") return false;
+    if (dpAddDataQuery.isLoading) return true;
+    if (!dpAddDataQuery.data?.data?.purchase_orders) return true;
+
+    return eligibleSIDPOrderIds.has(it.id);
+  };
 
   return (
     <div className="space-y-6">
@@ -357,7 +410,7 @@ export function PurchaseOrdersList() {
               <TableHead>{t("columns.fulfillment")}</TableHead>
               <TableHead>{t("columns.goodsReceipts")}</TableHead>
               <TableHead>{t("columns.supplierInvoices")}</TableHead>
-              <TableHead className="text-right">{t("columns.total")}</TableHead>
+              <TableHead>{t("columns.total")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -381,10 +434,9 @@ export function PurchaseOrdersList() {
             ) : (
               items.map((it) => {
                 const status = normalStatus(it);
-                const hasGoodsReceipt = (it.fulfillment?.total_received ?? 0) > 0;
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
-                  canReject || canClose || canDelete || canPrint;
+                  canReject || canDelete || canPrint;
 
                 return (
                   <TableRow key={it.id}>
@@ -481,17 +533,10 @@ export function PurchaseOrdersList() {
                     <TableCell>{renderSIBadges(it)}</TableCell>
 
                     {/* Total Amount */}
-                    <TableCell className="text-right">
-                      <div className="flex flex-col items-end gap-0.5">
-                        {it.supplier_invoices && it.supplier_invoices.length > 0 && status === "APPROVED" && (
-                          <span className="text-xs text-muted-foreground">
-                            {it.supplier_invoices.filter((si) =>
-                              ["PAID", "PARTIAL"].includes(si.status ?? "")
-                            ).length}/{it.supplier_invoices.length} paid
-                          </span>
-                        )}
-                        <span className="font-medium font-mono">{formatCurrency(it.total_amount)}</span>
-                      </div>
+                    <TableCell>
+                      {status === "APPROVED"
+                        ? `${formatCurrency(getPaidAmount(it))} / ${formatCurrency(it.total_amount ?? 0)}`
+                        : formatCurrency(it.total_amount ?? 0)}
                     </TableCell>
 
                     {/* Actions */}
@@ -582,42 +627,7 @@ export function PurchaseOrdersList() {
                               </>
                             )}
 
-                            {canApprove && status === "APPROVED" && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-success focus:text-success"
-                                onClick={async () => {
-                                  try {
-                                    await confirmMutation.mutateAsync(it.id);
-                                    toast.success(t("toast.confirmed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.confirm")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canClose && status === "APPROVED" && (
-                              <DropdownMenuItem
-                                className="cursor-pointer text-warning focus:text-warning"
-                                onClick={async () => {
-                                  try {
-                                    await closeMutation.mutateAsync(it.id);
-                                    toast.success(t("toast.closed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                {t("actions.close")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canCreateGR && status === "APPROVED" &&
-                              (!it.fulfillment || it.fulfillment.total_remaining > 0) && (
+                            {canCreateGoodsReceiptForPO(it) && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-primary focus:text-primary"
                                 onClick={() => {
@@ -630,7 +640,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSI && status === "APPROVED" && hasGoodsReceipt && (
+                            {canCreateInvoiceForPO(it) && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
@@ -643,7 +653,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSIDP && status === "APPROVED" && hasGoodsReceipt && (
+                            {canCreateInvoiceDPForPO(it) && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
@@ -659,7 +669,7 @@ export function PurchaseOrdersList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-purple focus:text-purple"
-                                onClick={() => setPrintingId(it.id)}
+                                onClick={() => { purchaseOrdersService.openPrintWindow(it.id).catch(() => toast.error("Print failed")); }}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
@@ -765,15 +775,6 @@ export function PurchaseOrdersList() {
         }}
         defaultPurchaseOrderId={siDPFormPOId}
       />
-
-      {printingId && (
-        <PurchaseOrderPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          orderId={printingId}
-        />
-      )}
-
 
       <SupplierDetailModal
         open={isSupplierDialogOpen}

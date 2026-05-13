@@ -24,6 +24,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
 	salesService "github.com/gilabs/gims/api/internal/sales/domain/service"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -270,10 +271,34 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 		if item.InventoryBatchID == nil {
 			return nil, errors.New("inventory_batch_id is required")
 		}
-		if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+		batchWarehouseID, batchCurrentQty, err := u.getBatchShipmentContext(ctx, *item.InventoryBatchID)
+		if err != nil {
 			return nil, err
 		}
+		if item.WarehouseID != nil && strings.TrimSpace(*item.WarehouseID) != "" && !strings.EqualFold(strings.TrimSpace(*item.WarehouseID), batchWarehouseID) {
+			return nil, fmt.Errorf("inventory batch %s does not belong to warehouse %s", *item.InventoryBatchID, strings.TrimSpace(*item.WarehouseID))
+		}
+		if batchCurrentQty < item.Quantity {
+			return nil, ErrInsufficientBatchStock
+		}
 	}
+
+	if strings.TrimSpace(warehouseID) == "" {
+		for _, item := range req.Items {
+			if item.WarehouseID != nil && strings.TrimSpace(*item.WarehouseID) != "" {
+				warehouseID = strings.TrimSpace(*item.WarehouseID)
+				break
+			}
+		}
+		if warehouseID == "" && len(req.Items) > 0 && req.Items[0].InventoryBatchID != nil {
+			batchWarehouseID, _, err := u.getBatchShipmentContext(ctx, *req.Items[0].InventoryBatchID)
+			if err != nil {
+				return nil, err
+			}
+			warehouseID = batchWarehouseID
+		}
+	}
+	req.WarehouseID = warehouseID
 
 	// Generate delivery order number
 	code, err := u.deliveryOrderRepo.GetNextDeliveryNumber(ctx, "DO")
@@ -375,12 +400,18 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 				item.Price = product.SellingPrice
 			}
 
-			// Validate batch exists and has sufficient stock
-			if item.InventoryBatchID == nil {
-				return nil, errors.New("inventory_batch_id is required")
-			}
-			if err := u.inventoryUC.ValidateBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
-				return nil, err
+			// Validate batch exists and has sufficient stock (only when batch ID is provided)
+			if item.InventoryBatchID != nil {
+				batchWarehouseID, batchCurrentQty, err := u.getBatchShipmentContext(ctx, *item.InventoryBatchID)
+				if err != nil {
+					return nil, err
+				}
+				if item.WarehouseID != nil && strings.TrimSpace(*item.WarehouseID) != "" && !strings.EqualFold(strings.TrimSpace(*item.WarehouseID), batchWarehouseID) {
+					return nil, fmt.Errorf("inventory batch %s does not belong to warehouse %s", *item.InventoryBatchID, strings.TrimSpace(*item.WarehouseID))
+				}
+				if batchCurrentQty < item.Quantity {
+					return nil, ErrInsufficientBatchStock
+				}
 			}
 		}
 	}
@@ -411,6 +442,15 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 		// Reserve new batch stock
 		for _, item := range deliveryOrder.Items {
 			if item.InventoryBatchID != nil {
+				if item.WarehouseID != nil && strings.TrimSpace(*item.WarehouseID) != "" {
+					batchWarehouseID, _, err := u.getBatchShipmentContext(txCtx, *item.InventoryBatchID)
+					if err != nil {
+						return err
+					}
+					if !strings.EqualFold(strings.TrimSpace(*item.WarehouseID), batchWarehouseID) {
+						return fmt.Errorf("inventory batch %s does not belong to warehouse %s", *item.InventoryBatchID, strings.TrimSpace(*item.WarehouseID))
+					}
+				}
 				if err := u.inventoryUC.ReserveBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
 					return err
 				}
@@ -506,6 +546,34 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	// Release stock reservations when cancelling to prevent "trapped" inventory
 	if newStatus == models.DeliveryOrderStatusCancelled {
 		return u.cancelAndReleaseStock(ctx, deliveryOrder, userID, reason)
+	}
+
+	if newStatus == models.DeliveryOrderStatusApproved {
+		err := database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
+			txCtx := database.WithTx(ctx, tx)
+
+			if err := u.postApprovedDeliveryStockAndJournal(txCtx, tx, deliveryOrder, userID); err != nil {
+				return err
+			}
+
+			return u.deliveryOrderRepo.UpdateStatus(txCtx, id, newStatus, userID, reason)
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		response := mapper.ToDeliveryOrderResponse(updated)
+		logSalesAudit(u.auditService, ctx, "delivery_order.status_change", id, map[string]interface{}{
+			"before_status": previousStatus,
+			"after_status":  updated.Status,
+			"reason":        req.CancellationReason,
+		})
+		return &response, nil
 	}
 
 	// Validation: Prepared status requires a warehouse
@@ -609,9 +677,6 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	if deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
-	if deliveryOrder.IsPosted || (deliveryOrder.JournalEntryID != nil && strings.TrimSpace(*deliveryOrder.JournalEntryID) != "") {
-		return nil, ErrDeliveryOrderAlreadyPosted
-	}
 	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
 		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
@@ -655,7 +720,13 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 					return fmt.Errorf("release product stock: %w", err)
 				}
 
-				if err := u.inventoryUC.DeductStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+				// Use sales order code as reference (not delivery order) so ledger shows SO code
+				soCode := deliveryOrder.Code
+				if deliveryOrder.SalesOrder != nil && strings.TrimSpace(deliveryOrder.SalesOrder.Code) != "" {
+					soCode = deliveryOrder.SalesOrder.Code
+				}
+
+				if err := u.inventoryUC.DeductStock(txCtx, *item.InventoryBatchID, item.Quantity, "SO", soCode); err != nil {
 					return fmt.Errorf("deduct stock: %w", err)
 				}
 
@@ -665,10 +736,10 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 					WarehouseID:      *deliveryOrder.WarehouseID,
 					Type:             "OUT",
 					Quantity:         item.Quantity,
-					ReferenceType:    reference.RefTypeDeliveryOrder,
-					ReferenceID:      deliveryOrder.ID,
-					ReferenceNumber:  deliveryOrder.Code,
-					Description:      "Delivery Order Shipment",
+					ReferenceType:    "SALES_ORDER",
+					ReferenceID:      deliveryOrder.SalesOrderID,
+					ReferenceNumber:  soCode,
+					Description:      "Sales Order Fulfillment",
 					Cost:             avgCostSnapshot,
 					CreatedBy:        userID,
 					SkipJournaling:   true,
@@ -709,19 +780,18 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 			return fmt.Errorf("post delivery sales journal: %w", err)
 		}
 
-		// 3. Mark DO as shipped only after stock and accounting completed
-		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
-			return fmt.Errorf("repo ship: %w", err)
-		}
-
+		// Link journal entry to delivery order before shipping
 		if journalEntry != nil && strings.TrimSpace(journalEntry.ID) != "" {
 			if err := tx.Model(&models.DeliveryOrder{}).
-				Where("id = ?", deliveryOrder.ID).
+				Where("id = ?", id).
 				Updates(map[string]interface{}{"journal_entry_id": journalEntry.ID, "is_posted": true}).Error; err != nil {
 				return fmt.Errorf("link delivery order journal: %w", err)
 			}
-			deliveryOrder.JournalEntryID = &journalEntry.ID
-			deliveryOrder.IsPosted = true
+		}
+
+		// 3. Mark DO as shipped only after stock and accounting completed
+		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
+			return fmt.Errorf("repo ship: %w", err)
 		}
 
 		return nil
@@ -773,12 +843,20 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
 
-	// Mark as delivered
-	if err := u.deliveryOrderRepo.Deliver(ctx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
+	// Mark as delivered and close SO when now fully fulfilled + fully settled.
+	err = database.GetDB(ctx, u.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		if err := u.deliveryOrderRepo.Deliver(txCtx, id, userID, req.ReceiverSignature, req.ReceiverName); err != nil {
+			return err
+		}
+
+		closeSalesOrderWhenSettledAndFulfilled(tx, deliveryOrder.SalesOrderID)
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	// Sales order status is no longer tied strictly to Delivery completion
 
 	// Fetch updated delivery order
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
@@ -969,6 +1047,134 @@ func resolveDeliveryOrderItemCost(item *models.DeliveryOrderItem) float64 {
 	}
 
 	return 0
+}
+
+func (u *deliveryOrderUsecase) postApprovedDeliveryStockAndJournal(ctx context.Context, tx *gorm.DB, deliveryOrder *models.DeliveryOrder, userID *string) error {
+	if deliveryOrder == nil {
+		return errors.New("delivery order is nil")
+	}
+
+	for i := range deliveryOrder.Items {
+		item := &deliveryOrder.Items[i]
+		isInventoryTracked := item.Product == nil || item.Product.IsInventoryTracked
+
+		avgCostSnapshot := resolveDeliveryOrderItemCost(item)
+		cogsAmount := 0.0
+
+		if isInventoryTracked {
+			if item.InventoryBatchID == nil || strings.TrimSpace(*item.InventoryBatchID) == "" {
+				return fmt.Errorf("inventory batch is required for product %s", item.ProductID)
+			}
+
+			batchWarehouseID, batchCurrentQty, err := u.getBatchShipmentContext(ctx, *item.InventoryBatchID)
+			if err != nil {
+				return fmt.Errorf("resolve batch shipment context for product %s: %w", item.ProductID, err)
+			}
+			if batchCurrentQty < item.Quantity {
+				return fmt.Errorf("validate batch stock for product %s: %w", item.ProductID, inventoryUsecase.ErrInsufficientBatchStock)
+			}
+
+			log.Printf("[Sales] Approving stock deduction for Product %s, Batch %s, Qty %.3f", item.ProductID, *item.InventoryBatchID, item.Quantity)
+
+			if err := u.inventoryUC.ReleaseBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+				return fmt.Errorf("release batch stock: %w", err)
+			}
+
+			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return fmt.Errorf("release product stock: %w", err)
+			}
+
+			if err := u.inventoryUC.DeductStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
+				return fmt.Errorf("deduct stock: %w", err)
+			}
+
+			movementReq := &inventoryDto.StockMovementRequest{
+				InventoryBatchID: *item.InventoryBatchID,
+				ProductID:        item.ProductID,
+				WarehouseID:      batchWarehouseID,
+				Type:             "OUT",
+				Quantity:         item.Quantity,
+				ReferenceType:    reference.RefTypeDeliveryOrder,
+				ReferenceID:      deliveryOrder.ID,
+				ReferenceNumber:  deliveryOrder.Code,
+				Description:      "Delivery Order Approval",
+				Cost:             avgCostSnapshot,
+				CreatedBy:        userID,
+				SkipJournaling:   true,
+			}
+
+			if _, err := u.inventoryUC.CreateStockMovement(ctx, movementReq); err != nil {
+				return fmt.Errorf("create movement: %w", err)
+			}
+
+			cogsAmount = roundCurrency(avgCostSnapshot * item.Quantity)
+		} else {
+			_ = u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity)
+		}
+
+		item.AvgCostSnapshot = avgCostSnapshot
+		item.COGSAmount = cogsAmount
+
+		if err := tx.Model(&models.DeliveryOrderItem{}).
+			Where("id = ?", item.ID).
+			Updates(map[string]interface{}{
+				"avg_cost_snapshot": roundCost(avgCostSnapshot),
+				"cogs_amount":       cogsAmount,
+			}).Error; err != nil {
+			return fmt.Errorf("update delivery item costing: %w", err)
+		}
+	}
+
+	journalEntry, err := u.salesJournalSvc.GenerateSalesJournal(ctx, deliveryOrder)
+	if err != nil {
+		return fmt.Errorf("post delivery sales journal: %w", err)
+	}
+
+	if journalEntry != nil && strings.TrimSpace(journalEntry.ID) != "" {
+		if err := tx.Model(&models.DeliveryOrder{}).
+			Where("id = ?", deliveryOrder.ID).
+			Updates(map[string]interface{}{"journal_entry_id": journalEntry.ID, "is_posted": true}).Error; err != nil {
+			return fmt.Errorf("link delivery order journal: %w", err)
+		}
+		deliveryOrder.JournalEntryID = &journalEntry.ID
+		deliveryOrder.IsPosted = true
+	}
+
+	return nil
+}
+
+func (u *deliveryOrderUsecase) getBatchShipmentContext(ctx context.Context, batchID string) (string, float64, error) {
+	trimmedBatchID := strings.TrimSpace(batchID)
+	if trimmedBatchID == "" {
+		return "", 0, ErrBatchNotFound
+	}
+
+	type batchRow struct {
+		WarehouseID   string  `gorm:"column:warehouse_id"`
+		CurrentQty    float64 `gorm:"column:current_quantity"`
+		ReservedQty   float64 `gorm:"column:reserved_quantity"`
+	}
+
+	var row batchRow
+	err := database.GetDB(ctx, u.db).
+		Table("inventory_batches").
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("warehouse_id, current_quantity, reserved_quantity").
+		Where("id = ? AND deleted_at IS NULL", trimmedBatchID).
+		Take(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", 0, ErrBatchNotFound
+		}
+		return "", 0, err
+	}
+
+	warehouseID := strings.TrimSpace(row.WarehouseID)
+	if warehouseID == "" {
+		return "", 0, errors.New("batch warehouse is required")
+	}
+
+	return warehouseID, row.CurrentQty, nil
 }
 
 func roundCurrency(value float64) float64 {

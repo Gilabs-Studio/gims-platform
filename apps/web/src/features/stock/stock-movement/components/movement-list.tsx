@@ -7,8 +7,8 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Plus, FileText } from "lucide-react";
-import { Link } from "@/i18n/routing";
+import { Search, Download, Plus, FileText, Info } from "lucide-react";
+import { Link, useRouter } from "@/i18n/routing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
 import { MovementBadge } from "./movement-badge";
@@ -23,21 +23,24 @@ import { MovementDetailDialog } from "./movement-detail-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryDetailModal } from "@/features/sales/delivery/components/delivery-detail-modal";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
-import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
+import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
+import type { SalesOrder } from "@/features/sales/order/types";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+
 
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   // Ref-entity permissions
   const canViewDelivery = useUserPermission("delivery_order.read");
   const canViewGR = useUserPermission("goods_receipt.read");
   const canViewOpname = useUserPermission("stock_opname.read");
+  const canViewMovement = useUserPermission("stock_movement.read");
+  const canViewSalesOrder = useUserPermission("sales_order.read");
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -62,6 +65,39 @@ export function MovementList() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalId, setJournalId] = useState<string | null>(null);
 
+  // Sales order detail state
+  const [soOpen, setSoOpen] = useState(false);
+  const [soItem, setSoItem] = useState<SalesOrder | null>(null);
+
+  const handleExport = () => {
+    const rows: StockMovement[] = data?.data?.data ?? [];
+    if (rows.length === 0) return;
+
+    const headers = ["Date", "Type", "Product", "Warehouse", "Qty In", "Qty Out", "Balance", "Source", "Reference Type", "Reference ID"];
+    const csvRows = [
+      headers.join(","),
+      ...rows.map((m) => [
+        m.date ?? "",
+        m.type ?? "",
+        `"${(m.product?.name ?? "").replaceAll('"', '""')}"`,
+        `"${(m.warehouse?.name ?? "").replaceAll('"', '""')}"`,
+        m.qty_in ?? 0,
+        m.qty_out ?? 0,
+        m.balance ?? 0,
+        m.source ?? "",
+        m.ref_type ?? "",
+        m.ref_id ?? "",
+      ].join(",")),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `stock-movements-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleRowClick = (item: StockMovement) => {
     setSelectedItem(item);
     setDialogOpen(true);
@@ -69,10 +105,25 @@ export function MovementList() {
 
   const handleRefClick = (item: StockMovement, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (item.ref_type === "TRANSFER" && canViewMovement) {
+      setSelectedItem(item);
+      setDialogOpen(true);
+      return;
+    }
+    if (item.ref_type === "SalesOrder" && canViewSalesOrder) {
+      setSoItem({ id: item.ref_id } as SalesOrder);
+      setSoOpen(true);
+      return;
+    }
+    // Open stock opname as a dedicated page (no dialog)
+    if (item.ref_type === "StockOpname" && canViewOpname) {
+      router.push(`/stock/opname/${item.ref_id}`);
+      return;
+    }
+
     const hasPermission =
       (item.ref_type === "DeliveryOrder" && canViewDelivery) ||
-      (item.ref_type === "GoodsReceipt" && canViewGR) ||
-      (item.ref_type === "StockOpname" && canViewOpname);
+      (item.ref_type === "GoodsReceipt" && canViewGR);
     if (!hasPermission) return;
     setRefEntityType(item.ref_type);
     setRefEntityId(item.ref_id);
@@ -82,7 +133,9 @@ export function MovementList() {
   const refHasPermission = (refType: string) =>
     (refType === "DeliveryOrder" && canViewDelivery) ||
     (refType === "GoodsReceipt" && canViewGR) ||
-    (refType === "StockOpname" && canViewOpname);
+    (refType === "StockOpname" && canViewOpname) ||
+    (refType === "TRANSFER" && canViewMovement) ||
+    (refType === "SalesOrder" && canViewSalesOrder);
 
   // Data Fetching
   const { data, isLoading, isError } = useStockMovements({
@@ -105,7 +158,7 @@ export function MovementList() {
   const products = productData?.data ?? [];
 
   const stockResponse = data?.data;
-  const movements = stockResponse?.data ?? [];
+  const movements = useMemo(() => stockResponse?.data ?? [], [stockResponse?.data]);
 
   const displayMovements = useMemo(() => {
     const groupedTransfers = new Map<string, StockMovement>();
@@ -186,15 +239,15 @@ export function MovementList() {
             <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground">{t("description")}</p>
           </div>
-          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm font-medium">
+          <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-muted/50 px-3 py-2">
+            <Info className="h-4 w-4 shrink-0 text-primary" />
+            <span className="text-sm font-medium text-muted-foreground leading-tight">
               All inventory movements are recorded via Stock. The Inventory Journal will be automatically managed.
-            </AlertDescription>
-          </Alert>
+            </span>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
-          <Button variant="outline" className="cursor-pointer w-full sm:w-auto">
+          <Button variant="outline" className="cursor-pointer w-full sm:w-auto" onClick={handleExport} disabled={!movements.length}>
               <Download className="h-4 w-4 mr-2" />
               Export
           </Button>
@@ -398,16 +451,16 @@ export function MovementList() {
         goodsReceiptId={refEntityId}
       />
 
-      <StockOpnameDetailDialog
-        open={refEntityOpen && refEntityType === "StockOpname"}
-        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
-        opnameId={refEntityType === "StockOpname" ? refEntityId : null}
-      />
-
       <JournalDetailModal
         open={journalOpen}
         onOpenChange={setJournalOpen}
         id={journalId}
+      />
+
+      <OrderDetailModal
+        open={soOpen}
+        onClose={() => setSoOpen(false)}
+        order={soItem}
       />
     </div>
   );

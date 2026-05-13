@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -80,6 +79,10 @@ export function JournalsList() {
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
 
+  // include company_id from URL if present to scope results
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const companyIdFromURL = searchParams ? searchParams.get("company_id") ?? undefined : undefined;
+
   const { data, isLoading, isError } = useFinanceJournals({
     page,
     per_page: pageSize,
@@ -88,6 +91,7 @@ export function JournalsList() {
     journal_type: typeFilter === "all" ? undefined : typeFilter,
     start_date: startDate || undefined,
     end_date: endDate || undefined,
+    company_id: companyIdFromURL,
     sort_by: "entry_date",
     sort_dir: "desc",
   });
@@ -250,7 +254,7 @@ export function JournalsList() {
               setSelectedFormId(id);
               setFormOpen(true);
             }}
-            onDelete={(id: string) => {
+            onDelete={() => {
               const item = row.original as JournalEntry;
               setDeletingItem(item);
             }}

@@ -38,6 +38,8 @@ import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
 import { cn } from "@/lib/utils";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardMobileSidebar } from "./dashboard-mobile-sidebar";
+import { useQuery } from "@tanstack/react-query";
+import { billingService } from "@/features/settings/services/billing-service";
 
 const DETAIL_SIDEBAR_STORAGE_KEY = "detail_sidebar_state";
 const ACTIVE_PARENT_STORAGE_KEY = "active_parent_id";
@@ -73,10 +75,8 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
     "/finance/ar/customer-invoices": "/finance/journals/sales",
     "/finance/ar/customer-payments": "/finance/ap/payments",
     "/finance/ar/credit-notes": "/finance/journals/sales",
-    "/finance/ar/aging-reports": "/finance/aging-reports",
     "/finance/ap/supplier-invoices": "/finance/journals/purchase",
     "/finance/ap/debit-notes": "/finance/journals/purchase",
-    "/finance/ap/aging-reports": "/finance/aging-reports",
     "/finance/fixed-assets/assets": "/finance/assets",
     "/finance/fixed-assets/categories": "/finance/asset-categories",
     "/finance/fixed-assets/locations": "/finance/asset-locations",
@@ -148,7 +148,20 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   const userName = user?.name ?? "User";
   const tenantName = user?.tenant_name ?? "";
-  const subscriptionPlan = user?.subscription_plan;
+  // Prefer authoritative subscription from billing API so that cancelled-but-not-expired
+  // subscriptions still show until `expires_at`. Fall back to `user.subscription_plan`.
+  const { data: mySubscription } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: billingService.getMySubscription,
+  });
+
+  let subscriptionPlan = user?.subscription_plan;
+  if (mySubscription) {
+    const expiresAt = mySubscription.expires_at ? new Date(mySubscription.expires_at) : null;
+    const notExpired = !expiresAt || expiresAt.getTime() > Date.now();
+    if (notExpired) subscriptionPlan = mySubscription.plan;
+    else subscriptionPlan = undefined;
+  }
   const primaryAvatarUrl =
     user?.avatar_url && user.avatar_url.trim() !== ""
       ? user.avatar_url
@@ -192,8 +205,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
-  const [_attendanceDrawerTab, setAttendanceDrawerTab] =
-    useState<AttendanceDrawerTab>("calendar");
+  const [, setAttendanceDrawerTab] = useState<AttendanceDrawerTab>("calendar");
 
   // Separate drawer states for Leave Request and Overtime
   const [isLeaveRequestDrawerOpen, setIsLeaveRequestDrawerOpen] =
@@ -453,7 +465,8 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, [activeParentId, parentItems, isMounted]);
 
   const contentMarginLeft = useMemo(() => {
-    if (isMobile || !isMounted) return "0";
+    if (!isMounted) return undefined;
+    if (isMobile) return "0";
     if (isDetailSidebarOpen && shouldShowDetailSidebar)
       return "calc(4rem + 14rem)";
     return "4rem";
@@ -501,14 +514,14 @@ export const DashboardLayout = memo(function DashboardLayout({
         />
 
         <main
-          className="relative min-h-screen transition-[margin] duration-300 ease-out"
-          style={{ marginLeft: contentMarginLeft }}
+          className={cn(
+            "relative min-h-screen md:ml-16",
+            isMounted && "transition-[margin] duration-300 ease-out",
+          )}
+          style={contentMarginLeft ? { marginLeft: contentMarginLeft } : undefined}
         >
           <div
-            className={cn(
-              "relative min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]",
-              isDashboardOnboardingMode && "md:rounded-none md:shadow-none",
-            )}
+            className="relative min-h-full bg-background md:rounded-none md:shadow-none"
           >
             {shouldShowDashboardHeader &&
               (isDashboardOnboardingMode ? (

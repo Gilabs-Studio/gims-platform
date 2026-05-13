@@ -21,7 +21,9 @@
       "allStatus": "Semua Status",
       "allRoles": "Semua Role",
       "addUser": "Tambah Pengguna",
-      "limitReached": "Batas pengguna tercapai. Upgrade paket Anda untuk menambah lebih banyak pengguna.",      "userLimitLabel": "{current}/{max} pengguna",      "empty": "Tidak ada pengguna",
+      "limitReached": "Batas pengguna tercapai. Tambahkan seat untuk melanjutkan pembuatan pengguna.",
+      "userLimitLabel": "{current}/{max} pengguna",
+      "empty": "Tidak ada pengguna",
       "createTitle": "Buat Pengguna",
       "editTitle": "Edit Pengguna",
       "deleteTitle": "Hapus Pengguna?",
@@ -31,7 +33,19 @@
       "filterDescription": "Saring pengguna berdasarkan kriteria",
       "applyFilters": "Terapkan Filter",
       "resetFilters": "Reset Filter",
-      "activeFilters": "Filter Aktif"
+      "activeFilters": "Filter Aktif",
+      "cancelAddOn": "Batal",
+      "addon": {
+        "title": "Tambah Seat Pengguna",
+        "description": "Batas pengguna Anda sudah penuh ({current}/{max}). Tambahkan seat untuk melanjutkan pembuatan pengguna.",
+        "quantityLabel": "Seat tambahan",
+        "unitPrice": "Harga per seat",
+        "totalPrice": "Total tagihan saat ini",
+        "continuePayment": "Lanjut ke Pembayaran",
+        "processing": "Memproses...",
+        "invoiceReady": "Invoice add-on seat pengguna berhasil dibuat",
+        "invoiceError": "Gagal membuat invoice add-on seat pengguna"
+      }
     },
     "detailModal": {
       "title": "Detail Pengguna",

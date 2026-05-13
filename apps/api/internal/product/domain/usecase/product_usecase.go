@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/product/domain/dto"
@@ -16,6 +18,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// mpnPattern enforces that MPN only contains safe printable characters (#353)
+var mpnPattern = regexp.MustCompile(`^[A-Za-z0-9\-\.\/]+$`)
 
 // ProductUsecase defines the interface for product business logic
 type ProductUsecase interface {
@@ -52,6 +57,11 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
+	}
+
+	// Validate MPN format (#353)
+	if req.ManufacturerPartNumber != "" && !mpnPattern.MatchString(req.ManufacturerPartNumber) {
+		return dto.ProductResponse{}, errors.New("manufacturer_part_number may only contain letters, digits, hyphens, dots, or slashes")
 	}
 
 	// Generate Product Code
@@ -129,7 +139,7 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		ProductKind:            productKind,
 		IsIngredient:           req.IsIngredient,
 		IsInventoryTracked:     isInventoryTracked,
-		IsPosAvailable:         req.IsPosAvailable,
+		POSScope:               req.POSScope,
 	}
 
 	// Validate recipe items for RECIPE kind
@@ -148,6 +158,13 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		}
 		if err := u.createRecipeVersion(product.ID, req.RecipeItems, nil, models.RecipeVersionChangeManual, "initial recipe version"); err != nil {
 			return dto.ProductResponse{}, fmt.Errorf("failed to create initial recipe version: %w", err)
+		}
+	}
+
+	// Sync outlet assignments if provided
+	if req.OutletIDs != nil {
+		if err := u.syncOutlets(ctx, product.ID, req.OutletIDs); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to sync outlets: %w", err)
 		}
 	}
 
@@ -182,6 +199,11 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 		return dto.ProductResponse{}, err
 	}
 
+	// Validate MPN format (#353)
+	if req.ManufacturerPartNumber != "" && !mpnPattern.MatchString(req.ManufacturerPartNumber) {
+		return dto.ProductResponse{}, errors.New("manufacturer_part_number may only contain letters, digits, hyphens, dots, or slashes")
+	}
+
 	if req.Code != "" {
 		product.Code = req.Code
 	}
@@ -192,6 +214,18 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 		product.Description = req.Description
 	}
 	if req.ImageURL != nil {
+		// If image is being deleted (set to empty string) or replaced with new URL
+		if product.ImageURL != nil && *product.ImageURL != "" {
+			// Check if image URL is different (being replaced) or being deleted
+			if *req.ImageURL == "" || *product.ImageURL != *req.ImageURL {
+				// Delete old image from R2 (best-effort, don't fail the update if deletion fails)
+				key := storage.KeyFromURL(*product.ImageURL)
+				if key != "" {
+					_ = storage.Delete(ctx, key)
+				}
+			}
+		}
+		// Set new image URL
 		if *req.ImageURL == "" {
 			product.ImageURL = nil
 		} else {
@@ -282,8 +316,8 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	if req.IsInventoryTracked != nil {
 		product.IsInventoryTracked = *req.IsInventoryTracked
 	}
-	if req.IsPosAvailable != nil {
-		product.IsPosAvailable = *req.IsPosAvailable
+	if req.POSScope != nil {
+		product.POSScope = *req.POSScope
 	}
 
 	// Validate recipe items for RECIPE kind
@@ -304,6 +338,13 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 
 	if err := u.repo.Update(ctx, product); err != nil {
 		return dto.ProductResponse{}, err
+	}
+
+	// Sync outlet assignments if provided in the update request
+	if req.OutletIDs != nil {
+		if err := u.syncOutlets(ctx, product.ID, req.OutletIDs); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to sync outlets: %w", err)
+		}
 	}
 
 	// Reload to get relations
@@ -769,6 +810,27 @@ func (u *productUsecase) replaceRecipeItems(productID string, items []dto.Recipe
 				SortOrder:           item.SortOrder,
 			}
 			if err := tx.Create(&ri).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// syncOutlets replaces outlet assignments for a product using a delete-then-insert pattern.
+// Passing an empty outletIDs slice removes all outlet assignments.
+func (u *productUsecase) syncOutlets(ctx context.Context, productID string, outletIDs []string) error {
+	return database.RetryTx(u.db, func(tx *gorm.DB) error {
+		// Soft-delete all existing outlet assignments for this product
+		if err := tx.Where("product_id = ?", productID).Delete(&models.ProductOutlet{}).Error; err != nil {
+			return err
+		}
+		for _, outletID := range outletIDs {
+			po := models.ProductOutlet{
+				ProductID: productID,
+				OutletID:  outletID,
+			}
+			if err := tx.Create(&po).Error; err != nil {
 				return err
 			}
 		}

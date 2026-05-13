@@ -4,7 +4,7 @@ import "time"
 
 type CreateDeliveryOrderRequest struct {
 	DeliveryDate    string                           `json:"delivery_date" binding:"required"`
-	WarehouseID     string                           `json:"warehouse_id" binding:"required,uuid"`
+	WarehouseID     string                           `json:"warehouse_id" binding:"omitempty,uuid"`
 	SalesOrderID    string                           `json:"sales_order_id" binding:"required,uuid"`
 	DeliveredByID   *string                          `json:"delivered_by_id"`
 	CourierAgencyID *string                          `json:"courier_agency_id"`
@@ -20,9 +20,21 @@ type CreateDeliveryOrderRequest struct {
 type CreateDeliveryOrderItemRequest struct {
 	SalesOrderItemID *string `json:"sales_order_item_id"`
 	ProductID        string  `json:"product_id" binding:"required,uuid"`
-	InventoryBatchID *string `json:"inventory_batch_id" binding:"required,uuid"`
+	WarehouseID      *string `json:"warehouse_id" binding:"omitempty,uuid"`
+	InventoryBatchID *string `json:"inventory_batch_id" binding:"omitempty,uuid"`
 	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
-	Price            float64 `json:"price" binding:"required,gt=0"`
+	Price            float64 `json:"price" binding:"omitempty,gte=0"`
+	IsEquipment      bool    `json:"is_equipment"`
+}
+
+// UpdateDeliveryOrderItemRequest represents an item in the update delivery order
+type UpdateDeliveryOrderItemRequest struct {
+	SalesOrderItemID *string `json:"sales_order_item_id"`
+	ProductID        string  `json:"product_id" binding:"required,uuid"`
+	WarehouseID      *string `json:"warehouse_id" binding:"omitempty,uuid"`
+	InventoryBatchID *string `json:"inventory_batch_id" binding:"omitempty,uuid"`
+	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
+	Price            float64 `json:"price" binding:"omitempty,gte=0"`
 	IsEquipment      bool    `json:"is_equipment"`
 }
 
@@ -37,7 +49,7 @@ type UpdateDeliveryOrderRequest struct {
 	ReceiverPhone   *string                          `json:"receiver_phone"`
 	DeliveryAddress *string                          `json:"delivery_address"`
 	Notes           *string                          `json:"notes"`
-	Items           []CreateDeliveryOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
+	Items           []UpdateDeliveryOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
 }
 
 // ListDeliveryOrdersRequest represents the request to list delivery orders
@@ -139,6 +151,8 @@ type DeliveryOrderResponse struct {
 type DeliveryOrderItemResponse struct {
 	ID                 string                  `json:"id"`
 	DeliveryOrderID    string                  `json:"delivery_order_id"`
+	WarehouseID       *string                 `json:"warehouse_id"`
+	Warehouse         *WarehouseResponse     `json:"warehouse,omitempty"`
 	SalesOrderItemID   *string                 `json:"sales_order_item_id"`
 	SalesOrderItem     *SalesOrderItemResponse `json:"sales_order_item,omitempty"`
 	ProductID          string                  `json:"product_id"`

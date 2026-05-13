@@ -45,12 +45,12 @@ func (r *purchasePaymentRepository) getDB(ctx context.Context) *gorm.DB {
 }
 
 var purchasePaymentAllowedSort = map[string]string{
-	"created_at":     "purchase_payments.created_at",
-	"updated_at":     "purchase_payments.updated_at",
-	"payment_date":   "purchase_payments.payment_date",
-	"amount":         "purchase_payments.amount",
-	"method":         "purchase_payments.method",
-	"status":         "purchase_payments.status",
+	"created_at":       "purchase_payments.created_at",
+	"updated_at":       "purchase_payments.updated_at",
+	"payment_date":     "purchase_payments.payment_date",
+	"amount":           "purchase_payments.amount",
+	"method":           "purchase_payments.method",
+	"status":           "purchase_payments.status",
 	"reference_number": "purchase_payments.reference_number",
 }
 
@@ -67,9 +67,22 @@ func (r *purchasePaymentRepository) List(ctx context.Context, params PurchasePay
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
+		q = q.
+			Joins("LEFT JOIN supplier_invoices ON supplier_invoices.id = purchase_payments.supplier_invoice_id").
+			Joins("LEFT JOIN suppliers ON suppliers.id = supplier_invoices.supplier_id").
+			Joins("LEFT JOIN bank_accounts ON bank_accounts.id = purchase_payments.bank_account_id")
 		q = q.Where(
-			"purchase_payments.reference_number ILIKE ? OR purchase_payments.notes ILIKE ? OR purchase_payments.method ILIKE ?",
-			like, like, like,
+			"purchase_payments.reference_number ILIKE ? OR purchase_payments.notes ILIKE ? OR purchase_payments.method ILIKE ? OR purchase_payments.payment_date::text ILIKE ? OR supplier_invoices.code ILIKE ? OR supplier_invoices.invoice_number ILIKE ? OR supplier_invoices.supplier_name_snapshot ILIKE ? OR suppliers.name ILIKE ? OR suppliers.code ILIKE ? OR bank_accounts.name ILIKE ?",
+			like,
+			like,
+			like,
+			like,
+			like,
+			like,
+			like,
+			like,
+			like,
+			like,
 		)
 	}
 	if st := strings.TrimSpace(params.Status); st != "" {

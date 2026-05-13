@@ -10,19 +10,41 @@ ALTER TABLE IF EXISTS valuation_runs
   ALTER COLUMN status SET DEFAULT 'draft';
 
 -- Backfill old statuses into the new workflow naming
-UPDATE valuation_runs
-SET status = CASE
-  WHEN status = 'requested' THEN 'draft'
-  WHEN status = 'processing' THEN 'pending_approval'
-  WHEN status = 'completed' THEN 'posted'
-  ELSE status
-END
-WHERE status IN ('requested', 'processing', 'completed');
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'valuation_runs'
+      AND column_name = 'status'
+  ) THEN
+    UPDATE valuation_runs
+    SET status = CASE
+      WHEN status = 'requested' THEN 'draft'
+      WHEN status = 'processing' THEN 'pending_approval'
+      WHEN status = 'completed' THEN 'posted'
+      ELSE status
+    END
+    WHERE status IN ('requested', 'processing', 'completed');
+  END IF;
+END $$;
 
 -- Align old valuation type naming
-UPDATE valuation_runs
-SET valuation_type = 'fx'
-WHERE valuation_type = 'currency';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'valuation_runs'
+      AND column_name = 'valuation_type'
+  ) THEN
+    UPDATE valuation_runs
+    SET valuation_type = 'fx'
+    WHERE valuation_type = 'currency';
+  END IF;
+END $$;
 
 -- 2) Create itemized valuation detail table for audit trail
 CREATE TABLE IF NOT EXISTS valuation_run_details (

@@ -10,11 +10,13 @@ import {
   Ticket,
   CreditCard,
   Package,
+  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSystemAdminStore } from "../stores/use-system-admin-store";
 import { systemAdminService } from "../services/system-admin-service";
+import { clearCSRFTokenMemory } from "@/lib/api-client";
 
 interface SystemAdminLayoutProps {
   readonly children: ReactNode;
@@ -46,6 +48,11 @@ const sidebarLinks = [
     href: "/system/subscriptions",
     icon: CreditCard,
   },
+  {
+    label: "Profile",
+    href: "/system/profile",
+    icon: UserCircle,
+  },
 ];
 
 export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
@@ -59,7 +66,16 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
     } catch {
       // Continue even if API call fails
     }
+
+    clearCSRFTokenMemory();
     storeLogout();
+
+    const locale = pathname.split("/").filter(Boolean)[0] ?? "id";
+    if (typeof window !== "undefined") {
+      window.location.replace(`/${locale}/system/login`);
+      return;
+    }
+
     router.replace("/system/login");
   };
 
@@ -70,7 +86,7 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
         {/* Header */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
           <ShieldCheck className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold">GIMS Admin</span>
+          <span className="text-lg font-bold">SalesView Admin</span>
         </div>
 
         {/* Navigation */}
@@ -98,6 +114,9 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
         {/* Footer */}
         <div className="border-t p-3">
           <div className="mb-2 truncate px-3 text-xs text-muted-foreground">
+            {admin?.username || admin?.name || admin?.email}
+          </div>
+          <div className="mb-2 truncate px-3 text-[11px] text-muted-foreground/80">
             {admin?.email}
           </div>
           <Button

@@ -16,6 +16,12 @@ export interface StockOpname {
   total_negative_variance_qty: number;
   total_positive_variance_qty: number;
   
+  // Employee assignment
+  ordered_by_id?: string;
+  ordered_by_name?: string;
+  assigned_to_id?: string;
+  assigned_to_name?: string;
+
   created_at: string;
   updated_at: string;
   
@@ -30,6 +36,7 @@ export interface StockOpnameItem {
   product_id: string;
   product_name?: string;
   product_code?: string;
+  product_image_url?: string | null;
   
   system_qty: number;
   physical_qty: number | null;
@@ -37,6 +44,10 @@ export interface StockOpnameItem {
   unit_cost: number;
   
   notes?: string;
+
+  inventory_batch_id?: string | null;
+  batch_number?: string;
+  batch_qty?: number;
 }
 
 export interface StockOpnameFilter {
@@ -53,15 +64,27 @@ export interface CreateStockOpnameRequest {
     warehouse_id: string;
     date: string;
     description?: string;
+  scope_type?: "all" | "category" | "brand";
+  category_ids?: string[];
+  brand_ids?: string[];
+    ordered_by_id?: string;
+    assigned_to_id?: string;
 }
 
 export interface UpdateStockOpnameRequest {
     date?: string;
     description?: string;
+    ordered_by_id?: string;
+    assigned_to_id?: string;
 }
 
 export interface SaveStockOpnameItemsRequest {
     items: StockOpnameItemRequest[];
+}
+
+export interface StockOpnameItemsFilter {
+  page?: number;
+  per_page?: number;
 }
 
 export interface StockOpnameItemRequest {
@@ -69,6 +92,9 @@ export interface StockOpnameItemRequest {
     system_qty: number;
     physical_qty?: number | null;
     notes?: string;
+    inventory_batch_id?: string | null;
+    batch_number?: string;
+    batch_qty?: number;
 }
 
 export interface UpdateStockOpnameStatusRequest {
@@ -150,3 +176,9 @@ export type InventoryStockLevelListResponse = ApiResponse<{
   data: InventoryStockLevel[];
   meta: PaginationMeta;
 }>;
+
+export interface UserWarehouseInfo {
+  id: string;
+  name: string;
+  code: string;
+}

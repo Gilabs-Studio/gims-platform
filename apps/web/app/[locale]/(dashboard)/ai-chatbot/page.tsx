@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Bot,
-  Copy,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  StopCircle,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Bot, PanelLeftClose, PanelLeftOpen, StopCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,7 +13,6 @@ import {
 } from "@/components/ui/tooltip";
 
 import { useAIChatStore } from "@/features/ai-chat/stores/use-ai-chat-store";
-import { aiChatService } from "@/features/ai-chat/services/ai-chat-service";
 import {
   useSendMessageStream,
   useAIChatSessionDetail,
@@ -39,7 +30,6 @@ export default function AIChatbotPage() {
   const t = useTranslations("aiChat");
   const {
     activeSessionId,
-    startNewChat,
     closeChat,
     cancelStreaming,
   } = useAIChatStore();
@@ -65,21 +55,6 @@ export default function AIChatbotPage() {
     [send],
   );
 
-  const handleCopyAllSessions = useCallback(async () => {
-    try {
-      const exportPayload = await aiChatService.exportAllSessionsForDebug();
-
-      if (exportPayload.session_count === 0) {
-        toast.error(t("toast.copyAllSessionsEmpty"));
-        return;
-      }
-
-      await navigator.clipboard.writeText(JSON.stringify(exportPayload, null, 2));
-      toast.success(`${t("toast.copyAllSessionsSuccess")} (${exportPayload.session_count})`);
-    } catch {
-      toast.error(t("toast.copyAllSessionsFailed"));
-    }
-  }, [t]);
 
   return (
     <div className="flex h-full w-full overflow-hidden">

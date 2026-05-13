@@ -9,12 +9,14 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
+	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -94,32 +96,45 @@ type EmployeeUsecase interface {
 	GetEmployeeSignature(ctx context.Context, employeeID string) (*dto.EmployeeSignatureResponse, error)
 	UploadEmployeeSignature(ctx context.Context, employeeID string, filePath string, fileName string, fileSize int64, fileHash string, mimeType string, width int, height int, uploadedBy string) (*dto.EmployeeSignatureResponse, error)
 	DeleteEmployeeSignature(ctx context.Context, employeeID string) error
+	// Outlet and warehouse assignment methods
+	AssignOutlets(ctx context.Context, id string, req dto.AssignEmployeeOutletsRequest) (dto.EmployeeResponse, error)
+	AssignWarehouses(ctx context.Context, id string, req dto.AssignEmployeeWarehousesRequest) (dto.EmployeeResponse, error)
+	BulkUpdateOutlets(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeOutletsRequest) (dto.EmployeeResponse, error)
+	BulkUpdateWarehouses(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeWarehousesRequest) (dto.EmployeeResponse, error)
 }
 
 type employeeUsecase struct {
-	employeeRepo         repositories.EmployeeRepository
-	employeeAreaRepo     repositories.EmployeeAreaRepository
-	divisionRepo         repositories.DivisionRepository
-	jobPositionRepo      repositories.JobPositionRepository
-	companyRepo          repositories.CompanyRepository
-	areaRepo             repositories.AreaRepository
-	contractRepo         repositories.EmployeeContractRepository
-	educationHistoryRepo repositories.EmployeeEducationHistoryRepository
-	certificationRepo    repositories.EmployeeCertificationRepository
-	assetRepo            repositories.EmployeeAssetRepository
-	signatureRepo        repositories.EmployeeSignatureRepository
-	financeAssetRepo     financeRepositories.AssetRepository
-	auditLogRepo         financeRepositories.AssetAuditLogRepository
+	employeeRepo          repositories.EmployeeRepository
+	employeeAreaRepo      repositories.EmployeeAreaRepository
+	employeeOutletRepo    repositories.EmployeeOutletRepository
+	employeeWarehouseRepo repositories.EmployeeWarehouseRepository
+	divisionRepo          repositories.DivisionRepository
+	jobPositionRepo       repositories.JobPositionRepository
+	companyRepo           repositories.CompanyRepository
+	areaRepo              repositories.AreaRepository
+	outletRepo            repositories.OutletRepository
+	warehouseRepo         warehouseRepositories.WarehouseRepository
+	contractRepo          repositories.EmployeeContractRepository
+	educationHistoryRepo  repositories.EmployeeEducationHistoryRepository
+	certificationRepo     repositories.EmployeeCertificationRepository
+	assetRepo             repositories.EmployeeAssetRepository
+	signatureRepo         repositories.EmployeeSignatureRepository
+	financeAssetRepo      financeRepositories.AssetRepository
+	auditLogRepo          financeRepositories.AssetAuditLogRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
 func NewEmployeeUsecase(
 	employeeRepo repositories.EmployeeRepository,
 	employeeAreaRepo repositories.EmployeeAreaRepository,
+	employeeOutletRepo repositories.EmployeeOutletRepository,
+	employeeWarehouseRepo repositories.EmployeeWarehouseRepository,
 	divisionRepo repositories.DivisionRepository,
 	jobPositionRepo repositories.JobPositionRepository,
 	companyRepo repositories.CompanyRepository,
 	areaRepo repositories.AreaRepository,
+	outletRepo repositories.OutletRepository,
+	warehouseRepo warehouseRepositories.WarehouseRepository,
 	contractRepo repositories.EmployeeContractRepository,
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository,
 	certificationRepo repositories.EmployeeCertificationRepository,
@@ -129,19 +144,23 @@ func NewEmployeeUsecase(
 	auditLogRepo financeRepositories.AssetAuditLogRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
-		employeeRepo:         employeeRepo,
-		employeeAreaRepo:     employeeAreaRepo,
-		divisionRepo:         divisionRepo,
-		jobPositionRepo:      jobPositionRepo,
-		companyRepo:          companyRepo,
-		areaRepo:             areaRepo,
-		contractRepo:         contractRepo,
-		educationHistoryRepo: educationHistoryRepo,
-		certificationRepo:    certificationRepo,
-		assetRepo:            assetRepo,
-		signatureRepo:        signatureRepo,
-		financeAssetRepo:     financeAssetRepo,
-		auditLogRepo:         auditLogRepo,
+		employeeRepo:          employeeRepo,
+		employeeAreaRepo:      employeeAreaRepo,
+		employeeOutletRepo:    employeeOutletRepo,
+		employeeWarehouseRepo: employeeWarehouseRepo,
+		divisionRepo:          divisionRepo,
+		jobPositionRepo:       jobPositionRepo,
+		companyRepo:           companyRepo,
+		areaRepo:              areaRepo,
+		outletRepo:            outletRepo,
+		warehouseRepo:         warehouseRepo,
+		contractRepo:          contractRepo,
+		educationHistoryRepo:  educationHistoryRepo,
+		certificationRepo:     certificationRepo,
+		assetRepo:             assetRepo,
+		signatureRepo:         signatureRepo,
+		financeAssetRepo:      financeAssetRepo,
+		auditLogRepo:          auditLogRepo,
 	}
 }
 
@@ -311,6 +330,42 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		}
 	}
 
+	// Assign outlets and auto-select linked warehouses if provided
+	if len(req.OutletIDs) > 0 {
+		if err := u.employeeOutletRepo.AssignOutlets(ctx, employee.ID, req.OutletIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		warehouseIDsSet := make(map[string]bool)
+		for _, outletID := range req.OutletIDs {
+			outlet, err := u.outletRepo.GetByID(ctx, outletID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to find outlet %s: %v", outletID, err)
+				continue
+			}
+			if outlet != nil && outlet.WarehouseID != nil && *outlet.WarehouseID != "" {
+				warehouseIDsSet[*outlet.WarehouseID] = true
+			}
+		}
+
+		if len(warehouseIDsSet) > 0 {
+			warehouseIDs := make([]string, 0, len(warehouseIDsSet))
+			for wID := range warehouseIDsSet {
+				warehouseIDs = append(warehouseIDs, wID)
+			}
+			if err := u.employeeWarehouseRepo.AssignWarehousesWithAutoFlag(ctx, employee.ID, warehouseIDs, true); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	// Assign manual warehouses if provided
+	if len(req.WarehouseIDs) > 0 {
+		if err := u.employeeWarehouseRepo.AssignWarehouses(ctx, employee.ID, req.WarehouseIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+	}
+
 	// Reload with preloaded data
 	employee, err := u.employeeRepo.FindByID(ctx, employee.ID)
 	if err != nil {
@@ -341,7 +396,17 @@ func (u *employeeUsecase) getNextEmployeeCode(ctx context.Context) (string, erro
 func isEmployeeCodeUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505" && pgErr.ConstraintName == "idx_employees_employee_code"
+		if pgErr.Code != "23505" {
+			return false
+		}
+
+		constraint := strings.ToLower(strings.TrimSpace(pgErr.ConstraintName))
+		if strings.Contains(constraint, "employee_code") {
+			return true
+		}
+
+		message := strings.ToLower(strings.TrimSpace(pgErr.Message))
+		return strings.Contains(message, "employee_code")
 	}
 
 	return false
@@ -519,6 +584,67 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 		}
 	}
 
+	// Update outlet assignments if provided (full replacement + auto warehouses refresh)
+	if req.OutletIDs != nil {
+		if err := u.employeeOutletRepo.RemoveAllOutlets(ctx, id); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		if len(req.OutletIDs) > 0 {
+			if err := u.employeeOutletRepo.AssignOutlets(ctx, id, req.OutletIDs); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+
+		if err := u.employeeWarehouseRepo.RemoveAutoWarehouses(ctx, id); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		warehouseIDsSet := make(map[string]bool)
+		for _, outletID := range req.OutletIDs {
+			outlet, err := u.outletRepo.GetByID(ctx, outletID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to find outlet %s: %v", outletID, err)
+				continue
+			}
+			if outlet != nil && outlet.WarehouseID != nil && *outlet.WarehouseID != "" {
+				warehouseIDsSet[*outlet.WarehouseID] = true
+			}
+		}
+
+		if len(warehouseIDsSet) > 0 {
+			warehouseIDs := make([]string, 0, len(warehouseIDsSet))
+			for wID := range warehouseIDsSet {
+				warehouseIDs = append(warehouseIDs, wID)
+			}
+			if err := u.employeeWarehouseRepo.AssignWarehousesWithAutoFlag(ctx, id, warehouseIDs, true); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	// Update manual warehouse assignments if provided (preserve auto warehouses)
+	if req.WarehouseIDs != nil {
+		allWarehouses, err := u.employeeWarehouseRepo.GetByEmployeeID(ctx, id)
+		if err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		for _, w := range allWarehouses {
+			if !w.IsAuto {
+				if err := u.employeeWarehouseRepo.RemoveWarehouses(ctx, id, []string{w.WarehouseID}); err != nil {
+					return dto.EmployeeResponse{}, err
+				}
+			}
+		}
+
+		if len(req.WarehouseIDs) > 0 {
+			if err := u.employeeWarehouseRepo.AssignWarehouses(ctx, id, req.WarehouseIDs); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
 	// Reload with preloaded data
 	employee, err = u.employeeRepo.FindByID(ctx, id)
 	if err != nil {
@@ -677,6 +803,14 @@ func (u *employeeUsecase) GetFormData(ctx context.Context) (*dto.EmployeeFormDat
 	if err != nil {
 		return nil, err
 	}
+	outlets, _, err := u.outletRepo.List(ctx, repositories.OutletListParams{Limit: maxOptions})
+	if err != nil {
+		return nil, err
+	}
+	warehouses, _, err := u.warehouseRepo.List(ctx, warehouseRepositories.WarehouseListParams{ListParams: warehouseRepositories.ListParams{Limit: maxOptions}})
+	if err != nil {
+		return nil, err
+	}
 
 	divOpts := make([]dto.FormOption, len(divisions))
 	for i, d := range divisions {
@@ -698,11 +832,23 @@ func (u *employeeUsecase) GetFormData(ctx context.Context) (*dto.EmployeeFormDat
 		areaOpts[i] = dto.FormOption{ID: a.ID, Name: a.Name}
 	}
 
+	outletOpts := make([]dto.FormOption, len(outlets))
+	for i, o := range outlets {
+		outletOpts[i] = dto.FormOption{ID: o.ID, Name: o.Name}
+	}
+
+	warehouseOpts := make([]dto.FormOption, len(warehouses))
+	for i, w := range warehouses {
+		warehouseOpts[i] = dto.FormOption{ID: w.ID, Name: w.Name}
+	}
+
 	return &dto.EmployeeFormDataResponse{
 		Divisions:    divOpts,
 		JobPositions: jpOpts,
 		Companies:    compOpts,
 		Areas:        areaOpts,
+		Outlets:      outletOpts,
+		Warehouses:   warehouseOpts,
 	}, nil
 }
 
@@ -1661,6 +1807,29 @@ func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID st
 		return dto.EmployeeAssetResponse{}, ErrAssetAlreadyReturned
 	}
 
+	currentLinkedAssetID := ""
+	if asset.AssetID != nil {
+		currentLinkedAssetID = *asset.AssetID
+	}
+
+	isLinkedAssetChanged := req.AssetID != "" && req.AssetID != currentLinkedAssetID
+	if isLinkedAssetChanged {
+		financeAsset, err := u.financeAssetRepo.FindByID(ctx, req.AssetID, false)
+		if err != nil {
+			return dto.EmployeeAssetResponse{}, errors.New("finance asset not found")
+		}
+		if financeAsset.Status != financeModels.AssetStatusActive {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is not available for borrowing")
+		}
+
+		existingBorrowed, _ := u.assetRepo.FindByAssetID(ctx, req.AssetID)
+		if existingBorrowed != nil && existingBorrowed.ID != assetID && !existingBorrowed.IsReturned() {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is already borrowed by another employee")
+		}
+
+		asset.AssetID = &req.AssetID
+	}
+
 	if req.AssetName != "" {
 		asset.AssetName = req.AssetName
 	}
@@ -1695,6 +1864,17 @@ func (u *employeeUsecase) UpdateEmployeeAsset(ctx context.Context, employeeID st
 
 	if err := u.assetRepo.Update(ctx, asset); err != nil {
 		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to update asset: %w", err)
+	}
+
+	if isLinkedAssetChanged {
+		if currentLinkedAssetID != "" {
+			if err := u.financeAssetRepo.UpdateStatus(ctx, currentLinkedAssetID, financeModels.AssetStatusActive); err != nil {
+				log.Printf("Failed to reactivate previous finance asset on employee asset update: %v", err)
+			}
+		}
+		if err := u.financeAssetRepo.UpdateStatus(ctx, req.AssetID, financeModels.AssetStatusInUse); err != nil {
+			log.Printf("Failed to mark new finance asset as in use on employee asset update: %v", err)
+		}
 	}
 
 	return mapper.ToAssetResponse(asset), nil
@@ -1888,5 +2068,148 @@ func (u *employeeUsecase) DeleteEmployeeSignature(ctx context.Context, employeeI
 		return errors.New("employee does not have a signature")
 	}
 
+	// Delete signature file from R2 first (best-effort)
+	if signature.FilePath != "" {
+		_ = storage.Delete(ctx, signature.FilePath)
+	}
+	
 	return u.signatureRepo.SoftDelete(ctx, signature.ID.String())
+}
+
+// AssignOutlets assigns outlets to an employee and auto-selects associated warehouses
+func (u *employeeUsecase) AssignOutlets(ctx context.Context, id string, req dto.AssignEmployeeOutletsRequest) (dto.EmployeeResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, id); err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	// Remove all existing outlet assignments
+	if err := u.employeeOutletRepo.RemoveAllOutlets(ctx, id); err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	// Assign new outlets
+	if len(req.OutletIDs) > 0 {
+		if err := u.employeeOutletRepo.AssignOutlets(ctx, id, req.OutletIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		// Auto-select warehouses from outlets
+		warehouseIDsSet := make(map[string]bool)
+		for _, outletID := range req.OutletIDs {
+			outlet, err := u.outletRepo.GetByID(ctx, outletID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to find outlet %s: %v", outletID, err)
+				continue
+			}
+			if outlet != nil && outlet.WarehouseID != nil && *outlet.WarehouseID != "" {
+				warehouseIDsSet[*outlet.WarehouseID] = true
+			}
+		}
+
+		// Remove all existing auto-selected warehouse assignments
+		if err := u.employeeWarehouseRepo.RemoveAutoWarehouses(ctx, id); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+
+		// Assign auto-selected warehouses
+		if len(warehouseIDsSet) > 0 {
+			warehouseIDs := make([]string, 0, len(warehouseIDsSet))
+			for wID := range warehouseIDsSet {
+				warehouseIDs = append(warehouseIDs, wID)
+			}
+			if err := u.employeeWarehouseRepo.AssignWarehousesWithAutoFlag(ctx, id, warehouseIDs, true); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	employee, err := u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	var currentContract *models.EmployeeContract
+	employeeUUID, _ := uuid.Parse(id)
+	contract, _ := u.contractRepo.FindActiveByEmployeeID(ctx, employeeUUID)
+	if contract != nil {
+		currentContract = contract
+	}
+
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
+}
+
+// AssignWarehouses assigns warehouses to an employee (manual assignment, not auto)
+func (u *employeeUsecase) AssignWarehouses(ctx context.Context, id string, req dto.AssignEmployeeWarehousesRequest) (dto.EmployeeResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, id); err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	// Remove all non-auto warehouse assignments
+	allWarehouses, err := u.employeeWarehouseRepo.GetByEmployeeID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	for _, w := range allWarehouses {
+		if !w.IsAuto {
+			if err := u.employeeWarehouseRepo.RemoveWarehouses(ctx, id, []string{w.WarehouseID}); err != nil {
+				return dto.EmployeeResponse{}, err
+			}
+		}
+	}
+
+	// Assign new manual warehouses
+	if len(req.WarehouseIDs) > 0 {
+		if err := u.employeeWarehouseRepo.AssignWarehouses(ctx, id, req.WarehouseIDs); err != nil {
+			return dto.EmployeeResponse{}, err
+		}
+	}
+
+	employee, err := u.employeeRepo.FindByID(ctx, id)
+	if err != nil {
+		return dto.EmployeeResponse{}, err
+	}
+
+	var currentContract *models.EmployeeContract
+	employeeUUID, _ := uuid.Parse(id)
+	contract, _ := u.contractRepo.FindActiveByEmployeeID(ctx, employeeUUID)
+	if contract != nil {
+		currentContract = contract
+	}
+
+	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
+}
+
+// BulkUpdateOutlets replaces all outlet assignments for an employee
+func (u *employeeUsecase) BulkUpdateOutlets(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeOutletsRequest) (dto.EmployeeResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	outletIDs := make([]string, 0, len(req.Assignments))
+	for _, assignment := range req.Assignments {
+		outletIDs = append(outletIDs, assignment.OutletID)
+	}
+
+	// Use AssignOutlets to handle outlet + warehouse auto-selection
+	return u.AssignOutlets(ctx, employeeID, dto.AssignEmployeeOutletsRequest{
+		OutletIDs: outletIDs,
+	})
+}
+
+// BulkUpdateWarehouses replaces all manual warehouse assignments for an employee (preserves auto-selected)
+func (u *employeeUsecase) BulkUpdateWarehouses(ctx context.Context, employeeID string, req dto.BulkUpdateEmployeeWarehousesRequest) (dto.EmployeeResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return dto.EmployeeResponse{}, ErrEmployeeNotFound
+	}
+
+	warehouseIDs := make([]string, 0, len(req.Assignments))
+	for _, assignment := range req.Assignments {
+		warehouseIDs = append(warehouseIDs, assignment.WarehouseID)
+	}
+
+	// Use AssignWarehouses to handle manual assignment while preserving auto-selected
+	return u.AssignWarehouses(ctx, employeeID, dto.AssignEmployeeWarehousesRequest{
+		WarehouseIDs: warehouseIDs,
+	})
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { PageMotion } from "@/components/motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { useBatchDepreciation } from "@/features/finance/fixed-assets/hooks/use-batch-depreciation";

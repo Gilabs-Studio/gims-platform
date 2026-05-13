@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingUp, Users, DollarSign, ExternalLink } from "lucide-react";
-import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { Input } from "@/components/ui/input";

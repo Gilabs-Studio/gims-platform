@@ -17,6 +17,12 @@ export interface StockMovement {
   qty_out: number;
   balance: number;
   cost: number;
+
+  inventory_batch_id?: string | null;
+  inventory_batch?: {
+    id: string;
+    batch_number: string;
+  };
   
   product_id: string;
   product?: {
@@ -69,6 +75,7 @@ export interface CreateStockMovementRequest {
   warehouse_id: string;
   target_warehouse_id?: string;
   quantity: number;
+  batch_id?: string;
   reference_number?: string;
   description?: string;
 }

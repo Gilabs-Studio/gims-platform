@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/routing";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import { MapPin, Edit, Store } from "lucide-react";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { formatDate, formatWhatsAppLink } from "@/lib/utils";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import type { Company } from "../../types";
 
 interface CompanyDetailDialogProps {
@@ -29,6 +31,7 @@ export function CompanyDetailDialog({
   onEdit,
 }: CompanyDetailDialogProps) {
   const t = useTranslations("organization");
+  const canCreateOutlet = useUserPermission("outlet.create");
 
   const { data: outletsData, isLoading: outletsLoading } = useOutlets(
     company ? { company_id: company.id, per_page: 100 } : undefined,
@@ -39,7 +42,7 @@ export function CompanyDetailDialog({
   if (!company) return null;
 
   const resolvedArea = [
-    company.village?.name,
+    company.village?.name ?? company.village_name,
     company.district?.name ?? company.village?.district?.name,
     company.city?.name ?? company.village?.district?.city?.name,
     company.province?.name ?? company.village?.district?.city?.province?.name,
@@ -111,8 +114,8 @@ export function CompanyDetailDialog({
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium bg-muted/50">Director</TableCell>
-                  <TableCell>{company.director?.name ?? company.director_id ?? "-"}</TableCell>
+                  <TableCell className="font-medium bg-muted/50">Village</TableCell>
+                  <TableCell>{company.village?.name ?? company.village_name ?? "-"}</TableCell>
                   <TableCell className="font-medium bg-muted/50">Created</TableCell>
                   <TableCell>
                     {company.created_at
@@ -136,27 +139,21 @@ export function CompanyDetailDialog({
               <Table>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-medium bg-muted/50 w-48">Province</TableCell>
+                    <TableCell className="font-medium bg-muted/50 w-48">{t("company.form.province")}</TableCell>
                     <TableCell>{company.province?.name ?? company.village?.district?.city?.province?.name ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50 w-48">City</TableCell>
+                    <TableCell className="font-medium bg-muted/50 w-48">{t("company.form.city")}</TableCell>
                     <TableCell>{company.city?.name ?? company.village?.district?.city?.name ?? "-"}</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-medium bg-muted/50">District</TableCell>
+                    <TableCell className="font-medium bg-muted/50">{t("company.form.district")}</TableCell>
                     <TableCell>{company.district?.name ?? company.village?.district?.name ?? "-"}</TableCell>
-                    <TableCell className="font-medium bg-muted/50">Village</TableCell>
-                    <TableCell>{company.village?.name ?? "-"}</TableCell>
+                    <TableCell className="font-medium bg-muted/50">Address</TableCell>
+                    <TableCell>{company.address ?? "-"}</TableCell>
                   </TableRow>
                   {resolvedArea && (
                     <TableRow>
-                      <TableCell className="font-medium bg-muted/50">Full Area</TableCell>
+                      <TableCell className="font-medium bg-muted/50">{t("outlet.sections.fullArea")}</TableCell>
                       <TableCell colSpan={3}>{resolvedArea}</TableCell>
-                    </TableRow>
-                  )}
-                  {company.address && (
-                    <TableRow>
-                      <TableCell className="font-medium bg-muted/50">Address</TableCell>
-                      <TableCell colSpan={3}>{company.address}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -171,11 +168,11 @@ export function CompanyDetailDialog({
                 <Table>
                   <TableBody>
                     <TableRow>
-                      <TableCell className="font-medium bg-muted/50 w-48">Latitude</TableCell>
+                      <TableCell className="font-medium bg-muted/50 w-48">{t("company.form.latitude")}</TableCell>
                       <TableCell>
                         <span className="font-mono text-sm">{Number(company.latitude).toFixed(6)}</span>
                       </TableCell>
-                      <TableCell className="font-medium bg-muted/50 w-48">Longitude</TableCell>
+                      <TableCell className="font-medium bg-muted/50 w-48">{t("company.form.longitude")}</TableCell>
                       <TableCell>
                         <span className="font-mono text-sm">{Number(company.longitude).toFixed(6)}</span>
                       </TableCell>
@@ -190,7 +187,7 @@ export function CompanyDetailDialog({
                           className="text-primary hover:underline text-sm flex items-center gap-1"
                         >
                           <MapPin className="h-3 w-3" />
-                          Open in Maps
+                          {t("company.pickFromMap")}
                         </a>
                       </TableCell>
                     </TableRow>
@@ -202,19 +199,26 @@ export function CompanyDetailDialog({
 
           {/* Outlets Section */}
           <div>
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Store className="h-4 w-4 text-muted-foreground" />
-              Outlets
-              {!outletsLoading && (
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {companyOutlets.length}
-                </Badge>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Store className="h-4 w-4 text-muted-foreground" />
+                {t("company.outlets")}
+                {!outletsLoading && (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {companyOutlets.length}
+                  </Badge>
+                )}
+              </h3>
+              {canCreateOutlet && (
+                <Button asChild variant="outline" size="sm" className="cursor-pointer">
+                  <Link href="/master-data/outlet">{`${t("common.add")} ${t("company.outlets")}`}</Link>
+                </Button>
               )}
-            </h3>
+            </div>
             {outletsLoading ? (
-              <div className="text-sm text-muted-foreground py-2">Loading outlets...</div>
+              <div className="text-sm text-muted-foreground py-2">{t("common.loading")}</div>
             ) : companyOutlets.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-2 italic">No outlets registered for this company.</div>
+              <div className="text-sm text-muted-foreground py-2 italic">{t("common.noData")}</div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
@@ -226,7 +230,7 @@ export function CompanyDetailDialog({
                         <TableCell className="text-xs text-muted-foreground truncate max-w-xs">{outlet.address ?? "-"}</TableCell>
                         <TableCell className="w-20 text-right">
                           <Badge variant={outlet.is_active ? "default" : "inactive"} className="text-xs">
-                            {outlet.is_active ? "Active" : "Inactive"}
+                            {outlet.is_active ? t("company.status.active") : t("company.status.inactive")}
                           </Badge>
                         </TableCell>
                       </TableRow>

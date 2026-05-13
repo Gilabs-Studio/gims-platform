@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -25,7 +26,7 @@ func NewStockMovementHandler(service usecase.StockMovementService, inventoryUsec
 func (h *StockMovementHandler) GetMovements(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	
+
 	req := &dto.GetStockMovementsRequest{
 		Page:        page,
 		PerPage:     perPage,
@@ -71,6 +72,10 @@ func (h *StockMovementHandler) CreateMovement(c *gin.Context) {
 	req.CreatedBy = userID
 
 	if err := h.inventoryUsecase.CreateManualStockMovement(c, &req); err != nil {
+		if errors.Is(err, usecase.ErrInsufficientStock) {
+			response.ErrorResponse(c, http.StatusUnprocessableEntity, "INSUFFICIENT_STOCK", "Requested quantity exceeds available stock", nil, nil)
+			return
+		}
 		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create stock movement", err, nil)
 		return
 	}

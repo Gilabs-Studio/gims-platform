@@ -26,49 +26,6 @@ export function useProgressiveInventory(
     [isIngredient]
   );
 
-  // Initialize pagination state for all warehouses
-  useEffect(() => {
-    const newPagesByWarehouse: Record<string, number> = {};
-    const newAllPages: Record<string, InventoryStockItem[]> = {};
-    const newSummary: Record<string, TreeProductsSummary | null> = {};
-    const newTotal: Record<string, number> = {};
-    const newHasMore: Record<string, boolean> = {};
-
-    for (const warehouse of warehouses) {
-      if (!(warehouse.id in pagesByWarehouse)) {
-        newPagesByWarehouse[warehouse.id] = 1;
-      }
-      if (!(warehouse.id in allPagesByWarehouse)) {
-        newAllPages[warehouse.id] = [];
-      }
-      if (!(warehouse.id in summaryByWarehouse)) {
-        newSummary[warehouse.id] = null;
-      }
-      if (!(warehouse.id in totalByWarehouse)) {
-        newTotal[warehouse.id] = 0;
-      }
-      if (!(warehouse.id in hasMoreByWarehouse)) {
-        newHasMore[warehouse.id] = false;
-      }
-    }
-
-    if (Object.keys(newPagesByWarehouse).length > 0) {
-      setPagesByWarehouse((prev) => ({ ...prev, ...newPagesByWarehouse }));
-    }
-    if (Object.keys(newAllPages).length > 0) {
-      setAllPagesByWarehouse((prev) => ({ ...prev, ...newAllPages }));
-    }
-    if (Object.keys(newSummary).length > 0) {
-      setSummaryByWarehouse((prev) => ({ ...prev, ...newSummary }));
-    }
-    if (Object.keys(newTotal).length > 0) {
-      setTotalByWarehouse((prev) => ({ ...prev, ...newTotal }));
-    }
-    if (Object.keys(newHasMore).length > 0) {
-      setHasMoreByWarehouse((prev) => ({ ...prev, ...newHasMore }));
-    }
-  }, [warehouses, pagesByWarehouse, allPagesByWarehouse, summaryByWarehouse, totalByWarehouse, hasMoreByWarehouse]);
-
   // Load initial data for all expanded warehouses
   useEffect(() => {
     if (!enabled) return;
@@ -80,9 +37,12 @@ export function useProgressiveInventory(
           continue;
         }
 
+        const currentPage = pagesByWarehouse[warehouse.id] ?? 1;
+        const currentProducts = allPagesByWarehouse[warehouse.id] ?? [];
+
         if (
-          pagesByWarehouse[warehouse.id] === 1 &&
-          allPagesByWarehouse[warehouse.id]?.length === 0
+          currentPage === 1 &&
+          currentProducts.length === 0
         ) {
           try {
             const response = await fetchWarehouseProducts(warehouse.id, 1);
@@ -106,6 +66,11 @@ export function useProgressiveInventory(
             setHasMoreByWarehouse((prev) => ({
               ...prev,
               [warehouse.id]: data?.meta?.has_next ?? false,
+            }));
+
+            setPagesByWarehouse((prev) => ({
+              ...prev,
+              [warehouse.id]: 1,
             }));
           } catch (error) {
             console.error(`Failed to load warehouse ${warehouse.id}:`, error);

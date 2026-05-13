@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { AuditTrailTable } from "@/components/ui/audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -17,11 +17,20 @@ interface PurchaseRequisitionAuditTrailProps {
 interface PurchaseRequisitionAuditTrailContentProps {
   readonly enabled: boolean;
   readonly requisitionId?: string | null;
+  readonly fallbackEvents?: Array<{
+    id: string;
+    action: string;
+    at?: string | null;
+    user?: string | null;
+    metadata?: Record<string, unknown> | null;
+    permissionCode?: string;
+  }>;
 }
 
 export function PurchaseRequisitionAuditTrailContent({
   enabled,
   requisitionId,
+  fallbackEvents,
 }: PurchaseRequisitionAuditTrailContentProps) {
   const t = useTranslations("purchaseRequisition");
   const tCommon = useTranslations("common");
@@ -37,18 +46,25 @@ export function PurchaseRequisitionAuditTrailContent({
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const fallbackEntries = useMemo(
+    () => buildFallbackAuditTrailEntries(fallbackEvents ?? []),
+    [fallbackEvents],
+  );
+  const useServerAudit = items.length > 0;
+  const entries = useServerAudit ? items : fallbackEntries;
+  const effectivePagination = useServerAudit ? pagination : undefined;
 
   return (
     <AuditTrailTable
-      entries={items}
-      isLoading={isLoading && items.length === 0}
-      errorText={isError && items.length === 0 ? tCommon("error") : undefined}
-      pagination={pagination}
-      onPageChange={(p) => setPage(p)}
-      onPageSizeChange={(ps) => {
+      entries={entries}
+      isLoading={isLoading && entries.length === 0}
+      errorText={isError && entries.length === 0 ? tCommon("error") : undefined}
+      pagination={effectivePagination}
+      onPageChange={useServerAudit ? (p) => setPage(p) : undefined}
+      onPageSizeChange={useServerAudit ? (ps) => {
         setPageSize(ps);
         setPage(1);
-      }}
+      } : undefined}
       labels={{
         empty: t("auditTrail.empty"),
         columns: {

@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"context"
+	"time"
 
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm"
 )
@@ -42,7 +42,9 @@ func NewTenantRepository(db *gorm.DB) TenantRepository {
 }
 
 func (r *tenantRepository) getDB(ctx context.Context) *gorm.DB {
-	return database.GetDB(ctx, r.db)
+	// The tenants table is platform-scoped and does not contain tenant_id.
+	// Use the raw context-bound DB so GORM does not inject tenant scoping.
+	return r.db.WithContext(ctx)
 }
 
 func (r *tenantRepository) FindByID(ctx context.Context, id string) (*models.Tenant, error) {
@@ -117,19 +119,23 @@ func (r *tenantRepository) CountActiveUsers(ctx context.Context, tenantID string
 
 func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search string, page, perPage int) ([]TenantWithCounts, int64, error) {
 	type row struct {
-		ID             string  `gorm:"column:id"`
-		Name           string  `gorm:"column:name"`
-		Slug           string  `gorm:"column:slug"`
-		Status         string  `gorm:"column:status"`
-		Plan           string  `gorm:"column:plan"`
-		SeatLimit      int     `gorm:"column:seat_limit"`
-		OwnerUserID    *string `gorm:"column:owner_user_id"`
-		CurrentUsers   int64   `gorm:"column:current_users"`
-		OwnerName      string  `gorm:"column:owner_name"`
-		OwnerEmail     string  `gorm:"column:owner_email"`
-		CompanyCount   int64   `gorm:"column:company_count"`
-		OutletCount    int64   `gorm:"column:outlet_count"`
-		WarehouseCount int64   `gorm:"column:warehouse_count"`
+		ID                     string     `gorm:"column:id"`
+		Name                   string     `gorm:"column:name"`
+		Slug                   string     `gorm:"column:slug"`
+		Status                 string     `gorm:"column:status"`
+		Plan                   string     `gorm:"column:plan"`
+		SeatLimit              int        `gorm:"column:seat_limit"`
+		OwnerUserID            *string    `gorm:"column:owner_user_id"`
+		DeletionRequestedAt    *time.Time `gorm:"column:deletion_requested_at"`
+		DeletionScheduledAt    *time.Time `gorm:"column:deletion_scheduled_at"`
+		DeletionRequestedBy    *string    `gorm:"column:deletion_requested_by"`
+		DeletionPreviousStatus *string    `gorm:"column:deletion_previous_status"`
+		CurrentUsers           int64      `gorm:"column:current_users"`
+		OwnerName              string     `gorm:"column:owner_name"`
+		OwnerEmail             string     `gorm:"column:owner_email"`
+		CompanyCount           int64      `gorm:"column:company_count"`
+		OutletCount            int64      `gorm:"column:outlet_count"`
+		WarehouseCount         int64      `gorm:"column:warehouse_count"`
 	}
 
 	baseQ := r.db.WithContext(ctx).Table("tenants").Where("tenants.deleted_at IS NULL")
@@ -150,6 +156,7 @@ func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search strin
 	offset := (page - 1) * perPage
 	err := baseQ.
 		Select(`tenants.id, tenants.name, tenants.slug, tenants.status, tenants.plan,
+			tenants.deletion_requested_at, tenants.deletion_scheduled_at, tenants.deletion_requested_by, tenants.deletion_previous_status,
 			COALESCE((SELECT ts.seat_limit
 				FROM tenant_subscriptions ts
 				WHERE ts.tenant_id = tenants.id
@@ -187,8 +194,12 @@ func (r *tenantRepository) queryWithCounts(ctx context.Context, id, search strin
 		t.Slug = row.Slug
 		t.Status = row.Status
 		t.Plan = row.Plan
-			t.MaxUsers = row.SeatLimit
+		t.MaxUsers = row.SeatLimit
 		t.OwnerUserID = row.OwnerUserID
+		t.DeletionRequestedAt = row.DeletionRequestedAt
+		t.DeletionScheduledAt = row.DeletionScheduledAt
+		t.DeletionRequestedBy = row.DeletionRequestedBy
+		t.DeletionPreviousStatus = row.DeletionPreviousStatus
 		result = append(result, t)
 	}
 
@@ -200,5 +211,21 @@ func (r *tenantRepository) Create(ctx context.Context, tenant *models.Tenant) er
 }
 
 func (r *tenantRepository) Update(ctx context.Context, tenant *models.Tenant) error {
-	return r.getDB(ctx).Save(tenant).Error
+	return r.db.WithContext(ctx).
+		Session(&gorm.Session{NewDB: true}).
+		Table("tenants").
+		Where("id = ?", tenant.ID).
+		Updates(map[string]interface{}{
+			"name":                     tenant.Name,
+			"slug":                     tenant.Slug,
+			"owner_user_id":            tenant.OwnerUserID,
+			"status":                   tenant.Status,
+			"plan":                     tenant.Plan,
+			"max_users":                tenant.MaxUsers,
+			"deletion_requested_at":    tenant.DeletionRequestedAt,
+			"deletion_scheduled_at":    tenant.DeletionScheduledAt,
+			"deletion_requested_by":    tenant.DeletionRequestedBy,
+			"deletion_recovered_at":    tenant.DeletionRecoveredAt,
+			"deletion_previous_status": tenant.DeletionPreviousStatus,
+		}).Error
 }

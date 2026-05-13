@@ -1,3 +1,5 @@
+import type { FieldPath, FieldValues, UseFormSetError } from "react-hook-form";
+
 type ApiFieldError = {
   field?: string;
   message?: string;
@@ -20,6 +22,124 @@ function toSentenceCase(input: string): string {
     .replace(/[_-]+/g, " ")
     .trim()
     .replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function normalizePurchaseFieldPath(input: string): string {
+  return input.replace(/\[(\d+)\]/g, ".$1").replace(/^\.+|\.+$/g, "");
+}
+
+function wildcardPurchaseFieldPath(input: string): string {
+  return normalizePurchaseFieldPath(input).replace(/\.\d+(?=\.|$)/g, ".*");
+}
+
+function defaultPurchaseFieldLabel(input: string): string {
+  const wildcardPath = wildcardPurchaseFieldPath(input);
+  const knownLabels: Record<string, string> = {
+    supplier_id: "Supplier",
+    supplier_contact_id: "Supplier contact",
+    payment_terms_id: "Payment terms",
+    business_unit_id: "Business unit",
+    employee_id: "Requested by",
+    request_date: "Request date",
+    order_date: "Order date",
+    purchase_requisitions_id: "Purchase requisition",
+    sales_order_id: "Sales order",
+    "items.*.product_id": "Item product",
+    "items.*.quantity": "Item quantity",
+    "items.*.purchase_price": "Item purchase price",
+    "items.*.price": "Item price",
+  };
+
+  if (knownLabels[wildcardPath]) {
+    return knownLabels[wildcardPath];
+  }
+
+  const segments = normalizePurchaseFieldPath(input)
+    .split(".")
+    .filter((segment) => segment.length > 0 && !/^\d+$/.test(segment));
+
+  return toSentenceCase(segments.join(" "));
+}
+
+function normalizePurchaseFieldMessage(message: string | undefined, fallbackRequired: string): string {
+  const trimmed = message?.trim();
+  if (!trimmed) {
+    return fallbackRequired;
+  }
+
+  if (/required/i.test(trimmed) || /match pattern/i.test(trimmed)) {
+    return fallbackRequired;
+  }
+
+  return trimmed;
+}
+
+export function extractPurchaseFieldErrors(error: unknown): ApiFieldError[] {
+  if (!(error && typeof error === "object" && "response" in error)) {
+    return [];
+  }
+
+  const responseData = (
+    error as {
+      response?: { data?: ApiErrorPayload };
+    }
+  ).response?.data;
+
+  const fieldErrors = responseData?.error?.field_errors;
+  if (Array.isArray(fieldErrors)) {
+    return fieldErrors;
+  }
+
+  const detailField = responseData?.error?.details?.field;
+  const detailMessage = responseData?.error?.details?.message;
+  if (typeof detailField === "string" && detailField.trim().length > 0) {
+    return [{
+      field: detailField,
+      message: typeof detailMessage === "string" ? detailMessage : undefined,
+    }];
+  }
+
+  return [];
+}
+
+export function getPurchaseFieldLabel(
+  input: string,
+  fieldLabels?: Record<string, string>,
+): string {
+  const normalizedPath = normalizePurchaseFieldPath(input);
+  const wildcardPath = wildcardPurchaseFieldPath(input);
+
+  return (
+    fieldLabels?.[normalizedPath] ??
+    fieldLabels?.[wildcardPath] ??
+    defaultPurchaseFieldLabel(input)
+  );
+}
+
+export function applyPurchaseFormErrors<TFieldValues extends FieldValues>(
+  error: unknown,
+  setError: UseFormSetError<TFieldValues>,
+  fieldLabels?: Record<string, string>,
+  fallbackRequired = "Required",
+): boolean {
+  const fieldErrors = extractPurchaseFieldErrors(error);
+  if (fieldErrors.length === 0) {
+    return false;
+  }
+
+  for (const fieldError of fieldErrors) {
+    const field = fieldError.field?.trim();
+    if (!field) {
+      continue;
+    }
+
+    setError(normalizePurchaseFieldPath(field) as FieldPath<TFieldValues>, {
+      type: "server",
+      message: normalizePurchaseFieldMessage(fieldError.message, fallbackRequired),
+    });
+  }
+
+  return true;
 }
 
 export function getPurchaseErrorMessage(error: unknown, fallback: string): string {
@@ -52,8 +172,8 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
     const fieldErrors = responseData?.error?.field_errors;
     if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
       const firstFieldError = fieldErrors[0];
-      const field = toSentenceCase(firstFieldError.field ?? "Field");
-      const message = firstFieldError.message?.trim();
+      const field = getPurchaseFieldLabel(firstFieldError.field ?? "Field");
+      const message = normalizePurchaseFieldMessage(firstFieldError.message, "Required");
       if (message) {
         return `${field}: ${message}`;
       }

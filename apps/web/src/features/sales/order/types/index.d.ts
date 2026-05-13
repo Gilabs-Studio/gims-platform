@@ -165,6 +165,9 @@ export interface ListSalesOrdersParams {
   sales_quotation_id?: string;
   customer_id?: string;
   unfulfilled_only?: boolean;
+  available_for_invoice?: boolean;
+  exclude_with_active_cidp?: boolean;
+  exclude_with_paid_ci?: boolean;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
 }

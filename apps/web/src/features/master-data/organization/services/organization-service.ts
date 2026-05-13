@@ -50,9 +50,15 @@ export const divisionService = {
   async list(
     params?: ListOrganizationParams
   ): Promise<OrganizationListResponse<Division>> {
+    // Ensure we don't request more than backend allows for divisions (backend max=100)
+    const safeParams = params ? { ...params } : undefined;
+    if (safeParams && typeof safeParams.per_page === "number" && safeParams.per_page > 100) {
+      safeParams.per_page = 100;
+    }
+
     const response = await apiClient.get<OrganizationListResponse<Division>>(
       `${BASE_PATH}/divisions`,
-      { params }
+      { params: safeParams }
     );
     return response.data;
   },

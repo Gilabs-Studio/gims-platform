@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	assetCategoryRead   = "asset.read"
-	assetCategoryCreate = "asset.create"
-	assetCategoryUpdate = "asset.update"
-	assetCategoryDelete = "asset.delete"
+	assetCategoryRead   = "asset_category.read"
+	assetCategoryCreate = "asset_category.create"
+	assetCategoryUpdate = "asset_category.update"
+	assetCategoryDelete = "asset_category.delete"
 )
 
 func RegisterAssetCategoryRoutes(r *gin.RouterGroup, h *handler.AssetCategoryHandler) {

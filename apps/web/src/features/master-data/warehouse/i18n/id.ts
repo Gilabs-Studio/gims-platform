@@ -63,8 +63,6 @@ export const warehouseId = {
       namePlaceholder: "Masukkan nama gudang",
       description: "Deskripsi",
       descriptionPlaceholder: "Masukkan deskripsi (opsional)",
-      capacity: "Kapasitas",
-      capacityPlaceholder: "Masukkan kapasitas penyimpanan",
       address: "Alamat",
       addressPlaceholder: "Masukkan alamat",
       province: "Provinsi",
@@ -91,7 +89,6 @@ export const warehouseId = {
     codeMaxLength: "Kode tidak boleh lebih dari 50 karakter",
     descriptionMaxLength: "Deskripsi tidak boleh lebih dari 500 karakter",
     addressMaxLength: "Alamat tidak boleh lebih dari 500 karakter",
-    capacityMin: "Kapasitas harus berupa angka positif",
   },
 };
 

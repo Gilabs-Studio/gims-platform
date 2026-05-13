@@ -55,6 +55,13 @@ function DPStatusBadge({ status, className }: { status?: string; className?: str
           {t("status.unpaid") || "Unpaid"}
         </Badge>
       );
+    case "waiting_approval":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_approval") || "Waiting Approval"}
+        </Badge>
+      );
     case "waiting_payment":
       return (
         <Badge variant="info" className={className}>
@@ -108,6 +115,8 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
     dpInvoices,
     isInvoiceLoading,
     isDPLoading,
+    invoiceError,
+    dpError,
     totalDPAmount,
     totalInvoiceAmount,
     selectedInvoiceId,
@@ -182,7 +191,13 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isInvoiceLoading ? (
+                      {invoiceError ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6 text-destructive">
+                            {t("error") || "Failed to load invoices"}
+                          </TableCell>
+                        </TableRow>
+                      ) : isInvoiceLoading ? (
                         Array.from({ length: 3 }).map((_, i) => (
                           <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -267,7 +282,13 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isDPLoading ? (
+                      {dpError ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6 text-destructive">
+                            {tDP("error") || "Failed to load down payments"}
+                          </TableCell>
+                        </TableRow>
+                      ) : isDPLoading ? (
                         Array.from({ length: 3 }).map((_, i) => (
                           <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>

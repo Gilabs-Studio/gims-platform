@@ -8,6 +8,7 @@ export const currencyId = {
   deleted: "Mata uang berhasil dihapus",
   empty: "Belum ada mata uang",
   search: "Cari mata uang...",
+  viewOnlyHint: "Hanya system admin yang dapat membuat, mengubah, atau menghapus mata uang. User tenant hanya dapat melihat data.",
   form: {
     code: "Kode",
     codePlaceholder: "Masukkan kode (mis. IDR)",

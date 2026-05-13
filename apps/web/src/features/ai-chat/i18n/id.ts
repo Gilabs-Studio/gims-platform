@@ -19,7 +19,7 @@ export const aiChatId: AIChatTranslations = {
     typing: "AI sedang mengetik...",
     today: "Hari Ini",
     yesterday: "Kemarin",
-    poweredBy: "Ditenagai oleh GIMS AI",
+    poweredBy: "Ditenagai oleh SalesView AI",
     status: {
       active: "Aktif",
       archived: "Diarsipkan",

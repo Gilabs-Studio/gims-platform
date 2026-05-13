@@ -96,8 +96,14 @@ export function useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreate
         }
       }
       onOpenChange(false);
-    } catch {
-      toast.error(isEditing ? tCommon("error") : "Failed to create UoM");
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique") || msg.includes("idx_units_of_measure_name")) {
+        toast.error("Unit of measure name already exists. Please use a different name.");
+      } else {
+        toast.error(isEditing ? tCommon("error") : "Failed to create UoM");
+      }
     }
   };
 

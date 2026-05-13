@@ -44,6 +44,15 @@ export function usePOSCatalog(outletId: string, options?: { enabled?: boolean })
   });
 }
 
+export function usePOSOutlets(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...posKeys.all, "outlets"],
+    queryFn: () => posOrderService.listOutlets(),
+    enabled: options?.enabled !== false,
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ─── Order hooks ─────────────────────────────────────────────────────────────
 
 export function usePOSOrder(
@@ -182,11 +191,66 @@ export function useProcessCashPayment() {
   return useMutation({
     mutationFn: ({ orderId, data }: { orderId: string; data: ProcessPaymentRequest }) =>
       posPaymentService.processCash(orderId, data),
+    onMutate: async ({ orderId }) => {
+      const orderResponse = qc.getQueryData<{ data?: { outlet_id?: string; items?: Array<{ product_id: string; quantity: number }> } }>(
+        posKeys.order(orderId)
+      );
+      const outletId = orderResponse?.data?.outlet_id;
+
+      if (!outletId) {
+        return { outletId: undefined, previousCatalog: undefined as { data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> } | undefined };
+      }
+
+      await qc.cancelQueries({ queryKey: posKeys.catalog(outletId) });
+      const previousCatalog = qc.getQueryData<{ data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> }>(
+        posKeys.catalog(outletId)
+      );
+
+      const qtyMap = new Map<string, number>();
+      for (const item of orderResponse?.data?.items ?? []) {
+        qtyMap.set(item.product_id, (qtyMap.get(item.product_id) ?? 0) + item.quantity);
+      }
+
+      qc.setQueryData<{ data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> }>(
+        posKeys.catalog(outletId),
+        (current) => {
+          if (!current?.data) {
+            return current;
+          }
+          return {
+            ...current,
+            data: current.data.map((p) => {
+              const soldQty = qtyMap.get(p.product_id) ?? 0;
+              if (soldQty <= 0) {
+                return p;
+              }
+
+              const nextStock = Math.max(0, p.stock - soldQty);
+              if (p.product_kind !== "STOCK") {
+                return p;
+              }
+
+              return {
+                ...p,
+                stock: nextStock,
+                is_available: nextStock > 0,
+              };
+            }),
+          };
+        }
+      );
+
+      return { outletId, previousCatalog };
+    },
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
       qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
+      qc.invalidateQueries({ queryKey: [...posKeys.all, "catalog"] });
     },
-    onError: () => {
+    onError: (_, __, context) => {
+      if (context?.outletId && context.previousCatalog) {
+        qc.setQueryData(posKeys.catalog(context.outletId), context.previousCatalog);
+      }
       toast.error("Payment failed. Please try again.");
     },
   });

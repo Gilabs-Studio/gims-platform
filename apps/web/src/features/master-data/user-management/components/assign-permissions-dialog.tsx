@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, memo, startTransition, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, startTransition } from "react";
 import { toast } from "sonner";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +21,7 @@ import { ButtonLoading } from "@/components/loading";
 import type { Permission, PermissionScope } from "../types";
 import { Input } from "@/components/ui/input";
 import { billingService } from "@/features/settings/services/billing-service";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import {
   Select,
   SelectContent,
@@ -121,20 +122,27 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
-  "dashboard.",
-  "profile.",
-  "setting",
-  "billing.",
-  "user.",
   "role.",
   "permission.",
   "company.",
-  "warehouse.",
-  "product.",
-  "customer.",
-  "supplier.",
-  "employee.",
+  // Finance Accounting module - never protected by entitlements
+  "coa.",
+  "journal.",
+  "sales_journal.",
+  "purchase_journal.",
+  "adjustment_journal.",
+  "financial_closing.",
 ] as const;
+const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
+
+function isSystemAdminOnlyPermission(permission: Permission): boolean {
+  return SYSTEM_ADMIN_ONLY_PERMISSION_CODES.has(permission.code.trim().toLowerCase());
+}
+
+function isAlwaysSafePermissionCode(code: string): boolean {
+  const lower = code.trim().toLowerCase();
+  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
 
 function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
   if (entitledMenuURLSet.has(menuURL)) {
@@ -168,9 +176,6 @@ function normalizeModuleSlug(module?: string): string {
 function isAlwaysAllowedPermission(permissionCode: string): boolean {
   const code = permissionCode.trim().toLowerCase();
   if (!code) {
-    return true;
-  }
-  if (code === "pos.payment.manage") {
     return true;
   }
   return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => code.startsWith(prefix));
@@ -356,6 +361,15 @@ function buildPermissionTree(
   const getUnmatchedPerms = (perms: Permission[]): Permission[] =>
     perms.filter((perm) => !usedPermissionIds.has(perm.id));
 
+  const getUnmatchedPermsByMenuUrl = (menuUrl: string): Permission[] => {
+    if (!menuUrl) return [];
+
+    return permissions
+      .filter((perm) => !usedPermissionIds.has(perm.id))
+      .filter((perm) => normalizeRoute(perm.menu?.url) === menuUrl)
+      .sort((a, b) => actionSortKey(a) - actionSortKey(b));
+  };
+
   const markUsed = (perms: Permission[]): void => {
     for (const perm of perms) {
       usedPermissionIds.add(perm.id);
@@ -389,14 +403,55 @@ function buildPermissionTree(
       : [];
 
     if (!hasChildren) {
-      if (!navResource || selfPerms.length === 0) return null;
-      markUsed(selfPerms);
+      let resourceToUse = "";
+      let permsToUse: Permission[] = [];
+
+      // Case 1: nav item has permission field with matching permissions
+      if (navResource && selfPerms.length > 0) {
+        resourceToUse = navResource;
+        permsToUse = selfPerms;
+        markUsed(selfPerms);
+      } else if (normalizedUrl) {
+        // Case 2: derive permissions from permission.menu.url
+        const menuMatchedPerms = getUnmatchedPermsByMenuUrl(normalizedUrl);
+        if (menuMatchedPerms.length > 0) {
+          const groupedByResource = new Map<string, Permission[]>();
+          for (const perm of menuMatchedPerms) {
+            const resource = getResourceFromCode(perm.code);
+            if (!resource) continue;
+            if (!groupedByResource.has(resource)) groupedByResource.set(resource, []);
+            groupedByResource.get(resource)!.push(perm);
+          }
+
+          if (groupedByResource.size > 0) {
+            const [primaryResource, primaryPerms] = Array.from(groupedByResource.entries())[0];
+            resourceToUse = primaryResource;
+            permsToUse = primaryPerms;
+
+            // Merge all permissions under primary resource
+            for (const [resource, perms] of groupedByResource) {
+              if (resource !== primaryResource) {
+                permsToUse = [...permsToUse, ...perms];
+              }
+            }
+            permsToUse.sort((a, b) => actionSortKey(a) - actionSortKey(b));
+            markUsed(permsToUse);
+          }
+        }
+      }
+
+      // Case 3: no nav.permission and no menu.url permission match
+      // Still create node to preserve navigation structure, with empty permissions
+      if (!resourceToUse) {
+        resourceToUse = nav.name.toLowerCase().replace(/\s+/g, "_");
+      }
+
       return makeResourceNode(
-        `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+        `resource-${resourceToUse}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
         translatedName,
         nav.icon,
-        navResource,
-        selfPerms,
+        resourceToUse,
+        permsToUse,
         normalizedUrl || undefined,
       );
     }
@@ -690,23 +745,41 @@ const TreeResourceRow = memo(function TreeResourceRow({
         {perms.map((perm) => {
           const { action } = parsePermissionCode(perm.code);
           const isChecked = perm.id in selected;
+          const isProtected = isAlwaysSafePermissionCode(perm.code);
+          
           return (
-            <label
-              key={perm.id}
-              className="inline-flex items-center gap-1 cursor-pointer select-none"
-            >
-              <Checkbox
-                checked={isChecked}
-                onCheckedChange={() => onToggle(perm.id)}
-                className="size-3.5"
-              />
-              <Badge
-                variant={getActionBadgeVariant(action ?? "")}
-                className="text-[10px] px-1.5 py-0 capitalize leading-5"
-              >
-                {action}
-              </Badge>
-            </label>
+            <Tooltip key={perm.id}>
+              <TooltipTrigger asChild>
+                <label className={cn(
+                  "inline-flex items-center gap-1 select-none",
+                  !isProtected && "cursor-pointer",
+                  isProtected && "cursor-not-allowed opacity-75"
+                )}>
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => !isProtected && onToggle(perm.id)}
+                    disabled={isProtected}
+                    className={cn("size-3.5", isProtected && "cursor-not-allowed")}
+                  />
+                  <Badge
+                    variant={getActionBadgeVariant(action ?? "")}
+                    className="text-[10px] px-1.5 py-0 capitalize leading-5"
+                  >
+                    {action}
+                  </Badge>
+                  {isProtected && (
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-4">
+                      {t("protected") || "Protected"}
+                    </Badge>
+                  )}
+                </label>
+              </TooltipTrigger>
+              {isProtected && (
+                <TooltipContent side="top" className="text-xs">
+                  {t("protectedPermissionTooltip") || "This permission cannot be removed"}
+                </TooltipContent>
+              )}
+            </Tooltip>
           );
         })}
       </div>
@@ -934,7 +1007,12 @@ function PermissionsSelector({
   const t = useTranslations("userManagement.assignPermissions");
   const tNav = useTranslations("navigation");
   const locale = useLocale();
+  const isSystemAdmin = useAuthStore((state) => state.user?.role.code === "system_admin");
   const upgradeHref = `/${locale}/profile?tab=billing`;
+  const visiblePermissions = useMemo(
+    () => permissions.filter((permission) => isSystemAdmin || !isSystemAdminOnlyPermission(permission)),
+    [isSystemAdmin, permissions],
+  );
 
   // Provide a stable, typed translator function for buildPermissionTree
   const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
@@ -948,13 +1026,13 @@ function PermissionsSelector({
   });
 
   const permissionByID = useMemo(
-    () => new Map(permissions.map((permission) => [permission.id, permission])),
-    [permissions],
+    () => new Map(visiblePermissions.map((permission) => [permission.id, permission])),
+    [visiblePermissions],
   );
 
   const permissionIdByCode = useMemo(() => {
     const map = new Map<string, string>();
-    for (const permission of permissions) {
+    for (const permission of visiblePermissions) {
       const normalizedCode = permission.code.trim().toLowerCase();
       if (!normalizedCode) {
         continue;
@@ -964,7 +1042,7 @@ function PermissionsSelector({
       }
     }
     return map;
-  }, [permissions]);
+  }, [visiblePermissions]);
 
   const effectiveEntitledModules = useMemo(
     () =>
@@ -1053,15 +1131,15 @@ function PermissionsSelector({
 
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
-    () => buildPermissionTree(navigationConfig, permissions, tNavFn),
-    [permissions, tNavFn],
+    () => buildPermissionTree(navigationConfig, visiblePermissions, tNavFn),
+    [visiblePermissions, tNavFn],
   );
 
   // No hardcoded tree alteration needed, relies on API returned module entitlements
   const planScopedTree = tree;
 
   // Valid permission ID set for filtering stale IDs from the role
-  const validPermIds = useMemo(() => new Set(permissions.map((permission) => permission.id)), [permissions]);
+  const validPermIds = useMemo(() => new Set(visiblePermissions.map((permission) => permission.id)), [visiblePermissions]);
 
   // Initialize state - filter out stale permission IDs that no longer exist
   const initialPermissions = useMemo(() => {
@@ -1141,7 +1219,7 @@ function PermissionsSelector({
   // Toggle single permission with auto-select view/read logic
   const handleToggle = useCallback(
     (permissionId: string) => {
-      const targetPerm = permissions.find((permission) => permission.id === permissionId);
+      const targetPerm = visiblePermissions.find((permission) => permission.id === permissionId);
       if (!targetPerm) return;
       const { resource, action } = parsePermissionCode(targetPerm.code);
       if (!resource) {
@@ -1156,7 +1234,7 @@ function PermissionsSelector({
           delete next[permissionId];
           // If removing view/read, also remove dependent actions for same resource
           if (action === "view" || action === "read") {
-            for (const permission of permissions) {
+            for (const permission of visiblePermissions) {
               if (permission.code.startsWith(`${resource}.`) && permission.id !== permissionId) {
                 delete next[permission.id];
               }
@@ -1166,7 +1244,7 @@ function PermissionsSelector({
           next[permissionId] = "ALL";
           // Auto-select view/read when selecting other actions
           if (action !== "view" && action !== "read") {
-            const viewPerm = permissions.find(
+            const viewPerm = visiblePermissions.find(
               (permission) =>
                 permission.code === `${resource}.view` || permission.code === `${resource}.read`,
             );
@@ -1178,7 +1256,7 @@ function PermissionsSelector({
         return next;
       });
     },
-    [permissions],
+    [visiblePermissions],
   );
 
   // Batch toggle for select-all / deselect-all
@@ -1192,10 +1270,19 @@ function PermissionsSelector({
             if (!permission || !isPermissionAllowedByPlan(permission)) {
               continue;
             }
+            if (isAlwaysSafePermissionCode(permission.code)) {
+              continue;
+            }
             if (!(id in next)) next[id] = "ALL";
           }
         } else {
-          for (const id of ids) delete next[id];
+          for (const id of ids) {
+            const permission = permissionByID.get(id);
+            if (permission && isAlwaysSafePermissionCode(permission.code)) {
+              continue;
+            }
+            delete next[id];
+          }
         }
         return next;
       });
@@ -1272,78 +1359,56 @@ function PermissionsSelector({
         }
       }
 
-      // Compute DIFF: only send what changed, not the full state
-      const currentPermSet = new Set((role.permissions ?? []).map(p => p.id));
-      const nextPermSet = new Set(Object.keys(nextSelected));
+      const nextAssignments = Object.entries(nextSelected).map(([permissionId, scope]) => ({
+        permission_id: permissionId,
+        scope,
+      }));
 
-      const added: string[] = [];
-      const removed: string[] = [];
+      const currentScopeById = new Map(
+        (role.permissions ?? []).map((permission) => [permission.id, permission.scope ?? "ALL"]),
+      );
+      const hasScopeChanges = nextAssignments.some(({ permission_id, scope }) => {
+        return (currentScopeById.get(permission_id) ?? "ALL") !== scope;
+      });
+      const hasPermissionChanges =
+        (role.permissions ?? []).length !== nextAssignments.length ||
+        nextAssignments.some(({ permission_id }) => !currentScopeById.has(permission_id));
 
-      // Find added permissions (in nextSelected but not in current)
-      for (const permId of nextPermSet) {
-        if (!currentPermSet.has(permId)) {
-          added.push(permId);
-        }
-      }
-
-      // Find removed permissions (in current but not in nextSelected)
-      for (const permId of currentPermSet) {
-        if (!nextPermSet.has(permId)) {
-          removed.push(permId);
-        }
-      }
-
-      // If no changes, just close the dialog
-      if (added.length === 0 && removed.length === 0) {
+      if (!hasScopeChanges && !hasPermissionChanges) {
         toast.success(t("save") || "No changes to save");
         onClose();
         return;
       }
 
-      // Build scope-aware assignments for added permissions
-      const addedWithScope: Array<{ permission_id: string; scope: string }> = [];
-      for (const permId of added) {
-        const scope = nextSelected[permId] ?? "ALL";
-        if (!permissionByID.has(permId)) {
-          console.error("AssignPermissions Debug: building addedWithScope but permission not found in permissionByID:", permId);
-        }
-        addedWithScope.push({
-          permission_id: permId,
-          scope,
-        });
-      }
-
-      try {
-        console.groupCollapsed("AssignPermissions Debug: payload");
-        const payload = {
-          roleId,
-          permissionIds: [...added, ...removed],
-          diff: {
-            added,
-            added_with_scope: addedWithScope,
-            removed,
-          },
-        };
-        console.log(payload);
-        console.groupEnd();
-      } catch { /* noop */ }
-
       await assignPermissions.mutateAsync({
         roleId,
-        permissionIds: [...added, ...removed],
-        diff: {
-          added,
-          added_with_scope: addedWithScope,
-          removed,
-        },
+        permissionIds: [],
+        assignments: nextAssignments,
       });
       setSelectedPermissions(nextSelected);
       toast.success(t("save") || "Permissions saved successfully");
       onClose();
-    } catch {
-      // Error handled by api-client interceptor
+    } catch (error: unknown) {
+      // Display error without closing dialog - user can retry
+      const errorMessage = 
+        error instanceof Error 
+          ? error.message 
+          : t("saveFailed") || "Failed to save permissions";
+      
+      // Check if error mentions protected/mandatory permissions or role requirements
+      if (errorMessage.toLowerCase().includes("always safe") || 
+          errorMessage.toLowerCase().includes("mandatory") ||
+          errorMessage.toLowerCase().includes("protected") ||
+          errorMessage.toLowerCase().includes("requires")) {
+        toast.error(
+          t("protectedPermissionsError") || 
+          "Some permissions are protected and cannot be removed. Please keep them checked."
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     }
-  }, [selectedPermissions, role.permissions, permissionByID, assignPermissions, roleId, t, onClose]);
+  }, [selectedPermissions, role.permissions, assignPermissions, roleId, t, onClose]);
 
   return (
     <div className="flex flex-col h-full">

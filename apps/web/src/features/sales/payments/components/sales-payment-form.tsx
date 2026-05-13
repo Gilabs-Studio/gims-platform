@@ -25,10 +25,9 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useRouter } from "@/i18n/routing";
-import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { salesPaymentSchema } from "../schemas/sales-payment.schema";
-import { useConfirmSalesPayment, useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
+import { useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
 import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
 import {
@@ -75,8 +74,6 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
   const isLockedToDP = !!defaultDPId;
 
   const createMutation = useCreateSalesPayment();
-  const confirmMutation = useConfirmSalesPayment();
-  const canConfirmPayment = useUserPermission("sales_payment.confirm");
 
   // Fetch DP detail when locked to a specific down payment
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useCustomerInvoiceDP(defaultDPId ?? "", {
@@ -140,7 +137,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     queryKey: ["sales-payment", "bank-account-options"],
     enabled: open && method === "BANK",
     lazyLoad: true,
-    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true }),
+    queryFn: (params) => financeBankAccountsService.list({ ...params, is_active: true, owner_type: "company" }),
     mapOption: (acc) => ({
       value: acc.id,
       label: `${acc.name} - ${acc.account_number}`,
@@ -221,7 +218,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     }
   }, [computedAmount, amount, method, setValue]);
 
-  const submitting = createMutation.isPending || confirmMutation.isPending;
+  const submitting = createMutation.isPending;
   const isFetchingReference = (!isLockedToDP && paymentAddDataQuery.isFetching) || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
 
@@ -271,31 +268,8 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               });
 
               const createdPaymentId = createResponse?.data?.id;
-              if (canConfirmPayment && createdPaymentId) {
-                try {
-                  await confirmMutation.mutateAsync(createdPaymentId);
-                  toast.success(t("toast.confirmed"));
-                } catch (confirmError) {
-                  toast.success(t("toast.created"));
-
-                  if (isAccountingMappingError(confirmError)) {
-                    toast.error(t("errors.mappingRequired"), {
-                      action: {
-                        label: t("actions.openMapping"),
-                        onClick: () => router.push("/finance/settings/accounting-mapping"),
-                      },
-                    });
-                    onClose();
-                    return;
-                  }
-
-                  toast.error(getSalesErrorMessage(confirmError, t("toast.failed") ?? "Failed to confirm payment"));
-                  onClose();
-                  return;
-                }
-              } else {
-                toast.success(t("toast.created"));
-              }
+              void createdPaymentId; // payment created as pending; confirmation requires explicit action
+              toast.success(t("toast.created"));
 
               onClose();
             } catch (error) {

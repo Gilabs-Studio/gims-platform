@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -39,7 +40,9 @@ type StockOpnameUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.StockOpnameResponse, error)
 	List(ctx context.Context, req *dto.ListStockOpnamesRequest) ([]dto.StockOpnameResponse, *utils.PaginationResult, error)
 	SaveItems(ctx context.Context, opnameID string, req *dto.SaveStockOpnameItemsRequest) (*dto.StockOpnameResponse, error)
+	SaveLines(ctx context.Context, opnameID string, req *dto.SaveStockOpnameItemsRequest) (*dto.StockOpnameResponse, error)
 	ListItems(ctx context.Context, opnameID string) ([]dto.StockOpnameItemResponse, error)
+	ListItemsPaginated(ctx context.Context, opnameID string, req *dto.ListStockOpnameItemsRequest) ([]dto.StockOpnameItemResponse, *utils.PaginationResult, error)
 	GenerateJournal(ctx context.Context, id string) (*dto.StockOpnameResponse, error)
 	SubmitApproval(ctx context.Context, id string) (*dto.StockOpnameResponse, error)
 	Submit(ctx context.Context, id string) (*dto.StockOpnameResponse, error)
@@ -47,6 +50,8 @@ type StockOpnameUsecase interface {
 	Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error)
 	Post(ctx context.Context, id string, postedBy *string) (*dto.StockOpnameResponse, error)
 	TriggerJournalForStockOpname(ctx context.Context, opname *models.StockOpname) error
+	// GetMyWarehouses returns the warehouses the current user is assigned to.
+	GetMyWarehouses(ctx context.Context, userID string) ([]dto.UserWarehouseInfo, error)
 }
 
 type stockOpnameUsecase struct {
@@ -91,6 +96,19 @@ func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventor
 
 func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpnameRequest, createdBy *string) (*dto.StockOpnameResponse, error) {
 	logDebug("Usecase Create started")
+	scopeType := strings.ToLower(strings.TrimSpace(req.ScopeType))
+	if scopeType == "" {
+		scopeType = "all"
+	}
+
+	if scopeType == "category" && len(req.CategoryIDs) == 0 {
+		return nil, errors.New("category_ids is required when scope_type is category")
+	}
+
+	if scopeType == "brand" && len(req.BrandIDs) == 0 {
+		return nil, errors.New("brand_ids is required when scope_type is brand")
+	}
+
 	opnameNumber, err := u.repo.GetNextOpnameNumber(ctx)
 	if err != nil {
 		logDebug(fmt.Sprintf("GetNextOpnameNumber error: %v", err))
@@ -111,8 +129,35 @@ func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpn
 	}
 	logDebug("Repo Create success")
 
-	resp := mapper.ToStockOpnameResponse(model)
-	return &resp, nil
+	stockSnapshots, err := u.repo.ListWarehouseStockSnapshot(ctx, req.WarehouseID, scopeType, req.CategoryIDs, req.BrandIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]models.StockOpnameItem, 0, len(stockSnapshots))
+	for _, row := range stockSnapshots {
+		batchID := row.BatchID
+		batchIDPtr := &batchID
+		if batchID == "" {
+			batchIDPtr = nil
+		}
+		items = append(items, models.StockOpnameItem{
+			StockOpnameID:    model.ID,
+			ProductID:        row.ProductID,
+			InventoryBatchID: batchIDPtr,
+			BatchNumber:      row.BatchNumber,
+			BatchQty:         row.BatchQty,
+			SystemQty:        row.SystemQty,
+			PhysicalQty:      nil,
+			VarianceQty:      0,
+		})
+	}
+
+	if err := u.repo.ReplaceItems(ctx, model.ID, items); err != nil {
+		return nil, err
+	}
+
+	return u.GetByID(ctx, model.ID)
 }
 
 func logDebug(msg string) {
@@ -145,6 +190,12 @@ func (u *stockOpnameUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		if err == nil {
 			opname.Date = date
 		}
+	}
+	if req.OrderedByID != nil {
+		opname.OrderedByID = req.OrderedByID
+	}
+	if req.AssignedToID != nil {
+		opname.AssignedToID = req.AssignedToID
 	}
 
 	if err := u.repo.Update(ctx, opname); err != nil {
@@ -246,6 +297,7 @@ func (u *stockOpnameUsecase) SaveItems(ctx context.Context, opnameID string, req
 		}
 
 		items = append(items, models.StockOpnameItem{
+			TenantID:      opname.TenantID,
 			StockOpnameID: opnameID,
 			ProductID:     itemReq.ProductID,
 			SystemQty:     systemQty,
@@ -263,6 +315,71 @@ func (u *stockOpnameUsecase) SaveItems(ctx context.Context, opnameID string, req
 	return u.GetByID(ctx, opnameID)
 }
 
+func (u *stockOpnameUsecase) SaveLines(ctx context.Context, opnameID string, req *dto.SaveStockOpnameItemsRequest) (*dto.StockOpnameResponse, error) {
+	opname, err := u.repo.FindByID(ctx, opnameID)
+	if err != nil {
+		return nil, err
+	}
+
+	if opname.Status != models.StockOpnameStatusDraft {
+		return nil, ErrInvalidStatus
+	}
+
+	existingItems, err := u.repo.ListItems(ctx, opnameID)
+	if err != nil {
+		return nil, err
+	}
+
+	updatesByItemID := make(map[string]dto.StockOpnameItemRequest, len(req.Items))
+	for _, line := range req.Items {
+		key := line.ProductID
+		if line.InventoryBatchID != nil && *line.InventoryBatchID != "" {
+			key = *line.InventoryBatchID
+		}
+		updatesByItemID[key] = line
+	}
+
+	merged := make([]models.StockOpnameItem, 0, len(existingItems))
+	for _, existing := range existingItems {
+		item := existing
+		lookupKey := item.ProductID
+		if item.InventoryBatchID != nil && *item.InventoryBatchID != "" {
+			lookupKey = *item.InventoryBatchID
+		}
+
+		if incoming, ok := updatesByItemID[lookupKey]; ok {
+			physicalQty := incoming.PhysicalQty
+			item.PhysicalQty = physicalQty
+			if physicalQty != nil {
+				item.VarianceQty = *physicalQty - item.SystemQty
+			} else {
+				item.VarianceQty = 0
+			}
+			item.Notes = incoming.Notes
+		}
+
+		merged = append(merged, models.StockOpnameItem{
+			ID:               item.ID,
+			TenantID:         item.TenantID,
+			StockOpnameID:    opnameID,
+			ProductID:        item.ProductID,
+			InventoryBatchID: item.InventoryBatchID,
+			BatchNumber:      item.BatchNumber,
+			BatchQty:         item.BatchQty,
+			SystemQty:        item.SystemQty,
+			PhysicalQty:      item.PhysicalQty,
+			VarianceQty:      item.VarianceQty,
+			Notes:            item.Notes,
+		})
+	}
+
+	if err := u.repo.ReplaceItems(ctx, opnameID, merged); err != nil {
+		return nil, err
+	}
+
+	return u.GetByID(ctx, opnameID)
+}
+
 func (u *stockOpnameUsecase) ListItems(ctx context.Context, opnameID string) ([]dto.StockOpnameItemResponse, error) {
 	items, err := u.repo.ListItems(ctx, opnameID)
 	if err != nil {
@@ -274,6 +391,34 @@ func (u *stockOpnameUsecase) ListItems(ctx context.Context, opnameID string) ([]
 		data[i] = mapper.ToStockOpnameItemResponse(&item)
 	}
 	return data, nil
+}
+
+func (u *stockOpnameUsecase) ListItemsPaginated(ctx context.Context, opnameID string, req *dto.ListStockOpnameItemsRequest) ([]dto.StockOpnameItemResponse, *utils.PaginationResult, error) {
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PerPage <= 0 {
+		req.PerPage = 20
+	}
+
+	items, total, err := u.repo.ListItemsPaginated(ctx, opnameID, req.Page, req.PerPage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	data := make([]dto.StockOpnameItemResponse, len(items))
+	for i, item := range items {
+		data[i] = mapper.ToStockOpnameItemResponse(&item)
+	}
+
+	pagination := &utils.PaginationResult{
+		Page:       req.Page,
+		PerPage:    req.PerPage,
+		Total:      int(total),
+		TotalPages: int(math.Ceil(float64(total) / float64(req.PerPage))),
+	}
+
+	return data, pagination, nil
 }
 
 func (u *stockOpnameUsecase) GenerateJournal(ctx context.Context, id string) (*dto.StockOpnameResponse, error) {
@@ -363,6 +508,11 @@ func (u *stockOpnameUsecase) SubmitApproval(ctx context.Context, id string) (*dt
 		return nil, ErrInvalidStatus
 	}
 
+	// Require at least one item before submission (#287)
+	if len(opname.Items) == 0 {
+		return nil, errors.New("cannot submit stock opname without any product items")
+	}
+
 	// Ensure journal is generated for non-zero variance scenarios.
 	// For zero-variance opname, journal generation is a no-op and submission should still proceed.
 	if opname.JournalID == nil || *opname.JournalID == "" {
@@ -404,10 +554,6 @@ func (u *stockOpnameUsecase) Submit(ctx context.Context, id string) (*dto.StockO
 }
 
 func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error) {
-	if u.journalUC == nil {
-		return nil, ErrJournalWorkflowUnavailable
-	}
-
 	opname, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -415,21 +561,13 @@ func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy 
 		}
 		return nil, err
 	}
-
-	if opname.JournalID != nil && *opname.JournalID != "" {
-		if _, err := u.journalUC.ApproveAdjustmentJournal(ctx, *opname.JournalID, fmt.Sprintf("Stock opname %s approved", opname.OpnameNumber)); err != nil {
-			return nil, err
-		}
+	if opname.Status != models.StockOpnameStatusPending {
+		return nil, ErrInvalidStatus
 	}
-
 	return u.updateStatus(ctx, id, models.StockOpnameStatusApproved, approvedBy)
 }
 
 func (u *stockOpnameUsecase) Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error) {
-	if u.journalUC == nil {
-		return nil, ErrJournalWorkflowUnavailable
-	}
-
 	opname, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -437,13 +575,9 @@ func (u *stockOpnameUsecase) Reject(ctx context.Context, id string, rejectedBy *
 		}
 		return nil, err
 	}
-
-	if opname.JournalID != nil && *opname.JournalID != "" {
-		if _, err := u.journalUC.RejectAdjustmentJournal(ctx, *opname.JournalID, fmt.Sprintf("Stock opname %s rejected", opname.OpnameNumber)); err != nil {
-			return nil, err
-		}
+	if opname.Status != models.StockOpnameStatusPending {
+		return nil, ErrInvalidStatus
 	}
-
 	return u.updateStatus(ctx, id, models.StockOpnameStatusRejected, rejectedBy)
 }
 
@@ -480,6 +614,7 @@ func (u *stockOpnameUsecase) Post(ctx context.Context, id string, postedBy *stri
 		adjustItems = append(adjustItems, inventoryDTO.AdjustStockItem{
 			ProductID:   item.ProductID,
 			VarianceQty: item.VarianceQty,
+			BatchID:     item.InventoryBatchID,
 		})
 	}
 
@@ -673,4 +808,9 @@ func (u *stockOpnameUsecase) buildStockOpnameJournalLinesWithAccounts(opname *mo
 	}
 
 	return lines, nil
+}
+
+// GetMyWarehouses returns the warehouses assigned to the given user via user_warehouses.
+func (u *stockOpnameUsecase) GetMyWarehouses(ctx context.Context, userID string) ([]dto.UserWarehouseInfo, error) {
+	return u.repo.GetMyWarehouses(ctx, userID)
 }

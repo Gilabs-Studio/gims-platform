@@ -86,6 +86,9 @@ export interface SalesRepStatisticsData {
   conversion_rate: number;
   average_order_value: number;
   average_order_value_formatted: string;
+  target_amount?: number;
+  target_amount_formatted?: string;
+  target_achievement_percent?: number;
   period_comparison?: {
     revenue_change: number;
     orders_change: number;

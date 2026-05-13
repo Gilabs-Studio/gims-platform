@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { useBulkApproveFinanceValuations } from "../hooks/use-finance-journals";
 import type { ValuationRun } from "../types";
@@ -56,9 +56,7 @@ export function BulkApproveDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("bulk_approve_failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("bulk_approve_failed")));
     }
   };
 

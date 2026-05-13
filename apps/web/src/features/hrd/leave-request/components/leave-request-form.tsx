@@ -1,8 +1,6 @@
 "use client";
 "use no memo";
 
-/* eslint-disable react-hooks/incompatible-library */
-
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -128,6 +126,17 @@ export function LeaveRequestForm({
     () => employees.find((e) => e.id === selectedEmployeeId),
     [employees, selectedEmployeeId],
   );
+
+  useEffect(() => {
+    if (isEdit || selectedEmployeeId || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [employees, isEdit, selectedEmployeeId, setValue]);
 
   // Create date range object for DateRangePicker
   const dateRange: DateRange | undefined = useMemo(() => {

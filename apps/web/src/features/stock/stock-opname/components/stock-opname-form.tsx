@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTranslations } from "next-intl";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
@@ -23,11 +23,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
+import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { useProductCategories } from "@/features/master-data/product/hooks/use-product-categories";
+import { useProductBrands } from "@/features/master-data/product/hooks/use-product-brands";
 import { useCreateStockOpname } from "../hooks/use-stock-opnames";
 
 // Schema
@@ -36,6 +39,10 @@ const createOpnameSchema = z.object({
   date: z.string().min(1, "Date is required"),
   description: z.string().optional(),
   scope_type: z.enum(["all", "category", "brand"]),
+    category_ids: z.array(z.string()).optional(),
+    brand_ids: z.array(z.string()).optional(),
+  ordered_by_id: z.string().optional(),
+  assigned_to_id: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof createOpnameSchema>;
@@ -53,6 +60,13 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
   const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
+  const { data: employeeData } = useEmployees({ page: 1, per_page: 100 });
+  const employees = employeeData?.data ?? [];
+    const { data: categoryData } = useProductCategories({ page: 1, per_page: 300 });
+    const categories = categoryData?.data ?? [];
+    const { data: brandData } = useProductBrands({ page: 1, per_page: 300 });
+    const brands = brandData?.data ?? [];
+
   const createOpname = useCreateStockOpname();
 
   const {
@@ -68,6 +82,10 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
       date: new Date().toISOString().split('T')[0],
       description: "",
       scope_type: "all",
+            category_ids: [],
+            brand_ids: [],
+      ordered_by_id: "",
+      assigned_to_id: "",
     },
   });
 
@@ -80,6 +98,10 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
     try {
         await createOpname.mutateAsync({
             ...data,
+            category_ids: data.scope_type === "category" ? (data.category_ids ?? []) : undefined,
+            brand_ids: data.scope_type === "brand" ? (data.brand_ids ?? []) : undefined,
+            ordered_by_id: data.ordered_by_id || undefined,
+            assigned_to_id: data.assigned_to_id || undefined,
             // date is already YYYY-MM-DD from form input
         });
         // Feedback would go here
@@ -91,6 +113,8 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
         toast.error(tCommon("error"));
     }
   };
+
+    const scopeType = useWatch({ control, name: "scope_type" });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,6 +199,46 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
                         />
                         {errors.description && <FieldError>{errors.description.message}</FieldError>}
                     </Field>
+
+                    <Field>
+                        <FieldLabel>{t("employee.orderedBy")}</FieldLabel>
+                        <Controller
+                            control={control}
+                            name="ordered_by_id"
+                            render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("employee.placeholder")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {employees.map((e) => (
+                                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </Field>
+
+                    <Field>
+                        <FieldLabel>{t("employee.assignedTo")}</FieldLabel>
+                        <Controller
+                            control={control}
+                            name="assigned_to_id"
+                            render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("employee.placeholder")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {employees.map((e) => (
+                                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </Field>
                 </div>
             )}
 
@@ -200,6 +264,74 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
                         />
                          {errors.scope_type && <FieldError>{errors.scope_type.message}</FieldError>}
                     </Field>
+
+                    {scopeType === "category" && (
+                        <Field>
+                            <FieldLabel>{t("form.scopeCategorySelector")}</FieldLabel>
+                            <Controller
+                                control={control}
+                                name="category_ids"
+                                render={({ field }) => {
+                                    const selectedIds = field.value ?? [];
+                                    return (
+                                        <div className="max-h-52 overflow-y-auto rounded-md border p-3 space-y-2">
+                                            {categories.map((category) => {
+                                                const checked = selectedIds.includes(category.id);
+                                                return (
+                                                    <label key={category.id} className="flex items-center gap-2 cursor-pointer">
+                                                        <Checkbox
+                                                            checked={checked}
+                                                            onCheckedChange={(value) => {
+                                                                const next = value
+                                                                    ? [...selectedIds, category.id]
+                                                                    : selectedIds.filter((id) => id !== category.id);
+                                                                field.onChange(next);
+                                                            }}
+                                                        />
+                                                        <span className="text-sm">{category.name}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                }}
+                            />
+                        </Field>
+                    )}
+
+                    {scopeType === "brand" && (
+                        <Field>
+                            <FieldLabel>{t("form.scopeBrandSelector")}</FieldLabel>
+                            <Controller
+                                control={control}
+                                name="brand_ids"
+                                render={({ field }) => {
+                                    const selectedIds = field.value ?? [];
+                                    return (
+                                        <div className="max-h-52 overflow-y-auto rounded-md border p-3 space-y-2">
+                                            {brands.map((brand) => {
+                                                const checked = selectedIds.includes(brand.id);
+                                                return (
+                                                    <label key={brand.id} className="flex items-center gap-2 cursor-pointer">
+                                                        <Checkbox
+                                                            checked={checked}
+                                                            onCheckedChange={(value) => {
+                                                                const next = value
+                                                                    ? [...selectedIds, brand.id]
+                                                                    : selectedIds.filter((id) => id !== brand.id);
+                                                                field.onChange(next);
+                                                            }}
+                                                        />
+                                                        <span className="text-sm">{brand.name}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                }}
+                            />
+                        </Field>
+                    )}
 
                     <div className="bg-muted p-4 rounded-md text-sm text-muted-foreground">
                         <p>

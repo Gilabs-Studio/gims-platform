@@ -1,9 +1,10 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
@@ -115,18 +116,27 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 		return nil, 0, err
 	}
 
-	if params.SortBy != "" {
-		// Quote column name to handle reserved keywords
-		quotedColumn := "\"" + params.SortBy + "\""
-		if params.SortDir == "desc" {
-			quotedColumn += " DESC"
-		} else {
-			quotedColumn += " ASC"
-		}
-		query = query.Order(quotedColumn)
-	} else {
-		query = query.Order("name ASC")
+	// Apply sorting with whitelist to prevent SQL injection
+	allowedSortColumns := map[string]string{
+		"id":              "id",
+		"name":            "name",
+		"email":           "email",
+		"phone":           "phone",
+		"position":        "position",
+		"is_active":       "is_active",
+		"created_at":      "created_at",
+		"updated_at":      "updated_at",
+		"contact_role_id": "contact_role_id",
 	}
+
+	sortByFromReq := strings.ToLower(strings.TrimSpace(params.SortBy))
+	sortBy := allowedSortColumns[sortByFromReq]
+	if sortBy == "" {
+		sortBy = "name"
+	}
+
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit)

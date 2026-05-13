@@ -26,6 +26,8 @@ type dashboardUsecase struct {
 	layoutRepo repositories.DashboardLayoutRepository
 }
 
+const dateLayout = "2006-01-02"
+
 // NewDashboardUsecase creates a new DashboardUsecase.
 func NewDashboardUsecase(repo repositories.DashboardRepository, layoutRepo repositories.DashboardLayoutRepository) DashboardUsecase {
 	return &dashboardUsecase{repo: repo, layoutRepo: layoutRepo}
@@ -380,8 +382,8 @@ func (u *dashboardUsecase) loadWarehouseOverview(ctx context.Context, resp *dto.
 func resolveDateRange(req dto.DashboardRequest) (time.Time, time.Time) {
 	now := time.Now()
 	if req.StartDate != "" && req.EndDate != "" {
-		start, err1 := time.Parse("2006-01-02", req.StartDate)
-		end, err2 := time.Parse("2006-01-02", req.EndDate)
+		start, err1 := time.Parse(dateLayout, req.StartDate)
+		end, err2 := time.Parse(dateLayout, req.EndDate)
 		if err1 == nil && err2 == nil {
 			return start, end.Add(24*time.Hour - time.Second)
 		}
@@ -393,6 +395,25 @@ func resolveDateRange(req dto.DashboardRequest) (time.Time, time.Time) {
 	start := time.Date(now.Year()-1, now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.UTC)
 	return start, end
+}
+
+// resolvePOSDateRange determines the POS window. It defaults to the current day
+// so POS widgets behave like operational dashboards unless the caller requests a range.
+func resolvePOSDateRange(req dto.DashboardRequest) (time.Time, time.Time) {
+	now := time.Now()
+	if req.StartDate != "" && req.EndDate != "" {
+		start, err1 := time.Parse(dateLayout, req.StartDate)
+		end, err2 := time.Parse(dateLayout, req.EndDate)
+		if err1 == nil && err2 == nil {
+			return start, end.Add(24*time.Hour - time.Second)
+		}
+	}
+	if req.Year > 0 {
+		return time.Date(req.Year, 1, 1, 0, 0, 0, 0, time.UTC),
+			time.Date(req.Year, 12, 31, 23, 59, 59, 0, time.UTC)
+	}
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC),
+		time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.UTC)
 }
 
 // GetLayout fetches the saved dashboard layout for a user. Returns nil if no layout has been saved yet.
@@ -417,10 +438,11 @@ func (u *dashboardUsecase) SaveLayout(ctx context.Context, userID string, req dt
 
 // loadPOSScopedResponse returns POS summary with RBAC outlet filtering.
 func (u *dashboardUsecase) loadPOSScopedResponse(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardScopedOverviewResponse, error) {
-	summary, err := u.repo.GetPOSSummary(ctx, req.UserID)
+	start, end := resolvePOSDateRange(req)
+	summary, err := u.repo.GetPOSSummary(ctx, req.UserID, req.OutletID, start, end)
 	if err != nil {
 		log.Printf("[dashboard] pos summary error: %v", err)
-		summary = &dto.POSSummaryData{}
+		return nil, err
 	}
 	return &dto.DashboardScopedOverviewResponse{POSSummary: summary}, nil
 }

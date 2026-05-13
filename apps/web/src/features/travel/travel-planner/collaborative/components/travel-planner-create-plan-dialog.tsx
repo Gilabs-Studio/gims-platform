@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { Plus } from "lucide-react";
 
@@ -7,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MapPicker } from "@/components/ui/map/map-picker";
+import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { LocationPicker } from "@/features/master-data/geographic/components/location-picker";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -80,31 +84,51 @@ export function TravelPlannerCreatePlanDialog({
   onLocationChange,
   onCreate,
 }: TravelPlannerCreatePlanDialogProps) {
+  const t = useTranslations("visitPlanner");
+  const tCommon = useTranslations("common");
+
+  const { control, setValue, watch } = useForm<{ latitude?: number | null; longitude?: number | null }>({
+    defaultValues: { latitude: selectedLocationLat ?? null, longitude: selectedLocationLng ?? null },
+  });
+
+  useEffect(() => {
+    setValue("latitude", selectedLocationLat ?? null, { shouldDirty: false });
+    setValue("longitude", selectedLocationLng ?? null, { shouldDirty: false });
+  }, [selectedLocationLat, selectedLocationLng, setValue]);
+
+  const watchedLat = watch("latitude");
+  const watchedLng = watch("longitude");
+
+  useEffect(() => {
+    if (typeof watchedLat === "number" && typeof watchedLng === "number" && !isNaN(watchedLat) && !isNaN(watchedLng)) {
+      onLocationChange(watchedLat, watchedLng);
+    }
+  // intentionally only react to coordinate changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedLat, watchedLng]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="xl" className="space-y-4 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Up Country Cost Plan</DialogTitle>
-          <DialogDescription>
-            Plan creation is limited to authorized users. Visit Report records must be created via CRM.
-          </DialogDescription>
+          <DialogTitle>{t("createPlan.title")}</DialogTitle>
+          <DialogDescription>{t("createPlan.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <p className="text-sm font-medium">Plan title</p>
+            <p className="text-sm font-medium">{t("form.title")}</p>
             <Input
               value={title}
               onChange={(event) => onTitleChange(event.target.value)}
-              placeholder="Plan title"
+              placeholder={t("form.titlePlaceholder")}
               disabled={!canCreate || isSubmitting}
             />
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-medium">Mode</p>
+            <p className="text-sm font-medium">{t("form.mode")}</p>
             <Select value={mode} onValueChange={onModeChange} disabled={!canCreate || isSubmitting}>
               <SelectTrigger className="cursor-pointer">
-                <SelectValue placeholder="Select mode" />
+                <SelectValue placeholder={t("form.selectMode")} />
               </SelectTrigger>
               <SelectContent>
                 {modeOptions.map((item) => (
@@ -116,23 +140,23 @@ export function TravelPlannerCreatePlanDialog({
             </Select>
           </div>
           <div className="space-y-2 md:col-span-2">
-            <p className="text-sm font-medium">Budget</p>
+            <p className="text-sm font-medium">{t("form.budget")}</p>
             <NumericInput
               value={budget}
               onChange={(value) => onBudgetChange(value ?? 0)}
-              placeholder="0"
+              placeholder={t("form.budgetPlaceholder")}
               disabled={!canCreate || isSubmitting}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Participant assignment</p>
+            <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">{t("participants.title")}</p>
             <Badge variant="outline">{selectedParticipantIDs.length}</Badge>
           </div>
           <div className="rounded-lg border p-2 max-h-44 overflow-auto space-y-2">
-            {participantOptions.length === 0 ? <p className="text-xs text-muted-foreground">No active employees available.</p> : null}
+            {participantOptions.length === 0 ? <p className="text-xs text-muted-foreground">{t("participants.noActive")}</p> : null}
             {participantOptions.map((employee) => {
               const selected = selectedParticipantIDs.includes(employee.id);
               return (
@@ -163,7 +187,7 @@ export function TravelPlannerCreatePlanDialog({
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Expense items (optional)</p>
+            <p className="text-sm font-medium">{t("expenses.title")}</p>
             <Button
               type="button"
               variant="outline"
@@ -173,7 +197,7 @@ export function TravelPlannerCreatePlanDialog({
               disabled={!canCreate || isSubmitting}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
-              Add item
+              {t("expenses.addItem")}
             </Button>
           </div>
 
@@ -181,15 +205,15 @@ export function TravelPlannerCreatePlanDialog({
             <div className="rounded-md bg-muted/50 p-2">
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <p className="text-muted-foreground">Budget</p>
+                  <p className="text-muted-foreground">{t("expenses.summary.budget")}</p>
                   <p className="font-semibold">{formatCurrency(budget)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Total expenses</p>
+                  <p className="text-muted-foreground">{t("expenses.summary.total")}</p>
                   <p className="font-semibold">{formatCurrency(totalExpenseAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Remaining</p>
+                  <p className="text-muted-foreground">{t("expenses.summary.remaining")}</p>
                   <p className={`font-semibold ${budget - totalExpenseAmount < 0 ? "text-red-600" : "text-green-600"}`}>
                     {formatCurrency(Math.max(budget - totalExpenseAmount, 0))}
                   </p>
@@ -199,7 +223,7 @@ export function TravelPlannerCreatePlanDialog({
           ) : null}
 
           <div className="space-y-2">
-            {initialExpenseItems.length === 0 ? <p className="text-xs text-muted-foreground">No initial expense items added.</p> : null}
+            {initialExpenseItems.length === 0 ? <p className="text-xs text-muted-foreground">{t("expenses.noneAdded")}</p> : null}
 
             {initialExpenseItems.map((item, index) => (
               <div key={`expense-item-${index}`} className="grid gap-2 rounded-md border p-2 md:grid-cols-12">
@@ -223,7 +247,7 @@ export function TravelPlannerCreatePlanDialog({
                 </div>
                 <div className="md:col-span-3">
                   <NumericInput
-                    placeholder="Amount"
+                    placeholder={t("expenses.item.amountPlaceholder")}
                     value={item.amount}
                     onChange={(value) => onUpdateExpenseItem(index, "amount", value ?? 0)}
                     disabled={!canCreate || isSubmitting}
@@ -231,7 +255,7 @@ export function TravelPlannerCreatePlanDialog({
                 </div>
                 <div className="md:col-span-4">
                   <Input
-                    placeholder="Description"
+                    placeholder={t("expenses.item.descriptionPlaceholder")}
                     value={item.description}
                     onChange={(event) => onUpdateExpenseItem(index, "description", event.target.value)}
                     disabled={!canCreate || isSubmitting}
@@ -254,24 +278,45 @@ export function TravelPlannerCreatePlanDialog({
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">Map section</p>
+          <p className="text-sm font-medium">{t("map.title")}</p>
           <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-            <MapPicker
-              latitude={selectedLocationLat}
-              longitude={selectedLocationLng}
-              onLocationChange={onLocationChange}
+            <LocationPicker
+              control={control}
+              setValue={setValue}
               disabled={!canCreate || isSubmitting}
+              enabled={true}
+              labels={{
+                pickFromMap: t("map.pickFromMap"),
+                useCurrentLocation: t("map.useCurrentLocation"),
+                resolvedLocation: t("map.resolvedLocation"),
+                advancedMode: t("map.advancedMode"),
+                province: t("map.province"),
+                city: t("map.city"),
+                district: t("map.district"),
+                village: t("map.village"),
+                selectProvince: t("map.selectProvince"),
+                selectCity: t("map.selectCity"),
+                selectDistrict: t("map.selectDistrict"),
+                villagePlaceholder: t("map.villagePlaceholder"),
+                mapPickerTitle: t("map.mapPickerTitle"),
+                mapPickerDescription: t("map.mapPickerDescription"),
+                noLocation: t("map.noLocation"),
+                resolving: t("map.resolving"),
+                locationPermissionDenied: t("map.locationPermissionDenied"),
+                locationNotSupported: t("map.locationNotSupported"),
+                locationFailed: t("map.locationFailed"),
+              }}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon("cancel")}
           </Button>
           <Button type="button" className="cursor-pointer" onClick={onCreate} disabled={!canCreate || isSubmitting}>
             <Plus className="h-4 w-4 mr-1" />
-            Create Plan
+            {t("createPlan.button")}
           </Button>
         </DialogFooter>
       </DialogContent>

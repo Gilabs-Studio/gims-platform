@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -236,7 +237,14 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	GROUP BY period
 	ORDER BY period;
 	`
-	t := database.GetDB(ctx, r.db).Raw(query).Scan(&series)
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
+	queryArgs := []interface{}{}
+	if tenantID != "" {
+		// inject tenant filter into the existing JOIN ON clause
+		query = strings.Replace(query, "AND s.status != 'draft'\n        AND (", "AND s.status != 'draft'\n        AND s.tenant_id = ?\n        AND (", 1)
+		queryArgs = append(queryArgs, tenantID)
+	}
+	t := r.db.WithContext(ctx).Raw(query, queryArgs...).Scan(&series)
 	if t.Error != nil {
 		return nil, t.Error
 	}

@@ -21,12 +21,15 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 		protected.Use(middleware.SystemAdminAuthMiddleware(jwtManager, sysAdminRepo))
 		{
 			protected.GET("/me", h.Me)
+			protected.PATCH("/me", h.UpdateProfile)
+			protected.PATCH("/me/password", h.ChangePassword)
 			protected.POST("/sys-logout", h.Logout)
 			protected.GET("/system-dashboard", h.Dashboard)
 
 			// Tenant management
 			protected.GET("/tenants", h.ListTenants)
 			protected.GET("/tenants/:id", h.GetTenantDetail)
+			protected.POST("/tenants/:id/recover-deletion", h.RecoverTenantDeletion)
 			protected.GET("/tenants/:id/subscription", h.GetTenantSubscription)
 
 			// Coupon management

@@ -31,10 +31,11 @@ import (
 )
 
 var (
-	ErrSupplierInvoiceNotFound = errors.New("supplier invoice not found")
-	ErrSupplierInvoiceConflict = errors.New("supplier invoice conflict")
-	ErrSupplierInvoiceInvalid  = errors.New("invalid supplier invoice")
-	ErrPaymentTermsNotFound    = errors.New("payment terms not found")
+	ErrSupplierInvoiceNotFound         = errors.New("supplier invoice not found")
+	ErrSupplierInvoiceConflict         = errors.New("supplier invoice conflict")
+	ErrSupplierInvoiceInvalid          = errors.New("invalid supplier invoice")
+	ErrSupplierInvoiceQuantityExceeded = errors.New("supplier invoice quantity exceeds received quantity")
+	ErrPaymentTermsNotFound            = errors.New("payment terms not found")
 )
 
 type SupplierInvoiceUsecase interface {
@@ -290,8 +291,8 @@ func (uc *supplierInvoiceUsecase) AddData(ctx context.Context) (*dto.SupplierInv
 				PurchaseOrder: poMini,
 				Code:          dp.Code,
 				InvoiceNumber: dp.InvoiceNumber,
-				InvoiceDate:   dp.InvoiceDate,
-				DueDate:       dp.DueDate,
+				InvoiceDate:   dp.InvoiceDate.Format("2006-01-02"),
+				DueDate:       dp.DueDate.Format("2006-01-02"),
 				Amount:        dp.Amount,
 				PaidAmount:    dp.PaidAmount,
 				Status:        string(dp.Status),
@@ -414,6 +415,17 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 		remainingAmount := math.Max(0, grossAmount-dpAmount)
 
 		creatorID, _ := ctx.Value("user_id").(string)
+
+		invoiceDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		grID := gr.ID
 		si := models.SupplierInvoice{
 			Type:                 models.SupplierInvoiceTypeNormal,
@@ -423,8 +435,8 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			PaymentTermsID:       &pt.ID,
 			Code:                 code,
 			InvoiceNumber:        req.InvoiceNumber,
-			InvoiceDate:          req.InvoiceDate,
-			DueDate:              req.DueDate,
+			InvoiceDate:          invoiceDateParsed,
+			DueDate:              dueDateParsed,
 			TaxRate:              req.TaxRate,
 			TaxAmount:            tax,
 			DeliveryCost:         req.DeliveryCost,
@@ -612,6 +624,16 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 		remainingAmount := math.Max(0, grossAmount-dpAmount)
 		grID := gr.ID
 
+		invoiceDateUpdateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateUpdateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		updatedDraft := &models.SupplierInvoice{
 			ID:                si.ID,
 			Type:              si.Type,
@@ -621,8 +643,8 @@ func (uc *supplierInvoiceUsecase) replaceDraft(ctx context.Context, id string, r
 			PaymentTermsID:    &pt.ID,
 			Code:              si.Code,
 			InvoiceNumber:     req.InvoiceNumber,
-			InvoiceDate:       req.InvoiceDate,
-			DueDate:           req.DueDate,
+			InvoiceDate:       invoiceDateUpdateParsed,
+			DueDate:           dueDateUpdateParsed,
 			TaxRate:           req.TaxRate,
 			TaxAmount:         tax,
 			DeliveryCost:      req.DeliveryCost,
@@ -924,30 +946,32 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 		}
 	}
 
+	var poItems []models.PurchaseOrderItem
+	if err := tx.Where("purchase_order_id = ?", si.PurchaseOrderID).Find(&poItems).Error; err != nil {
+		return err
+	}
+	poPriceByProduct := make(map[string]float64, len(poItems))
+	for _, it := range poItems {
+		poPriceByProduct[it.ProductID] = poNetUnitPrice(it)
+	}
+	si.GRIRVarianceTotal = calculateGRIRVarianceFromInvoiceItems(si.Items, poPriceByProduct)
+
 	// --- Budget Guard ---
 	extraCost := si.DeliveryCost + si.OtherCost
 	if extraCost > 0 {
-		parsedDate, err := time.Parse("2006-01-02", si.InvoiceDate)
-		if err != nil {
-			return fmt.Errorf("invalid invoice date %q: %w", si.InvoiceDate, err)
-		}
-
+		// si.InvoiceDate is already time.Time, no need to parse
 		expenseCOAID := ""
 		if uc.engine != nil {
 			if mappedCOAID, resolveErr := uc.engine.ResolveCOAID(ctx, "coa.purchase_expense"); resolveErr == nil {
 				expenseCOAID = strings.TrimSpace(mappedCOAID)
-			}
-		}
-
-		// Backward compatibility: keep previous fallback when mapping is unavailable.
-		if expenseCOAID == "" && uc.coaUC != nil {
-			if expAcct, lookupErr := uc.coaUC.GetByCode(ctx, "61000"); lookupErr == nil && expAcct != nil {
-				expenseCOAID = strings.TrimSpace(expAcct.ID)
+			} else {
+				// Fail loudly if mapping not configured: budget guard requires explicit COA mapping
+				return fmt.Errorf("purchase_expense COA mapping not configured: %w. please configure coa.purchase_expense in system account mappings", resolveErr)
 			}
 		}
 
 		if expenseCOAID != "" {
-			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, parsedDate, extraCost); err != nil {
+			if err := finUsecase.EnsureWithinBudget(ctx, tx, expenseCOAID, si.InvoiceDate, extraCost); err != nil {
 				// Do not block supplier invoice approval when the mapped extra-cost account
 				// is not budgeted for the period. Budget overrun remains enforced.
 				if !finUsecase.IsBudgetAccountNotConfiguredForPeriod(err) {
@@ -979,6 +1003,8 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 
 	// Keep approval flow consistent with Customer Invoice flow:
 	// SUBMITTED -> APPROVED -> UNPAID -> payment handling.
+	// IMPORTANT: Only set to PAID if DP fully covers the amount.
+	// DO NOT auto-close - SI must wait for payment confirmation before closing.
 	status := models.SupplierInvoiceStatusUnpaid
 	remainingAmount := math.Max(0, si.Amount-dpAmount)
 	if remainingAmount <= 0.0001 {
@@ -1166,24 +1192,25 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		return nil
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate.Format("2006-01-02"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve supplier invoice journal scope: %w", err)
 	}
 
 	data := accounting.TransactionData{
-		ReferenceType:   reference.RefTypeSupplierInvoice,
-		ReferenceID:     si.ID,
-		CompanyID:       companyID,
-		FiscalYearID:    fiscalYearID,
-		EntryDate:       si.InvoiceDate,
-		Description:     fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
-		TotalAmount:     si.Amount,
-		SubTotal:        si.SubTotal,
-		TaxTotal:        si.TaxAmount,
-		DepositTotal:    si.DownPaymentAmount,
-		OtherTotal:      si.DeliveryCost + si.OtherCost,
-		DescriptionArgs: []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
+		ReferenceType:     reference.RefTypeSupplierInvoice,
+		ReferenceID:       si.ID,
+		CompanyID:         companyID,
+		FiscalYearID:      fiscalYearID,
+		EntryDate:         si.InvoiceDate.Format("2006-01-02"),
+		Description:       fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
+		TotalAmount:       si.Amount,
+		SubTotal:          si.SubTotal,
+		TaxTotal:          si.TaxAmount,
+		DepositTotal:      si.DownPaymentAmount,
+		OtherTotal:        si.DeliveryCost + si.OtherCost,
+		GRIRVarianceTotal: si.GRIRVarianceTotal,
+		DescriptionArgs:   []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
 	}
 
 	if uc.purchaseJournalSvc != nil {
@@ -1201,7 +1228,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 				Where("id = ?", si.ID).
 				Updates(map[string]interface{}{
 					"journal_entry_id": postedJournal.ID,
-					"is_posted":       true,
+					"is_posted":        true,
 				}).Error; err != nil {
 				return fmt.Errorf("failed to link supplier invoice journal: %w", err)
 			}
@@ -1239,7 +1266,7 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 			Where("id = ?", si.ID).
 			Updates(map[string]interface{}{
 				"journal_entry_id": postedJournal.ID,
-				"is_posted":       true,
+				"is_posted":        true,
 			}).Error; err != nil {
 			return fmt.Errorf("failed to link supplier invoice journal: %w", err)
 		}
@@ -1388,7 +1415,7 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 		poPriceByProduct := make(map[string]float64, len(poItems))
 		for _, it := range poItems {
 			poQtyByProduct[it.ProductID] = it.Quantity
-			poPriceByProduct[it.ProductID] = it.Price
+			poPriceByProduct[it.ProductID] = poNetUnitPrice(it)
 		}
 
 		type qtySum struct {
@@ -1458,6 +1485,8 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 			requestQtyByProduct[item.ProductID] += item.Quantity
 		}
 
+		grirVarianceTotal := calculateGRIRVarianceFromCreateItems(req.Items, poPriceByProduct)
+
 		matching := make([]dto.SupplierInvoiceThreeWayMatchingLine, 0, len(requestQtyByProduct))
 		for productID, qtyBill := range requestQtyByProduct {
 			grItem := grItemByProduct[productID]
@@ -1507,18 +1536,19 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 		}
 
 		journalReq, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, accounting.TransactionData{
-			ReferenceType:   reference.RefTypeSupplierInvoice,
-			ReferenceID:     "preview",
-			CompanyID:       companyID,
-			FiscalYearID:    fiscalYearID,
-			EntryDate:       req.InvoiceDate,
-			Description:     fmt.Sprintf("Supplier Invoice Preview %s", req.InvoiceNumber),
-			TotalAmount:     totalAmount,
-			SubTotal:        subtotal,
-			TaxTotal:        taxAmount,
-			DepositTotal:    dpAmount,
-			OtherTotal:      math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost),
-			DescriptionArgs: []interface{}{req.InvoiceNumber, gr.SupplierNameSnapshot},
+			ReferenceType:     reference.RefTypeSupplierInvoice,
+			ReferenceID:       "preview",
+			CompanyID:         companyID,
+			FiscalYearID:      fiscalYearID,
+			EntryDate:         req.InvoiceDate,
+			Description:       fmt.Sprintf("Supplier Invoice Preview %s", req.InvoiceNumber),
+			TotalAmount:       totalAmount,
+			SubTotal:          subtotal,
+			TaxTotal:          taxAmount,
+			DepositTotal:      dpAmount,
+			OtherTotal:        math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost),
+			GRIRVarianceTotal: grirVarianceTotal,
+			DescriptionArgs:   []interface{}{req.InvoiceNumber, gr.SupplierNameSnapshot},
 		})
 		if err != nil {
 			return err
@@ -1569,6 +1599,53 @@ func isSupplierInvoicePreviewBalanced(req *finDto.CreateJournalEntryRequest) boo
 	}
 
 	return math.Abs(debitTotal-creditTotal) <= 0.001
+}
+
+func calculateGRIRVarianceFromCreateItems(items []dto.CreateSupplierInvoiceItemRequest, poPriceByProduct map[string]float64) float64 {
+	if len(items) == 0 || len(poPriceByProduct) == 0 {
+		return 0
+	}
+
+	variance := 0.0
+	for _, item := range items {
+		poPrice, ok := poPriceByProduct[item.ProductID]
+		if !ok || poPrice <= 0 {
+			continue
+		}
+		discount := math.Max(0, math.Min(100, item.Discount))
+		invoiceLineTotal := round2dp(item.Quantity * item.Price * (1 - discount/100))
+		expectedLineTotal := round2dp(item.Quantity * poPrice)
+		variance += invoiceLineTotal - expectedLineTotal
+	}
+
+	return round2dp(variance)
+}
+
+func calculateGRIRVarianceFromInvoiceItems(items []models.SupplierInvoiceItem, poPriceByProduct map[string]float64) float64 {
+	if len(items) == 0 || len(poPriceByProduct) == 0 {
+		return 0
+	}
+
+	variance := 0.0
+	for _, item := range items {
+		poPrice, ok := poPriceByProduct[item.ProductID]
+		if !ok || poPrice <= 0 {
+			continue
+		}
+		discount := math.Max(0, math.Min(100, item.Discount))
+		invoiceLineTotal := round2dp(item.Quantity * item.Price * (1 - discount/100))
+		expectedLineTotal := round2dp(item.Quantity * poPrice)
+		variance += invoiceLineTotal - expectedLineTotal
+	}
+
+	return round2dp(variance)
+}
+
+func poNetUnitPrice(item models.PurchaseOrderItem) float64 {
+	if item.Quantity <= 0 {
+		return round2dp(item.Price)
+	}
+	return round2dp(item.Subtotal / item.Quantity)
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

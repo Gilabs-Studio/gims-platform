@@ -3,9 +3,7 @@
 import { useState } from "react";
 import {
   MoreHorizontal,
-  Plus,
   Search,
-  Pencil,
   Trash2,
   Filter,
   Eye,
@@ -50,7 +48,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisitReportCalendarView } from "./visit-report-calendar-view";
 import { VisitReportEmployeeView } from "./visit-report-employee-view";
-import { LogVisitDialog } from "./log-visit-dialog";
+
 import { useVisitReportList } from "../hooks/use-visit-report-list";
 import { visitReportService } from "../services/visit-report-service";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -71,7 +69,7 @@ export function VisitReportList() {
   const { t, tCommon } = translations;
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
-  const [createOpen, setCreateOpen] = useState(false);
+  const hasRowActions = true;
 
   // Determine whether the user has a team-level scope (ALL / DIVISION / AREA)
   const hasTeamScope =
@@ -197,7 +195,7 @@ export function VisitReportList() {
                   <TableHead>{t("table.outcome")}</TableHead>
                   <TableHead>{t("table.checkIn")}</TableHead>
                   <TableHead>{t("table.checkOut")}</TableHead>
-                  {(permissions.canUpdate || permissions.canDelete || permissions.canApprove) && (
+                  {hasRowActions && (
                     <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
                   )}
                 </TableRow>
@@ -206,7 +204,7 @@ export function VisitReportList() {
                 {data.isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: permissions.canUpdate || permissions.canDelete || permissions.canApprove ? 8 : 7 }).map((_, j) => (
+                      {Array.from({ length: hasRowActions ? 8 : 7 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                       ))}
                     </TableRow>
@@ -214,7 +212,7 @@ export function VisitReportList() {
                 ) : data.items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={(permissions.canUpdate || permissions.canDelete || permissions.canApprove) ? 8 : 7}
+                      colSpan={hasRowActions ? 8 : 7}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t("emptyState")}
@@ -266,7 +264,7 @@ export function VisitReportList() {
                             "-"
                           )}
                         </TableCell>
-                        {(permissions.canUpdate || permissions.canDelete || permissions.canApprove) && (
+                        {hasRowActions && (
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -308,16 +306,6 @@ export function VisitReportList() {
                                   >
                                     <LogOut className="mr-2 h-4 w-4" />
                                     {t("actions.checkOut")}
-                                  </DropdownMenuItem>
-                                )}
-
-                                {permissions.canUpdate && owner && (
-                                  <DropdownMenuItem
-                                    onClick={() => actions.handleEdit(item)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    {tCommon("edit")}
                                   </DropdownMenuItem>
                                 )}
 
@@ -370,12 +358,7 @@ export function VisitReportList() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
         </div>
-        {permissions.canCreate && (
-          <Button onClick={() => setCreateOpen(true)} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {tCommon("create")}
-          </Button>
-        )}
+
       </div>
 
       {/* Team scope: two tabs — By Date (list) | By Employee (expandable cards) */}
@@ -416,16 +399,7 @@ export function VisitReportList() {
         />
       )}
 
-      {permissions.canCreate && (
-        <LogVisitDialog
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false);
-            data.refetch();
-          }}
-        />
-      )}
+
     </div>
   );
 }

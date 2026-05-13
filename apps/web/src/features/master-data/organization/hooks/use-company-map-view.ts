@@ -9,8 +9,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { MapMarker } from "@/components/ui/map/map-view";
 import {
   useCompanies,
-  useDeleteCompany,
-  useApproveCompany,
   useSubmitCompanyForApproval,
 } from "./use-companies";
 import type { Company } from "../types";
@@ -24,8 +22,6 @@ export function useCompanyMapView() {
   // Permissions
   const canCreate = useUserPermission("company.create");
   const canUpdate = useUserPermission("company.update");
-  const canDelete = useUserPermission("company.delete");
-  const canApprove = useUserPermission("company.approve");
 
   // State
   const [search, setSearch] = useState("");
@@ -38,7 +34,6 @@ export function useCompanyMapView() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [viewingCompany, setViewingCompany] = useState<Company | null>(null);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Queries & Mutations
   const { data, isLoading, refetch } = useCompanies({
@@ -47,9 +42,8 @@ export function useCompanyMapView() {
     is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
   });
 
-  const deleteCompany = useDeleteCompany();
   const submitForApproval = useSubmitCompanyForApproval();
-  const approveCompany = useApproveCompany();
+  // Approval workflow disabled for single-company tenant model
 
   const companies = useMemo(() => data?.data ?? [], [data?.data]);
 
@@ -99,13 +93,6 @@ export function useCompanyMapView() {
     setEditingCompany(null);
   };
 
-  const handleDelete = async () => {
-    if (deletingId) {
-      await deleteCompany.mutateAsync(deletingId);
-      setDeletingId(null);
-    }
-  };
-
   const handleSubmitForApproval = async (company: Company) => {
     try {
       await submitForApproval.mutateAsync(company.id);
@@ -115,23 +102,7 @@ export function useCompanyMapView() {
     }
   };
 
-  const handleApprove = async (company: Company) => {
-    try {
-      await approveCompany.mutateAsync({ id: company.id, data: { action: "approve" } });
-      toast.success(t("company.approveSuccess"));
-    } catch {
-      toast.error(t("common.error_update"));
-    }
-  };
-
-  const handleReject = async (company: Company) => {
-    try {
-      await approveCompany.mutateAsync({ id: company.id, data: { action: "reject" } });
-      toast.success(t("company.rejectSuccess"));
-    } catch {
-      toast.error(t("common.error_update"));
-    }
-  };
+  // Approval workflow disabled for single-company tenant model
 
   return {
     state: {
@@ -144,7 +115,6 @@ export function useCompanyMapView() {
       isDetailOpen,
       viewingCompany,
       editingCompany,
-      deletingId,
     },
     actions: {
       setSearch,
@@ -156,16 +126,12 @@ export function useCompanyMapView() {
       setIsDetailOpen,
       setViewingCompany,
       setEditingCompany,
-      setDeletingId,
       handleCompanyClick,
       handleCreate,
       handleEdit,
       handleView,
       handleClosePanel,
-      handleDelete,
       handleSubmitForApproval,
-      handleApprove,
-      handleReject,
       refetch,
     },
     data: {
@@ -173,13 +139,10 @@ export function useCompanyMapView() {
       markers,
       selectedCompany,
       isLoading,
-      isDeleting: deleteCompany.isPending,
     },
     permissions: {
       canCreate,
       canUpdate,
-      canDelete,
-      canApprove,
     },
     layout: {
       isMobile,

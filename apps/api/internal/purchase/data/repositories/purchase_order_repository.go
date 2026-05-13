@@ -110,7 +110,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		sortBy = "created_at"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(params.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	if params.Limit > 0 {
@@ -122,9 +122,13 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		Preload("PaymentTerms").
 		Preload("BusinessUnit").
 		Preload("Creator").
-		Preload("GoodsReceipts").
+		Preload("GoodsReceipts", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Preload("GoodsReceipts.Items").
-		Preload("SupplierInvoices").
+		Preload("SupplierInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Preload("SupplierInvoices.GoodsReceipt").
 		Preload("PurchaseRequisition").
 		Preload("Items")
@@ -154,6 +158,14 @@ func (r *purchaseOrderRepository) GetByID(ctx context.Context, id string) (*mode
 		Preload("PurchaseRequisition.BusinessUnit").
 		Preload("PurchaseRequisition.Employee.User").
 		Preload("Items.Product").
+		Preload("GoodsReceipts", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("GoodsReceipts.Items").
+		Preload("SupplierInvoices", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("SupplierInvoices.GoodsReceipt").
 		First(&po, "id = ?", id).Error
 	if err != nil {
 		return nil, err

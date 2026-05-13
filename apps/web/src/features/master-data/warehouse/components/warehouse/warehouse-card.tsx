@@ -76,16 +76,11 @@ export function WarehouseCard({
             </p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            {warehouse.capacity && (
-              <span className="text-xs text-muted-foreground">
-                Capacity: {warehouse.capacity}
+            {warehouse.outlet_id && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                Outlet
               </span>
             )}
-              {warehouse.outlet_id && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                  Outlet
-                </span>
-              )}
           </div>
           {canUpdate && onStatusChange && (
             <div className="flex items-center gap-2 mt-2 pt-2 border-t">

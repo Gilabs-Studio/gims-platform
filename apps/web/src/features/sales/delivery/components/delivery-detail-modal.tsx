@@ -42,7 +42,6 @@ import { CreateSalesReturnDialog } from "../../returns/components/create-sales-r
 import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
-import { AlertTriangle } from "lucide-react";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -296,7 +295,6 @@ export function DeliveryDetailModal({
                         onClose();
                       } catch (error) {
                         console.error("Failed to submit delivery:", error);
-                        toast.error(t("common.error"));
                       }
                     }}
                     className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
@@ -320,7 +318,6 @@ export function DeliveryDetailModal({
                             onClose();
                           } catch (error) {
                             console.error("Failed to approve delivery:", error);
-                            toast.error(t("common.error"));
                           }
                         }}
                         className="cursor-pointer text-success hover:text-success hover:bg-green-50"
@@ -342,7 +339,6 @@ export function DeliveryDetailModal({
                             onClose();
                           } catch (error) {
                             console.error("Failed to reject delivery:", error);
-                            toast.error(t("common.error"));
                           }
                         }}
                         className="cursor-pointer text-destructive hover:text-destructive"
@@ -366,7 +362,6 @@ export function DeliveryDetailModal({
                         onClose();
                       } catch (error) {
                         console.error("Failed to prepare delivery:", error);
-                        toast.error(t("common.error"));
                       }
                     }}
                     className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
@@ -509,10 +504,10 @@ export function DeliveryDetailModal({
                           )}
                         </TableCell>
                       </TableRow>
-                      {displayDelivery.tracking_number && (
+                      {(displayDelivery.tracking_number || displayDelivery.courier_agency?.name) && (
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("trackingNumber")}</TableCell>
-                          <TableCell>{displayDelivery.tracking_number}</TableCell>
+                          <TableCell>{displayDelivery.tracking_number ?? "-"}</TableCell>
                           <TableCell className="font-medium bg-muted/50">{t("courier")}</TableCell>
                           <TableCell>{displayDelivery.courier_agency?.name ?? "-"}</TableCell>
                         </TableRow>

@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "./use-suppliers";
-import { useSupplierTypes } from "./use-supplier-types";
-import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
+import { useSupplierTypes, useCreateSupplierType } from "./use-supplier-types";
+import { usePaymentTerms, useCreatePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
+import { useBusinessUnits, useCreateBusinessUnit } from "@/features/master-data/organization/hooks/use-business-units";
 import type { Supplier } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export const supplierFormSchema = z.object({
   village_name: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  npwp: z.string().max(30, "NPWP cannot exceed 30 characters").optional(),
+  npwp: z.string().max(30, "NPWP cannot exceed 30 characters").regex(/^\d*$/, "NPWP must contain digits only").optional(),
   contact_person: z.string().max(100, "Contact person cannot exceed 100 characters").optional(),
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional(),
   is_active: z.boolean(),
@@ -52,10 +52,16 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
   const createMutation = useCreateSupplier();
   const updateMutation = useUpdateSupplier();
   
+  // Create mutations for related entities
+  const createSupplierTypeMutation = useCreateSupplierType();
+  const createPaymentTermsMutation = useCreatePaymentTerms();
+  const createBusinessUnitMutation = useCreateBusinessUnit();
+  
   // Fetch supplier types conditionally
   const { data: supplierTypesData } = useSupplierTypes({
     page: 1,
     per_page: 20,
+    active_only: true,
   }, { enabled: open });
   const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
 
@@ -76,20 +82,12 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
   const activeItem = detailData?.data ?? editingItem;
 
   const isEditing = !!editingItem;
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
-
-  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
-  const [quickCreateQuery, setQuickCreateQuery] = useState("");
-
-  const openQuickCreate = (query: string) => {
-    setQuickCreateQuery(query);
-    setIsQuickCreateOpen(true);
-  };
-
-  const closeQuickCreate = () => {
-    setIsQuickCreateOpen(false);
-    setQuickCreateQuery("");
-  };
+  const isSubmitting =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    createSupplierTypeMutation.isPending ||
+    createPaymentTermsMutation.isPending ||
+    createBusinessUnitMutation.isPending;
 
   const form = useForm<SupplierFormData>({
     resolver: zodResolver(supplierFormSchema),
@@ -160,9 +158,91 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     }
   }, [open, activeItem, form]);
 
-  const handleSupplierTypeCreated = (id: string) => {
-    form.setValue("supplier_type_id", id, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    closeQuickCreate();
+  const handleCreateSupplierType = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = supplierTypes.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      form.setValue("supplier_type_id", existing.id, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+      return existing.id;
+    }
+
+    const result = await createSupplierTypeMutation.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    form.setValue("supplier_type_id", createdId, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    return createdId;
+  };
+
+  const handleCreatePaymentTerms = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = paymentTerms.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      form.setValue("payment_terms_id", existing.id, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+      return existing.id;
+    }
+
+    const result = await createPaymentTermsMutation.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    form.setValue("payment_terms_id", createdId, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    return createdId;
+  };
+
+  const handleCreateBusinessUnit = async (rawQuery: string) => {
+    const query = rawQuery.trim();
+    if (!query) return;
+
+    const existing = businessUnits.find(
+      (item) => item.name.trim().toLowerCase() === query.toLowerCase(),
+    );
+    if (existing) {
+      form.setValue("business_unit_id", existing.id, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+      return existing.id;
+    }
+
+    const result = await createBusinessUnitMutation.mutateAsync({
+      name: query,
+      is_active: true,
+    });
+    const createdId = result.data.id;
+    form.setValue("business_unit_id", createdId, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    return createdId;
   };
 
   const onSubmit: SubmitHandler<SupplierFormData> = async (data) => {
@@ -216,11 +296,9 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     supplierTypes,
     paymentTerms,
     businessUnits,
-    isQuickCreateOpen,
-    quickCreateQuery,
-    openQuickCreate,
-    closeQuickCreate,
-    handleSupplierTypeCreated,
+    handleCreateSupplierType,
+    handleCreatePaymentTerms,
+    handleCreateBusinessUnit,
     onSubmit: form.handleSubmit(onSubmit),
   };
 }

@@ -57,14 +57,14 @@ export const getAreaSchema = (t?: TranslationFn) => z.object({
   name: z.string()
     .min(2, getMsg(t, "validation.nameMinLength"))
     .max(100, getMsg(t, "validation.nameMaxLength")),
-  description: z.string().max(500, getMsg(t, "validation.descriptionMaxLength")).optional().or(z.literal("")),
+  description: z.string().optional().or(z.literal("")),
   is_active: z.boolean(),
-  code: z.string().max(50, getMsg(t, "validation.codeMaxLength", "Code cannot exceed 50 characters")).optional().or(z.literal("")),
-  color: z.string().max(20).optional().or(z.literal("")),
-  manager_id: z.string().uuid().optional().or(z.literal("")).nullable(),
-  province: z.string().max(100).optional().or(z.literal("")),
-  regency: z.string().max(100).optional().or(z.literal("")),
-  district: z.string().max(100).optional().or(z.literal("")),
+  code: z.string().optional().or(z.literal("")),
+  color: z.string().optional().or(z.literal("")),
+  manager_id: z.string().optional().or(z.literal("")).nullable(),
+  province: z.string().optional().or(z.literal("")),
+  regency: z.string().optional().or(z.literal("")),
+  district: z.string().optional().or(z.literal("")),
   polygon: z.any().optional().nullable(),
 });
 
@@ -89,8 +89,6 @@ export const getCompanySchema = (t?: TranslationFn) => z.object({
   // Coordinates
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
-  
-  director_id: z.string().uuid().optional().or(z.literal("")).nullable(),
   is_active: z.boolean(),
 });
 

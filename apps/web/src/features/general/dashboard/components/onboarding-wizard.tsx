@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import {
   useOnboardingState,
@@ -107,8 +108,11 @@ export function OnboardingWizard() {
   const { mutate: markComplete, isPending: isCompleting } =
     useMarkOnboardingComplete();
 
-  // Loading or already done — caller (DashboardGrid) guards rendering.
-  if (isLoading || state?.completed) return null;
+  if (isLoading) {
+    return <OnboardingWizardSkeleton />;
+  }
+
+  if (state?.completed) return null;
 
   const businessType = state?.business_type ?? "";
   const steps = state?.steps;
@@ -139,9 +143,44 @@ export function OnboardingWizard() {
           completedCount={completedCount}
           allDone={allDone}
           isCompleting={isCompleting}
+          businessType={businessType}
           onComplete={() => markComplete()}
         />
       )}
+    </motion.div>
+  );
+}
+
+function OnboardingWizardSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-[440px] px-4"
+    >
+      <div className="rounded-2xl border bg-card/80 p-6 shadow-sm backdrop-blur-sm">
+        <div className="mb-8 text-center">
+          <Skeleton className="mx-auto h-7 w-44" />
+          <Skeleton className="mx-auto mt-3 h-4 w-60" />
+        </div>
+
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-4 rounded-xl border bg-background/60 px-5 py-4"
+            >
+              <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-4 w-4 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -195,6 +234,7 @@ interface StepChecklistProps {
   completedCount: number;
   allDone: boolean;
   isCompleting: boolean;
+  businessType: string;
   onComplete: () => void;
 }
 
@@ -205,6 +245,7 @@ function StepChecklist({
   completedCount,
   allDone,
   isCompleting,
+  businessType,
   onComplete,
 }: StepChecklistProps) {
   return (
@@ -274,6 +315,35 @@ function StepChecklist({
             </motion.div>
           );
         })}
+      </div>
+
+      <div className="mt-5 rounded-lg border bg-muted/20 p-3">
+        <p className="text-sm font-medium">
+          {t("onboarding.accessSetup.title")}
+        </p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("onboarding.accessSetup.description")}
+        </p>
+        <div className="mt-3 space-y-1.5">
+          <Link href="/master-data/users?tab=roles">
+            <div className="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 hover:bg-accent">
+              <Circle className="text-muted-foreground h-4 w-4" />
+              <span className="text-sm">{t("onboarding.accessSetup.rolePermissions")}</span>
+              <ChevronRight className="text-muted-foreground ml-auto h-4 w-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </div>
+          </Link>
+          <Link href="/master-data/employees">
+            <div className="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 hover:bg-accent">
+              <Circle className="text-muted-foreground h-4 w-4" />
+              <span className="text-sm">
+                {businessType === "fnb"
+                  ? t("onboarding.accessSetup.employeeAccessFnb")
+                  : t("onboarding.accessSetup.employeeAccessOther")}
+              </span>
+              <ChevronRight className="text-muted-foreground ml-auto h-4 w-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+            </div>
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 space-y-2 text-center">

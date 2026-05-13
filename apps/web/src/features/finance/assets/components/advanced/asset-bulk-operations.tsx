@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 import {
   AlertTriangle,
   Check,
   ChevronRight,
   Download,
   Edit3,
-  FileDown,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -21,7 +21,6 @@ import {
   Building,
   Tag,
   MapPin,
-  User,
   Calendar,
   DollarSign,
   FileText,
@@ -44,7 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -383,7 +381,7 @@ export function AssetBulkOperations({
           errors: selectedAssets.map((a) => ({
             assetId: a.id,
             assetName: a.name,
-            error: error instanceof Error ? error.message : t("errors.unknown"),
+              error: getFinanceErrorMessage(error, t("errors.unknown")),
           })),
         },
       }));

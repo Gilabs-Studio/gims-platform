@@ -72,7 +72,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent size="5xl" className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("actions.view")}</DialogTitle>
         </DialogHeader>
@@ -134,7 +134,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.referenceType")}</div>
                 <div className="text-sm font-medium">{journal.reference_type ?? "-"}</div>
@@ -142,10 +142,6 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">Reference Code</div>
                 <div className="text-sm font-medium font-mono">{journal.reference_code ?? "-"}</div>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">Reference ID</div>
-                <div className="text-sm font-medium font-mono break-all">{journal.reference_id ?? "-"}</div>
               </div>
             </div>
 
@@ -214,36 +210,65 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
             ) : null}
 
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("fields.account")}</TableHead>
-                    <TableHead className="text-right">{t("fields.debit")}</TableHead>
-                    <TableHead className="text-right">{t("fields.credit")}</TableHead>
-                    <TableHead>{t("fields.memo")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        -
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    lines.map((ln) => (
-                      <TableRow key={ln.id}>
-                        <TableCell>
-                          {ln.chart_of_account?.code ?? "-"} - {ln.chart_of_account?.name ?? "-"}
-                        </TableCell>
-                        <TableCell className="text-right">{formatNumber(ln.debit)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(ln.credit)}</TableCell>
-                        <TableCell>{ln.memo ?? "-"}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              {lines.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">-</div>
+              ) : (
+                <>
+                  <div className="divide-y md:hidden">
+                    {lines.map((ln) => (
+                      <div key={ln.id} className="space-y-3 p-3 text-sm">
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t("fields.account")}</div>
+                          <div className="font-medium wrap-break-word">
+                            {ln.chart_of_account?.code ?? "-"} - {ln.chart_of_account?.name ?? "-"}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-xs text-muted-foreground">{t("fields.debit")}</div>
+                            <div className="font-medium">{formatNumber(ln.debit)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">{t("fields.credit")}</div>
+                            <div className="font-medium">{formatNumber(ln.credit)}</div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t("fields.memo")}</div>
+                          <div className="wrap-break-word text-muted-foreground">{ln.memo ?? "-"}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden md:block">
+                    <Table className="table-fixed">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[44%] whitespace-normal">{t("fields.account")}</TableHead>
+                          <TableHead className="w-[16%] text-right">{t("fields.debit")}</TableHead>
+                          <TableHead className="w-[16%] text-right">{t("fields.credit")}</TableHead>
+                          <TableHead className="w-[24%] whitespace-normal">{t("fields.memo")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lines.map((ln) => (
+                          <TableRow key={ln.id}>
+                            <TableCell className="whitespace-normal wrap-break-word">
+                              {ln.chart_of_account?.code ?? "-"} - {ln.chart_of_account?.name ?? "-"}
+                            </TableCell>
+                            <TableCell className="text-right text-xs sm:text-sm">{formatNumber(ln.debit)}</TableCell>
+                            <TableCell className="text-right text-xs sm:text-sm">{formatNumber(ln.credit)}</TableCell>
+                            <TableCell className="whitespace-normal wrap-break-word text-muted-foreground">
+                              {ln.memo ?? "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

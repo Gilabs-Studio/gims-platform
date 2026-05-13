@@ -59,7 +59,7 @@ export const crmTaskId = {
       statusPlaceholder: "Pilih status",
       dueDate: "Tenggat Waktu",
       dueDatePlaceholder: "Pilih tenggat waktu",
-      dueTime: "Jam Tenggat",
+      reminderTime: "Waktu Pengingat",
       assignedTo: "Ditugaskan Ke",
       assignedToPlaceholder: "Pilih karyawan",
       assignedFrom: "Ditugaskan Oleh",

@@ -1,21 +1,23 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Software Akuntansi & Keuangan Terbaik di Indonesia | GIMS` 
-    : `Best Finance & Accounting Software | GIMS`;
+    ? `Software Akuntansi & Keuangan Terbaik di Indonesia | SalesView` 
+    : `Best Finance & Accounting Software | SalesView`;
     
   const desc = locale === 'id'
     ? `Sistem keuangan, akuntansi, dan faktur terintegrasi. Buat laporan real-time tanpa pusing. Semua metrik finansial dalam satu tempat.`
     : `Integrated finance, accounting, and invoicing system. Generate real-time reports effortlessly. All financial metrics in one single place.`;
 
-  return {
+  return buildLandingMetadata({
+    locale,
+    path: "/solutions/finance",
     title,
     description: desc,
     keywords: [
@@ -24,8 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       `Aplikasi Faktur`,
       `Finance software Indonesia`,
       `Software Laporan Keuangan`
-    ]
-  };
+    ],
+    imageAlt: "SalesView finance and accounting overview",
+  });
 }
 
 export default async function FinanceLandingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -35,7 +38,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://gims.gilabs.co.id/${locale}/solutions/finance#business`,
+    "@id": `https://salesview.id/${locale}/solutions/finance#business`,
     "name": locale === 'id' ? "Software Akuntansi Terintegrasi Terbaik" : "Best Integrated Accounting Software",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
@@ -53,7 +56,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
       "latitude": -7.005145,
       "longitude": 110.438125
     },
-    "url": `https://gims.gilabs.co.id/${locale}/solutions/finance`,
+    "url": `https://salesview.id/${locale}/solutions/finance`,
     "telephone": "+628111222333"
   };
 
@@ -67,7 +70,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
         {/* HERO */}
         <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            GIMS Finance
+            SalesView Finance
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
             {isId ? `Kendali Keuangan` : `Financial Control,`}
@@ -116,7 +119,7 @@ export default async function FinanceLandingPage({ params }: { params: Promise<{
                   </p>
                 </div>
                 <div className="lg:w-1/2 w-full">
-                  <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
+                  <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
                      <div className="w-full flex items-end gap-3 h-full pt-16">
                        <div className="flex-1 bg-primary/20 rounded-t-lg h-1/3" />
                        <div className="flex-1 bg-primary/40 rounded-t-lg h-1/2" />

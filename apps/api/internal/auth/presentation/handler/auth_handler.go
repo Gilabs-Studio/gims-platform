@@ -132,12 +132,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Security: Set HttpOnly Cookies
+	// Determine root domain for production (e.g., .gilabs.id or .salesview.id)
+	// In production, use RootDomain so cookies work across all subdomains
+	domain := ""
+	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+		domain = config.AppConfig.Server.RootDomain
+	}
+
 	// Access Token
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
+		Domain:   domain,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
@@ -149,6 +157,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Domain:   domain,
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
@@ -364,6 +373,37 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	var req dto.RegisterTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			// Provide enhanced error messages for user_count field validation
+			var fieldErrors []response.FieldError
+			hasUserCountError := false
+			
+			for _, fieldError := range validationErrors {
+				if fieldError.StructField() == "UserCount" {
+					hasUserCountError = true
+					var message string
+					switch fieldError.Tag() {
+					case "max":
+						message = "User count must not exceed 999 per registration (system limit)"
+					case "min":
+						message = "User count must be at least 1"
+					default:
+						message = "Invalid user count value"
+					}
+					fieldErrors = append(fieldErrors, response.FieldError{
+						Field:   "user_count",
+						Code:    fieldError.Tag(),
+						Message: message,
+					})
+				}
+			}
+			
+			// If we found user_count errors, return them with better context
+			if hasUserCountError && len(fieldErrors) > 0 {
+				errors.ValidationErrorResponse(c, fieldErrors)
+				return
+			}
+			
+			// For other validation errors, use generic handler
 			errors.HandleValidationError(c, validationErrors)
 			return
 		}
@@ -381,6 +421,11 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		case usecase.ErrSlugAlreadyTaken:
 			errors.ErrorResponse(c, "COMPANY_NAME_TAKEN", map[string]interface{}{
 				"field": "company_name",
+			}, nil)
+		case usecase.ErrCompanyNameRequired:
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{
+				"field":   "company_name",
+				"message": "Company name is required",
 			}, nil)
 		case usecase.ErrPaymentRequired:
 			errors.ErrorResponse(c, "PAYMENT_REQUIRED", map[string]interface{}{
@@ -404,6 +449,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			errors.ErrorResponse(c, "COUPON_USER_LIMIT_EXCEEDED", map[string]interface{}{
 				"field":   "user_count",
 				"message": "Selected user count exceeds coupon limit",
+				"hint":    "Please reduce the number of users to match your coupon's maximum allowed user count, or remove the coupon to use plan pricing instead",
 			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())

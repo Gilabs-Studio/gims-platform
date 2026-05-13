@@ -8,72 +8,97 @@ import { useCreateLeaveType, useUpdateLeaveType } from "./use-leave-type";
 import type { LeaveType } from "../types";
 
 const schema = z.object({
-  name: z.string().min(2).max(100),
-  description: z.string().max(500).optional(),
-  max_days: z.number().min(0),
-  is_paid: z.boolean(),
-  is_active: z.boolean(),
+	name: z.string().min(2).max(100),
+	description: z.string().max(500).optional(),
+	max_days: z.number().min(0),
+	is_paid: z.boolean(),
+	is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
 
 export interface UseLeaveTypeFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingItem?: LeaveType | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	editingItem?: LeaveType | null;
 }
 
-export function useLeaveTypeForm({ open, onOpenChange, editingItem }: UseLeaveTypeFormProps) {
-  const t = useTranslations("leaveType");
-  const tCommon = useTranslations("common");
-  
-  const createMutation = useCreateLeaveType();
-  const updateMutation = useUpdateLeaveType();
+export function useLeaveTypeForm({
+	open,
+	onOpenChange,
+	editingItem,
+}: UseLeaveTypeFormProps) {
+	const t = useTranslations("leaveType");
+	const tCommon = useTranslations("common");
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: "", description: "", max_days: 0, is_paid: true, is_active: true },
-  });
+	const createMutation = useCreateLeaveType();
+	const updateMutation = useUpdateLeaveType();
 
-  useEffect(() => {
-    if (open) {
-      if (editingItem) {
-        form.reset({
-          name: editingItem.name,
-          description: editingItem.description ?? "",
-          max_days: editingItem.max_days,
-          is_paid: editingItem.is_paid,
-          is_active: true,
-        });
-      } else {
-        form.reset({ name: "", description: "", max_days: 0, is_paid: true, is_active: true });
-      }
-    }
-  }, [editingItem, form, open]);
+	const form = useForm<FormData>({
+		resolver: zodResolver(schema),
+		defaultValues: {
+			name: "",
+			description: "",
+			max_days: 0,
+			is_paid: true,
+			is_active: true,
+		},
+	});
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
-    try {
-      if (editingItem) {
-        await updateMutation.mutateAsync({ id: editingItem.id, data });
-        toast.success(t("updated", { fallback: "Leave type updated successfully" }));
-      } else {
-        await createMutation.mutateAsync(data);
-        toast.success(t("created", { fallback: "Leave type created successfully" }));
-      }
-      onOpenChange(false);
-      form.reset();
-    } catch {
-      toast.error(tCommon("error", { fallback: "An error occurred" }));
-    }
-  };
+	useEffect(() => {
+		if (open) {
+			if (editingItem) {
+				form.reset({
+					name: editingItem.name,
+					description: editingItem.description ?? "",
+					max_days: editingItem.max_days,
+					is_paid: editingItem.is_paid,
+					is_active: true,
+				});
+			} else {
+				form.reset({
+					name: "",
+					description: "",
+					max_days: 0,
+					is_paid: true,
+					is_active: true,
+				});
+			}
+		}
+	}, [editingItem, form, open]);
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+	const onSubmit: SubmitHandler<FormData> = async (data) => {
+		try {
+			if (editingItem) {
+				// Explicitly coerce is_paid to boolean — falsy values must be sent as
+				// false (not omitted) so the backend persists the update correctly.
+				await updateMutation.mutateAsync({
+					id: editingItem.id,
+					data: { ...data, is_paid: Boolean(data.is_paid) },
+				});
+				toast.success(
+					t("updated", { fallback: "Leave type updated successfully" }),
+				);
+			} else {
+				await createMutation.mutateAsync(data);
+				toast.success(
+					t("created", { fallback: "Leave type created successfully" }),
+				);
+			}
+			onOpenChange(false);
+			form.reset();
+		} catch {
+			toast.error(tCommon("error", { fallback: "An error occurred" }));
+		}
+	};
 
-  return {
-    form,
-    t,
-    tCommon,
-    isLoading,
-    onSubmit: form.handleSubmit(onSubmit),
-  };
+	const isLoading = createMutation.isPending || updateMutation.isPending;
+
+	return {
+		form,
+		t,
+		tCommon,
+		isLoading,
+		onSubmit: form.handleSubmit(onSubmit),
+	};
 }

@@ -174,7 +174,7 @@ export function useGenerateLeads({ onSuccess }: UseGenerateLeadsProps = {}) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `gims-lead-gen-${type}.json`;
+      link.download = `salesview-lead-gen-${type}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

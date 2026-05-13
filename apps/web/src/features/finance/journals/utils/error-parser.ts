@@ -8,6 +8,7 @@ export type ApiErrorType =
   | "mapping_missing"
   | "already_posted"
   | "locked_entry"
+  | "period_closed"
   | "missing_setting"
   | "insufficient_balance"
   | "duplicate_journal"
@@ -45,6 +46,22 @@ export function parseApiError(error: unknown): ParsedApiError {
     const code = data?.error?.code;
     if (typeof code === "string") {
       const normalizedCode = code.toUpperCase();
+      if (normalizedCode === "CONCURRENT_LOCK_CONFLICT" || normalizedCode === "PERIOD_CLOSED") {
+        return {
+          type: "period_closed",
+          message: data?.error?.message ?? data?.message ?? "The selected period is closed and cannot be changed",
+          details: data?.details,
+        };
+      }
+
+      if (normalizedCode === "MISSING_SETTING" || normalizedCode === "MAPPING_NOT_CONFIGURED") {
+        return {
+          type: "missing_setting",
+          message: data?.error?.message ?? data?.message ?? "Required finance settings are missing",
+          details: data?.details,
+        };
+      }
+
       if (normalizedCode.includes("MAPPING") || normalizedCode.includes("ACCOUNT")) {
         return {
           type: "mapping_missing",
@@ -227,6 +244,10 @@ export function getErrorMessage(error: ParsedApiError, t?: (key: string) => stri
       return translate("errors.already_posted");
     case "locked_entry":
       return translate("errors.locked_entry");
+    case "period_closed":
+      return "The selected period is closed and cannot be changed";
+    case "missing_setting":
+      return "Required finance settings are missing";
     case "insufficient_balance":
       return translate("errors.insufficient_balance");
     case "duplicate_journal":

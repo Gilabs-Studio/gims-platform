@@ -67,7 +67,7 @@ import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
-import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
+import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
 
 function getInitialOpenPurchaseRequisitionFromURL(): string | null {
   if (typeof window === "undefined") {
@@ -94,7 +94,6 @@ export function PurchaseRequisitionsList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseRequisitionFromURL);
-  const [printingId, setPrintingId] = useState<string | null>(null);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<PurchaseRequisitionListItem["supplier"] | null>(null);
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -119,7 +118,7 @@ export function PurchaseRequisitionsList() {
   // Auto-open detail modal when detailId is set from URL query param
   useEffect(() => {
     if (detailId) {
-      setDetailOpen(true);
+      queueMicrotask(() => setDetailOpen(true));
     }
   }, [detailId]);
 
@@ -332,7 +331,7 @@ export function PurchaseRequisitionsList() {
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.requestedBy")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
+              <TableHead className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right">
                 {t("totalAmount")}
               </TableHead>
               <TableHead className="w-[70px]" />
@@ -347,7 +346,7 @@ export function PurchaseRequisitionsList() {
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                  <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
+                  <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
@@ -415,7 +414,7 @@ export function PurchaseRequisitionsList() {
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(item)}</TableCell>
-                    <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
+                    <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5 text-right">
                       {formatCurrency(item.total_amount)}
                     </TableCell>
                     <TableCell>
@@ -538,7 +537,7 @@ export function PurchaseRequisitionsList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                onClick={() => setPrintingId(item.id)}
+                                onClick={() => { purchaseRequisitionsService.openPrintWindow(item.id).catch(() => toast.error("Print failed")); }}
                                 className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -631,13 +630,6 @@ export function PurchaseRequisitionsList() {
         purchaseOrderId={selectedPurchaseOrderId}
       />
 
-      {printingId && (
-        <PurchaseRequisitionPrintDialog
-          open={!!printingId}
-          onClose={() => setPrintingId(null)}
-          requisitionId={printingId}
-        />
-      )}
     </div>
   );
 }

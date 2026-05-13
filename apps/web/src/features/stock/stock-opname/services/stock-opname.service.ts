@@ -8,9 +8,11 @@ import type {
   UpdateStockOpnameRequest,
   UpdateStockOpnameStatusRequest,
   SaveStockOpnameItemsRequest,
+  StockOpnameItemsFilter,
   ProductStockLedgerFilter,
   ProductStockLedgerListResponse,
   InventoryStockLevelListResponse,
+  UserWarehouseInfo,
 } from "../types";
 
 const BASE_PATH = "/inventory/opname";
@@ -88,9 +90,10 @@ export const stockOpnameService = {
   },
   
   // Items
-  async getItems(id: string): Promise<StockOpnameItemsListResponse> {
+    async getItems(id: string, params?: StockOpnameItemsFilter): Promise<StockOpnameItemsListResponse> {
       const response = await apiClient.get<StockOpnameItemsListResponse>(
-          `${BASE_PATH}/${id}/items`
+        `${BASE_PATH}/${id}/items`,
+        { params }
       );
       return response.data;
   },
@@ -122,6 +125,25 @@ export const stockOpnameService = {
     const response = await apiClient.get<InventoryStockLevelListResponse>(
       `/inventory/stock`,
       { params: { product_id: productId, warehouse_id: warehouseId, per_page: 1 } },
+    );
+    return response.data;
+  },
+
+  async getMyWarehouses(): Promise<{ success: boolean; data: UserWarehouseInfo[] }> {
+    const response = await apiClient.get<{ success: boolean; data: UserWarehouseInfo[] }>(
+      `${BASE_PATH}/my-warehouses`,
+    );
+    return response.data;
+  },
+
+  async getItemsAll(id: string, page: number, perPage: number): Promise<StockOpnameItemsListResponse> {
+    return this.getItems(id, { page, per_page: perPage });
+  },
+
+  async saveItemLines(id: string, data: SaveStockOpnameItemsRequest): Promise<StockOpnameSingleResponse> {
+    const response = await apiClient.put<StockOpnameSingleResponse>(
+      `${BASE_PATH}/${id}/lines`,
+      data
     );
     return response.data;
   },

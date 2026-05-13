@@ -43,8 +43,6 @@ type PurchaseOrderUsecase interface {
 	Submit(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	Reject(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
-	Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
-	Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error)
 	AddData(ctx context.Context) (*dto.PurchaseOrderAddResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseOrderAuditTrailEntry, int64, error)
 }
@@ -74,6 +72,64 @@ func (uc *purchaseOrderUsecase) List(ctx context.Context, params repositories.Pu
 	if err != nil {
 		return nil, 0, err
 	}
+
+	for _, po := range items {
+		if po == nil || po.Status != models.PurchaseOrderStatusApproved || len(po.Items) == 0 {
+			continue
+		}
+
+		var totalOrdered, totalReceived float64
+		for _, item := range po.Items {
+			totalOrdered += item.Quantity
+		}
+		for _, gr := range po.GoodsReceipts {
+			s := strings.ToUpper(strings.TrimSpace(string(gr.Status)))
+			if s != string(models.GoodsReceiptStatusApproved) && s != string(models.GoodsReceiptStatusPartial) && s != string(models.GoodsReceiptStatusClosed) && s != string(models.GoodsReceiptStatusConfirmed) {
+				continue
+			}
+			for _, grItem := range gr.Items {
+				totalReceived += grItem.QuantityReceived
+			}
+		}
+		if totalOrdered <= 0 || totalReceived+0.0001 < totalOrdered {
+			continue
+		}
+
+		normalInvoices := make([]models.SupplierInvoice, 0, len(po.SupplierInvoices))
+		for _, inv := range po.SupplierInvoices {
+			if inv.Type == models.SupplierInvoiceTypeNormal {
+				normalInvoices = append(normalInvoices, inv)
+			}
+		}
+
+		hasInvoice := len(normalInvoices) > 0
+		if !hasInvoice {
+			continue
+		}
+
+		allSettled := true
+		for _, inv := range normalInvoices {
+			status := strings.ToUpper(strings.TrimSpace(string(inv.Status)))
+			if status != string(models.SupplierInvoiceStatusPaid) && status != string(models.SupplierInvoiceStatusCancelled) && status != string(models.SupplierInvoiceStatusRejected) {
+				allSettled = false
+				break
+			}
+		}
+		if !allSettled {
+			continue
+		}
+
+		now := apptime.Now()
+		_ = database.GetDB(ctx, uc.db).Model(&models.PurchaseOrder{}).
+			Where("id = ?", po.ID).
+			Updates(map[string]interface{}{
+				"status":     models.PurchaseOrderStatusClosed,
+				"closed_at":  &now,
+				"updated_at": now,
+			}).Error
+		po.Status = models.PurchaseOrderStatusClosed
+	}
+
 	return uc.mapper.ToListResponseList(items), total, nil
 }
 
@@ -109,7 +165,7 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status IN ?", []string{
+		Where("UPPER(gr.status) IN ?", []string{
 			string(models.GoodsReceiptStatusApproved),
 			string(models.GoodsReceiptStatusPartial),
 			string(models.GoodsReceiptStatusClosed),
@@ -138,7 +194,7 @@ func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Pu
 		Select("goods_receipt_items.purchase_order_item_id, COALESCE(SUM(goods_receipt_items.quantity_received), 0) AS total_received").
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id = ?", id).
-		Where("gr.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+		Where("UPPER(gr.status) <> ?", string(models.GoodsReceiptStatusRejected)).
 		Group("goods_receipt_items.purchase_order_item_id").
 		Scan(&reservedRows).Error; err != nil {
 		return nil, err
@@ -186,7 +242,7 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		DueDate:               req.DueDate,
 		Notes:                 req.Notes,
 		Status:                models.PurchaseOrderStatusDraft,
-		TaxRate:               clampPO(req.TaxRate, 0, 100),
+		TaxRate:               clamp(req.TaxRate, 0, 100),
 		DeliveryCost:          math.Max(0, req.DeliveryCost),
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
@@ -199,7 +255,7 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	po.FiscalYearID = &fiscalYearID
 
 	for _, it := range req.Items {
-		discount := clampPO(it.Discount, 0, 100)
+		discount := clamp(it.Discount, 0, 100)
 		qty := math.Max(0, it.Quantity)
 		price := math.Max(0, it.Price)
 		subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -358,7 +414,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 			DueDate:               nil,
 			Notes:                 pr.Notes,
 			Status:                models.PurchaseOrderStatusDraft,
-			TaxRate:               clampPO(pr.TaxRate, 0, 100),
+			TaxRate:               clamp(pr.TaxRate, 0, 100),
 			DeliveryCost:          math.Max(0, pr.DeliveryCost),
 			OtherCost:             math.Max(0, pr.OtherCost),
 			Items:                 make([]models.PurchaseOrderItem, 0, len(pr.Items)),
@@ -371,7 +427,7 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 		po.FiscalYearID = &fiscalYearID
 
 		for _, it := range pr.Items {
-			discount := clampPO(it.Discount, 0, 100)
+			discount := clamp(it.Discount, 0, 100)
 			qty := math.Max(0, it.Quantity)
 			price := math.Max(0, it.PurchasePrice)
 			subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -469,14 +525,14 @@ func (uc *purchaseOrderUsecase) Update(ctx context.Context, id string, req *dto.
 		RevisionComment:       existing.RevisionComment,
 		Notes:                 req.Notes,
 		Status:                existing.Status,
-		TaxRate:               clampPO(req.TaxRate, 0, 100),
+		TaxRate:               clamp(req.TaxRate, 0, 100),
 		DeliveryCost:          math.Max(0, req.DeliveryCost),
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
 	}
 
 	for _, it := range req.Items {
-		discount := clampPO(it.Discount, 0, 100)
+		discount := clamp(it.Discount, 0, 100)
 		qty := math.Max(0, it.Quantity)
 		price := math.Max(0, it.Price)
 		subtotal := calcPOItemSubtotal(qty, price, discount)
@@ -582,7 +638,7 @@ func (uc *purchaseOrderUsecase) Approve(ctx context.Context, id string) (*dto.Pu
 		return nil, err
 	}
 	if existing.Status != models.PurchaseOrderStatusSubmitted {
-		return nil, ErrPurchaseOrderConflict
+		return nil, ErrInvalidStatus
 	}
 	before := poAuditSnapshot(existing)
 	now := apptime.Now()
@@ -608,7 +664,7 @@ func (uc *purchaseOrderUsecase) Reject(ctx context.Context, id string) (*dto.Pur
 		return nil, err
 	}
 	if existing.Status != models.PurchaseOrderStatusSubmitted {
-		return nil, ErrPurchaseOrderConflict
+		return nil, ErrInvalidStatus
 	}
 	before := poAuditSnapshot(existing)
 	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusRejected, map[string]interface{}{
@@ -618,96 +674,6 @@ func (uc *purchaseOrderUsecase) Reject(ctx context.Context, id string) (*dto.Pur
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "purchase_order.reject", id, map[string]interface{}{
-		"before": before,
-		"after":  poAuditSnapshot(updated),
-	})
-	return uc.mapper.ToDetailResponse(updated), nil
-}
-
-func (uc *purchaseOrderUsecase) Close(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
-	existing, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-	if existing.Status != models.PurchaseOrderStatusApproved {
-		return nil, ErrPurchaseOrderConflict
-	}
-	before := poAuditSnapshot(existing)
-	now := apptime.Now()
-	updated, err := uc.repo.UpdateStatusWithTimestamp(ctx, id, models.PurchaseOrderStatusClosed, map[string]interface{}{
-		"closed_at": now,
-	})
-	if err != nil {
-		return nil, err
-	}
-	uc.auditService.Log(ctx, "purchase_order.close", id, map[string]interface{}{
-		"before": before,
-		"after":  poAuditSnapshot(updated),
-	})
-	return uc.mapper.ToDetailResponse(updated), nil
-}
-
-// Confirm is kept for backward compatibility — delegates to the new Approve flow
-// but accepts DRAFT or SUBMITTED status to avoid breaking existing integrations.
-func (uc *purchaseOrderUsecase) Confirm(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
-	existing, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-	if existing.Status != models.PurchaseOrderStatusDraft {
-		return nil, ErrPurchaseOrderConflict
-	}
-	before := poAuditSnapshot(existing)
-	var updated *models.PurchaseOrder
-	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
-		txScoped := database.GetDB(ctx, tx)
-
-		// 1. Lock and check
-		var po models.PurchaseOrder
-		if err := txScoped.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items").First(&po, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if po.Status != models.PurchaseOrderStatusDraft {
-			return ErrPurchaseOrderConflict
-		}
-
-		// 2. Budget Guard (Engagement Point)
-		// Check total PO committed against a general Purchase/Cost account (e.g., "50000")
-		// In a real ERP, this would map by Product Category to specific Expense/Asset accounts.
-		// Note: The previous call passed "COMMITTED_PURCHASE_COA" which is not a valid UUID
-		// and caused the Postgres transaction to abort.
-		/*
-			if po.TotalAmount > 0 {
-				// Using "50000" (COGS/Purchases) as the commitment check account
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, "COMMITTED_PURCHASE_COA", apptime.Now(), po.TotalAmount); err != nil {
-					// return err // Uncomment to strictly block
-				}
-			}
-		*/
-
-		// 3. Update Status
-		if err := txScoped.Model(&po).Update("status", models.PurchaseOrderStatusApproved).Error; err != nil {
-			return err
-		}
-
-		loaded, _ := uc.repo.GetByID(ctx, id)
-		updated = loaded
-		return nil
-	})
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPurchaseOrderNotFound
-		}
-		return nil, err
-	}
-
-	uc.auditService.Log(ctx, "purchase_order.confirm", id, map[string]interface{}{
 		"before": before,
 		"after":  poAuditSnapshot(updated),
 	})
@@ -856,7 +822,7 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 		return nil, 0, ErrPurchaseOrderNotFound
 	}
 
-	tx := database.GetDB(ctx, uc.db).Model(&coreModels.AuditLog{}).
+	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
 		Where("audit_logs.target_id = ?", id).
 		Where("audit_logs.permission_code LIKE ?", "purchase_order.%")
 
@@ -967,22 +933,12 @@ func poAuditItems(items []models.PurchaseOrderItem) []map[string]interface{} {
 	return out
 }
 
-func clampPO(v, min, max float64) float64 {
-	if v < min {
-		return min
-	}
-	if v > max {
-		return max
-	}
-	return v
-}
-
 func calcPOItemSubtotal(qty, price, discount float64) float64 {
 	raw := qty * price
 	if discount <= 0 {
-		return math.Round(raw*100) / 100
+		return roundTo2Decimals(raw)
 	}
-	return math.Round((raw-(raw*(discount/100)))*100) / 100
+	return roundTo2Decimals(raw - (raw * (discount / 100)))
 }
 
 func calcPOTotals(items []models.PurchaseOrderItem, taxRate, deliveryCost, otherCost float64) (subTotal, taxAmount, total float64) {

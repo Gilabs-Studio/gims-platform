@@ -25,7 +25,6 @@ func (m *WarehouseMapper) ToResponse(warehouse *models.Warehouse) *dto.Warehouse
 		Code:        warehouse.Code,
 		Name:        warehouse.Name,
 		Description: warehouse.Description,
-		Capacity:    warehouse.Capacity,
 		Address:     warehouse.Address,
 		ProvinceID:  warehouse.ProvinceID,
 		CityID:      warehouse.CityID,
@@ -103,7 +102,6 @@ func (m *WarehouseMapper) FromCreateRequest(req dto.CreateWarehouseRequest) *mod
 	warehouse := &models.Warehouse{
 		Name:        req.Name,
 		Description: req.Description,
-		Capacity:    req.Capacity,
 		Address:     req.Address,
 		ProvinceID:  req.ProvinceID,
 		CityID:      req.CityID,
@@ -146,9 +144,6 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 	}
 	if req.Description != nil {
 		warehouse.Description = *req.Description
-	}
-	if req.Capacity != nil {
-		warehouse.Capacity = req.Capacity
 	}
 	if req.Address != nil {
 		warehouse.Address = *req.Address

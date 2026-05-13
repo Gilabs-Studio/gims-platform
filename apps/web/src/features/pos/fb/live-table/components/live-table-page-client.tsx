@@ -863,7 +863,6 @@ export function LiveTablePageClient() {
   // Server data is refreshed every 15 s via TanStack Query — no extra API cost from this timer.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1_000);
-    setNow(Date.now());
     return () => clearInterval(id);
   }, []);
 

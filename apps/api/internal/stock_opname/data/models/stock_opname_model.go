@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	employeeModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
@@ -31,6 +32,10 @@ type StockOpname struct {
 	TotalItems       int               `gorm:"type:int;default:0"`
 	TotalVarianceQty float64           `gorm:"type:decimal(15,2);default:0"`
 
+	// Employee assignment
+	OrderedByID  *string `gorm:"type:uuid;index" json:"ordered_by_id,omitempty"`
+	AssignedToID *string `gorm:"type:uuid;index" json:"assigned_to_id,omitempty"`
+
 	// Audit
 	CreatedBy *string   `gorm:"type:uuid"`
 	UpdatedBy *string   `gorm:"type:uuid"`
@@ -39,21 +44,26 @@ type StockOpname struct {
 
 	// Relations
 	Items []StockOpnameItem `gorm:"foreignKey:StockOpnameID;constraint:OnDelete:CASCADE"`
-	
+
 	// Associations (used for joins)
-	Warehouse *warehouse.Warehouse `gorm:"foreignKey:WarehouseID;references:ID" json:"warehouse,omitempty"`
+	Warehouse  *warehouse.Warehouse          `gorm:"foreignKey:WarehouseID;references:ID" json:"warehouse,omitempty"`
+	OrderedBy  *employeeModels.Employee      `gorm:"foreignKey:OrderedByID;references:ID" json:"ordered_by,omitempty"`
+	AssignedTo *employeeModels.Employee      `gorm:"foreignKey:AssignedToID;references:ID" json:"assigned_to,omitempty"`
 }
 
 type StockOpnameItem struct {
-	ID            string   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	TenantID      string   `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	StockOpnameID string   `gorm:"type:uuid;not null;index"`
-	Product       *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-	ProductID     string   `gorm:"type:uuid;not null;index"`
-	SystemQty     float64  `gorm:"type:decimal(15,2);not null;default:0"`
-	PhysicalQty   *float64 `gorm:"type:decimal(15,2)"` // Nullable until counted
-	VarianceQty   float64  `gorm:"type:decimal(15,2);default:0"`
-	Notes         string   `gorm:"type:text"`
+	ID               string                    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	TenantID         string                    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	StockOpnameID    string                    `gorm:"type:uuid;not null;index"`
+	Product          *productModels.Product    `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	ProductID        string                    `gorm:"type:uuid;not null;index"`
+	InventoryBatchID *string                   `gorm:"type:uuid;index" json:"inventory_batch_id,omitempty"`
+	BatchNumber      string                    `gorm:"type:varchar(100);default:''" json:"batch_number,omitempty"`
+	BatchQty         float64                   `gorm:"type:decimal(15,2);default:0" json:"batch_qty,omitempty"`
+	SystemQty        float64                   `gorm:"type:decimal(15,2);not null;default:0"`
+	PhysicalQty      *float64                  `gorm:"type:decimal(15,2)"` // Nullable until counted
+	VarianceQty      float64                   `gorm:"type:decimal(15,2);default:0"`
+	Notes            string                    `gorm:"type:text"`
     
     // Audit
     CreatedAt     time.Time `gorm:"autoCreateTime"`

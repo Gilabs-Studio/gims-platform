@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -47,7 +48,7 @@ func (r *bankReconciliationRepository) Create(ctx context.Context, item *finance
 
 func (r *bankReconciliationRepository) FindByID(ctx context.Context, id string, preloadLines bool) (*financeModels.BankReconciliation, error) {
 	var item financeModels.BankReconciliation
-	q := database.GetDB(ctx, r.db)
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.BankReconciliation{}), ctx, security.FinanceScopeQueryOptions())
 	if preloadLines {
 		q = q.Preload("Lines")
 	}
@@ -77,6 +78,7 @@ func (r *bankReconciliationRepository) List(ctx context.Context, params BankReco
 	var total int64
 
 	q := database.GetDB(ctx, r.db).Model(&financeModels.BankReconciliation{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
 		q = q.Where("company_id = ?", companyID)

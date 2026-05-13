@@ -35,11 +35,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// SaaS: Create Tenant 2 (empty tenant for multi-tenancy testing)
-	if err := SeedTenant2(); err != nil {
-		return err
-	}
-
 	// SaaS: Seed subscription plan configs (must come before coupons)
 	if err := SeedSubscriptionPlans(); err != nil {
 		return err
@@ -50,7 +45,7 @@ func SeedAll() error {
 		return err
 	}
 
-	// SaaS: Seed tenant subscriptions (Tenant 1 = lifetime, Tenant 2 = monthly trial)
+	// SaaS: Seed tenant subscriptions (Tenant 1 = lifetime)
 	if err := SeedSubscriptions(); err != nil {
 		return err
 	}
@@ -297,11 +292,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Targets seeder (Sprint 7)
-	if err := SeedSalesTargets(); err != nil {
-		return err
-	}
-
 	// HRD - Work Schedules seeder (Sprint 13)
 	if err := SeedWorkSchedules(); err != nil {
 		return err
@@ -440,9 +430,13 @@ func SeedAll() error {
 	}
 
 	// SaaS: Backfill tenant_id for all seeder data.
-	// Must run LAST — ensures all rows created above get tenant_id = Tenant1,
-	// and Tenant 2 admin gets tenant_id = Tenant2.
+	// Must run LAST — ensures all rows created above get tenant_id = Tenant1.
 	if err := BackfillSeedTenantIDs(); err != nil {
+		return err
+	}
+
+	// Finance defaults are tenant-scoped; backfill them after all tenants exist.
+	if err := BackfillTenantFinanceDefaults(); err != nil {
 		return err
 	}
 

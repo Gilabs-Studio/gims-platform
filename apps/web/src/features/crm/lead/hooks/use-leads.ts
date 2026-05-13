@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { leadService } from "../services/lead-service";
 import { activityKeys } from "../../activity/hooks/use-activities";
-import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest } from "../types";
+import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest, Lead, ApiResponse } from "../types";
 
 const QUERY_KEY = "crm-leads";
 
@@ -30,6 +29,7 @@ export function useLeadById(id: string) {
     queryKey: leadKeys.detail(id),
     queryFn: () => leadService.getById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -55,6 +55,7 @@ export function useLeadProductItems(id: string, options?: { enabled?: boolean })
     queryKey: leadKeys.productItems(id),
     queryFn: () => leadService.getProductItems(id),
     enabled: (options?.enabled ?? true) && !!id,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -73,16 +74,26 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateLeadData }) =>
       leadService.update(id, data),
-    onError: () => {},
+    onMutate: async ({ id, data }) => {
+      await qc.cancelQueries({ queryKey: leadKeys.detail(id) });
+      const previousLead = qc.getQueryData<ApiResponse<Lead>>(leadKeys.detail(id));
+      qc.setQueryData<ApiResponse<Lead>>(leadKeys.detail(id), (old) => {
+        if (!old?.data) return old as ApiResponse<Lead>;
+        return { ...old, data: { ...old.data, ...data } };
+      });
+      return { previousLead };
+    },
+    onError: (_err, { id }, context) => {
+      if (context?.previousLead) {
+        qc.setQueryData(leadKeys.detail(id), context.previousLead);
+      }
+    },
     onSuccess: (_data, { id }) => {
-      // Keep lead list/detail in sync.
       qc.invalidateQueries({ queryKey: leadKeys.all });
-      // Ensure activity timeline updates immediately after a lead status/details change.
       qc.invalidateQueries({
         queryKey: activityKeys.all,
         predicate: (query) => {
           const key = query.queryKey as unknown[];
-          // Match timeline queries for this lead (any page).
           return (
             key[0] === "crm-activities" &&
             key[1] === "timeline" &&

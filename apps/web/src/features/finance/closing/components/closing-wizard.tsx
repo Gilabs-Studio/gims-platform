@@ -6,7 +6,6 @@ import { AlertCircle, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -150,21 +149,18 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
         <div className="min-h-[400px] flex flex-col">
           {step === "precheck" && (
             <StepPreCheck
-              analysis={analysis}
               isLoading={analysisLoading}
               summary={summary}
               closing={closing}
               t={t}
-              tCommon={tCommon}
             />
           )}
 
           {step === "review" && (
             <StepReview
-              analysis={analysis}
               isLoading={analysisLoading}
               summary={summary}
-              closing={closing}
+              analysis={analysis}
               t={t}
               tCommon={tCommon}
             />
@@ -172,7 +168,6 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
 
           {step === "execute" && (
             <StepExecute
-              closing={closing}
               isLoading={approveMutation.isPending}
               t={t}
             />
@@ -294,14 +289,11 @@ function StepIndicator({
 }
 
 function StepPreCheck({
-  analysis,
   isLoading,
   summary,
   closing,
   t,
-  tCommon,
 }: {
-  analysis?: FinancialClosingAnalysisResponse;
   isLoading: boolean;
   summary: {
     totalAccounts: number;
@@ -311,7 +303,6 @@ function StepPreCheck({
   };
   closing?: FinancialClosing;
   t: ReturnType<typeof useTranslations>;
-  tCommon: ReturnType<typeof useTranslations>;
 }) {
   if (isLoading) {
     return (
@@ -390,14 +381,12 @@ function StepPreCheck({
 }
 
 function StepReview({
-  analysis,
   isLoading,
   summary,
-  closing,
+  analysis,
   t,
   tCommon,
 }: {
-  analysis?: FinancialClosingAnalysisResponse;
   isLoading: boolean;
   summary: {
     totalAccounts: number;
@@ -405,7 +394,7 @@ function StepReview({
     totalOpeningBalance: number;
     totalDifference: number;
   };
-  closing?: FinancialClosing;
+  analysis?: FinancialClosingAnalysisResponse;
   t: ReturnType<typeof useTranslations>;
   tCommon: ReturnType<typeof useTranslations>;
 }) {
@@ -520,11 +509,9 @@ function StepReview({
 }
 
 function StepExecute({
-  closing,
   isLoading,
   t,
 }: {
-  closing?: FinancialClosing;
   isLoading: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {

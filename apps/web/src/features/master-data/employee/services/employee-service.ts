@@ -7,6 +7,10 @@ import type {
   UpdateEmployeeData,
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
+  AssignEmployeeOutletsData,
+  BulkUpdateEmployeeOutletsData,
+  AssignEmployeeWarehousesData,
+  BulkUpdateEmployeeWarehousesData,
   AvailableUsersResponse,
   EmployeeFormDataResponse,
   EmployeeContract,
@@ -90,6 +94,50 @@ export const employeeService = {
   ): Promise<EmployeeSingleResponse> {
     const response = await apiClient.put<EmployeeSingleResponse>(
       `${BASE_PATH}/employees/${id}/areas`,
+      data,
+    );
+    return response.data;
+  },
+
+  async assignOutlets(
+    id: string,
+    data: AssignEmployeeOutletsData,
+  ): Promise<EmployeeSingleResponse> {
+    const response = await apiClient.post<EmployeeSingleResponse>(
+      `${BASE_PATH}/employees/${id}/outlets`,
+      data,
+    );
+    return response.data;
+  },
+
+  async bulkUpdateOutlets(
+    id: string,
+    data: BulkUpdateEmployeeOutletsData,
+  ): Promise<EmployeeSingleResponse> {
+    const response = await apiClient.put<EmployeeSingleResponse>(
+      `${BASE_PATH}/employees/${id}/outlets`,
+      data,
+    );
+    return response.data;
+  },
+
+  async assignWarehouses(
+    id: string,
+    data: AssignEmployeeWarehousesData,
+  ): Promise<EmployeeSingleResponse> {
+    const response = await apiClient.post<EmployeeSingleResponse>(
+      `${BASE_PATH}/employees/${id}/warehouses`,
+      data,
+    );
+    return response.data;
+  },
+
+  async bulkUpdateWarehouses(
+    id: string,
+    data: BulkUpdateEmployeeWarehousesData,
+  ): Promise<EmployeeSingleResponse> {
+    const response = await apiClient.put<EmployeeSingleResponse>(
+      `${BASE_PATH}/employees/${id}/warehouses`,
       data,
     );
     return response.data;

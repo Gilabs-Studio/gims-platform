@@ -3,14 +3,17 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/utils"
 	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
+	coreDB "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
 	"github.com/gilabs/gims/api/internal/customer/domain/mapper"
-	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -43,57 +46,77 @@ func NewCustomerUsecase(repo repositories.CustomerRepository, typeRepo repositor
 }
 
 func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.CreateCustomerRequest) (dto.CustomerResponse, error) {
-	// Auto-generate code if not provided
-	if req.Code == "" {
-		genCode, err := u.repo.GetNextCode(ctx)
-		if err != nil {
-			return dto.CustomerResponse{}, err
-		}
-		req.Code = genCode
-	}
-
-	// Check if code already exists
-	existing, _ := u.repo.FindByCode(ctx, req.Code)
-	if existing != nil {
-		return dto.CustomerResponse{}, errors.New("customer code already exists")
-	}
-
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
 	}
 
-	customer := &models.Customer{
-		ID:            uuid.New().String(),
-		Code:          req.Code,
-		Name:          req.Name,
-		Address:       req.Address,
-		Email:         req.Email,
-		Website:       req.Website,
-		NPWP:          req.NPWP,
-		ContactPerson: req.ContactPerson,
-		Notes:         req.Notes,
-		Latitude:      req.Latitude,
-		Longitude:     req.Longitude,
-		CreatedBy:     &userID,
-		IsActive:      isActive,
-		// Set optional FK relations directly from pointers
-		CustomerTypeID: req.CustomerTypeID,
-		ProvinceID:     req.ProvinceID,
-		CityID:         req.CityID,
-		DistrictID:     req.DistrictID,
-		VillageID:      req.VillageID, VillageName: req.VillageName, // Sales defaults
-		DefaultBusinessTypeID: req.DefaultBusinessTypeID,
-		DefaultAreaID:         req.DefaultAreaID,
-		DefaultSalesRepID:     req.DefaultSalesRepID,
-		DefaultPaymentTermsID: req.DefaultPaymentTermsID,
-		DefaultTaxRate:        req.DefaultTaxRate,
-		CreditLimit:           utils.Float64Value(req.CreditLimit),
-		CreditIsActive:        utils.BoolValue(req.CreditIsActive),
+	providedCode := strings.TrimSpace(req.Code)
+	var customer *models.Customer
+
+	for attempt := 0; attempt < 5; attempt++ {
+		nextCode := providedCode
+		if nextCode == "" {
+			genCode, err := u.repo.GetNextCode(ctx)
+			if err != nil {
+				return dto.CustomerResponse{}, err
+			}
+			nextCode = genCode
+		}
+
+		existing, _ := u.repo.FindByCode(ctx, nextCode)
+		if existing != nil {
+			if providedCode != "" {
+				return dto.CustomerResponse{}, errors.New("customer code already exists")
+			}
+			continue
+		}
+
+		customer = &models.Customer{
+			ID:            uuid.New().String(),
+			Code:          nextCode,
+			Name:          req.Name,
+			Address:       req.Address,
+			Email:         req.Email,
+			Website:       req.Website,
+			NPWP:          req.NPWP,
+			ContactPerson: req.ContactPerson,
+			Notes:         req.Notes,
+			Latitude:      req.Latitude,
+			Longitude:     req.Longitude,
+			CreatedBy:     &userID,
+			IsActive:      isActive,
+			CustomerTypeID: req.CustomerTypeID,
+			ProvinceID:     req.ProvinceID,
+			CityID:         req.CityID,
+			DistrictID:     req.DistrictID,
+			VillageID:      req.VillageID,
+			VillageName:    req.VillageName,
+			DefaultBusinessTypeID: req.DefaultBusinessTypeID,
+			DefaultAreaID:         req.DefaultAreaID,
+			DefaultSalesRepID:     req.DefaultSalesRepID,
+			DefaultPaymentTermsID: req.DefaultPaymentTermsID,
+			DefaultTaxRate:        req.DefaultTaxRate,
+			CreditLimit:           utils.Float64Value(req.CreditLimit),
+			CreditIsActive:        utils.BoolValue(req.CreditIsActive),
+		}
+
+		if err := u.repo.Create(ctx, customer); err != nil {
+			if isUniqueCustomerCodeError(err) && providedCode == "" {
+				customer = nil
+				continue
+			}
+			if isUniqueCustomerCodeError(err) {
+				return dto.CustomerResponse{}, errors.New("customer code already exists")
+			}
+			return dto.CustomerResponse{}, err
+		}
+
+		break
 	}
 
-	if err := u.repo.Create(ctx, customer); err != nil {
-		return dto.CustomerResponse{}, err
+	if customer == nil {
+		return dto.CustomerResponse{}, fmt.Errorf("failed to generate unique customer code after retries")
 	}
 
 	// Create nested bank accounts
@@ -362,14 +385,22 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		return nil, err
 	}
 
+	// Filter to only active customer types for selection
+	var activeCustomerTypes []models.CustomerType
+	for _, ct := range customerTypes {
+		if ct.IsActive {
+			activeCustomerTypes = append(activeCustomerTypes, ct)
+		}
+	}
+
 	// Load business types
 	type btRow struct {
 		ID   string
 		Name string
 	}
 	var btRows []btRow
-	u.db.WithContext(ctx).Table("business_types").
-		Select("id, name").Where("deleted_at IS NULL").
+	coreDB.GetDB(ctx, u.db).Table("business_types").
+		Select("id, name").Where("deleted_at IS NULL AND is_active = true").
 		Order("name").Scan(&btRows)
 	btOptions := make([]dto.SalesDefaultOptionBrief, 0, len(btRows))
 	for _, r := range btRows {
@@ -383,8 +414,8 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		Province string
 	}
 	var areaRows []areaRow
-	u.db.WithContext(ctx).Table("areas").
-		Select("id, name, province").Where("deleted_at IS NULL").
+	coreDB.GetDB(ctx, u.db).Table("areas").
+		Select("id, name, province").Where("deleted_at IS NULL AND is_active = true").
 		Order("name").Scan(&areaRows)
 	areaOptions := make([]dto.CustomerAreaFormOption, 0, len(areaRows))
 	for _, r := range areaRows {
@@ -398,7 +429,7 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		Name         string
 	}
 	var empRows []empRow
-	u.db.WithContext(ctx).Table("employees").
+	coreDB.GetDB(ctx, u.db).Table("employees").
 		Select("id, employee_code, name").Where("deleted_at IS NULL").
 		Order("name").Scan(&empRows)
 	salesRepOptions := make([]dto.SalesRepBrief, 0, len(empRows))
@@ -418,7 +449,7 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 		Days int
 	}
 	var ptRows []ptRow
-	u.db.WithContext(ctx).Table("payment_terms").
+	coreDB.GetDB(ctx, u.db).Table("payment_terms").
 		Select("id, code, name, days").Where("deleted_at IS NULL AND is_active = true").
 		Order("days").Scan(&ptRows)
 	ptOptions := make([]dto.PaymentTermsFormOption, 0, len(ptRows))
@@ -432,10 +463,25 @@ func (u *customerUsecase) GetFormData(ctx context.Context) (*dto.CustomerFormDat
 	}
 
 	return &dto.CustomerFormDataResponse{
-		CustomerTypes: mapper.ToCustomerTypeResponseList(customerTypes),
+		CustomerTypes: mapper.ToCustomerTypeResponseList(activeCustomerTypes),
 		BusinessTypes: btOptions,
 		Areas:         areaOptions,
 		SalesReps:     salesRepOptions,
 		PaymentTerms:  ptOptions,
 	}, nil
+}
+
+func isUniqueCustomerCodeError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "23505") && !strings.Contains(msg, "duplicate key") && !strings.Contains(msg, "unique") {
+		return false
+	}
+
+	return strings.Contains(msg, "customers_code") ||
+		strings.Contains(msg, "uq_customers_tenant_code_active") ||
+		strings.Contains(msg, "customer code")
 }

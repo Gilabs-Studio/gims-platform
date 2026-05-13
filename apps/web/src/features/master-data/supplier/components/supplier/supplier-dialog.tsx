@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
-import { SupplierTypeDialog } from "../supplier-type/supplier-type-dialog";
 import { Loader2 } from "lucide-react";
 import { ButtonLoading } from "@/components/loading";
 import { SupplierContactList } from "./supplier-contact-list";
@@ -45,11 +44,9 @@ export function SupplierDialog({
     supplierTypes,
     paymentTerms,
     businessUnits,
-    isQuickCreateOpen,
-    quickCreateQuery,
-    openQuickCreate,
-    closeQuickCreate,
-    handleSupplierTypeCreated,
+    handleCreateSupplierType,
+    handleCreatePaymentTerms,
+    handleCreateBusinessUnit,
     onSubmit,
   } = useSupplierForm({ open, onOpenChange, editingItem, onCreated });
 
@@ -129,7 +126,7 @@ export function SupplierDialog({
                         placeholder={t("form.supplierTypePlaceholder")}
                         createPermission="supplier_type.create"
                         createLabel={`${tCommon("create")} "{query}"`}
-                        onCreateClick={(q) => openQuickCreate(q)}
+                        onCreateClick={handleCreateSupplierType}
                       />
                       {errors.supplier_type_id && <FieldError>{errors.supplier_type_id.message}</FieldError>}
                     </Field>
@@ -139,8 +136,11 @@ export function SupplierDialog({
                       <CreatableCombobox
                         value={paymentTermsId ?? ""}
                         onValueChange={(val) => setValue("payment_terms_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
-                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.name }))}
                         placeholder={t("form.paymentTermsPlaceholder")}
+                        createPermission="payment_term.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={handleCreatePaymentTerms}
                       />
                       {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
                     </Field>
@@ -152,6 +152,9 @@ export function SupplierDialog({
                         onValueChange={(val) => setValue("business_unit_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                         options={businessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
                         placeholder={t("form.businessUnitPlaceholder")}
+                        createPermission="business_unit.create"
+                        createLabel={`${tCommon("create")} "{query}"`}
+                        onCreateClick={handleCreateBusinessUnit}
                       />
                       {errors.business_unit_id && <FieldError>{errors.business_unit_id.message}</FieldError>}
                     </Field>
@@ -176,7 +179,17 @@ export function SupplierDialog({
 
                     <Field>
                       <FieldLabel>{t("form.npwp")}</FieldLabel>
-                      <Input placeholder={t("form.npwpPlaceholder")} {...register("npwp")} />
+                      <Input
+                        placeholder={t("form.npwpPlaceholder")}
+                        inputMode="numeric"
+                        onKeyDown={(e) => {
+                          if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                              !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        {...register("npwp")}
+                      />
                       {errors.npwp && <FieldError>{errors.npwp.message}</FieldError>}
                     </Field>
                   </div>
@@ -257,14 +270,6 @@ export function SupplierDialog({
           </form>
         )}
       </DialogContent>
-
-      <SupplierTypeDialog
-        open={isQuickCreateOpen}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        initialName={quickCreateQuery}
-        onSuccess={handleSupplierTypeCreated}
-      />
     </Dialog>
   );
 }

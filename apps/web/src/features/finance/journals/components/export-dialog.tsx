@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -15,17 +14,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 interface ExportDialogProps {
   valuationRunId: string | null;
-  valuationType?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ExportDialog({
   valuationRunId,
-  valuationType,
   open,
   onOpenChange,
 }: ExportDialogProps) {
@@ -46,9 +44,7 @@ export function ExportDialog({
       toast.success(t("export_success", { format: format.toUpperCase() }));
       onOpenChange(false);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("export_failed");
-      toast.error(message);
+      toast.error(getFinanceErrorMessage(error, t("export_failed")));
     }
   };
 

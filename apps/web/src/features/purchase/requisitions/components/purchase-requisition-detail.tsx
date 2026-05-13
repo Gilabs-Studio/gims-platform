@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
@@ -52,7 +52,7 @@ import {
 import { PurchaseRequisitionStatusBadge } from "./purchase-requisition-status-badge";
 import { PurchaseRequisitionAuditTrailContent } from "./purchase-requisition-audit-trail";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
-import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
+import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
 
 interface PurchaseRequisitionDetailProps {
   readonly open: boolean;
@@ -65,7 +65,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
@@ -76,7 +75,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
   const canEdit = useUserPermission("purchase_requisition.update");
-  const canDelete = useUserPermission("purchase_requisition.delete");
   const canSubmit = useUserPermission("purchase_requisition.submit");
   const canApprove = useUserPermission("purchase_requisition.approve");
   const canReject = useUserPermission("purchase_requisition.reject");
@@ -94,6 +92,63 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     enabled: open && !!requisitionId,
   });
   const pr = data?.data;
+  const fallbackAuditEvents = useMemo(() => {
+    if (!pr) return [];
+
+    return [
+      {
+        id: `${pr.id}-created`,
+        action: "purchase_requisition.create",
+        at: pr.created_at,
+        user: pr.user?.name ?? pr.user?.email ?? null,
+        metadata: {
+          details: `Created purchase requisition with total ${formatCurrency(pr.total_amount ?? 0)}`,
+        },
+      },
+      {
+        id: `${pr.id}-updated`,
+        action: "purchase_requisition.update",
+        at: pr.updated_at,
+        user: pr.user?.name ?? pr.user?.email ?? null,
+        metadata:
+          pr.updated_at && pr.updated_at !== pr.created_at
+            ? { details: "Purchase requisition data updated" }
+            : null,
+      },
+      {
+        id: `${pr.id}-submitted`,
+        action: "purchase_requisition.submit",
+        at: pr.submitted_at,
+        metadata: {
+          status: "submitted",
+        },
+      },
+      {
+        id: `${pr.id}-approved`,
+        action: "purchase_requisition.approve",
+        at: pr.approved_at,
+        metadata: {
+          status: "approved",
+        },
+      },
+      {
+        id: `${pr.id}-rejected`,
+        action: "purchase_requisition.reject",
+        at: pr.rejected_at,
+        metadata: {
+          status: "rejected",
+        },
+      },
+      {
+        id: `${pr.id}-converted`,
+        action: "purchase_requisition.convert",
+        at: pr.converted_at,
+        metadata: {
+          status: "converted",
+        },
+      },
+    ];
+  }, [pr]);
 
   const deleteMutation = useDeletePurchaseRequisition();
   const submitMutation = useSubmitPurchaseRequisition();
@@ -193,7 +248,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsPrintOpen(true)}
+                    onClick={() => { if (requisitionId) purchaseRequisitionsService.openPrintWindow(requisitionId).catch(() => toast.error("Print failed")); }}
                     className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
@@ -526,6 +581,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   <PurchaseRequisitionAuditTrailContent
                     enabled={open && !!requisitionId && activeTab === "audit_trail"}
                     requisitionId={requisitionId}
+                    fallbackEvents={fallbackAuditEvents}
                   />
                 </TabsContent>
               )}
@@ -570,13 +626,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
         isLoading={deleteMutation.isPending}
       />
 
-      {requisitionId && (
-        <PurchaseRequisitionPrintDialog
-          open={isPrintOpen}
-          onClose={() => setIsPrintOpen(false)}
-          requisitionId={requisitionId}
-        />
-      )}
     </>
   );
 }

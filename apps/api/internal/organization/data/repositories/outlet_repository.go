@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -112,12 +113,10 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 
 	query := database.GetDB(ctx, r.db).Model(&models.Outlet{})
 
-	// RBAC: Filter by user-warehouse assignments if UserID is provided
-	if params.UserID != "" {
-		// Filter outlets by user-assigned warehouses
-		// SELECT outlets WHERE warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)
-		query = query.Where("warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)", params.UserID)
-	}
+	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
+		OutletIDColumn:    "id",
+		WarehouseIDColumn: "warehouse_id",
+	})
 
 	// Apply search filter
 	if params.Search != "" {
@@ -183,6 +182,14 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	}
 
 	return outlets, total, nil
+}
+
+func contextUserID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	value, _ := ctx.Value("user_id").(string)
+	return value
 }
 
 // Update updates an existing outlet

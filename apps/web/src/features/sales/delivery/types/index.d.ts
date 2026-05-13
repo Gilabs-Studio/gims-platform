@@ -5,6 +5,12 @@ export type DeliveryOrderStatus = "draft" | "sent" | "approved" | "rejected" | "
 export interface DeliveryOrderItem {
   id: string;
   delivery_order_id: string;
+  warehouse_id?: string;
+  warehouse?: {
+    id: string;
+    code: string;
+    name: string;
+  };
   product_id: string;
   product?: {
     id: string;
@@ -141,6 +147,7 @@ export interface CreateDeliveryOrderItemData {
   product_id: string;
   sales_order_item_id?: string;
   inventory_batch_id?: string;
+  warehouse_id?: string;
   quantity: number;
   price: number;
   installation_status?: string;

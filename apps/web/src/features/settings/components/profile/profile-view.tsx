@@ -11,11 +11,13 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProfileForm } from "./profile-form";
 import { PasswordForm } from "./password-form";
+import { DeleteAccountCard } from "./delete-account-card";
 import { AvatarUpload } from "./avatar-upload";
 import { PreferencesForm } from "./preferences-form";
 import { PaymentSettings } from "./payment-settings";
 import { BillingTab } from "./billing-tab";
 import { PaymentHistory } from "./payment-history";
+import { PaymentMethodTab } from "./payment-method-tab";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { billingService } from "../../services/billing-service";
@@ -161,6 +163,17 @@ export function ProfileView() {
 
   // Payment tab: visible to owner (billing) or anyone with pos.payment.manage permission
   const canManagePaymentTab = canManageBilling || canManagePayment;
+  const requestedTab = searchParams.get("tab");
+  const tabAccess: Record<string, boolean> = {
+    overview: true,
+    general: true,
+    security: true,
+    payment: canManagePaymentTab,
+    billing: canManageBilling,
+    "payment-history": canManageBilling,
+    "payment-methods": canManageBilling,
+  };
+  const resolvedTab = requestedTab && tabAccess[requestedTab] ? requestedTab : activeTab;
   const confirmBillingMutation = useMutation({
     mutationFn: (token: string) => billingService.confirmSubscriptionChange(token),
     onSuccess: async () => {
@@ -168,26 +181,6 @@ export function ProfileView() {
       await queryClient.invalidateQueries({ queryKey: ["payment-history"] });
     },
   });
-
-  useEffect(() => {
-    const requestedTab = searchParams.get("tab");
-    if (!requestedTab) {
-      return;
-    }
-
-    const tabAccess: Record<string, boolean> = {
-      overview: true,
-      general: true,
-      security: true,
-      payment: canManagePaymentTab,
-      billing: canManageBilling,
-      "payment-history": canManageBilling,
-    };
-
-    if (tabAccess[requestedTab]) {
-      setActiveTab(requestedTab);
-    }
-  }, [searchParams, canManageBilling, canManagePaymentTab]);
 
   useEffect(() => {
     if (statusToastShown.current || !canManageBilling) {
@@ -201,12 +194,12 @@ export function ProfileView() {
       void confirmBillingMutation.mutateAsync(billingToken);
     }
     if (billingStatus === "paid") {
-      toast.success("Payment received. Seat update is being applied.");
+      toast.success("Payment received. Your billing change is being applied.");
       statusToastShown.current = true;
       return;
     }
     if (billingStatus === "failed") {
-      toast.error("Payment failed or canceled. No seat changes were applied.");
+      toast.error("Payment failed or canceled. No billing changes were applied.");
       statusToastShown.current = true;
     }
   }, [searchParams, canManageBilling, confirmBillingMutation]);
@@ -218,7 +211,7 @@ export function ProfileView() {
         <h1 className="text-2xl font-bold tracking-tight">{t("profile")}</h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={resolvedTab} onValueChange={setActiveTab} className="w-full">
         {/* Clean top Tabs bar identical to reference image */}
         <div className="border-b border-border/40 w-full mb-6 relative">
           <TabsList className="hidden md:flex w-full justify-start h-auto bg-transparent p-0 gap-6 overflow-x-auto overflow-y-hidden no-scrollbar rounded-none items-end">
@@ -245,7 +238,7 @@ export function ProfileView() {
                 value="payment"
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
               >
-                Payment
+                {t("payment.title")}
               </TabsTrigger>
             )}
             {canManageBilling && (
@@ -253,7 +246,7 @@ export function ProfileView() {
                 value="billing"
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
               >
-                Billing
+                {t("billing.title")}
               </TabsTrigger>
             )}
             {canManageBilling && (
@@ -262,6 +255,14 @@ export function ProfileView() {
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
               >
                 {t("paymentHistory.title")}
+              </TabsTrigger>
+            )}
+            {canManageBilling && (
+              <TabsTrigger
+                value="payment-methods"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+              >
+                {t("paymentMethods.title")}
               </TabsTrigger>
             )}
           </TabsList>
@@ -301,7 +302,7 @@ export function ProfileView() {
                     value="payment"
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
                   >
-                    Payment
+                    {t("payment.title")}
                   </TabsTrigger>
                 )}
                 {canManageBilling && (
@@ -309,7 +310,7 @@ export function ProfileView() {
                     value="billing"
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
                   >
-                    Billing
+                    {t("billing.title")}
                   </TabsTrigger>
                 )}
                 {canManageBilling && (
@@ -318,6 +319,14 @@ export function ProfileView() {
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
                   >
                     {t("paymentHistory.title")}
+                  </TabsTrigger>
+                )}
+                {canManageBilling && (
+                  <TabsTrigger
+                    value="payment-methods"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                  >
+                    {t("paymentMethods.title")}
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -374,6 +383,7 @@ export function ProfileView() {
             <TabsContent value="security" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
               <div className="grid gap-6">
                 <PasswordForm />
+                {canManageBilling && <DeleteAccountCard />}
               </div>
             </TabsContent>
 
@@ -390,6 +400,11 @@ export function ProfileView() {
             {canManageBilling && (
               <TabsContent value="payment-history" className="mt-0 animate-in fade-in-50 duration-500">
                 <PaymentHistory />
+              </TabsContent>
+            )}
+            {canManageBilling && (
+              <TabsContent value="payment-methods" className="mt-0 animate-in fade-in-50 duration-500">
+                <PaymentMethodTab />
               </TabsContent>
             )}
           </div>

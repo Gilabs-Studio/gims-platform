@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, CreditCard, Send } from "lucide-react";
+import { Edit, Trash2, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
@@ -89,11 +89,6 @@ export function InvoiceDetailModal({
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
-
-  const isPaymentStatus = (status?: string): boolean => {
-    const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
-  };
 
   const customerProp: Customer | null = selectedCustomerId
     ? ({
@@ -235,7 +230,7 @@ export function InvoiceDetailModal({
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && status === "unpaid" && (
+                {canDelete && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"

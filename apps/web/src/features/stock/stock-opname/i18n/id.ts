@@ -11,6 +11,8 @@ export const stockOpnameId = {
     addItem: "Tambah Item",
     export: "Ekspor",
     openMapping: "Buka Mapping",
+    exportExcel: "Ekspor ke CSV",
+    loadMore: "Muat Lebih Banyak",
   },
   table: {
     opname_no: "No. Opname",
@@ -19,6 +21,8 @@ export const stockOpnameId = {
     status: "Status",
     variance: "Selisih",
     actions: "Aksi",
+    orderedBy: "Diperintahkan Oleh",
+    assignedTo: "Ditugaskan Kepada",
     edit: "Ubah",
     delete: "Hapus",
     view: "Lihat",
@@ -43,6 +47,8 @@ export const stockOpnameId = {
     date: "Tanggal",
     description: "Deskripsi",
     scope: "Lingkup",
+    scopeCategorySelector: "Pilih Kategori (satu atau lebih)",
+    scopeBrandSelector: "Pilih Merek (satu atau lebih)",
     scopeOptions: {
       all: "Semua Produk",
       category: "Berdasarkan Kategori",
@@ -60,6 +66,15 @@ export const stockOpnameId = {
     editTitle: "Ubah Stok Opname",
     addItemTitle: "Tambah Item",
     editItemTitle: "Ubah Item",
+    columns: {
+      productCode: "Kode Produk",
+      productName: "Nama Produk",
+      systemQty: "Qty Sistem",
+      physicalQty: "Qty Fisik",
+      varianceQty: "Selisih",
+      unitCost: "Harga Satuan",
+      notes: "Catatan",
+    },
     actions: {
       start: "Mulai Opname",
     },
@@ -109,5 +124,42 @@ export const stockOpnameId = {
   messages: {
     exportEmpty: "Tidak ada data stock opname untuk diekspor.",
     exportSuccess: "Stock opname berhasil diekspor.",
+  },
+  noWarehouseAssigned: {
+    title: "Belum ada warehouse yang ditugaskan",
+    description: "Anda belum ditugaskan ke warehouse manapun. Silakan hubungi administrator untuk mendapatkan akses.",
+  },
+  employee: {
+    orderedBy: "Diperintahkan Oleh",
+    assignedTo: "Ditugaskan Kepada",
+    placeholder: "Pilih karyawan",
+  },
+  detail: {
+    title: "Detail Stok Opname",
+    totalItems: "Total Item",
+    totalVariance: "Total Selisih",
+    shrinkage: "Susut",
+    overstock: "Kelebihan Stok",
+    journalId: "ID Jurnal",
+    exportTitle: "Laporan Stok Opname",
+  },
+  managerView: {
+    title: "Laporan Manajer",
+    columns: {
+      productCode: "Kode Produk",
+      productName: "Nama Produk",
+      batchNumber: "Batch",
+      systemQty: "Qty Sistem",
+      physicalQty: "Qty Fisik",
+      varianceQty: "Selisih",
+      unitCost: "Harga Satuan",
+      notes: "Catatan",
+    },
+  },
+  counterView: {
+    notCounted: "Belum Dihitung",
+    exact: "Sesuai",
+    systemQty: "Qty Sistem",
+    readOnlyNotice: "Opname ini tidak dalam status draf. Item bersifat hanya baca.",
   },
 };

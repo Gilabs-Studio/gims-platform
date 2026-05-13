@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -104,8 +104,8 @@ export function SalaryForm({
     }
   }, [open, initialData, defaultEmployeeId, form]);
 
-  const watchedEmployeeId = form.watch("employee_id");
-  const effectiveDateValue = form.watch("effective_date");
+  const watchedEmployeeId = useWatch({ control: form.control, name: "employee_id" });
+  const effectiveDateValue = useWatch({ control: form.control, name: "effective_date" });
 
   const selectedEmployee = employees.find((e) => e.id === watchedEmployeeId);
   const parsedDate = effectiveDateValue

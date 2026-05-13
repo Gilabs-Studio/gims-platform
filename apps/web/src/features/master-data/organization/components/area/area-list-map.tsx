@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import {
-  MapPin, Plus, Search, X, Users, Edit, Trash2, Eye, Shield,
+  MapPin, Search, X, Users, Edit, Trash2, Eye, Shield,
   Menu, AlertTriangle, ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,11 @@ export function AreaList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedPolygon, setSelectedPolygon] = useState<GeoJSON.Geometry | undefined>(undefined);
+  const [conflictAreas, setConflictAreas] = useState<Array<{ areaId: string; removedCities: string[] }>>([]);
+  const [selectionResetToken, setSelectionResetToken] = useState(0);
   const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [detailAreaId, setDetailAreaId] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search, 300);
@@ -50,7 +55,8 @@ export function AreaList() {
     search: debouncedSearch || undefined,
   });
   const deleteArea = useDeleteArea();
-  const areas = areasData?.data ?? [];
+  const areas = useMemo(() => areasData?.data ?? [], [areasData?.data]);
+  const totalSelected = selectedAreaIds.length + selectedCities.length;
 
   const filteredAreas = useMemo(() => {
     return areas.filter((a) => {
@@ -64,6 +70,21 @@ export function AreaList() {
   const handleEdit = useCallback((area: Area) => { setEditingArea(area); }, []);
   const handleView = useCallback((area: Area) => { setDetailAreaId(area.id); }, []);
 
+  const handleSelectionChange = useCallback(
+    ({ areaIds, cities, polygon, conflictAreas: incoming }: {
+      areaIds: string[];
+      cities: string[];
+      polygon?: GeoJSON.Geometry | undefined;
+      conflictAreas?: Array<{ areaId: string; removedCities: string[] }>;
+    }) => {
+      setSelectedAreaIds(areaIds);
+      setSelectedCities(cities);
+      setSelectedPolygon(polygon);
+      setConflictAreas(incoming ?? []);
+    },
+    []
+  );
+
   const handleDeleteConfirm = async () => {
     if (!deletingAreaId) return;
     try {
@@ -75,6 +96,27 @@ export function AreaList() {
       // Error handled by api-client
     }
   };
+
+  const resetSelectionState = useCallback(() => {
+    setSelectedAreaIds([]);
+    setSelectedCities([]);
+    setSelectedPolygon(undefined);
+    setConflictAreas([]);
+    setSelectionResetToken((prev) => prev + 1);
+  }, []);
+
+  // Compute the updated regency string for each area losing cities to the new area
+  const conflictedAreaUpdates = useMemo(() => {
+    return conflictAreas
+      .map((entry) => {
+        const area = areas.find((a) => a.id === entry.areaId);
+        if (!area?.regency) return null;
+        const current = area.regency.split(/[,;|]/).map((c) => c.trim()).filter(Boolean);
+        const updated = current.filter((c) => !entry.removedCities.includes(c.toLowerCase()));
+        return { id: entry.areaId, regency: updated.join(", ") };
+      })
+      .filter((x): x is { id: string; regency: string } => x !== null);
+  }, [conflictAreas, areas]);
 
   return (
     <div className="h-full w-full flex overflow-hidden">
@@ -129,12 +171,6 @@ export function AreaList() {
                   <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                 </SelectContent>
               </Select>
-              {canCreate && (
-                <Button onClick={() => setIsFormOpen(true)} className="w-full sm:w-auto cursor-pointer">
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("common.create")}
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -152,15 +188,14 @@ export function AreaList() {
               ))}
             </div>
           ) : filteredAreas.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-6 text-left text-muted-foreground">
               <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-sm">{t("area.empty")}</p>
-              {canCreate && (
-                <Button variant="outline" className="mt-4 cursor-pointer" onClick={() => setIsFormOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("common.create")}
-                </Button>
-              )}
+              <h3 className="font-semibold text-base mb-2">{t("area.tutorial.title")}</h3>
+              <p className="text-sm mb-3">{t("area.tutorial.emptySidebar")}</p>
+              <ol className="text-sm list-decimal list-inside space-y-1 mb-4">
+                <li>{t("area.tutorial.step1")}</li>
+                <li>{t("area.tutorial.step2")}</li>
+              </ol>
             </div>
           ) : (
             <>
@@ -191,6 +226,47 @@ export function AreaList() {
             </>
           )}
         </div>
+
+        {/* Selection Preview & OK Button */}
+        {totalSelected > 0 && canCreate && (
+          <div className="shrink-0 border-t bg-background p-4 space-y-3">
+            <div className="text-sm">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-muted-foreground">{t("area.assign.selectedCount", { count: totalSelected })}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetSelectionState}
+                  className="h-7 px-2 text-xs cursor-pointer"
+                >
+                  {t("common.cancel")}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {selectedAreaIds.map((id) => {
+                  const area = areas.find((a) => a.id === id);
+                  return area ? (
+                    <Badge key={id} variant="outline" className="text-xs">
+                      {area.name}
+                    </Badge>
+                  ) : null;
+                })}
+                {selectedCities.map((city) => (
+                  <Badge key={city} variant="outline" className="text-xs">
+                    {city}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              className="w-full cursor-pointer"
+            >
+              {t("common.confirm")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Map Area */}
@@ -210,6 +286,8 @@ export function AreaList() {
           selectedAreaId={selectedAreaId}
           onAreaClick={(area) => setSelectedAreaId(area.id)}
           isLoading={isLoading}
+          onSelectionChange={handleSelectionChange}
+          resetSelectionToken={selectionResetToken}
         />
       </div>
 
@@ -219,7 +297,14 @@ export function AreaList() {
       )}
 
       {/* Create */}
-      <AreaForm open={isFormOpen} onClose={() => setIsFormOpen(false)} />
+      <AreaForm
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onCreateSuccess={resetSelectionState}
+        initialPolygon={selectedPolygon}
+        initialSelectedCities={selectedCities}
+        conflictedAreaUpdates={conflictedAreaUpdates}
+      />
 
       {/* Edit */}
       {editingArea && (

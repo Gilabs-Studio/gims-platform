@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreDatabase "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	loyaltyDTO "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
 	loyaltyUC "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
@@ -19,6 +21,8 @@ import (
 	"github.com/gilabs/gims/api/internal/pos/domain/provider"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	salesDTO "github.com/gilabs/gims/api/internal/sales/domain/dto"
+	salesUsecase "github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -39,16 +43,19 @@ type POSPaymentUsecase interface {
 }
 
 type posPaymentUsecase struct {
-	paymentRepo      repositories.POSPaymentRepository
-	orderRepo        repositories.PosOrderRepository
-	configRepo       repositories.POSConfigRepository
-	xenditRepo       repositories.XenditConfigRepository
-	orderUsecase     POSOrderUsecase
-	salesOrderRepo   salesRepos.SalesOrderRepository
-	invoiceRepo      salesRepos.CustomerInvoiceRepository
-	salesPaymentRepo salesRepos.SalesPaymentRepository
-	bankAccountRepo  coreRepos.BankAccountRepository
-	cipher           *securityInfra.CredentialCipher
+	db                *gorm.DB
+	paymentRepo       repositories.POSPaymentRepository
+	orderRepo         repositories.PosOrderRepository
+	configRepo        repositories.POSConfigRepository
+	xenditRepo        repositories.XenditConfigRepository
+	orderUsecase      POSOrderUsecase
+	salesOrderRepo    salesRepos.SalesOrderRepository
+	invoiceRepo       salesRepos.CustomerInvoiceRepository
+	customerInvoiceUC salesUsecase.CustomerInvoiceUsecase
+	salesPaymentUC    salesUsecase.SalesPaymentUsecase
+	salesPaymentRepo  salesRepos.SalesPaymentRepository
+	bankAccountRepo   coreRepos.BankAccountRepository
+	cipher            *securityInfra.CredentialCipher
 	// loyaltyUC is optional; when nil loyalty point accrual is skipped.
 	loyaltyUC loyaltyUC.LoyaltyUsecase
 }
@@ -63,6 +70,7 @@ const maxXenditDescriptionLen = 200
 
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
 func NewPOSPaymentUsecase(
+	db *gorm.DB,
 	paymentRepo repositories.POSPaymentRepository,
 	orderRepo repositories.PosOrderRepository,
 	configRepo repositories.POSConfigRepository,
@@ -70,22 +78,96 @@ func NewPOSPaymentUsecase(
 	orderUsecase POSOrderUsecase,
 	salesOrderRepo salesRepos.SalesOrderRepository,
 	invoiceRepo salesRepos.CustomerInvoiceRepository,
+	customerInvoiceUC salesUsecase.CustomerInvoiceUsecase,
+	salesPaymentUC salesUsecase.SalesPaymentUsecase,
 	salesPaymentRepo salesRepos.SalesPaymentRepository,
 	bankAccountRepo coreRepos.BankAccountRepository,
 	cipher *securityInfra.CredentialCipher,
 ) *posPaymentUsecase {
 	return &posPaymentUsecase{
-		paymentRepo:      paymentRepo,
-		orderRepo:        orderRepo,
-		configRepo:       configRepo,
-		xenditRepo:       xenditRepo,
-		orderUsecase:     orderUsecase,
-		salesOrderRepo:   salesOrderRepo,
-		invoiceRepo:      invoiceRepo,
-		salesPaymentRepo: salesPaymentRepo,
-		bankAccountRepo:  bankAccountRepo,
-		cipher:           cipher,
+		db:                db,
+		paymentRepo:       paymentRepo,
+		orderRepo:         orderRepo,
+		configRepo:        configRepo,
+		xenditRepo:        xenditRepo,
+		orderUsecase:      orderUsecase,
+		salesOrderRepo:    salesOrderRepo,
+		invoiceRepo:       invoiceRepo,
+		customerInvoiceUC: customerInvoiceUC,
+		salesPaymentUC:    salesPaymentUC,
+		salesPaymentRepo:  salesPaymentRepo,
+		bankAccountRepo:   bankAccountRepo,
+		cipher:            cipher,
 	}
+}
+
+func (u *posPaymentUsecase) resolveAutoPaymentBankAccount(ctx context.Context, method salesModels.SalesPaymentMethod) (*coreModels.BankAccount, error) {
+	if u == nil {
+		return nil, errors.New("pos payment usecase is nil")
+	}
+
+	if u.db != nil {
+		mappingKey := "finance.bank_default"
+		if method == salesModels.SalesPaymentMethodCash {
+			mappingKey = "finance.cash_default"
+		}
+
+		var mappedCOACode string
+		if err := u.db.WithContext(ctx).
+			Table("system_account_mappings").
+			Select("coa_code").
+			Where("key = ?", mappingKey).
+			Order("updated_at DESC").
+			Limit(1).
+			Scan(&mappedCOACode).Error; err != nil {
+			return nil, err
+		}
+
+		mappedCOACode = strings.TrimSpace(mappedCOACode)
+		if mappedCOACode != "" {
+			var mappedAccount coreModels.BankAccount
+			err := u.db.WithContext(ctx).
+				Table("bank_accounts AS ba").
+				Select("ba.*").
+				Joins("JOIN chart_of_accounts coa ON coa.id = ba.chart_of_account_id").
+				Where("ba.is_active = ?", true).
+				Where("coa.code = ?", mappedCOACode).
+				Order("ba.updated_at DESC").
+				Order("ba.created_at DESC").
+				Take(&mappedAccount).Error
+			if err == nil {
+				return &mappedAccount, nil
+			}
+			if err != gorm.ErrRecordNotFound {
+				return nil, err
+			}
+		}
+	}
+
+	active := true
+	accounts, _, err := u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
+		IsActive: &active,
+		Limit:    1,
+		SortBy:   "created_at",
+		SortDir:  "asc",
+	})
+	if err == nil && len(accounts) == 0 {
+		// Fallback: use any available bank account if none are marked active.
+		accounts, _, err = u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
+			Limit:   1,
+			SortBy:  "created_at",
+			SortDir: "asc",
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(accounts) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	account := accounts[0]
+	return &account, nil
 }
 
 func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID string) (*dto.POSPaymentResponse, error) {
@@ -526,10 +608,20 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 	return result, nil
 }
 
-// finalizeOrder marks the order Paid, deducts stock, and creates linked ERP documents.
-// Flow: POS paid -> closed Sales Order -> Customer Invoice -> Sales Payment (for CASH method).
+// finalizeOrder orchestrates POS order finalization: loyalty redemption, order status update,
+// and ERP document creation (Sales Order → Customer Invoice → Sales Payment).
+//
+// Atomicity Guarantees:
+//   - Order status update (→ PAID) and ERP document creation (SO, Invoice, Payment) are atomic:
+//     if any ERP step fails, the entire transaction rolls back and order status remains unchanged.
+//   - Loyalty operations (redemption + earning) run independently; failures are non-blocking.
+//   - Stock deduction runs independently; discrepancies are reconciled via adjustment entries.
+//
+// This design ensures POS payment is the source-of-truth; even if ERP sync fails,
+// the POS order remains valid and can be retried or reconciled.
 func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.PosOrder, userID string, payment *models.POSPayment) error {
 	// Redeem selected loyalty reward only after payment reaches final success.
+	// Non-blocking: if redemption fails, order finalization continues.
 	if u.loyaltyUC != nil && order.LoyaltyMemberID != nil && order.LoyaltyRewardID != nil {
 		memberID := strings.TrimSpace(*order.LoyaltyMemberID)
 		rewardID := strings.TrimSpace(*order.LoyaltyRewardID)
@@ -545,36 +637,68 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 		}
 	}
 
-	order.Status = models.PosOrderStatusPaid
-	if err := u.orderRepo.Update(ctx, order); err != nil {
+	// Atomic block: order status update + ERP document creation.
+	// If any step fails (e.g., invoice creation), the entire transaction rolls back
+	// and the order status remains unchanged, allowing safe retry.
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		// Step 1: Update order status to PAID within the transaction
+		txCtx := coreDatabase.WithTx(ctx, tx)
+		order.Status = models.PosOrderStatusPaid
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
+			return fmt.Errorf("failed to update order status: %w", err)
+		}
+
+		// Step 2: Create Sales Order in ERP. On failure, transaction rolls back.
+		soID := u.createSalesOrderFromPOS(txCtx, order, userID)
+		if soID == "" {
+			// SO creation failed; rollback order status update and keep finalization atomic.
+			return errors.New("failed to create sales order from POS order")
+		}
+		order.SalesOrderID = &soID
+
+		// Step 3: Create Customer Invoice. On failure, rolls back SO + order status.
+		invoiceID := u.createCustomerInvoiceFromPOS(txCtx, soID, order, userID)
+		if invoiceID == "" {
+			// Invoice creation failed; rollback the SO and order status.
+			return errors.New("failed to create customer invoice from POS order")
+		}
+		order.CustomerInvoiceID = &invoiceID
+
+		if err := u.approveCustomerInvoiceFromPOS(txCtx, invoiceID, userID); err != nil {
+			return err
+		}
+
+		// Step 4: Create Sales Payment. On failure, rolls back Invoice + SO + order status.
+		if payment != nil {
+			paymentID := u.createSalesPaymentFromPOS(txCtx, invoiceID, payment, order, userID)
+			if paymentID == "" {
+				// Payment creation failed; rollback Invoice, SO, and order status.
+				return errors.New("failed to create sales payment from POS payment")
+			}
+		}
+
+		// Step 5: Persist order references (SO ID, Invoice ID) with final status.
+		if err := u.orderRepo.Update(txCtx, order); err != nil {
+			return fmt.Errorf("failed to link ERP documents to order: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		// Transaction failed; order status and ERP docs were not created/rolled back.
+		// Log error and return; POS payment remains source-of-truth, can be retried later.
 		return err
 	}
 
-	// Create a closed Sales Order in the ERP system for this POS transaction.
-	// Failures here are non-blocking — the POS payment remains source-of-truth.
-	if soID := u.createSalesOrderFromPOS(ctx, order, userID); soID != "" {
-		order.SalesOrderID = &soID
-		_ = u.orderRepo.Update(ctx, order)
-
-		if invoiceID := u.createCustomerInvoiceFromPOS(ctx, soID, order, userID); invoiceID != "" {
-			order.CustomerInvoiceID = &invoiceID
-			_ = u.orderRepo.Update(ctx, order)
-
-			// Record settlement into sales payments for every successfully paid POS transaction.
-			if payment != nil {
-				_ = u.createSalesPaymentFromPOS(ctx, invoiceID, payment, order, userID)
-			}
-		}
-	}
-
-	// Deduct inventory. On failure we log but do not reverse the payment;
+	// Deduct inventory. Non-blocking: on failure, order finalization is not reversed;
 	// stock discrepancies are reconciled by operations via an adjustment entry.
 	if err := u.orderUsecase.DeductStock(ctx, order, order.OrderNumber, userID); err != nil {
 		_ = err
 	}
 
 	// Award loyalty points when the order is linked to a loyalty member.
-	// Failures are non-blocking — the payment is the source of truth.
+	// Non-blocking: failures do not affect order finalization or payment.
 	if u.loyaltyUC != nil && order.LoyaltyMemberID != nil {
 		processedBy := userID
 		_, _ = u.loyaltyUC.EarnPoints(ctx, &loyaltyDTO.EarnPointsRequest{
@@ -694,7 +818,7 @@ func (u *posPaymentUsecase) createCustomerInvoiceFromPOS(ctx context.Context, sa
 		Amount:          so.TotalAmount,
 		PaidAmount:      0,
 		RemainingAmount: so.TotalAmount,
-		Status:          salesModels.CustomerInvoiceStatusUnpaid,
+		Status:          salesModels.CustomerInvoiceStatusDraft,
 		Notes:           notes,
 		CreatedBy:       optionalActorIDPointer(userID),
 	}
@@ -727,32 +851,32 @@ func (u *posPaymentUsecase) createCustomerInvoiceFromPOS(ctx context.Context, sa
 	return invoice.ID
 }
 
-// createSalesPaymentFromPOS creates a confirmed sales payment and marks invoice paid.
-func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoiceID string, payment *models.POSPayment, order *models.PosOrder, userID string) string {
-	active := true
-	accounts, _, err := u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
-		IsActive: &active,
-		Limit:    1,
-		SortBy:   "created_at",
-		SortDir:  "asc",
-	})
-	if err == nil && len(accounts) == 0 {
-		// Fallback: use any available bank account if none are marked active.
-		accounts, _, err = u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
-			Limit:   1,
-			SortBy:  "created_at",
-			SortDir: "asc",
-		})
-	}
-	if err != nil || len(accounts) == 0 {
-		return ""
+func (u *posPaymentUsecase) approveCustomerInvoiceFromPOS(ctx context.Context, invoiceID string, userID string) error {
+	if u.customerInvoiceUC == nil {
+		return errors.New("customer invoice usecase is not configured")
 	}
 
-	bank := accounts[0]
+	_, err := u.customerInvoiceUC.UpdateStatus(ctx, invoiceID, &salesDTO.UpdateCustomerInvoiceStatusRequest{
+		Status: string(salesModels.CustomerInvoiceStatusApproved),
+	}, optionalActorIDPointer(userID))
+	if err != nil {
+		return fmt.Errorf("failed to approve customer invoice from POS order: %w", err)
+	}
+
+	return nil
+}
+
+// createSalesPaymentFromPOS creates a confirmed sales payment and marks invoice paid.
+func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoiceID string, payment *models.POSPayment, order *models.PosOrder, userID string) string {
 	now := apptime.Now()
 	method := salesModels.SalesPaymentMethodCash
 	if payment != nil && payment.Method != models.POSPaymentMethodCash {
 		method = salesModels.SalesPaymentMethodBank
+	}
+
+	bank, err := u.resolveAutoPaymentBankAccount(ctx, method)
+	if err != nil || bank == nil {
+		return ""
 	}
 
 	noteText := fmt.Sprintf("Auto-generated from POS order %s", order.OrderNumber)
@@ -810,6 +934,19 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 	}
 
 	if err := u.salesPaymentRepo.Create(ctx, pay); err != nil {
+		return ""
+	}
+
+	if u.salesPaymentUC == nil {
+		return ""
+	}
+
+	actorIDForJournal := strings.TrimSpace(userID)
+	if actorIDForJournal == "" {
+		actorIDForJournal = strings.TrimSpace(order.CreatedBy)
+	}
+	journalCtx := context.WithValue(ctx, "user_id", actorIDForJournal)
+	if err := u.salesPaymentUC.TriggerJournalForPayment(journalCtx, pay); err != nil {
 		return ""
 	}
 

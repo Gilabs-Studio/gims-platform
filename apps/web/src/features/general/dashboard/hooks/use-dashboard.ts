@@ -52,6 +52,7 @@ const OVERVIEW_WIDGET_SCOPES: Partial<Record<WidgetType, DashboardOverviewScope>
   // POS widgets
   pos_outlet_sales: "pos",
   pos_live_table_overview: "pos",
+  pos_cash_control: "pos",
 
   // HR widgets
   hr_attendance_today: "hr",

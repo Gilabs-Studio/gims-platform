@@ -34,8 +34,10 @@ type ActivityListParams struct {
 type ActivityRepository interface {
 	Create(ctx context.Context, activity *models.Activity) error
 	FindByID(ctx context.Context, id string) (*models.Activity, error)
+	FindByVisitReportID(ctx context.Context, visitReportID string) (*models.Activity, error)
 	List(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
 	Timeline(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error)
+	Update(ctx context.Context, activity *models.Activity) error
 }
 
 type activityRepository struct {
@@ -57,6 +59,18 @@ func (r *activityRepository) FindByID(ctx context.Context, id string) (*models.A
 		Preload("ActivityType").
 		Preload("Employee").
 		First(&activity, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &activity, nil
+}
+
+func (r *activityRepository) FindByVisitReportID(ctx context.Context, visitReportID string) (*models.Activity, error) {
+	var activity models.Activity
+	err := database.GetDB(ctx, r.db).
+		Preload("ActivityType").
+		Preload("Employee").
+		First(&activity, "visit_report_id = ?", visitReportID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +114,11 @@ func (r *activityRepository) Timeline(ctx context.Context, params ActivityListPa
 	params.SortBy = "timestamp"
 	params.SortDir = "DESC"
 	return r.List(ctx, params)
+}
+
+// Update updates an existing activity record
+func (r *activityRepository) Update(ctx context.Context, activity *models.Activity) error {
+	return database.GetDB(ctx, r.db).Save(activity).Error
 }
 
 func (r *activityRepository) applyFilters(query *gorm.DB, params ActivityListParams) *gorm.DB {

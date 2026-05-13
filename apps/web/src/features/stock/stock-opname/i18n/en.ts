@@ -11,6 +11,8 @@ export const stockOpnameEn = {
     addItem: "Add Item",
     export: "Export",
     openMapping: "Open Mapping",
+    exportExcel: "Export to CSV",
+    loadMore: "Load More",
   },
   table: {
     opname_no: "Opname No",
@@ -19,6 +21,8 @@ export const stockOpnameEn = {
     status: "Status",
     variance: "Variance",
     actions: "Actions",
+    orderedBy: "Ordered By",
+    assignedTo: "Assigned To",
     edit: "Edit",
     delete: "Delete",
     view: "View",
@@ -43,6 +47,8 @@ export const stockOpnameEn = {
     date: "Date",
     description: "Description",
     scope: "Scope",
+    scopeCategorySelector: "Select Category (one or more)",
+    scopeBrandSelector: "Select Brand (one or more)",
     scopeOptions: {
       all: "All Products",
       category: "By Category",
@@ -60,6 +66,15 @@ export const stockOpnameEn = {
     editTitle: "Edit Stock Opname",
     addItemTitle: "Add Item",
     editItemTitle: "Edit Item",
+    columns: {
+      productCode: "Product Code",
+      productName: "Product Name",
+      systemQty: "System Qty",
+      physicalQty: "Physical Qty",
+      varianceQty: "Variance",
+      unitCost: "Unit Cost",
+      notes: "Notes",
+    },
     actions: {
       start: "Start Opname",
     },
@@ -109,5 +124,42 @@ export const stockOpnameEn = {
   messages: {
     exportEmpty: "No stock opname data to export.",
     exportSuccess: "Stock opname exported successfully.",
+  },
+  noWarehouseAssigned: {
+    title: "No warehouse assigned",
+    description: "You are not assigned to any warehouse. Please contact your administrator to get access.",
+  },
+  employee: {
+    orderedBy: "Ordered By",
+    assignedTo: "Assigned To",
+    placeholder: "Select employee",
+  },
+  detail: {
+    title: "Stock Opname Detail",
+    totalItems: "Total Items",
+    totalVariance: "Total Variance",
+    shrinkage: "Shrinkage",
+    overstock: "Overstock",
+    journalId: "Journal ID",
+    exportTitle: "Stock Opname Report",
+  },
+  managerView: {
+    title: "Manager Report",
+    columns: {
+      productCode: "Product Code",
+      productName: "Product Name",
+      batchNumber: "Batch",
+      systemQty: "System Qty",
+      physicalQty: "Physical Qty",
+      varianceQty: "Variance",
+      unitCost: "Unit Cost",
+      notes: "Notes",
+    },
+  },
+  counterView: {
+    notCounted: "Not Counted",
+    exact: "Exact",
+    systemQty: "System Qty",
+    readOnlyNotice: "This opname is not in draft status. Items are read-only.",
   },
 };

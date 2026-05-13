@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/presentation/handler"
 	"github.com/gilabs/gims/api/internal/organization/presentation/router"
+	tenantRepositories "github.com/gilabs/gims/api/internal/tenant/data/repositories"
 	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -29,6 +30,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	companyRepo := orgRepositories.NewCompanyRepository(db)
 	employeeRepo := orgRepositories.NewEmployeeRepository(db)
 	employeeAreaRepo := orgRepositories.NewEmployeeAreaRepository(db)
+	employeeOutletRepo := orgRepositories.NewEmployeeOutletRepository(db)
+	employeeWarehouseRepo := orgRepositories.NewEmployeeWarehouseRepository(db)
 	employeeContractRepo := orgRepositories.NewEmployeeContractRepository(db)
 	educationHistoryRepo := orgRepositories.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := orgRepositories.NewEmployeeCertificationRepository(db)
@@ -57,7 +60,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	outletRepo := orgRepositories.NewOutletRepository(db)
 	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
 	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, employeeOutletRepo, employeeWarehouseRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, outletRepo, warehouseRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)
@@ -69,12 +72,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeH := handler.NewEmployeeHandler(employeeUC)
 
 	// Outlet dependencies (cross-domain: warehouse repo)
-	outletUC := usecase.NewOutletUsecase(db, outletRepo, warehouseRepo, employeeRepo, companyRepo)
+	subscriptionRepo := tenantRepositories.NewSubscriptionRepository(db)
+	outletUC := usecase.NewOutletUsecase(db, outletRepo, warehouseRepo, employeeRepo, companyRepo, subscriptionRepo)
 	outletH := handler.NewOutletHandler(outletUC)
 
 	// Create organization group under API with auth middleware
 	group := api.Group("/organization")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+	group.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterDivisionRoutes(group, divisionH)

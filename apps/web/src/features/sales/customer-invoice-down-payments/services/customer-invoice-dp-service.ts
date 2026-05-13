@@ -71,6 +71,22 @@ export const customerInvoiceDPService = {
     return response.data as Blob;
   },
 
+  uploadAttachment: async (file: File): Promise<ApiResponse<{ url: string; filename: string }>> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const isDocument = file.type === "application/pdf";
+    const endpoint = isDocument
+      ? "/upload/document?folder=sales/customer-invoice-dp/documents"
+      : "/upload/image?folder=sales/customer-invoice-dp/images";
+
+    const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>(endpoint, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return response.data;
+  },
+
   /**
    * Fetches the Down Payment Invoice PDF from the backend and opens it in a new browser tab.
    */

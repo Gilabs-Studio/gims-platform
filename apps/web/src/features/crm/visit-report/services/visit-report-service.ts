@@ -63,10 +63,12 @@ export const visitReportService = {
     return response.data;
   },
 
-  uploadImage: async (file: File): Promise<ApiResponse<{ url: string; filename: string }>> => {
+  uploadImage: async (file: File, folder?: string): Promise<ApiResponse<{ url: string; filename: string }>> => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>("/upload/image", formData, {
+    const folderPath = folder?.trim() || "crm/visits";
+    const endpoint = `/upload/image?folder=${encodeURIComponent(folderPath)}`;
+    const response = await apiClient.post<ApiResponse<{ url: string; filename: string }>>(endpoint, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return response.data;

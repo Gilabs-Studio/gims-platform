@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -46,7 +47,8 @@ func (r *bankTransferRepository) Create(ctx context.Context, item *financeModels
 
 func (r *bankTransferRepository) FindByID(ctx context.Context, id string) (*financeModels.BankTransfer, error) {
 	var item financeModels.BankTransfer
-	if err := database.GetDB(ctx, r.db).First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+	q := security.ApplyScopeFilter(database.GetDB(ctx, r.db).Model(&financeModels.BankTransfer{}), ctx, security.FinanceScopeQueryOptions())
+	if err := q.First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -75,6 +77,7 @@ func (r *bankTransferRepository) List(ctx context.Context, params BankTransferLi
 	var total int64
 
 	q := database.GetDB(ctx, r.db).Model(&financeModels.BankTransfer{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
 		q = q.Where("company_id = ?", companyID)

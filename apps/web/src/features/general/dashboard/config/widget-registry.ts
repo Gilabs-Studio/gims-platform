@@ -32,6 +32,169 @@ export function resolveWidgetSpan(
   return { col, row };
 }
 
+type AccessibleMenuNode = {
+  url: string;
+  actions?: Array<{ access: boolean }>;
+  children?: AccessibleMenuNode[];
+};
+
+function normalizeMenuUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.replace(/\/+$/, "") || "/";
+}
+
+export function collectAccessibleMenuUrls(menus: AccessibleMenuNode[]): Set<string> {
+  const accessibleMenuUrls = new Set<string>();
+
+  const visit = (menu: AccessibleMenuNode): boolean => {
+    const childAccessible = (menu.children ?? []).some(visit);
+    const ownAccessible = (menu.actions ?? []).some((action) => action.access);
+    const isAccessible = ownAccessible || childAccessible;
+
+    if (isAccessible) {
+      const normalized = normalizeMenuUrl(menu.url);
+      if (normalized) {
+        accessibleMenuUrls.add(normalized);
+      }
+    }
+
+    return isAccessible;
+  };
+
+  menus.forEach(visit);
+  return accessibleMenuUrls;
+}
+
+export function isWidgetVisibleByAccessibleMenus(
+  type: WidgetType,
+  accessibleMenuUrls: Set<string>,
+): boolean {
+  const widgetMenuUrl = getWidgetMenuUrl(type);
+  if (!widgetMenuUrl) {
+    return false;
+  }
+
+  const normalizedWidgetMenuUrl = normalizeMenuUrl(widgetMenuUrl);
+  if (!normalizedWidgetMenuUrl) {
+    return false;
+  }
+
+  for (const accessibleMenuUrl of accessibleMenuUrls) {
+    if (
+      normalizedWidgetMenuUrl === accessibleMenuUrl ||
+      normalizedWidgetMenuUrl.startsWith(`${accessibleMenuUrl}/`) ||
+      accessibleMenuUrl.startsWith(`${normalizedWidgetMenuUrl}/`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function buildAccessibleDefaultWidgets(accessibleMenuUrls: Set<string>): WidgetConfig[] {
+  return Object.values(WIDGET_REGISTRY)
+    .filter((entry) => isWidgetVisibleByAccessibleMenus(entry.type, accessibleMenuUrls))
+    .map((entry, index) => ({
+      id: `w-${index + 1}`,
+      type: entry.type,
+      title: "",
+      size: entry.defaultSize,
+      colSpan: entry.defaultColSpan,
+      rowSpan: entry.defaultRowSpan,
+      order: index,
+      visible: true,
+    }));
+}
+
+/**
+ * Maps each widget type to its associated menu URL.
+ * Widget visibility is derived from the role's menu permissions.
+ * Example: POS widgets only show if role has /pos menu access.
+ */
+export function getWidgetMenuUrl(type: WidgetType): string | null {
+  const widgetMenuMap: Record<WidgetType, string | null> = {
+    // POS widgets → /pos
+    pos_outlet_sales: "/pos",
+    pos_live_table_overview: "/pos",
+    pos_cash_control: "/pos",
+
+    // Sales widgets → /sales
+    total_orders: "/sales",
+    sales_performance: "/sales",
+    best_selling: "/sales",
+    track_orders: "/sales",
+    stat_summary_orders: "/sales",
+    stat_summary_revenue: "/sales",
+    revenue_bar_chart: "/sales",
+
+    // Finance widgets → /finance
+    total_revenue: "/finance",
+    revenue_chart: "/finance",
+    costs_chart: "/finance",
+    revenue_vs_costs: "/finance",
+    balance_overview: "/finance",
+    costs_by_category: "/finance",
+    stat_summary_balance: "/finance",
+    stat_summary_expense: "/finance",
+    kpi_ccc: "/finance",
+    kpi_roe: "/finance",
+    kpi_roa: "/finance",
+    kpi_net_profit_margin: "/finance",
+    kpi_gross_profit_margin: "/finance",
+    kpi_asset_turnover: "/finance",
+    kpi_ap_days: "/finance",
+    kpi_opex_vs_capex: "/finance",
+
+    // Inventory/Stock widgets → /stock
+    total_products: "/stock",
+    warehouse_overview: "/stock",
+    kpi_dio: "/stock",
+    kpi_inventory_turnover: "/stock",
+
+    // Customer Invoice widgets → /sales
+    invoices_summary: "/sales",
+    recent_invoices: "/sales",
+    kpi_ar_days: "/sales",
+
+    // Purchase widgets → /purchase
+    track_purchase_orders: "/purchase",
+    pending_approvals_purchase: "/purchase",
+
+    // Delivery widgets → /sales
+    delivery_status: "/sales",
+    kpi_cost_per_delivery: "/sales",
+    kpi_utilization_rate: "/sales",
+    kpi_otd_rate: "/sales",
+
+    // Master data widgets → /master-data
+    employee_count: "/master-data",
+    total_customers: "/master-data",
+
+    // CRM widgets → /crm
+    crm_total_contacts: "/crm",
+    crm_active_leads: "/crm",
+    crm_deals_overview: "/crm",
+    crm_activity_summary: "/crm",
+
+    // Travel Planner widgets → /travel
+    travel_planner_overview: "/travel",
+
+    // HR widgets → /hrd
+    hr_attendance_today: "/hrd",
+    hr_pending_leaves: "/hrd",
+
+    // Special widgets are intentionally not exposed unless a matching menu exists.
+    owner_intelligence: null,
+    geographic_overview: null,
+    pending_approvals_sales: "/sales",
+  };
+
+  return widgetMenuMap[type] ?? null;
+}
+
 /** Complete registry of all available dashboard widgets */
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   // ════════════════════════════════════════════════════════════════════════
@@ -624,6 +787,19 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     descriptionKey: "widgets.pos_live_table_overview.description",
     icon: "LayoutGrid",
     permission: "pos.order.create",
+  },
+  pos_cash_control: {
+    type: "pos_cash_control",
+    category: "pos",
+    defaultSize: "lg",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 2,
+    titleKey: "widgets.pos_cash_control.title",
+    descriptionKey: "widgets.pos_cash_control.description",
+    icon: "ReceiptText",
+    permission: "pos.order.read",
   },
 
   // ════════════════════════════════════════════════════════════════════════

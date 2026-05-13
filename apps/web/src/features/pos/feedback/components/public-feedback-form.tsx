@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { CheckCircle2, Star } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Confetti } from "@/components/ui/confetti";
 import type { ConfettiRef } from "@/components/ui/confetti";
@@ -151,9 +150,9 @@ export function PublicFeedbackForm({
             spread: 90,
             origin: { y: 0.6 },
           }}
-          className="fixed inset-0 z-[5] h-full w-full pointer-events-none"
+          className="fixed inset-0 z-0 h-full w-full pointer-events-none"
         />
-        <div className="relative z-[10] flex min-h-[300px] flex-col items-center justify-center gap-4 py-12 text-center">
+        <div className="relative z-10 flex min-h-[300px] flex-col items-center justify-center gap-4 py-12 text-center">
           <div className="flex flex-col items-center justify-center gap-4">
             <CheckCircle2 className="h-16 w-16 text-green-500" />
             <h2 className="text-xl font-semibold">Thank you for your feedback!</h2>

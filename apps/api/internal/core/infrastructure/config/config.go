@@ -55,6 +55,9 @@ type ServerConfig struct {
 	Timezone                string // IANA timezone name (e.g. "Asia/Jakarta")
 	// FrontendBaseURL is the public web app origin used to build QR code / feedback URLs.
 	FrontendBaseURL         string
+	// RootDomain is the root domain for setting cookies (e.g., ".salesview.id" or ".gilabs.id")
+	// Used in production to share cookies across subdomains. Must include leading dot.
+	RootDomain              string
 	ReadHeaderTimeoutSec    int
 	ReadTimeoutSec          int
 	WriteTimeoutSec         int
@@ -119,9 +122,12 @@ type XenditConfig struct {
 }
 
 type StorageConfig struct {
-	UploadDir     string // Directory for uploaded files
-	BaseURL       string // Base URL for serving files (e.g., /uploads)
-	MaxUploadSize int64  // Maximum upload size in bytes (default: 10MB)
+	MaxUploadSize     int64  // Maximum upload size in bytes (default: 10MB)
+	R2AccountID       string // Cloudflare account ID
+	R2AccessKeyID     string // R2 API token access key ID
+	R2SecretAccessKey string // R2 API token secret access key
+	R2BucketName      string // R2 bucket name
+	R2PublicURL       string // Public URL prefix for serving R2 objects
 }
 
 // RateLimitRule defines rate limit configuration for a specific endpoint type
@@ -171,6 +177,7 @@ func Load() error {
 			Env:                     envValue, // Use the env value we determined above
 			Timezone:                getEnv("APP_TIMEZONE", "Asia/Jakarta"),
 			FrontendBaseURL:         getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
+			RootDomain:              getEnv("ROOT_DOMAIN", ""), // e.g., ".salesview.id" or ".gilabs.id" for cookie sharing
 			ReadHeaderTimeoutSec:    getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
 			ReadTimeoutSec:          getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
 			WriteTimeoutSec:         getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),
@@ -237,9 +244,12 @@ func Load() error {
 			BaseURL:      getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
 		},
 		Storage: StorageConfig{
-			UploadDir:     getEnv("STORAGE_UPLOAD_DIR", "./uploads"),
-			BaseURL:       getEnv("STORAGE_BASE_URL", "/uploads"),
-			MaxUploadSize: getEnvAsInt64("STORAGE_MAX_UPLOAD_SIZE", 10*1024*1024), // 10MB default
+			MaxUploadSize:     getEnvAsInt64("STORAGE_MAX_UPLOAD_SIZE", 10*1024*1024), // 10MB default
+			R2AccountID:       getEnv("R2_ACCOUNT_ID", ""),
+			R2AccessKeyID:     getEnv("R2_ACCESS_KEY_ID", ""),
+			R2SecretAccessKey: getEnv("R2_SECRET_ACCESS_KEY", ""),
+			R2BucketName:      getEnv("R2_BUCKET_NAME", ""),
+			R2PublicURL:       getEnv("R2_PUBLIC_URL", ""),
 		},
 		RateLimit: RateLimitConfig{
 			Login: RateLimitRule{

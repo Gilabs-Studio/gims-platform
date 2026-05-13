@@ -196,6 +196,7 @@ export function useActivityById(id: string) {
     queryKey: activityKeys.detail(id),
     queryFn: () => activityService.getById(id),
     enabled: !!id,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -212,8 +213,27 @@ export function useCreateActivity() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateActivityData) => activityService.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: activityKeys.all });
+    onSuccess: (_data, variables) => {
+      // Always refresh the flat activity list (activity list page)
+      qc.invalidateQueries({ queryKey: activityKeys.lists() });
+
+      // Invalidate timeline(s) only for the specific entity involved.
+      // Avoids refetching unrelated timelines that happen to be mounted.
+      if (variables.lead_id || variables.deal_id) {
+        qc.invalidateQueries({
+          queryKey: activityKeys.all,
+          predicate: (query) => {
+            const key = query.queryKey as unknown[];
+            if (key[1] !== "timeline") return false;
+            const params = key[2] as Record<string, unknown> | undefined;
+            if (!params) return false;
+            return (
+              (!!variables.lead_id && params.lead_id === variables.lead_id) ||
+              (!!variables.deal_id && params.deal_id === variables.deal_id)
+            );
+          },
+        });
+      }
     },
   });
 }

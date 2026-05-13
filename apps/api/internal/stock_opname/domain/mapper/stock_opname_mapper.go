@@ -3,6 +3,7 @@ package mapper
 import (
 	"time"
 
+	employeeModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
 )
@@ -23,6 +24,10 @@ func ToStockOpnameResponse(m *models.StockOpname) dto.StockOpnameResponse {
 		TotalVarianceQty:         m.TotalVarianceQty,
 		TotalNegativeVarianceQty: totalNegativeVariance,
 		TotalPositiveVarianceQty: totalPositiveVariance,
+		OrderedByID:              m.OrderedByID,
+		OrderedByName:            getEmployeeName(m.OrderedBy),
+		AssignedToID:             m.AssignedToID,
+		AssignedToName:           getEmployeeName(m.AssignedTo),
 		CreatedBy:                m.CreatedBy,
 		CreatedAt:                m.CreatedAt,
 		UpdatedAt:                m.UpdatedAt,
@@ -65,18 +70,30 @@ func getWarehouseName(m *models.StockOpname) string {
 	return ""
 }
 
+func getEmployeeName(e *employeeModels.Employee) *string {
+	if e == nil {
+		return nil
+	}
+	name := e.Name
+	return &name
+}
+
 func ToStockOpnameItemResponse(m *models.StockOpnameItem) dto.StockOpnameItemResponse {
 	return dto.StockOpnameItemResponse{
-		ID:            m.ID,
-		StockOpnameID: m.StockOpnameID,
-		ProductID:     m.ProductID,
-		ProductName:   m.Product.Name,
-		ProductCode:   m.Product.Code,
-		SystemQty:     m.SystemQty,
-		PhysicalQty:   m.PhysicalQty,
-		VarianceQty:   m.VarianceQty,
-		UnitCost:      m.Product.CurrentHpp,
-		Notes:         m.Notes,
+		ID:               m.ID,
+		StockOpnameID:    m.StockOpnameID,
+		ProductID:        m.ProductID,
+		ProductName:      m.Product.Name,
+		ProductCode:      m.Product.Code,
+		ProductImageURL:  m.Product.ImageURL,
+		SystemQty:        m.SystemQty,
+		PhysicalQty:      m.PhysicalQty,
+		VarianceQty:      m.VarianceQty,
+		UnitCost:         m.Product.CurrentHpp,
+		Notes:            m.Notes,
+		InventoryBatchID: m.InventoryBatchID,
+		BatchNumber:      m.BatchNumber,
+		BatchQty:         m.BatchQty,
 	}
 }
 
@@ -105,6 +122,8 @@ func ToStockOpnameModel(req *dto.CreateStockOpnameRequest, opnameNumber string, 
 		Date:         date,
 		Description:  req.Description,
 		Status:       models.StockOpnameStatusDraft,
+		OrderedByID:  req.OrderedByID,
+		AssignedToID: req.AssignedToID,
 		CreatedBy:    createdBy,
 		UpdatedBy:    createdBy,
 	}, nil

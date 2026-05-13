@@ -18,3 +18,8 @@ type UpsertFinanceSettingRequest struct {
 type BatchUpsertFinanceSettingsRequest struct {
 	Settings []UpsertFinanceSettingRequest `json:"settings"`
 }
+
+type UpdateAgingBucketConfigRequest struct {
+	ReportType string                  `json:"report_type" binding:"required,oneof=ar ap"`
+	Buckets    []AgingBucketDefinition `json:"buckets" binding:"required,min=1"`
+}

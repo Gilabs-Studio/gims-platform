@@ -8,7 +8,7 @@ import (
 // This table allows the ERP to stay flexible and avoids hardcoding COA codes in Go logic.
 type SystemAccountMapping struct {
 	ID        string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID  string    `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Key       string    `gorm:"type:varchar(100);not null;uniqueIndex:idx_system_account_mappings_key_company,priority:1" json:"key"` // e.g., "sales.accounts_receivable", "purchase.accounts_payable"
 	CompanyID *string   `gorm:"type:uuid;uniqueIndex:idx_system_account_mappings_key_company,priority:2;index" json:"company_id"`     // If null, it's a global default
 	COACode   string    `gorm:"type:varchar(20);not null" json:"coa_code"`                                                            // The code in chart_of_accounts
@@ -62,6 +62,7 @@ const (
 	MappingKeyCOAGRIR                        = "coa.gr_ir"
 	MappingKeyCOAPurchaseGRIR                = "coa.purchase_gr_ir"
 	MappingKeyCOAPurchaseVATIn               = "coa.purchase_vat_in"
+	MappingKeyCOAPurchasePriceDiff           = "coa.purchase_price_diff"
 	MappingKeyCOAVATIn                       = "coa.vat_in"
 	MappingKeyCOAPurchaseExpense             = "coa.purchase_expense"
 	MappingKeyCOAPurchaseReturn              = "coa.purchase_return"
@@ -70,15 +71,17 @@ const (
 	MappingKeyCOAInventoryGain               = "coa.inventory_gain"
 	MappingKeyCOAInventoryLoss               = "coa.inventory_loss"
 	MappingKeyCOAInventoryRevaluationReserve = "coa.inventory_revaluation_reserve"
+	MappingKeyCOASalesReceivableDP           = "coa.sales_receivable_dp"
+	MappingKeyCOAPurchasePayableDP           = "coa.purchase_payable_dp"
 	MappingKeyCOACOGS                        = "coa.cogs"
 
 	// Sales related
-	MappingKeySalesReceivable = "SALES_RECEIVABLE"
-	MappingKeySalesRevenue    = "SALES_REVENUE"
-	MappingKeySalesVatOutput  = "SALES_VAT_OUTPUT"
+	MappingKeySalesReceivable    = "SALES_RECEIVABLE"
+	MappingKeySalesRevenue       = "SALES_REVENUE"
+	MappingKeySalesVatOutput     = "SALES_VAT_OUTPUT"
 	MappingKeySalesAdvanceLegacy = "SALES_ADVANCE"
-	MappingKeySalesCogs       = "SALES_COGS"
-	MappingKeySalesInventory  = "SALES_INVENTORY"
+	MappingKeySalesCogs          = "SALES_COGS"
+	MappingKeySalesInventory     = "SALES_INVENTORY"
 
 	// Purchase related
 	MappingKeyPurchasePayable   = "PURCHASE_PAYABLE"

@@ -16,13 +16,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "stock_ledger" });
   return {
-    title: `${t("title")} | GIMS`,
+    title: `${t("title")} | SalesView`,
   };
 }
 
 export default function StockLedgerRoutePage() {
   return (
-    <PermissionGuard requiredPermission="inventory.read">
+    <PermissionGuard requiredPermission="ledger.read">
       <Suspense fallback={null}>
         <StockLedgerPage />
       </Suspense>

@@ -1,6 +1,9 @@
 package mapper
 
 import (
+	"time"
+	"strings"
+
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 )
@@ -12,6 +15,50 @@ type AssetMapper struct {
 
 func NewAssetMapper(categoryMapper *AssetCategoryMapper, locationMapper *AssetLocationMapper) *AssetMapper {
 	return &AssetMapper{categoryMapper: categoryMapper, locationMapper: locationMapper}
+}
+
+// Helper function to safely dereference string pointers
+func getStringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func displayStatusForAsset(status financeModels.AssetStatus, lifecycle financeModels.AssetLifecycleStage) string {
+	normalizedStatus := strings.ToLower(strings.TrimSpace(string(status)))
+	normalizedLifecycle := strings.ToLower(strings.TrimSpace(string(lifecycle)))
+
+	switch normalizedStatus {
+	case "sold", "transferred", "written_off", "disposed":
+		return normalizedStatus
+	}
+
+	if normalizedLifecycle != "" {
+		return normalizedLifecycle
+	}
+	if normalizedStatus != "" {
+		return normalizedStatus
+	}
+	return "draft"
+}
+
+func warrantyExpiryDays(warrantyEnd *time.Time) *int {
+	if warrantyEnd == nil {
+		return nil
+	}
+	location := warrantyEnd.Location()
+	if location == nil {
+		location = time.Local
+	}
+	now := time.Now().In(location)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	end := time.Date(warrantyEnd.Year(), warrantyEnd.Month(), warrantyEnd.Day(), 0, 0, 0, 0, location)
+	days := int(end.Sub(today).Hours() / 24)
+	if days < 0 {
+		days = 0
+	}
+	return &days
 }
 
 func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dto.AssetResponse {
@@ -33,13 +80,17 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		AssetTag:     item.AssetTag,
 
 		// Category / Location
-		CategoryID: item.CategoryID,
-		LocationID: item.LocationID,
+		AssetTypeID: getStringValue(item.AssetTypeID),
+		CategoryID:  item.CategoryID,
+		LocationID:  item.LocationID,
 
 		// Organization
-		CompanyID:      item.CompanyID,
-		BusinessUnitID: item.BusinessUnitID,
-		DepartmentID:   item.DepartmentID,
+		CompanyID:       item.CompanyID,
+		BusinessUnitID:  item.BusinessUnitID,
+		DepartmentID:    item.DepartmentID,
+		CustodianUserID: item.CustodianUserID,
+		VendorID:        item.SupplierID,
+		PurchaseInvoiceID: item.SupplierInvoiceID,
 
 		// Assignment
 		AssignedToEmployeeID: item.AssignedToEmployeeID,
@@ -69,6 +120,7 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		// Status / Lifecycle
 		Status:               item.Status,
 		LifecycleStage:       item.LifecycleStage,
+		DisplayStatus:        displayStatusForAsset(item.Status, item.LifecycleStage),
 		IsCapitalized:        item.IsCapitalized,
 		IsDepreciable:        item.IsDepreciable,
 		IsFullyDepreciated:   item.IsFullyDepreciated,
@@ -87,6 +139,7 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		WarrantyTerms:         item.WarrantyTerms,
 		IsUnderWarranty:       item.IsUnderWarranty(),
 		WarrantyDaysRemaining: item.WarrantyDaysRemaining(),
+		WarrantyExpiryDays:    warrantyExpiryDays(item.WarrantyEnd),
 
 		// Insurance
 		InsurancePolicyNumber: item.InsurancePolicyNumber,
@@ -109,10 +162,18 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 	if item.Category != nil {
 		cat := m.categoryMapper.ToResponse(item.Category)
 		resp.Category = &cat
+		resp.CategoryName = item.Category.Name
 	}
 	if item.Location != nil {
 		loc := m.locationMapper.ToResponse(item.Location)
 		resp.Location = &loc
+		resp.LocationName = item.Location.Name
+	}
+	if item.Department != nil {
+		resp.DeptName = item.Department.Name
+	}
+	if item.AssetTypeID != nil {
+		resp.AssetType = getStringValue(item.AssetTypeID)
 	}
 
 	if withDetails {

@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useEffect, useState, useMemo } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
@@ -48,6 +49,8 @@ import type {
   Gender,
   PTKPStatus,
   AreaAssignment,
+  OutletAssignment,
+  WarehouseAssignment,
   ContractType,
   CreateEmployeeData,
 } from "../types";
@@ -57,14 +60,16 @@ import {
   useAvailableUsers,
   useEmployeeFormData,
   useBulkUpdateEmployeeAreas,
+  useBulkUpdateEmployeeOutlets,
+  useBulkUpdateEmployeeWarehouses,
   useEmployee,
 } from "../hooks/use-employees";
 import { useDivisions, useCreateDivision } from "@/features/master-data/organization/hooks/use-divisions";
 import { useJobPositions, useCreateJobPosition } from "@/features/master-data/organization/hooks/use-job-positions";
 import { DivisionForm } from "@/features/master-data/organization/components/division/division-form";
 import { JobPositionForm } from "@/features/master-data/organization/components/job-position/job-position-form";
-import { useCompanies, useCreateCompany } from "@/features/master-data/organization/hooks/use-companies";
 import { useCreateUser, useRoles } from "@/features/master-data/user-management/hooks/use-users";
+import { useUserLimit } from "@/features/master-data/user-management/hooks/use-user-limit";
 import { ButtonLoading } from "@/components/loading";
 import {
   employeeSchema,
@@ -77,6 +82,8 @@ interface EmployeeFormProps {
   employee?: Employee | null;
   onCreated?: (item: { id: string; name: string }) => void;
 }
+
+type UserAccountMode = "select" | "create";
 
 const GENDER_OPTIONS: Gender[] = ["male", "female"];
 const CONTRACT_TYPE_OPTIONS: ContractType[] = ["PKWTT", "PKWT", "Intern"];
@@ -115,6 +122,13 @@ export function EmployeeForm({
   // Area assignments state (managed separately from the main form)
   const [areaAssignments, setAreaAssignments] = useState<AreaAssignment[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>("");
+  const [outletAssignments, setOutletAssignments] = useState<OutletAssignment[]>([]);
+  const [warehouseAssignments, setWarehouseAssignments] = useState<WarehouseAssignment[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
+  const [userAccountMode, setUserAccountMode] = useState<UserAccountMode>(
+    isEditing ? "create" : "select",
+  );
 
   const [divisionFormOpen, setDivisionFormOpen] = useState(false);
   const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
@@ -124,10 +138,6 @@ export function EmployeeForm({
     { enabled: open },
   );
   const { data: positionsData } = useJobPositions(
-    { per_page: 20 },
-    { enabled: open },
-  );
-  const { data: companiesData } = useCompanies(
     { per_page: 20 },
     { enabled: open },
   );
@@ -141,27 +151,39 @@ export function EmployeeForm({
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const bulkUpdateAreas = useBulkUpdateEmployeeAreas();
+  const bulkUpdateOutlets = useBulkUpdateEmployeeOutlets();
+  const bulkUpdateWarehouses = useBulkUpdateEmployeeWarehouses();
 
   const createDivision = useCreateDivision();
   const createJobPosition = useCreateJobPosition();
-  const createCompany = useCreateCompany();
 
   const createUser = useCreateUser();
   const { data: rolesData } = useRoles({ enabled: open });
+  const { data: userLimitData } = useUserLimit();
 
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);
-  const companies = sortOptions(companiesData?.data ?? [], (c) => c.name);
   const roles = sortOptions(rolesData?.data ?? [], (r) => r.name);
 
   const availableUsers = useMemo(
     () => availableUsersData?.data ?? [],
     [availableUsersData],
   );
+  const hasUserQuota = userLimitData
+    ? userLimitData.current < userLimitData.max
+    : null;
 
   // Areas from the form-data endpoint for the area assignment dropdown
   const areaOptions = useMemo(
     () => sortOptions(formDataResp?.data?.areas ?? [], (a) => a.name),
+    [formDataResp],
+  );
+  const outletOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.outlets ?? [], (o) => o.name),
+    [formDataResp],
+  );
+  const warehouseOptions = useMemo(
+    () => sortOptions(formDataResp?.data?.warehouses ?? [], (w) => w.name),
     [formDataResp],
   );
 
@@ -173,12 +195,27 @@ export function EmployeeForm({
       ),
     [areaOptions, areaAssignments],
   );
+  const unassignedOutlets = useMemo(
+    () =>
+      outletOptions.filter(
+        (o) => !outletAssignments.some((oa) => oa.outlet_id === o.id),
+      ),
+    [outletOptions, outletAssignments],
+  );
+  const unassignedWarehouses = useMemo(
+    () =>
+      warehouseOptions.filter(
+        (w) => !warehouseAssignments.some((wa) => wa.warehouse_id === w.id),
+      ),
+    [warehouseOptions, warehouseAssignments],
+  );
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<EmployeeFormData>({
@@ -253,15 +290,18 @@ export function EmployeeForm({
           ? new Date(employeeData.date_of_birth)
           : undefined,
         place_of_birth: employeeData.place_of_birth ?? "",
-        gender: employeeData.gender ?? undefined,
+        gender: employeeData.gender || undefined,
         religion: employeeData.religion ?? "",
         address: employeeData.address ?? "",
         nik: employeeData.nik ?? "",
         npwp: employeeData.npwp ?? "",
         bpjs: employeeData.bpjs ?? "",
         total_leave_quota: employeeData.total_leave_quota ?? 12,
-        ptkp_status: employeeData.ptkp_status ?? undefined,
+        ptkp_status: employeeData.ptkp_status || undefined,
         is_active: employeeData.is_active,
+        create_user: !userId,
+        role_id: undefined,
+        password: "",
       };
       reset(formData, {
         keepDefaultValues: false,
@@ -278,7 +318,19 @@ export function EmployeeForm({
           area_id: ea.area_id,
           is_supervisor: ea.is_supervisor,
         })) ?? [];
+      const existingOutlets: OutletAssignment[] =
+        employeeData.outlets?.map((eo) => ({
+          outlet_id: eo.outlet_id,
+        })) ?? [];
+      const existingWarehouses: WarehouseAssignment[] =
+        employeeData.warehouses?.map((ew) => ({
+          warehouse_id: ew.warehouse_id,
+          is_auto: ew.is_auto,
+        })) ?? [];
       setAreaAssignments(existingAreas);
+      setOutletAssignments(existingOutlets);
+      setWarehouseAssignments(existingWarehouses);
+      setUserAccountMode(userId ? "select" : "create");
     } else {
       reset({
         employee_code: "",
@@ -311,9 +363,31 @@ export function EmployeeForm({
         password: "",
       });
       setAreaAssignments([]);
+      setOutletAssignments([]);
+      setWarehouseAssignments([]);
+      setUserAccountMode("select");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee?.id, employeeData]);
+
+  const selectedUserId = watch("user_id");
+  const createUserEnabled = watch("create_user");
+  const selectedAvailableUser = useMemo(
+    () => availableUsers.find((u) => u.id === selectedUserId),
+    [availableUsers, selectedUserId],
+  );
+  const hasLinkedUser = Boolean(employeeData?.user_id || employeeData?.user?.id);
+  const shouldLockNameEmailFromSelectedUser =
+    !isEditing && userAccountMode === "select" && !!selectedAvailableUser;
+
+  useEffect(() => {
+    if (isEditing || userAccountMode !== "select" || !selectedAvailableUser) {
+      return;
+    }
+
+    setValue("name", selectedAvailableUser.name, { shouldDirty: true });
+    setValue("email", selectedAvailableUser.email, { shouldDirty: true });
+  }, [isEditing, userAccountMode, selectedAvailableUser, setValue]);
 
   const contractType = watch("contract_type");
   const includeContract = watch("include_contract");
@@ -321,6 +395,11 @@ export function EmployeeForm({
 
   const onSubmit: SubmitHandler<EmployeeFormData> = async (data) => {
     try {
+      if (!isEditing && userAccountMode === "select" && !data.user_id) {
+        toast.error(t("form.userRequiredWhenSelectMode"));
+        return;
+      }
+
       const wantsContract = !isEditing && data.include_contract && data.contract_type;
 
       if (wantsContract) {
@@ -344,10 +423,23 @@ export function EmployeeForm({
       const supervisorAreaIds = areaAssignments
         .filter((a) => a.is_supervisor)
         .map((a) => a.area_id);
+      const outletIds = outletAssignments.map((o) => o.outlet_id);
+      const manualWarehouseAssignments = warehouseAssignments.filter(
+        (w) => !w.is_auto,
+      );
+      const warehouseIds = manualWarehouseAssignments.map((w) => w.warehouse_id);
 
       let finalUserId = data.user_id || undefined;
 
-      if (!isEditing && data.create_user) {
+      const shouldCreateLinkedUser =
+        (!isEditing && userAccountMode === "create") ||
+        (isEditing && !hasLinkedUser && !!data.create_user);
+
+      if (shouldCreateLinkedUser) {
+        if (hasUserQuota === false) {
+          toast.error("Tenant user quota is full. Cannot create a new linked user account.");
+          return;
+        }
         if (!data.role_id) {
           toast.error("Role is required when creating a user");
           return;
@@ -366,7 +458,6 @@ export function EmployeeForm({
           email: data.email,
           password: data.password,
           role_id: data.role_id,
-          status: "active",
         });
         finalUserId = newUser.data.id;
       }
@@ -395,6 +486,8 @@ export function EmployeeForm({
         is_active: data.is_active,
         area_ids: memberAreaIds,
         supervised_area_ids: supervisorAreaIds,
+        outlet_ids: outletIds,
+        warehouse_ids: warehouseIds,
       };
 
       if (isEditing && employee) {
@@ -414,6 +507,14 @@ export function EmployeeForm({
             data: { assignments: areaAssignments },
           });
         }
+        await bulkUpdateOutlets.mutateAsync({
+          id: employee.id,
+          data: { assignments: outletAssignments },
+        });
+        await bulkUpdateWarehouses.mutateAsync({
+          id: employee.id,
+          data: { assignments: manualWarehouseAssignments },
+        });
         toast.success(t("updateSuccess"));
       } else {
         const cleanData: CreateEmployeeData = {
@@ -442,10 +543,17 @@ export function EmployeeForm({
         onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onOpenChange(false);
-    } catch {
-      toast.error(
-        isEditing ? "Failed to update employee" : "Failed to create employee",
-      );
+    } catch (err) {
+      const apiErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
+      const code = apiErr?.response?.data?.error?.code ?? "";
+      const msg = apiErr?.response?.data?.error?.message ?? "";
+      if (code === "USER_LIMIT_REACHED" || msg.toLowerCase().includes("user limit") || msg.toLowerCase().includes("upgrade your plan")) {
+        toast.error("User limit reached", {
+          description: msg || "Upgrade your plan to add more users.",
+        });
+      } else {
+        toast.error(isEditing ? "Failed to update employee" : "Failed to create employee");
+      }
     }
   };
 
@@ -454,9 +562,10 @@ export function EmployeeForm({
     createEmployee.isPending ||
     updateEmployee.isPending ||
     bulkUpdateAreas.isPending ||
+    bulkUpdateOutlets.isPending ||
+    bulkUpdateWarehouses.isPending ||
     createDivision.isPending ||
-    createJobPosition.isPending ||
-    createCompany.isPending;
+    createJobPosition.isPending;
 
   const handleAddArea = () => {
     if (!selectedAreaId) {
@@ -483,35 +592,83 @@ export function EmployeeForm({
     return areaOptions.find((a) => a.id === areaId)?.name ?? areaId;
   };
 
+  const handleAddOutlet = () => {
+    if (!selectedOutletId) {
+      return;
+    }
+    setOutletAssignments((prev) => [...prev, { outlet_id: selectedOutletId }]);
+    setSelectedOutletId("");
+  };
+
+  const handleRemoveOutlet = (outletId: string) => {
+    setOutletAssignments((prev) => prev.filter((o) => o.outlet_id !== outletId));
+  };
+
+  const getOutletName = (outletId: string): string => {
+    return outletOptions.find((o) => o.id === outletId)?.name ?? outletId;
+  };
+
+  const handleAddWarehouse = () => {
+    if (!selectedWarehouseId) {
+      return;
+    }
+    setWarehouseAssignments((prev) => [
+      ...prev,
+      { warehouse_id: selectedWarehouseId, is_auto: false },
+    ]);
+    setSelectedWarehouseId("");
+  };
+
+  const handleRemoveWarehouse = (warehouseId: string) => {
+    setWarehouseAssignments((prev) =>
+      prev.filter((w) => w.warehouse_id !== warehouseId || w.is_auto),
+    );
+  };
+
+  const getWarehouseName = (warehouseId: string): string => {
+    return warehouseOptions.find((w) => w.id === warehouseId)?.name ?? warehouseId;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("editTitle") : t("createTitle")}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit, (fieldErrors) => {
+            const fieldNames = Object.keys(fieldErrors).join(", ");
+            toast.error("Please fix form errors before saving", {
+              description: fieldNames ? `Fields with errors: ${fieldNames}` : undefined,
+            });
+          })}
+          className="space-y-6"
+        >
           <Tabs defaultValue="basic" className="w-full">
             <TabsList
-              className={cn(
-                "grid w-full",
-                isEditing ? "grid-cols-3" : "grid-cols-4",
-              )}
+              className="flex w-full justify-start overflow-x-auto overflow-y-hidden"
             >
-              <TabsTrigger value="basic" className="cursor-pointer">
+              <TabsTrigger value="basic" className="flex-1 cursor-pointer">
                 {t("tabs.basic")}
               </TabsTrigger>
-              <TabsTrigger value="employment" className="cursor-pointer">
+              <TabsTrigger value="employment" className="flex-1 cursor-pointer">
                 {t("tabs.employment")}
               </TabsTrigger>
               {!isEditing && (
-                <TabsTrigger value="contract" className="cursor-pointer">
+                <TabsTrigger value="contract" className="flex-1 cursor-pointer">
                   {t("tabs.contract")}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="areas" className="cursor-pointer">
+              <TabsTrigger value="areas" className="flex-1 cursor-pointer">
                 {t("tabs.areas")}
+              </TabsTrigger>
+              <TabsTrigger value="outlets" className="flex-1 cursor-pointer">
+                {t("form.outletsLabel")}
+              </TabsTrigger>
+              <TabsTrigger value="warehouses" className="flex-1 cursor-pointer">
+                {t("form.warehousesLabel")}
               </TabsTrigger>
             </TabsList>
 
@@ -535,6 +692,7 @@ export function EmployeeForm({
                   <Input
                     placeholder={t("form.namePlaceholder")}
                     {...register("name")}
+                    disabled={shouldLockNameEmailFromSelectedUser}
                   />
                   {errors.name && (
                     <FieldError>{errors.name.message}</FieldError>
@@ -548,6 +706,7 @@ export function EmployeeForm({
                     type="email"
                     placeholder={t("form.emailPlaceholder")}
                     {...register("email")}
+                    disabled={shouldLockNameEmailFromSelectedUser}
                   />
                   {errors.email && (
                     <FieldError>{errors.email.message}</FieldError>
@@ -557,37 +716,97 @@ export function EmployeeForm({
                   <FieldLabel>{t("form.phone")}</FieldLabel>
                   <Input
                     placeholder={t("form.phonePlaceholder")}
+                    inputMode="numeric"
+                    onKeyDown={(e) => {
+                      if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                          !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     {...register("phone")}
                   />
+                  {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
                 </Field>
               </div>
 
               {/* User account link */}
               <div className="space-y-4 p-4 border rounded-lg">
                 {!isEditing && (
-                  <Field
-                    orientation="horizontal"
-                    className="flex justify-between items-center"
-                  >
-                    <div className="space-y-0.5">
-                      <FieldLabel className="text-base text-foreground">Create User Account</FieldLabel>
-                      <p className="text-sm text-muted-foreground">Automatically create and link a system user.</p>
-                    </div>
-                    <Controller
-                      control={control}
-                      name="create_user"
-                      render={({ field }) => (
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="cursor-pointer"
-                        />
-                      )}
-                    />
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.userAccountMode")}</FieldLabel>
+                    <Select
+                      value={userAccountMode}
+                      onValueChange={(value) => {
+                        const nextMode = value as UserAccountMode;
+                        setUserAccountMode(nextMode);
+
+                        if (nextMode === "create") {
+                          setValue("user_id", "", { shouldDirty: true });
+                          setValue("create_user", true, { shouldDirty: true });
+                          return;
+                        }
+
+                        setValue("create_user", false, { shouldDirty: true });
+                        setValue("role_id", undefined, { shouldDirty: true });
+                        setValue("password", "", { shouldDirty: true });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("form.userAccountModePlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="select">
+                          {t("form.userAccountModeSelect")}
+                        </SelectItem>
+                        <SelectItem value="create" disabled={hasUserQuota === false}>
+                          {t("form.userAccountModeCreate")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </Field>
                 )}
 
-                {watch("create_user") && !isEditing ? (
+                {isEditing && hasLinkedUser && (
+                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                    {t("form.userAlreadyLinkedHint")}
+                  </div>
+                )}
+
+                {isEditing && !hasLinkedUser && (
+                  hasUserQuota === null ? (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                      Checking tenant user quota...
+                    </div>
+                  ) : hasUserQuota ? (
+                    <Field
+                      orientation="horizontal"
+                      className="flex justify-between items-center"
+                    >
+                      <div className="space-y-0.5">
+                        <FieldLabel className="text-base text-foreground">{t("form.createUserAccount")}</FieldLabel>
+                        <p className="text-sm text-muted-foreground">{t("form.createUserAccountEditHint")}</p>
+                      </div>
+                      <Controller
+                        control={control}
+                        name="create_user"
+                        render={({ field }) => (
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="cursor-pointer"
+                          />
+                        )}
+                      />
+                    </Field>
+                  ) : (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                      Tenant user quota is full. Create User Account is unavailable.
+                    </div>
+                  )
+                )}
+
+                {((!isEditing && userAccountMode === "create") ||
+                  (isEditing && !hasLinkedUser && createUserEnabled)) && hasUserQuota === true ? (
                   <div className="grid grid-cols-2 gap-4">
                     <Field orientation="vertical">
                       <FieldLabel>Role *</FieldLabel>
@@ -626,42 +845,44 @@ export function EmployeeForm({
                     </Field>
                   </div>
                 ) : (
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.user")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="user_id"
-                      render={({ field }) => {
-                        return (
-                          <Select
-                            value={field.value || ""}
-                            onValueChange={(v) =>
-                              field.onChange(v === "__none__" ? "" : v)
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("form.userPlaceholder")}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                {t("form.noUser")}
-                              </SelectItem>
-                              {availableUsers.map((u) => (
-                                <SelectItem key={u.id} value={u.id}>
-                                  {u.name} ({u.email})
+                  !isEditing && userAccountMode === "select" && (
+                    <Field orientation="vertical">
+                      <FieldLabel>{t("form.user")}</FieldLabel>
+                      <Controller
+                        control={control}
+                        name="user_id"
+                        render={({ field }) => {
+                          return (
+                            <Select
+                              value={field.value || ""}
+                              onValueChange={(v) =>
+                                field.onChange(v === "__none__" ? "" : v)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={t("form.userPlaceholder")}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">
+                                  {t("form.noUser")}
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      }}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("form.userHint")}
-                    </p>
-                  </Field>
+                                {availableUsers.map((u) => (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    {u.name} ({u.email})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("form.userSelectAutofillHint")}
+                      </p>
+                    </Field>
+                  )
                 )}
               </div>
 
@@ -819,39 +1040,6 @@ export function EmployeeForm({
                   />
                 </Field>
               </div>
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.company")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="company_id"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      options={companies.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                      }))}
-                      value={field.value || ""}
-                      onValueChange={field.onChange}
-                      placeholder={t("form.companyPlaceholder")}
-                      createPermission="company.create"
-                      onCreateClick={async (query) => {
-                        try {
-                          const res = await createCompany.mutateAsync({
-                            name: query,
-                            is_active: true,
-                          });
-                          field.onChange(res.data.id);
-                          toast.success(t("createSuccess"));
-                        } catch {
-                          toast.error("Failed to create company");
-                        }
-                      }}
-                      isLoading={createCompany.isPending}
-                      disabled={createCompany.isPending}
-                    />
-                  )}
-                />
-              </Field>
               <Field orientation="vertical">
                 <FieldLabel>{t("form.totalLeaveQuota")}</FieldLabel>
                 <Input
@@ -1208,6 +1396,138 @@ export function EmployeeForm({
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="outlets" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                {t("form.scopeDescription")}
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.outletsLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedOutletId}
+                    onValueChange={setSelectedOutletId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectOutlet")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedOutlets.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddOutlet}
+                    disabled={!selectedOutletId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {outletAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noOutletsAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {outletAssignments.map((assignment) => (
+                      <div
+                        key={assignment.outlet_id}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <span className="text-sm font-medium">
+                          {getOutletName(assignment.outlet_id)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveOutlet(assignment.outlet_id)}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="warehouses" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t("form.warehousesLabel")}</p>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedWarehouseId}
+                    onValueChange={setSelectedWarehouseId}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={t("form.selectWarehouse")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unassignedWarehouses.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleAddWarehouse}
+                    disabled={!selectedWarehouseId}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {warehouseAssignments.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    {t("form.noWarehousesAssigned")}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {warehouseAssignments.map((assignment) => (
+                      <div
+                        key={`${assignment.warehouse_id}-${assignment.is_auto ? "auto" : "manual"}`}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {getWarehouseName(assignment.warehouse_id)}
+                          </span>
+                          <Badge variant={assignment.is_auto ? "secondary" : "outline"}>
+                            {assignment.is_auto ? t("form.auto") : t("form.manual")}
+                          </Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveWarehouse(assignment.warehouse_id)}
+                          disabled={!!assignment.is_auto}
+                          className="cursor-pointer text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
 

@@ -129,6 +129,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusConflict,
 		Message:    "Resource already exists",
 	},
+	"SALES_TARGET_CONFLICT": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Sales target for selected employee and year already exists",
+	},
 	"EMAIL_ALREADY_TAKEN": {
 		HTTPStatus: http.StatusConflict,
 		Message:    "Email is already registered",
@@ -311,6 +315,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"USER_LIMIT_REACHED": {
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "User limit for this tenant has been reached. Upgrade your plan to add more users.",
+	},
+	"USER_COUNT_EXCEEDS_SYSTEM_LIMIT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "User count exceeds the maximum allowed for registration",
 	},
 
 	// Sales Errors

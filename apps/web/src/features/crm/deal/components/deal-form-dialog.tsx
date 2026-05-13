@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -201,9 +202,8 @@ export function DealFormDialog({
 
   // Keep the "value" field in sync whenever items change
   useEffect(() => {
-    if (!watchedItems?.length) return;
     // Guard against NaN/Infinity from malformed item data
-    const safeSubtotal = isFinite(itemsSubtotal) ? itemsSubtotal : 0;
+    const safeSubtotal = (watchedItems?.length && isFinite(itemsSubtotal)) ? itemsSubtotal : 0;
     setValue("value", safeSubtotal, { shouldDirty: true });
   }, [itemsSubtotal, watchedItems?.length, setValue]);
 

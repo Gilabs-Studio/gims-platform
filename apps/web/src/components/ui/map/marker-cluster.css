@@ -1,26 +1,42 @@
 /* Custom marker cluster styles to match modern Apple-like UI:
-   - White circular background
-   - Primary color text (uses project's CSS variable)
+   - White circular background in dark theme
+   - Primary color background in light theme
+   - White text in light theme, primary text in dark theme
    - Subtle border and shadow
 */
 
 .marker-cluster {
-  background-color: hsl(var(--background)) !important;
   background-image: none !important;
-  color: hsl(var(--primary)) !important;
   border: 1.5px solid hsl(var(--border)) !important;
   box-shadow: 0 4px 8px hsl(var(--foreground) / 0.08) !important;
   border-radius: 999px !important;
+  /* Light theme: primary background */
+  background-color: hsl(var(--primary)) !important;
+  color: white !important;
 }
 
-/* The cluster element sometimes has nested div/span for the number. Make it bold and primary color. */
+/* Dark theme: white background with subtle primary border */
+html.dark .marker-cluster {
+  background-color: white !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+/* The cluster element sometimes has nested div/span for the number. */
 .marker-cluster div,
 .marker-cluster span {
   background: transparent !important;
-  color: hsl(var(--primary)) !important;
   font-weight: 600 !important;
   font-size: 0.9rem !important;
   line-height: 1 !important;
+  /* Light theme: white text */
+  color: white !important;
+}
+
+/* Dark theme: primary color text */
+html.dark .marker-cluster div,
+html.dark .marker-cluster span {
+  color: hsl(var(--primary)) !important;
 }
 
 /* Different cluster sizes: keep shape consistent */

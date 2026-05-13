@@ -1,4 +1,5 @@
 "use client";
+'use no memo';
 
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -91,8 +92,8 @@ export function OvertimeDialog({
     handleSubmit,
     control,
     watch,
-    reset,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<OvertimeFormData>({
     resolver: zodResolver(overtimeFormSchema),
@@ -108,6 +109,7 @@ export function OvertimeDialog({
 
   const startTime = watch("start_time");
   const endTime = watch("end_time");
+  const selectedEmployeeId = watch("employee_id");
 
   useEffect(() => {
     if (editingItem) {
@@ -130,6 +132,17 @@ export function OvertimeDialog({
       });
     }
   }, [editingItem, reset]);
+
+  useEffect(() => {
+    if (isEditing || selectedEmployeeId || employees.length !== 1) {
+      return;
+    }
+
+    setValue("employee_id", employees[0].id, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [employees, isEditing, selectedEmployeeId, setValue]);
 
   const onSubmit = async (data: OvertimeFormData) => {
     // Validate employee_id exists in the list

@@ -27,6 +27,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/storage"
 	"github.com/gilabs/gims/api/seeders"
 
 	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
@@ -93,8 +94,10 @@ import (
 	tenantUsecase "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	tenantHandler "github.com/gilabs/gims/api/internal/tenant/presentation/handler"
 	tenantRouter "github.com/gilabs/gims/api/internal/tenant/presentation/router"
+	tenantWorker "github.com/gilabs/gims/api/internal/tenant/worker"
 
 	tenantScope "github.com/gilabs/gims/api/internal/core/infrastructure/tenant"
+	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
 )
 
 func initInfrastructure() {
@@ -108,6 +111,17 @@ func initInfrastructure() {
 
 	// Initialize application timezone (must be before any time-dependent logic)
 	apptime.Init(config.AppConfig.Server.Timezone)
+
+	// Initialize Cloudflare R2 storage
+	if err := storage.Init(
+		config.AppConfig.Storage.R2AccountID,
+		config.AppConfig.Storage.R2AccessKeyID,
+		config.AppConfig.Storage.R2SecretAccessKey,
+		config.AppConfig.Storage.R2BucketName,
+		config.AppConfig.Storage.R2PublicURL,
+	); err != nil {
+		log.Fatal("Failed to initialize R2 storage:", err)
+	}
 
 	// Connect to database
 	if err := database.Connect(); err != nil {
@@ -293,6 +307,24 @@ func main() {
 
 	billingH := tenantHandler.NewBillingHandler(subUC, paymentTxnUC, subscriptionPlanRepository, authUC)
 
+	// Payment method: saved card token management for auto-renewal.
+	paymentMethodRepo := tenantRepos.NewPaymentMethodRepository(database.DB)
+	paymentMethodUC := tenantUsecase.NewPaymentMethodUsecase(paymentMethodRepo, xenditClient.NewClient(
+		func() string {
+			if config.AppConfig != nil {
+				return config.AppConfig.Xendit.SecretKey
+			}
+			return ""
+		}(),
+		func() string {
+			if config.AppConfig != nil {
+				return config.AppConfig.Xendit.BaseURL
+			}
+			return ""
+		}(),
+	))
+	paymentMethodH := tenantHandler.NewPaymentMethodHandler(paymentMethodUC)
+
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
 	rtWorker := refreshTokenWorker.NewRefreshTokenCleanupWorker(
@@ -300,6 +332,10 @@ func main() {
 		24*time.Hour,
 	)
 	rtWorker.Start()
+
+	// Cleanup worker for tenants that passed 30-day deletion grace period.
+	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour)
+	delWorker.Start()
 
 	// Setup Router
 	r := coreRouter.NewEngine(jwtManager)
@@ -350,9 +386,6 @@ func main() {
 		})
 	})
 
-	// Serve static files from uploads directory
-	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
-
 	// SaaS: Register system admin routes (completely separate from tenant API)
 	tenantRouter.RegisterSystemAdminRoutes(r, sysAdminH, jwtManager, sysAdminRepository)
 
@@ -386,6 +419,12 @@ func main() {
 			billing.GET("/payment-history", billingH.GetMyPaymentHistory)
 			billing.POST("/change", billingH.ChangeSubscription)
 			billing.POST("/change/confirm", billingH.ConfirmSubscriptionChange)
+			billing.DELETE("/subscription", billingH.CancelSubscription)
+			// Payment method (saved card tokens for auto-renewal)
+			billing.GET("/payment-methods", paymentMethodH.ListPaymentMethods)
+			billing.POST("/payment-methods", paymentMethodH.AddPaymentMethod)
+			billing.PATCH("/payment-methods/:id/default", paymentMethodH.SetDefaultPaymentMethod)
+			billing.DELETE("/payment-methods/:id", paymentMethodH.RemovePaymentMethod)
 		}
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
@@ -466,7 +505,7 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// POS module (Floor Layout Designer)
-		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
+		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase, salesDeps.CustomerInvoiceUC, salesDeps.SalesPaymentUC)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC, financeDeps.CashBankTransactionUC)
@@ -489,7 +528,7 @@ func main() {
 			SalesOrderUC:      salesDeps.OrderUC,
 			DeliveryOrderUC:   salesDeps.DeliveryOrderUC,
 			CustomerInvoiceUC: salesDeps.CustomerInvoiceUC,
-			YearlyTargetUC:    salesDeps.YearlyTargetUC,
+
 			InventoryUC:       invUC,
 			PurchaseOrderUC:   purchaseDeps.OrderUC,
 			PurchaseReqUC:     purchaseDeps.RequisitionUC,
@@ -539,6 +578,7 @@ func main() {
 
 	// Stop background worker before shutting down server/resources
 	rtWorker.Stop()
+	delWorker.Stop()
 	if autoAbsentWorker != nil {
 		autoAbsentWorker.Stop()
 	}

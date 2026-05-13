@@ -1,8 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { profileService } from "../services/profile-service";
 import type { UpdateProfileRequest, ChangePasswordRequest } from "../types";
+import type { TenantDeletionScheduleApiResponse } from "../types";
 import type { User } from "@/features/auth/types";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useLogout } from "@/features/auth/hooks/use-logout";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import type { AxiosError } from "axios";
@@ -88,6 +90,45 @@ export function useUploadAvatar() {
        console.error("Avatar upload failed", error);
        const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
        toast.error(message || t("somethingWentWrong"));
+    },
+  });
+}
+
+export function useRequestAccountDeletion() {
+  const t = useTranslations("profile.deleteAccount");
+  const logout = useLogout();
+
+  const formatScheduledAt = (scheduledAt?: string) => {
+    if (!scheduledAt) {
+      return null;
+    }
+
+    const date = new Date(scheduledAt);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  };
+
+  return useMutation({
+    mutationFn: () => profileService.requestAccountDeletion(),
+    onSuccess: async (response: TenantDeletionScheduleApiResponse) => {
+      const scheduledAt = formatScheduledAt(response.data?.deletion_scheduled_at);
+      toast.success(
+        scheduledAt
+          ? t("successToastWithDate", { date: scheduledAt })
+          : t("successToast"),
+      );
+      await logout();
+    },
+    onError: (error: unknown) => {
+      console.error("Account deletion request failed", error);
+      const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
+      toast.error(message || t("errorToast"));
     },
   });
 }

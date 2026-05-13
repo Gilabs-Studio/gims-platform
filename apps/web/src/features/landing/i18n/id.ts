@@ -18,10 +18,10 @@ export const landingId = {
       trackPlaceholder: "Masukkan ID pesanan untuk melacak status",
     },
     benefits: {
-      eyebrow: "Kelebihan utama GIMS",
+      eyebrow: "Kelebihan utama SalesView",
       title: "Fitur yang terasa di operasional harian",
       subtitle:
-        "GIMS dirancang agar data sekali input bisa dipakai lintas modul. Tim sales, gudang, finance, HRD, dan manajemen melihat informasi yang sama tanpa rekap manual.",
+        "SalesView dirancang agar data sekali input bisa dipakai lintas modul. Tim sales, gudang, finance, HRD, dan manajemen melihat informasi yang sama tanpa rekap manual.",
       items: {
         singleSource: {
           title: "Satu sumber data",
@@ -97,7 +97,7 @@ export const landingId = {
       title2: "menghubungkan, dan melaporkan",
       title3: "secara otomatis",
       subtitle:
-        "GIMS dirancang agar data yang masuk di satu bagian langsung tersedia di seluruh sistem — tanpa impor manual, tanpa salinan ganda.",
+        "SalesView dirancang agar data yang masuk di satu bagian langsung tersedia di seluruh sistem — tanpa impor manual, tanpa salinan ganda.",
     },
     map: {
       title1: "Lihat seluruh jaringan",
@@ -116,7 +116,7 @@ export const landingId = {
       title1: "Tanya data Anda",
       title2: "dalam bahasa sehari-hari",
       subtitle:
-        "Asisten GIMS memahami perintah dalam Bahasa Indonesia. Cek stok, buat purchase order, atau tarik laporan penjualan — cukup dengan mengetik kalimat biasa.",
+        "Asisten SalesView memahami perintah dalam Bahasa Indonesia. Cek stok, buat purchase order, atau tarik laporan penjualan — cukup dengan mengetik kalimat biasa.",
       detail:
         "Tidak ada lagi bolak-balik menu atau menunggu tim IT untuk membuat laporan ad-hoc.",
       chat: {
@@ -125,7 +125,7 @@ export const landingId = {
         user2: "Buat PO ke supplier untuk 500 unit.",
         ai2: "Purchase Order {po} berhasil dibuat — 500 unit SKU-201 ke CV Maju Sejahtera. Menunggu persetujuan.",
         labelUser: "Anda",
-        labelAi: "GIMS AI",
+        labelAi: "SalesView AI",
       },
     },
     pricing: {
@@ -143,7 +143,8 @@ export const landingId = {
       users: "Pengguna",
       perMonthSeat: "/bulan per seat",
       totalInvoice: "Total invoice",
-      chooseModular: "Pilih modular",
+      selectBundle: "Pilih {name}",
+      selectModular: "Pilih modular",
       modularCtaHint: "Untuk rollout satu tim",
       comparisonTitle: "Perbandingan bundle",
       guarantee: "Garansi uang kembali 30 hari. Bisa batal kapan saja.",
@@ -154,7 +155,7 @@ export const landingId = {
       nowPrice: "Sekarang {price}",
     },
     modules: {
-      eyebrow: "Menu utama GIMS",
+      eyebrow: "Menu utama SalesView",
       title1: "Semua modul inti",
       title2: "dalam satu platform",
       subtitle:
@@ -217,18 +218,18 @@ export const landingId = {
         "Tidak menemukan jawaban yang dicari? Hubungi tim kami — kami biasanya membalas dalam hitungan jam.",
       contactCta: "Hubungi tim",
       items: {
-        q1: "Apakah GIMS cocok untuk distribusi multi-gudang?",
-        a1: "Ya. GIMS dirancang sejak awal untuk skenario multi-gudang — stok di tiap lokasi tercatat secara real-time, transfer antar gudang terotomatisasi, dan laporan konsolidasi tersedia tanpa rekap manual.",
+        q1: "Apakah SalesView cocok untuk distribusi multi-gudang?",
+        a1: "Ya. SalesView dirancang sejak awal untuk skenario multi-gudang — stok di tiap lokasi tercatat secara real-time, transfer antar gudang terotomatisasi, dan laporan konsolidasi tersedia tanpa rekap manual.",
         q2: "Berapa lama proses onboarding?",
         a2: "Sebagian besar perusahaan sudah bisa beroperasi penuh dalam 1–2 hari kerja. Tim kami memandu migrasi data masterdata, konfigurasi awal, dan sesi pelatihan singkat untuk setiap departemen.",
         q3: "Bisakah diintegrasikan dengan sistem yang sudah ada?",
-        a3: "GIMS menggunakan REST API terbuka. Integrasi dengan timbangan digital, barcode scanner, sistem akuntansi existing, atau marketplace bisa dilakukan tanpa menyentuh kode inti platform.",
+        a3: "SalesView menggunakan REST API terbuka. Integrasi dengan timbangan digital, barcode scanner, sistem akuntansi existing, atau marketplace bisa dilakukan tanpa menyentuh kode inti platform.",
         q4: "Bagaimana keamanan data kami dijaga?",
         a4: "Data tersimpan di infrastruktur cloud dengan enkripsi at-rest dan in-transit. Akses dikontrol per role dan per entitas — staf gudang Surabaya hanya melihat data gudang mereka sendiri.",
         q5: "Apakah tersedia versi mobile untuk tim lapangan?",
-        a5: "Antarmuka GIMS berjalan di browser modern termasuk di smartphone Android dan iOS. Tim sales bisa input order, cek stok, dan catat kunjungan pelanggan langsung dari ponsel mereka.",
-        q6: "Apa yang membedakan GIMS dari ERP generik?",
-        a6: "GIMS dibangun khusus untuk pola operasional distribusi di Indonesia — termasuk surat jalan, retur barang, multi-PPN, dan wilayah pengiriman berdasarkan peta administratif Indonesia hingga tingkat kelurahan.",
+        a5: "Antarmuka SalesView berjalan di browser modern termasuk di smartphone Android dan iOS. Tim sales bisa input order, cek stok, dan catat kunjungan pelanggan langsung dari ponsel mereka.",
+        q6: "Apa yang membedakan SalesView dari ERP generik?",
+        a6: "SalesView dibangun khusus untuk pola operasional distribusi di Indonesia — termasuk surat jalan, retur barang, multi-PPN, dan wilayah pengiriman berdasarkan peta administratif Indonesia hingga tingkat kelurahan.",
       },
     },
     cta: {

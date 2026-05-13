@@ -16,24 +16,19 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  AlertCircle,
   CheckCircle2,
   Send,
   CreditCard,
   Clock,
   PieChart,
   History,
-  ShieldAlert,
   XCircle,
   Pencil,
   Printer,
-  FileText,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
@@ -44,13 +39,18 @@ import { OrderDetailModal } from "@/features/sales/order/components/order-detail
 import type { SalesOrder } from "@/features/sales/order/types";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
-import { usePendingCustomerInvoiceDP, useApproveCustomerInvoiceDP } from "../hooks/use-customer-invoice-dp";
+import { usePendingCustomerInvoiceDP, useApproveCustomerInvoiceDP, useCancelCustomerInvoiceDP } from "../hooks/use-customer-invoice-dp";
 import {
   useCustomerInvoiceDP,
   useCustomerInvoiceDPAuditTrail,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPStatus } from "../types";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
+
+const CustomerInvoiceDPFormDialog = dynamic(
+  () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
+  { ssr: false },
+);
 
 function normalizeStatus(status?: string | null): string {
   const normalized = (status ?? "").toLowerCase();
@@ -93,6 +93,13 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
         <Badge variant="warning" className="text-xs font-medium">
           <CreditCard className="h-3 w-3 mr-1.5" />
           {t("status.unpaid")}
+        </Badge>
+      );
+    case "waiting_approval":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("status.waiting_approval")}
         </Badge>
       );
     case "waiting_payment":
@@ -153,6 +160,7 @@ export function CustomerInvoiceDPDetailModal({
   const canPending = useUserPermission("customer_invoice_dp.pending");
   const canPrint = useUserPermission("customer_invoice_dp.print");
   const canApprove = useUserPermission("customer_invoice_dp.approve");
+  const canCancel = useUserPermission("customer_invoice_dp.cancel");
 
   const { data, isLoading, isError } = useCustomerInvoiceDP(activeId, {
     enabled: !!activeId && open,
@@ -206,11 +214,7 @@ export function CustomerInvoiceDPDetailModal({
 
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
-
-  const CustomerInvoiceDPFormDialog = dynamic(
-    () => import("./customer-invoice-dp-form").then((m) => m.CustomerInvoiceDPFormDialog),
-    { ssr: false },
-  );
+  const cancelMutation = useCancelCustomerInvoiceDP();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -287,7 +291,7 @@ export function CustomerInvoiceDPDetailModal({
                     if (!row?.id) return;
                     customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
                   }}
-                  className="cursor-pointer text-accent hover:text-accent hover:bg-violet-50"
+                  className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -314,6 +318,26 @@ export function CustomerInvoiceDPDetailModal({
                 </Button>
               ) : null}
 
+              {row && canCancel &&
+                (normalizeStatus(row.status) === "draft" || normalizeStatus(row.status) === "submitted") ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    if (!row?.id) return;
+                    try {
+                      await cancelMutation.mutateAsync(row.id);
+                      toast.success(t("toast.cancelled"));
+                    } catch {
+                      toast.error(t("toast.failed"));
+                    }
+                  }}
+                  className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
+                  title={t("actions.cancel")}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              ) : null}
               {/* Delete action removed from detail modal (use list view for deletion) */}
             </div>
           </div>

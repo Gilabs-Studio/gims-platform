@@ -2,147 +2,163 @@ import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { visitReportService } from "../services/visit-report-service";
 import type {
-  VisitReportListParams,
-  VisitReportEmployeeListParams,
-  CreateVisitReportData,
-  UpdateVisitReportData,
-  CheckInData,
-  CheckOutData,
-  SubmitVisitData,
+	VisitReportListParams,
+	VisitReportEmployeeListParams,
+	CreateVisitReportData,
+	UpdateVisitReportData,
+	CheckInData,
+	CheckOutData,
+	SubmitVisitData,
 } from "../types";
 
 const QUERY_KEY = "crm-visit-reports";
 
 export const visitReportKeys = {
-  all: [QUERY_KEY] as const,
-  lists: () => [...visitReportKeys.all, "list"] as const,
-  list: (params: VisitReportListParams) => [...visitReportKeys.lists(), params] as const,
-  details: () => [...visitReportKeys.all, "detail"] as const,
-  detail: (id: string) => [...visitReportKeys.details(), id] as const,
-  formData: () => [...visitReportKeys.all, "form-data"] as const,
-  byEmployee: (params: VisitReportEmployeeListParams) => [...visitReportKeys.all, "by-employee", params] as const,
+	all: [QUERY_KEY] as const,
+	lists: () => [...visitReportKeys.all, "list"] as const,
+	list: (params: VisitReportListParams) =>
+		[...visitReportKeys.lists(), params] as const,
+	details: () => [...visitReportKeys.all, "detail"] as const,
+	detail: (id: string) => [...visitReportKeys.details(), id] as const,
+	formData: () => [...visitReportKeys.all, "form-data"] as const,
+	byEmployee: (params: VisitReportEmployeeListParams) =>
+		[...visitReportKeys.all, "by-employee", params] as const,
 };
 
 export function useVisitReports(params?: VisitReportListParams) {
-  return useQuery({
-    queryKey: visitReportKeys.list(params ?? {}),
-    queryFn: () => visitReportService.list(params),
-    staleTime: 5 * 60 * 1000,
-  });
+	return useQuery({
+		queryKey: visitReportKeys.list(params ?? {}),
+		queryFn: () => visitReportService.list(params),
+		staleTime: 5 * 60 * 1000,
+	});
 }
 
-export function useVisitReportById(id: string) {
-  return useQuery({
-    queryKey: visitReportKeys.detail(id),
-    queryFn: () => visitReportService.getById(id),
-    enabled: !!id,
-  });
+export function useVisitReportById(
+	id: string,
+	options?: { enabled?: boolean },
+) {
+	return useQuery({
+		queryKey: visitReportKeys.detail(id),
+		queryFn: () => visitReportService.getById(id),
+		enabled: !!id && (options?.enabled ?? true),
+	});
 }
 
 export function useVisitReportFormData(options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: visitReportKeys.formData(),
-    queryFn: () => visitReportService.getFormData(),
-    staleTime: 10 * 60 * 1000,
-    enabled: options?.enabled ?? true,
-  });
+	return useQuery({
+		queryKey: visitReportKeys.formData(),
+		queryFn: () => visitReportService.getFormData(),
+		staleTime: 10 * 60 * 1000,
+		enabled: options?.enabled ?? true,
+	});
 }
 
 export function useCreateVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: CreateVisitReportData) => visitReportService.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (data: CreateVisitReportData) =>
+			visitReportService.create(data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.all });
+		},
+	});
 }
 
 export function useUpdateVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateVisitReportData }) =>
-      visitReportService.update(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: UpdateVisitReportData }) =>
+			visitReportService.update(id, data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.all });
+		},
+	});
 }
 
 export function useDeleteVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => visitReportService.delete(id),
-    onSuccess: (_response, deletedId) => {
-      qc.removeQueries({ queryKey: visitReportKeys.detail(deletedId), exact: true });
-      qc.invalidateQueries({ queryKey: visitReportKeys.lists() });
-      qc.invalidateQueries({ queryKey: [...visitReportKeys.all, "by-employee"] });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (id: string) => visitReportService.delete(id),
+		onSuccess: (_response, deletedId) => {
+			qc.removeQueries({
+				queryKey: visitReportKeys.detail(deletedId),
+				exact: true,
+			});
+			qc.invalidateQueries({ queryKey: visitReportKeys.lists() });
+			qc.invalidateQueries({
+				queryKey: [...visitReportKeys.all, "by-employee"],
+			});
+		},
+	});
 }
 
 export function useCheckInVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CheckInData }) =>
-      visitReportService.checkIn(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: CheckInData }) =>
+			visitReportService.checkIn(id, data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.all });
+		},
+	});
 }
 
 export function useCheckOutVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CheckOutData }) =>
-      visitReportService.checkOut(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: CheckOutData }) =>
+			visitReportService.checkOut(id, data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.all });
+		},
+	});
 }
 
 export function useSubmitVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: SubmitVisitData }) =>
-      visitReportService.submit(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data?: SubmitVisitData }) =>
+			visitReportService.submit(id, data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.all });
+		},
+	});
 }
 
 export function useUploadVisitPhotos() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, photoUrls }: { id: string; photoUrls: string[] }) =>
-      visitReportService.uploadPhotos(id, photoUrls),
-    onSuccess: (_response, variables) => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
-    },
-  });
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, photoUrls }: { id: string; photoUrls: string[] }) =>
+			visitReportService.uploadPhotos(id, photoUrls),
+		onSuccess: (_response, variables) => {
+			qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
+		},
+	});
 }
 
 export function useUploadVisitImage() {
-  return useMutation({
-    mutationFn: (file: File) => visitReportService.uploadImage(file),
-  });
+	return useMutation({
+		mutationFn: ({ file, visitId }: { file: File; visitId?: string }) => {
+			const folder = visitId && visitId.trim() !== "" ? `visits/${visitId}` : "visits/temp";
+			return visitReportService.uploadImage(file, folder);
+		},
+	});
 }
 
 export function useVisitReportPrintUrl(id: string) {
-  return useMemo(() => {
-    if (!id) return "";
-    return visitReportService.getPrintUrl(id);
-  }, [id]);
+	return useMemo(() => {
+		if (!id) return "";
+		return visitReportService.getPrintUrl(id);
+	}, [id]);
 }
 
 /** Fetches per-employee visit report metrics for the ALL/DIVISION/AREA team views. */
-export function useVisitReportsByEmployee(params?: VisitReportEmployeeListParams) {
-  return useQuery({
-    queryKey: visitReportKeys.byEmployee(params ?? {}),
-    queryFn: () => visitReportService.listByEmployee(params),
-    staleTime: 3 * 60 * 1000,
-  });
+export function useVisitReportsByEmployee(
+	params?: VisitReportEmployeeListParams,
+) {
+	return useQuery({
+		queryKey: visitReportKeys.byEmployee(params ?? {}),
+		queryFn: () => visitReportService.listByEmployee(params),
+		staleTime: 3 * 60 * 1000,
+	});
 }

@@ -19,6 +19,7 @@ import type {
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
 } from "../types";
+import type { Outlet, OutletListResponse } from "@/features/master-data/outlet/types";
 
 const BASE = "/pos";
 const API_BASE_URL_FALLBACK = "http://localhost:8087";
@@ -124,6 +125,12 @@ export const posOrderService = {
   getCatalog(outletId: string) {
     return apiClient
       .get<ApiResponse<POSCatalogItem[]>>(`${BASE}/catalog/outlet/${outletId}`)
+      .then((r) => r.data);
+  },
+
+  listOutlets() {
+    return apiClient
+      .get<OutletListResponse<Outlet>>(`${BASE}/outlets`)
       .then((r) => r.data);
   },
 };

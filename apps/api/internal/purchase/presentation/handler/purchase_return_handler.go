@@ -1,6 +1,7 @@
 package handler
 
 import (
+	stderrors "errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -133,6 +134,10 @@ func (h *PurchaseReturnHandler) Create(c *gin.Context) {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrStockValidation) {
+			response.ErrorResponse(c, http.StatusUnprocessableEntity, "STOCK_VALIDATION_ERROR", err.Error(), nil, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -169,6 +174,10 @@ func (h *PurchaseReturnHandler) Update(c *gin.Context) {
 		}
 		if err == usecase.ErrPurchaseReturnInvalid {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrStockValidation) {
+			response.ErrorResponse(c, http.StatusUnprocessableEntity, "STOCK_VALIDATION_ERROR", err.Error(), nil, nil)
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())

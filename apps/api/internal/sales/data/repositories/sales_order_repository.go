@@ -177,6 +177,39 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		)`)
 	}
 
+	// Exclude SOs that already have an active CIDP (#252)
+	if req.ExcludeWithActiveCIDP {
+		query = query.Where(`NOT EXISTS (
+			SELECT 1 FROM customer_invoices ci
+			WHERE ci.sales_order_id = sales_orders.id
+			AND ci.type = 'down_payment'
+			AND ci.status NOT IN ('CANCELLED', 'VOID')
+			AND ci.deleted_at IS NULL
+		)`)
+	}
+
+	// Exclude SOs that already have a paid CI (#243)
+	if req.ExcludeWithPaidCI {
+		query = query.Where(`NOT EXISTS (
+			SELECT 1 FROM customer_invoices ci
+			WHERE ci.sales_order_id = sales_orders.id
+			AND ci.type IN ('regular', 'proforma')
+			AND ci.status IN ('PAID')
+			AND ci.deleted_at IS NULL
+		)`)
+	}
+
+	// Exclude SOs that already have a non-cancelled regular/proforma invoice (#239)
+	if req.AvailableForInvoice {
+		query = query.Where(`NOT EXISTS (
+			SELECT 1 FROM customer_invoices ci
+			WHERE ci.sales_order_id = sales_orders.id
+			AND ci.type IN ('regular', 'proforma')
+			AND ci.status NOT IN ('CANCELLED', 'VOID')
+			AND ci.deleted_at IS NULL
+		)`)
+	}
+
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -198,13 +231,13 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 
 	// Apply sorting with whitelist and clause builder to prevent SQL injection
 	allowedSortColumns := map[string]string{
-		"code":           "code",
-		"order_date":     "order_date",
-		"customer_name":  "customer_name",
-		"total_amount":   "total_amount",
-		"status":         "status",
-		"created_at":     "created_at",
-		"updated_at":     "updated_at",
+		"code":          "code",
+		"order_date":    "order_date",
+		"customer_name": "customer_name",
+		"total_amount":  "total_amount",
+		"status":        "status",
+		"created_at":    "created_at",
+		"updated_at":    "updated_at",
 	}
 
 	sortBy := allowedSortColumns[strings.ToLower(strings.TrimSpace(req.SortBy))]
@@ -212,7 +245,7 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		sortBy = "order_date"
 	}
 
-	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) == "desc"
+	isDesc := strings.ToLower(strings.TrimSpace(req.SortDir)) != "asc"
 	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortBy}, Desc: isDesc})
 
 	// Execute query with preloads

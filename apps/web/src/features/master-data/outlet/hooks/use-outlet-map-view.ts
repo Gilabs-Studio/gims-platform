@@ -7,6 +7,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { MapMarker } from "@/components/ui/map/map-view";
 import { useOutlets, useDeleteOutlet, useOutletFormData } from "./use-outlets";
+import { useOutletLimit } from "./use-outlet-limit";
 import type { Outlet } from "../types";
 
 export type OutletPanelMode = "create" | "edit" | null;
@@ -44,6 +45,7 @@ export function useOutletMapView() {
   });
 
   const { data: formData } = useOutletFormData();
+  const { data: outletLimit } = useOutletLimit();
 
   const deleteOutlet = useDeleteOutlet();
 
@@ -74,6 +76,15 @@ export function useOutletMapView() {
   };
 
   const handleCreate = () => {
+    // Enforce outlet limit: if at or above max, trigger addon dialog flow
+    if (outletLimit && outletLimit.max > 0 && outletLimit.current >= outletLimit.max) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("outlet_create_resume_intent", new Date().toISOString().slice(0, 10));
+        window.dispatchEvent(new CustomEvent("open-outlet-addon"));
+      }
+      return;
+    }
+
     setEditingOutlet(null);
     setPanelMode("create");
   };
@@ -138,6 +149,7 @@ export function useOutletMapView() {
       outlets,
       markers,
       selectedOutlet,
+      outletLimit,
       isLoading,
       isDeleting: deleteOutlet.isPending,
       companies: formData?.data?.companies ?? [],

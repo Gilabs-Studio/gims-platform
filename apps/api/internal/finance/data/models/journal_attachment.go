@@ -9,7 +9,7 @@ import (
 
 // JournalAttachment stores uploaded supporting evidence for journal entries.
 type JournalAttachment struct {
-	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ID       string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 
 	JournalEntryID string        `gorm:"type:uuid;not null;index" json:"journal_entry_id"`

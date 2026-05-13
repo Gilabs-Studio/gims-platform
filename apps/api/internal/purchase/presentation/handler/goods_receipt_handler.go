@@ -51,16 +51,18 @@ func (h *GoodsReceiptHandler) List(c *gin.Context) {
 
 	search := c.Query("search")
 	status := c.Query("status")
+	warehouseID := c.Query("warehouse_id")
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortDir := c.DefaultQuery("sort_dir", "desc")
 
 	params := repositories.GoodsReceiptListParams{
-		Search:  search,
-		Status:  status,
-		SortBy:  sortBy,
-		SortDir: sortDir,
-		Limit:   perPage,
-		Offset:  (page - 1) * perPage,
+		Search:      search,
+		Status:      status,
+		WarehouseID: warehouseID,
+		SortBy:      sortBy,
+		SortDir:     sortDir,
+		Limit:       perPage,
+		Offset:      (page - 1) * perPage,
 	}
 
 	items, total, err := h.uc.List(c.Request.Context(), params)
@@ -84,6 +86,9 @@ func (h *GoodsReceiptHandler) List(c *gin.Context) {
 	if strings.TrimSpace(params.Status) != "" {
 		meta.Filters["status"] = params.Status
 	}
+	if strings.TrimSpace(params.WarehouseID) != "" {
+		meta.Filters["warehouse_id"] = params.WarehouseID
+	}
 	meta.Pagination.TotalPages = totalPages
 	meta.Pagination.HasNext = page < totalPages
 	meta.Pagination.HasPrev = page > 1
@@ -98,10 +103,7 @@ func (h *GoodsReceiptHandler) GetByID(c *gin.Context) {
 		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
 		return
 	}
-	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
-		return
-	}
+	// Accept both UUID and code/reference number — usecase resolves accordingly.
 	res, err := h.uc.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrGoodsReceiptNotFound {

@@ -289,6 +289,10 @@ export function VisitPlannerWorkspace() {
   const navRouteAbortRef = useRef<AbortController | null>(null);
   // Last position for which an OSRM route was successfully fetched, used to throttle by distance.
   const lastNavFetchPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  // Last timestamp when OSRM route was requested, to prevent request bursts from noisy GPS updates.
+  const lastNavFetchAtRef = useRef<number>(0);
+  // Last checkpoint target used for route fetches; if target changes we allow immediate refresh.
+  const lastNavTargetRef = useRef<string>("");
 
   const effectiveEmployeeId = useMemo(() => {
     if (readScope === "OWN") {
@@ -304,12 +308,6 @@ export function VisitPlannerWorkspace() {
     }),
     [effectiveEmployeeId, routeDate],
   );
-
-  useEffect(() => {
-    // Reset to employees list view when date changes
-    setSidebarView("employees");
-    setSelectedRouteId("");
-  }, [routeDate]);
 
   const formDataQuery = useVisitPlannerFormData(queryParams, {
     enabled: canReadVisitPlanner,
@@ -518,12 +516,6 @@ export function VisitPlannerWorkspace() {
       return;
     }
 
-    if (!("geolocation" in navigator)) {
-      toast.error(t("navigation.gpsUnavailable"));
-      setIsNavigating(false);
-      return;
-    }
-
     const activeRouteId = navigationRouteId;
 
     const watchId = navigator.geolocation.watchPosition(
@@ -564,7 +556,6 @@ export function VisitPlannerWorkspace() {
   // Throttled: only re-fetches when the user has moved more than 30 metres from the last fetch position.
   useEffect(() => {
     if (!isNavigating || !currentGpsPosition) {
-      setNavigationPolyline(null);
       return;
     }
 
@@ -584,15 +575,18 @@ export function VisitPlannerWorkspace() {
     )[0];
 
     if (!nextCheckpoint) {
-      setNavigationPolyline(null);
+      lastNavTargetRef.current = "";
       return;
     }
 
-    // Throttle: skip re-fetching if user hasn't moved more than 30 metres.
-    if (
-      lastNavFetchPosRef.current
-      && haversineDistanceM(lastNavFetchPosRef.current, currentGpsPosition) < 30
-    ) {
+    const now = Date.now();
+    const targetChanged = lastNavTargetRef.current !== nextCheckpoint.id;
+    const movedDistanceM = lastNavFetchPosRef.current
+      ? haversineDistanceM(lastNavFetchPosRef.current, currentGpsPosition)
+      : Number.POSITIVE_INFINITY;
+
+    // Throttle: for the same target, require either meaningful movement or enough elapsed time.
+    if (!targetChanged && movedDistanceM < 30 && now - lastNavFetchAtRef.current < 15000) {
       return;
     }
 
@@ -611,6 +605,8 @@ export function VisitPlannerWorkspace() {
       .then((res) => res.json())
       .then((data: { code?: string; routes?: Array<{ geometry: string }> }) => {
         const geometry = data.routes?.[0]?.geometry;
+        lastNavFetchAtRef.current = now;
+        lastNavTargetRef.current = nextCheckpoint.id;
         if (geometry) {
           lastNavFetchPosRef.current = currentGpsPosition;
           setNavigationPolyline(decodePolyline(geometry));
@@ -621,6 +617,8 @@ export function VisitPlannerWorkspace() {
       })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
+        lastNavFetchAtRef.current = now;
+        lastNavTargetRef.current = nextCheckpoint.id;
         // Network error or other failure: fall back to straight line.
         setNavigationPolyline([[fromLat, fromLng], [toLat, toLng]]);
       });
@@ -628,7 +626,6 @@ export function VisitPlannerWorkspace() {
     return () => {
       controller.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNavigating, currentGpsPosition, ownRouteSortedCheckpoints]);
 
   const handleToggleNavigation = useCallback(async () => {
@@ -642,6 +639,8 @@ export function VisitPlannerWorkspace() {
         setNavigationPolyline(null);
         setMapFlyTarget(null);
         lastNavFetchPosRef.current = null;
+        lastNavFetchAtRef.current = 0;
+        lastNavTargetRef.current = "";
         navRouteAbortRef.current?.abort();
         if (geoWatchRef.current !== null) {
           navigator.geolocation.clearWatch(geoWatchRef.current);
@@ -651,6 +650,11 @@ export function VisitPlannerWorkspace() {
       } catch {
         toast.error(tCommon("error"));
       }
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      toast.error(t("navigation.gpsUnavailable"));
       return;
     }
 
@@ -1041,7 +1045,11 @@ export function VisitPlannerWorkspace() {
           {/* Date Picker */}
           <DatePicker
             value={routeDate}
-            onChange={setRouteDate}
+            onChange={(nextRouteDate) => {
+              setRouteDate(nextRouteDate);
+              setSidebarView("employees");
+              setSelectedRouteId("");
+            }}
             placeholder={t("filters.routeDate")}
           />
 

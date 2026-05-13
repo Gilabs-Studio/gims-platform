@@ -276,7 +276,8 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 
 	// Prevent updates on converted leads; geographical coordinates are the only allowed exception
 	// since an active deal may need to pin the customer's location.
-	if lead.ConvertedAt != nil {
+	// Also check DealID to catch leads whose ConvertedAt was not persisted due to a prior error.
+	if lead.ConvertedAt != nil || lead.DealID != nil {
 		if req.Latitude == nil && req.Longitude == nil {
 			return dto.LeadResponse{}, errors.New("cannot update a converted lead")
 		}
@@ -580,9 +581,11 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	// Recalculate lead score after updates
 	lead.LeadScore = lead.CalculateLeadScore()
 
-	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	// Nil out preloaded associations to prevent GORM FullSaveAssociations from
+	// attempting to upsert associated records (BelongsTo FK override, HasMany upsert).
 	lead.LeadSource = nil
 	lead.LeadStatus = nil
+	lead.ContactRole = nil
 	lead.AssignedEmployee = nil
 	lead.Customer = nil
 	lead.Contact = nil
@@ -591,6 +594,8 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	lead.Area = nil
 	lead.PaymentTerms = nil
 	lead.Activities = nil
+	lead.Tasks = nil
+	lead.ProductItems = nil
 
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead: %w", err)
@@ -668,8 +673,14 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("lead not found")
 	}
 
-	// Prevent double conversion
-	if lead.ConvertedAt != nil {
+	// Prevent double conversion: check the lead's own fields first, then scan for an
+	// orphaned deal (handles broken-state leads where the deal was created but the lead
+	// record was not updated before a previous request failure).
+	if lead.ConvertedAt != nil || lead.DealID != nil {
+		return dto.LeadResponse{}, errors.New("lead already converted")
+	}
+	orphanExists, _ := u.dealRepo.ExistsByLeadID(ctx, lead.ID)
+	if orphanExists {
 		return dto.LeadResponse{}, errors.New("lead already converted")
 	}
 
@@ -695,15 +706,32 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 			return dto.LeadResponse{}, errors.New("no pipeline stages available")
 		}
 
-		// Choose lowest probability stage (avoid won/lost stages if possible)
+		// Select the active stage with the highest probability that does not exceed
+		// the lead's probability. This mirrors where the lead currently stands in the
+		// sales cycle. For example: lead at 70% with stages 20%, 30%, 80%, 100%
+		// → stage at 30% is chosen (highest that is still ≤ 70%).
+		// If no stage probability is at or below the lead's, fall back to the first
+		// active non-won/non-lost stage by order.
 		var defaultStage *models.PipelineStage
 		for i := range stages {
 			stage := &stages[i]
 			if stage.IsWon || stage.IsLost || !stage.IsActive {
 				continue
 			}
-			if defaultStage == nil || stage.Probability < defaultStage.Probability {
-				defaultStage = stage
+			if stage.Probability <= lead.Probability {
+				if defaultStage == nil || stage.Probability > defaultStage.Probability {
+					defaultStage = stage
+				}
+			}
+		}
+		// Fallback: no stage probability ≤ lead's (e.g. all stages higher) — pick first by order.
+		if defaultStage == nil {
+			for i := range stages {
+				stage := &stages[i]
+				if !stage.IsWon && !stage.IsLost && stage.IsActive {
+					defaultStage = stage
+					break
+				}
 			}
 		}
 
@@ -841,9 +869,11 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 
 	lead.LeadScore = lead.CalculateLeadScore()
 
-	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	// Nil out preloaded associations to prevent GORM FullSaveAssociations from
+	// attempting to upsert associated records (BelongsTo FK override, HasMany upsert).
 	lead.LeadSource = nil
 	lead.LeadStatus = nil
+	lead.ContactRole = nil
 	lead.AssignedEmployee = nil
 	lead.Customer = nil
 	lead.Contact = nil
@@ -852,6 +882,8 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	lead.Area = nil
 	lead.PaymentTerms = nil
 	lead.Activities = nil
+	lead.Tasks = nil
+	lead.ProductItems = nil
 
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead conversion: %w", err)
@@ -1137,6 +1169,9 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 	statusOptions := make([]dto.LeadStatusOption, 0, len(statuses))
 	for _, s := range statuses {
+		if !s.IsActive {
+			continue
+		}
 		statusOptions = append(statusOptions, dto.LeadStatusOption{
 			ID:          s.ID,
 			Name:        s.Name,
@@ -1155,6 +1190,9 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 	stageOptions := make([]dto.LeadPipelineStageOption, 0, len(stages))
 	for _, s := range stages {
+		if !s.IsActive {
+			continue
+		}
 		stageOptions = append(stageOptions, dto.LeadPipelineStageOption{
 			ID:          s.ID,
 			Name:        s.Name,

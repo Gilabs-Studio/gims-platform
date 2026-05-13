@@ -24,9 +24,9 @@ export function AssetCategoryList() {
   const t = useTranslations("financeAssetCategories");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("asset.create");
-  const canUpdate = useUserPermission("asset.update");
-  const canDelete = useUserPermission("asset.delete");
+  const canCreate = useUserPermission("asset_category.create");
+  const canUpdate = useUserPermission("asset_category.update");
+  const canDelete = useUserPermission("asset_category.delete");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

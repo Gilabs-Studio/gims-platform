@@ -85,7 +85,7 @@ export function SupplierMapView() {
     supplier_type_id: typeFilter !== "all" ? typeFilter : undefined,
   });
 
-  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20 });
+  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20, active_only: true });
   const supplierTypes = supplierTypesData?.data ?? [];
 
   const deleteSupplier = useDeleteSupplier();
@@ -109,8 +109,13 @@ export function SupplierMapView() {
   const selectedSupplier = useMemo(
     () => suppliers.find((s) => s.id === selectedSupplierId),
     [suppliers, selectedSupplierId]
-  ); // Used for future feature: scroll-to-card on map marker click
-  void selectedSupplier;
+  );
+
+  // Pan map to selected supplier when user clicks a sidebar card
+  const flyToPosition = useMemo(() => {
+    if (selectedSupplier?.latitude == null || selectedSupplier?.longitude == null) return null;
+    return { lat: Number(selectedSupplier.latitude), lng: Number(selectedSupplier.longitude) };
+  }, [selectedSupplier]);
 
   // Handlers
   const handleSupplierClick = (supplier: Supplier) => {
@@ -377,6 +382,7 @@ export function SupplierMapView() {
             defaultCenter={[-6.2088, 106.8456]}
             defaultZoom={12}
             selectedMarkerId={selectedSupplierId}
+            flyToPosition={flyToPosition}
           />
         )}
       </div>

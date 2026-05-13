@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ButtonLoading } from "@/components/loading";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ImageUpload } from "@/components/ui/image-upload";
 import {
   Select,
@@ -26,16 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { ChefHat, Plus, Trash2 } from "lucide-react";
-import { useCreateProduct, useProducts } from "../../hooks/use-products";
+import { useCreateProduct, useUpdateProduct, useProducts } from "../../hooks/use-products";
 import { useProductCategories } from "../../hooks/use-product-categories";
-import { useUnitsOfMeasure } from "../../hooks/use-units-of-measure";
-import type { RecipeItemRequest } from "../../types";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { ProductIngredientCreateDialog } from "./product-ingredient-create-dialog";
+import type { Product, RecipeItemRequest } from "../../types";
 
 interface ProductFnbCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided, the dialog operates in edit mode */
+  editingItem?: Product | null;
 }
 
 interface RecipeRow {
@@ -68,35 +72,49 @@ function createRecipeRow(): RecipeRow {
 export function ProductFnbCreateDialog({
   open,
   onOpenChange,
+  editingItem,
 }: ProductFnbCreateDialogProps) {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
 
+  const isEditing = !!editingItem;
   const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [sellingPrice, setSellingPrice] = useState<number>(0);
   const [categoryId, setCategoryId] = useState("");
-  const [uomId, setUomId] = useState("");
+  const [posScope, setPosScope] = useState<"none" | "global" | "specific">("global");
+  const [outletIds, setOutletIds] = useState<string[]>([]);
+  const [outletSearch, setOutletSearch] = useState("");
   const [ingredientPickerOpen, setIngredientPickerOpen] = useState(false);
   const [ingredientSearchQuery, setIngredientSearchQuery] = useState("");
   const [ingredientLoadedPages, setIngredientLoadedPages] = useState(1);
   const [recipeRows, setRecipeRows] = useState<RecipeRow[]>([]);
 
+  // Inline ingredient creation state
+  const [ingredientCreateOpen, setIngredientCreateOpen] = useState(false);
+  const [ingredientCreateRowId, setIngredientCreateRowId] = useState<string | null>(null);
+  const [ingredientCreateInitialName, setIngredientCreateInitialName] = useState("");
+  // Options for newly created ingredients before the query refetches
+  const [localIngredientOptions, setLocalIngredientOptions] = useState<Array<{ value: string; label: string }>>([])
+
+
   const [nameError, setNameError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [recipeError, setRecipeError] = useState<string | null>(null);
+  const [outletError, setOutletError] = useState<string | null>(null);
 
   const fetchOptions = { enabled: open };
   const { data: categoriesData, isLoading: categoriesLoading } = useProductCategories(
-    { per_page: 100, sort: "name" },
+    { per_page: 100, sort: "name", active_only: true },
     fetchOptions
   );
-  const { data: uomsData } = useUnitsOfMeasure(
-    { per_page: 100, sort: "name" },
+  const { data: outletsData } = useOutlets(
+    { per_page: 200, sort_by: "name" },
     fetchOptions
   );
 
@@ -120,10 +138,17 @@ export function ProductFnbCreateDialog({
     [categoriesData?.data]
   );
 
-  const uomOptions = useMemo(
-    () => [...(uomsData?.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
-    [uomsData?.data]
+  const outlets = useMemo(
+    () => [...(outletsData?.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [outletsData?.data]
   );
+  const filteredOutlets = useMemo(() => {
+    const q = outletSearch.trim().toLowerCase();
+    if (!q) {
+      return outlets;
+    }
+    return outlets.filter((o) => o.name.toLowerCase().includes(q));
+  }, [outlets, outletSearch]);
 
   const recipeTotalCost = useMemo(
     () =>
@@ -139,10 +164,12 @@ export function ProductFnbCreateDialog({
 
   const ingredientOptionProducts = useMemo(() => ingredientsData?.data ?? [], [ingredientsData?.data]);
 
-  const ingredientComboboxOptions = useMemo(
-    () => ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` })),
-    [ingredientOptionProducts]
-  );
+  const ingredientComboboxOptions = useMemo(() => {
+    const remote = ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` }));
+    // Merge locally created ingredients that are not yet in the remote list
+    const localOnly = localIngredientOptions.filter((lo) => !remote.some((r) => r.value === lo.value));
+    return [...remote, ...localOnly];
+  }, [ingredientOptionProducts, localIngredientOptions]);
 
   const resetForm = () => {
     setName("");
@@ -150,7 +177,9 @@ export function ProductFnbCreateDialog({
     setImageUrl(null);
     setSellingPrice(0);
     setCategoryId("");
-    setUomId("");
+    setPosScope("global");
+    setOutletIds([]);
+    setOutletSearch("");
     setIngredientPickerOpen(false);
     setIngredientSearchQuery("");
     setIngredientLoadedPages(1);
@@ -158,6 +187,11 @@ export function ProductFnbCreateDialog({
     setNameError(null);
     setCategoryError(null);
     setRecipeError(null);
+    setOutletError(null);
+    setLocalIngredientOptions([]);
+    setIngredientCreateOpen(false);
+    setIngredientCreateRowId(null);
+    setIngredientCreateInitialName("");
   };
 
   const handleOpenChangeInternal = (isOpen: boolean) => {
@@ -168,6 +202,78 @@ export function ProductFnbCreateDialog({
     }
 
     onOpenChange(isOpen);
+  };
+
+  // Pre-fill form when editing an existing recipe product
+  useEffect(() => {
+    if (open && editingItem) {
+      startTransition(() => {
+        setName(editingItem.name ?? "");
+        setDescription(editingItem.description ?? "");
+        setImageUrl(editingItem.image_url ?? null);
+        setSellingPrice(editingItem.selling_price ?? 0);
+        setCategoryId(editingItem.category_id ?? "");
+        setPosScope((editingItem.pos_scope ?? "global") as "none" | "global" | "specific");
+        setOutletIds(editingItem.outlet_ids ?? []);
+        // Map existing recipe items to rows
+        if (editingItem.recipe_items && editingItem.recipe_items.length > 0) {
+          setRecipeRows(
+            editingItem.recipe_items.map((ri) => ({
+              row_id: crypto.randomUUID(),
+              ingredient_product_id: ri.ingredient_product_id ?? "",
+              ingredient_name: ri.ingredient?.name ?? "",
+              ingredient_code: ri.ingredient?.code ?? "",
+              quantity: ri.quantity ?? 1,
+              uom_id: ri.uom_id ?? null,
+              uom_symbol: ri.uom?.symbol ?? ri.uom?.name ?? "",
+              ingredient_cost_price: ri.ingredient?.cost_price ?? 0,
+            }))
+          );
+        }
+      });
+    }
+  }, [open, editingItem]);
+
+  const handleCreateIngredientForRow = (rowId: string, query: string) => {
+    setIngredientCreateRowId(rowId);
+    setIngredientCreateInitialName(query);
+    setIngredientCreateOpen(true);
+  };
+
+  const handleIngredientCreated = (item: {
+    id: string;
+    name: string;
+    code: string;
+    cost_price: number;
+    uom_id: string | null;
+    uom_symbol: string;
+  }) => {
+    // Immediately populate the recipe row that triggered the creation
+    if (ingredientCreateRowId) {
+      setRecipeRows((prev) =>
+        prev.map((row) => {
+          if (row.row_id !== ingredientCreateRowId) return row;
+          return {
+            ...row,
+            ingredient_product_id: item.id,
+            ingredient_name: item.name,
+            ingredient_code: item.code,
+            uom_id: item.uom_id,
+            uom_symbol: item.uom_symbol,
+            ingredient_cost_price: item.cost_price,
+          };
+        })
+      );
+      setRecipeError(null);
+    }
+    // Add to local options so the combobox renders the label immediately
+    setLocalIngredientOptions((prev) => [
+      ...prev.filter((o) => o.value !== item.id),
+      { value: item.id, label: `${item.name} (${item.code})` },
+    ]);
+    setIngredientCreateOpen(false);
+    setIngredientCreateRowId(null);
+    setIngredientCreateInitialName("");
   };
 
   const handleAddIngredientRow = () => {
@@ -278,6 +384,13 @@ export function ProductFnbCreateDialog({
       setRecipeError(null);
     }
 
+    if (posScope === "specific" && outletIds.length === 0) {
+      setOutletError(tValidation("required"));
+      hasError = true;
+    } else {
+      setOutletError(null);
+    }
+
     if (hasError) {
       return;
     }
@@ -290,17 +403,18 @@ export function ProductFnbCreateDialog({
     }));
 
     try {
-      await createMutation.mutateAsync({
+      const payload = {
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
-        image_url: imageUrl || undefined,
+        image_url: isEditing ? (imageUrl && imageUrl.trim() !== "" ? imageUrl : "") : (imageUrl || undefined),
         category_id: categoryId,
-        uom_id: uomId || null,
-        product_kind: "RECIPE",
+        uom_id: null,
+        product_kind: "RECIPE" as const,
         is_ingredient: false,
         is_inventory_tracked: true,
-        is_pos_available: true,
+        pos_scope: posScope,
+        outlet_ids: posScope === "specific" ? outletIds : [],
         purchase_uom_conversion: 1,
         is_tax_inclusive: true,
         lead_time_days: 0,
@@ -309,9 +423,15 @@ export function ProductFnbCreateDialog({
         min_stock: 0,
         max_stock: 0,
         recipe_items: recipeItems,
-      });
+      };
 
-      toast.success(t("created"));
+      if (isEditing && editingItem) {
+        await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        toast.success(tCommon("saved", { fallback: "Saved" }));
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success(t("created"));
+      }
       handleOpenChangeInternal(false);
     } catch (error) {
       let errorMessage = tCommon("error");
@@ -344,7 +464,8 @@ export function ProductFnbCreateDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChangeInternal}>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChangeInternal}>
       <DialogContent
         size="2xl"
         className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
@@ -352,7 +473,7 @@ export function ProductFnbCreateDialog({
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <ChefHat className="h-4 w-4 text-success" />
-            {t("createRecipe")}
+            {isEditing ? tCommon("edit", { fallback: "Edit" }) + " " + t("createRecipe", { fallback: "Recipe" }) : t("createRecipe")}
           </DialogTitle>
           <DialogDescription>{t("createRecipeDesc")}</DialogDescription>
         </DialogHeader>
@@ -365,6 +486,7 @@ export function ProductFnbCreateDialog({
                 <ImageUpload
                   value={imageUrl}
                   onChange={(url) => setImageUrl(url)}
+                  uploadFolder={isEditing && editingItem?.id ? `products/${editingItem.id}` : "products"}
                   disabled={createMutation.isPending}
                   enableUrlInput
                   enableImageSearch
@@ -456,26 +578,6 @@ export function ProductFnbCreateDialog({
                       placeholder="0"
                     />
                   </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="fnb-product-uom">{t("form.uom")}</FieldLabel>
-                    <Select
-                      value={uomId || "none"}
-                      onValueChange={(value) => setUomId(value === "none" ? "" : value)}
-                    >
-                      <SelectTrigger id="fnb-product-uom" className="cursor-pointer">
-                        <SelectValue placeholder={t("form.uom")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">-</SelectItem>
-                        {uomOptions.map((uom) => (
-                          <SelectItem key={uom.id} value={uom.id}>
-                            {uom.name} ({uom.symbol})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
                 </div>
 
                 <Field>
@@ -489,6 +591,98 @@ export function ProductFnbCreateDialog({
                     placeholder={t("form.description")}
                   />
                 </Field>
+
+                {outlets.length > 0 && (
+                  <section className="space-y-2 rounded-md border p-3">
+                    <p className="text-xs text-muted-foreground">
+                      {t("outletAssignment.hint")}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["none", "global", "specific"] as const).map((scope) => (
+                        <button
+                          key={scope}
+                          type="button"
+                          onClick={() => {
+                            setPosScope(scope);
+                            if (scope !== "specific") {
+                              setOutletIds([]);
+                            }
+                            setOutletError(null);
+                          }}
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-left transition-colors cursor-pointer",
+                            posScope === scope
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-border hover:border-muted-foreground/40"
+                          )}
+                        >
+                          <p className={cn("text-xs font-semibold", posScope === scope ? "text-primary" : "text-foreground")}>
+                            {t(`outletAssignment.posScope${scope.charAt(0).toUpperCase()}${scope.slice(1)}` as "outletAssignment.posScopeNone")}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {t(`outletAssignment.posScope${scope.charAt(0).toUpperCase()}${scope.slice(1)}Desc` as "outletAssignment.posScopeNoneDesc")}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+
+                    {posScope === "specific" && (
+                      <div className="rounded-md border">
+                        <div className="flex items-center gap-2 px-3 py-2 border-b">
+                          <Input
+                            value={outletSearch}
+                            onChange={(e) => setOutletSearch(e.target.value)}
+                            placeholder={t("outletAssignment.searchPlaceholder")}
+                            className="h-7 text-xs"
+                          />
+                          <button
+                            type="button"
+                            className="shrink-0 text-[10px] text-primary hover:underline cursor-pointer"
+                            onClick={() => setOutletIds(filteredOutlets.map((o) => o.id))}
+                          >
+                            {t("outletAssignment.selectAll")}
+                          </button>
+                          <span className="text-muted-foreground text-[10px]">·</span>
+                          <button
+                            type="button"
+                            className="shrink-0 text-[10px] text-muted-foreground hover:text-destructive cursor-pointer"
+                            onClick={() => setOutletIds([])}
+                          >
+                            {t("outletAssignment.clearAll")}
+                          </button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {filteredOutlets.length === 0 ? (
+                            <p className="py-4 text-center text-xs text-muted-foreground">{t("outletAssignment.noOutlets")}</p>
+                          ) : (
+                            filteredOutlets.map((outlet) => {
+                              const checked = outletIds.includes(outlet.id);
+                              return (
+                                <label
+                                  key={outlet.id}
+                                  className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-muted/40 select-none border-b last:border-b-0"
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) => {
+                                      const next = v
+                                        ? [...outletIds, outlet.id]
+                                        : outletIds.filter((id) => id !== outlet.id);
+                                      setOutletIds(next);
+                                      setOutletError(null);
+                                    }}
+                                  />
+                                  <span className="text-sm">{outlet.name}</span>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {outletError && <FieldError>{outletError}</FieldError>}
+                  </section>
+                )}
               </div>
             </div>
 
@@ -549,6 +743,9 @@ export function ProductFnbCreateDialog({
                             onLoadMore={handleIngredientLoadMore}
                             hasMore={hasMoreIngredients}
                             isLoadingMore={ingredientFetching && ingredientLoadedPages > 1}
+                            createPermission="product.create"
+                            createLabel={t("recipe.createIngredient", { query: "{query}" })}
+                            onCreateClick={(query) => handleCreateIngredientForRow(row.row_id, query)}
                           />
                         </div>
 
@@ -612,26 +809,34 @@ export function ProductFnbCreateDialog({
               type="button"
               variant="outline"
               onClick={() => handleOpenChangeInternal(false)}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="cursor-pointer"
             >
               {tCommon("cancel")}
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="cursor-pointer"
             >
               <ButtonLoading
-                loading={createMutation.isPending}
+                loading={createMutation.isPending || updateMutation.isPending}
                 loadingText={tCommon("saving")}
               >
-                {t("createRecipe")}
+                {isEditing ? tCommon("save") : t("createRecipe")}
               </ButtonLoading>
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ProductIngredientCreateDialog
+        open={ingredientCreateOpen}
+        onOpenChange={setIngredientCreateOpen}
+        initialName={ingredientCreateInitialName}
+        onCreated={handleIngredientCreated}
+      />
+    </>
   );
 }

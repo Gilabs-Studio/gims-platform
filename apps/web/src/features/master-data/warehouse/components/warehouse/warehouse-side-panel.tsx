@@ -2,7 +2,7 @@
 
 import { Drawer } from "@/components/ui/drawer";
 import { useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,7 +21,6 @@ import type { Warehouse } from "../../types";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().max(500).optional(),
-  capacity: z.number().min(0).optional().nullable(),
   address: z.string().max(500).optional(),
   province_id: z.string().optional(),
   city_id: z.string().optional(),
@@ -68,7 +67,6 @@ export function WarehouseSidePanel({
     defaultValues: {
       name: "",
       description: "",
-      capacity: null,
       address: "",
       province_id: undefined,
       city_id: undefined,
@@ -112,7 +110,6 @@ export function WarehouseSidePanel({
         reset({
           name: entity.name,
           description: entity.description ?? "",
-          capacity: entity.capacity ?? null,
           address: entity.address ?? "",
           province_id: entity.province_id ?? p?.id ?? undefined,
           city_id: entity.city_id ?? c?.id ?? undefined,
@@ -127,7 +124,6 @@ export function WarehouseSidePanel({
       reset({
         name: "",
         description: "",
-        capacity: null,
         address: "",
         village_name: "",
         latitude: null,
@@ -148,7 +144,6 @@ export function WarehouseSidePanel({
           data: {
             name: data.name,
             description: data.description ?? "",
-            capacity: data.capacity ?? undefined,
             address: data.address ?? "",
             province_id: data.province_id || null,
             city_id: data.city_id || null,
@@ -165,7 +160,6 @@ export function WarehouseSidePanel({
         await createWarehouse.mutateAsync({
           name: data.name,
           description: data.description || undefined,
-          capacity: data.capacity ?? undefined,
           address: data.address || undefined,
           province_id: data.province_id || undefined,
           city_id: data.city_id || undefined,
@@ -229,25 +223,6 @@ export function WarehouseSidePanel({
                 disabled={isViewing}
               />
             </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("warehouse.form.capacity")}</FieldLabel>
-              <Controller
-                control={control}
-                name="capacity"
-                render={({ field }) => (
-                  <Input
-                    type="number"
-                    placeholder={t("warehouse.form.capacityPlaceholder")}
-                    disabled={isViewing}
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber || null)}
-                  />
-                )}
-              />
-            </Field>
-
 
           </div>
 

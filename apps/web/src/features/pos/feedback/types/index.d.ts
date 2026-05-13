@@ -81,6 +81,7 @@ export interface FeedbackResponseItem {
   form_id: string;
   outlet_id: string;
   outlet_name?: string;
+  sales_order_id?: string;
   pos_order_id?: string;
   customer_name?: string;
   answers: Record<string, AnswerValue>;

@@ -23,6 +23,7 @@ var posGrowthDefaultMenuURLs = []string{
 	"/sales/payments",
 	"/purchase/purchase-orders",
 	"/purchase/supplier-invoices",
+	"/purchase/goods-receipt",
 	"/purchase/payments",
 	"/stock/inventory",
 	"/stock/movements",
@@ -98,6 +99,7 @@ func DefaultPlanEntitlementRows(planSlug string) []PlanEntitlementRow {
 			PlanEntitlementRow{MenuURL: "/finance/journals/purchase", PermissionCode: "purchase_journal.read"},
 			PlanEntitlementRow{MenuURL: "/finance/settings/fiscal-years", PermissionCode: "fiscal_year.read"},
 			PlanEntitlementRow{MenuURL: "/finance/settings/fiscal-years", PermissionCode: "fiscal_year.write"},
+			PlanEntitlementRow{MenuURL: "/finance/settings/fiscal-years", PermissionCode: "fiscal_year.delete"},
 			PlanEntitlementRow{MenuURL: "/finance/settings/accounting-mapping", PermissionCode: "account_mappings.read"},
 		)
 		return rows

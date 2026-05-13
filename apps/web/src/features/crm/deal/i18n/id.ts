@@ -11,7 +11,7 @@ export const crmDealId = {
     addDeal: "Tambah Deal",
     searchPlaceholder: "Cari deal...",
     emptyState: "Tidak ada deal ditemukan",
-    noItems: "Tidak ada item produk",
+    noItems: "Belum ada minat produk",
     noHistory: "Tidak ada riwayat perpindahan tahap",
     activities: "Aktivitas",
     activityTimeline: "Timeline Aktivitas",
@@ -57,7 +57,7 @@ export const crmDealId = {
     moveStageConvertDescription:
       "Otomatis membuat sales quotation dari deal ini saat dipindahkan ke tahap Won.",
     moveStageConvertNoItems:
-      "Tidak bisa konversi: deal tidak memiliki item produk.",
+      "Tidak bisa konversi: deal tidak memiliki minat produk.",
     moveStageConvertNoCustomer:
       "Tidak bisa konversi: deal tidak memiliki customer atau lead yang ditautkan.",
     moveStageConvertAutoCreateCustomer:
@@ -79,7 +79,7 @@ export const crmDealId = {
     descriptionPlaceholder: "Jelaskan deal ini",
     value: "Nilai",
     valuePlaceholder: "0",
-    valueAutoCalculated: "Nilai dihitung otomatis dari item produk",
+    valueAutoCalculated: "Nilai dihitung otomatis dari minat produk",
     probability: "Probabilitas (%)",
     probabilityPlaceholder: "0",
     pipelineStage: "Tahap Pipeline",
@@ -132,9 +132,9 @@ export const crmDealId = {
     closeReasonPlaceholder: "Alasan penutupan deal ini",
     dates: "Tanggal",
 
-    // Product items
-    productItems: "Item Produk",
-    addItem: "Tambah Item Produk",
+    // Product interest
+    productItems: "Minat Produk",
+    addItem: "Tambah Minat Produk",
     product: "Produk",
     productPlaceholder: "Pilih produk",
     selectProduct: "Pilih produk",
@@ -185,7 +185,7 @@ export const crmDealId = {
 
     // Form tabs & section headers
     tabBasic: "Informasi Dasar",
-    tabItems: "Produk & BANT",
+    tabItems: "Minat Produk & BANT",
     sectionDealInfo: "Informasi Deal",
     sectionCustomerInfo: "Pelanggan & Penugasan",
     summary: "Ringkasan",
@@ -201,7 +201,7 @@ export const crmDealId = {
     // Sections
     sections: {
       basicInfo: "Informasi Dasar",
-      productItems: "Item Produk",
+      productItems: "Minat Produk",
       bant: "Kualifikasi BANT",
       assignment: "Penugasan",
       notes: "Catatan",

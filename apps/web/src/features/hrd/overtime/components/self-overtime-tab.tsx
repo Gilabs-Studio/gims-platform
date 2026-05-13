@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -20,7 +20,6 @@ import {
   useCancelOvertimeRequest,
 } from "../hooks/use-overtime";
 import type { OvertimeRequest, OvertimeStatus } from "../types";
-import { cn } from "@/lib/utils";
 
 function statusVariant(
   status: OvertimeStatus,
@@ -77,7 +76,7 @@ export function SelfOvertimeTab() {
 
   const cancelMutation = useCancelOvertimeRequest();
 
-  const requests = listData?.data ?? [];
+  const requests = useMemo(() => listData?.data ?? [], [listData?.data]);
 
   // Debug logging
   useEffect(() => {

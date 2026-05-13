@@ -3,7 +3,8 @@ import type {
   ProfileApiResponse, 
   UpdateProfileRequest, 
   ChangePasswordRequest, 
-  AvatarUploadApiResponse 
+  AvatarUploadApiResponse,
+  TenantDeletionScheduleApiResponse,
 } from "../types";
 
 const PROFILE_URL = "/profile";
@@ -38,6 +39,11 @@ export const profileService = {
         },
       }
     );
+    return response.data;
+  },
+
+  requestAccountDeletion: async () => {
+    const response = await apiClient.post<TenantDeletionScheduleApiResponse>(`${PROFILE_URL}/delete-account`);
     return response.data;
   },
 };

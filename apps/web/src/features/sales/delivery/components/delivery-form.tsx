@@ -1,29 +1,62 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Controller, FormProvider, useWatch, useFormContext } from "react-hook-form";
+import {
+	Controller,
+	FormProvider,
+	useWatch,
+	useFormContext,
+} from "react-hook-form";
 import type { Control } from "react-hook-form";
-import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
+import {
+	Loader2,
+	Plus,
+	Trash2,
+	CalendarIcon,
+	FileText,
+	ShoppingCart,
+	AlertTriangle,
+	XCircle,
+	CheckCircle2,
+} from "lucide-react";
 
-import { type CreateDeliveryOrderFormData, type UpdateDeliveryOrderFormData, type DeliveryOrderItemFormData } from "../schemas/delivery.schema";
+import {
+	type CreateDeliveryOrderFormData,
+	type UpdateDeliveryOrderFormData,
+	type DeliveryOrderItemFormData,
+} from "../schemas/delivery.schema";
 
 import { ButtonLoading } from "@/components/loading";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+	Field,
+	FieldDescription,
+	FieldLabel,
+	FieldError,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@/components/ui/select";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
@@ -31,730 +64,1110 @@ import { useProductBatches } from "@/features/stock/inventory/hooks/use-product-
 import { inventoryService } from "@/features/stock/inventory/services/inventory-service";
 import type { DeliveryOrder } from "../types";
 import { useDeliveryForm } from "../hooks/use-delivery-form";
-import type { InventoryBatchItem, InventoryStockItem } from "@/features/stock/inventory/types";
+import type {
+	InventoryBatchItem,
+	InventoryStockItem,
+} from "@/features/stock/inventory/types";
 import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
 import { CourierAgencyDialog } from "@/features/master-data/payment-and-couriers/courier-agency/components/courier-agency-dialog";
 
 interface DeliveryFormProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly delivery?: DeliveryOrder | null;
-  readonly defaultSalesOrderId?: string;
+	readonly open: boolean;
+	readonly onClose: () => void;
+	readonly delivery?: DeliveryOrder | null;
+	readonly defaultSalesOrderId?: string;
 }
 
-export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: DeliveryFormProps) {
-  const {
-    form,
-    t,
-    isEdit,
-    activeTab,
-    setActiveTab,
-    isValidating,
-    isLoading,
-    isFormLoading,
-    fields,
-    remove,
-    salesOrders,
-    employees,
-    courierAgencies,
-    warehouses,
-    handleNext,
-    handleFormSubmit,
-    handleAddItem,
-    handleDialogChange,
-    onInvalid,
-    watchedSalesOrderId,
-    quickCreate,
-    openQuickCreate,
-    closeQuickCreate,
-    enableReferenceOptionsFetch,
-    handleDeliveredByCreated,
-    handleCourierAgencyCreated,
-    salesOrdersCombobox,
-    employeesCombobox,
-    courierAgenciesCombobox,
-    warehousesCombobox,
-  } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
+export function DeliveryForm({
+	open,
+	onClose,
+	delivery,
+	defaultSalesOrderId,
+}: DeliveryFormProps) {
+	const {
+		form,
+		t,
+		isEdit,
+		activeTab,
+		setActiveTab,
+		isValidating,
+		isLoading,
+		isFormLoading,
+		fields,
+		remove,
+		salesOrders,
+		employees,
+		courierAgencies,
+		warehouses,
+		selectedSalesOrderLabel,
+		selectedWarehouseLabel,
+		handleNext,
+		handleFormSubmit,
+		handleAddItem,
+		handleDialogChange,
+		onInvalid,
+		quickCreate,
+		openQuickCreate,
+		closeQuickCreate,
+		enableReferenceOptionsFetch,
+		handleDeliveredByCreated,
+		handleCourierAgencyCreated,
+		salesOrdersCombobox,
+		employeesCombobox,
+		courierAgenciesCombobox,
+		warehousesCombobox,
+		insert,
+	} = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
-  const { register, handleSubmit, control, formState: { errors }, getValues, setValue } = form;
+	const watchedItems = useWatch({ control: form.control, name: "items" });
+	const hasLockedSalesOrderItems = useMemo(
+		() => (watchedItems ?? []).some((item) => !!item?.sales_order_item_id),
+		[watchedItems],
+	);
 
-  return (
-    <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? t("edit") : t("create")}
-          </DialogTitle>
-        </DialogHeader>
+	const {
+		register,
+		handleSubmit,
+		control,
+		formState: { errors },
+		getValues,
+		setValue,
+	} = form;
 
-        {isFormLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "basic" | "items")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">
-                {t("tabs.general") || "General"}
-              </TabsTrigger>
-              <TabsTrigger value="items">
-                {t("items") || "Items"}
-              </TabsTrigger>
-            </TabsList>
+	return (
+		<Dialog open={open} onOpenChange={handleDialogChange}>
+			<DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>{isEdit ? t("edit") : t("create")}</DialogTitle>
+				</DialogHeader>
 
-            <FormProvider {...form}>
-            <form onSubmit={handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6 mt-4">
-              <TabsContent value="basic" className="space-y-4 mt-0">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">{t("common.delivery")}</h3>
-                  </div>
-                  <div className="grid gap-4 grid-cols-2">
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("deliveryDate")} *</FieldLabel>
-                      <Controller
-                        name="delivery_date"
-                        control={control}
-                        render={({ field }) => (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? formatDate(new Date(field.value)) : t("common.selectDate")}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={(date: Date | undefined) => {
-                                  field.onChange(date ? date.toISOString().split('T')[0] : "");
-                                }}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                      />
-                      {errors.delivery_date && (
-                        <FieldError>{errors.delivery_date.message}</FieldError>
-                      )}
-                    </Field>
+				{isFormLoading ? (
+					<div className="flex items-center justify-center py-12">
+						<Loader2 className="h-8 w-8 animate-spin text-primary" />
+					</div>
+				) : (
+					<Tabs
+						value={activeTab}
+						onValueChange={(value) => setActiveTab(value as "basic" | "items")}
+						className="w-full"
+					>
+						<TabsList className="grid w-full grid-cols-2">
+							<TabsTrigger value="basic">
+								{t("tabs.general") || "General"}
+							</TabsTrigger>
+							<TabsTrigger value="items">{t("items") || "Items"}</TabsTrigger>
+						</TabsList>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("warehouse")} *</FieldLabel>
-                      <Controller
-                        name="warehouse_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value}
-                            onValueChange={(val) => {
-                              field.onChange(val);
-                              // Sync items warehouse if they are empty
-                              const currentItems = getValues("items");
-                              if (currentItems && currentItems.length > 0) {
-                                currentItems.forEach((_, idx) => {
-                                  if (!getValues(`items.${idx}.warehouse_id`)) {
-                                     setValue(`items.${idx}.warehouse_id`, val as string);
-                                  }
-                                });
-                              }
-                            }}
-                            onOpenChange={(isOpen) => {
-                              if (isOpen) {
-                                enableReferenceOptionsFetch();
-                              }
-                              warehousesCombobox.onOpenChange(isOpen);
-                            }}
-                            onSearchChange={warehousesCombobox.onSearchChange}
-                            searchDebounceMs={300}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("warehouse")} />
-                            </SelectTrigger>
-                            <SelectContent
-                              onLoadMore={warehousesCombobox.onLoadMore}
-                              hasMore={warehousesCombobox.hasMore}
-                              isLoadingMore={warehousesCombobox.isLoadingMore}
-                            >
-                              {warehouses.filter(w => w.is_active).map((w) => (
-                                <SelectItem key={w.id} value={w.id}>
-                                  {w.code ? `${w.code} - ${w.name}` : w.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.warehouse_id && (
-                        <FieldError>{errors.warehouse_id.message}</FieldError>
-                      )}
-                    </Field>
+						<FormProvider {...form}>
+							<form
+								onSubmit={handleSubmit(handleFormSubmit, onInvalid)}
+								className="space-y-6 mt-4"
+							>
+								<TabsContent value="basic" className="space-y-4 mt-0">
+									{/* Basic Information */}
+									<div className="space-y-4">
+										<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+											<FileText className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-medium">
+												{t("common.delivery")}
+											</h3>
+										</div>
+										<div className="grid gap-4 grid-cols-2">
+											<Field orientation="vertical">
+												<FieldLabel>{t("deliveryDate")} *</FieldLabel>
+												<Controller
+													name="delivery_date"
+													control={control}
+													render={({ field }) => (
+														<Popover>
+															<PopoverTrigger asChild>
+																<Button
+																	type="button"
+																	variant="outline"
+																	className={cn(
+																		"w-full justify-start text-left font-normal",
+																		!field.value && "text-muted-foreground",
+																	)}
+																>
+																	<CalendarIcon className="mr-2 h-4 w-4" />
+																	{field.value
+																		? formatDate(new Date(field.value))
+																		: t("common.selectDate")}
+																</Button>
+															</PopoverTrigger>
+															<PopoverContent
+																className="w-auto p-0"
+																align="start"
+															>
+																<Calendar
+																	mode="single"
+																	selected={
+																		field.value
+																			? new Date(field.value)
+																			: undefined
+																	}
+																	onSelect={(date: Date | undefined) => {
+																		field.onChange(
+																			date
+																				? date.toISOString().split("T")[0]
+																				: "",
+																		);
+																	}}
+																/>
+															</PopoverContent>
+														</Popover>
+													)}
+												/>
+												{errors.delivery_date && (
+													<FieldError>
+														{errors.delivery_date.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("salesOrder")} *</FieldLabel>
-                      <Controller
-                        name="sales_order_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value}
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                            }}
-                            onOpenChange={(isOpen) => {
-                              if (isOpen) {
-                                enableReferenceOptionsFetch();
-                              }
-                              salesOrdersCombobox.onOpenChange(isOpen);
-                            }}
-                            onSearchChange={salesOrdersCombobox.onSearchChange}
-                            searchDebounceMs={300}
-                            disabled={isEdit}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder={t("salesOrder")} />
-                            </SelectTrigger>
-                            <SelectContent
-                              onLoadMore={salesOrdersCombobox.onLoadMore}
-                              hasMore={salesOrdersCombobox.hasMore}
-                              isLoadingMore={salesOrdersCombobox.isLoadingMore}
-                            >
-                              {salesOrders.map((order) => (
-                                <SelectItem key={order.id} value={order.id}>
-                                  {order.code} - {formatCurrency(order.total_amount ?? 0)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.sales_order_id && (
-                        <FieldError>{errors.sales_order_id.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical">
+												<FieldLabel>{t("defaultWarehouse")} *</FieldLabel>
+												<Controller
+													name="warehouse_id"
+													control={control}
+													render={({ field }) => (
+														<Select
+															value={field.value}
+															onValueChange={(val) => {
+																field.onChange(val);
+																// Sync items warehouse if they are empty
+																const currentItems = getValues("items");
+																if (currentItems && currentItems.length > 0) {
+																	currentItems.forEach((_, idx) => {
+																		if (
+																			!getValues(`items.${idx}.warehouse_id`)
+																		) {
+																			setValue(
+																				`items.${idx}.warehouse_id`,
+																				val as string,
+																			);
+																		}
+																	});
+																}
+															}}
+															onOpenChange={(isOpen) => {
+																if (isOpen) {
+																	enableReferenceOptionsFetch();
+																}
+																warehousesCombobox.onOpenChange(isOpen);
+															}}
+															onSearchChange={warehousesCombobox.onSearchChange}
+															searchDebounceMs={300}
+															selectedLabel={selectedWarehouseLabel}
+														>
+															<SelectTrigger>
+																<SelectValue placeholder={t("warehouse")} />
+															</SelectTrigger>
+															<SelectContent
+																onLoadMore={warehousesCombobox.onLoadMore}
+																hasMore={warehousesCombobox.hasMore}
+																isLoadingMore={warehousesCombobox.isLoadingMore}
+															>
+																{warehouses
+																	.filter((w) => w.is_active)
+																	.map((w) => (
+																		<SelectItem key={w.id} value={w.id}>
+																			{w.code
+																				? `${w.code} - ${w.name}`
+																				: w.name}
+																		</SelectItem>
+																	))}
+															</SelectContent>
+														</Select>
+													)}
+												/>
+												<FieldDescription>
+													{t("defaultWarehouseHint")}
+												</FieldDescription>
+												{errors.warehouse_id && (
+													<FieldError>{errors.warehouse_id.message}</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("deliveredBy")}</FieldLabel>
-                      <Controller
-                        name="delivered_by_id"
-                        control={control}
-                        render={({ field }) => (
-                          <CreatableCombobox
-                            options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                            onOpenChange={(isOpen) => {
-                              if (isOpen) {
-                                enableReferenceOptionsFetch();
-                              }
-                              employeesCombobox.onOpenChange(isOpen);
-                            }}
-                            onSearchChange={employeesCombobox.onSearchChange}
-                            onLoadMore={employeesCombobox.onLoadMore}
-                            hasMore={employeesCombobox.hasMore}
-                            isLoadingMore={employeesCombobox.isLoadingMore}
-                            searchDebounceMs={300}
-                            placeholder={t("deliveredBy")}
-                            createPermission="employee.create"
-                            onCreateClick={() => openQuickCreate("employee")}
-                            isLoading={employeesCombobox.isLoading || employeesCombobox.isFetching}
-                          />
-                        )}
-                      />
-                      {errors.delivered_by_id && (
-                        <FieldError>{errors.delivered_by_id.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical" className="col-span-2">
+												<FieldLabel>{t("salesOrder")} *</FieldLabel>
+												<Controller
+													name="sales_order_id"
+													control={control}
+													render={({ field }) => (
+														<Select
+															value={field.value}
+															onValueChange={(value) => {
+																field.onChange(value);
+															}}
+															onOpenChange={(isOpen) => {
+																if (isOpen) {
+																	enableReferenceOptionsFetch();
+																}
+																salesOrdersCombobox.onOpenChange(isOpen);
+															}}
+															onSearchChange={
+																salesOrdersCombobox.onSearchChange
+															}
+															searchDebounceMs={300}
+															disabled={isEdit}
+															selectedLabel={selectedSalesOrderLabel}
+														>
+															<SelectTrigger>
+																<SelectValue placeholder={t("salesOrder")} />
+															</SelectTrigger>
+															<SelectContent
+																onLoadMore={salesOrdersCombobox.onLoadMore}
+																hasMore={salesOrdersCombobox.hasMore}
+																isLoadingMore={
+																	salesOrdersCombobox.isLoadingMore
+																}
+															>
+																{salesOrders.map((order) => (
+																	<SelectItem key={order.id} value={order.id}>
+																		{order.code} -{" "}
+																		{formatCurrency(order.total_amount ?? 0)}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													)}
+												/>
+												{errors.sales_order_id && (
+													<FieldError>
+														{errors.sales_order_id.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("courierAgency")}</FieldLabel>
-                      <Controller
-                        name="courier_agency_id"
-                        control={control}
-                        render={({ field }) => (
-                          <CreatableCombobox
-                            options={courierAgencies.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name }))}
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                            onOpenChange={(isOpen) => {
-                              if (isOpen) {
-                                enableReferenceOptionsFetch();
-                              }
-                              courierAgenciesCombobox.onOpenChange(isOpen);
-                            }}
-                            onSearchChange={courierAgenciesCombobox.onSearchChange}
-                            onLoadMore={courierAgenciesCombobox.onLoadMore}
-                            hasMore={courierAgenciesCombobox.hasMore}
-                            isLoadingMore={courierAgenciesCombobox.isLoadingMore}
-                            searchDebounceMs={300}
-                            placeholder={t("courierAgency")}
-                            createPermission="courier_agency.create"
-                            onCreateClick={() => openQuickCreate("courierAgency")}
-                            isLoading={courierAgenciesCombobox.isLoading || courierAgenciesCombobox.isFetching}
-                          />
-                        )}
-                      />
-                      {errors.courier_agency_id && (
-                        <FieldError>{errors.courier_agency_id.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical">
+												<FieldLabel>{t("deliveredBy")}</FieldLabel>
+												<Controller
+													name="delivered_by_id"
+													control={control}
+													render={({ field }) => (
+														<CreatableCombobox
+															options={employees.map((emp) => ({
+																value: emp.id,
+																label: `${emp.employee_code} - ${emp.name}`,
+															}))}
+															value={field.value || ""}
+															onValueChange={field.onChange}
+															onOpenChange={(isOpen) => {
+																if (isOpen) {
+																	enableReferenceOptionsFetch();
+																}
+																employeesCombobox.onOpenChange(isOpen);
+															}}
+															onSearchChange={employeesCombobox.onSearchChange}
+															onLoadMore={employeesCombobox.onLoadMore}
+															hasMore={employeesCombobox.hasMore}
+															isLoadingMore={employeesCombobox.isLoadingMore}
+															searchDebounceMs={300}
+															placeholder={t("deliveredBy")}
+															createPermission="employee.create"
+															onCreateClick={() => openQuickCreate("employee")}
+															isLoading={
+																employeesCombobox.isLoading ||
+																employeesCombobox.isFetching
+															}
+														/>
+													)}
+												/>
+												{errors.delivered_by_id && (
+													<FieldError>
+														{errors.delivered_by_id.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("trackingNumber")}</FieldLabel>
-                      <Input {...register("tracking_number")} placeholder={t("trackingNumber")} />
-                      {errors.tracking_number && (
-                        <FieldError>{errors.tracking_number.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical">
+												<FieldLabel>{t("courierAgency")}</FieldLabel>
+												<Controller
+													name="courier_agency_id"
+													control={control}
+													render={({ field }) => (
+														<CreatableCombobox
+															options={courierAgencies.map(
+																(a: { id: string; name: string }) => ({
+																	value: a.id,
+																	label: a.name,
+																}),
+															)}
+															value={field.value || ""}
+															onValueChange={field.onChange}
+															onOpenChange={(isOpen) => {
+																if (isOpen) {
+																	enableReferenceOptionsFetch();
+																}
+																courierAgenciesCombobox.onOpenChange(isOpen);
+															}}
+															onSearchChange={
+																courierAgenciesCombobox.onSearchChange
+															}
+															onLoadMore={courierAgenciesCombobox.onLoadMore}
+															hasMore={courierAgenciesCombobox.hasMore}
+															isLoadingMore={
+																courierAgenciesCombobox.isLoadingMore
+															}
+															searchDebounceMs={300}
+															placeholder={t("courierAgency")}
+															createPermission="courier_agency.create"
+															onCreateClick={() =>
+																openQuickCreate("courierAgency")
+															}
+															isLoading={
+																courierAgenciesCombobox.isLoading ||
+																courierAgenciesCombobox.isFetching
+															}
+														/>
+													)}
+												/>
+												{errors.courier_agency_id && (
+													<FieldError>
+														{errors.courier_agency_id.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("receiverName")}</FieldLabel>
-                      <Input {...register("receiver_name")} placeholder={t("receiverName")} />
-                      {errors.receiver_name && (
-                        <FieldError>{errors.receiver_name.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical">
+												<FieldLabel>{t("trackingNumber")}</FieldLabel>
+												<Input
+													{...register("tracking_number")}
+													placeholder={t("trackingNumber")}
+												/>
+												{errors.tracking_number && (
+													<FieldError>
+														{errors.tracking_number.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("receiverPhone")}</FieldLabel>
-                      <Input {...register("receiver_phone")} placeholder={t("receiverPhone")} />
-                      {errors.receiver_phone && (
-                        <FieldError>{errors.receiver_phone.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical" className="col-span-2">
+												<FieldLabel>{t("receiverName")}</FieldLabel>
+												<Input
+													{...register("receiver_name")}
+													placeholder={t("receiverName")}
+												/>
+												{errors.receiver_name && (
+													<FieldError>
+														{errors.receiver_name.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("deliveryAddress")}</FieldLabel>
-                      <Textarea {...register("delivery_address")} rows={3} placeholder={t("deliveryAddress")} />
-                      {errors.delivery_address && (
-                        <FieldError>{errors.delivery_address.message}</FieldError>
-                      )}
-                    </Field>
+											<Field orientation="vertical">
+												<FieldLabel>{t("receiverPhone")}</FieldLabel>
+												<Input
+													inputMode="numeric"
+													onKeyDown={(e) => {
+														if (
+															!/^[\d\b]$/.test(e.key) &&
+															!e.metaKey &&
+															!e.ctrlKey &&
+															![
+																"Backspace",
+																"Delete",
+																"ArrowLeft",
+																"ArrowRight",
+																"Tab",
+																"Home",
+																"End",
+															].includes(e.key)
+														) {
+															e.preventDefault();
+														}
+													}}
+													{...register("receiver_phone")}
+													placeholder={t("receiverPhone")}
+												/>
+												{errors.receiver_phone && (
+													<FieldError>
+														{errors.receiver_phone.message}
+													</FieldError>
+												)}
+											</Field>
 
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("notes")}</FieldLabel>
-                      <Textarea {...register("notes")} rows={3} />
-                      {errors.notes && <FieldError>{errors.notes.message}</FieldError>}
-                    </Field>
-                  </div>
-                </div>
+											<Field orientation="vertical" className="col-span-2">
+												<FieldLabel>{t("deliveryAddress")}</FieldLabel>
+												<Textarea
+													{...register("delivery_address")}
+													rows={3}
+													placeholder={t("deliveryAddress")}
+												/>
+												{errors.delivery_address && (
+													<FieldError>
+														{errors.delivery_address.message}
+													</FieldError>
+												)}
+											</Field>
 
-                {/* Basic Tab Actions */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onClose}
-                    className="cursor-pointer"
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    className="cursor-pointer"
-                    disabled={isValidating}
-                  >
-                    <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
-                      {t("common.next") || "Next"}
-                    </ButtonLoading>
-                  </Button>
-                </div>
-              </TabsContent>
+											<Field orientation="vertical" className="col-span-2">
+												<FieldLabel>{t("notes")}</FieldLabel>
+												<Textarea {...register("notes")} rows={3} />
+												{errors.notes && (
+													<FieldError>{errors.notes.message}</FieldError>
+												)}
+											</Field>
+										</div>
+									</div>
 
-              <TabsContent value="items" className="space-y-4 mt-0">
-                {/* Items Section - Single Column Layout */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-                    <ShoppingCart className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">{t("items")} ({fields.length})</h3>
-                  </div>
+									{/* Basic Tab Actions */}
+									<div className="flex items-center justify-end gap-2 pt-4 border-t">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={onClose}
+											className="cursor-pointer"
+										>
+											{t("common.cancel")}
+										</Button>
+										<Button
+											type="button"
+											onClick={handleNext}
+											className="cursor-pointer"
+											disabled={isValidating}
+										>
+											<ButtonLoading
+												loading={isValidating}
+												loadingText={t("common.validating") || "Validating..."}
+											>
+												{t("common.next") || "Next"}
+											</ButtonLoading>
+										</Button>
+									</div>
+								</TabsContent>
 
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                    {fields.map((field, index) => {
-                      // Get product name from helper field or lookup
-                      // We can just use a lookup since we have access to SO data if needed, 
-                      // but simpler to assume it's pre-populated since we don't have a products list here
-                      const items = getValues("items") as Array<DeliveryOrderItemFormData & { product_name?: string }>;
-                      const currentItem = items && items[index];
-                      const productName = currentItem?.product_name || `Product ID: ${currentItem?.product_id}`;
+								<TabsContent value="items" className="space-y-4 mt-0">
+									{/* Items Section - Single Column Layout */}
+									<div className="space-y-4">
+										<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+											<ShoppingCart className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-medium">
+												{t("items")} ({fields.length})
+											</h3>
+										</div>
 
-                      return (
-                        <div
-                          key={field.id}
-                          className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="absolute top-2 right-2 flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">#{index + 1}</span>
-                            {/* Remove delete button if derived from Sales Order? 
-                                Maybe allow deleting if partial delivery of LINES. 
-                                Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
-                            */}
-                             <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(index)}
-                              className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+										<div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+											{fields.map((field, index) => {
+												// Get product name from helper field or lookup
+												// We can just use a lookup since we have access to SO data if needed,
+												// but simpler to assume it's pre-populated since we don't have a products list here
+												const items = getValues("items") as Array<
+													DeliveryOrderItemFormData & {
+														product_name?: string;
+														row_type?: "primary" | "allocation";
+														allocation_parent_index?: number;
+													}
+												>;
+												const currentItem = items && items[index];
+												const productName = currentItem?.product_name || "Selected product";
+												const isAllocation = currentItem?.row_type === "allocation";
+												const allocationLabel = isAllocation
+													? `Allocation #${(currentItem?.allocation_parent_index ?? 0) + 1}`
+													: "Main item";
 
-                          <div className="grid grid-cols-2 gap-3 mt-6">
-                            <Field orientation="vertical" className="col-span-2">
-                              <FieldLabel>{t("item.product")}</FieldLabel>
-                              <div className="p-2 bg-muted rounded-md text-sm font-medium">
-                                {productName}
-                              </div>
-                            </Field>
+												return (
+													<div
+														key={field.id}
+														className={cn(
+															"relative rounded-xl p-4 space-y-3 transition-all duration-200",
+															isAllocation
+																? "ml-8 border border-primary/20 bg-primary/5 shadow-sm"
+																: "border bg-card shadow-sm hover:shadow-md hover:-translate-y-[1px]",
+														)}
+													>
+															<div className="absolute top-3 right-3 flex items-center gap-2">
+																<span className="text-[11px] text-muted-foreground font-medium px-2 py-1 bg-muted rounded-full">
+																#{index + 1}
+															</span>
+																<span className={cn(
+																	"text-[11px] font-medium px-2 py-1 rounded-full",
+																	isAllocation
+																		? "bg-primary/10 text-primary"
+																		: "bg-muted text-muted-foreground",
+																)}>
+																	{allocationLabel}
+																</span>
+																{!currentItem?.sales_order_item_id && (
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																onClick={() => remove(index)}
+																className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+															>
+																<Trash2 className="h-4 w-4" />
+															</Button>
+															)}
+														</div>
 
-                            <WarehouseSelectionField
-                              control={control}
-                              index={index}
-                              error={errors.items?.[index]?.warehouse_id?.message}
-                              t={t}
-                              open={open}
-                              warehouses={warehouses}
-                              warehousesCombobox={{
-                                onOpenChange: warehousesCombobox.onOpenChange,
-                                onSearchChange: warehousesCombobox.onSearchChange,
-                                onLoadMore: warehousesCombobox.onLoadMore,
-                                hasMore: warehousesCombobox.hasMore,
-                                isLoadingMore: warehousesCombobox.isLoadingMore,
-                              }}
-                              enableReferenceOptionsFetch={enableReferenceOptionsFetch}
-                            />
+														<div className={cn("grid grid-cols-2 gap-3 mt-6", isAllocation && "pt-2") }>
+															<Field
+																orientation="vertical"
+																className="col-span-2"
+															>
+																<FieldLabel>{t("item.product")}</FieldLabel>
+																<div className={cn("p-2 rounded-md text-sm font-medium", isAllocation ? "bg-primary/10 text-primary" : "bg-muted") }>
+																	{productName}
+																</div>
+															</Field>
 
-                            <Field orientation="vertical">
-                              <FieldLabel>{t("item.quantity")} *</FieldLabel>
-                              <Controller
-                                name={`items.${index}.quantity`}
-                                control={control}
-                                render={({ field }) => (
-                                  <NumericInput
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    min={0.001}
-                                  />
-                                )}
-                              />
-                              {errors.items?.[index]?.quantity && (
-                                <FieldError>
-                                  {errors.items[index]?.quantity?.message}
-                                </FieldError>
-                              )}
-                            </Field>
+															<WarehouseSelectionField
+																control={control}
+																index={index}
+																error={
+																	errors.items?.[index]?.warehouse_id?.message
+																}
+																t={t}
+																open={open}
+																warehouses={warehouses}
+																warehousesCombobox={{
+																	onOpenChange: warehousesCombobox.onOpenChange,
+																	onSearchChange:
+																		warehousesCombobox.onSearchChange,
+																	onLoadMore: warehousesCombobox.onLoadMore,
+																	hasMore: warehousesCombobox.hasMore,
+																	isLoadingMore:
+																		warehousesCombobox.isLoadingMore,
+																}}
+																enableReferenceOptionsFetch={
+																	enableReferenceOptionsFetch
+																}
+															/>
 
-                            <BatchSelectionField 
-                              control={control}
-                              index={index}
-                              open={open}
-                              error={errors.items?.[index]?.inventory_batch_id?.message}
-                              t={t}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {errors.items && typeof errors.items === "object" && "message" in errors.items && (
-                      <FieldError>{errors.items.message}</FieldError>
-                    )}
+															<Field orientation="vertical">
+																<FieldLabel>{t("item.quantity")} *</FieldLabel>
+																<Controller
+																	name={`items.${index}.quantity`}
+																	control={control}
+																	render={({ field }) => (
+																		<NumericInput
+																			value={field.value}
+																			onChange={field.onChange}
+																			min={0.001}
+																		/>
+																	)}
+																/>
+																{errors.items?.[index]?.quantity && (
+																	<FieldError>
+																		{errors.items[index]?.quantity?.message}
+																	</FieldError>
+																)}
+															</Field>
 
-                    {!watchedSalesOrderId && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddItem}
-                        className="w-full cursor-pointer border-dashed"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("addItem")}
-                      </Button>
-                     )}
-                  </div>
-                </div>
+															<BatchSelectionField
+																control={control}
+																index={index}
+																open={open}
+																error={
+																	errors.items?.[index]?.inventory_batch_id
+																		?.message
+																}
+																t={t}
+															/>
+														</div>
 
-                {/* Tab Navigation Buttons for Items Tab */}
-                <div className="flex items-center justify-between gap-2 pt-4 border-t">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setActiveTab("basic")}
-                    className="cursor-pointer"
-                  >
-                    {t("common.back") || "Back"}
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onClose}
-                      disabled={isLoading}
-                      className="cursor-pointer"
-                    >
-                      {t("common.cancel")}
-                    </Button>
-                    <Button type="submit" disabled={isLoading} className="cursor-pointer">
-                      <ButtonLoading 
-                        loading={isLoading} 
-                        loadingText={t("common.saving")}
-                      >
-                        {isEdit ? t("common.update") : t("common.create")}
-                      </ButtonLoading>
-                    </Button>
-                  </div>
-                </div>
-              </TabsContent>
-            </form>
-            </FormProvider>
-          </Tabs>
-        )}
-      </DialogContent>
+														{/* Allocation controls: show Add Warehouse on non-allocation rows */}
+														{!isAllocation && (
+															<div className="flex justify-end mt-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() => {
+																		// insert a new allocation row after current index
+																		// use the insert function returned from the hook via props
+																		// build a shallow clone of current item with reset batch/warehouse/qty
+																		const itemClone = {
+																			product_id: currentItem?.product_id || "",
+																			product_name: currentItem?.product_name || "Selected product",
+																			warehouse_id: "",
+																			sales_order_item_id: currentItem?.sales_order_item_id || "",
+																			inventory_batch_id: "",
+																			quantity: 1,
+																			price: currentItem?.price || 0,
+																			installation_status: "",
+																			function_test_status: "",
+																			row_type: "allocation" as const,
+																			allocation_parent_index: index,
+																		};
+																		// call insert from hook return
+																		insert(index + 1, itemClone as DeliveryOrderItemFormData);
+																	}}
+																>
+																	<Plus className="h-4 w-4 mr-2" />
+																	Add warehouse
+																</Button>
+															</div>
+														)}
+													</div>
+												);
+											})}
+											{errors.items &&
+												typeof errors.items === "object" &&
+												"message" in errors.items && (
+													<FieldError>{errors.items.message}</FieldError>
+												)}
 
-      {quickCreate.type === "employee" && (
-        <EmployeeForm
-          open
-          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-          onCreated={handleDeliveredByCreated}
-        />
-      )}
-      {quickCreate.type === "courierAgency" && (
-        <CourierAgencyDialog
-          open
-          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-          onCreated={handleCourierAgencyCreated}
-        />
-      )}
-    </Dialog>
-  );
+															{!hasLockedSalesOrderItems && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={handleAddItem}
+													className="w-full cursor-pointer border-dashed"
+												>
+													<Plus className="h-4 w-4 mr-2" />
+													{t("addItem")}
+												</Button>
+											)}
+										</div>
+									</div>
+
+									{/* Tab Navigation Buttons for Items Tab */}
+									<div className="flex items-center justify-between gap-2 pt-4 border-t">
+										<Button
+											type="button"
+											variant="outline"
+											onClick={() => setActiveTab("basic")}
+											className="cursor-pointer"
+										>
+											{t("common.back") || "Back"}
+										</Button>
+										<div className="flex gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={onClose}
+												disabled={isLoading}
+												className="cursor-pointer"
+											>
+												{t("common.cancel")}
+											</Button>
+											<Button
+												type="submit"
+												disabled={isLoading}
+												className="cursor-pointer"
+											>
+												<ButtonLoading
+													loading={isLoading}
+													loadingText={t("common.saving")}
+												>
+													{isEdit ? t("common.update") : t("common.create")}
+												</ButtonLoading>
+											</Button>
+										</div>
+									</div>
+								</TabsContent>
+							</form>
+						</FormProvider>
+					</Tabs>
+				)}
+			</DialogContent>
+
+			{quickCreate.type === "employee" && (
+				<EmployeeForm
+					open
+					onOpenChange={(o) => {
+						if (!o) closeQuickCreate();
+					}}
+					onCreated={handleDeliveredByCreated}
+				/>
+			)}
+			{quickCreate.type === "courierAgency" && (
+				<CourierAgencyDialog
+					open
+					onOpenChange={(o) => {
+						if (!o) closeQuickCreate();
+					}}
+					onCreated={handleCourierAgencyCreated}
+				/>
+			)}
+		</Dialog>
+	);
 }
 
 function WarehouseSelectionField({
-  control,
-  index,
-  error,
-  t,
-  open,
-  warehouses,
-  warehousesCombobox,
-  enableReferenceOptionsFetch,
+	control,
+	index,
+	error,
+	t,
+	open,
+	warehouses,
+	warehousesCombobox,
+	enableReferenceOptionsFetch,
 }: {
-  control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
-  index: number;
-  error?: string | null;
-  t: (key: string) => string;
-  open: boolean;
-  warehouses: Array<{ id: string; name: string; code?: string; is_active?: boolean }>;
-  warehousesCombobox: {
-    onOpenChange: (isOpen: boolean) => void;
-    onSearchChange: (value: string) => void;
-    onLoadMore: () => void;
-    hasMore: boolean;
-    isLoadingMore: boolean;
-  };
-  enableReferenceOptionsFetch: () => void;
+	control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+	index: number;
+	error?: string | null;
+	t: (key: string) => string;
+	open: boolean;
+	warehouses: Array<{
+		id: string;
+		name: string;
+		code?: string;
+		is_active?: boolean;
+	}>;
+	warehousesCombobox: {
+		onOpenChange: (isOpen: boolean) => void;
+		onSearchChange: (value: string) => void;
+		onLoadMore: () => void;
+		hasMore: boolean;
+		isLoadingMore: boolean;
+	};
+	enableReferenceOptionsFetch: () => void;
 }) {
-  const { setValue } = useFormContext();
-  const productId = useWatch({ control, name: `items.${index}.product_id` });
-  const selectedWarehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
+	const { setValue } = useFormContext();
+	const productId = useWatch({ control, name: `items.${index}.product_id` });
+	const selectedWarehouseId = useWatch({
+		control,
+		name: `items.${index}.warehouse_id`,
+	});
 
-  const { data: stockData, isSuccess: hasStockData } = useQuery({
-    queryKey: ["sales", "delivery", "product-warehouses", productId],
-    queryFn: () =>
-      inventoryService.getInventory({
-        page: 1,
-        per_page: 100,
-        product_id: (productId as string) ?? "",
-      }),
-    enabled: open && !!productId,
-    staleTime: 30_000,
-  });
+	const { data: stockData, isSuccess: hasStockData } = useQuery({
+		queryKey: ["sales", "delivery", "product-warehouses", productId],
+		queryFn: () =>
+			inventoryService.getInventory({
+				page: 1,
+				per_page: 100,
+				product_id: (productId as string) ?? "",
+			}),
+		enabled: open && !!productId,
+		staleTime: 30_000,
+	});
 
-  const stocks = useMemo(() => {
-    return (stockData?.data?.data ?? []) as InventoryStockItem[];
-  }, [stockData]);
+	const stocks = useMemo(() => {
+		return (stockData?.data?.data ?? []) as InventoryStockItem[];
+	}, [stockData]);
 
-  const availableWarehouseIDs = useMemo(() => {
-    const result = new Set<string>();
-    stocks.forEach((stock) => {
-      if ((stock.available ?? 0) > 0) {
-        result.add(stock.warehouse_id);
-      }
-    });
-    return result;
-  }, [stocks]);
+	const availableWarehouseIDs = useMemo(() => {
+		const result = new Set<string>();
+		stocks.forEach((stock) => {
+			if ((stock.available ?? 0) > 0) {
+				result.add(stock.warehouse_id);
+			}
+		});
+		return result;
+	}, [stocks]);
 
-  const warehouseOptions = useMemo(() => {
-    const activeWarehouses = warehouses.filter((warehouse) => warehouse.is_active);
-    if (!productId || !hasStockData) {
-      return activeWarehouses;
-    }
+	const warehouseOptions = useMemo(() => {
+		const activeWarehouses = warehouses.filter(
+			(warehouse) => warehouse.is_active,
+		);
+		if (!productId || !hasStockData) {
+			return activeWarehouses;
+		}
 
-    return activeWarehouses.filter(
-      (warehouse) =>
-        availableWarehouseIDs.has(warehouse.id) ||
-        (selectedWarehouseId !== undefined && warehouse.id === selectedWarehouseId)
-    );
-  }, [warehouses, productId, hasStockData, availableWarehouseIDs, selectedWarehouseId]);
+		return activeWarehouses.filter(
+			(warehouse) =>
+				availableWarehouseIDs.has(warehouse.id) ||
+				(selectedWarehouseId !== undefined &&
+					warehouse.id === selectedWarehouseId),
+		);
+	}, [
+		warehouses,
+		productId,
+		hasStockData,
+		availableWarehouseIDs,
+		selectedWarehouseId,
+	]);
 
-  return (
-    <Field orientation="vertical">
-      <FieldLabel>{t("warehouse")} *</FieldLabel>
-      <Controller
-        name={`items.${index}.warehouse_id`}
-        control={control}
-        render={({ field }) => (
-          <Select
-            value={field.value}
-            onValueChange={(val) => {
-              field.onChange(val);
-              // Reset batch when warehouse changes.
-              setValue(`items.${index}.inventory_batch_id`, "");
-            }}
-            onOpenChange={(isOpen) => {
-              if (isOpen) {
-                enableReferenceOptionsFetch();
-              }
-              warehousesCombobox.onOpenChange(isOpen);
-            }}
-            onSearchChange={warehousesCombobox.onSearchChange}
-            searchDebounceMs={300}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t("warehouse")} />
-            </SelectTrigger>
-            <SelectContent
-              onLoadMore={warehousesCombobox.onLoadMore}
-              hasMore={warehousesCombobox.hasMore}
-              isLoadingMore={warehousesCombobox.isLoadingMore}
-            >
-              {warehouseOptions.map((warehouse) => (
-                <SelectItem key={warehouse.id} value={warehouse.id}>
-                  {warehouse.code ? `${warehouse.code} - ${warehouse.name}` : warehouse.name}
-                </SelectItem>
-              ))}
-              {hasStockData && !!productId && warehouseOptions.length === 0 && (
-                <div className="p-2 text-sm text-muted-foreground text-center">
-                  No warehouse with available stock for this product
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-        )}
-      />
-      {error && <FieldError>{error}</FieldError>}
-    </Field>
-  );
+	return (
+		<Field orientation="vertical">
+			<FieldLabel>{t("itemWarehouse")} *</FieldLabel>
+			<Controller
+				name={`items.${index}.warehouse_id`}
+				control={control}
+				render={({ field }) => (
+					<Select
+						value={field.value}
+						onValueChange={(val) => {
+							field.onChange(val);
+							// Reset batch when warehouse changes.
+							setValue(`items.${index}.inventory_batch_id`, "");
+						}}
+						onOpenChange={(isOpen) => {
+							if (isOpen) {
+								enableReferenceOptionsFetch();
+							}
+							warehousesCombobox.onOpenChange(isOpen);
+						}}
+						onSearchChange={warehousesCombobox.onSearchChange}
+						searchDebounceMs={300}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder={t("warehouse")} />
+						</SelectTrigger>
+						<SelectContent
+							onLoadMore={warehousesCombobox.onLoadMore}
+							hasMore={warehousesCombobox.hasMore}
+							isLoadingMore={warehousesCombobox.isLoadingMore}
+						>
+							{warehouseOptions.map((warehouse) => (
+								<SelectItem key={warehouse.id} value={warehouse.id}>
+									{warehouse.code
+										? `${warehouse.code} - ${warehouse.name}`
+										: warehouse.name}
+								</SelectItem>
+							))}
+							{hasStockData && !!productId && warehouseOptions.length === 0 && (
+								<div className="p-2 text-sm text-muted-foreground text-center">
+									No warehouse with available stock for this product
+								</div>
+							)}
+						</SelectContent>
+					</Select>
+				)}
+			/>
+			<FieldDescription>{t("itemWarehouseHint")}</FieldDescription>
+			{error && <FieldError>{error}</FieldError>}
+		</Field>
+	);
 }
 
 // Separate component to handle batch queries per row to avoid granular re-renders of the main form
-function BatchSelectionField({ control, index, error, t, open }: {
-  control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
-  index: number;
-  error?: string | null;
-  t: (key: string) => string;
-  open: boolean;
+function BatchSelectionField({
+	control,
+	index,
+	error,
+	t,
+	open,
+}: {
+	control: Control<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+	index: number;
+	error?: string | null;
+	t: (key: string) => string;
+	open: boolean;
 }) {
-  const warehouseId = useWatch({ control, name: `items.${index}.warehouse_id` });
-  const productId = useWatch({ control, name: `items.${index}.product_id` });
-  const quantity = useWatch({ control, name: `items.${index}.quantity` }) as number | undefined;
-  const { setValue } = useFormContext();
+	const warehouseId = useWatch({
+		control,
+		name: `items.${index}.warehouse_id`,
+	});
+	const productId = useWatch({ control, name: `items.${index}.product_id` });
+	const quantity = useWatch({ control, name: `items.${index}.quantity` }) as
+		| number
+		| undefined;
+	const selectedBatchId = useWatch({
+		control,
+		name: `items.${index}.inventory_batch_id`,
+	});
+	const { setValue, setError, clearErrors } = useFormContext();
 
-  const { data: batchesData, isLoading } = useProductBatches(warehouseId ?? "", (productId as string) ?? "", {
-    enabled: open && !!warehouseId && !!productId
-  });
+	const { data: batchesData, isLoading } = useProductBatches(
+		warehouseId ?? "",
+		(productId as string) ?? "",
+		{
+			enabled: open && !!warehouseId && !!productId,
+		},
+	);
 
-  const batches = useMemo(() => {
-    return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
-  }, [batchesData]);
+	const batches = useMemo(() => {
+		return (batchesData?.data?.data ?? []) as InventoryBatchItem[];
+	}, [batchesData]);
+	const availableBatches = useMemo(
+		() => batches.filter((batch: InventoryBatchItem) => (batch.available ?? 0) > 0),
+		[batches],
+	);
+	const selectedBatch = useMemo(
+		() => batches.find((batch: InventoryBatchItem) => batch.id === selectedBatchId) ?? null,
+		[batches, selectedBatchId],
+	);
+	const preferredBatch = useMemo(
+		() =>
+			availableBatches.find(
+				(batch: InventoryBatchItem) => (batch.available ?? 0) >= (quantity ?? 0),
+			) ?? availableBatches[0] ?? null,
+		[availableBatches, quantity],
+	);
+	const preferredBatchId = preferredBatch?.id;
+	const preferredBatchAvailable = preferredBatch?.available ?? 0;
 
-  // Aggregate available stock across all batches in the selected warehouse
-  const totalAvailable = batches.reduce((sum: number, b: InventoryBatchItem) => sum + (b.available ?? 0), 0);
-  const hasStock = totalAvailable > 0;
-  const isInsufficient = hasStock && (quantity ?? 0) > 0 && totalAvailable < (quantity ?? 0);
-  const fmt = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
+	useEffect(() => {
+		if (!open || !warehouseId || !productId) {
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
 
-  return (
-    <Field orientation="vertical">
-      <FieldLabel className="required">{t("item.batch")}</FieldLabel>
-      <Controller
-        name={`items.${index}.inventory_batch_id`}
-        control={control}
-        render={({ field }) => (
-          <Select
-            value={field.value || undefined}
-            onValueChange={(val) => {
-              field.onChange(val);
-              // Persist max_quantity from the selected batch for validation
-              const batch = batches.find((b: InventoryBatchItem) => b.id === val);
-              if (batch) {
-                setValue(`items.${index}.max_quantity`, batch.available, { shouldValidate: true });
-              }
-            }}
-            disabled={!warehouseId || !productId || isLoading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={isLoading ? t("common.loading") : t("item.selectBatch")} />
-            </SelectTrigger>
-            <SelectContent>
-              {batches.filter((b: InventoryBatchItem) => b.available > 0).map((batch: InventoryBatchItem) => (
-                <SelectItem key={batch.id} value={batch.id}>
-                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? formatDate(batch.expiry_date) : "-"})
-                </SelectItem>
-              ))}
-              {batches.length === 0 && !isLoading && (
-                <div className="p-2 text-sm text-muted-foreground text-center">
-                  {t("item.noBatchesAvailable")}
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-        )}
-      />
+		if (isLoading) {
+			return;
+		}
 
-      {/* Stock status indicator for the selected warehouse */}
-      {warehouseId && productId && !isLoading && (
-        <>
-          {!hasStock ? (
-            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-              <XCircle className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">Out of Stock</span>
-              <span className="opacity-75">— no available batches in this warehouse</span>
-            </div>
-          ) : isInsufficient ? (
-            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">Insufficient Stock</span>
-              <span className="opacity-75">
-                — available: {fmt(totalAvailable)} (need {fmt(quantity ?? 0)})
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-success text-xs dark:bg-success/20 dark:border-green-800 dark:text-success">
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">In Stock</span>
-              <span className="opacity-75">— available: {fmt(totalAvailable)} in this warehouse</span>
-            </div>
-          )}
-        </>
-      )}
+		if (availableBatches.length === 0) {
+			setError(`items.${index}.inventory_batch_id`, {
+				type: "manual",
+				message: t("validation.noBatchesAvailable"),
+			});
+			return;
+		}
 
-      {error && <FieldError>{error}</FieldError>}
-      {!warehouseId && (
-        <p className="text-xs text-muted-foreground mt-1">Select warehouse first</p>
-      )}
-    </Field>
-  );
+		if (!selectedBatch || (selectedBatch.available ?? 0) <= 0) {
+			setValue(`items.${index}.inventory_batch_id`, preferredBatchId ?? "", {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			setValue(`items.${index}.max_quantity`, preferredBatchAvailable, {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
+
+		if ((quantity ?? 0) > (selectedBatch.available ?? 0) && preferredBatchId !== selectedBatch.id) {
+			setValue(`items.${index}.inventory_batch_id`, preferredBatchId ?? "", {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			setValue(`items.${index}.max_quantity`, preferredBatchAvailable, {
+				shouldDirty: true,
+				shouldValidate: true,
+			});
+			clearErrors(`items.${index}.inventory_batch_id`);
+			return;
+		}
+
+		setValue(`items.${index}.max_quantity`, selectedBatch.available ?? 0, {
+			shouldValidate: true,
+		});
+		clearErrors(`items.${index}.inventory_batch_id`);
+	}, [
+		availableBatches,
+		clearErrors,
+		index,
+		preferredBatchAvailable,
+		preferredBatchId,
+		isLoading,
+		open,
+		productId,
+		quantity,
+		selectedBatch,
+		setError,
+		setValue,
+		warehouseId,
+		t,
+	]);
+
+	const batchHelperMessage = useMemo(() => {
+		if (!warehouseId) {
+			return t("item.selectWarehouseFirst");
+		}
+
+		if (!productId) {
+			return t("item.selectProductFirst");
+		}
+
+		if (isLoading) {
+			return t("common.loading");
+		}
+
+		if (availableBatches.length === 0) {
+			return t("item.noBatchesHint");
+		}
+
+		if (preferredBatch && selectedBatch?.id === preferredBatch.id) {
+			return t("item.autoSelectedBatch") +
+				(preferredBatch.batch_number ? `: ${preferredBatch.batch_number}` : "");
+		}
+
+		return "";
+	}, [availableBatches.length, isLoading, preferredBatch, productId, selectedBatch?.id, t, warehouseId]);
+
+	// Aggregate available stock across all batches in the selected warehouse
+	const totalAvailable = batches.reduce(
+		(sum: number, b: InventoryBatchItem) => sum + (b.available ?? 0),
+		0,
+	);
+	const hasStock = totalAvailable > 0;
+	const isInsufficient =
+		hasStock && (quantity ?? 0) > 0 && totalAvailable < (quantity ?? 0);
+	const fmt = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
+
+	return (
+		<Field orientation="vertical">
+			<FieldLabel className="required">{t("item.batch")}</FieldLabel>
+			<Controller
+				name={`items.${index}.inventory_batch_id`}
+				control={control}
+				render={({ field }) => (
+					<Select
+						value={field.value || undefined}
+						onValueChange={(val) => {
+							field.onChange(val);
+							// Persist max_quantity from the selected batch for validation
+							const batch = batches.find(
+								(b: InventoryBatchItem) => b.id === val,
+							);
+							if (batch) {
+								setValue(`items.${index}.max_quantity`, batch.available, {
+									shouldValidate: true,
+								});
+							}
+						}}
+						disabled={!warehouseId || !productId || isLoading}
+					>
+						<SelectTrigger>
+							<SelectValue
+								placeholder={
+									isLoading ? t("common.loading") : t("item.selectBatch")
+								}
+							/>
+						</SelectTrigger>
+						<SelectContent>
+							{batches
+								.filter((b: InventoryBatchItem) => b.available > 0)
+								.map((batch: InventoryBatchItem) => (
+									<SelectItem key={batch.id} value={batch.id}>
+										{batch.batch_number} (Qty: {batch.available}, Exp:{" "}
+										{batch.expiry_date ? formatDate(batch.expiry_date) : "-"})
+									</SelectItem>
+								))}
+							{batches.length === 0 && !isLoading && (
+								<div className="p-2 text-sm text-muted-foreground text-center">
+									{t("item.noBatchesAvailable")}
+								</div>
+							)}
+						</SelectContent>
+					</Select>
+				)}
+			/>
+
+			{/* Stock status indicator for the selected warehouse */}
+			{warehouseId && productId && !isLoading && (
+				<>
+					{!hasStock ? (
+						<div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+							<XCircle className="h-3.5 w-3.5 shrink-0" />
+							<span className="font-medium">Out of Stock</span>
+							<span className="opacity-75">
+								— no available batches in this warehouse
+							</span>
+						</div>
+					) : isInsufficient ? (
+						<div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+							<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+							<span className="font-medium">Insufficient Stock</span>
+							<span className="opacity-75">
+								— available: {fmt(totalAvailable)} (need {fmt(quantity ?? 0)})
+							</span>
+						</div>
+					) : (
+						<div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-success text-xs dark:bg-success/20 dark:border-green-800 dark:text-success">
+							<CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+							<span className="font-medium">In Stock</span>
+							<span className="opacity-75">
+								— available: {fmt(totalAvailable)} in this warehouse
+							</span>
+						</div>
+					)}
+				</>
+			)}
+
+			{error ? (
+				<FieldError>{error}</FieldError>
+			) : batchHelperMessage ? (
+				<FieldDescription>{batchHelperMessage}</FieldDescription>
+			) : null}
+		</Field>
+	);
 }

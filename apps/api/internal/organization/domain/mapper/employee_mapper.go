@@ -153,6 +153,49 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 		resp.Areas = areas
 	}
 
+	if len(e.Outlets) > 0 {
+		outlets := make([]dto.EmployeeOutletResponse, 0, len(e.Outlets))
+		for _, eo := range e.Outlets {
+			outletName := eo.OutletID
+			code := eo.OutletID
+			address := ""
+			if eo.Outlet != nil {
+				outletName = eo.Outlet.Name
+				code = eo.Outlet.Code
+				address = eo.Outlet.Address
+			}
+			outlets = append(outlets, dto.EmployeeOutletResponse{
+				OutletID:   eo.OutletID,
+				OutletName: outletName,
+				Code:       code,
+				Address:    address,
+			})
+		}
+		resp.Outlets = outlets
+	}
+
+	if len(e.Warehouses) > 0 {
+		warehouses := make([]dto.EmployeeWarehouseResponse, 0, len(e.Warehouses))
+		for _, ew := range e.Warehouses {
+			warehouseName := ew.WarehouseID
+			code := ew.WarehouseID
+			address := ""
+			if ew.Warehouse != nil {
+				warehouseName = ew.Warehouse.Name
+				code = ew.Warehouse.Code
+				address = ew.Warehouse.Address
+			}
+			warehouses = append(warehouses, dto.EmployeeWarehouseResponse{
+				WarehouseID:   ew.WarehouseID,
+				WarehouseName: warehouseName,
+				Code:          code,
+				Address:       address,
+				IsAuto:        ew.IsAuto,
+			})
+		}
+		resp.Warehouses = warehouses
+	}
+
 	return resp
 }
 
@@ -249,16 +292,21 @@ func ToEmployeeSignatureResponse(signature *models.EmployeeSignature) *dto.Emplo
 		return nil
 	}
 
-	// Convert absolute path to relative URL
-	// FilePath example: /app/uploads/signatures/xxx.webp -> FileURL: /uploads/signatures/xxx.webp
+	// Convert absolute path to relative URL, or use full URL as-is for cloud storage.
+	// FilePath may be:
+	//   - An absolute local path:  /app/uploads/signatures/xxx.png  →  /uploads/signatures/xxx.png
+	//   - A relative web URL:      /uploads/signatures/xxx.png      →  unchanged
+	//   - A full cloud URL:        https://pub-xxx.r2.dev/xxx.png   →  unchanged
 	fileURL := signature.FilePath
-	// Remove /app prefix if present (Docker container path)
-	if strings.HasPrefix(fileURL, "/app/") {
-		fileURL = strings.TrimPrefix(fileURL, "/app")
-	}
-	// Ensure leading slash
-	if !strings.HasPrefix(fileURL, "/") {
-		fileURL = "/" + fileURL
+	if !strings.HasPrefix(fileURL, "http://") && !strings.HasPrefix(fileURL, "https://") {
+		// Local path: strip Docker /app prefix if present
+		if strings.HasPrefix(fileURL, "/app/") {
+			fileURL = strings.TrimPrefix(fileURL, "/app")
+		}
+		// Ensure leading slash for relative URLs
+		if !strings.HasPrefix(fileURL, "/") {
+			fileURL = "/" + fileURL
+		}
 	}
 
 	response := &dto.EmployeeSignatureResponse{

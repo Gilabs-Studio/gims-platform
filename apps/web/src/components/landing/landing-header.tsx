@@ -20,7 +20,11 @@ export function LandingHeader() {
   const { scrollY } = useScroll();
   const headerBg = useTransform(scrollY, [0, 80], ["rgba(0,0,0,0)", "rgba(0,0,0,0.01)"]);
 
-  const navLinks = [{ href: "/pricing", label: t("pricing") }] as const;
+  const navLinks = [
+    { href: "/templates", label: locale === "id" ? "Template" : "Templates" },
+    { href: "/about", label: locale === "id" ? "Tentang" : "About" },
+    { href: "/pricing", label: t("pricing") },
+  ] as const;
 
 
 
@@ -34,10 +38,7 @@ export function LandingHeader() {
         {/* Logo */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 select-none">
-            <span className="text-2xl font-bold tracking-tight text-primary">GIMS</span>
-            <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
-              by GILABS
-            </span>
+            <span className="text-2xl font-bold tracking-tight text-primary">SalesView</span>
           </Link>
 
           {/* Desktop nav */}

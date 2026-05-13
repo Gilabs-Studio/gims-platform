@@ -79,8 +79,77 @@ func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.
 	if err != nil {
 		return nil, err
 	}
+
+	settledPOs := make(map[string]bool)
+	hasActiveDPPOs := make(map[string]bool)
+	if len(pos) > 0 {
+		poIDs := make([]string, 0, len(pos))
+		for _, po := range pos {
+			poIDs = append(poIDs, po.ID)
+		}
+
+		type poSettlementRow struct {
+			PurchaseOrderID   string `gorm:"column:purchase_order_id"`
+			ActiveInvoiceCnt  int64  `gorm:"column:active_invoice_count"`
+			UnsettledCount    int64  `gorm:"column:unsettled_count"`
+		}
+
+		rows := make([]poSettlementRow, 0)
+		if err := database.GetDB(ctx, uc.db).
+			Table("supplier_invoices").
+			Select(`purchase_order_id,
+				COUNT(*) AS active_invoice_count,
+				SUM(CASE WHEN UPPER(status) IN ('PAID','CANCELLED','REJECTED') THEN 0 ELSE 1 END) AS unsettled_count`).
+			Where("purchase_order_id IN ?", poIDs).
+			Where("type = ?", models.SupplierInvoiceTypeNormal).
+			Where("deleted_at IS NULL").
+			Group("purchase_order_id").
+			Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+
+		for _, row := range rows {
+			if row.ActiveInvoiceCnt > 0 && row.UnsettledCount == 0 {
+				settledPOs[row.PurchaseOrderID] = true
+			}
+		}
+
+		type poDPRow struct {
+			PurchaseOrderID string `gorm:"column:purchase_order_id"`
+			ActiveDPCount   int64  `gorm:"column:active_dp_count"`
+		}
+
+		dpRows := make([]poDPRow, 0)
+		if err := database.GetDB(ctx, uc.db).
+			Table("supplier_invoices").
+			Select("purchase_order_id, COUNT(*) AS active_dp_count").
+			Where("purchase_order_id IN ?", poIDs).
+			Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+			Where("status NOT IN ?", []models.SupplierInvoiceStatus{
+				models.SupplierInvoiceStatusCancelled,
+				models.SupplierInvoiceStatusRejected,
+			}).
+			Where("deleted_at IS NULL").
+			Group("purchase_order_id").
+			Scan(&dpRows).Error; err != nil {
+			return nil, err
+		}
+
+		for _, row := range dpRows {
+			if row.ActiveDPCount > 0 {
+				hasActiveDPPOs[row.PurchaseOrderID] = true
+			}
+		}
+	}
+
 	poRes := make([]dto.SupplierInvoiceAddPurchaseOrder, 0, len(pos))
 	for _, po := range pos {
+		if settledPOs[po.ID] {
+			continue
+		}
+		if hasActiveDPPOs[po.ID] {
+			continue
+		}
 		items := make([]dto.SupplierInvoiceAddPurchaseOrderItem, 0, len(po.Items))
 		for _, it := range po.Items {
 			var prod *dto.SupplierInvoiceAddProductMini
@@ -176,14 +245,25 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		invNo := fmt.Sprintf("SUP-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "SIDP-"))
 
 		creatorID, _ := ctx.Value("user_id").(string)
+
+		invoiceDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.InvoiceDate))
+		if err != nil {
+			return errors.New("invalid invoice date format")
+		}
+
+		dueDateParsed, err := time.Parse("2006-01-02", strings.TrimSpace(req.DueDate))
+		if err != nil {
+			return errors.New("invalid due date format")
+		}
+
 		si := models.SupplierInvoice{
 			Type:            models.SupplierInvoiceTypeDownPayment,
 			PurchaseOrderID: po.ID,
 			SupplierID:      *po.SupplierID,
 			Code:            code,
 			InvoiceNumber:   invNo,
-			InvoiceDate:     req.InvoiceDate,
-			DueDate:         req.DueDate,
+			InvoiceDate:     invoiceDateParsed,
+			DueDate:         dueDateParsed,
 			Amount:          req.Amount,
 			Status:          models.SupplierInvoiceStatusDraft,
 			Notes:           req.Notes,
@@ -199,6 +279,23 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 			si.CompanyID = &companyID
 			si.FiscalYearID = &fiscalYearID
 		}
+
+		var activeDPCount int64
+		if err := tx.Model(&models.SupplierInvoice{}).
+			Where("purchase_order_id = ?", po.ID).
+			Where("type = ?", models.SupplierInvoiceTypeDownPayment).
+			Where("status NOT IN ?", []models.SupplierInvoiceStatus{
+				models.SupplierInvoiceStatusCancelled,
+				models.SupplierInvoiceStatusRejected,
+			}).
+			Where("deleted_at IS NULL").
+			Count(&activeDPCount).Error; err != nil {
+			return err
+		}
+		if activeDPCount > 0 {
+			return ErrSupplierInvoiceConflict
+		}
+
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}
@@ -591,7 +688,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		return nil
 	}
 
-	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate.Format("2006-01-02"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve supplier invoice DP journal scope: %w", err)
 	}
@@ -601,7 +698,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		ReferenceID:     si.ID,
 		CompanyID:       companyID,
 		FiscalYearID:    fiscalYearID,
-		EntryDate:       si.InvoiceDate,
+		EntryDate:       si.InvoiceDate.Format("2006-01-02"),
 		Description:     fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
 		TotalAmount:     si.Amount,
 		DescriptionArgs: []interface{}{si.InvoiceNumber, si.Code},

@@ -64,6 +64,8 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 		Preload("User").
 		Preload("ReplacementFor").
 		Preload("Areas.Area").
+		Preload("Outlets.Outlet").
+		Preload("Warehouses.Warehouse").
 		First(&employee, "id = ?", id).Error
 	if err != nil {
 		return nil, err

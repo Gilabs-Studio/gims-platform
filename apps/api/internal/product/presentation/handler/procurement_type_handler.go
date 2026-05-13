@@ -52,9 +52,10 @@ func (h *ProcurementTypeHandler) GetByID(c *gin.Context) {
 
 func (h *ProcurementTypeHandler) List(c *gin.Context) {
 	params := repositories.ListParams{
-		Search:  c.Query("search"),
-		SortBy:  c.DefaultQuery("sort_by", "name"),
-		SortDir: c.DefaultQuery("sort_dir", "asc"),
+		Search:     c.Query("search"),
+		SortBy:     c.DefaultQuery("sort_by", "name"),
+		SortDir:    c.DefaultQuery("sort_dir", "asc"),
+		ActiveOnly: c.Query("active_only") == "true",
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

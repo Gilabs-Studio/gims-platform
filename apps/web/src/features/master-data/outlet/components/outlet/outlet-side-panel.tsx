@@ -82,8 +82,15 @@ export function OutletSidePanel({
                 type="tel"
                 inputMode="numeric"
                 placeholder={t("outlet.form.phonePlaceholder")}
+                onKeyDown={(e) => {
+                  if (!/^[\d\b]$/.test(e.key) && !e.metaKey && !e.ctrlKey &&
+                      !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 {...register("phone")}
               />
+              {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
             </Field>
             <Field orientation="vertical">
               <FieldLabel>{t("outlet.form.email")}</FieldLabel>
@@ -112,7 +119,7 @@ export function OutletSidePanel({
             {t("outlet.sections.management")}
           </h3>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Field orientation="vertical">
               <FieldLabel>{t("outlet.form.manager")}</FieldLabel>
               <Controller
@@ -130,31 +137,6 @@ export function OutletSidePanel({
                       {formData?.managers?.map((mgr) => (
                         <SelectItem key={mgr.id} value={mgr.id} className="cursor-pointer">
                           {mgr.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("outlet.form.company")}</FieldLabel>
-              <Controller
-                name="company_id"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={(v) => field.onChange(v || undefined)}
-                  >
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("outlet.form.companyPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData?.companies?.map((comp) => (
-                        <SelectItem key={comp.id} value={comp.id} className="cursor-pointer">
-                          {comp.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

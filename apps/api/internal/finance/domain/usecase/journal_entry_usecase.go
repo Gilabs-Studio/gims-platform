@@ -113,10 +113,7 @@ func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepo
 	return uc
 }
 
-// parseDate is kept as an alias for backward compatibility within this file.
-func parseDate(value string) (time.Time, error) {
-	return parseDateRequired(value)
-}
+// parseDate is consolidated in helpers.go and is used throughout the finance package
 
 func journalReferenceTypesForDomain(domain *string) []string {
 	if domain == nil {
@@ -289,13 +286,20 @@ func (uc *journalEntryUsecase) generateJournalNumber(ctx context.Context, tx *go
 func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm.DB, companyID string, fiscalYearID *string, entryDate time.Time) (*string, error) {
 	trimmedCompanyID := strings.TrimSpace(companyID)
 	if trimmedCompanyID == "" {
-		return fiscalYearID, nil
+		if fiscalYearID != nil && strings.TrimSpace(*fiscalYearID) != "" {
+			fyID := strings.TrimSpace(*fiscalYearID)
+			return &fyID, nil
+		}
+		return nil, errors.New("no active fiscal year for posting date")
 	}
 
 	if fiscalYearID != nil && strings.TrimSpace(*fiscalYearID) != "" {
 		fyID := strings.TrimSpace(*fiscalYearID)
 		var fy financeModels.FiscalYear
 		if err := tx.WithContext(ctx).First(&fy, "id = ?", fyID).Error; err != nil {
+			if strings.Contains(err.Error(), `relation "fiscal_years" does not exist`) {
+				return nil, nil
+			}
 			return nil, err
 		}
 		if fy.CompanyID != trimmedCompanyID {
@@ -315,8 +319,11 @@ func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm
 		Order("start_date desc").
 		Take(&fy).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if strings.Contains(err.Error(), `relation "fiscal_years" does not exist`) {
 			return nil, nil
+		}
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("no active fiscal year for date %s", entryDate.Format("2006-01-02"))
 		}
 		return nil, err
 	}
@@ -326,7 +333,7 @@ func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm
 
 func (uc *journalEntryUsecase) validatePostingFiscalYear(ctx context.Context, tx *gorm.DB, entry *financeModels.JournalEntry) error {
 	if entry == nil || entry.FiscalYearID == nil || strings.TrimSpace(*entry.FiscalYearID) == "" {
-		return nil
+		return errors.New("posted journal entry must have fiscal year")
 	}
 
 	var fy financeModels.FiscalYear
@@ -514,6 +521,10 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, errors.New("opening journal cannot be updated via manual journal endpoint")
 	}
 
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
+
 	entry, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -674,6 +685,9 @@ func (uc *journalEntryUsecase) Delete(ctx context.Context, id string) error {
 	if id == "" {
 		return errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return ErrJournalNotFound
+	}
 	entry, err := uc.repo.FindByID(ctx, id, false)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -780,6 +794,9 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
 	}
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
@@ -1223,6 +1240,10 @@ func (uc *journalEntryUsecase) Cancel(ctx context.Context, id string) (*dto.Jour
 		return nil, errors.New("id is required")
 	}
 
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -1282,6 +1303,10 @@ func (uc *journalEntryUsecase) resolveCompanyIDFromActor(ctx context.Context) (s
 		return "", errors.New("db is not configured")
 	}
 
+	if ctxCompanyID, _ := ctx.Value("company_id").(string); strings.TrimSpace(ctxCompanyID) != "" {
+		return strings.TrimSpace(ctxCompanyID), nil
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -1324,6 +1349,10 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 		return nil, errors.New("id is required")
 	}
 
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -1345,12 +1374,40 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 		return nil, errors.New("opening journal cannot be reversed directly; use adjustment journal")
 	}
 
+	originalRefType := reference.NormalizePtr(entry.ReferenceType)
+	reversalRefType := "REVERSAL"
+	if originalRefType != "" {
+		reversalRefType = "REVERSAL_" + originalRefType
+	}
+
+	// Idempotency guard: if reversal journal already exists by deterministic reference,
+	// return it instead of failing.
+	var existingReversalEntry financeModels.JournalEntry
+	if err := uc.db.WithContext(ctx).
+		Where("reference_type = ? AND reference_id = ?", reversalRefType, entry.ID).
+		Order("created_at DESC").
+		First(&existingReversalEntry).Error; err == nil {
+		found, ferr := uc.repo.FindByID(ctx, existingReversalEntry.ID, true)
+		if ferr != nil {
+			return nil, ferr
+		}
+		resp := uc.mapper.ToResponse(found)
+		return &resp, nil
+	} else if err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
 	var existingReversal financeModels.JournalReversal
 	err = uc.db.WithContext(ctx).
 		Where("original_journal_entry_id = ?", entry.ID).
 		First(&existingReversal).Error
 	if err == nil {
-		return nil, errors.New("journal entry has already been reversed")
+		existing, ferr := uc.repo.FindByID(ctx, existingReversal.ReversalJournalEntryID, true)
+		if ferr != nil {
+			return nil, ferr
+		}
+		resp := uc.mapper.ToResponse(existing)
+		return &resp, nil
 	}
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -1367,7 +1424,7 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 		})
 	}
 
-	refType := "reversal"
+	refType := reversalRefType
 	reversalReq := &dto.CreateJournalEntryRequest{
 		CompanyID:         entry.CompanyID,
 		FiscalYearID:      entry.FiscalYearID,

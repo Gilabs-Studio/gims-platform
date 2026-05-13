@@ -47,7 +47,6 @@ const bankSchema = z.object({
   currency_id: z.string().min(1, "Currency is required"),
   account_number: z.string().min(3, "Account number is required"),
   account_name: z.string().min(3, "Account name is required"),
-  branch: z.string().optional(),
   is_primary: z.boolean().default(false),
 });
 
@@ -110,7 +109,6 @@ export function CustomerBankList({
       currency_id: "",
       account_number: "",
       account_name: "",
-      branch: "",
       is_primary: false,
     },
   });
@@ -123,7 +121,6 @@ export function CustomerBankList({
       currency_id: "",
       account_number: "",
       account_name: "",
-      branch: "",
       is_primary: false,
     });
     setDialogOpen(true);
@@ -137,7 +134,6 @@ export function CustomerBankList({
       currency_id: item.currency_id ?? "",
       account_number: item.account_number,
       account_name: item.account_name,
-      branch: item.branch,
       is_primary: item.is_primary,
     });
     setDialogOpen(true);
@@ -160,39 +156,47 @@ export function CustomerBankList({
   };
 
   const onSubmit: SubmitHandler<BankFormData> = async (data) => {
+    const payload = {
+      bank_id: data.bank_id,
+      currency_id: data.currency_id,
+      account_number: data.account_number,
+      account_name: data.account_name,
+      is_primary: data.is_primary,
+    };
+
     try {
       if (customerId) {
         if (editingItem && isPersistedCustomerBank(editingItem)) {
           await updateMutation.mutateAsync({
             customerId,
             bankId: editingItem.id,
-            data,
+            data: payload,
           });
           toast.success(t("updateSuccess"));
         } else {
           await addMutation.mutateAsync({
             customerId,
-            data,
+            data: payload,
           });
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added");
+          toast.success(t("createSuccess"));
         }
       } else {
         if (editingIndex !== null && onUpdate) {
-          onUpdate(editingIndex, data);
+          onUpdate(editingIndex, payload);
           toast.success(t("updateSuccess"));
         } else if (onAdd) {
-          onAdd(data);
-          toast.success("createSuccess" in t ? t("createSuccess") : "Bank account added");
+          onAdd(payload);
+          toast.success(t("createSuccess"));
         }
       }
       setDialogOpen(false);
     } catch {
-      toast.error("Failed to save bank account");
+      toast.error(t("saveError"));
     }
   };
 
   const getBankName = (id: string) => {
-    return bankOptions.find((b) => b.id === id)?.name || "Unknown Bank";
+    return bankOptions.find((b) => b.id === id)?.name || t("unknownBank");
   };
 
   const getCurrencyCode = (id?: string | null) => {
@@ -252,7 +256,7 @@ export function CustomerBankList({
                   <TableCell>
                     {bank.is_primary && (
                       <Badge variant="secondary" className="text-xs">
-                        Primary
+                        {tCommon("primary")}
                       </Badge>
                     )}
                   </TableCell>
@@ -354,16 +358,10 @@ export function CustomerBankList({
               </Field>
             </div>
 
-            <Field>
-              <FieldLabel>{t("form.branch")}</FieldLabel>
-              <Input placeholder={t("form.branchPlaceholder")} {...register("branch")} />
-              {errors.branch && <FieldError>{errors.branch.message}</FieldError>}
-            </Field>
-
             <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">
                 <FieldLabel>{t("form.isPrimary")}</FieldLabel>
-                <p className="text-xs text-muted-foreground">Set as main bank account</p>
+                <p className="text-xs text-muted-foreground">{t("form.primaryDescription")}</p>
               </div>
               <Switch
                 checked={isPrimary}
