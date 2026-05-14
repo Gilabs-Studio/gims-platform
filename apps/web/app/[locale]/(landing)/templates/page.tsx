@@ -15,10 +15,10 @@ export async function generateMetadata({
   return buildLandingMetadata({
     locale,
     path: "/templates",
-    title: isId ? "Template Bisnis Gratis | SalesView" : "Free Business Templates | SalesView",
+    title: isId ? "Template Bisnis Sales, Finance, HR & Inventory | SalesView" : "Business Templates for Sales, Finance, HR & Inventory | SalesView",
     description: isId
-      ? "Akses template bisnis siap pakai untuk sales, finance, HR, inventory, dan operasional agar tim Anda bergerak lebih cepat."
-      : "Access ready-to-use business templates for sales, finance, HR, inventory, and operations to help your team move faster.",
+      ? "Akses template bisnis siap pakai untuk sales, finance, HR, inventory, dan operasional agar tim Anda bisa implementasi proses lebih cepat dan rapi."
+      : "Access ready-to-use templates for sales, finance, HR, inventory, and operations so your team can implement processes faster and with better consistency.",
     keywords: isId
       ? ["template bisnis", "template sales", "template invoice", "template laporan keuangan"]
       : ["business templates", "sales templates", "invoice template", "financial report template"],

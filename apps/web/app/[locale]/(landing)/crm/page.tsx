@@ -11,25 +11,33 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi CRM Terbaik | SalesView` 
-    : `Best CRM Software | SalesView`;
+    ? `Software CRM untuk Pipeline & Follow-up Sales | SalesView` 
+    : `CRM Software for Pipeline & Sales Follow-ups | SalesView`;
     
   const desc = locale === 'id'
-    ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
-    : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`;
+    ? `Kelola pipeline, aktivitas tim sales, dan follow-up prospek dalam satu CRM yang terhubung dengan penawaran dan sales order.`
+    : `Manage pipeline, sales activities, and lead follow-ups in one CRM connected to quotations and sales orders.`;
 
   return buildLandingMetadata({
     locale,
     path: "/crm",
     title,
     description: desc,
-    keywords: [
-      `Aplikasi CRM Terbaik`, 
-      `Sistem CRM Indonesia`, 
-      `Software CRM Perusahaan`,
-      `Aplikasi Sales dan Marketing`,
-      `CRM B2B`
-    ],
+    keywords: locale === "id"
+      ? [
+          "software crm",
+          "crm pipeline sales",
+          "follow up prospek",
+          "crm b2b indonesia",
+          "salesview crm",
+        ]
+      : [
+          "crm software",
+          "sales pipeline crm",
+          "lead follow up",
+          "b2b crm platform",
+          "salesview crm",
+        ],
     imageAlt: "SalesView CRM overview",
   });
 }
@@ -249,6 +257,31 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
           </div>
         </section>
 
+        <section className="px-6 py-16 md:py-20">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border/50 bg-card p-8 md:p-10 text-center">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">SalesView Apps</p>
+            <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              {isId ? "Jelajahi Modul Terkait" : "Explore Related Modules"}
+            </h3>
+            <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+              {isId
+                ? "Perkuat alur revenue dengan modul sales lain yang terintegrasi langsung dengan CRM."
+                : "Strengthen your revenue workflow with sales modules directly integrated with CRM."}
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/quotations" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Quotations" : "Quotations"}
+              </Link>
+              <Link href="/sales" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Sales Orders" : "Sales Orders"}
+              </Link>
+              <Link href="/invoicing" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Invoicing" : "Invoicing"}
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* BOTTOM CTA */}
         <section className="py-24 md:py-32 px-6 max-w-4xl mx-auto text-center space-y-8">
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
@@ -273,6 +306,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             </Link>
           </div>
         </section>
+
       </PageMotion>
     </>
   );

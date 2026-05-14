@@ -52,9 +52,9 @@ export async function generateMetadata({
       siteName: "SalesView",
     },
     robots: {
-      index: true,
+      index: false,
       follow: true,
-      googleBot: { index: true, follow: true },
+      googleBot: { index: false, follow: true },
     },
   };
 }
