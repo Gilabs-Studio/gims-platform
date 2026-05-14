@@ -44,7 +44,7 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   },
   salary: {
     light: "/screenshot/salary.webp",
-    dark: "/screenshot/salary.webp",
+    dark: "/screenshot/salary-dark.webp",
   },
 } as const;
 
