@@ -10,7 +10,11 @@ export type LandingScreenshotKey =
   | "accountingHero"
   | "accountingAutoJournal"
   | "accountingGeneralLedger"
-  | "accountingPeriodClosing";
+  | "accountingPeriodClosing"
+  | "invoicingHero"
+  | "invoicingConsistentInvoice"
+  | "invoicingPaymentStatus"
+  | "invoicingFollowUp";
 
 type ThemePair = {
   light: string;
@@ -65,6 +69,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   accountingPeriodClosing: {
     light: "/screenshot/accounting/accounting-period-closing.webp",
     dark: "/screenshot/accounting/accounting-period-closing-dark.webp",
+  },
+  invoicingHero: {
+    light: "/screenshot/invoicing/invoicing-hero.webp",
+    dark: "/screenshot/invoicing/invoicing-hero-dark.webp",
+  },
+  invoicingConsistentInvoice: {
+    light: "/screenshot/invoicing/invoicing-consistent-invoice.webp",
+    dark: "/screenshot/invoicing/invoicing-consistent-invoice-dark.webp",
+  },
+  invoicingPaymentStatus: {
+    light: "/screenshot/invoicing/invoicing-payment-status.webp",
+    dark: "/screenshot/invoicing/invoicing-payment-status-dark.webp",
+  },
+  invoicingFollowUp: {
+    light: "/screenshot/invoicing/invoicing-follow-up.webp",
+    dark: "/screenshot/invoicing/invoicing-follow-up-dark.webp",
   },
 } as const;
 

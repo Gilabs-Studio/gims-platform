@@ -54,7 +54,7 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
             : "Create invoices, track payments, and run follow-ups without jumping between systems."
         }
         heroImageAlt={isId ? "Tampilan invoicing SalesView" : "SalesView invoicing interface"}
-        heroImageKey="salesOrder"
+        heroImageKey="invoicingHero"
         introTitle={isId ? "Percepat siklus penagihan" : "Accelerate your billing cycle"}
         introDescription={
           isId
@@ -67,6 +67,7 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
             description: isId
               ? "Gunakan format faktur yang rapi agar komunikasi tagihan lebih profesional."
               : "Use clean invoice formatting to keep billing communication professional.",
+            screenshotKey: "invoicingConsistentInvoice",
             placeholder: "invoiceFlow",
           },
           {
@@ -74,7 +75,7 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
             description: isId
               ? "Pantau status tagihan agar tim bisa memprioritaskan follow-up yang tepat waktu."
               : "Track bill status so teams can prioritize timely follow-ups.",
-            screenshotKey: "dashboard",
+            screenshotKey: "invoicingPaymentStatus",
             placeholder: "terminalFlow",
           },
           {
@@ -82,6 +83,7 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
             description: isId
               ? "Atur ritme reminder tanpa membuat proses penagihan terasa rumit."
               : "Set reminder cadence without making collections feel complicated.",
+            screenshotKey: "invoicingFollowUp",
             placeholder: "timelineFlow",
           },
         ]}
