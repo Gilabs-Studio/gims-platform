@@ -18,7 +18,11 @@ export type LandingScreenshotKey =
   | "fixedAssetsHero"
   | "fixedAssetsRegistration"
   | "fixedAssetsValueSummary"
-  | "fixedAssetsAuditDocs";
+  | "fixedAssetsAuditDocs"
+  | "financialReportsHero"
+  | "financialReportsSummary"
+  | "financialReportsProfitLoss"
+  | "financialReportsReview";
 
 type ThemePair = {
   light: string;
@@ -105,6 +109,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   fixedAssetsAuditDocs: {
     light: "/screenshot/fixed-assets/fixed-assets-audit-docs.webp",
     dark: "/screenshot/fixed-assets/fixed-assets-audit-docs-dark.webp",
+  },
+  financialReportsHero: {
+    light: "/screenshot/financial-reports/financial-reports-hero.webp",
+    dark: "/screenshot/financial-reports/financial-reports-hero-dark.webp",
+  },
+  financialReportsSummary: {
+    light: "/screenshot/financial-reports/financial-reports-summary.webp",
+    dark: "/screenshot/financial-reports/financial-reports-summary-dark.webp",
+  },
+  financialReportsProfitLoss: {
+    light: "/screenshot/financial-reports/financial-reports-profit-loss.webp",
+    dark: "/screenshot/financial-reports/financial-reports-profit-loss-dark.webp",
+  },
+  financialReportsReview: {
+    light: "/screenshot/financial-reports/financial-reports-review.webp",
+    dark: "/screenshot/financial-reports/financial-reports-review-dark.webp",
   },
 } as const;
 
