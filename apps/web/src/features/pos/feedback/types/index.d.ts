@@ -79,6 +79,8 @@ export interface SubmitFeedbackRequest {
 export interface FeedbackResponseItem {
   id: string;
   form_id: string;
+  form_title: string;
+  schema_json?: FormSchema;
   outlet_id: string;
   outlet_name?: string;
   sales_order_id?: string;

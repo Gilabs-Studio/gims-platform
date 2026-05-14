@@ -52,6 +52,7 @@ class FeedbackResponseItem {
     this.posOrderId,
     this.customerName,
     this.avgScore,
+    this.schemaJson,
   });
 
   final String id;
@@ -64,6 +65,7 @@ class FeedbackResponseItem {
   final Map<String, dynamic> answers;
   final double? avgScore;
   final DateTime submittedAt;
+  final Map<String, dynamic>? schemaJson;
 
   factory FeedbackResponseItem.fromJson(Map<String, dynamic> json) {
     return FeedbackResponseItem(
@@ -77,6 +79,7 @@ class FeedbackResponseItem {
       answers: _answersMap(json['answers']),
       avgScore: (json['avg_score'] as num?)?.toDouble(),
       submittedAt: _parseDate(json['submitted_at'] as String?),
+      schemaJson: json['schema_json'] is Map ? Map<String, dynamic>.from(json['schema_json'] as Map) : null,
     );
   }
 
@@ -91,5 +94,22 @@ class FeedbackResponseItem {
   static DateTime _parseDate(String? value) {
     if (value == null || value.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
     return DateTime.tryParse(value)?.toLocal() ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  /// Get question label by ID from schema.
+  String getQuestionLabel(String questionId) {
+    if (schemaJson == null) return questionId;
+    try {
+      final questions = schemaJson!['questions'];
+      if (questions is List) {
+        for (final q in questions) {
+          if (q is Map && q['id'] == questionId) {
+            final label = q['label'];
+            if (label is String && label.isNotEmpty) return label;
+          }
+        }
+      }
+    } catch (_) {}
+    return questionId;
   }
 }

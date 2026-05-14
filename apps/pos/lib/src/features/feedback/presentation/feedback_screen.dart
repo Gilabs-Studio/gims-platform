@@ -494,6 +494,7 @@ class _FeedbackDetailDialog extends StatelessWidget {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, index) {
                     final entry = item.answers.entries.elementAt(index);
+                    final questionLabel = item.getQuestionLabel(entry.key);
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: Row(
@@ -501,7 +502,7 @@ class _FeedbackDetailDialog extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              entry.key,
+                              questionLabel,
                               style: const TextStyle(
                                 color: GimsColors.mutedForeground,
                                 fontWeight: FontWeight.w600,
