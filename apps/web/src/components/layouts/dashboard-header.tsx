@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import {
   Activity,
-  Download,
   Laptop,
   Menu as MenuIcon,
   Search,
@@ -16,13 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// Dropdown primitives are not used anymore; keep imports removed.
 import {
   Popover,
   PopoverContent,
@@ -30,11 +23,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+// Tooltip primitives removed; downloads moved to popover.
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 import { HeaderAttendanceButton } from "@/features/hrd/attendance-records/components/header-attendance-button";
 import { useLogout } from "@/features/auth/hooks/use-logout";
@@ -131,6 +120,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
+  const [posDownloadOpen, setPosDownloadOpen] = useState(false);
   const currentSrc = avatarLoadFailed
     ? fallbackAvatarUrl
     : (normalizedAvatarUrl ?? fallbackAvatarUrl);
@@ -224,50 +214,7 @@ export const DashboardHeader = memo(function DashboardHeader({
       <div className="ml-auto flex items-center gap-1 overflow-visible">
         <HeaderAttendanceButton onOpenDrawer={onOpenAttendanceDrawer} />
 
-        <Tooltip>
-          <DropdownMenu>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 cursor-pointer gap-1.5 rounded-full px-2.5"
-                  disabled={!hasPOSDownloadLinks}
-                  aria-label={t("posDownload")}
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden text-xs font-medium sm:inline">
-                    {t("posDownload")}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>{t("posDownloadDropdownLabel")}</DropdownMenuLabel>
-              {posDownloadLinks.map((item) => {
-                const PlatformIcon = item.icon;
-                return (
-                  <DropdownMenuItem key={item.platform} asChild>
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="cursor-pointer"
-                    >
-                      <PlatformIcon className="h-4 w-4" />
-                      {item.label}
-                    </a>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <TooltipContent>
-            {hasPOSDownloadLinks
-              ? t("posDownloadTooltip")
-              : t("posDownloadUnavailable")}
-          </TooltipContent>
-        </Tooltip>
+        {/* POS download moved into user popover (see below) */}
 
         <NotificationBadge />
         <ThemeToggle />
@@ -364,6 +311,43 @@ export const DashboardHeader = memo(function DashboardHeader({
                 <Activity className="h-4 w-4" />
                 {t("myActivities")}
               </button>
+              {hasPOSDownloadLinks && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPosDownloadOpen(!posDownloadOpen)}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    {t("posDownloadLabel")}
+                  </button>
+                  {posDownloadOpen && (
+                    <div className="ml-4 flex flex-col gap-1 border-l border-muted pl-2">
+                      <div className="px-2 py-1 text-xs text-muted-foreground">
+                        {t("posDownloadTooltip")}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {posDownloadLinks.map((item) => {
+                          const PlatformIcon = item.icon;
+                          return (
+                            <a
+                              key={item.platform}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setUserPopoverOpen(false)}
+                              className="flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent"
+                            >
+                              <PlatformIcon className="h-3 w-3" />
+                              {item.label}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               <Link
                 href="/profile"
                 locale={locale}
@@ -373,6 +357,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                 <Settings className="h-4 w-4" />
                 {t("settings")}
               </Link>
+              
               <button
                 type="button"
                 onClick={() => {

@@ -108,7 +108,7 @@
     "days": "hari",
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
-    "posDownload": "Unduh POS",
+    "posDownloadLabel": "POS APK",
     "posDownloadTooltip": "Unduh aplikasi POS terbaru",
     "posDownloadUnavailable": "Link unduhan POS belum dikonfigurasi",
     "posDownloadDropdownLabel": "Pilih platform",
