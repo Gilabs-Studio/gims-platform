@@ -348,6 +348,7 @@ func AutoMigrate() error {
 		// POS entities (Floor Layout Designer + Full POS System)
 		&pos.FloorPlan{},
 		&pos.LayoutVersion{},
+		&pos.PosTableQRToken{},
 		&pos.PosSession{},
 		&pos.PosOrder{},
 		&pos.PosOrderItem{},

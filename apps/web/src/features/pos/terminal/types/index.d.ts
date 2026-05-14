@@ -93,6 +93,7 @@ export interface POSOrder {
   loyalty_member_id?: string | null;
   loyalty_reward_id?: string | null;
   status: PosOrderStatus;
+  order_source?: "STAFF" | "CUSTOMER";
   notes?: string | null;
   void_reason?: string | null;
   items: POSOrderItem[];

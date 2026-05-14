@@ -125,5 +125,17 @@ export const floorLayoutEn = {
     // Floor switcher
     floor: "Floor",
     addFloor: "Add Floor",
+    // Table QR dialog
+    tableQr: {
+      dialogTitle: "QR Code - {table}",
+      printPageTitle: "Table QR - {table}",
+      imageAlt: "QR {table}",
+      openOrPrintQr: "View / Print QR",
+      scanHint: "Scan to order",
+      rotateToken: "Rotate Token",
+      printQr: "Print QR",
+      noQrHint: "No QR code yet for this table. Click the button below to generate a token.",
+      generateQr: "Generate QR Code",
+    },
   },
 };

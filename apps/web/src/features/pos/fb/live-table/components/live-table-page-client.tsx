@@ -30,6 +30,7 @@ import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
 import { useLiveTableData } from "../hooks/use-live-table";
+import { usePosWs } from "../hooks/use-pos-ws";
 import { useServeOrder, useCompleteOrder, useServeOrderItem, usePOSPayments } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -125,6 +126,12 @@ function TableCard({ info, onClick }: TableCardProps) {
       <span
         className={cn("absolute top-3 right-3 h-2 w-2 rounded-full", cfg.dot)}
       />
+      {/* Customer self-order badge */}
+      {info.order?.order_source === "CUSTOMER" && (
+        <span className="absolute top-2 left-2 rounded-full bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 leading-none">
+          Tamu
+        </span>
+      )}
       <p className="text-2xl font-bold tracking-tight text-foreground">
         {label}
       </p>
@@ -872,6 +879,9 @@ export function LiveTablePageClient() {
     outletName,
     now,
   });
+
+  // Real-time staff notifications: new customer orders via WebSocket
+  usePosWs(outletId);
 
   const serveOrder = useServeOrder();
   const completeOrder = useCompleteOrder();

@@ -191,6 +191,8 @@ import { posTerminalEn } from "@/features/pos/terminal/i18n/en";
 import { posTerminalId } from "@/features/pos/terminal/i18n/id";
 import { feedbackEn } from "@/features/pos/feedback/i18n/en";
 import { feedbackId } from "@/features/pos/feedback/i18n/id";
+import { posSelflOrderEn } from "@/features/pos/self-order/i18n/en";
+import { posSelflOrderId } from "@/features/pos/self-order/i18n/id";
 import { loyaltyEn } from "@/features/loyalty/i18n/en";
 import { loyaltyId } from "@/features/loyalty/i18n/id";
 import { landingEn } from "@/features/landing/i18n/en";
@@ -293,6 +295,7 @@ const messages = {
     ...floorLayoutEn,
     ...posTerminalEn,
     ...feedbackEn,
+    ...posSelflOrderEn,
     ...loyaltyEn,
     ...landingEn,
     ...systemAdminEn,
@@ -390,6 +393,7 @@ const messages = {
     ...floorLayoutId,
     ...posTerminalId,
     ...feedbackId,
+    ...posSelflOrderId,
     ...loyaltyId,
     ...landingId,
     ...systemAdminId,
