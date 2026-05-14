@@ -63,6 +63,48 @@ Order: stdlib → external → internal. Run `go mod tidy` after new files.
 - IDOR: Validate ownership before resource access
 - Row-level locking: `FOR UPDATE` for concurrent mutations
 
+### Multi-Tenant, Scope, and RBAC Awareness (CRITICAL)
+
+- GIMS is not RBAC-only. Access control is a combination of:
+	- tenant isolation (`tenant_id`)
+	- permission checks (RBAC via permission code)
+	- data scope filtering (`permission_scope`, `scope_*` assignments)
+- Never assume frontend checks are enough. Backend must always enforce access.
+
+#### Backend Rules
+
+- Always execute middleware in this order for protected routes:
+	- `AuthMiddleware` -> `ScopeMiddleware` -> MenuScope middleware (if any) -> `RequirePermission(...)`
+- Always read user/tenant/scope from `context.Context`, not from raw headers/query for authorization.
+- For repository queries:
+	- prefer `database.GetDB(ctx, db)` for tenant-aware DB scoping
+	- apply `security.ApplyScopeFilter(...)` when data is scope-sensitive
+- Validate record-level access before read/update/delete using scope-aware checks (prevent IDOR across tenant/scope boundaries).
+- `user_permissions` and `user_permissions_scope` are both important:
+	- permission decides whether action is allowed
+	- scope decides which records are visible/mutable
+
+#### Frontend Rules
+
+- Use permission hooks (e.g. `useUserPermission("module.action")`) for UX gating only.
+- Do not treat hidden buttons as security. Assume backend can still reject actions.
+- When feature supports scoped views, pass scope params consistently (`scope`, optional entity selectors like `outlet_id`) following backend contract.
+
+#### Common Context Keys (authorization-critical)
+
+- Identity: `user_id`, `user_role`, `tenant_id`, `is_system_admin`
+- Permission maps: `user_permissions`, `user_permissions_scope`
+- Scope assignments: `scope_employee_id`, `scope_division_id`, `scope_outlet_ids`, `scope_area_ids`, `scope_warehouse_ids`
+- Effective scope used downstream: `permission_scope`
+
+#### Implementation Checklist (new endpoint)
+
+- Route protected with `RequirePermission("<feature>.<action>")`
+- Usecase/repository receives and propagates `ctx context.Context`
+- Tenant boundary is applied in query path
+- Scope filter/check is applied for list/detail/mutation paths
+- Frontend action visibility follows permission code, but server remains source of truth
+
 ## Commands
 
 use 'npx' to run 'pnpm'
