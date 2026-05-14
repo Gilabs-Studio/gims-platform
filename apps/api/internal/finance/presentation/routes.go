@@ -26,7 +26,6 @@ type FinanceDeps struct {
 	CashBankUC            usecase.CashBankJournalUsecase
 	CashBankTransactionUC usecase.CashBankTransactionUsecase
 	TaxInvoiceUC          usecase.TaxInvoiceUsecase
-	SalaryUC              usecase.SalaryStructureUsecase
 	SettingsUC            financesettings.SettingsService
 	Engine                accounting.AccountingEngine
 }
@@ -62,7 +61,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceRepo := repositories.NewTaxInvoiceRepository(db)
 	nonTradePayableRepo := repositories.NewNonTradePayableRepository(db)
 	upCountryCostRepo := repositories.NewUpCountryCostRepository(db)
-	salaryRepo := repositories.NewSalaryStructureRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	valuationRunRepo := repositories.NewValuationRunRepository(db)
 	taxConfigurationRepo := repositories.NewTaxConfigurationRepository(db)
@@ -85,7 +83,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceMapper := mapper.NewTaxInvoiceMapper()
 	nonTradePayableMapper := mapper.NewNonTradePayableMapper()
 	upCountryCostMapper := mapper.NewUpCountryCostMapper()
-	salaryMapper := mapper.NewSalaryStructureMapper()
 
 	// Settings & Accounting Engine
 	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
@@ -121,7 +118,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	upCountryCostUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryCostRepo, journalUC, upCountryCostMapper, settingsService, accountingEngine)
-	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
 	cashBankTransactionUC := usecase.NewCashBankTransactionUsecase(db, cashBankTransactionRepo, journalUC)
@@ -206,7 +202,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		CashBankUC:            cashBankUC,
 		CashBankTransactionUC: cashBankTransactionUC,
 		TaxInvoiceUC:          taxInvoiceUC,
-		SalaryUC:              salaryUC,
 		SettingsUC:            settingsService,
 		Engine:                accountingEngine,
 	}

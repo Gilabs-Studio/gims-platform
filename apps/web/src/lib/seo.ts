@@ -12,7 +12,45 @@ type LandingMetadataInput = {
   description: string;
   keywords: string[];
   imageAlt: string;
+  imageUrl?: string;
 };
+
+function getDefaultImageByPath(path: string): string {
+  const normalized = withLeadingSlash(path).toLowerCase();
+
+  if (normalized.includes("/crm")) return "/screenshot/pipeline.webp";
+  if (normalized.includes("/sales") || normalized.includes("/quotations") || normalized.includes("/invoicing")) {
+    return "/screenshot/sales-order.webp";
+  }
+  if (
+    normalized.includes("/stock") ||
+    normalized.includes("/goods-receipt") ||
+    normalized.includes("/movements") ||
+    normalized.includes("/purchase")
+  ) {
+    return "/screenshot/stock-inventory.webp";
+  }
+  if (
+    normalized.includes("/accounting") ||
+    normalized.includes("/financial-reports") ||
+    normalized.includes("/reconciliation") ||
+    normalized.includes("/fixed-assets") ||
+    normalized.includes("/pricing")
+  ) {
+    return "/screenshot/profit-loss.webp";
+  }
+  if (
+    normalized.includes("/employees") ||
+    normalized.includes("/attendance") ||
+    normalized.includes("/recruitment") ||
+    normalized.includes("/travel-planner") ||
+    normalized.includes("/evaluation")
+  ) {
+    return "/screenshot/salary.webp";
+  }
+
+  return "/screenshot/dashboard.webp";
+}
 
 function normalizeLocale(locale: string): SupportedLocale {
   return locale === "id" ? "id" : "en";
@@ -48,8 +86,10 @@ export function buildLandingMetadata({
   description,
   keywords,
   imageAlt,
+  imageUrl,
 }: LandingMetadataInput): Metadata {
   const canonicalPath = getLocalizedPath(path, locale);
+  const selectedImage = imageUrl ?? getDefaultImageByPath(path);
 
   return {
     title,
@@ -68,7 +108,7 @@ export function buildLandingMetadata({
       siteName: "SalesView",
       images: [
         {
-          url: "/screenshot/dashboard.webp",
+          url: selectedImage,
           width: 1920,
           height: 1080,
           alt: imageAlt,
@@ -79,7 +119,7 @@ export function buildLandingMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: ["/screenshot/dashboard.webp"],
+      images: [selectedImage],
     },
   };
 }

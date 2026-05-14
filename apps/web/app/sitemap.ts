@@ -7,27 +7,27 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const marketingPaths = [
     '/',
     '/pricing',
+    '/accounting',
+    '/invoicing',
+    '/fixed-assets',
+    '/financial-reports',
+    '/reconciliation',
     '/crm',
     '/sales',
+    '/quotations',
     '/purchase',
     '/stock',
+    '/goods-receipt',
+    '/movements',
+    '/employees',
+    '/attendance',
+    '/recruitment',
+    '/travel-planner',
+    '/evaluation',
     '/pos',
-    '/solutions/finance',
-    '/solutions/hrd',
     '/about',
     '/templates',
   ] as const;
-
-  const authPaths = ['/login', '/register'] as const;
-
-  const authUrls = locales.flatMap((locale) =>
-    authPaths.map((path) => ({
-      url: `${baseUrl}/${locale}${path}`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }))
-  );
   
   const appsMenus = navigationConfig.filter(
     (nav) => nav.children && nav.name !== 'Reports' && nav.name !== 'Master Data' && nav.name !== 'Dashboard'
@@ -67,5 +67,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })
   );
 
-  return [...marketingUrls, ...authUrls, ...appUrlsId, ...appUrlsEn];
+  return [...marketingUrls, ...appUrlsId, ...appUrlsEn];
 }

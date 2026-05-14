@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import React, { useCallback } from "react";
+import React, { useCallback, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 
 type AnimationVariant =
@@ -335,13 +335,20 @@ export const ThemeToggleButton = ({
     start,
     blur,
   });
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  const isDarkResolved = mounted ? isDark : false;
 
   return (
     <button
       type="button"
       className={cn(
         "inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm transition-all duration-200 hover:bg-accent/60 active:scale-95",
-        isDark ? "text-foreground" : "",
+        isDarkResolved ? "text-foreground" : "",
         className,
       )}
       onClick={toggleTheme}
@@ -359,7 +366,7 @@ export const ThemeToggleButton = ({
         <clipPath id="skiper-btn-2">
           <motion.path
             initial={{ y: 0, x: 0 }}
-            animate={{ y: isDark ? 10 : 0, x: isDark ? -12 : 0 }}
+            animate={{ y: isDarkResolved ? 10 : 0, x: isDarkResolved ? -12 : 0 }}
             transition={{ ease: "easeInOut", duration: 0.35 }}
             d="M0-5h30a1 1 0 0 0 9 13v24H0Z"
           />
@@ -367,7 +374,7 @@ export const ThemeToggleButton = ({
         <g clipPath="url(#skiper-btn-2)">
           <motion.circle
             initial={{ r: 8 }}
-            animate={{ r: isDark ? 10 : 8 }}
+            animate={{ r: isDarkResolved ? 10 : 8 }}
             transition={{ ease: "easeInOut", duration: 0.35 }}
             cx="16"
             cy="16"
@@ -375,9 +382,9 @@ export const ThemeToggleButton = ({
           <motion.g
             initial={{ rotate: 0, scale: 1, opacity: 1 }}
             animate={{
-              rotate: isDark ? -100 : 0,
-              scale: isDark ? 0.5 : 1,
-              opacity: isDark ? 0 : 1,
+              rotate: isDarkResolved ? -100 : 0,
+              scale: isDarkResolved ? 0.5 : 1,
+              opacity: isDarkResolved ? 0 : 1,
             }}
             transition={{ ease: "easeInOut", duration: 0.35 }}
             stroke="currentColor"

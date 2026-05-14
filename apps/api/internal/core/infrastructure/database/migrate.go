@@ -222,7 +222,7 @@ func AutoMigrate() error {
 		&finance.OpeningBalanceLine{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
-		&finance.SalaryStructure{},
+		&hrd.SalaryStructure{},
 		&finance.ValuationRun{},
 		&finance.ValuationRunDetail{},
 		&finance.UpCountryCost{},

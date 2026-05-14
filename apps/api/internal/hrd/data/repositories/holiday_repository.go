@@ -211,12 +211,12 @@ func (r *holidayRepository) IsHolidayForCompany(ctx context.Context, date time.T
 		query = query.Where("(company_id IS NULL OR company_id = ?)", companyID)
 	}
 
-	err := query.First(&h).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return false, nil, nil
-		}
-		return false, nil, err
+	tx := query.Limit(1).Find(&h)
+	if tx.Error != nil {
+		return false, nil, tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return false, nil, nil
 	}
 	return true, &h, nil
 }

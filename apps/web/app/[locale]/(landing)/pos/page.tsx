@@ -2,18 +2,23 @@ import { Metadata } from "next";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
+import {
+  LANDING_THEME_IMAGES_BY_FEATURE,
+  type LandingScreenshotKey,
+} from "@/lib/landing-theme-images";
 import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi Sistem Kasir POS Terbaik (Ritel & F&B) | SalesView` 
-    : `Best Point of Sale (POS) Software | SalesView`;
+    ? `Software POS Kasir untuk Retail & F&B | SalesView` 
+    : `POS Software for Retail & F&B | SalesView`;
     
   const desc = locale === 'id'
-    ? `Sistem Point of Sale (POS) antijam otomatis tersinkronisasi ke inventori dan akuntansi. Sempurna untuk kafe, resto, dan retail.`
-    : `Fast, reliable Point of Sale (POS) software natively synced with inventory and accounting. Ideal for retail and F&B.`;
+    ? `Jalankan kasir POS dengan sinkronisasi stok real-time, laporan penjualan, dan dukungan multi-cabang untuk bisnis retail serta F&B.`
+    : `Run POS cashier operations with real-time stock sync, sales reporting, and multi-branch support for retail and F&B businesses.`;
 
   return buildLandingMetadata({
     locale,
@@ -21,29 +26,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title,
     description: desc,
     keywords: locale === "id"
-      ? [
-          "aplikasi kasir terbaik",
-          "sistem kasir cafe",
-          "software pos retail",
-          "mesin kasir online",
-          "pos kasir",
-          "point of sales",
-          "aplikasi point of sale indonesia",
-          "software kasir gratis",
-          "kasir digital",
-          "sistem kasir restoran",
-          "salesview pos",
-        ]
-      : [
-          "point of sales software",
-          "best pos system",
-          "pos kasir",
-          "retail pos software",
-          "restaurant pos system",
-          "cloud pos indonesia",
-          "salesview pos",
-          "point of sale indonesia",
-        ],
+      ? ["software pos", "aplikasi kasir", "pos retail", "kasir f&b", "point of sale indonesia", "salesview pos"]
+      : ["pos software", "point of sale", "retail pos", "restaurant pos", "multi-branch pos", "salesview pos"],
     imageAlt: "SalesView point-of-sale overview",
   });
 }
@@ -105,12 +89,46 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
   };
 
   const isId = locale === 'id';
+  const featureBlocks: Array<{
+    title: string;
+    description: string;
+    descriptionSecondary?: string;
+    screenshotKey?: LandingScreenshotKey;
+    placeholder: "terminalFlow" | "multiOutlet";
+  }> = [
+    {
+      title: isId ? "Transaksi cepat, alur kasir tetap rapi" : "Fast checkout with a cleaner cashier flow",
+      description: isId
+        ? "Gabungkan item, diskon, dan pembayaran dalam satu alur yang ringkas supaya antrean bergerak lebih cepat di jam sibuk."
+        : "Combine items, discounts, and payments in one focused flow so queues keep moving during peak hours.",
+      descriptionSecondary: isId
+        ? "Kasir tetap bisa melayani dengan konsisten karena tampilan terminal dibuat sederhana dan minim langkah berulang."
+        : "Cashiers stay consistent because the terminal is built with fewer repetitive steps.",
+      placeholder: "terminalFlow",
+    },
+    {
+      title: isId ? "Stok outlet langsung ikut ter-update" : "Store inventory updates in real time",
+      description: isId
+        ? "Setiap transaksi POS otomatis mengurangi stok, jadi tim operasional tidak perlu rekonsiliasi manual di akhir shift."
+        : "Every POS transaction updates stock automatically, so operations teams can skip manual end-of-shift reconciliation.",
+      screenshotKey: "stockInventory",
+      placeholder: "terminalFlow",
+    },
+    {
+      title: isId ? "Pantau performa outlet dari satu dashboard" : "Monitor outlet performance from one dashboard",
+      description: isId
+        ? "Lihat ringkasan penjualan, performa kasir, dan tren operasional harian untuk bantu keputusan lebih cepat."
+        : "Track sales summaries, cashier performance, and daily operational trends for faster decisions.",
+      screenshotKey: "dashboard",
+      placeholder: "multiOutlet",
+    },
+  ];
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }} />
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
-        <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
+        <section className="pt-24 pb-10 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
             SalesView Point of Sale
           </p>
@@ -135,44 +153,194 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
             >
               {isId ? "Mulai sekarang - Gratis" : "Start now - Free"}
             </Link>
+            <Link
+              href="/login"
+              className="rounded-full bg-secondary text-secondary-foreground px-8 py-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              {isId ? "Ketahui lebih lanjut" : "Learn more"}
+            </Link>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            {isId ? "Gratis selamanya, tanpa batasan jumlah user." : "Free, forever, with absolutely no user limits."}
+          </p>
+        </section>
+
+        <section className="px-6 max-w-7xl mx-auto w-full pb-24">
+          <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/40 bg-card shadow-[0_20px_50px_rgba(0,0,0,0.12)]">
+            <div className="relative aspect-video w-full">
+              <ThemeAwareImage
+                lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.light}
+                darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.dark}
+                alt={isId ? "Tampilan POS SalesView" : "SalesView POS interface"}
+                fill
+                className="object-cover object-top"
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                priority
+              />
+            </div>
           </div>
         </section>
 
         <section className="bg-secondary/20 py-24 md:py-32">
           <div className="max-w-5xl mx-auto px-6">
-            <div className="flex flex-col gap-12 lg:gap-24 items-center lg:flex-row-reverse">
-              <div className="lg:w-1/2 space-y-6">
-                <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-                  {isId ? "Satu Kasir, Multi-Kondisi" : "One terminal, completely fluid"}
-                </h3>
-                <p className="text-lg text-muted-foreground font-light leading-relaxed">
-                  {isId 
-                    ? `POS kami bukan sekadar mesin tik angka. Gabungkan diskon, loyalty points, multi-pembayaran langsung dalam satu aliran transaksi kilat.`
-                    : `Our POS isn't just a number pad. Merge discounts, loyalty points, and split-payments right into a single lightning-fast flow.`
-                  }
-                </p>
-              </div>
-              <div className="lg:w-1/2 w-full">
-                <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-8 flex items-center justify-center">
-                   <div className="w-full h-full border border-border/50 rounded-lg p-4 grid grid-cols-3 gap-4">
-                     <div className="col-span-2 space-y-2">
-                        {[1,2,3].map(i => (
-                          <div key={i} className="h-12 bg-secondary rounded flex items-center px-4 justify-between">
-                            <div className="w-1/2 h-3 bg-muted rounded" />
-                            <div className="w-8 h-3 bg-muted rounded" />
-                          </div>
-                        ))}
-                     </div>
-                     <div className="col-span-1 border-l border-border/50 pl-4 flex flex-col justify-end">
-                       <div className="h-20 bg-primary/20 rounded mb-4 flex items-center justify-center">
-                          <div className="w-1/2 h-4 bg-primary/40 rounded" />
-                       </div>
-                       <div className="h-10 bg-primary rounded" />
-                     </div>
-                   </div>
-                </div>
-              </div>
+            <div className="text-center mb-14 md:mb-20 max-w-3xl mx-auto">
+              <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-5">
+                {isId ? "Pantau operasional POS dalam satu genggaman!" : "Keep POS operations in one clear view"}
+              </h2>
+              <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
+                {isId
+                  ? "Fitur inti POS yang benar-benar dipakai tim kasir dan operasional setiap hari."
+                  : "Core POS features your cashier and operations team use every day."}
+              </p>
             </div>
+
+            <div className="space-y-20 md:space-y-24">
+              {featureBlocks.map((feature, index) => {
+                const useScreenshot = Boolean(feature.screenshotKey);
+                const reverse = index % 2 === 0;
+
+                return (
+                  <div
+                    key={feature.title}
+                    className={`flex flex-col gap-12 lg:gap-20 items-center ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"}`}
+                  >
+                    <div className="lg:w-1/2 w-full">
+                      <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-6 md:p-8 flex items-center justify-center relative">
+                        {useScreenshot ? (
+                          <ThemeAwareImage
+                            lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].light}
+                            darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].dark}
+                            alt={feature.title}
+                            fill
+                            className="object-cover object-top"
+                            sizes="(max-width: 1024px) 100vw, 50vw"
+                          />
+                        ) : feature.placeholder === "multiOutlet" ? (
+                          <div className="w-full h-full border border-border/50 rounded-xl p-4 md:p-5 grid grid-cols-5 gap-4">
+                            <div className="col-span-3 space-y-3">
+                              <div className="h-10 rounded-md bg-secondary/70 border border-border/50" />
+                              <div className="grid grid-cols-3 gap-2">
+                                {[1, 2, 3].map((item) => (
+                                  <div key={item} className="h-16 rounded-md bg-secondary/60 border border-border/40 p-2">
+                                    <div className="h-2 w-2/3 bg-muted rounded mb-2" />
+                                    <div className="h-5 w-1/2 bg-foreground/15 rounded" />
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="h-28 rounded-md bg-card border border-border/50 p-3 flex items-end gap-2">
+                                {[30, 45, 35, 60, 50, 70].map((height, i) => (
+                                  <div key={i} className="flex-1 rounded-t-sm bg-primary/40" style={{ height: `${height}%` }} />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="col-span-2 border-l border-border/50 pl-4 space-y-3">
+                              {[1, 2, 3, 4].map((item) => (
+                                <div key={item} className="rounded-md bg-secondary/60 border border-border/40 p-2">
+                                  <div className="h-2 w-2/3 bg-muted rounded mb-2" />
+                                  <div className="h-2 w-full bg-muted rounded" />
+                                </div>
+                              ))}
+                              <div className="h-9 rounded-md bg-primary/80" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full border border-border/50 rounded-xl p-4 grid grid-cols-3 gap-4">
+                            <div className="col-span-2 space-y-2">
+                              {[1, 2, 3].map((item) => (
+                                <div key={item} className="h-12 bg-secondary rounded flex items-center px-4 justify-between">
+                                  <div className="w-1/2 h-3 bg-muted rounded" />
+                                  <div className="w-8 h-3 bg-muted rounded" />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="col-span-1 border-l border-border/50 pl-4 flex flex-col justify-end">
+                              <div className="h-20 bg-primary/20 rounded mb-4 flex items-center justify-center">
+                                <div className="w-1/2 h-4 bg-primary/40 rounded" />
+                              </div>
+                              <div className="h-10 bg-primary rounded" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
+                      <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+                        {feature.title}
+                      </h3>
+                      <p className="text-lg text-muted-foreground font-light leading-relaxed">
+                        {feature.description}
+                      </p>
+                      {feature.descriptionSecondary ? (
+                        <p className="text-lg text-muted-foreground font-light leading-relaxed">
+                          {feature.descriptionSecondary}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-6 py-16 md:py-20">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border/50 bg-card p-8 md:p-10 text-center">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">SalesView Apps</p>
+            <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              {isId ? "Jelajahi Modul Terkait" : "Explore Related Modules"}
+            </h3>
+            <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+              {isId
+                ? "Hubungkan operasional POS dengan inventory dan purchasing untuk kontrol stok yang lebih presisi."
+                : "Connect POS operations with inventory and purchasing for tighter stock control."}
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/stock" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Inventory" : "Inventory"}
+              </Link>
+              <Link href="/goods-receipt" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Penerimaan Barang" : "Goods Receipt"}
+              </Link>
+              <Link href="/movements" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Pergerakan Stok" : "Stock Movements"}
+              </Link>
+              <Link href="/purchase" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Purchase" : "Purchase"}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 md:py-32 px-6 max-w-4xl mx-auto text-center space-y-8">
+          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
+            {isId ? "Semua fitur POS dirancang dengan tepat." : "Every POS feature is designed with precision."}
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8 text-left mt-16 max-w-3xl mx-auto">
+            <div>
+              <h4 className="font-semibold text-lg mb-2">{isId ? "Sesi kasir lebih terkontrol" : "Better cashier session control"}</h4>
+              <p className="text-muted-foreground">
+                {isId
+                  ? "Buka dan tutup sesi kasir dengan alur yang jelas agar proses serah terima shift lebih aman."
+                  : "Open and close cashier sessions with a clear flow for safer shift handover."}
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-lg mb-2">{isId ? "Pembayaran tetap fleksibel" : "Flexible payment handling"}</h4>
+              <p className="text-muted-foreground">
+                {isId
+                  ? "Kelola metode pembayaran tunai dan non-tunai dengan pencatatan yang tetap rapi di POS."
+                  : "Handle cash and non-cash payments while keeping POS records clean and consistent."}
+              </p>
+            </div>
+          </div>
+          <div className="pt-12">
+            <Link
+              href="/register"
+              className="rounded-full bg-foreground px-8 py-4 text-sm font-medium text-background hover:bg-foreground/90 transition-transform hover:scale-105 inline-flex shadow-xl"
+            >
+              {isId ? "Lihat semua fitur POS" : "See all POS features"}
+            </Link>
           </div>
         </section>
       </PageMotion>

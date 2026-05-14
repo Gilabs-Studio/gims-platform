@@ -678,6 +678,13 @@ export const navigationConfig: NavItem[] = [
         icon: "calendar",
         permission: "holiday.read",
       },
+      {
+        name: "Salary Structures",
+        i18nKey: "salary",
+        url: "/hrd/salary-structures",
+        icon: "wallet",
+        permission: "salary.read",
+      },
     ],
   },
   {
