@@ -6,7 +6,11 @@ export type LandingScreenshotKey =
   | "profitLoss"
   | "customer"
   | "geoPerformance"
-  | "salary";
+  | "salary"
+  | "accountingHero"
+  | "accountingAutoJournal"
+  | "accountingGeneralLedger"
+  | "accountingPeriodClosing";
 
 type ThemePair = {
   light: string;
@@ -45,6 +49,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   salary: {
     light: "/screenshot/salary.webp",
     dark: "/screenshot/salary-dark.webp",
+  },
+  accountingHero: {
+    light: "/screenshot/accounting/accounting-hero.webp",
+    dark: "/screenshot/accounting/accounting-hero-dark.webp",
+  },
+  accountingAutoJournal: {
+    light: "/screenshot/accounting/accounting-auto-journal.webp",
+    dark: "/screenshot/accounting/accounting-auto-journal-dark.webp",
+  },
+  accountingGeneralLedger: {
+    light: "/screenshot/accounting/accounting-general-ledger.webp",
+    dark: "/screenshot/accounting/accounting-general-ledger-dark.webp",
+  },
+  accountingPeriodClosing: {
+    light: "/screenshot/accounting/accounting-period-closing.webp",
+    dark: "/screenshot/accounting/accounting-period-closing-dark.webp",
   },
 } as const;
 

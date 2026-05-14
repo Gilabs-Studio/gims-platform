@@ -54,7 +54,7 @@ export default async function AccountingLandingPage({ params }: { params: Promis
             : "Unify journal entries, ledgers, and cross-module transaction posting in one consistent flow."
         }
         heroImageAlt={isId ? "Tampilan accounting SalesView" : "SalesView accounting interface"}
-        heroImageKey="profitLoss"
+        heroImageKey="accountingHero"
         introTitle={isId ? "Bangun fondasi keuangan yang rapi" : "Build a cleaner financial foundation"}
         introDescription={
           isId
@@ -67,7 +67,7 @@ export default async function AccountingLandingPage({ params }: { params: Promis
             description: isId
               ? "Transaksi dari sales, purchase, dan inventory langsung membentuk jurnal sesuai alur bisnis."
               : "Transactions from sales, purchasing, and inventory generate journals directly from your operational flow.",
-            screenshotKey: "profitLoss",
+            screenshotKey: "accountingAutoJournal",
             placeholder: "terminalFlow",
           },
           {
@@ -75,6 +75,7 @@ export default async function AccountingLandingPage({ params }: { params: Promis
             description: isId
               ? "Pantau mutasi akun dengan struktur yang jelas untuk mendukung audit dan analisis internal."
               : "Track account movements with a clearer structure to support audit and internal analysis.",
+            screenshotKey: "accountingGeneralLedger",
             placeholder: "multiOutlet",
           },
           {
@@ -82,6 +83,7 @@ export default async function AccountingLandingPage({ params }: { params: Promis
             description: isId
               ? "Siapkan data closing lebih cepat karena fondasi transaksi sudah rapi sejak awal."
               : "Prepare closing data faster because transaction foundations stay clean from the start.",
+            screenshotKey: "accountingPeriodClosing",
             placeholder: "invoiceFlow",
           },
         ]}
