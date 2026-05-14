@@ -8,11 +8,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const isId = locale === "id";
 
   const title = isId
-    ? "Pricing SalesView: Harga ERP, CRM, HRIS, POS & Finance"
-    : "SalesView Pricing: ERP, CRM, HRIS, POS & Finance Plans";
+    ? "Harga Paket ERP, CRM, HRIS, POS & Finance | SalesView"
+    : "Pricing Plans for ERP, CRM, HRIS, POS & Finance | SalesView";
   const description = isId
-    ? "Lihat harga SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular dan pilih paket sesuai skala bisnis Anda."
-    : "See SalesView pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular plans and choose the best fit for your business scale.";
+    ? "Lihat harga SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular lalu pilih paket yang sesuai kebutuhan dan skala bisnis Anda."
+    : "See SalesView pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular options and choose the plan that fits your business size and needs.";
 
   return buildLandingMetadata({
     locale,

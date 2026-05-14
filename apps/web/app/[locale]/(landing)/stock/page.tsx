@@ -1,126 +1,92 @@
 import { Metadata } from "next";
-import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/routing";
+import { FeatureLandingPage } from "@/components/landing/feature-landing-page";
 import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  
-  const title = locale === 'id' 
-    ? `Software Inventory & Stok Barang Terbaik | SalesView` 
-    : `Best Inventory & Stock Software | SalesView`;
-    
-  const desc = locale === 'id'
-    ? `Aplikasi inventory pintar untuk memantau stok, melacak pergerakan gudang, dan sinkronisasi laporan otomatis tanpa perhitungan manual.`
-    : `Smart inventory app to monitor stock, track warehouse movements, and sync auto-reports without manual counting.`;
 
   return buildLandingMetadata({
     locale,
     path: "/stock",
-    title,
-    description: desc,
-    keywords: [
-      `Aplikasi Inventory Terbaik`, 
-      `Sistem Gudang Indonesia`, 
-      `Software Stok Barang`,
-      `Warehouse Management System`
-    ],
-    imageAlt: "SalesView inventory and stock overview",
+    title: locale === "id" ? "Software Inventory untuk Kontrol Stok Gudang | SalesView" : "Inventory Software for Warehouse Stock Control | SalesView",
+    description:
+      locale === "id"
+        ? "Pantau ketersediaan barang real-time, kontrol level stok, dan jaga akurasi gudang lintas lokasi serta cabang dengan lebih konsisten."
+        : "Monitor item availability in real time, control stock levels, and maintain warehouse accuracy across locations.",
+    keywords:
+      locale === "id"
+        ? ["software inventory", "kontrol stok", "manajemen gudang", "stok barang real-time", "salesview inventory"]
+        : ["inventory software", "stock control", "warehouse inventory", "real-time stock", "salesview inventory"],
+    imageAlt: "SalesView inventory overview",
   });
 }
 
 export default async function StockLandingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const isId = locale === "id";
 
   const schemaOrg = {
     "@context": "https://schema.org",
-    "@type": ["LocalBusiness", "SoftwareApplication"],
-    "@id": `https://salesview.id/${locale}/stock#business`,
-    "name": locale === 'id' ? "Sistem Inventaris Cerdas" : "Smart Inventory System",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web",
-    "description": locale === 'id' 
-      ? `Aplikasi gudang pintar terintegrasi dengan penjualan untuk kontrol stok akurat.`
-      : `Smart warehouse application integrated with sales for accurate stock control.`,
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Semarang",
-      "addressRegion": "Jawa Tengah",
-      "addressCountry": "ID"
-    },
-    // ... tailors omitted for brevity, logic identical to previous ones
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": -7.005145,
-      "longitude": 110.438125
-    },
-    "url": `https://salesview.id/${locale}/stock`,
-    "telephone": "+628111222333"
+    "@type": "SoftwareApplication",
+    "@id": `https://salesview.id/${locale}/stock#product`,
+    name: "SalesView Inventory",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: isId ? "Sistem inventory dan manajemen stok." : "Inventory and stock management system.",
+    url: `https://salesview.id/${locale}/stock`,
   };
-
-  const isId = locale === 'id';
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }} />
-      <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
-        <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
-            SalesView Inventory
-          </p>
-          <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
-            {isId ? `Akurasi Stok yang` : `A Stock Accuracy that`}
-            <br />
-            <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Presisi.` : `Excels.`}
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">
-            {isId 
-              ? `Manajemen gudang cerdas yang tahu di mana barang Anda berada, kapan harus ditambah, dan otomatis melakukan penyesuaian saat ada penjualan.`
-              : `A smart warehouse management that knows where products are, when to replenish, and self-adjusts upon sales.`
-            }
-          </p>
-          
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link 
-              href="/register"
-              className="rounded-full bg-primary px-8 py-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm"
-            >
-              {isId ? "Tingkatkan Gudang Saya" : "Upgrade My Warehouse"}
-            </Link>
-          </div>
-        </section>
-
-        <section className="bg-secondary/20 py-24 md:py-32">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="flex flex-col gap-12 lg:gap-24 items-center lg:flex-row-reverse">
-              <div className="lg:w-1/2 space-y-6">
-                <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-                  {isId ? "Otomatisasi Penuh" : "Fully Automated"}
-                </h3>
-                <p className="text-lg text-muted-foreground font-light leading-relaxed">
-                  {isId 
-                    ? `Kurangi waktu memproses barang. Terima, pindahkan stok, dan opname langsung tanpa menyortir rekap excel manual di akhir bulan.`
-                    : `Reduce goods processing time. Receive, move stock, and opname seamlessly without sorting bulky excel files end of month.`
-                  }
-                </p>
-              </div>
-              <div className="lg:w-1/2 w-full">
-                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden bg-background border border-border flex items-center justify-center p-8 shadow-sm">
-                   <div className="w-full flex justify-between items-end h-full pt-16 px-4">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="w-8 bg-primary rounded-t-lg transition-all" style={{ height: `${20 * i}%` }} />
-                      ))}
-                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </PageMotion>
+      <FeatureLandingPage
+        locale={locale}
+        label="SalesView Inventory"
+        heroTitle={isId ? "Inventory yang" : "Inventory that"}
+        heroAccent={isId ? "Lebih Presisi." : "Stays Precise."}
+        heroDescription={
+          isId
+            ? "Kendalikan stok dengan visibilitas real-time agar operasional gudang tetap stabil."
+            : "Control stock with real-time visibility so warehouse operations remain stable."
+        }
+        heroImageAlt={isId ? "Tampilan inventory SalesView" : "SalesView inventory interface"}
+        heroImageKey="stockInventory"
+        introTitle={isId ? "Akurasi stok untuk operasional harian" : "Stock accuracy for daily operations"}
+        introDescription={
+          isId
+            ? "Inventory dirancang untuk membantu tim gudang bergerak lebih cepat dan akurat."
+            : "Inventory is designed to help warehouse teams move faster with better accuracy."
+        }
+        featureBlocks={[
+          {
+            title: isId ? "Pemantauan stok real-time" : "Real-time stock monitoring",
+            description: isId
+              ? "Pantau ketersediaan barang lintas lokasi tanpa rekap manual berulang."
+              : "Track availability across locations without repetitive manual recaps.",
+            screenshotKey: "stockInventory",
+            placeholder: "terminalFlow",
+          },
+          {
+            title: isId ? "Kontrol stok masuk dan keluar" : "Inbound and outbound stock control",
+            description: isId
+              ? "Kelola alur barang agar proses gudang tetap sinkron dengan demand lapangan."
+              : "Manage item flow so warehouse execution stays aligned with field demand.",
+            placeholder: "warehouseFlow",
+          },
+          {
+            title: isId ? "Visibilitas performa stok" : "Stock performance visibility",
+            description: isId
+              ? "Gunakan ringkasan performa untuk menentukan keputusan replenishment yang tepat."
+              : "Use performance summaries to make more accurate replenishment decisions.",
+            screenshotKey: "dashboard",
+            placeholder: "multiOutlet",
+          },
+        ]}
+        finalTitle={isId ? "Inventory yang siap scale" : "Inventory operations ready to scale"}
+        finalCtaLabel={isId ? "Mulai Inventory" : "Start Inventory"}
+      />
     </>
   );
 }

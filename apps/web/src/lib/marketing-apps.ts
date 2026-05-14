@@ -2,11 +2,11 @@ export const marketingApps = [
   {
     category: { en: "FINANCE", id: "KEUANGAN" },
     items: [
-      { name: { en: "Accounting", id: "Akuntansi" }, href: "/solutions/finance" },
-      { name: { en: "Invoicing", id: "Faktur" }, href: "/solutions/finance#invoicing" },
-      { name: { en: "Fixed Assets", id: "Aset Tetap" }, href: "/solutions/finance#assets" },
-      { name: { en: "Financial Reports", id: "Laporan Keuangan" }, href: "/solutions/finance#reports" },
-      { name: { en: "Reconciliation", id: "Rekonsiliasi" }, href: "/solutions/finance#reconcile" },
+      { name: { en: "Accounting", id: "Akuntansi" }, href: "/accounting" },
+      { name: { en: "Invoicing", id: "Faktur" }, href: "/invoicing" },
+      { name: { en: "Fixed Assets", id: "Aset Tetap" }, href: "/fixed-assets" },
+      { name: { en: "Financial Reports", id: "Laporan Keuangan" }, href: "/financial-reports" },
+      { name: { en: "Reconciliation", id: "Rekonsiliasi" }, href: "/reconciliation" },
     ]
   },
   {
@@ -15,7 +15,7 @@ export const marketingApps = [
       { name: { en: "CRM", id: "CRM" }, href: "/crm" },
       { name: { en: "Sales Orders", id: "Penjualan" }, href: "/sales" },
       { name: { en: "Point of Sale", id: "POS Toko" }, href: "/pos" },
-      { name: { en: "Quotations", id: "Penawaran" }, href: "/sales#quotations" },
+      { name: { en: "Quotations", id: "Penawaran" }, href: "/quotations" },
     ]
   },
   {
@@ -23,18 +23,18 @@ export const marketingApps = [
     items: [
       { name: { en: "Purchasing", id: "Pembelian" }, href: "/purchase" },
       { name: { en: "Inventory", id: "Inventaris" }, href: "/stock" },
-      { name: { en: "Goods Receipt", id: "Penerimaan Barang" }, href: "/stock#receipt" },
-      { name: { en: "Movements", id: "Pergerakan Stok" }, href: "/stock#movements" },
+      { name: { en: "Goods Receipt", id: "Penerimaan Barang" }, href: "/goods-receipt" },
+      { name: { en: "Movements", id: "Pergerakan Stok" }, href: "/movements" },
     ]
   },
   {
     category: { en: "HUMAN RESOURCES", id: "SUMBER DAYA MANUSIA" },
     items: [
-      { name: { en: "Employees", id: "Karyawan" }, href: "/solutions/hrd" },
-      { name: { en: "Attendance", id: "Kehadiran" }, href: "/solutions/hrd#attendance" },
-      { name: { en: "Recruitment", id: "Rekrutmen" }, href: "/solutions/hrd#recruitment" },
-      { name: { en: "Travel Planner", id: "Travel Planner" }, href: "/solutions/hrd#travel" },
-      { name: { en: "Evaluation", id: "Evaluasi (KPI)" }, href: "/solutions/hrd#evaluation" },
+      { name: { en: "Employees", id: "Karyawan" }, href: "/employees" },
+      { name: { en: "Attendance", id: "Kehadiran" }, href: "/attendance" },
+      { name: { en: "Recruitment", id: "Rekrutmen" }, href: "/recruitment" },
+      { name: { en: "Travel Planner", id: "Travel Planner" }, href: "/travel-planner" },
+      { name: { en: "Evaluation", id: "Evaluasi (KPI)" }, href: "/evaluation" },
     ]
   }
 ];

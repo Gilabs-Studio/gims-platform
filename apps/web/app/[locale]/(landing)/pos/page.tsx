@@ -13,12 +13,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi Sistem Kasir POS Terbaik (Ritel & F&B) | SalesView` 
-    : `Best Point of Sale (POS) Software | SalesView`;
+    ? `Software POS Kasir untuk Retail & F&B | SalesView` 
+    : `POS Software for Retail & F&B | SalesView`;
     
   const desc = locale === 'id'
-    ? `Sistem Point of Sale (POS) antijam otomatis tersinkronisasi ke inventori dan akuntansi. Sempurna untuk kafe, resto, dan retail.`
-    : `Fast, reliable Point of Sale (POS) software natively synced with inventory and accounting. Ideal for retail and F&B.`;
+    ? `Jalankan kasir POS dengan sinkronisasi stok real-time, laporan penjualan, dan dukungan multi-cabang untuk bisnis retail serta F&B.`
+    : `Run POS cashier operations with real-time stock sync, sales reporting, and multi-branch support for retail and F&B businesses.`;
 
   return buildLandingMetadata({
     locale,
@@ -26,29 +26,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title,
     description: desc,
     keywords: locale === "id"
-      ? [
-          "aplikasi kasir terbaik",
-          "sistem kasir cafe",
-          "software pos retail",
-          "mesin kasir online",
-          "pos kasir",
-          "point of sales",
-          "aplikasi point of sale indonesia",
-          "software kasir gratis",
-          "kasir digital",
-          "sistem kasir restoran",
-          "salesview pos",
-        ]
-      : [
-          "point of sales software",
-          "best pos system",
-          "pos kasir",
-          "retail pos software",
-          "restaurant pos system",
-          "cloud pos indonesia",
-          "salesview pos",
-          "point of sale indonesia",
-        ],
+      ? ["software pos", "aplikasi kasir", "pos retail", "kasir f&b", "point of sale indonesia", "salesview pos"]
+      : ["pos software", "point of sale", "retail pos", "restaurant pos", "multi-branch pos", "salesview pos"],
     imageAlt: "SalesView point-of-sale overview",
   });
 }
@@ -113,37 +92,34 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
   const featureBlocks: Array<{
     title: string;
     description: string;
+    descriptionSecondary?: string;
     screenshotKey?: LandingScreenshotKey;
     placeholder: "terminalFlow" | "multiOutlet";
   }> = [
     {
-      title: isId ? "Satu Kasir, Multi-Kondisi" : "One terminal, completely fluid",
+      title: isId ? "Transaksi cepat, alur kasir tetap rapi" : "Fast checkout with a cleaner cashier flow",
       description: isId
-        ? "POS kami bukan sekadar mesin tik angka. Gabungkan diskon, loyalty points, dan split payment dalam satu aliran transaksi yang tetap cepat meski antrean ramai."
-        : "Our POS is not just a number pad. Merge discounts, loyalty points, and split payments in one lightning-fast checkout flow.",
+        ? "Gabungkan item, diskon, dan pembayaran dalam satu alur yang ringkas supaya antrean bergerak lebih cepat di jam sibuk."
+        : "Combine items, discounts, and payments in one focused flow so queues keep moving during peak hours.",
+      descriptionSecondary: isId
+        ? "Kasir tetap bisa melayani dengan konsisten karena tampilan terminal dibuat sederhana dan minim langkah berulang."
+        : "Cashiers stay consistent because the terminal is built with fewer repetitive steps.",
       placeholder: "terminalFlow",
     },
     {
-      title: isId ? "Stok Selalu Sinkron Otomatis" : "Inventory updates itself in real time",
+      title: isId ? "Stok outlet langsung ikut ter-update" : "Store inventory updates in real time",
       description: isId
-        ? "Setiap transaksi langsung memperbarui stok antar outlet dan gudang. Tim Anda tidak perlu lagi rekonsiliasi manual di akhir hari."
-        : "Every transaction updates stock across stores and warehouses instantly, so your team can stop doing manual end-of-day reconciliation.",
+        ? "Setiap transaksi POS otomatis mengurangi stok, jadi tim operasional tidak perlu rekonsiliasi manual di akhir shift."
+        : "Every POS transaction updates stock automatically, so operations teams can skip manual end-of-shift reconciliation.",
       screenshotKey: "stockInventory",
       placeholder: "terminalFlow",
     },
     {
-      title: isId ? "Loyalty & Data Customer dalam Satu Layar" : "Loyalty and customer profile in one screen",
+      title: isId ? "Pantau performa outlet dari satu dashboard" : "Monitor outlet performance from one dashboard",
       description: isId
-        ? "Simpan histori belanja pelanggan, terapkan promosi yang tepat, dan bangun repeat order lebih konsisten dari kasir yang sama."
-        : "Keep customer purchase history, apply better promotions, and drive repeat orders consistently from the same checkout screen.",
-      screenshotKey: "customer",
-      placeholder: "terminalFlow",
-    },
-    {
-      title: isId ? "Kontrol Multi Outlet Lebih Rapi" : "Cleaner control for multi-store operations",
-      description: isId
-        ? "Pantau performa per outlet, per kasir, dan per shift dari dashboard yang ringkas. Audit harian jadi cepat tanpa lompat antar sistem."
-        : "Monitor outlet, cashier, and shift performance from a focused dashboard so daily audit takes minutes, not hours.",
+        ? "Lihat ringkasan penjualan, performa kasir, dan tren operasional harian untuk bantu keputusan lebih cepat."
+        : "Track sales summaries, cashier performance, and daily operational trends for faster decisions.",
+      screenshotKey: "dashboard",
       placeholder: "multiOutlet",
     },
   ];
@@ -152,7 +128,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }} />
       <PageMotion className="flex flex-col min-h-screen bg-background pt-16">
-        <section className="pt-24 pb-16 px-6 max-w-5xl mx-auto text-center">
+        <section className="pt-24 pb-10 px-6 max-w-5xl mx-auto text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-6">
             SalesView Point of Sale
           </p>
@@ -177,6 +153,31 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
             >
               {isId ? "Mulai sekarang - Gratis" : "Start now - Free"}
             </Link>
+            <Link
+              href="/login"
+              className="rounded-full bg-secondary text-secondary-foreground px-8 py-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              {isId ? "Ketahui lebih lanjut" : "Learn more"}
+            </Link>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            {isId ? "Gratis selamanya, tanpa batasan jumlah user." : "Free, forever, with absolutely no user limits."}
+          </p>
+        </section>
+
+        <section className="px-6 max-w-7xl mx-auto w-full pb-24">
+          <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/40 bg-card shadow-[0_20px_50px_rgba(0,0,0,0.12)]">
+            <div className="relative aspect-video w-full">
+              <ThemeAwareImage
+                lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.light}
+                darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.dark}
+                alt={isId ? "Tampilan POS SalesView" : "SalesView POS interface"}
+                fill
+                className="object-cover object-top"
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                priority
+              />
+            </div>
           </div>
         </section>
 
@@ -184,19 +185,19 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
           <div className="max-w-5xl mx-auto px-6">
             <div className="text-center mb-14 md:mb-20 max-w-3xl mx-auto">
               <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-5">
-                {isId ? "POS yang tumbuh bersama operasional Anda" : "A POS built for real daily operations"}
+                {isId ? "Pantau operasional POS dalam satu genggaman!" : "Keep POS operations in one clear view"}
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                 {isId
-                  ? "Empat blok fitur inti yang dirancang untuk mempercepat kasir, menjaga akurasi stok, dan memberi kontrol outlet yang lebih rapi."
-                  : "Four core feature blocks designed to speed up checkout, keep stock accurate, and simplify multi-store control."}
+                  ? "Fitur inti POS yang benar-benar dipakai tim kasir dan operasional setiap hari."
+                  : "Core POS features your cashier and operations team use every day."}
               </p>
             </div>
 
             <div className="space-y-20 md:space-y-24">
               {featureBlocks.map((feature, index) => {
                 const useScreenshot = Boolean(feature.screenshotKey);
-                const reverse = index % 2 === 1;
+                const reverse = index % 2 === 0;
 
                 return (
                   <div
@@ -270,25 +271,76 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
                       <p className="text-lg text-muted-foreground font-light leading-relaxed">
                         {feature.description}
                       </p>
-                      <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-1">
-                        <Link
-                          href="/register"
-                          className="rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-105 shadow-sm"
-                        >
-                          {isId ? "Mulai Gratis" : "Start Free"}
-                        </Link>
-                        <Link
-                          href="/login"
-                          className="rounded-full bg-background px-6 py-3 text-sm font-medium text-foreground border border-border hover:bg-muted/60 transition-colors"
-                        >
-                          {isId ? "Lihat Demo" : "See Demo"}
-                        </Link>
-                      </div>
+                      {feature.descriptionSecondary ? (
+                        <p className="text-lg text-muted-foreground font-light leading-relaxed">
+                          {feature.descriptionSecondary}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        <section className="px-6 py-16 md:py-20">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border/50 bg-card p-8 md:p-10 text-center">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">SalesView Apps</p>
+            <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              {isId ? "Jelajahi Modul Terkait" : "Explore Related Modules"}
+            </h3>
+            <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+              {isId
+                ? "Hubungkan operasional POS dengan inventory dan purchasing untuk kontrol stok yang lebih presisi."
+                : "Connect POS operations with inventory and purchasing for tighter stock control."}
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/stock" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Inventory" : "Inventory"}
+              </Link>
+              <Link href="/goods-receipt" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Penerimaan Barang" : "Goods Receipt"}
+              </Link>
+              <Link href="/movements" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Pergerakan Stok" : "Stock Movements"}
+              </Link>
+              <Link href="/purchase" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Purchase" : "Purchase"}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24 md:py-32 px-6 max-w-4xl mx-auto text-center space-y-8">
+          <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
+            {isId ? "Semua fitur POS dirancang dengan tepat." : "Every POS feature is designed with precision."}
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8 text-left mt-16 max-w-3xl mx-auto">
+            <div>
+              <h4 className="font-semibold text-lg mb-2">{isId ? "Sesi kasir lebih terkontrol" : "Better cashier session control"}</h4>
+              <p className="text-muted-foreground">
+                {isId
+                  ? "Buka dan tutup sesi kasir dengan alur yang jelas agar proses serah terima shift lebih aman."
+                  : "Open and close cashier sessions with a clear flow for safer shift handover."}
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-lg mb-2">{isId ? "Pembayaran tetap fleksibel" : "Flexible payment handling"}</h4>
+              <p className="text-muted-foreground">
+                {isId
+                  ? "Kelola metode pembayaran tunai dan non-tunai dengan pencatatan yang tetap rapi di POS."
+                  : "Handle cash and non-cash payments while keeping POS records clean and consistent."}
+              </p>
+            </div>
+          </div>
+          <div className="pt-12">
+            <Link
+              href="/register"
+              className="rounded-full bg-foreground px-8 py-4 text-sm font-medium text-background hover:bg-foreground/90 transition-transform hover:scale-105 inline-flex shadow-xl"
+            >
+              {isId ? "Lihat semua fitur POS" : "See all POS features"}
+            </Link>
           </div>
         </section>
       </PageMotion>
