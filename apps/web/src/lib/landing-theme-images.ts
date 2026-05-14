@@ -22,7 +22,11 @@ export type LandingScreenshotKey =
   | "financialReportsHero"
   | "financialReportsSummary"
   | "financialReportsProfitLoss"
-  | "financialReportsReview";
+  | "financialReportsReview"
+  | "reconciliationHero"
+  | "reconciliationTransactionMatching"
+  | "reconciliationVarianceTracing"
+  | "reconciliationClosingConfidence";
 
 type ThemePair = {
   light: string;
@@ -125,6 +129,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   financialReportsReview: {
     light: "/screenshot/financial-reports/financial-reports-review.webp",
     dark: "/screenshot/financial-reports/financial-reports-review-dark.webp",
+  },
+  reconciliationHero: {
+    light: "/screenshot/reconciliation/reconciliation-hero.webp",
+    dark: "/screenshot/reconciliation/reconciliation-hero-dark.webp",
+  },
+  reconciliationTransactionMatching: {
+    light: "/screenshot/reconciliation/reconciliation-transaction-matching.webp",
+    dark: "/screenshot/reconciliation/reconciliation-transaction-matching-dark.webp",
+  },
+  reconciliationVarianceTracing: {
+    light: "/screenshot/reconciliation/reconciliation-variance-tracing.webp",
+    dark: "/screenshot/reconciliation/reconciliation-variance-tracing-dark.webp",
+  },
+  reconciliationClosingConfidence: {
+    light: "/screenshot/reconciliation/reconciliation-closing-confidence.webp",
+    dark: "/screenshot/reconciliation/reconciliation-closing-confidence-dark.webp",
   },
 } as const;
 
