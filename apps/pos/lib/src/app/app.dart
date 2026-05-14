@@ -58,7 +58,7 @@ class _GimsPosAppState extends State<GimsPosApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'GIMS POS',
+      title: 'Salesview Pos',
       theme: buildGimsTheme(),
       home: FutureBuilder<void>(
         future: _boot,
