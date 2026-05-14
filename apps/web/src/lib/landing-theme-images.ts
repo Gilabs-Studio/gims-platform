@@ -14,7 +14,11 @@ export type LandingScreenshotKey =
   | "invoicingHero"
   | "invoicingConsistentInvoice"
   | "invoicingPaymentStatus"
-  | "invoicingFollowUp";
+  | "invoicingFollowUp"
+  | "fixedAssetsHero"
+  | "fixedAssetsRegistration"
+  | "fixedAssetsValueSummary"
+  | "fixedAssetsAuditDocs";
 
 type ThemePair = {
   light: string;
@@ -85,6 +89,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   invoicingFollowUp: {
     light: "/screenshot/invoicing/invoicing-follow-up.webp",
     dark: "/screenshot/invoicing/invoicing-follow-up-dark.webp",
+  },
+  fixedAssetsHero: {
+    light: "/screenshot/fixed-assets/fixed-assets-hero.webp",
+    dark: "/screenshot/fixed-assets/fixed-assets-hero-dark.webp",
+  },
+  fixedAssetsRegistration: {
+    light: "/screenshot/fixed-assets/fixed-assets-registration.webp",
+    dark: "/screenshot/fixed-assets/fixed-assets-registration-dark.webp",
+  },
+  fixedAssetsValueSummary: {
+    light: "/screenshot/fixed-assets/fixed-assets-value-summary.webp",
+    dark: "/screenshot/fixed-assets/fixed-assets-value-summary-dark.webp",
+  },
+  fixedAssetsAuditDocs: {
+    light: "/screenshot/fixed-assets/fixed-assets-audit-docs.webp",
+    dark: "/screenshot/fixed-assets/fixed-assets-audit-docs-dark.webp",
   },
 } as const;
 

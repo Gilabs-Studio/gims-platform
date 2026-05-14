@@ -52,7 +52,7 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
             : "Track assets, values, and usage status so investment decisions stay data-driven."
         }
         heroImageAlt={isId ? "Tampilan aset tetap SalesView" : "SalesView fixed assets interface"}
-        heroImageKey="profitLoss"
+        heroImageKey="fixedAssetsHero"
         introTitle={isId ? "Kendalikan aset dalam satu sistem" : "Control assets in one system"}
         introDescription={
           isId
@@ -65,6 +65,7 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
             description: isId
               ? "Simpan detail aset agar pelacakan kepemilikan dan penggunaan lebih konsisten."
               : "Store asset details for more consistent ownership and usage tracking.",
+            screenshotKey: "fixedAssetsRegistration",
             placeholder: "terminalFlow",
           },
           {
@@ -72,6 +73,7 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
             description: isId
               ? "Pantau nilai aset dalam tampilan yang membantu evaluasi finansial periodik."
               : "Monitor asset value through views that support periodic financial evaluation.",
+            screenshotKey: "fixedAssetsValueSummary",
             placeholder: "multiOutlet",
           },
           {
@@ -79,6 +81,7 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
             description: isId
               ? "Siapkan data aset yang rapi untuk kebutuhan audit dan rekonsiliasi internal."
               : "Keep asset records tidy for audits and internal reconciliation.",
+            screenshotKey: "fixedAssetsAuditDocs",
             placeholder: "scorecardFlow",
           },
         ]}
