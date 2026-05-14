@@ -205,7 +205,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
                     className={`flex flex-col gap-12 lg:gap-20 items-center ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"}`}
                   >
                     <div className="lg:w-1/2 w-full">
-                      <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-6 md:p-8 flex items-center justify-center relative">
+                      <div className="aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-6 md:p-8 flex items-center justify-center relative">
                         {useScreenshot ? (
                           <ThemeAwareImage
                             lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].light}

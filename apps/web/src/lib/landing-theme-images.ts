@@ -26,7 +26,12 @@ export type LandingScreenshotKey =
   | "reconciliationHero"
   | "reconciliationTransactionMatching"
   | "reconciliationVarianceTracing"
-  | "reconciliationClosingConfidence";
+
+  | "reconciliationClosingConfidence"
+  | "crmHero"
+  | "crmKanbanPipeline"
+  | "crmActivityFollowup"
+  | "crmAreaMapping";
 
 type ThemePair = {
   light: string;
@@ -145,6 +150,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   reconciliationClosingConfidence: {
     light: "/screenshot/reconciliation/reconciliation-closing-confidence.webp",
     dark: "/screenshot/reconciliation/reconciliation-closing-confidence-dark.webp",
+  },
+  crmHero: {
+    light: "/screenshot/crm/crm-hero.webp",
+    dark: "/screenshot/crm/crm-hero-dark.webp",
+  },
+  crmKanbanPipeline: {
+    light: "/screenshot/crm/crm-kanban-pipeline.webp",
+    dark: "/screenshot/crm/crm-kanban-pipeline-dark.webp",
+  },
+  crmActivityFollowup: {
+    light: "/screenshot/crm/crm-activity-followup.webp",
+    dark: "/screenshot/crm/crm-activity-followup-dark.webp",
+  },
+  crmAreaMapping: {
+    light: "/screenshot/crm/crm-area-mapping.webp",
+    dark: "/screenshot/crm/crm-area-mapping-dark.webp",
   },
 } as const;
 

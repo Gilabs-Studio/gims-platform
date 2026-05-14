@@ -123,8 +123,8 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             {/* Using abstract Apple-like minimalist representation or screenshot if available */}
             <div className="absolute inset-0 bg-linear-to-tr from-background to-secondary/30" />
             <ThemeAwareImage
-              lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.pipeline.light}
-              darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.pipeline.dark}
+              lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmHero.light}
+              darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmHero.dark}
               alt="CRM Interface" 
               fill 
               className="object-cover object-top"
@@ -162,16 +162,14 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                    <div className="w-full h-full flex gap-4">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="flex-1 bg-secondary/50 rounded-lg p-2 space-y-3">
-                          <div className="w-full h-2 bg-muted rounded" />
-                          <div className="w-full h-20 bg-card rounded shadow-sm border border-border/50" />
-                          {i !== 3 && <div className="w-full h-20 bg-card rounded shadow-sm border border-border/50 opacity-60" />}
-                        </div>
-                      ))}
-                    </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmKanbanPipeline.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmKanbanPipeline.dark}
+                      alt={isId ? "CRM kanban pipeline" : "CRM kanban pipeline"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
@@ -197,23 +195,14 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                    <div className="w-full max-w-xs space-y-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 shrink-0" />
-                        <div className="flex-1 bg-secondary rounded-2xl rounded-tl-none p-3 shadow-sm border border-border/50">
-                          <div className="w-3/4 h-2 bg-muted rounded mb-2" />
-                          <div className="w-1/2 h-2 bg-muted rounded" />
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-4 flex-row-reverse">
-                        <div className="w-8 h-8 rounded-full bg-blue-500/20 shrink-0" />
-                        <div className="flex-1 bg-primary text-primary-foreground rounded-2xl rounded-tr-none p-3 shadow-sm">
-                          <div className="w-full h-2 bg-white/40 rounded mb-2" />
-                          <div className="w-2/3 h-2 bg-white/40 rounded" />
-                        </div>
-                      </div>
-                    </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmActivityFollowup.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmActivityFollowup.dark}
+                      alt={isId ? "CRM aktivitas dan follow-up" : "CRM activities and follow-up"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
@@ -233,22 +222,14 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                     <div className="w-full h-full border border-border/50 rounded-xl bg-card shadow-sm flex flex-col overflow-hidden relative">
-                        <div className="h-10 bg-secondary border-b border-border/50 flex items-center px-4" />
-                        <div className="flex-1 p-6 space-y-4">
-                           <div className="w-1/3 h-4 bg-muted rounded" />
-                           <div className="w-full h-px bg-border my-4" />
-                           <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
-                             <div className="w-1/4 h-2 bg-muted rounded" />
-                             <div className="w-1/4 h-2 bg-muted rounded" />
-                           </div>
-                           <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
-                             <div className="w-1/3 h-2 bg-muted rounded" />
-                             <div className="w-1/5 h-2 bg-muted rounded" />
-                           </div>
-                        </div>
-                     </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmAreaMapping.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmAreaMapping.dark}
+                      alt={isId ? "CRM area mapping" : "CRM area mapping"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
