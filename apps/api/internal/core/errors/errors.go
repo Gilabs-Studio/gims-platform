@@ -107,6 +107,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusForbidden,
 		Message:    "You do not have permission to access this resource",
 	},
+	"OUTLET_CLOSED": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "This outlet is currently closed",
+	},
 	"PAYMENT_REQUIRED": {
 		HTTPStatus: http.StatusPaymentRequired,
 		Message:    "Subscription payment is required to continue",

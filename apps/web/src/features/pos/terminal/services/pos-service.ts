@@ -155,6 +155,12 @@ export const posPaymentService = {
       .get<ApiResponse<POSPayment[]>>(`${BASE}/orders/${orderId}/payments`)
       .then((r) => r.data);
   },
+
+  cancelPending(orderId: string, paymentId: string) {
+    return apiClient
+      .post<ApiResponse<{ cancelled: boolean }>>(`${BASE}/orders/${orderId}/payments/${paymentId}/cancel`)
+      .then((r) => r.data);
+  },
 };
 
 // ─── Config ───────────────────────────────────────────────────────────────────

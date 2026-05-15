@@ -41,6 +41,8 @@ type POSPaymentUsecase interface {
 	ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error
 	// GetByOrderID returns all payments for an order
 	GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error)
+	// CancelPendingPayment cancels a pending digital payment and keeps order open for cashier payment.
+	CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string) error
 }
 
 type posPaymentUsecase struct {
@@ -57,6 +59,7 @@ type posPaymentUsecase struct {
 	salesPaymentRepo  salesRepos.SalesPaymentRepository
 	bankAccountRepo   coreRepos.BankAccountRepository
 	cipher            *securityInfra.CredentialCipher
+	hub               POSHubPublisher
 	// loyaltyUC is optional; when nil loyalty point accrual is skipped.
 	loyaltyUC loyaltyUC.LoyaltyUsecase
 }
@@ -64,6 +67,12 @@ type posPaymentUsecase struct {
 // WithLoyaltyUsecase injects the loyalty usecase for post-payment point accrual.
 func (u *posPaymentUsecase) WithLoyaltyUsecase(uc loyaltyUC.LoyaltyUsecase) *posPaymentUsecase {
 	u.loyaltyUC = uc
+	return u
+}
+
+// WithPOSHub injects a websocket hub to publish realtime payment/order events.
+func (u *posPaymentUsecase) WithPOSHub(hub POSHubPublisher) *posPaymentUsecase {
+	u.hub = hub
 	return u
 }
 
@@ -203,6 +212,7 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 
 	now := apptime.Now()
 	change := req.Amount - order.TotalAmount
+	actorID := normalizedActorID(cashierID)
 	payment := &models.POSPayment{
 		OrderID:         orderID,
 		Method:          models.POSPaymentMethod(req.Method),
@@ -213,7 +223,7 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		ReferenceNumber: req.ReferenceNumber,
 		Notes:           req.Notes,
 		PaidAt:          &now,
-		CreatedBy:       cashierID,
+		CreatedBy:       actorID,
 	}
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
@@ -290,6 +300,7 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 
 	now := apptime.Now()
 	expiresAt := now.Add(24 * 60 * 60 * 1_000_000_000) // 24-hour default expiry
+	actorID := normalizedActorID(cashierID)
 
 	payment := &models.POSPayment{
 		OrderID:         orderID,
@@ -304,7 +315,7 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		XenditInvoiceID: &invoice.ID,
 		PaymentURL:      &invoice.InvoiceURL,
 		ExpiresAt:       &expiresAt,
-		CreatedBy:       cashierID,
+		CreatedBy:       actorID,
 	}
 
 	// Store the requested channel code for tracking
@@ -609,6 +620,73 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 	return result, nil
 }
 
+func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string) error {
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrPOSOrderNotFound
+		}
+		return err
+	}
+
+	if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
+		return ErrPOSOrderAlreadyPaid
+	}
+
+	payment, err := u.paymentRepo.FindByID(ctx, paymentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrPOSPaymentNotFound
+		}
+		return err
+	}
+
+	if payment.OrderID != orderID {
+		return ErrPOSPaymentNotFound
+	}
+
+	if payment.Status != models.POSPaymentStatusPending {
+		return fmt.Errorf("%w: payment is not pending", ErrPOSInvalidPayment)
+	}
+
+	payment.Status = models.POSPaymentStatusFailed
+	note := strings.TrimSpace(defaultString(payment.Notes))
+	if note == "" {
+		note = "Cancelled from POS live table"
+	} else {
+		note = note + " | Cancelled from POS live table"
+	}
+	payment.Notes = &note
+
+	if err := u.paymentRepo.Update(ctx, payment); err != nil {
+		return err
+	}
+
+	if order.Status == models.PosOrderStatusDraft {
+		order.Status = models.PosOrderStatusInProgress
+		if err := u.orderRepo.Update(ctx, order); err != nil {
+			return err
+		}
+	}
+
+	if u.hub != nil {
+		tableLabel := ""
+		if order.TableLabel != nil {
+			tableLabel = *order.TableLabel
+		}
+		u.hub.Publish(order.OutletID, "pos.order_status_changed", map[string]interface{}{
+			"order_id":       order.ID,
+			"order_number":   order.OrderNumber,
+			"status":         string(order.Status),
+			"table_label":    tableLabel,
+			"payment_status": "WAITING_CASHIER",
+			"cancelled_by":   normalizedActorID(actorID),
+		})
+	}
+
+	return nil
+}
+
 // finalizeOrder orchestrates POS order finalization: loyalty redemption, order status update,
 // and ERP document creation (Sales Order → Customer Invoice → Sales Payment).
 //
@@ -642,6 +720,22 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	order.Status = models.PosOrderStatusPaid
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	if u.hub != nil {
+		tableLabel := ""
+		if order.TableLabel != nil {
+			tableLabel = *order.TableLabel
+		}
+		payload := map[string]interface{}{
+			"order_id":      order.ID,
+			"order_number":  order.OrderNumber,
+			"status":        string(order.Status),
+			"table_label":   tableLabel,
+			"payment_status": "PAID",
+		}
+		u.hub.Publish(order.OutletID, "pos.order_status_changed", payload)
+		u.hub.Publish(order.OutletID, "pos.payment_confirmed", payload)
 	}
 
 	// Best-effort ERP sync in a separate transaction. If this fails, POS payment stays valid
@@ -712,6 +806,13 @@ func paymentIDOrEmpty(payment *models.POSPayment) string {
 		return ""
 	}
 	return payment.ID
+}
+
+func defaultString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // createSalesOrderFromPOS creates a closed SalesOrder record from a paid POS order.

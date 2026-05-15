@@ -56,12 +56,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	invRepo := invDataRepos.NewInventoryRepository(db)
 	recipeService := invUsecase.NewRecipeConsumptionService(db, invRepo)
+	posHub := ws.DefaultPosHub()
 
 	// ─── Usecases ────────────────────────────────────────────────────────────
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo, qrTokenRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
 	paymentUC := usecase.NewPOSPaymentUsecase(db, paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, customerInvoiceUC, salesPaymentUC, salesPaymentRepo, bankAccountRepo, credentialCipher)
+	paymentUC = paymentUC.WithPOSHub(posHub)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 	sessionUC := usecase.NewPOSSessionUsecase(sessionRepo, outletRepo)
@@ -92,8 +94,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// ─── Public self-order handler ────────────────────────────────────────────
 
-	posHub := ws.DefaultPosHub()
-	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, sessionRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub)
+	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub)
 	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
 	posWSH := handler.NewPOSWSHandler(posHub)
 

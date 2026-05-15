@@ -49,6 +49,7 @@ export interface POSSession {
 export type PosOrderStatus =
   | "DRAFT"
   | "IN_PROGRESS"
+  | "WAITING_PAYMENT"
   | "READY"
   | "PAID"
   | "PARTIAL_SERVED"

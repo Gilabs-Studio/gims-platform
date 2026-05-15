@@ -78,6 +78,7 @@ export interface InitiatePaymentResponse {
   method: string;
   qr_string?: string;
   qr_image_url?: string;
+  payment_url?: string;
   status: string;
 }
 

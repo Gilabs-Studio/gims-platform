@@ -83,9 +83,38 @@ func (h *PublicPOSHandler) InitiateDigitalPayment(c *gin.Context) {
 }
 
 // MarkPayAtCashier acknowledges that the customer will pay at the counter.
-// No state change is required — the order stays IN_PROGRESS until a cashier processes it.
 func (h *PublicPOSHandler) MarkPayAtCashier(c *gin.Context) {
-	response.SuccessResponse(c, gin.H{"acknowledged": true}, nil)
+	token := c.Param("token")
+	orderID := c.Param("orderId")
+
+	order, err := h.uc.MarkPayAtCashier(c.Request.Context(), token, orderID)
+	if err != nil {
+		handlePublicPOSError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{
+		"acknowledged": true,
+		"order":        order,
+	}, nil)
+}
+
+// CancelDigitalPayment cancels a pending digital invoice and falls back to cashier payment mode.
+func (h *PublicPOSHandler) CancelDigitalPayment(c *gin.Context) {
+	token := c.Param("token")
+	orderID := c.Param("orderId")
+	paymentID := c.Param("paymentId")
+
+	order, err := h.uc.CancelDigitalPayment(c.Request.Context(), token, orderID, paymentID)
+	if err != nil {
+		handlePublicPOSError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{
+		"cancelled": true,
+		"order":     order,
+	}, nil)
 }
 
 // handlePublicPOSError maps public-facing errors to HTTP responses.
@@ -93,10 +122,16 @@ func handlePublicPOSError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecase.ErrPublicTokenInvalid):
 		coreErrors.NotFoundResponse(c, "qr_token", "")
-	case errors.Is(err, usecase.ErrPublicOutletClosed):
-		coreErrors.ErrorResponse(c, "OUTLET_CLOSED", nil, nil)
 	case errors.Is(err, usecase.ErrPOSOrderNotFound):
 		coreErrors.NotFoundResponse(c, "pos_order", "")
+	case errors.Is(err, usecase.ErrPOSPaymentNotFound):
+		coreErrors.NotFoundResponse(c, "pos_payment", "")
+	case errors.Is(err, usecase.ErrPOSOutletForbidden):
+		coreErrors.NotFoundResponse(c, "pos_order", "")
+	case errors.Is(err, usecase.ErrPOSOrderAlreadyPaid):
+		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
+	case errors.Is(err, usecase.ErrPOSOrderCannotModify):
+		coreErrors.ErrorResponse(c, "POS_ORDER_CANNOT_MODIFY", nil, nil)
 	case errors.Is(err, usecase.ErrPOSProductNotAvailable):
 		coreErrors.ErrorResponse(c, "POS_PRODUCT_NOT_AVAILABLE", nil, nil)
 	case errors.Is(err, usecase.ErrPOSInsufficientStock):

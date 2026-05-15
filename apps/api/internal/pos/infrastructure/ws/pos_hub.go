@@ -17,6 +17,8 @@ const (
 	PosEventNewCustomerOrder PosEventType = "pos.new_customer_order"
 	// PosEventOrderStatusChanged fires when order status transitions (e.g. IN_PROGRESS → READY).
 	PosEventOrderStatusChanged PosEventType = "pos.order_status_changed"
+	// PosEventPaymentConfirmed fires when order payment is confirmed (cash or webhook-settled).
+	PosEventPaymentConfirmed PosEventType = "pos.payment_confirmed"
 )
 
 // PosEvent is the envelope sent over every WebSocket connection.

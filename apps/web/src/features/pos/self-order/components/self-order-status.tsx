@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock, ChefHat, XCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, Clock, ChefHat, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,7 +10,6 @@ interface SelfOrderStatusProps {
   order: CustomerOrderResponse;
   currency: string;
   onOrderMore: () => void;
-  isRefetching: boolean;
 }
 
 function formatCurrency(amount: number, currency: string) {
@@ -25,7 +24,6 @@ export function SelfOrderStatus({
   order,
   currency,
   onOrderMore,
-  isRefetching,
 }: SelfOrderStatusProps) {
   const t = useTranslations("selfOrder");
 
@@ -34,6 +32,7 @@ export function SelfOrderStatus({
     { label: string; icon: React.ElementType; color: string }
   > = {
     PENDING: { label: t("status.statusLabels.PENDING"), icon: Clock, color: "text-yellow-600" },
+    WAITING_PAYMENT: { label: t("status.statusLabels.WAITING_PAYMENT"), icon: Clock, color: "text-amber-600" },
     CONFIRMED: { label: t("status.statusLabels.CONFIRMED"), icon: Clock, color: "text-blue-600" },
     PREPARING: { label: t("status.statusLabels.PREPARING"), icon: ChefHat, color: "text-orange-600" },
     READY: { label: t("status.statusLabels.READY"), icon: CheckCircle2, color: "text-green-600" },
@@ -105,15 +104,6 @@ export function SelfOrderStatus({
           </div>
         </div>
       </div>
-
-      {!isTerminal && (
-        <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground mb-6">
-          <RefreshCw
-            className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`}
-          />
-          {t("status.updatingEvery5Seconds")}
-        </div>
-      )}
 
       {(isTerminal || order.status === "SERVED") && (
         <Button 

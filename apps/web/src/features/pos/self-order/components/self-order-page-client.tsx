@@ -3,14 +3,14 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { QrCode, WifiOff } from "lucide-react";
+import { QrCode, Store, WifiOff } from "lucide-react";
 import { LoadingSpinner } from "@/components/loading";
 import { SelfOrderMenu } from "./self-order-menu";
 import { SelfOrderCart } from "./self-order-cart";
 import { SelfOrderCheckout } from "./self-order-checkout";
 import { SelfOrderStatus } from "./self-order-status";
-import { useTableInfo, useCreateOrder, useOrderStatus, useMarkPayAtCashier } from "../hooks/use-self-order";
-import { SelfOrderApiError } from "../services/self-order-service";
+import { useTableInfo, useCreateOrder, useOrderStatus } from "../hooks/use-self-order";
+import { SelfOrderApiError, selfOrderService } from "../services/self-order-service";
 import type { POSCatalogItem, CartItem } from "../types";
 
 type Step = "menu" | "checkout" | "status";
@@ -28,8 +28,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
 
   const { data: tableInfo, isError, error, isPending } = useTableInfo(token);
   const createOrder = useCreateOrder(token);
-  const markCashier = useMarkPayAtCashier(token, orderId ?? "");
-  const { data: orderStatus, isRefetching } = useOrderStatus(
+  const { data: orderStatus } = useOrderStatus(
     token,
     orderId ?? ""
   );
@@ -97,10 +96,24 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   async function handleOrderAndPay(customerName: string) {
     try {
       const order = await placeOrder(customerName);
+      const payment = await selfOrderService.initiatePayment(token, order.order_id, {
+        method: "QRIS",
+        amount: order.total_amount,
+      });
+
+      const paymentUrl = payment.data.payment_url;
+      if (paymentUrl) {
+        window.open(paymentUrl, "_blank", "noopener,noreferrer");
+      }
+
       setOrderId(order.order_id);
       setCart([]);
       setStep("status");
-    } catch {
+    } catch (err) {
+      if (err instanceof SelfOrderApiError && err.status === 409) {
+        toast.error(t("selfOrder.page.outletClosed"));
+        return;
+      }
       toast.error(t("selfOrder.page.failedOrder"));
     }
   }
@@ -108,11 +121,15 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   async function handlePayAtCashier(customerName: string) {
     try {
       const order = await placeOrder(customerName);
+      await selfOrderService.markPayAtCashier(token, order.order_id);
       setOrderId(order.order_id);
-      await selfOrderService_markCashier(token, order.order_id);
       setCart([]);
       setStep("status");
-    } catch {
+    } catch (err) {
+      if (err instanceof SelfOrderApiError && err.status === 409) {
+        toast.error(t("selfOrder.page.outletClosed"));
+        return;
+      }
       toast.error(t("selfOrder.page.failedOrder"));
     }
   }
@@ -134,12 +151,16 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
     const isInvalidQR =
       error instanceof SelfOrderApiError &&
       (error.status === 404 || error.status === 403 || error.status === 410);
+    const isOutletClosed =
+      error instanceof SelfOrderApiError && error.status === 409;
 
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center bg-background">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted/50 mb-6">
           {isInvalidQR ? (
             <QrCode className="h-10 w-10 text-muted-foreground" />
+          ) : isOutletClosed ? (
+            <Store className="h-10 w-10 text-muted-foreground" />
           ) : (
             <WifiOff className="h-10 w-10 text-muted-foreground" />
           )}
@@ -148,11 +169,15 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
         <h1 className="text-2xl font-bold tracking-tight mb-2">
           {isInvalidQR
             ? t("selfOrder.page.invalidQR")
+            : isOutletClosed
+              ? t("selfOrder.page.outletClosed")
             : t("selfOrder.page.unableToLoad")}
         </h1>
         <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
           {isInvalidQR
             ? t("selfOrder.page.invalidQRDescription")
+            : isOutletClosed
+              ? t("selfOrder.page.outletClosedDescription")
             : t("selfOrder.page.networkErrorDescription")}
         </p>
       </div>
@@ -170,7 +195,6 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
           setOrderId(null);
           setStep("menu");
         }}
-        isRefetching={isRefetching}
       />
     );
   }
@@ -187,7 +211,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
         onOrderPlaced={setOrderId}
         onCreateOrder={handleOrderAndPay}
         onPayAtCashier={handlePayAtCashier}
-        isPending={createOrder.isPending || markCashier.isPending}
+        isPending={createOrder.isPending}
       />
     );
   }
@@ -223,14 +247,5 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
         }}
       />
     </div>
-  );
-}
-
-// Inline plain-fetch helper to avoid importing the service (avoids circular dep)
-async function selfOrderService_markCashier(token: string, orderId: string) {
-  const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
-  await fetch(
-    `${API_ORIGIN}/api/v1/public/pos/tables/${token}/orders/${orderId}/pay/cashier`,
-    { method: "POST" }
   );
 }

@@ -41,6 +41,7 @@ export const posSelflOrderEn = {
       orderAgain: "Order Again",
       statusLabels: {
         PENDING: "Awaiting Confirmation",
+        WAITING_PAYMENT: "Waiting for Payment",
         CONFIRMED: "Confirmed",
         PREPARING: "Being Prepared",
         READY: "Ready to Serve",
@@ -54,6 +55,8 @@ export const posSelflOrderEn = {
       loadingMenu: "Loading menu...",
       invalidQR: "Invalid QR",
       invalidQRDescription: "This QR link is invalid or has expired.",
+      outletClosed: "Outlet is closed",
+      outletClosedDescription: "Please come back when the outlet is open.",
       unableToLoad: "Unable to load this page",
       networkErrorDescription:
         "There was a network or server issue. Please refresh and try again shortly.",

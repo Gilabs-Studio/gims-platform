@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CircleDot,
   Clock,
+  CreditCard,
   LayoutGrid,
   LogOut,
   MapPin,
@@ -32,11 +33,26 @@ import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
 import { useLiveTableData } from "../hooks/use-live-table";
 import { usePosWs } from "../hooks/use-pos-ws";
-import { useServeOrder, useCompleteOrder, useServeOrderItem, usePOSPayments } from "@/features/pos/terminal/hooks/use-pos";
+import {
+  useServeOrder,
+  useCompleteOrder,
+  useServeOrderItem,
+  usePOSPayments,
+  useProcessCashPayment,
+  useInitiateDigitalPayment,
+  useCancelPendingPOSPayment,
+} from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
 import type { LayoutObject } from "@/features/pos/fb/floor-layout/types";
 import type { POSOrder, POSPayment } from "@/features/pos/terminal/types";
+
+type PaymentNotice = {
+  tableLabel: string;
+  orderId?: string;
+  orderNumber?: string;
+  at: number;
+};
 
 // ─── Status definitions ───────────────────────────────────────────────────────
 
@@ -56,6 +72,13 @@ const STATUS_CONFIG: Record<
     card: "border-success/30 bg-success/10",
     text: "text-success",
     icon: CheckCircle2,
+  },
+  WAITING_PAYMENT: {
+    label: "Waiting Payment",
+    dot: "bg-amber-500 animate-pulse",
+    card: "border-amber-500/40 bg-amber-500/10",
+    text: "text-amber-600",
+    icon: CreditCard,
   },
   SEATED: {
     label: "Occupied",
@@ -335,6 +358,178 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
   );
 }
 
+interface QuickPaymentDialogProps {
+  info: LiveTableInfo | null;
+  onClose: () => void;
+}
+
+function QuickPaymentDialog({ info, onClose }: QuickPaymentDialogProps) {
+  const processCash = useProcessCashPayment();
+  const initiateDigital = useInitiateDigitalPayment();
+  const cancelPendingPayment = useCancelPendingPOSPayment();
+  const { data: paymentsData } = usePOSPayments(info?.order?.id ?? "", {
+    enabled: !!info?.order?.id,
+  });
+
+  if (!info?.order) return null;
+
+  const order = info.order;
+  const tableLabel = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+  const pendingDigitalPayment = (paymentsData?.data ?? []).find(
+    (payment) => payment.status === "PENDING" && payment.method === "DIGITAL"
+  );
+
+  const handleCashPayment = async () => {
+    try {
+      await processCash.mutateAsync({
+        orderId: order.id,
+        data: {
+          method: "CASH",
+          amount: order.total_amount,
+          customer_name: order.customer_name ?? undefined,
+        },
+      });
+      toast.success(`Pembayaran cash ${tableLabel} berhasil.`);
+      onClose();
+    } catch {
+      toast.error("Gagal memproses pembayaran cash.");
+    }
+  };
+
+  const handleXenditPayment = async () => {
+    try {
+      const result = await initiateDigital.mutateAsync({
+        orderId: order.id,
+        data: {
+          method: "DIGITAL",
+          amount: order.total_amount,
+          channel_code: "QRIS",
+          customer_name: order.customer_name ?? undefined,
+        },
+      });
+
+      const paymentUrl = result.data.payment_url?.trim();
+      if (paymentUrl) {
+        window.open(paymentUrl, "_blank", "noopener,noreferrer");
+      }
+
+      toast.success(`Pembayaran Xendit untuk ${tableLabel} dimulai.`);
+      onClose();
+    } catch {
+      toast.error("Gagal memulai pembayaran Xendit.");
+    }
+  };
+
+  const handleCancelPendingDigital = async () => {
+    if (!pendingDigitalPayment) return;
+    try {
+      await cancelPendingPayment.mutateAsync({
+        orderId: order.id,
+        paymentId: pendingDigitalPayment.id,
+      });
+      toast.success(`Pembayaran digital ${tableLabel} dibatalkan.`);
+    } catch {
+      toast.error("Gagal membatalkan pembayaran digital.");
+    }
+  };
+
+  const handleOpenPendingDigital = () => {
+    const paymentUrl = pendingDigitalPayment?.payment_url?.trim();
+    if (!paymentUrl) {
+      toast.error("Link pembayaran digital tidak ditemukan.");
+      return;
+    }
+    window.open(paymentUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const isProcessing =
+    processCash.isPending ||
+    initiateDigital.isPending ||
+    cancelPendingPayment.isPending;
+
+  return (
+    <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Konfirmasi Pembayaran {tableLabel}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+            <p className="text-muted-foreground">Order</p>
+            <p className="font-mono font-semibold">#{order.order_number}</p>
+            <p className="mt-2 text-muted-foreground">Total</p>
+            <p className="text-lg font-bold">Rp {order.total_amount.toLocaleString("id-ID")}</p>
+          </div>
+
+          {pendingDigitalPayment ? (
+            <div className="grid grid-cols-1 gap-2">
+              <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                Menunggu pembayaran digital dari customer.
+              </div>
+              <Button
+                type="button"
+                onClick={handleOpenPendingDigital}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                Buka Link Pembayaran Digital
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleCancelPendingDigital}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                {cancelPendingPayment.isPending ? "Membatalkan..." : "Batalkan Pembayaran Digital"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                Tutup
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                type="button"
+                onClick={handleCashPayment}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                {processCash.isPending ? "Memproses Cash..." : "Bayar Cash"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleXenditPayment}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                {initiateDigital.isPending ? "Memproses Xendit..." : "Bayar Xendit (QRIS)"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isProcessing}
+                className="cursor-pointer"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Live Table Stats Bar ─────────────────────────────────────────────────────
 
 interface StatsBarProps {
@@ -377,6 +572,7 @@ const STATUS_SVG: Record<
   { fill: string; stroke: string; text: string }
 > = {
   AVAILABLE:      { fill: "var(--pos-available-fill)", stroke: "var(--pos-available-stroke)", text: "var(--pos-available-text)" },
+  WAITING_PAYMENT: { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
   SEATED:         { fill: "var(--pos-seated-fill)", stroke: "var(--pos-seated-stroke)", text: "var(--pos-seated-text)" },
   WARN_LONG:      { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
   PARTIAL_SERVED: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
@@ -646,6 +842,10 @@ interface TableSidebarProps {
   onServe: (orderId: string) => void;
   onComplete: (orderId: string) => void;
   onServeItem: (orderId: string, itemId: string) => void;
+  onOpenPaymentAction: (info: LiveTableInfo) => void;
+  paymentNotice: PaymentNotice | null;
+  onOpenPaymentNotice: () => void;
+  onDismissPaymentNotice: () => void;
   servingId?: string | null;
   completingId?: string | null;
   servingItemId?: string | null;
@@ -656,6 +856,10 @@ function TableSidebar({
   onServe,
   onComplete,
   onServeItem,
+  onOpenPaymentAction,
+  paymentNotice,
+  onOpenPaymentNotice,
+  onDismissPaymentNotice,
   servingId,
   completingId,
   servingItemId,
@@ -672,6 +876,35 @@ function TableSidebar({
         <p className="text-[11px] text-muted-foreground mt-0.5">
           {occupied.length} table{occupied.length !== 1 ? "s" : ""} occupied
         </p>
+
+        {paymentNotice && (
+          <div className="mt-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2">
+            <p className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+              Konfirmasi Pembayaran
+            </p>
+            <p className="mt-1 text-[11px] text-foreground leading-snug">
+              {paymentNotice.tableLabel} · {paymentNotice.orderNumber ?? "Order"}
+            </p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-6 px-2 text-[10px] cursor-pointer"
+                onClick={onOpenPaymentNotice}
+              >
+                Lihat
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[10px] cursor-pointer"
+                onClick={onDismissPaymentNotice}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table list */}
@@ -694,11 +927,16 @@ function TableSidebar({
               const canServe =
                 info.status === "SEATED" ||
                 info.status === "WARN_LONG";
+              const isWaitingPayment = info.status === "WAITING_PAYMENT";
               const canServeItems =
                 info.status === "SEATED" ||
                 info.status === "WARN_LONG" ||
                 info.status === "PARTIAL_SERVED";
               const canComplete = info.status === "SERVED";
+              const paymentConfirmed =
+                info.order?.status === "PAID" ||
+                info.order?.status === "PARTIAL_SERVED" ||
+                info.order?.status === "SERVED";
 
               return (
                 <div
@@ -748,6 +986,38 @@ function TableSidebar({
                     <p className="text-[11px] text-muted-foreground truncate">
                       {info.order.customer_name}
                     </p>
+                  )}
+
+                  {orderId && (
+                    <div className="rounded-md border border-border/60 bg-background/50 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Payment
+                      </p>
+                      {paymentConfirmed ? (
+                        <div className="mt-1 flex items-center justify-between gap-1.5">
+                          <Badge className="h-5 text-[9px] bg-emerald-600 hover:bg-emerald-600">
+                            Confirmed
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 px-1.5 text-[9px] cursor-pointer"
+                            onClick={() => onOpenPaymentAction(info)}
+                          >
+                            Detail
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="mt-1 h-6 w-full text-[10px] cursor-pointer"
+                          onClick={() => onOpenPaymentAction(info)}
+                        >
+                          {isWaitingPayment ? "Bayar Sekarang" : "Konfirmasi Pembayaran"}
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {/* Per-item serve list (shown when some items still pending) */}
@@ -867,8 +1137,8 @@ export function LiveTablePageClient() {
     });
   }, []);
 
-  // Tick every second for real-time duration display.
-  // Server data is refreshed every 15 s via TanStack Query — no extra API cost from this timer.
+  // Tick every second for live duration display.
+  // Server updates are event-driven via WebSocket (no periodic refetch loop).
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(id);
@@ -881,15 +1151,64 @@ export function LiveTablePageClient() {
     now,
   });
 
-  // Real-time staff notifications: new customer orders via WebSocket
-  usePosWs(outletId);
-
   const serveOrder = useServeOrder();
   const completeOrder = useCompleteOrder();
   const serveOrderItem = useServeOrderItem();
   const [servingId, setServingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [servingItemId, setServingItemId] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(null);
+  const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<LiveTableInfo | null>(null);
+
+  const handleWsEvent = useCallback((eventType: string, payload: {
+    table_label?: string;
+    order_id?: string;
+    order_number?: string;
+  } | undefined) => {
+    if (eventType !== "pos.payment_confirmed") return;
+    setPaymentNotice({
+      tableLabel: payload?.table_label ?? "Meja",
+      orderId: payload?.order_id,
+      orderNumber: payload?.order_number,
+      at: Date.now(),
+    });
+  }, []);
+
+  // Real-time staff notifications and payment confirmation state in Active Tables.
+  usePosWs(outletId, { onEvent: handleWsEvent });
+
+  const handleOpenPaymentNotice = useCallback(() => {
+    if (!paymentNotice) return;
+    const target = liveTableInfos.find((info) => {
+      const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+      if (paymentNotice.orderId && info.order?.id === paymentNotice.orderId) {
+        return true;
+      }
+      return label === paymentNotice.tableLabel;
+    });
+    if (target) {
+      if (target.status === "WAITING_PAYMENT") {
+        setSelectedPaymentInfo(target);
+      } else {
+        setSelectedInfo(target);
+      }
+    }
+  }, [liveTableInfos, paymentNotice]);
+
+  const handleDismissPaymentNotice = useCallback(() => {
+    setPaymentNotice(null);
+  }, []);
+
+  const handleOpenPaymentAction = useCallback((info: LiveTableInfo) => {
+    if (!info.order) return;
+
+    if (info.status === "WAITING_PAYMENT") {
+      setSelectedPaymentInfo(info);
+      return;
+    }
+
+    setSelectedInfo(info);
+  }, []);
 
   const handleServe = useCallback(
     async (orderId: string) => {
@@ -950,6 +1269,12 @@ export function LiveTablePageClient() {
         router.push(`/pos/fb/terminal?${query.toString()}`);
         return;
       }
+
+      if (info.status === "WAITING_PAYMENT") {
+        setSelectedPaymentInfo(info);
+        return;
+      }
+
       setSelectedInfo(info);
     },
     [outletId, router],
@@ -1022,7 +1347,7 @@ export function LiveTablePageClient() {
           </Button>
           <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/60">
             <RefreshCw className="h-3 w-3" />
-            <span>15s</span>
+            <span>WS</span>
           </div>
         </div>
       </header>
@@ -1069,6 +1394,10 @@ export function LiveTablePageClient() {
           onServe={handleServe}
           onComplete={handleComplete}
           onServeItem={handleServeItem}
+          onOpenPaymentAction={handleOpenPaymentAction}
+          paymentNotice={paymentNotice}
+          onOpenPaymentNotice={handleOpenPaymentNotice}
+          onDismissPaymentNotice={handleDismissPaymentNotice}
           servingId={servingId}
           completingId={completingId}
           servingItemId={servingItemId}
@@ -1078,6 +1407,10 @@ export function LiveTablePageClient() {
       <OrderDetailDialog
         info={selectedInfo}
         onClose={() => setSelectedInfo(null)}
+      />
+      <QuickPaymentDialog
+        info={selectedPaymentInfo}
+        onClose={() => setSelectedPaymentInfo(null)}
       />
     </div>
   );

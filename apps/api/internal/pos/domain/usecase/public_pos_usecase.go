@@ -6,15 +6,13 @@ import (
 	"time"
 
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 )
 
 // ErrPublicTokenInvalid is returned when the scanned QR token does not match any active record.
 var ErrPublicTokenInvalid = errors.New("invalid or expired QR token")
-
-// ErrPublicOutletClosed is returned when the customer attempts to order but no POS session is open.
-var ErrPublicOutletClosed = errors.New("restaurant is currently closed")
 
 // PublicPOSUsecase handles customer-facing self-order operations.
 type PublicPOSUsecase interface {
@@ -27,6 +25,10 @@ type PublicPOSUsecase interface {
 	GetOrderStatus(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
 	// InitiateDigitalPayment creates a Xendit payment invoice for a customer order.
 	InitiateDigitalPayment(ctx context.Context, token, orderID string, req *dto.InitiateCustomerPaymentRequest) (*dto.POSPaymentResponse, error)
+	// MarkPayAtCashier marks the order as waiting cashier payment and broadcasts status updates.
+	MarkPayAtCashier(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
+	// CancelDigitalPayment cancels a pending digital payment and falls back to cashier waiting mode.
+	CancelDigitalPayment(ctx context.Context, token, orderID, paymentID string) (*dto.CustomerOrderResponse, error)
 }
 
 // POSHubPublisher is a narrow interface used by this usecase to broadcast WS events.
@@ -37,7 +39,6 @@ type POSHubPublisher interface {
 
 type publicPOSUsecase struct {
 	qrTokenRepo repositories.TableQRTokenRepository
-	sessionRepo repositories.PosSessionRepository
 	orderUC     POSOrderUsecase
 	paymentUC   POSPaymentUsecase
 	configRepo  repositories.POSConfigRepository
@@ -50,7 +51,6 @@ type publicPOSUsecase struct {
 // hub may be nil to disable WebSocket broadcasts (useful in tests).
 func NewPublicPOSUsecase(
 	qrTokenRepo repositories.TableQRTokenRepository,
-	sessionRepo repositories.PosSessionRepository,
 	orderUC POSOrderUsecase,
 	paymentUC POSPaymentUsecase,
 	configRepo repositories.POSConfigRepository,
@@ -60,7 +60,6 @@ func NewPublicPOSUsecase(
 ) PublicPOSUsecase {
 	return &publicPOSUsecase{
 		qrTokenRepo: qrTokenRepo,
-		sessionRepo: sessionRepo,
 		orderUC:     orderUC,
 		paymentUC:   paymentUC,
 		configRepo:  configRepo,
@@ -130,9 +129,10 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 		return nil, ErrPublicTokenInvalid
 	}
 
-	// Require an active session — customer cannot order when outlet is closed.
-	if _, err := u.sessionRepo.FindActiveByOutlet(ctx, qr.OutletID); err != nil {
-		return nil, ErrPublicOutletClosed
+	// Build context for unauthenticated customer operations (RBAC + tenant scoping).
+	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
 	}
 
 	// Build a staff-compatible CreateOrderRequest with OrderSource overridden inside usecase.
@@ -146,7 +146,7 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 		CustomerName: &req.CustomerName,
 		Notes:        req.Notes,
 	}
-	order, err := u.orderUC.Create(ctx, createReq, "customer")
+	order, err := u.orderUC.Create(orderCtx, createReq, "customer")
 	if err != nil {
 		return nil, err
 	}
@@ -156,13 +156,13 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 		pid := item.ProductID
 		qty := item.Quantity
 		addReq := &dto.AddOrderItemRequest{ProductID: pid, Quantity: qty, Notes: item.Notes}
-		if _, err := u.orderUC.AddItem(ctx, order.ID, addReq); err != nil {
+		if _, err := u.orderUC.AddItem(orderCtx, order.ID, addReq); err != nil {
 			return nil, err
 		}
 	}
 
 	// Re-fetch to get updated totals after all items.
-	updated, err := u.orderUC.GetByID(ctx, order.ID)
+	updated, err := u.orderUC.GetByID(orderCtx, order.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,12 @@ func (u *publicPOSUsecase) GetOrderStatus(ctx context.Context, token, orderID st
 		return nil, ErrPublicTokenInvalid
 	}
 
-	order, err := u.orderUC.GetByID(ctx, orderID)
+	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +220,12 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 		return nil, ErrPublicTokenInvalid
 	}
 
-	order, err := u.orderUC.GetByID(ctx, orderID)
+	orderCtx, _, companyID, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,26 +235,157 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 		return nil, ErrPublicTokenInvalid
 	}
 
-	outlet, err := u.outletRepo.GetByID(ctx, qr.OutletID)
-	if err != nil || outlet == nil {
-		return nil, ErrPublicTokenInvalid
-	}
-
 	payReq := &dto.ProcessPaymentRequest{
 		Method:      req.Method,
 		Amount:      req.Amount,
 		ChannelCode: req.ChannelCode,
 	}
 
-	// Use a "customer" cashier ID — the payment usecase requires a non-empty value.
+	// Use a stable public actor label; payment usecase normalizes this into a valid UUID.
+	payment, err := u.paymentUC.InitiateDigitalPayment(orderCtx, orderID, payReq, "customer", companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.hub != nil {
+		tableLabel := qr.TableLabel
+		if order.TableLabel != nil {
+			tableLabel = *order.TableLabel
+		}
+		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
+			"order_id":       order.ID,
+			"order_number":   order.OrderNumber,
+			"status":         order.Status,
+			"table_label":    tableLabel,
+			"payment_status": "WAITING_DIGITAL",
+		})
+	}
+
+	return payment, nil
+}
+
+func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error) {
+	qr, err := u.qrTokenRepo.FindByToken(ctx, token)
+	if err != nil || qr == nil || !qr.IsActive {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if order.OutletID != qr.OutletID {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	if order.Status == string(posModels.PosOrderStatusPaid) || order.Status == string(posModels.PosOrderStatusCompleted) {
+		return nil, ErrPOSOrderAlreadyPaid
+	}
+	if order.Status == string(posModels.PosOrderStatusVoided) {
+		return nil, ErrPOSOrderCannotModify
+	}
+
+	// Move draft orders into active kitchen/cashier workflow.
+	if order.Status == string(posModels.PosOrderStatusDraft) {
+		if _, err := u.orderUC.Confirm(orderCtx, orderID, &dto.ConfirmOrderRequest{}, "customer"); err != nil {
+			return nil, err
+		}
+	}
+
+	updated, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	tableLabel := qr.TableLabel
+	if updated.TableLabel != nil {
+		tableLabel = *updated.TableLabel
+	}
+
+	if u.hub != nil {
+		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
+			"order_id":       updated.ID,
+			"order_number":   updated.OrderNumber,
+			"status":         updated.Status,
+			"table_label":    tableLabel,
+			"payment_status": "WAITING_CASHIER",
+		})
+	}
+
+	return toCustomerOrderResponse(updated, tableLabel), nil
+}
+
+func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orderID, paymentID string) (*dto.CustomerOrderResponse, error) {
+	qr, err := u.qrTokenRepo.FindByToken(ctx, token)
+	if err != nil || qr == nil || !qr.IsActive {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if order.OutletID != qr.OutletID {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	if err := u.paymentUC.CancelPendingPayment(orderCtx, orderID, paymentID, "customer"); err != nil {
+		return nil, err
+	}
+
+	updated, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	tableLabel := qr.TableLabel
+	if updated.TableLabel != nil {
+		tableLabel = *updated.TableLabel
+	}
+
+	if u.hub != nil {
+		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
+			"order_id":       updated.ID,
+			"order_number":   updated.OrderNumber,
+			"status":         updated.Status,
+			"table_label":    tableLabel,
+			"payment_status": "WAITING_CASHIER",
+		})
+	}
+
+	return toCustomerOrderResponse(updated, tableLabel), nil
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID string) (context.Context, string, string, error) {
+	outlet, err := u.outletRepo.GetByID(ctx, outletID)
+	if err != nil || outlet == nil {
+		return nil, "", "", ErrPublicTokenInvalid
+	}
+
+	publicCtx := context.WithValue(ctx, "permission_scope", "ALL")
+	publicCtx = context.WithValue(publicCtx, "tenant_id", outlet.TenantID)
+
 	companyID := ""
 	if outlet.CompanyID != nil {
 		companyID = *outlet.CompanyID
 	}
-	return u.paymentUC.InitiateDigitalPayment(ctx, orderID, payReq, "customer", companyID)
-}
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+	return publicCtx, outlet.TenantID, companyID, nil
+}
 
 func toCustomerOrderResponse(order *dto.POSOrderResponse, tableLabel string) *dto.CustomerOrderResponse {
 	return &dto.CustomerOrderResponse{

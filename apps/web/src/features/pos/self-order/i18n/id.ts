@@ -41,6 +41,7 @@ export const posSelflOrderId = {
       orderAgain: "Pesan Lagi",
       statusLabels: {
         PENDING: "Menunggu Konfirmasi",
+        WAITING_PAYMENT: "Menunggu Pembayaran",
         CONFIRMED: "Dikonfirmasi",
         PREPARING: "Sedang Diproses",
         READY: "Siap Disajikan",
@@ -54,6 +55,8 @@ export const posSelflOrderId = {
       loadingMenu: "Memuat menu...",
       invalidQR: "QR tidak valid",
       invalidQRDescription: "Link QR ini tidak valid atau sudah kedaluwarsa.",
+      outletClosed: "Outlet sedang tutup",
+      outletClosedDescription: "Silakan coba lagi saat outlet sudah buka.",
       unableToLoad: "Tidak dapat memuat halaman",
       networkErrorDescription:
         "Terjadi gangguan koneksi atau server. Silakan refresh halaman beberapa saat lagi.",

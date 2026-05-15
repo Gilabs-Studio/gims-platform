@@ -35,21 +35,8 @@ export function useOrderStatus(token: string, orderId: string) {
     queryFn: () => selfOrderService.getOrderStatus(token, orderId),
     select: (r) => r.data,
     enabled: !!token && !!orderId,
-    // Poll every 5 s while order is not terminal
-    refetchInterval: (query) => {
-      // `select: (r) => r.data` means `query.state.data` is already the
-      // `CustomerOrderResponse` (not the wrapped ApiResponse), so read
-      // `status` directly.
-      const status = (query.state.data as { status?: string } | undefined)?.status;
-      if (
-        status === "COMPLETED" ||
-        status === "CANCELLED" ||
-        status === "PAID"
-      ) {
-        return false;
-      }
-      return 5000;
-    },
+    retry: false,
+    refetchInterval: false,
   });
 }
 
