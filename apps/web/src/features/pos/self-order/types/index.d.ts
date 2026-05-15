@@ -2,10 +2,13 @@
 
 export interface POSCatalogItem {
   product_id: string;
-  name: string;
+  product_code: string;
+  product_name: string;
+  product_kind: string;
   price: number;
-  category?: string;
-  image_url?: string;
+  stock: number;
+  category: string;
+  image_url: string;
   description?: string;
   is_available: boolean;
 }
@@ -21,7 +24,6 @@ export interface PublicTableInfo {
   outlet_name: string;
   table_label: string;
   token: string;
-  is_open: boolean;
   catalog: POSCatalogItem[];
   config: PublicPOSConfig;
 }

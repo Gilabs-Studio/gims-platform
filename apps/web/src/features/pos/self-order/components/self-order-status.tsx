@@ -55,57 +55,72 @@ export function SelfOrderStatus({
     order.status === "CANCELLED";
 
   return (
-    <div className="flex flex-col min-h-screen bg-background px-4 py-6">
+    <div className="flex flex-col min-h-screen bg-background px-6 py-10">
       {/* Status icon */}
-      <div className="flex flex-col items-center gap-3 py-8">
-        <Icon className={`h-16 w-16 ${cfg.color}`} />
-        <h1 className="text-lg font-bold">{cfg.label}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("status.table")} <strong>{order.table_label}</strong>
-        </p>
-        <p className="text-xs text-muted-foreground">
-          #{order.order_number}
-        </p>
+      <div className="flex flex-col items-center gap-4 py-8">
+        <div className={`flex items-center justify-center h-24 w-24 rounded-full bg-muted/50 shadow-sm ${cfg.color}`}>
+          <Icon className="h-12 w-12" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight">{cfg.label}</h1>
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-base text-muted-foreground">
+            {t("status.table")} <span className="font-semibold text-foreground">{order.table_label}</span>
+          </p>
+          <p className="text-sm font-medium text-muted-foreground/70 uppercase tracking-widest">
+            #{order.order_number}
+          </p>
+        </div>
       </div>
 
       {/* Order items */}
-      <div className="space-y-2 mb-4">
-        {order.items.map((item, i) => (
-          <div key={i} className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              {item.quantity}× {item.product_name}
-            </span>
-            <span>{formatCurrency(item.subtotal, currency)}</span>
-          </div>
-        ))}
-      </div>
-      <Separator className="mb-4" />
-      <div className="flex justify-between text-sm text-muted-foreground mb-1">
-        <span>{t("status.subtotal")}</span>
-        <span>{formatCurrency(order.subtotal, currency)}</span>
-      </div>
-      {order.tax_amount > 0 && (
-        <div className="flex justify-between text-sm text-muted-foreground mb-1">
-          <span>{t("status.tax")}</span>
-          <span>{formatCurrency(order.tax_amount, currency)}</span>
+      <div className="bg-card p-5 rounded-3xl border border-border/50 shadow-sm flex-1 mb-8">
+        <div className="space-y-3 mb-4">
+          {order.items.map((item, i) => (
+            <div key={i} className="flex justify-between items-start text-sm">
+              <span className="font-medium pr-4 leading-tight">
+                <span className="text-muted-foreground mr-2">{item.quantity}×</span>
+                {item.product_name}
+              </span>
+              <span className="font-semibold shrink-0">
+                {formatCurrency(item.subtotal, currency)}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
-      <div className="flex justify-between font-bold mb-6">
-        <span>{t("status.total")}</span>
-        <span>{formatCurrency(order.total_amount, currency)}</span>
+        <Separator className="my-4 border-border/50" />
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm font-medium text-muted-foreground">
+            <span>{t("status.subtotal")}</span>
+            <span>{formatCurrency(order.subtotal, currency)}</span>
+          </div>
+          {order.tax_amount > 0 && (
+            <div className="flex justify-between text-sm font-medium text-muted-foreground">
+              <span>{t("status.tax")}</span>
+              <span>{formatCurrency(order.tax_amount, currency)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-lg font-bold tracking-tight pt-2">
+            <span>{t("status.total")}</span>
+            <span>{formatCurrency(order.total_amount, currency)}</span>
+          </div>
+        </div>
       </div>
 
       {!isTerminal && (
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
+        <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground mb-6">
           <RefreshCw
-            className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
+            className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`}
           />
           {t("status.updatingEvery5Seconds")}
         </div>
       )}
 
       {(isTerminal || order.status === "SERVED") && (
-        <Button variant="outline" onClick={onOrderMore}>
+        <Button 
+          variant="outline" 
+          onClick={onOrderMore}
+          className="h-14 w-full rounded-2xl border-border/50 text-base font-semibold shadow-sm hover:bg-muted/50 hover:border-border transition-all"
+        >
           {t("status.orderAgain")}
         </Button>
       )}

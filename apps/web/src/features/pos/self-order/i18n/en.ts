@@ -1,10 +1,14 @@
 export const posSelflOrderEn = {
   selfOrder: {
     menu: {
+      all: "All",
       others: "Others",
       outOfStock: "Out of Stock",
       add: "+ Add",
       viewOrder: "View Order",
+      emptyTitle: "Menu is not available yet",
+      emptyDescription:
+        "No products are published for this table yet. Please contact the cashier or outlet admin.",
     },
     cart: {
       title: "Order Cart",
@@ -50,8 +54,9 @@ export const posSelflOrderEn = {
       loadingMenu: "Loading menu...",
       invalidQR: "Invalid QR",
       invalidQRDescription: "This QR link is invalid or has expired.",
-      restaurantClosed: "Restaurant Closed",
-      closedDescription: "Please contact staff for assistance.",
+      unableToLoad: "Unable to load this page",
+      networkErrorDescription:
+        "There was a network or server issue. Please refresh and try again shortly.",
       failedOrder: "Failed to create order. Try again.",
     },
   },

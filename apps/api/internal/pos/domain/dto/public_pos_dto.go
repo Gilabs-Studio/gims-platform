@@ -5,14 +5,12 @@ package dto
 // PublicTableInfoResponse is the landing payload for a QR-scanned table URL.
 // It contains everything the customer needs to browse the menu and place an order.
 type PublicTableInfoResponse struct {
-	OutletID   string           `json:"outlet_id"`
-	OutletName string           `json:"outlet_name"`
-	TableLabel string           `json:"table_label"`
-	Token      string           `json:"token"`
-	// IsOpen indicates whether the outlet currently has an active POS session.
-	IsOpen  bool               `json:"is_open"`
-	Catalog []POSCatalogItem   `json:"catalog"`
-	Config  PublicPOSConfig    `json:"config"`
+	OutletID   string         `json:"outlet_id"`
+	OutletName string         `json:"outlet_name"`
+	TableLabel string         `json:"table_label"`
+	Token      string         `json:"token"`
+	Catalog    []POSCatalogItem `json:"catalog"`
+	Config     PublicPOSConfig  `json:"config"`
 }
 
 // PublicPOSConfig exposes tax/service rates needed for cart total calculation.

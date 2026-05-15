@@ -1,10 +1,14 @@
 export const posSelflOrderId = {
   selfOrder: {
     menu: {
+      all: "Semua",
       others: "Lainnya",
       outOfStock: "Habis",
       add: "+ Tambah",
       viewOrder: "Lihat Pesanan",
+      emptyTitle: "Menu belum tersedia",
+      emptyDescription:
+        "Produk untuk meja ini belum dipublikasikan. Silakan hubungi kasir atau admin outlet.",
     },
     cart: {
       title: "Keranjang Pesanan",
@@ -50,8 +54,9 @@ export const posSelflOrderId = {
       loadingMenu: "Memuat menu...",
       invalidQR: "QR tidak valid",
       invalidQRDescription: "Link QR ini tidak valid atau sudah kedaluwarsa.",
-      restaurantClosed: "Restoran sedang tutup",
-      closedDescription: "Silakan hubungi staff untuk bantuan.",
+      unableToLoad: "Tidak dapat memuat halaman",
+      networkErrorDescription:
+        "Terjadi gangguan koneksi atau server. Silakan refresh halaman beberapa saat lagi.",
       failedOrder: "Gagal membuat pesanan. Coba lagi.",
     },
   },

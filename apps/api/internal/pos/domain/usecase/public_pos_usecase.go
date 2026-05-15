@@ -42,6 +42,7 @@ type publicPOSUsecase struct {
 	paymentUC   POSPaymentUsecase
 	configRepo  repositories.POSConfigRepository
 	outletRepo  orgRepos.OutletRepository
+	productRepo repositories.POSProductRepository
 	hub         POSHubPublisher
 }
 
@@ -54,6 +55,7 @@ func NewPublicPOSUsecase(
 	paymentUC POSPaymentUsecase,
 	configRepo repositories.POSConfigRepository,
 	outletRepo orgRepos.OutletRepository,
+	productRepo repositories.POSProductRepository,
 	hub POSHubPublisher,
 ) PublicPOSUsecase {
 	return &publicPOSUsecase{
@@ -63,6 +65,7 @@ func NewPublicPOSUsecase(
 		paymentUC:   paymentUC,
 		configRepo:  configRepo,
 		outletRepo:  outletRepo,
+		productRepo: productRepo,
 		hub:         hub,
 	}
 }
@@ -80,12 +83,25 @@ func (u *publicPOSUsecase) GetTableInfo(ctx context.Context, token string) (*dto
 		return nil, ErrPublicTokenInvalid
 	}
 
-	_, sessionErr := u.sessionRepo.FindActiveByOutlet(ctx, qr.OutletID)
-	isOpen := sessionErr == nil
-
-	catalog, _ := u.orderUC.GetCatalog(ctx, qr.OutletID)
-	if catalog == nil {
-		catalog = []dto.POSCatalogItem{}
+	// Fetch catalog directly (bypasses RBAC auth-scope used by staff GetCatalog).
+	warehouseID := ""
+	if outlet.WarehouseID != nil {
+		warehouseID = *outlet.WarehouseID
+	}
+	rawProducts, _ := u.productRepo.FindPOSAvailable(ctx, warehouseID, qr.OutletID)
+	catalog := make([]dto.POSCatalogItem, 0, len(rawProducts))
+	for _, p := range rawProducts {
+		catalog = append(catalog, dto.POSCatalogItem{
+			ProductID:   p.ProductID,
+			ProductCode: p.ProductCode,
+			ProductName: p.ProductName,
+			ProductKind: p.ProductKind,
+			Price:       p.Price,
+			Stock:       p.Stock,
+			ImageURL:    p.ImageURL,
+			Category:    p.Category,
+			IsAvailable: p.IsAvailable,
+		})
 	}
 
 	config, _ := u.configRepo.FindByOutletID(ctx, qr.OutletID)
@@ -101,7 +117,6 @@ func (u *publicPOSUsecase) GetTableInfo(ctx context.Context, token string) (*dto
 		OutletName: outlet.Name,
 		TableLabel: qr.TableLabel,
 		Token:      token,
-		IsOpen:     isOpen,
 		Catalog:    catalog,
 		Config:     pubConfig,
 	}, nil

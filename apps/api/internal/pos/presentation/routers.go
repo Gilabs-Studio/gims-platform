@@ -93,7 +93,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// ─── Public self-order handler ────────────────────────────────────────────
 
 	posHub := ws.DefaultPosHub()
-	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, sessionRepo, orderUC, paymentUC, configRepo, outletRepo, posHub)
+	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, sessionRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub)
 	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
 	posWSH := handler.NewPOSWSHandler(posHub)
 

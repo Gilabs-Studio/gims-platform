@@ -7,6 +7,16 @@ import type {
   InitiatePaymentResponse,
 } from "../types";
 
+export class SelfOrderApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = "SelfOrderApiError";
+  }
+}
+
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
 const BASE = `${API_ORIGIN}/api/v1/public/pos/tables`;
 
@@ -22,7 +32,16 @@ async function request<T>(
     },
     cache: "no-store",
   });
-  return res.json() as Promise<ApiResponse<T>>;
+  const payload = (await res.json()) as ApiResponse<T>;
+
+  if (!res.ok || !payload?.success || payload?.data == null) {
+    throw new SelfOrderApiError(
+      payload?.message || "Self-order request failed",
+      res.status
+    );
+  }
+
+  return payload;
 }
 
 export const selfOrderService = {

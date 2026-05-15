@@ -48,19 +48,9 @@ export function SelfOrderCart({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[85vh] flex flex-col px-0">
-        <SheetHeader className="px-4 py-3 border-b">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-base">{t("cart.title")}</SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <SheetContent side="bottom" className="max-h-[90vh] flex flex-col px-0 rounded-t-4xl sm:max-w-md sm:mx-auto sm:rounded-t-4xl">
+        <SheetHeader className="px-6 py-4 border-b border-border/40">
+          <SheetTitle className="text-lg font-bold tracking-tight">{t("cart.title")}</SheetTitle>
         </SheetHeader>
 
         {cart.length === 0 ? (
@@ -69,23 +59,23 @@ export function SelfOrderCart({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
               {cart.map((item) => (
-                <div key={item.product_id} className="space-y-2">
-                  <div className="flex items-start gap-3">
+                <div key={item.product_id} className="space-y-3">
+                  <div className="flex items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-base font-semibold truncate leading-tight">
                         {item.product_name}
                       </p>
-                      <p className="text-xs text-primary font-semibold">
+                      <p className="text-sm text-primary font-bold mt-1">
                         {formatCurrency(item.price * item.quantity, config.currency)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 bg-muted/50 rounded-full p-1 border border-border/50">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-7 w-7 rounded-full hover:bg-background shadow-sm transition-all"
                         onClick={() => onChangeQuantity(item.product_id, -1)}
                       >
                         {item.quantity === 1 ? (
@@ -94,13 +84,13 @@ export function SelfOrderCart({
                           <Minus className="h-3.5 w-3.5" />
                         )}
                       </Button>
-                      <span className="text-sm font-medium w-6 text-center">
+                      <span className="text-sm font-semibold w-5 text-center">
                         {item.quantity}
                       </span>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-7 w-7 rounded-full hover:bg-background shadow-sm transition-all"
                         onClick={() => onChangeQuantity(item.product_id, 1)}
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -113,37 +103,40 @@ export function SelfOrderCart({
                       onChangeNotes(item.product_id, e.target.value)
                     }
                     placeholder={t("cart.notes")}
-                    className="h-7 text-xs"
+                    className="h-9 text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-border rounded-xl transition-colors"
                   />
                 </div>
               ))}
             </div>
 
-            <div className="px-4 py-3 space-y-2 border-t bg-background">
-              <div className="flex justify-between text-xs text-muted-foreground">
+            <div className="px-6 py-5 space-y-3 border-t border-border/40 bg-background/80 backdrop-blur-md">
+              <div className="flex justify-between text-sm font-medium text-muted-foreground">
                 <span>{t("cart.subtotal")}</span>
                 <span>{formatCurrency(subtotal, config.currency)}</span>
               </div>
               {config.tax_rate > 0 && (
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-sm font-medium text-muted-foreground">
                   <span>{t("cart.tax")} ({(config.tax_rate * 100).toFixed(0)}%)</span>
                   <span>{formatCurrency(tax, config.currency)}</span>
                 </div>
               )}
               {config.service_charge_rate > 0 && (
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-sm font-medium text-muted-foreground">
                   <span>
                     {t("cart.service")} ({(config.service_charge_rate * 100).toFixed(0)}%)
                   </span>
                   <span>{formatCurrency(service, config.currency)}</span>
                 </div>
               )}
-              <Separator />
-              <div className="flex justify-between text-sm font-bold">
+              <Separator className="my-1 border-border/50" />
+              <div className="flex justify-between text-lg font-bold tracking-tight">
                 <span>{t("cart.total")}</span>
                 <span>{formatCurrency(total, config.currency)}</span>
               </div>
-              <Button className="w-full" onClick={onCheckout}>
+              <Button 
+                className="w-full h-12 mt-2 rounded-full text-base font-semibold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all" 
+                onClick={onCheckout}
+              >
                 {t("cart.proceed")}
               </Button>
             </div>

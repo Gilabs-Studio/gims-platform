@@ -3,11 +3,13 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { QrCode, WifiOff } from "lucide-react";
 import { SelfOrderMenu } from "./self-order-menu";
 import { SelfOrderCart } from "./self-order-cart";
 import { SelfOrderCheckout } from "./self-order-checkout";
 import { SelfOrderStatus } from "./self-order-status";
 import { useTableInfo, useCreateOrder, useOrderStatus, useMarkPayAtCashier } from "../hooks/use-self-order";
+import { SelfOrderApiError } from "../services/self-order-service";
 import type { POSCatalogItem, CartItem } from "../types";
 
 type Step = "menu" | "checkout" | "status";
@@ -23,7 +25,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
 
-  const { data: tableInfo, isError, isPending } = useTableInfo(token);
+  const { data: tableInfo, isError, error, isPending } = useTableInfo(token);
   const createOrder = useCreateOrder(token);
   const markCashier = useMarkPayAtCashier(token, orderId ?? "");
   const { data: orderStatus, isRefetching } = useOrderStatus(
@@ -45,7 +47,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
         ...prev,
         {
           product_id: product.product_id,
-          product_name: product.name,
+          product_name: product.product_name,
           price: product.price,
           quantity: 1,
           notes: "",
@@ -118,8 +120,9 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
 
   if (isPending) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-muted-foreground animate-pulse">
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
+        <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
           {t("selfOrder.page.loadingMenu")}
         </p>
       </div>
@@ -127,22 +130,29 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   }
 
   if (isError || !tableInfo) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-3 px-6">
-        <p className="text-lg font-semibold">{t("selfOrder.page.invalidQR")}</p>
-        <p className="text-sm text-muted-foreground text-center">
-          {t("selfOrder.page.invalidQRDescription")}
-        </p>
-      </div>
-    );
-  }
+    const isInvalidQR =
+      error instanceof SelfOrderApiError &&
+      (error.status === 404 || error.status === 403 || error.status === 410);
 
-  if (!tableInfo.is_open) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-3 px-6">
-        <p className="text-lg font-semibold">{t("selfOrder.page.restaurantClosed")}</p>
-        <p className="text-sm text-muted-foreground text-center">
-          {t("selfOrder.page.closedDescription")}
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center bg-background">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted/50 mb-6">
+          {isInvalidQR ? (
+            <QrCode className="h-10 w-10 text-muted-foreground" />
+          ) : (
+            <WifiOff className="h-10 w-10 text-muted-foreground" />
+          )}
+        </div>
+
+        <h1 className="text-2xl font-bold tracking-tight mb-2">
+          {isInvalidQR
+            ? t("selfOrder.page.invalidQR")
+            : t("selfOrder.page.unableToLoad")}
+        </h1>
+        <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+          {isInvalidQR
+            ? t("selfOrder.page.invalidQRDescription")
+            : t("selfOrder.page.networkErrorDescription")}
         </p>
       </div>
     );
@@ -184,11 +194,11 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   // ── Step: menu ────────────────────────────────────────────────────────────────
 
   return (
-    <>
+    <div className="bg-background min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <p className="text-xs text-muted-foreground">{tableInfo.outlet_name}</p>
-        <h1 className="font-bold text-base">{tableInfo.table_label}</h1>
+      <div className="px-6 pt-10 pb-4">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{tableInfo.outlet_name}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{tableInfo.table_label}</h1>
       </div>
 
       <SelfOrderMenu
@@ -211,7 +221,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
           setStep("checkout");
         }}
       />
-    </>
+    </div>
   );
 }
 

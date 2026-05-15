@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { selfOrderService } from "../services/self-order-service";
+import { selfOrderService, SelfOrderApiError } from "../services/self-order-service";
 import type {
   CreateCustomerOrderRequest,
   InitiatePaymentRequest,
@@ -19,7 +19,13 @@ export function useTableInfo(token: string) {
     queryFn: () => selfOrderService.getTableInfo(token),
     select: (r) => r.data,
     enabled: !!token,
-    retry: 1,
+    // Never retry on 404/403 — the token is definitively invalid or rolled.
+    retry: (failureCount, error) => {
+      if (error instanceof SelfOrderApiError && error.status >= 400 && error.status < 500) {
+        return false;
+      }
+      return failureCount < 1;
+    },
   });
 }
 
