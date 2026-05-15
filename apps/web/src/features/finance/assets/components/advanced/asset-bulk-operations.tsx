@@ -187,13 +187,8 @@ async function fetchCategories(query: string): Promise<AssetCategoryLite[]> {
 }
 
 async function fetchDepartments(query: string): Promise<DepartmentLite[]> {
-  // TODO: Replace with actual department service
-  return [
-    { id: "dept-1", name: "IT Department", code: "IT" },
-    { id: "dept-2", name: "HR Department", code: "HR" },
-    { id: "dept-3", name: "Finance Department", code: "FIN" },
-    { id: "dept-4", name: "Operations", code: "OPS" },
-  ].filter((d) => d.name.toLowerCase().includes(query.toLowerCase()));
+  void query;
+  return [];
 }
 
 // =============================================================================
@@ -305,41 +300,19 @@ export function AssetBulkOperations({
   // =============================================================================
 
   const simulateBulkOperation = async (): Promise<BulkOperationResult> => {
-    // Simulate API call with progress updates
     const totalAssets = selectedAssets.length;
-    let processedCount = 0;
-    const errors: BulkOperationResult["errors"] = [];
-
-    for (const asset of selectedAssets) {
-      // Update progress
-      processedCount++;
-      const progress = Math.round((processedCount / totalAssets) * 100);
-      setOperationState((prev) => ({
-        ...prev,
-        progress,
-        currentAsset: asset.name,
-      }));
-
-      // Simulate processing delay
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // Simulate random errors (10% chance)
-      if (Math.random() < 0.1) {
-        errors.push({
-          assetId: asset.id,
-          assetName: asset.name,
-          error: t("errors.simulatedError"),
-        });
-      }
-    }
+    setOperationState((prev) => ({
+      ...prev,
+      progress: 100,
+      currentAsset: selectedAssets[0]?.name,
+    }));
 
     return {
-      success: errors.length === 0,
-      processedCount,
-      successCount: processedCount - errors.length,
-      errorCount: errors.length,
-      errors,
-      reportUrl: `/api/reports/bulk-operation-${Date.now()}.pdf`,
+      success: true,
+      processedCount: totalAssets,
+      successCount: totalAssets,
+      errorCount: 0,
+      errors: [],
     };
   };
 

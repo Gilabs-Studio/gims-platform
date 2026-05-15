@@ -130,6 +130,7 @@ export const financeAssetsId = {
       description: "Deskripsi",
       noAttachments: "Belum ada lampiran",
       upload: "Unggah file",
+      uploading: "Mengunggah...",
       download: "Unduh",
       delete: "Hapus",
       actions: "Aksi",

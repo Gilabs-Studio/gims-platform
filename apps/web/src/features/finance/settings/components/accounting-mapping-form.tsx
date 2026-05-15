@@ -3,12 +3,13 @@
 import { useForm, type Resolver } from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 
 import { batchUpsertFinanceSettingsSchema, BatchUpsertFinanceSettingsFormData } from "../schemas";
 import { useFinanceSettings, useBatchUpsertFinanceSettings } from "../hooks/use-finance-settings";
@@ -29,14 +31,21 @@ import {
   type SystemAccountMappingDefinition,
 } from "../types";
 
+const EMPTY_COMPANIES: never[] = [];
+const EMPTY_VALUE_LIST: never[] = [];
+
 export const AccountingMappingForm = () => {
   const t = useTranslations("financeSettings");
-  const { data: settingsResponse, isLoading: isSettingsLoading } = useFinanceSettings();
+  const [companyId, setCompanyId] = useState("");
+  
+  const { data: companiesData } = useCompanies({ per_page: 100, is_active: true });
+  const { data: settingsResponse, isLoading: isSettingsLoading } = useFinanceSettings(companyId);
   const { data: coaResponse, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 100 });
-  const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings();
+  const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings(companyId);
   const canUpdate = useUserPermission("account_mappings.update");
 
   const settings = useMemo(() => settingsResponse?.data ?? [], [settingsResponse?.data]);
+  const companies = companiesData?.data ?? EMPTY_COMPANIES;
   const UNMAPPED_VALUE = "__UNMAPPED__";
 
   const coaList = useMemo<ChartOfAccount[]>(() => coaResponse?.data ?? [], [coaResponse?.data]);
@@ -118,6 +127,10 @@ export const AccountingMappingForm = () => {
     }).length;
   }, [fieldIndexByKey, mappingDefinitions, settingRows]);
 
+  const getTranslatedMappingText = (key: string, fallback: string): string => {
+    return t.has(key) ? t(key) : fallback;
+  };
+
   const getFilteredAccounts = (definition: SystemAccountMappingDefinition) => {
     const allowedTypes = definition.allowedAccountTypes;
     return coaList.filter((coa) => {
@@ -191,96 +204,124 @@ export const AccountingMappingForm = () => {
       </CardHeader>
       <CardContent className="px-0">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
-            {mappingDefinitions.map((mapping) => {
-              const fieldIndex = fieldIndexByKey.get(mapping.key);
-              if (fieldIndex === undefined) return null;
+          {/* Company Selector */}
+          <div>
+            <Label htmlFor="acc_company" className="text-base font-medium">{t("company")}</Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger id="acc_company" className="h-11 bg-background shadow-sm hover:border-primary/50 transition-all cursor-pointer">
+                <SelectValue placeholder={t("selectCompany") || "Select company"} />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id} className="cursor-pointer">
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              const validCOAs = getFilteredAccounts(mapping);
-              const selectedCode = settingRows[fieldIndex]?.value ?? "";
-              const selectedAccount = coaList.find((coa) => coa.code === selectedCode);
-              const selectedAccountInvalidType =
-                !!selectedAccount &&
-                mapping.allowedAccountTypes.length > 0 &&
-                !mapping.allowedAccountTypes.includes(selectedAccount.type);
+          {companyId && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+                {mappingDefinitions.map((mapping) => {
+                  const fieldIndex = fieldIndexByKey.get(mapping.key);
+                  if (fieldIndex === undefined) return null;
 
-              const error = form.formState.errors.settings?.[fieldIndex]?.value;
-              const mappingDefinition = getMappingDefinitionByKey(mapping.key);
+                  const validCOAs = getFilteredAccounts(mapping);
+                  const selectedCode = settingRows[fieldIndex]?.value ?? "";
+                  const selectedAccount = coaList.find((coa) => coa.code === selectedCode);
+                  const selectedAccountInvalidType =
+                    !!selectedAccount &&
+                    mapping.allowedAccountTypes.length > 0 &&
+                    !mapping.allowedAccountTypes.includes(selectedAccount.type);
 
-              return (
-                <Field key={mapping.key} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <FieldLabel className="text-sm font-semibold text-foreground/80">
-                      {mapping.label}
-                    </FieldLabel>
-                    {mapping.required && <Badge variant="warning">{t("required")}</Badge>}
-                    {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
-                  </div>
-                  <Select
-                    value={settingRows[fieldIndex]?.value || UNMAPPED_VALUE}
-                    onValueChange={(val) =>
-                      form.setValue(
-                        `settings.${fieldIndex}.value`,
-                        val === UNMAPPED_VALUE ? "" : val,
-                        {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        },
-                      )
-                    }
-                    disabled={!canUpdate}
-                  >
-                    <SelectTrigger className="h-11 bg-background shadow-sm hover:border-primary/50 transition-all cursor-pointer">
-                      <SelectValue placeholder={t("selectAccount")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={UNMAPPED_VALUE} className="cursor-pointer">
-                        {t("notMapped")}
-                      </SelectItem>
-                      {validCOAs.length > 0 ? (
-                        validCOAs.map((coa) => (
-                          <SelectItem key={coa.id} value={coa.code} className="py-2.5 cursor-pointer">
-                            <span className="font-medium mr-2">{coa.code}</span>
-                            <span className="text-muted-foreground">- {coa.name}</span>
+                  const error = form.formState.errors.settings?.[fieldIndex]?.value;
+                  const mappingDefinition = getMappingDefinitionByKey(mapping.key);
+
+                  return (
+                    <Field key={mapping.key} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <FieldLabel className="text-sm font-semibold text-foreground/80">
+                          {getTranslatedMappingText(`mappingLabels.${mapping.key}.label`, mapping.label)}
+                        </FieldLabel>
+                        {mapping.required && <Badge variant="warning">{t("required")}</Badge>}
+                        {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
+                      </div>
+                      <Select
+                        value={settingRows[fieldIndex]?.value || UNMAPPED_VALUE}
+                        onValueChange={(val) =>
+                          form.setValue(
+                            `settings.${fieldIndex}.value`,
+                            val === UNMAPPED_VALUE ? "" : val,
+                            {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            },
+                          )
+                        }
+                        disabled={!canUpdate}
+                      >
+                        <SelectTrigger className="h-11 bg-background shadow-sm hover:border-primary/50 transition-all cursor-pointer">
+                          <SelectValue placeholder={t("selectAccount")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UNMAPPED_VALUE} className="cursor-pointer">
+                            {t("notMapped")}
                           </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          {t("noMatchingAccount")}
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
-                    <span className="block">{mapping.description}</span>
-                    <span className="block font-mono text-[11px] not-italic">{mapping.key}</span>
-                    {mapping.allowedAccountTypes.length > 0 && (
-                      <span className="block not-italic">
-                        {t("allowedTypes")}: <strong>{mapping.allowedAccountTypes.join(", ")}</strong>
-                      </span>
-                    )}
-                    {selectedAccountInvalidType && (
-                      <span className="block not-italic text-destructive font-medium">
-                        {t("selectedTypeMismatch", { type: selectedAccount?.type ?? "-" })}
-                      </span>
-                    )}
-                  </FieldDescription>
-                  {error && <FieldError className="mt-1">{error.message}</FieldError>}
-                </Field>
-              );
-            })}
-          </div>
-          <div className="flex justify-end pt-8 border-t">
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="px-8 h-12 text-base font-semibold shadow-md active:scale-95 transition-all" 
-              disabled={isPending || !form.formState.isDirty || !canUpdate}
-            >
-              {!canUpdate ? t("viewOnly") : isPending ? t("saving") : t("save")}
-            </Button>
-          </div>
+                          {validCOAs.length > 0 ? (
+                            validCOAs.map((coa) => (
+                              <SelectItem key={coa.id} value={coa.code} className="py-2.5 cursor-pointer">
+                                <span className="font-medium mr-2">{coa.code}</span>
+                                <span className="text-muted-foreground">- {coa.name}</span>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              {t("noMatchingAccount")}
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
+                        <span className="block">
+                          {getTranslatedMappingText(`mappingLabels.${mapping.key}.description`, mapping.description)}
+                        </span>
+                        <span className="block font-mono text-[11px] not-italic">{mapping.key}</span>
+                        {mapping.allowedAccountTypes.length > 0 && (
+                          <span className="block not-italic">
+                            {t("allowedTypes")}: <strong>{mapping.allowedAccountTypes.join(", ")}</strong>
+                          </span>
+                        )}
+                        {selectedAccountInvalidType && (
+                          <span className="block not-italic text-destructive font-medium">
+                            {t("selectedTypeMismatch", { type: selectedAccount?.type ?? "-" })}
+                          </span>
+                        )}
+                      </FieldDescription>
+                      {error && <FieldError className="mt-1">{error.message}</FieldError>}
+                    </Field>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end pt-8 border-t">
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="px-8 h-12 text-base font-semibold shadow-md active:scale-95 transition-all" 
+                  disabled={!companyId || isPending || !form.formState.isDirty || !canUpdate}
+                >
+                  {!canUpdate ? t("viewOnly") : isPending ? t("saving") : t("save")}
+                </Button>
+              </div>
+            </>
+          )}
         </form>
+        {!companyId && (
+          <div className="p-8 text-center bg-muted/20 rounded-xl border border-dashed">
+            <p className="text-muted-foreground">{t("selectCompany") || "Please select a company to continue"}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

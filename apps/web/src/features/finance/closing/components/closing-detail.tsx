@@ -49,10 +49,10 @@ export function ClosingDetail({ open, onOpenChange, closingId }: Props) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
-                    <TableHead>{t("analysis.account_name") || "Nama Akun"}</TableHead>
-                    <TableHead className="text-right">{t("analysis.closing_balance") || "Saldo Akhir Akun"}</TableHead>
-                    <TableHead className="text-right">{t("analysis.opening_balance") || "Saldo Awal Tahun"}</TableHead>
-                    <TableHead className="text-right">{t("analysis.difference") || "Selisih"}</TableHead>
+                    <TableHead>{t("analysis.account_name") || "Account Name"}</TableHead>
+                    <TableHead className="text-right">{t("analysis.closing_balance") || "Closing Balance"}</TableHead>
+                    <TableHead className="text-right">{t("analysis.opening_balance") || "Opening Balance (YTD)"}</TableHead>
+                    <TableHead className="text-right">{t("analysis.difference") || "Difference"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
