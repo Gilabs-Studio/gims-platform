@@ -118,6 +118,10 @@ export const AccountingMappingForm = () => {
     }).length;
   }, [fieldIndexByKey, mappingDefinitions, settingRows]);
 
+  const getTranslatedMappingText = (key: string, fallback: string): string => {
+    return t.has(key) ? t(key) : fallback;
+  };
+
   const getFilteredAccounts = (definition: SystemAccountMappingDefinition) => {
     const allowedTypes = definition.allowedAccountTypes;
     return coaList.filter((coa) => {
@@ -211,11 +215,7 @@ export const AccountingMappingForm = () => {
                 <Field key={mapping.key} className="space-y-3">
                   <div className="flex items-center gap-2">
                     <FieldLabel className="text-sm font-semibold text-foreground/80">
-                      {(() => {
-                        const labelKey = `mappingLabels.${mapping.key}.label`;
-                        const label = t(labelKey);
-                        return label === labelKey ? mapping.label : label;
-                      })()}
+                      {getTranslatedMappingText(`mappingLabels.${mapping.key}.label`, mapping.label)}
                     </FieldLabel>
                     {mapping.required && <Badge variant="warning">{t("required")}</Badge>}
                     {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
@@ -255,12 +255,10 @@ export const AccountingMappingForm = () => {
                       )}
                     </SelectContent>
                   </Select>
-                    <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
-                    <span className="block">{(() => {
-                      const descKey = `mappingLabels.${mapping.key}.description`;
-                      const desc = t(descKey);
-                      return desc === descKey ? mapping.description : desc;
-                    })()}</span>
+                  <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
+                    <span className="block">
+                      {getTranslatedMappingText(`mappingLabels.${mapping.key}.description`, mapping.description)}
+                    </span>
                     <span className="block font-mono text-[11px] not-italic">{mapping.key}</span>
                     {mapping.allowedAccountTypes.length > 0 && (
                       <span className="block not-italic">
