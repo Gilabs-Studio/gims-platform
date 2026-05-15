@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -72,8 +73,8 @@ export function AssetDetail({ id }: { id: string }) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
 
-  const canUpdate = useUserPermission("asset.update");
-  const canApprove = useUserPermission("asset.update");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
 
   const { data, isLoading, isError } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;

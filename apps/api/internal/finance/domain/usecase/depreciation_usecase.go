@@ -13,19 +13,17 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
-	"github.com/gilabs/gims/api/internal/finance/domain/reference"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 func parseYearMonthPeriod(period string) (time.Time, error) {
 	period = strings.TrimSpace(period)
 	if period == "" {
-		return time.Time{}, errors.New("period is required")
+		return time.Time{}, errors.New("PERIOD_REQUIRED")
 	}
 	parsed, err := time.ParseInLocation("2006-01", period, apptime.Location())
 	if err != nil {
-		return time.Time{}, errors.New("period must be in YYYY-MM format")
+		return time.Time{}, errors.New("INVALID_PERIOD_FORMAT")
 	}
 	return parsed, nil
 }
@@ -249,7 +247,6 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 	periodEnd := periodStart.AddDate(0, 1, 0).Add(-time.Nanosecond)
 	periodKey := ymPeriod(periodStart)
 
-	// Accounting period validation (FIX #10)
 	tenantID := tenantIDFromContext(ctx)
 	if tenantID != "" && uc.apRepo != nil {
 		closed, err := uc.apRepo.IsClosed(ctx, tenantID, periodKey)
@@ -257,18 +254,8 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			return nil, err
 		}
 		if closed {
-			return nil, errors.New("Periode akuntansi sudah ditutup")
+			return nil, errors.New("ACCOUNTING_PERIOD_CLOSED")
 		}
-	}
-
-	var existingCount int64
-	idempotencyQuery := database.GetDB(ctx, uc.db).Model(&financeModels.AssetDepreciation{}).Where("period = ?", periodKey)
-	idempotencyQuery = security.ApplyScopeFilter(idempotencyQuery, ctx, security.FinanceScopeQueryOptions())
-	if err := idempotencyQuery.Count(&existingCount).Error; err != nil {
-		return nil, err
-	}
-	if existingCount > 0 {
-		return nil, errors.New("depreciation already run for this period")
 	}
 
 	q := database.GetDB(ctx, uc.db).
@@ -295,20 +282,10 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 
 	currencyCode := currencyCodeFromContext(ctx)
 	items := make([]dto.BatchDepreciationRunItem, 0, len(assets))
-	posted := 0
 	skipped := 0
 	failed := 0
-	totalAmount := 0.0
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		abort := func(runItem *dto.BatchDepreciationRunItem, reason error) error {
-			runItem.Status = "failed"
-			runItem.Reason = reason.Error()
-			failed++
-			items = append(items, *runItem)
-			return fmt.Errorf("asset %s: %w", runItem.AssetCode, reason)
-		}
-
 		for i := range assets {
 			asset := &assets[i]
 			runItem := dto.BatchDepreciationRunItem{
@@ -337,7 +314,11 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			method := financeModels.DepreciationMethod(asset.GetDepreciationMethod())
 			amount, calcErr := calculateDepreciation(asset, method)
 			if calcErr != nil {
-				return abort(&runItem, calcErr)
+				runItem.Status = "failed"
+				runItem.Reason = calcErr.Error()
+				failed++
+				items = append(items, runItem)
+				continue
 			}
 
 			if amount <= 0 {
@@ -361,15 +342,18 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 				continue
 			}
 
-			companyID, err := uc.resolveCompanyIDForDepreciation(ctx, asset.CompanyID, actorID)
-			if err != nil {
-				return abort(&runItem, err)
-			}
-
 			if existingErr := tx.Where("asset_id = ? AND period = ?", asset.ID, periodKey).First(&financeModels.AssetDepreciation{}).Error; existingErr == nil {
-				return abort(&runItem, errors.New("period already processed for asset"))
+				runItem.Status = "skipped"
+				runItem.Reason = "period already processed for asset"
+				skipped++
+				items = append(items, runItem)
+				continue
 			} else if existingErr != gorm.ErrRecordNotFound {
-				return abort(&runItem, existingErr)
+				runItem.Status = "failed"
+				runItem.Reason = existingErr.Error()
+				failed++
+				items = append(items, runItem)
+				continue
 			}
 
 			dep := &financeModels.AssetDepreciation{
@@ -385,154 +369,18 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 				CreatedBy:        &actorID,
 			}
 			if err := tx.Create(dep).Error; err != nil {
-				return abort(&runItem, err)
+				runItem.Status = "failed"
+				runItem.Reason = err.Error()
+				failed++
+				items = append(items, runItem)
+				continue
 			}
 
-			cat := asset.Category
-			expenseAccountID := strings.TrimSpace(cat.DepreciationExpenseAccountID)
-			accumulatedDepreciationAccountID := strings.TrimSpace(cat.AccumulatedDepreciationAccountID)
-			if expenseAccountID == "" || accumulatedDepreciationAccountID == "" {
-				return abort(&runItem, errors.New("asset category depreciation accounts are not configured"))
-			}
-
-			expenseUUID, err := uuid.Parse(expenseAccountID)
-			if err != nil {
-				return abort(&runItem, errors.New("depreciation expense account id is invalid"))
-			}
-			accUUID, err := uuid.Parse(accumulatedDepreciationAccountID)
-			if err != nil {
-				return abort(&runItem, errors.New("accumulated depreciation account id is invalid"))
-			}
-
-			actorUUID, actorErr := uuid.Parse(actorID)
-			var actorPtr *string
-			if actorErr == nil {
-				actorPtr = &actorID
-			}
-
-			refType := string(reference.RefTypeAssetDepreciation)
-			now := apptime.Now()
-			journalEntry := &financeModels.JournalEntry{
-				CompanyID:         companyID,
-				EntryDate:         periodStart,
-				Description:       fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, periodKey),
-				ReferenceType:     &refType,
-				ReferenceID:       &dep.ID,
-				Status:            financeModels.JournalStatusPosted,
-				JournalType:       financeModels.JournalTypeGeneral,
-				DebitTotal:        amount,
-				CreditTotal:       amount,
-				CurrencyCode:      currencyCode,
-				ExchangeRate:      1,
-				PostedAt:          &now,
-				PostedBy:          actorPtr,
-				CreatedBy:         actorPtr,
-				IsSystemGenerated: true,
-				Source:            financeModels.JournalSourceOperational,
-			}
-			if err := tx.Create(journalEntry).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			debitLine := &financeModels.JournalLine{
-				JournalEntryID:   journalEntry.ID,
-				ChartOfAccountID: expenseUUID.String(),
-				Debit:            amount,
-				Memo:             "Depreciation expense",
-			}
-			creditLine := &financeModels.JournalLine{
-				JournalEntryID:   journalEntry.ID,
-				ChartOfAccountID: accUUID.String(),
-				Credit:           amount,
-				Memo:             "Accumulated depreciation",
-			}
-			if err := tx.Create(debitLine).Error; err != nil {
-				return abort(&runItem, err)
-			}
-			if err := tx.Create(creditLine).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			if err := tx.Model(&financeModels.AssetDepreciation{}).
-				Where("id = ?", dep.ID).
-				Updates(map[string]interface{}{
-					"status":           financeModels.AssetDepreciationStatusApproved,
-					"journal_entry_id": journalEntry.ID,
-				}).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			if err := tx.Model(&financeModels.Asset{}).
-				Where("id = ?", asset.ID).
-				Updates(map[string]interface{}{
-					"accumulated_depreciation": round2(asset.AccumulatedDepreciation + amount),
-					"book_value":               bookValue,
-					"is_fully_depreciated":     bookValue <= asset.SalvageValue,
-				}).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			audit := &financeModels.AssetAuditLog{
-				AssetID:     uuid.MustParse(asset.ID),
-				Action:      "depreciated",
-				PerformedBy: &actorUUID,
-				Changes: financeModels.AuditChanges{{
-					Field:    "book_value",
-					OldValue: asset.BookValue,
-					NewValue:  bookValue,
-				}},
-				Metadata: financeModels.MapStringInterface{
-					"period":     periodKey,
-					"amount":     amount,
-					"journal_id": journalEntry.ID,
-					"event":      "depreciation.posted",
-					"company_id": companyID,
-				},
-			}
-			if err := tx.Create(audit).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			// Insert asset transaction as event log referencing the depreciation ledger (FIX #3)
-			transRefID := dep.ID
-			trans := &financeModels.AssetTransaction{
-				TenantID:               asset.TenantID,
-				AssetID:                asset.ID,
-				Type:                   financeModels.AssetTransactionTypeDepreciate,
-				TransactionDate:        periodStart,
-				Amount:                 amount,
-				Description:            fmt.Sprintf("Depreciation %s (%s)", asset.Code, periodKey),
-				Status:                 financeModels.AssetTransactionStatusPosted,
-				ReferenceType:          &refType,
-				ReferenceID:            &transRefID,
-				BookValueAtTransaction: bookValue,
-				CreatedBy:              actorPtr,
-			}
-			if err := tx.Create(trans).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			// Mark corresponding schedule as posted if exists (tenant-scoped)
-			now = apptime.Now()
-			if err := tx.Model(&financeModels.AssetDepreciationSchedule{}).
-				Where("tenant_id = ? AND asset_id = ? AND period_start_date = ?", asset.TenantID, asset.ID, periodStart).
-				Updates(map[string]interface{}{
-					"is_posted":       true,
-					"posted_at":       &now,
-					"journal_entry_id": journalEntry.ID,
-				}).Error; err != nil {
-				return abort(&runItem, err)
-			}
-
-			_ = actorUUID
-			dep.JournalEntryID = &journalEntry.ID
 			runItem.Amount = amount
-			runItem.Status = "posted"
-			runItem.JournalEntryID = &journalEntry.ID
-			posted++
-			totalAmount += amount
+			runItem.Status = "pending"
 			items = append(items, runItem)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -542,8 +390,101 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 	return &dto.BatchDepreciationRunResponse{
 		CurrencyCode: currencyCode,
 		Processed:    len(items),
-		Posted:       posted,
+		Posted:       0,
 		Skipped:      skipped,
+		Failed:       failed,
+		Items:        items,
+	}, nil
+}
+
+func (uc *assetUsecase) ApproveDepreciationRun(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	periodStart, err := parseYearMonthPeriod(req.Period)
+	if err != nil {
+		return nil, err
+	}
+	periodKey := ymPeriod(periodStart)
+
+	tx := database.GetDB(ctx, uc.db.WithContext(ctx))
+	tx = security.ApplyScopeFilter(tx, ctx, security.FinanceScopeQueryOptions())
+
+	tenantID := strings.TrimSpace(tenantIDFromContext(ctx))
+	if tenantID == "" {
+		return nil, errors.New("tenant not found in context")
+	}
+
+	query := tx.Model(&financeModels.AssetDepreciation{}).
+		Select("asset_depreciations.id, asset_depreciations.asset_id, asset_depreciations.amount, assets.code AS asset_code, assets.name AS asset_name").
+		Joins("JOIN assets ON assets.id = asset_depreciations.asset_id").
+		Where("asset_depreciations.period = ?", periodKey).
+		Where("asset_depreciations.status = ?", financeModels.AssetDepreciationStatusPending).
+		Where("asset_depreciations.tenant_id = ?", tenantID)
+
+	if req.AssetID != nil && strings.TrimSpace(*req.AssetID) != "" {
+		query = query.Where("asset_depreciations.asset_id = ?", strings.TrimSpace(*req.AssetID))
+	}
+	if req.CategoryID != nil && strings.TrimSpace(*req.CategoryID) != "" {
+		query = query.Where("assets.category_id = ?", strings.TrimSpace(*req.CategoryID))
+	}
+	if req.LocationID != nil && strings.TrimSpace(*req.LocationID) != "" {
+		query = query.Where("assets.location_id = ?", strings.TrimSpace(*req.LocationID))
+	}
+
+	type pendingDepreciation struct {
+		ID        string  `gorm:"column:id"`
+		AssetID   string  `gorm:"column:asset_id"`
+		Amount    float64 `gorm:"column:amount"`
+		AssetCode string  `gorm:"column:asset_code"`
+		AssetName string  `gorm:"column:asset_name"`
+	}
+
+	var pending []pendingDepreciation
+	if err := query.Order("asset_depreciations.created_at asc").Find(&pending).Error; err != nil {
+		return nil, err
+	}
+
+	currencyCode := currencyCodeFromContext(ctx)
+	items := make([]dto.BatchDepreciationRunItem, 0, len(pending))
+	posted := 0
+	failed := 0
+
+	for _, dep := range pending {
+		item := dto.BatchDepreciationRunItem{
+			AssetID:      dep.AssetID,
+			AssetCode:    dep.AssetCode,
+			AssetName:    dep.AssetName,
+			CurrencyCode: currencyCode,
+			Amount:       dep.Amount,
+		}
+
+		if _, err := uc.ApproveDepreciation(ctx, dep.ID); err != nil {
+			item.Status = "failed"
+			item.Reason = err.Error()
+			failed++
+			items = append(items, item)
+			continue
+		}
+
+		var approvedDep financeModels.AssetDepreciation
+		_ = uc.db.WithContext(ctx).
+			Select("id", "journal_entry_id").
+			Where("id = ?", dep.ID).
+			First(&approvedDep).Error
+
+		item.Status = "posted"
+		item.JournalEntryID = approvedDep.JournalEntryID
+		posted++
+		items = append(items, item)
+	}
+
+	return &dto.BatchDepreciationRunResponse{
+		CurrencyCode: currencyCode,
+		Processed:    len(items),
+		Posted:       posted,
+		Skipped:      0,
 		Failed:       failed,
 		Items:        items,
 	}, nil

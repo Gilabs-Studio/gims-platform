@@ -74,4 +74,5 @@ func registerDepreciationRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandl
 	g.GET("/schedule", middleware.RequirePermission(depreciationRead), h.GetDepreciationSchedule)
 	g.GET("/history", middleware.RequirePermission(depreciationRead), h.GetDepreciationHistory)
 	g.POST("/run", middleware.RequirePermission(depreciationRun), h.RunDepreciation)
+	g.POST("/approve", middleware.RequirePermission(depreciationRun), h.ApproveDepreciationRun)
 }

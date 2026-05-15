@@ -204,6 +204,20 @@ func (h *AssetHandler) RunDepreciation(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *AssetHandler) ApproveDepreciationRun(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.ApproveDepreciationRun(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *AssetHandler) GetDepreciationHistory(c *gin.Context) {
 	period := strings.TrimSpace(c.Query("period"))
 	if period == "" {

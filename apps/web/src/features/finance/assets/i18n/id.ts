@@ -73,6 +73,7 @@ export const financeAssetsId = {
       ageInMonths: "Umur (bulan)",
       parentAsset: "Aset induk",
       isParent: "Adalah induk",
+      warranty: "Garansi",
       warrantyStart: "Mulai garansi",
       warrantyEnd: "Akhir garansi",
       warrantyProvider: "Penyedia garansi",

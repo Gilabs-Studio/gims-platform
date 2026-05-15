@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 
@@ -226,7 +227,7 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
 export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportType }) {
   const { user } = useAuthStore();
   const permissions = user?.permissions ?? {};
-  const canManage = hasPermissionCode(permissions, "finance_settings.update");
+  const canManage = hasPermissionCode(permissions, FINANCE_PERMISSIONS.FINANCE_SETTINGS.UPDATE);
 
   const configQuery = useFinanceAgingBucketConfig(reportType, { enabled: canManage });
   const updateMutation = useUpdateFinanceAgingBucketConfig(reportType);
