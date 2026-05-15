@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/loading";
 import {
   Dialog,
   DialogContent,
@@ -958,7 +959,7 @@ export function LiveTablePageClient() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <LoadingSpinner className="mx-auto h-8 w-8 text-primary" strokeWidth={2} />
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </div>

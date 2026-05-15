@@ -20,6 +20,7 @@ import { useFieldArray, useForm, useWatch, type SubmitHandler } from "react-hook
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { PageMotion } from "@/components/motion/page-motion";
+import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -503,7 +504,7 @@ export function PlanForm() {
               className="gap-2 h-10 px-6 rounded-xl cursor-pointer shadow-md shadow-primary/20"
             >
               {isSubmitting || mutation.isPending ? (
-                <div className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                <LoadingSpinner className="size-4 text-primary-foreground" strokeWidth={2.5} />
               ) : (
                 <Save className="size-4" />
               )}

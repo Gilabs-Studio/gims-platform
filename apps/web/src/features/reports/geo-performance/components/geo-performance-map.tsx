@@ -13,6 +13,7 @@ import {
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/loading";
 import {
   Card,
   CardContent,
@@ -638,7 +639,7 @@ export function GeoPerformanceMap({ className }: GeoPerformanceMapProps) {
             {isLoading && (
               <div className="absolute inset-0 z-[999] flex items-center justify-center bg-background/50">
                 <div className="flex items-center gap-2 rounded-lg bg-background px-4 py-2 shadow-lg">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <LoadingSpinner className="h-4 w-4 text-primary" strokeWidth={2} />
                   <span className="text-sm">{t("map.loading")}</span>
                 </div>
               </div>

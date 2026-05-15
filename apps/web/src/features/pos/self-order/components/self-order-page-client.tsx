@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { QrCode, WifiOff } from "lucide-react";
+import { LoadingSpinner } from "@/components/loading";
 import { SelfOrderMenu } from "./self-order-menu";
 import { SelfOrderCart } from "./self-order-cart";
 import { SelfOrderCheckout } from "./self-order-checkout";
@@ -121,7 +122,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   if (isPending) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" />
+        <LoadingSpinner className="h-10 w-10 text-primary" strokeWidth={2.5} />
         <p className="mt-4 text-sm font-medium text-muted-foreground animate-pulse">
           {t("selfOrder.page.loadingMenu")}
         </p>
