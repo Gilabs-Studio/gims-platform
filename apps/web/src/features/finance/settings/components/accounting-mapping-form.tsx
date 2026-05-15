@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useForm, type Resolver } from "react-hook-form";
 import { useWatch } from "react-hook-form";
@@ -42,7 +43,7 @@ export const AccountingMappingForm = () => {
   const { data: settingsResponse, isLoading: isSettingsLoading } = useFinanceSettings(companyId);
   const { data: coaResponse, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 100 });
   const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings(companyId);
-  const canUpdate = useUserPermission("account_mappings.update");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ACCOUNT_MAPPINGS.UPDATE);
 
   const settings = useMemo(() => settingsResponse?.data ?? [], [settingsResponse?.data]);
   const companies = companiesData?.data ?? EMPTY_COMPANIES;

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -43,15 +44,15 @@ export function BankAccountDetailPage({ id }: BankAccountDetailPageProps) {
   const [journalDetailOpen, setJournalDetailOpen] = useState(false);
   const [journalDetailId, setJournalDetailId] = useState<string | null>(null);
 
-  const canReadCustomer = useUserPermission("customer.read");
-  const canViewCustomerLegacy = useUserPermission("customer.view");
+  const canReadCustomer = useUserPermission(FINANCE_PERMISSIONS.CUSTOMER.READ);
+  const canViewCustomerLegacy = useUserPermission(FINANCE_PERMISSIONS.CUSTOMER.VIEW);
   const canViewCustomer = canReadCustomer || canViewCustomerLegacy;
-  const canReadSupplier = useUserPermission("supplier.read");
-  const canViewSupplierLegacy = useUserPermission("supplier.view");
+  const canReadSupplier = useUserPermission(FINANCE_PERMISSIONS.SUPPLIER.READ);
+  const canViewSupplierLegacy = useUserPermission(FINANCE_PERMISSIONS.SUPPLIER.VIEW);
   const canViewSupplier = canReadSupplier || canViewSupplierLegacy;
-  const canViewSalesPayment = useUserPermission("sales_payment.read");
-  const canViewPurchasePayment = useUserPermission("purchase_payment.read");
-  const canViewJournal = useUserPermission("journal.read");
+  const canViewSalesPayment = useUserPermission(FINANCE_PERMISSIONS.SALES_PAYMENT.READ);
+  const canViewPurchasePayment = useUserPermission(FINANCE_PERMISSIONS.PURCHASE_PAYMENT.READ);
+  const canViewJournal = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.READ);
 
   const { data: detailData, isLoading: isLoadingDetail, isError: isDetailError } = useFinanceBankAccount(id, {
     enabled: !!id,

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ function toApiDate(d: Date): string {
 export function ProfitLossView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("profit_loss_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.PROFIT_LOSS_EXPORT);
 
   const now = new Date();
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({

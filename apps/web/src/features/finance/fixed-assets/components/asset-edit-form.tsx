@@ -1,4 +1,5 @@
 'use client';
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -199,7 +200,7 @@ export function AssetEditForm({
 
   // Detect changed fields (as keys array)
   const dirtyKeys = useMemo(() => Object.keys(form.formState.dirtyFields || {}), [form.formState.dirtyFields]);
-  const canUpdateAsset = useUserPermission('asset.update');
+  const canUpdateAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
   const shippingCost = form.watch('shippingCost');
   const installationCost = form.watch('installationCost');
   const taxAmount = form.watch('taxAmount');

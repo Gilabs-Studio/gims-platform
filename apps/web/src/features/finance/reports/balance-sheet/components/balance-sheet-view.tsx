@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ function toApiDate(d: Date): string {
 export function BalanceSheetView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("balance_sheet_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.BALANCE_SHEET_EXPORT);
 
   const now = new Date();
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({

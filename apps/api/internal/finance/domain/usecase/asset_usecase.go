@@ -40,6 +40,7 @@ type AssetUsecase interface {
 	RunBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
 	GetDepreciationSchedule(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.DepreciationScheduleResponse, error)
 	RunDepreciation(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
+	ApproveDepreciationRun(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
 	GetDepreciationHistory(ctx context.Context, period string) (*dto.DepreciationHistoryResponse, error)
 	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)

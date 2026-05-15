@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ interface AssetDisposalFormProps {
 export function AssetDisposalForm({ onSuccess }: AssetDisposalFormProps) {
   const t = useTranslations("financeFixedAssets.disposal");
   const { preview, confirm } = useAssetDisposal();
-  const canDisposeAsset = useUserPermission("asset.dispose");
+  const canDisposeAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.DISPOSE);
   const form = useForm<AssetDisposalValues>({
     resolver: zodResolver(assetDisposalSchema),
   });

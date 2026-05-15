@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useTranslations } from "next-intl";
 
@@ -10,7 +11,7 @@ import { CashBankTransactionsList } from "./cash-bank-transactions-list";
 
 export function CashBankWorkspace() {
   const t = useTranslations("financeCashBankTransactions");
-  const canReadTransfer = useUserPermission("bank_transfer.read");
+  const canReadTransfer = useUserPermission(FINANCE_PERMISSIONS.BANK_TRANSFER.READ);
 
   return (
     <Tabs defaultValue="transactions" className="w-full space-y-4">

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useRef } from "react";
 
@@ -206,8 +207,8 @@ export function AssetDetailModal({
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
 
-  const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.depreciate");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
+  const canDepreciate = useUserPermission(FINANCE_PERMISSIONS.ASSET.DEPRECIATE);
 
   const { data, isLoading } = useFinanceAsset(assetId ?? "", {
     enabled: !!assetId && open,

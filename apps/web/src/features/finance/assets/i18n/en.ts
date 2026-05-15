@@ -72,6 +72,7 @@ export const financeAssetsEn = {
       ageInMonths: "Age (months)",
       parentAsset: "Parent asset",
       isParent: "Is parent",
+      warranty: "Warranty",
       warrantyStart: "Warranty start",
       warrantyEnd: "Warranty end",
       warrantyProvider: "Warranty provider",

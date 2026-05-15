@@ -19,6 +19,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 import type { UnifiedJournalRow } from "./journal-table";
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
@@ -54,7 +55,7 @@ export function CashBankJournalsList() {
   const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
   const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
-  const canExport = useUserPermission("cash_bank_journal.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.JOURNAL_LINE.READ);
 
   const { data, isLoading, isError } = useFinanceCashBankSubLedger({
     page,

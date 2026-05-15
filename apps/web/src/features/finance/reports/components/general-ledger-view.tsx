@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -45,7 +46,7 @@ function parseApiDate(value: string | null, fallback: Date): Date {
 export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("general_ledger_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_EXPORT);
   const exportProgress = useExportProgress();
   const searchParams = useSearchParams();
 
