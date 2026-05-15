@@ -38,7 +38,6 @@ func EnsureTenantSystemAccountMappings(db *gorm.DB, tenantID string) error {
 		{Key: "purchase.expense", COACode: "61300", Label: "Purchase Expense"},
 
 		{Key: "sales.accounts_receivable", COACode: "11210", Label: "Sales Accounts Receivable"},
-		{Key: "sales.accounts_receivable_dp", COACode: "11220", Label: "Customer Advance (DP Pelanggan)"},
 		{Key: "sales.advance", COACode: "21400", Label: "Sales Advance"},
 		{Key: "sales.revenue", COACode: "41100", Label: "Sales Revenue"},
 		{Key: "sales.tax_output", COACode: "41200", Label: "Sales Tax Output"},

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { jobPositionService } from "../services/organization-service";
 import type {
   ListOrganizationParams,
@@ -23,6 +23,9 @@ export function useJobPositions(params?: ListOrganizationParams, options?: { ena
   return useQuery({
     queryKey: jobPositionKeys.list(params),
     queryFn: () => jobPositionService.list(params),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    gcTime: 10 * 60 * 1000,
     ...options,
   });
 }

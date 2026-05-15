@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +74,7 @@ export function OpeningBalanceWizard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [companyId, setCompanyId] = useState("");
+  const t = useTranslations("financeSettings.openingBalance");
   const [fiscalYearId, setFiscalYearId] = useState("");
   const [lines, setLines] = useState<OpeningBalanceLineInput[]>([]);
 
@@ -194,15 +196,15 @@ export function OpeningBalanceWizard() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Opening Balance</CardTitle>
+          <CardTitle>{t("title")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <Label htmlFor="ob_company">Company</Label>
+              <Label htmlFor="ob_company">{t("fields.company")}</Label>
               <Select value={companyId} onValueChange={setCompanyId}>
                 <SelectTrigger id="ob_company" className="cursor-pointer">
-                  <SelectValue placeholder="Select company" />
+                  <SelectValue placeholder={t("placeholders.selectCompany")} />
                 </SelectTrigger>
                 <SelectContent>
                   {companies.map((company) => (
@@ -214,10 +216,10 @@ export function OpeningBalanceWizard() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="ob_fy">Fiscal Year</Label>
+              <Label htmlFor="ob_fy">{t("fields.fiscalYear")}</Label>
               <Select value={fiscalYearId} onValueChange={setFiscalYearId}>
                 <SelectTrigger id="ob_fy" className="cursor-pointer">
-                  <SelectValue placeholder="Select fiscal year" />
+                  <SelectValue placeholder={t("placeholders.selectFiscalYear")} />
                 </SelectTrigger>
                 <SelectContent>
                   {fiscalYears.map((fy) => (
@@ -232,11 +234,11 @@ export function OpeningBalanceWizard() {
 
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <p className="text-sm font-medium">One-time Opening Balance</p>
-              <p className="text-xs text-muted-foreground">Create opening balance once per company and fiscal year.</p>
+              <p className="text-sm font-medium">{t("summary.title")}</p>
+              <p className="text-xs text-muted-foreground">{t("summary.description")}</p>
               {summaryData?.data?.is_posted ? (
                 <p className="mt-1 text-xs text-emerald-600">
-                  Posted journal: {summaryData.data.posted_journal_id ?? "-"}
+                  {t("summary.postedJournal")}: {summaryData.data.posted_journal_id ?? "-"}
                 </p>
               ) : null}
             </div>
@@ -246,7 +248,7 @@ export function OpeningBalanceWizard() {
               onClick={openCreateModal}
               disabled={!companyId || !fiscalYearId || !canCreateOpeningBalance}
             >
-              Create Opening Balance
+              {t("actions.create")}
             </Button>
           </div>
 
@@ -255,10 +257,10 @@ export function OpeningBalanceWizard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
-                    <th className="p-2">Account</th>
-                    <th className="p-2">Debit</th>
-                    <th className="p-2">Credit</th>
-                    <th className="p-2">Description</th>
+                    <th className="p-2">{t("wizard.account")}</th>
+                    <th className="p-2">{t("wizard.debit")}</th>
+                    <th className="p-2">{t("wizard.credit")}</th>
+                    <th className="p-2">{t("wizard.description")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,7 +268,7 @@ export function OpeningBalanceWizard() {
                     const account = accounts.find((item) => item.id === line.account_id);
                     return (
                       <tr key={`${index}-${line.account_id}`} className="border-b">
-                        <td className="p-2">{account?.code ?? "-"} - {account?.name ?? "Unknown"}</td>
+                        <td className="p-2">{account?.code ?? "-"} - {account?.name ?? t("wizard.unknown")}</td>
                         <td className="p-2">{line.debit_amount.toFixed(2)}</td>
                         <td className="p-2">{line.credit_amount.toFixed(2)}</td>
                         <td className="p-2">{line.description ?? "-"}</td>
@@ -277,9 +279,9 @@ export function OpeningBalanceWizard() {
               </table>
             </div>
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Draft is saved when you click Next</span>
+              <span>{t("wizard.draftSaved")}</span>
               <span>
-                Debit {totals.debit.toFixed(2)} | Credit {totals.credit.toFixed(2)} | Difference {totals.difference.toFixed(2)}
+                {t("wizard.totalDebit", { amount: totals.debit.toFixed(2) })} | {t("wizard.totalCredit", { amount: totals.credit.toFixed(2) })} | {t("wizard.difference", { amount: totals.difference.toFixed(2) })}
               </span>
             </div>
           </div>
@@ -289,9 +291,9 @@ export function OpeningBalanceWizard() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Opening Balance Wizard</DialogTitle>
+            <DialogTitle>{t("wizard.title")}</DialogTitle>
             <DialogDescription>
-              Step {step} of 2 - {step === 1 ? "Input line" : "Summary & simulation"}
+              {t("wizard.stepLabel", { step, title: step === 1 ? t("wizard.inputLine") : t("wizard.summarySimulation") })}
             </DialogDescription>
           </DialogHeader>
 
@@ -301,11 +303,11 @@ export function OpeningBalanceWizard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="p-2">Account</th>
-                      <th className="p-2">Debit</th>
-                      <th className="p-2">Credit</th>
-                      <th className="p-2">Description</th>
-                      <th className="p-2">Action</th>
+                      <th className="p-2">{t("wizard.account")}</th>
+                      <th className="p-2">{t("wizard.debit")}</th>
+                      <th className="p-2">{t("wizard.credit")}</th>
+                      <th className="p-2">{t("wizard.description")}</th>
+                      <th className="p-2">{t("wizard.action")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -314,7 +316,7 @@ export function OpeningBalanceWizard() {
                         <td className="p-2 min-w-[260px]">
                           <Select value={line.account_id} onValueChange={(value) => updateLine(index, { account_id: value })}>
                             <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder="Select account" />
+                              <SelectValue placeholder={t("fields.account")} />
                             </SelectTrigger>
                             <SelectContent>
                               {accounts.map((account) => (
@@ -348,8 +350,8 @@ export function OpeningBalanceWizard() {
                           />
                         </td>
                         <td className="p-2">
-                          <Button type="button" variant="destructive" size="sm" className="cursor-pointer" onClick={() => removeLine(index)}>
-                            Remove
+                            <Button type="button" variant="destructive" size="sm" className="cursor-pointer" onClick={() => removeLine(index)}>
+                            {t("wizard.remove")}
                           </Button>
                         </td>
                       </tr>
@@ -360,14 +362,14 @@ export function OpeningBalanceWizard() {
 
               <div className="flex items-center justify-between">
                 <Button type="button" variant="outline" className="cursor-pointer" onClick={addLine}>
-                  Add Line
+                  {t("wizard.addLine")}
                 </Button>
-                <div className="text-sm text-muted-foreground">Difference {totals.difference.toFixed(2)}</div>
+                <div className="text-sm text-muted-foreground">{t("wizard.difference", { amount: totals.difference.toFixed(2) })}</div>
               </div>
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" className="cursor-pointer" onClick={() => setIsModalOpen(false)}>
-                  Cancel
+                  {t("wizard.cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -375,7 +377,7 @@ export function OpeningBalanceWizard() {
                   onClick={goToSummary}
                   disabled={!canProceedToSummary || saveDraftMutation.isPending}
                 >
-                  Next
+                  {t("wizard.next")}
                 </Button>
               </div>
             </div>
@@ -383,16 +385,16 @@ export function OpeningBalanceWizard() {
             <div className="space-y-4">
               <div className="rounded-md border p-3 text-sm">
                 {simulateMutation.isPending ? (
-                  <p className="text-muted-foreground">Running simulation...</p>
+                  <p className="text-muted-foreground">{t("wizard.runningSimulation")}</p>
                 ) : (
                   <div className="space-y-1">
-                    <p>Total Debit: {(simulateMutation.data?.data?.total_debit ?? totals.debit).toFixed(2)}</p>
-                    <p>Total Credit: {(simulateMutation.data?.data?.total_credit ?? totals.credit).toFixed(2)}</p>
+                    <p>{t("wizard.totalDebit", { amount: (simulateMutation.data?.data?.total_debit ?? totals.debit).toFixed(2) })}</p>
+                    <p>{t("wizard.totalCredit", { amount: (simulateMutation.data?.data?.total_credit ?? totals.credit).toFixed(2) })}</p>
                     <p className={(simulateMutation.data?.data?.is_balanced ?? totals.balanced) ? "text-emerald-600" : "text-destructive"}>
-                      Difference: {(simulateMutation.data?.data?.difference ?? totals.difference).toFixed(2)}
+                      {t("wizard.difference", { amount: (simulateMutation.data?.data?.difference ?? totals.difference).toFixed(2) })}
                     </p>
-                    <p>Valuation Status: {simulateMutation.data?.data?.valuation_status ?? "PENDING"}</p>
-                    <p>Recommendation: {simulateMutation.data?.data?.recommendation ?? "-"}</p>
+                    <p>{t("wizard.valuationStatus", { status: simulateMutation.data?.data?.valuation_status ?? t("wizard.pending") })}</p>
+                    <p>{t("wizard.recommendation", { value: simulateMutation.data?.data?.recommendation ?? "-" })}</p>
                   </div>
                 )}
               </div>
@@ -401,11 +403,11 @@ export function OpeningBalanceWizard() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="p-2">Account</th>
-                      <th className="p-2">Debit</th>
-                      <th className="p-2">Credit</th>
-                      <th className="p-2">Status</th>
-                      <th className="p-2">Action</th>
+                      <th className="p-2">{t("wizard.account")}</th>
+                      <th className="p-2">{t("wizard.debit")}</th>
+                      <th className="p-2">{t("wizard.credit")}</th>
+                      <th className="p-2">{t("wizard.action")}</th>
+                      <th className="p-2">{t("wizard.status")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -423,8 +425,8 @@ export function OpeningBalanceWizard() {
               </div>
 
               <div className="flex items-center justify-between">
-                <Button type="button" variant="outline" className="cursor-pointer" onClick={() => setStep(1)}>
-                  Back
+                  <Button type="button" variant="outline" className="cursor-pointer" onClick={() => setStep(1)}>
+                  {t("wizard.back")}
                 </Button>
                 <Button
                   type="button"

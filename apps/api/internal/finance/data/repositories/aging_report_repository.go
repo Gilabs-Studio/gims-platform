@@ -154,8 +154,8 @@ type apAgingScanRow struct {
 	SourceType    string         `gorm:"column:source_type"`
 	Code          string         `gorm:"column:code"`
 	InvoiceNumber string         `gorm:"column:invoice_number"`
-	InvoiceDate   sql.NullString `gorm:"column:invoice_date"`
-	DueDate       sql.NullString `gorm:"column:due_date"`
+	InvoiceDate   sql.NullTime   `gorm:"column:invoice_date"`
+	DueDate       sql.NullTime   `gorm:"column:due_date"`
 	SupplierID    string         `gorm:"column:supplier_id"`
 	SupplierName  string         `gorm:"column:supplier_name"`
 	Amount        float64        `gorm:"column:amount"`
@@ -172,8 +172,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 
 	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
 
-	// SupplierInvoice invoice_date and due_date are stored as varchar in this codebase.
-	// We still filter by as_of_date using to_date; invalid formats will be excluded by the condition.
+	// supplier_invoices invoice_date and due_date are date columns.
 	countSQL := `
 		SELECT COUNT(*)
 		FROM (
@@ -185,7 +184,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 				AND pp.deleted_at IS NULL
 			WHERE si.deleted_at IS NULL
 				AND si.status IN ('UNPAID','PARTIAL')
-				AND to_date(si.invoice_date, 'YYYY-MM-DD') <= to_date(?, 'YYYY-MM-DD')
+				AND si.invoice_date <= ?::date
 				AND (
 					? = ''
 					OR si.code ILIKE ?
@@ -227,7 +226,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 			AND pp.deleted_at IS NULL
 		WHERE si.deleted_at IS NULL
 			AND si.status IN ('UNPAID','PARTIAL')
-			AND to_date(si.invoice_date, 'YYYY-MM-DD') <= to_date(?, 'YYYY-MM-DD')
+			AND si.invoice_date <= ?::date
 			AND (
 				? = ''
 				OR si.code ILIKE ?
@@ -236,7 +235,7 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 			)
 		GROUP BY si.id, si.code, si.invoice_number, si.invoice_date, si.due_date, si.supplier_id, s.name, si.amount
 		HAVING GREATEST(si.amount - COALESCE(SUM(pp.amount), 0), 0) > 0
-		ORDER BY to_date(si.invoice_date, 'YYYY-MM-DD') DESC
+		ORDER BY si.invoice_date DESC
 		LIMIT ? OFFSET ?
 	`
 	if params.Limit <= 0 {
@@ -256,17 +255,13 @@ func (r *agingReportRepository) ListAPAging(ctx context.Context, params AgingLis
 
 	rows := make([]APAgingRow, 0, len(scanRows))
 	for _, sr := range scanRows {
-		invDate, err := time.Parse("2006-01-02", strings.TrimSpace(sr.InvoiceDate.String))
-		if err != nil {
+		if !sr.InvoiceDate.Valid {
 			continue
 		}
-		dueDateStr := strings.TrimSpace(sr.DueDate.String)
-		if dueDateStr == "" {
-			dueDateStr = strings.TrimSpace(sr.InvoiceDate.String)
-		}
-		dueDate, err := time.Parse("2006-01-02", dueDateStr)
-		if err != nil {
-			continue
+		invDate := sr.InvoiceDate.Time
+		dueDate := invDate
+		if sr.DueDate.Valid {
+			dueDate = sr.DueDate.Time
 		}
 		rows = append(rows, APAgingRow{
 			InvoiceID:       sr.InvoiceID,
@@ -339,23 +334,17 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 			ntp.id as supplier_id,
 			COALESCE(NULLIF(ntp.vendor_name, ''), ntp.code) as supplier_name,
 			ntp.amount as amount,
-			COALESCE((
-				SELECT SUM(je.debit_total)
-				FROM journal_entries je
-				WHERE je.deleted_at IS NULL
-					AND je.status = 'posted'
-					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
-			), 0) as paid_amount,
-			GREATEST(ntp.amount - COALESCE((
-				SELECT SUM(je.debit_total)
-				FROM journal_entries je
-				WHERE je.deleted_at IS NULL
-					AND je.status = 'posted'
-					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
-			), 0), 0) as remaining_amount
+			COALESCE(paid.paid_amount, 0) as paid_amount,
+			GREATEST(ntp.amount - COALESCE(paid.paid_amount, 0), 0) as remaining_amount
 		FROM non_trade_payables ntp
+		LEFT JOIN LATERAL (
+			SELECT SUM(je.debit_total) AS paid_amount
+			FROM journal_entries je
+			WHERE je.deleted_at IS NULL
+				AND je.status = 'posted'
+				AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
+				AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
+		) paid ON true
 		WHERE ntp.deleted_at IS NULL
 			AND ntp.status IN ('posted', 'partial', 'approved')
 			AND ntp.transaction_date <= ?::date
@@ -365,14 +354,7 @@ func (r *agingReportRepository) listNonTradePayableAging(ctx context.Context, pa
 				OR COALESCE(ntp.vendor_name, '') ILIKE ?
 				OR COALESCE(ntp.reference_no, '') ILIKE ?
 			)
-			AND GREATEST(ntp.amount - COALESCE((
-				SELECT SUM(je.debit_total)
-				FROM journal_entries je
-				WHERE je.deleted_at IS NULL
-					AND je.status = 'posted'
-					AND UPPER(COALESCE(je.reference_type, '')) = 'NTP_PAYMENT'
-					AND (je.reference = ntp.id::text OR je.reference_id = ntp.id::text)
-			), 0), 0) > 0
+			AND GREATEST(ntp.amount - COALESCE(paid.paid_amount, 0), 0) > 0
 		ORDER BY COALESCE(ntp.due_date, ntp.transaction_date) ASC, ntp.code ASC
 	`
 

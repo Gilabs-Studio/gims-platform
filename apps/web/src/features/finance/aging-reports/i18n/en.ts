@@ -35,5 +35,22 @@ export const financeAgingReportsEn = {
     actions: "Actions",
     viewDetails: "View Details",
   },
+  config: {
+    title: "Aging Bucket Configuration",
+    editing: "Configuring {label}.",
+    guideTitle: "Key guide",
+    guideDescription:
+      "Keys may be left empty so the system generates them automatically. If provided, use lowercase letters, numbers, and underscores. Example: ar_current, ar_1_30, ap_current, ap_1_30.",
+    keyPlaceholder: "Key",
+    labelPlaceholder: "Label",
+    minPlaceholder: "Min",
+    maxPlaceholder: "Max",
+    addBucket: "Add bucket",
+    saveConfig: "Save configuration",
+    emptyBuckets: "Aging buckets cannot be empty",
+    invalidMin: "Min on row {index} must be an integer >= 0",
+    invalidMax: "Max on row {index} must be an integer >= 0",
+    invalidRange: "Range on row {index} is invalid (min > max)",
+  },
   searchPlaceholder: "Search by invoice number or code...",
 };

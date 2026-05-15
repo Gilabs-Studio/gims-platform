@@ -639,91 +639,91 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
 
             <section className="rounded-2xl border bg-card/50 p-5 shadow-sm">
               <div className="mb-4 flex items-start gap-3">
-                <span className={sectionBadgeClass}>4</span>
-                <div>
-                  <div className="text-sm font-semibold">Warranty & Insurance</div>
-                  <div className="text-sm text-muted-foreground">Optional coverage details for the asset.</div>
+                  <span className={sectionBadgeClass}>4</span>
+                  <div>
+                    <div className="text-sm font-semibold">{t("detail.sections.warranty")}</div>
+                    <div className="text-sm text-muted-foreground">{t("detail.fields.warranty")}</div>
+                  </div>
                 </div>
-              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="warranty_start">Warranty Start</Label>
+                  <Label htmlFor="warranty_start">{t("detail.fields.warrantyStart")}</Label>
                   <Controller
                     name="warranty_start"
                     control={form.control}
                     render={({ field }) => (
-                      <DatePicker
+                        <DatePicker
                         id="warranty_start"
                         value={field.value ?? ""}
                         onChange={field.onChange}
-                        placeholder="Pilih tanggal mulai garansi"
+                        placeholder={t("placeholders.selectDate")}
                       />
                     )}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="warranty_end">Warranty End</Label>
+                  <Label htmlFor="warranty_end">{t("detail.fields.warrantyEnd")}</Label>
                   <Controller
                     name="warranty_end"
                     control={form.control}
                     render={({ field }) => (
-                      <DatePicker
+                        <DatePicker
                         id="warranty_end"
                         value={field.value ?? ""}
                         onChange={field.onChange}
-                        placeholder="Pilih tanggal berakhir garansi"
+                        placeholder={t("placeholders.selectDate")}
                       />
                     )}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="warranty_provider">Warranty Provider</Label>
+                  <Label htmlFor="warranty_provider">{t("detail.fields.warrantyProvider")}</Label>
                   <Input id="warranty_provider" {...form.register("warranty_provider")} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="warranty_terms">Warranty Terms</Label>
+                  <Label htmlFor="warranty_terms">{t("detail.fields.warrantyTerms")}</Label>
                   <Input id="warranty_terms" {...form.register("warranty_terms")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="insurance_policy_number">Insurance Policy Number</Label>
+                  <Label htmlFor="insurance_policy_number">{t("detail.fields.insurancePolicyNumber")}</Label>
                   <Input id="insurance_policy_number" {...form.register("insurance_policy_number")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="insurance_provider">Insurance Provider</Label>
+                  <Label htmlFor="insurance_provider">{t("detail.fields.insuranceProvider")}</Label>
                   <Input id="insurance_provider" {...form.register("insurance_provider")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="insurance_start">Insurance Start</Label>
+                  <Label htmlFor="insurance_start">{t("detail.fields.insuranceStart")}</Label>
                   <Controller
                     name="insurance_start"
                     control={form.control}
                     render={({ field }) => (
-                      <DatePicker
+                        <DatePicker
                         id="insurance_start"
                         value={field.value ?? ""}
                         onChange={field.onChange}
-                        placeholder="Pilih tanggal mulai asuransi"
+                        placeholder={t("placeholders.selectDate")}
                       />
                     )}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="insurance_end">Insurance End</Label>
+                  <Label htmlFor="insurance_end">{t("detail.fields.insuranceEnd")}</Label>
                   <Controller
                     name="insurance_end"
                     control={form.control}
                     render={({ field }) => (
-                      <DatePicker
+                        <DatePicker
                         id="insurance_end"
                         value={field.value ?? ""}
                         onChange={field.onChange}
-                        placeholder="Pilih tanggal berakhir asuransi"
+                        placeholder={t("placeholders.selectDate")}
                       />
                     )}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="insurance_value">Insurance Value</Label>
+                  <Label htmlFor="insurance_value">{t("detail.fields.insuranceValue")}</Label>
                   <Controller
                     name="insurance_value"
                     control={form.control}

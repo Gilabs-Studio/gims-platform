@@ -918,7 +918,7 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {uploadMutation.isPending ? "Uploading..." : t("detail.attachments.upload")}
+                {uploadMutation.isPending ? t("detail.attachments.uploading") : t("detail.attachments.upload")}
               </Button>
             </div>
           )}
