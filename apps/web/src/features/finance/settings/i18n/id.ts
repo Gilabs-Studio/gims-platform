@@ -1,4 +1,21 @@
 export const financeSettingsId = {
+  title: "Pengaturan Finance",
+  description: "Kelola konfigurasi finance dan pemetaan akun.",
+  loading: "Memuat...",
+  loadFailed: "Gagal memuat pengaturan finance.",
+  required: "Wajib diisi",
+  customKey: "Kunci Kustom",
+  missingRequired: "Masih ada {count} pemetaan wajib yang belum diisi.",
+  selectAccount: "Pilih akun",
+  notMapped: "Belum dipetakan",
+  noMatchingAccount: "Tidak ada akun yang cocok",
+  allowedTypes: "Tipe yang diperbolehkan",
+  selectedTypeMismatch: "Tipe akun yang dipilih {type} tidak diperbolehkan.",
+  viewOnly: "Hanya lihat",
+  saving: "Menyimpan...",
+  save: "Simpan",
+  dynamicDescription: "Pengaturan finance kustom",
+  requiredValue: "Silakan pilih pemetaan akun.",
   inventory: {
     title: "Pengaturan Penilaian Persediaan",
     fields: {
@@ -155,6 +172,110 @@ export const financeSettingsId = {
       draft: "Draft",
       active: "Aktif",
       locked: "Terkunci",
+    },
+  },
+  mappingLabels: {
+    sales: {
+      accounts_receivable: {
+        label: "Piutang Usaha Penjualan",
+        description: "Akun piutang usaha untuk posting faktur penjualan",
+      },
+      revenue: {
+        label: "Pendapatan Penjualan",
+        description: "Akun pendapatan untuk pengakuan penjualan",
+      },
+      tax_output: {
+        label: "PPN Keluaran Penjualan",
+        description: "Akun utang pajak keluaran untuk PPN penjualan",
+      },
+      cogs: {
+        label: "HPP Penjualan",
+        description: "Akun harga pokok penjualan untuk pengeluaran persediaan",
+      },
+      sales_return: {
+        label: "Retur Penjualan",
+        description: "Akun retur/kontra untuk posting retur penjualan",
+      },
+      advance: {
+        label: "Uang Muka Penjualan",
+        description: "Akun liabilitas uang muka pelanggan untuk posting down payment",
+      },
+      inventory_asset: {
+        label: "Aset Persediaan Penjualan",
+        description: "Akun aset persediaan yang dipakai saat mutasi HPP penjualan",
+      },
+    },
+    purchase: {
+      inventory_asset: {
+        label: "Aset Persediaan Pembelian",
+        description: "Akun aset persediaan yang dipakai saat posting penerimaan barang",
+      },
+      gr_ir_clearing: {
+        label: "Clearing GR/IR Pembelian",
+        description: "Akun clearing GR/IR untuk penerimaan barang dan faktur supplier",
+      },
+      tax_input: {
+        label: "PPN Masukan Pembelian",
+        description: "Akun pajak masukan untuk PPN pembelian",
+      },
+      accounts_payable: {
+        label: "Hutang Usaha Pembelian",
+        description: "Akun hutang usaha untuk faktur supplier",
+      },
+      advance: {
+        label: "Uang Muka Pembelian",
+        description: "Akun aset uang muka supplier untuk posting down payment",
+      },
+      purchase_return: {
+        label: "Retur Pembelian",
+        description: "Akun kontra/beban untuk posting retur pembelian",
+      },
+      expense: {
+        label: "Beban Pembelian",
+        description: "Akun beban pembelian tambahan (pengiriman dan biaya lain)",
+      },
+    },
+    inventory: {
+      inventory_asset: {
+        label: "Aset Persediaan",
+        description: "Akun aset persediaan inti untuk mutasi stok",
+      },
+      adjustment_gain: {
+        label: "Keuntungan Penyesuaian Persediaan",
+        description: "Akun keuntungan untuk penyesuaian stok positif",
+      },
+      adjustment_loss: {
+        label: "Kerugian Penyesuaian Persediaan",
+        description: "Akun beban untuk penyesuaian stok negatif",
+      },
+      revaluation_reserve: {
+        label: "Cadangan Revaluasi Persediaan",
+        description: "Akun cadangan ekuitas untuk keuntungan revaluasi persediaan",
+      },
+    },
+    asset: {
+      accumulated_depreciation: {
+        label: "Akumulasi Penyusutan",
+        description: "Akun kontra aset untuk akumulasi penyusutan",
+      },
+      depreciation_expense: {
+        label: "Beban Penyusutan",
+        description: "Akun beban untuk penyusutan periodik",
+      },
+    },
+    finance: {
+      opening_balance_equity: {
+        label: "Ekuitas Saldo Awal",
+        description: "Akun ekuitas untuk posting saldo awal",
+      },
+      bank_default: {
+        label: "Akun Bank Default",
+        description: "Akun kas bank default",
+      },
+      cash_default: {
+        label: "Akun Kas Default",
+        description: "Akun kas tangan default",
+      },
     },
   },
 };
