@@ -35,5 +35,22 @@ export const financeAgingReportsId = {
     actions: "Aksi",
     viewDetails: "Lihat Detail",
   },
+  config: {
+    title: "Konfigurasi Bucket Aging",
+    editing: "Sedang mengatur {label}.",
+    guideTitle: "Panduan key",
+    guideDescription:
+      "Key boleh dikosongkan agar sistem membuat otomatis. Jika diisi, gunakan huruf kecil, angka, dan underscore. Contoh: ar_current, ar_1_30, ap_current, ap_1_30.",
+    keyPlaceholder: "Key",
+    labelPlaceholder: "Label",
+    minPlaceholder: "Min",
+    maxPlaceholder: "Max",
+    addBucket: "Tambah bucket",
+    saveConfig: "Simpan konfigurasi",
+    emptyBuckets: "Bucket aging tidak boleh kosong",
+    invalidMin: "Min pada baris {index} harus bilangan bulat >= 0",
+    invalidMax: "Max pada baris {index} harus bilangan bulat >= 0",
+    invalidRange: "Rentang pada baris {index} tidak valid (min > max)",
+  },
   searchPlaceholder: "Cari invoice atau kode...",
 };

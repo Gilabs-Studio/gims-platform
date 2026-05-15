@@ -111,9 +111,9 @@ export function BalanceSheetView() {
   };
 
   const metrics = [
-    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp, desc: "Kekayaan dan harta perusahaan" },
-    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2, desc: "Kewajiban tagihan dan hutang" },
-    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale, desc: "Modal pemilik / Laba ditahan" },
+    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp, desc: t("total_assets_desc") },
+    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2, desc: t("total_liabilities_desc") },
+    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale, desc: t("total_equity_desc") },
   ];
 
   return (

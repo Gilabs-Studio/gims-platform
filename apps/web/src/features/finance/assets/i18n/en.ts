@@ -129,6 +129,7 @@ export const financeAssetsEn = {
       description: "Description",
       noAttachments: "No attachments yet",
       upload: "Upload file",
+      uploading: "Uploading...",
       download: "Download",
       delete: "Delete",
       actions: "Actions",

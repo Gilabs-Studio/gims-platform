@@ -299,9 +299,16 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 	skipped := 0
 	failed := 0
 	totalAmount := 0.0
-	journalIDs := make([]string, 0, len(assets))
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		abort := func(runItem *dto.BatchDepreciationRunItem, reason error) error {
+			runItem.Status = "failed"
+			runItem.Reason = reason.Error()
+			failed++
+			items = append(items, *runItem)
+			return fmt.Errorf("asset %s: %w", runItem.AssetCode, reason)
+		}
+
 		for i := range assets {
 			asset := &assets[i]
 			runItem := dto.BatchDepreciationRunItem{
@@ -330,11 +337,7 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			method := financeModels.DepreciationMethod(asset.GetDepreciationMethod())
 			amount, calcErr := calculateDepreciation(asset, method)
 			if calcErr != nil {
-				runItem.Status = "failed"
-				runItem.Reason = calcErr.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, calcErr)
 			}
 
 			if amount <= 0 {
@@ -360,61 +363,45 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 
 			companyID, err := uc.resolveCompanyIDForDepreciation(ctx, asset.CompanyID, actorID)
 			if err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			if existingErr := tx.Where("asset_id = ? AND period = ?", asset.ID, periodKey).First(&financeModels.AssetDepreciation{}).Error; existingErr == nil {
-				runItem.Status = "failed"
-				runItem.Reason = "period already processed for asset"
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, errors.New("period already processed for asset"))
 			} else if existingErr != gorm.ErrRecordNotFound {
-				runItem.Status = "failed"
-				runItem.Reason = existingErr.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, existingErr)
 			}
 
 			dep := &financeModels.AssetDepreciation{
-				TenantID:            asset.TenantID,
-				AssetID:             asset.ID,
-				Period:              periodKey,
-				DepreciationDate:    periodStart,
-				Method:              method,
-				Amount:              amount,
-				Accumulated:         round2(asset.AccumulatedDepreciation + amount),
-				BookValue:           bookValue,
-				Status:              financeModels.AssetDepreciationStatusPending,
-				CreatedBy:           &actorID,
+				TenantID:         asset.TenantID,
+				AssetID:          asset.ID,
+				Period:           periodKey,
+				DepreciationDate: periodStart,
+				Method:           method,
+				Amount:           amount,
+				Accumulated:      round2(asset.AccumulatedDepreciation + amount),
+				BookValue:        bookValue,
+				Status:           financeModels.AssetDepreciationStatusPending,
+				CreatedBy:        &actorID,
 			}
 			if err := tx.Create(dep).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			cat := asset.Category
 			expenseAccountID := strings.TrimSpace(cat.DepreciationExpenseAccountID)
 			accumulatedDepreciationAccountID := strings.TrimSpace(cat.AccumulatedDepreciationAccountID)
 			if expenseAccountID == "" || accumulatedDepreciationAccountID == "" {
-				return errors.New("asset category depreciation accounts are not configured")
+				return abort(&runItem, errors.New("asset category depreciation accounts are not configured"))
 			}
 
 			expenseUUID, err := uuid.Parse(expenseAccountID)
 			if err != nil {
-				return errors.New("depreciation expense account id is invalid")
+				return abort(&runItem, errors.New("depreciation expense account id is invalid"))
 			}
 			accUUID, err := uuid.Parse(accumulatedDepreciationAccountID)
 			if err != nil {
-				return errors.New("accumulated depreciation account id is invalid")
+				return abort(&runItem, errors.New("accumulated depreciation account id is invalid"))
 			}
 
 			actorUUID, actorErr := uuid.Parse(actorID)
@@ -426,56 +413,44 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			refType := string(reference.RefTypeAssetDepreciation)
 			now := apptime.Now()
 			journalEntry := &financeModels.JournalEntry{
-				CompanyID:     companyID,
-				EntryDate:     periodStart,
-				Description:   fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, periodKey),
-				ReferenceType: &refType,
-				ReferenceID:   &dep.ID,
-				Status:        financeModels.JournalStatusPosted,
-				JournalType:   financeModels.JournalTypeGeneral,
-				DebitTotal:    amount,
-				CreditTotal:   amount,
-				CurrencyCode:  currencyCode,
-				ExchangeRate:  1,
-				PostedAt:      &now,
-				PostedBy:      actorPtr,
-				CreatedBy:     actorPtr,
+				CompanyID:         companyID,
+				EntryDate:         periodStart,
+				Description:       fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, periodKey),
+				ReferenceType:     &refType,
+				ReferenceID:       &dep.ID,
+				Status:            financeModels.JournalStatusPosted,
+				JournalType:       financeModels.JournalTypeGeneral,
+				DebitTotal:        amount,
+				CreditTotal:       amount,
+				CurrencyCode:      currencyCode,
+				ExchangeRate:      1,
+				PostedAt:          &now,
+				PostedBy:          actorPtr,
+				CreatedBy:         actorPtr,
 				IsSystemGenerated: true,
-				Source:        financeModels.JournalSourceOperational,
+				Source:            financeModels.JournalSourceOperational,
 			}
 			if err := tx.Create(journalEntry).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			debitLine := &financeModels.JournalLine{
-				JournalEntryID:             journalEntry.ID,
-				ChartOfAccountID:           expenseUUID.String(),
-				Debit:                      amount,
-				Memo:                       "Depreciation expense",
+				JournalEntryID:   journalEntry.ID,
+				ChartOfAccountID: expenseUUID.String(),
+				Debit:            amount,
+				Memo:             "Depreciation expense",
 			}
 			creditLine := &financeModels.JournalLine{
-				JournalEntryID:             journalEntry.ID,
-				ChartOfAccountID:           accUUID.String(),
-				Credit:                     amount,
-				Memo:                       "Accumulated depreciation",
+				JournalEntryID:   journalEntry.ID,
+				ChartOfAccountID: accUUID.String(),
+				Credit:           amount,
+				Memo:             "Accumulated depreciation",
 			}
 			if err := tx.Create(debitLine).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 			if err := tx.Create(creditLine).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			if err := tx.Model(&financeModels.AssetDepreciation{}).
@@ -484,11 +459,7 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 					"status":           financeModels.AssetDepreciationStatusApproved,
 					"journal_entry_id": journalEntry.ID,
 				}).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			if err := tx.Model(&financeModels.Asset{}).
@@ -498,11 +469,7 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 					"book_value":               bookValue,
 					"is_fully_depreciated":     bookValue <= asset.SalvageValue,
 				}).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			audit := &financeModels.AssetAuditLog{
@@ -515,19 +482,15 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 					NewValue:  bookValue,
 				}},
 				Metadata: financeModels.MapStringInterface{
-					"period":      periodKey,
-					"amount":      amount,
-					"journal_id":  journalEntry.ID,
-					"event":       "depreciation.posted",
-					"company_id":  companyID,
+					"period":     periodKey,
+					"amount":     amount,
+					"journal_id": journalEntry.ID,
+					"event":      "depreciation.posted",
+					"company_id": companyID,
 				},
 			}
 			if err := tx.Create(audit).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			// Insert asset transaction as event log referencing the depreciation ledger (FIX #3)
@@ -546,11 +509,7 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 				CreatedBy:              actorPtr,
 			}
 			if err := tx.Create(trans).Error; err != nil {
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			// Mark corresponding schedule as posted if exists (tenant-scoped)
@@ -558,16 +517,11 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			if err := tx.Model(&financeModels.AssetDepreciationSchedule{}).
 				Where("tenant_id = ? AND asset_id = ? AND period_start_date = ?", asset.TenantID, asset.ID, periodStart).
 				Updates(map[string]interface{}{
-					"is_posted":      true,
-					"posted_at":      &now,
+					"is_posted":       true,
+					"posted_at":       &now,
 					"journal_entry_id": journalEntry.ID,
 				}).Error; err != nil {
-				// Non-fatal: continue processing but log as failed update
-				runItem.Status = "failed"
-				runItem.Reason = err.Error()
-				failed++
-				items = append(items, runItem)
-				continue
+				return abort(&runItem, err)
 			}
 
 			_ = actorUUID
@@ -577,7 +531,6 @@ func (uc *assetUsecase) RunDepreciation(ctx context.Context, req *dto.RunDepreci
 			runItem.JournalEntryID = &journalEntry.ID
 			posted++
 			totalAmount += amount
-			journalIDs = append(journalIDs, journalEntry.ID)
 			items = append(items, runItem)
 		}
 		return nil

@@ -25,6 +25,7 @@ type FinanceReportRepository interface {
 	GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error)
 	GetAccountBalancesByAccounts(ctx context.Context, accountIDs []string, startDate, endDate time.Time, companyID, fiscalYearID *string) (map[string]GLAccountBalance, error)
 	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error)
+	GetGLAccountTransactionsByAccounts(ctx context.Context, coaIDs []string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error)
 	GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (float64, error)
 }
 
@@ -294,6 +295,14 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 }
 
 func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error) {
+	lines, err := r.GetGLAccountTransactionsByAccounts(ctx, []string{coaID}, startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		return nil, err
+	}
+	return lines, nil
+}
+
+func (r *financeReportRepository) GetGLAccountTransactionsByAccounts(ctx context.Context, coaIDs []string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error) {
 	companyID = normalizeCompanyID(companyID)
 	fiscalYearID = normalizeFiscalYearID(fiscalYearID)
 	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
@@ -303,11 +312,15 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 		return nil, err
 	}
 
+	if len(coaIDs) == 0 {
+		return []financeModels.JournalLine{}, nil
+	}
+
 	var lines []financeModels.JournalLine
 	query := r.db.WithContext(ctx).
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
-		Where("journal_lines.chart_of_account_id = ?", coaID).
+		Where("journal_lines.chart_of_account_id IN ?", coaIDs).
 		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
 		Where("journal_entries.deleted_at IS NULL").
 		Where("journal_lines.deleted_at IS NULL").

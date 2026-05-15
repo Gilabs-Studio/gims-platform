@@ -67,7 +67,9 @@ This document covers the complete implementation of:
       - "depreciation.posted" event
       - period, amount, journal_id, company_id
    k. Add to results
-5. Commit all or rollback on any error
+5. Commit all or rollback on any fatal error
+  - Non-depreciable assets, missing category, and zero-amount items are skipped
+  - Validation or persistence failures inside the transaction abort the full batch
 6. Return BatchDepreciationRunResponse with posted/skipped/failed counts
 ```
 
@@ -96,6 +98,7 @@ This document covers the complete implementation of:
 ### Key Invariants
 
 - **Idempotency:** One period = one successful run per tenant. Second run for same period = REJECTED (409 Conflict)
+- **Atomicity:** Fatal failure during posting aborts the full batch; no partial journal/asset updates are committed
 - **Immutability:** Posted entries (status=approved OR journal_entry_id ≠ NULL) cannot be edited/deleted
 - **Corrections:** Must use reversing journal entries (Dr. Accumulated Depreciation, Cr. Expense)
 - **Cascade:** All operations in one atomic transaction; fails whole batch on any error per asset

@@ -52,7 +52,7 @@ function formatPeriod(startDate: string, endDate: string): string {
 }
 
 export function FiscalYearsPanel() {
-  const t = useTranslations("financeSettings");
+  const t = useTranslations("financeSettings.fiscalYears");
   const [companyId, setCompanyId] = useState("");
   const [name, setName] = useState("FY 2026");
   const [startDate, setStartDate] = useState("2026-01-01");

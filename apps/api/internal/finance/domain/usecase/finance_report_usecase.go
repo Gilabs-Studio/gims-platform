@@ -187,12 +187,32 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 	if err != nil {
 		return nil, err
 	}
+	accountIDs := make([]string, 0, len(allCoas))
+	for _, coa := range allCoas {
+		if _, ok := balances[coa.ID]; ok {
+			accountIDs = append(accountIDs, coa.ID)
+		}
+	}
+	transactionLines, err := uc.reportRepo.GetGLAccountTransactionsByAccounts(ctx, accountIDs, startDate, endDate, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
+	if err != nil {
+		return nil, err
+	}
+	linesByAccount := make(map[string][]financeModels.JournalLine, len(accountIDs))
+	allEntries := make([]financeModels.JournalEntry, 0, len(transactionLines))
+	for i := range transactionLines {
+		line := transactionLines[i]
+		linesByAccount[line.ChartOfAccountID] = append(linesByAccount[line.ChartOfAccountID], line)
+		if line.JournalEntry != nil {
+			allEntries = append(allEntries, *line.JournalEntry)
+		}
+	}
+	refCodeMap := repositories.BatchResolveJournalReferenceCodes(ctx, uc.db, allEntries)
 	coaMap := make(map[string]financeModels.ChartOfAccount)
 	for _, c := range allCoas {
 		coaMap[c.ID] = c
 	}
 
-	accounts := make([]dto.GeneralLedgerAccount, 0, len(balances))
+	accounts := make([]dto.GeneralLedgerAccount, 0, len(accountIDs))
 	for _, coa := range allCoas {
 		b, ok := balances[coa.ID]
 		if !ok {
@@ -204,20 +224,7 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 		}
 
 		coa := coaMap[coa.ID]
-
-		lines, err := uc.reportRepo.GetGLAccountTransactions(ctx, b.ChartOfAccountID, startDate, endDate, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
-		if err != nil {
-			return nil, err
-		}
-
-		// Resolve human-readable reference codes for this batch of journals
-		entries := make([]financeModels.JournalEntry, 0, len(lines))
-		for _, l := range lines {
-			if l.JournalEntry != nil {
-				entries = append(entries, *l.JournalEntry)
-			}
-		}
-		refCodeMap := repositories.BatchResolveJournalReferenceCodes(ctx, uc.db, entries)
+		lines := linesByAccount[coa.ID]
 
 		transactions := make([]dto.GLTransactionRow, 0, len(lines))
 		runningBalance := b.OpeningBalance
