@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Eye, MoreHorizontal, Pencil, RotateCcw, Trash2, ExternalLink } from "lucide-react";
@@ -40,11 +41,11 @@ export function JournalActionMenu({
   const item = row.original as { is_system_generated?: boolean };
   const status = (row.status || "").toLowerCase();
 
-  const canUpdate = useUserPermission("journal.update");
-  const canDelete = useUserPermission("journal.delete");
-  const canPost = useUserPermission("journal.post");
-  const canCancel = useUserPermission("journal.cancel");
-  const canReverse = useUserPermission("journal.reverse");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.DELETE);
+  const canPost = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.POST);
+  const canCancel = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.CANCEL);
+  const canReverse = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.REVERSE);
 
   const postMutation = usePostFinanceJournal();
   const cancelMutation = useCancelFinanceJournal();

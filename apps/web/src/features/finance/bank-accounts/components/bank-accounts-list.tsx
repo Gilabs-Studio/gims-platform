@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -38,11 +39,11 @@ export function BankAccountsList() {
   const tCommon = useTranslations("common");
   const router = useRouter();
 
-  const canCreate = useUserPermission("bank_account.create");
-  const canUpdate = useUserPermission("bank_account.update");
-  const canDelete = useUserPermission("bank_account.delete");
-  const canViewCustomer = useUserPermission("customer.read");
-  const canViewSupplier = useUserPermission("supplier.read");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.BANK_ACCOUNT.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.BANK_ACCOUNT.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.BANK_ACCOUNT.DELETE);
+  const canViewCustomer = useUserPermission(FINANCE_PERMISSIONS.CUSTOMER.READ);
+  const canViewSupplier = useUserPermission(FINANCE_PERMISSIONS.SUPPLIER.READ);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

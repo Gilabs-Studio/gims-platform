@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -123,10 +124,10 @@ export function AssetsList() {
   const tCommon = useTranslations("common");
   const router = useRouter();
 
-  const canCreate = useUserPermission("asset.create");
-  const canUpdate = useUserPermission("asset.update");
-  const canDelete = useUserPermission("asset.delete");
-  const canDepreciate = useUserPermission("asset.depreciate");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.ASSET.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.ASSET.DELETE);
+  const canDepreciate = useUserPermission(FINANCE_PERMISSIONS.ASSET.DEPRECIATE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

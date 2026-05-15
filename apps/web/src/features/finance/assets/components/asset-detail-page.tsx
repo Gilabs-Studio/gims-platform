@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -202,8 +203,8 @@ interface AssetDetailPageProps {
 export function AssetDetailPage({ id }: AssetDetailPageProps) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
-  const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.depreciate");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
+  const canDepreciate = useUserPermission(FINANCE_PERMISSIONS.ASSET.DEPRECIATE);
 
   const { data, isLoading } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;

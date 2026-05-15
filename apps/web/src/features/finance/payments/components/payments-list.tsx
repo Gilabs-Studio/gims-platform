@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -69,10 +70,10 @@ export function PaymentsList() {
   const t = useTranslations("financePayments");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("payment.create");
-  const canUpdate = useUserPermission("payment.update");
-  const canDelete = useUserPermission("payment.delete");
-  const canApprove = useUserPermission("payment.approve");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.PAYMENT.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.PAYMENT.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.PAYMENT.DELETE);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.PAYMENT.APPROVE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

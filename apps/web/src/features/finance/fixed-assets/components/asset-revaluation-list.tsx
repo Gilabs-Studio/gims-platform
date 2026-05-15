@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ interface AssetRevaluationListProps {
 
 export function AssetRevaluationList({ revaluations, isLoading, isApproving = false, onApprove }: AssetRevaluationListProps) {
   const t = useTranslations("financeFixedAssets.revaluation");
-  const canUpdateAsset = useUserPermission("asset.update");
+  const canUpdateAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
 
   if (isLoading) {
     return (

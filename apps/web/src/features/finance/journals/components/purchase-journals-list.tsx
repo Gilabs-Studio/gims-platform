@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -38,7 +39,7 @@ export function PurchaseJournalsList() {
   const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
   const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
-  const canExport = useUserPermission("purchase_journal.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.PURCHASE_JOURNAL.EXPORT);
 
   const { data, isLoading, isError } = useFinancePurchaseJournals({
     page,

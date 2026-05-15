@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -55,7 +56,7 @@ export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
-  const canExport = useUserPermission("general_ledger_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_EXPORT);
   const exportProgress = useExportProgress();
 
   const now = useMemo(() => new Date(), []);

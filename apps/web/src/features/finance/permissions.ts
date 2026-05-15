@@ -1,0 +1,160 @@
+export const FINANCE_PERMISSIONS = {
+  ACCOUNT_MAPPINGS: {
+    READ: "account_mappings.read",
+    UPDATE: "account_mappings.update",
+    DELETE: "account_mappings.delete",
+  },
+  FINANCE_SETTINGS: {
+    READ: "finance_settings.read",
+    UPDATE: "finance_settings.update",
+  },
+  FINANCIAL_CLOSING: {
+    READ: "financial_closing.read",
+    CREATE: "financial_closing.create",
+    APPROVE: "financial_closing.approve",
+    REOPEN: "financial_closing.reopen",
+    YEAR_END: "financial_closing.year_end",
+    DELETE: "financial_closing.delete",
+  },
+  AGING_REPORT: {
+    READ: "aging_report.read",
+  },
+  NON_TRADE_PAYABLE: {
+    READ: "non_trade_payable.read",
+    CREATE: "non_trade_payable.create",
+    UPDATE: "non_trade_payable.update",
+    SUBMIT: "non_trade_payable.submit",
+    DELETE: "non_trade_payable.delete",
+    APPROVE: "non_trade_payable.approve",
+    REJECT: "non_trade_payable.reject",
+    PAY: "non_trade_payable.pay",
+  },
+  BANK_ACCOUNT: {
+    READ: "bank_account.read",
+    CREATE: "bank_account.create",
+    UPDATE: "bank_account.update",
+    DELETE: "bank_account.delete",
+  },
+  CASH_BANK_TRANSACTION: {
+    READ: "cash_bank_transaction.read",
+  },
+  BANK_TRANSFER: {
+    READ: "bank_transfer.read",
+  },
+  BANK_RECONCILIATION: {
+    READ: "bank_reconciliation.read",
+  },
+  JOURNAL_LINE: {
+    READ: "journal_line.read",
+  },
+  COA: {
+    READ: "coa.read",
+    CREATE: "coa.create",
+    UPDATE: "coa.update",
+    DELETE: "coa.delete",
+  },
+  JOURNAL: {
+    READ: "journal.read",
+    CREATE: "journal.create",
+    UPDATE: "journal.update",
+    DELETE: "journal.delete",
+    POST: "journal.post",
+    CANCEL: "journal.cancel",
+    REVERSE: "journal.reverse",
+    EXPORT: "journal.export",
+  },
+  SALES_JOURNAL: {
+    READ: "sales_journal.read",
+    EXPORT: "sales_journal.export",
+  },
+  PURCHASE_JOURNAL: {
+    READ: "purchase_journal.read",
+    EXPORT: "purchase_journal.export",
+  },
+  ADJUSTMENT_JOURNAL: {
+    READ: "adjustment_journal.read",
+    CREATE: "adjustment_journal.create",
+    UPDATE: "adjustment_journal.update",
+    SUBMIT: "adjustment_journal.submit",
+    APPROVE: "adjustment_journal.approve",
+    REJECT: "adjustment_journal.reject",
+    POST: "adjustment_journal.post",
+    REVERSE: "adjustment_journal.reverse",
+  },
+  JOURNAL_VALUATION: {
+    RUN: "journal_valuation.run",
+    APPROVE: "journal_valuation.approve",
+    EXPORT: "journal_valuation.export",
+  },
+  PAYMENT: {
+    CREATE: "payment.create",
+    UPDATE: "payment.update",
+    DELETE: "payment.delete",
+    APPROVE: "payment.approve",
+  },
+  BUDGET: {
+    READ: "budget.read",
+    CREATE: "budget.create",
+    UPDATE: "budget.update",
+    DELETE: "budget.delete",
+    APPROVE: "budget.approve",
+  },
+  ASSET: {
+    READ: "asset.read",
+    CREATE: "asset.create",
+    UPDATE: "asset.update",
+    DELETE: "asset.delete",
+    DEPRECIATE: "asset.depreciate",
+    DISPOSE: "asset.dispose",
+    REVALUE: "asset.revalue",
+  },
+  ASSET_CATEGORY: {
+    READ: "asset_category.read",
+    CREATE: "asset_category.create",
+    UPDATE: "asset_category.update",
+    DELETE: "asset_category.delete",
+  },
+  ASSET_LOCATION: {
+    READ: "asset_location.read",
+    CREATE: "asset_location.create",
+    UPDATE: "asset_location.update",
+    DELETE: "asset_location.delete",
+  },
+  TAX_INVOICE: {
+    READ: "tax_invoice.read",
+    CREATE: "tax_invoice.create",
+    UPDATE: "tax_invoice.update",
+    DELETE: "tax_invoice.delete",
+  },
+  REPORT: {
+    GENERAL_LEDGER_READ: "general_ledger_report.read",
+    GENERAL_LEDGER_EXPORT: "general_ledger_report.export",
+    TRIAL_BALANCE_READ: "trial_balance_report.read",
+    TRIAL_BALANCE_EXPORT: "trial_balance_report.export",
+    BALANCE_SHEET_READ: "balance_sheet_report.read",
+    BALANCE_SHEET_EXPORT: "balance_sheet_report.export",
+    PROFIT_LOSS_READ: "profit_loss_report.read",
+    PROFIT_LOSS_EXPORT: "profit_loss_report.export",
+    CASH_FLOW_STATEMENT_READ: "cash_flow_statement.read",
+  },
+  INVENTORY_SETTINGS: {
+    READ: "inventory_settings.read",
+  },
+  OPENING_BALANCE: {
+    READ: "opening_balance.read",
+  },
+  CUSTOMER: {
+    READ: "customer.read",
+    VIEW: "customer.view",
+  },
+  SUPPLIER: {
+    READ: "supplier.read",
+    VIEW: "supplier.view",
+  },
+  SALES_PAYMENT: {
+    READ: "sales_payment.read",
+  },
+  PURCHASE_PAYMENT: {
+    READ: "purchase_payment.read",
+  },
+} as const;

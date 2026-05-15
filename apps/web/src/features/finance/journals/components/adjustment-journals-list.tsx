@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -55,15 +56,15 @@ export function AdjustmentJournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
 
-  const canSubmit = useUserPermission("adjustment_journal.submit");
-  const canApprove = useUserPermission("adjustment_journal.approve");
-  const canReject = useUserPermission("adjustment_journal.reject");
+  const canSubmit = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.SUBMIT);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.APPROVE);
+  const canReject = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.REJECT);
 
-  const canCreate = useUserPermission("adjustment_journal.create");
-  const canUpdate = useUserPermission("adjustment_journal.update");
-  const canDelete = useUserPermission("journal.delete");
-  const canPost = useUserPermission("adjustment_journal.post");
-  const canReverse = useUserPermission("adjustment_journal.reverse");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.DELETE);
+  const canPost = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.POST);
+  const canReverse = useUserPermission(FINANCE_PERMISSIONS.ADJUSTMENT_JOURNAL.REVERSE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
