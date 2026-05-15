@@ -14,14 +14,21 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
-export const useFinanceSettings = () => {
+export const useFinanceSettings = (companyId?: string) => {
+  // Allow query to run for:
+  // 1. undefined (no parameter, fetch global settings) - for payment form etc
+  // 2. non-empty string (specific company) - for accounting mapping form
+  // Disable only for empty string (form not ready)
+  const enabled = companyId !== "";
+  
   return useQuery({
-    queryKey: ["financeSettings"],
-    queryFn: () => financeSettingsService.getAll(),
+    queryKey: ["financeSettings", companyId],
+    queryFn: () => financeSettingsService.getAll(companyId),
+    enabled,
   });
 };
 
-export const useBatchUpsertFinanceSettings = () => {
+export const useBatchUpsertFinanceSettings = (companyId?: string) => {
   const queryClient = useQueryClient();
   const t = useTranslations("common");
 
@@ -113,24 +120,24 @@ export const useBatchUpsertFinanceSettings = () => {
         }
 
         if (coaCode.length === 0) {
-          await financeSettingsService.deleteByKey(key);
+          await financeSettingsService.deleteByKey(key, companyId);
           return;
         }
 
         await financeSettingsService.upsertByKey(key, {
           coa_code: coaCode,
           label,
-        });
+        }, companyId);
       }),
     );
 
-    return financeSettingsService.getAll();
+    return financeSettingsService.getAll(companyId);
   };
 
   return useMutation({
     mutationFn: batchUpsert,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financeSettings"] });
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", companyId] });
       toast.success(t("saved"));
     },
     onError: (error: unknown) => {

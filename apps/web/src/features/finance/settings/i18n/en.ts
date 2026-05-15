@@ -1,6 +1,8 @@
 export const financeSettingsEn = {
   title: "Finance Settings",
   description: "Manage finance configuration and account mappings.",
+  company: "Company",
+  selectCompany: "Select company",
   loading: "Loading...",
   loadFailed: "Failed to load finance settings.",
   required: "Required",
@@ -52,6 +54,14 @@ export const financeSettingsEn = {
         description: "First In First Out",
       },
       specificIdentification: {
+        label: "Specific Identification",
+        description: "Specific cost per item",
+      },
+      average_cost: {
+        label: "Average Cost",
+        description: "Weighted moving average method (required by current finance setup)",
+      },
+      specific_identification: {
         label: "Specific Identification",
         description: "Specific cost per item",
       },
