@@ -211,7 +211,11 @@ export const AccountingMappingForm = () => {
                 <Field key={mapping.key} className="space-y-3">
                   <div className="flex items-center gap-2">
                     <FieldLabel className="text-sm font-semibold text-foreground/80">
-                      {mapping.label}
+                      {(() => {
+                        const labelKey = `mappingLabels.${mapping.key}.label`;
+                        const label = t(labelKey);
+                        return label === labelKey ? mapping.label : label;
+                      })()}
                     </FieldLabel>
                     {mapping.required && <Badge variant="warning">{t("required")}</Badge>}
                     {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
@@ -251,8 +255,12 @@ export const AccountingMappingForm = () => {
                       )}
                     </SelectContent>
                   </Select>
-                  <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
-                    <span className="block">{mapping.description}</span>
+                    <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
+                    <span className="block">{(() => {
+                      const descKey = `mappingLabels.${mapping.key}.description`;
+                      const desc = t(descKey);
+                      return desc === descKey ? mapping.description : desc;
+                    })()}</span>
                     <span className="block font-mono text-[11px] not-italic">{mapping.key}</span>
                     {mapping.allowedAccountTypes.length > 0 && (
                       <span className="block not-italic">

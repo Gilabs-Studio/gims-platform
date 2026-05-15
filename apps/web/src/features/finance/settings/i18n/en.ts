@@ -1,4 +1,21 @@
 export const financeSettingsEn = {
+  title: "Finance Settings",
+  description: "Manage finance configuration and account mappings.",
+  loading: "Loading...",
+  loadFailed: "Failed to load finance settings.",
+  required: "Required",
+  customKey: "Custom Key",
+  missingRequired: "{count} required mapping(s) are missing.",
+  selectAccount: "Select account",
+  notMapped: "Not mapped",
+  noMatchingAccount: "No matching account",
+  allowedTypes: "Allowed types",
+  selectedTypeMismatch: "Selected account type {type} is not allowed.",
+  viewOnly: "View only",
+  saving: "Saving...",
+  save: "Save",
+  dynamicDescription: "Custom finance setting",
+  requiredValue: "Please select an account mapping.",
   inventory: {
     title: "Inventory Valuation Settings",
     fields: {
@@ -155,6 +172,110 @@ export const financeSettingsEn = {
       draft: "Draft",
       active: "Active",
       locked: "Locked",
+    },
+  },
+  mappingLabels: {
+    sales: {
+      accounts_receivable: {
+        label: "Sales Accounts Receivable",
+        description: "Accounts receivable account for sales invoice posting",
+      },
+      revenue: {
+        label: "Sales Revenue",
+        description: "Revenue account for sales recognition",
+      },
+      tax_output: {
+        label: "Sales Tax Output",
+        description: "Output tax liability account for sales VAT",
+      },
+      cogs: {
+        label: "Sales COGS",
+        description: "Cost of goods sold account for inventory issue",
+      },
+      sales_return: {
+        label: "Sales Return",
+        description: "Return/contra account for sales return posting",
+      },
+      advance: {
+        label: "Sales Advance",
+        description: "Customer advance liability account for down payment posting",
+      },
+      inventory_asset: {
+        label: "Sales Inventory Asset",
+        description: "Inventory asset account used by sales COGS movement",
+      },
+    },
+    purchase: {
+      inventory_asset: {
+        label: "Purchase Inventory Asset",
+        description: "Inventory asset account used by goods receipt posting",
+      },
+      gr_ir_clearing: {
+        label: "Purchase GR/IR Clearing",
+        description: "GR/IR clearing account for goods receipt and supplier invoices",
+      },
+      tax_input: {
+        label: "Purchase Tax Input",
+        description: "Input tax account for purchase VAT",
+      },
+      accounts_payable: {
+        label: "Purchase Accounts Payable",
+        description: "Accounts payable account for supplier invoices",
+      },
+      advance: {
+        label: "Purchase Advance",
+        description: "Supplier advance asset account for down payment posting",
+      },
+      purchase_return: {
+        label: "Purchase Return",
+        description: "Contra/expense account for purchase return posting",
+      },
+      expense: {
+        label: "Purchase Expense",
+        description: "Additional purchase expense account (delivery and other costs)",
+      },
+    },
+    inventory: {
+      inventory_asset: {
+        label: "Inventory Asset",
+        description: "Core inventory asset account for stock movements",
+      },
+      adjustment_gain: {
+        label: "Inventory Adjustment Gain",
+        description: "Gain account for positive stock adjustments",
+      },
+      adjustment_loss: {
+        label: "Inventory Adjustment Loss",
+        description: "Expense account for negative stock adjustments",
+      },
+      revaluation_reserve: {
+        label: "Inventory Revaluation Reserve",
+        description: "Equity reserve account for inventory revaluation gains",
+      },
+    },
+    asset: {
+      accumulated_depreciation: {
+        label: "Accumulated Depreciation",
+        description: "Contra asset account for accumulated depreciation",
+      },
+      depreciation_expense: {
+        label: "Depreciation Expense",
+        description: "Expense account for periodic depreciation",
+      },
+    },
+    finance: {
+      opening_balance_equity: {
+        label: "Opening Balance Equity",
+        description: "Equity account for opening balance postings",
+      },
+      bank_default: {
+        label: "Default Bank Account",
+        description: "Default bank cash account",
+      },
+      cash_default: {
+        label: "Default Cash Account",
+        description: "Default cash-on-hand account",
+      },
     },
   },
 };
