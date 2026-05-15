@@ -205,6 +205,112 @@ export const financeSettingsEn = {
         description: "Inventory asset account used by sales COGS movement",
       },
     },
+    coa: {
+      sales_receivable: {
+        label: "Sales Receivable",
+        description: "A/R for customer invoices",
+      },
+      sales_advance: {
+        label: "Sales Advance",
+        description: "Customer advance liability account for down payment posting",
+      },
+      sales_revenue: {
+        label: "Sales Revenue",
+        description: "Revenue account for sales recognition",
+      },
+      sales_vat_out: {
+        label: "Sales VAT Out",
+        description: "Output tax liability account for sales VAT",
+      },
+      sales_cogs: {
+        label: "Sales COGS",
+        description: "Cost of goods sold account for inventory issue",
+      },
+      sales_inventory: {
+        label: "Sales Inventory",
+        description: "Inventory asset account used by sales COGS movement",
+      },
+      sales_return: {
+        label: "Sales Return",
+        description: "Return/contra account for sales return posting",
+      },
+      purchase_payable: {
+        label: "Purchase Payable",
+        description: "Accounts payable account for supplier invoices",
+      },
+      accounts_payable: {
+        label: "Accounts Payable",
+        description: "Accounts payable account for supplier invoices",
+      },
+      purchase_advance: {
+        label: "Purchase Advance",
+        description: "Supplier advance asset account for down payment posting",
+      },
+      purchase_advances: {
+        label: "Purchase Advances",
+        description: "Supplier advance asset account for down payment posting",
+      },
+      gr_ir: {
+        label: "GR/IR",
+        description: "GR/IR clearing account for goods receipt and supplier invoices",
+      },
+      purchase_gr_ir: {
+        label: "Purchase GR/IR",
+        description: "GR/IR clearing account for goods receipt and supplier invoices",
+      },
+      purchase_vat_in: {
+        label: "Purchase VAT In",
+        description: "Input tax account for purchase VAT",
+      },
+      purchase_price_diff: {
+        label: "Purchase Price Difference",
+        description: "Purchase price difference account",
+      },
+      vat_in: {
+        label: "VAT In",
+        description: "Input tax account for purchase VAT",
+      },
+      purchase_expense: {
+        label: "Purchase Expense",
+        description: "Additional purchase expense account (delivery and other costs)",
+      },
+      purchase_return: {
+        label: "Purchase Return",
+        description: "Contra/expense account for purchase return posting",
+      },
+      inventory: {
+        label: "Inventory",
+        description: "Inventory asset account for stock movements",
+      },
+      inventory_asset: {
+        label: "Inventory Asset",
+        description: "Core inventory asset account for stock movements",
+      },
+      inventory_gain: {
+        label: "Inventory Gain",
+        description: "Gain account for positive stock adjustments",
+      },
+      inventory_loss: {
+        label: "Inventory Loss",
+        description: "Expense account for negative stock adjustments",
+      },
+      inventory_revaluation_reserve: {
+        label: "Inventory Revaluation Reserve",
+        description: "Equity reserve account for inventory revaluation gains",
+      },
+      cogs: {
+        label: "COGS",
+        description: "Cost of goods sold account for inventory issue",
+      },
+      sales_receivable_dp: {
+        label: "Customer Advance (DP Customer)",
+        description: "Customer advance liability account for down payment posting",
+      },
+      purchase_payable_dp: {
+        label: "Supplier Advance (DP Supplier)",
+        description: "Supplier advance liability account for down payment posting",
+      },
+    },
     purchase: {
       inventory_asset: {
         label: "Purchase Inventory Asset",
@@ -275,6 +381,24 @@ export const financeSettingsEn = {
       cash_default: {
         label: "Default Cash Account",
         description: "Default cash-on-hand account",
+      },
+    },
+    payroll: {
+      salary_expense: {
+        label: "Payroll Salary Expense",
+        description: "Payroll salary expense account",
+      },
+      allowance_expense: {
+        label: "Payroll Allowance Expense",
+        description: "Payroll allowance expense account",
+      },
+      payable_salary: {
+        label: "Payroll Salary Payable",
+        description: "Payroll salary payable liability account",
+      },
+      tax_pph21: {
+        label: "Payroll Tax PPh21",
+        description: "Payroll tax PPh21 payable account",
       },
     },
   },
