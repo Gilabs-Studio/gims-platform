@@ -1,6 +1,8 @@
 export const financeSettingsId = {
   title: "Pengaturan Finance",
   description: "Kelola konfigurasi finance dan pemetaan akun.",
+  company: "Perusahaan",
+  selectCompany: "Pilih perusahaan",
   loading: "Memuat...",
   loadFailed: "Gagal memuat pengaturan finance.",
   required: "Wajib diisi",
@@ -52,6 +54,14 @@ export const financeSettingsId = {
         description: "First In First Out",
       },
       specificIdentification: {
+        label: "Identifikasi Spesifik",
+        description: "Biaya spesifik per item",
+      },
+      average_cost: {
+        label: "Rata-rata Biaya",
+        description: "Metode moving average tertimbang (dibutuhkan oleh pengaturan finance saat ini)",
+      },
+      specific_identification: {
         label: "Identifikasi Spesifik",
         description: "Biaya spesifik per item",
       },
