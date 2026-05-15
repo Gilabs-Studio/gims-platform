@@ -205,6 +205,112 @@ export const financeSettingsId = {
         description: "Akun aset persediaan yang dipakai saat mutasi HPP penjualan",
       },
     },
+    coa: {
+      sales_receivable: {
+        label: "Piutang Penjualan",
+        description: "Akun piutang usaha untuk faktur pelanggan",
+      },
+      sales_advance: {
+        label: "Uang Muka Penjualan",
+        description: "Akun liabilitas uang muka pelanggan untuk posting down payment",
+      },
+      sales_revenue: {
+        label: "Pendapatan Penjualan",
+        description: "Akun pendapatan untuk pengakuan penjualan",
+      },
+      sales_vat_out: {
+        label: "PPN Keluaran Penjualan",
+        description: "Akun utang pajak keluaran untuk PPN penjualan",
+      },
+      sales_cogs: {
+        label: "HPP Penjualan",
+        description: "Akun harga pokok penjualan untuk pengeluaran persediaan",
+      },
+      sales_inventory: {
+        label: "Persediaan Penjualan",
+        description: "Akun aset persediaan yang dipakai saat mutasi HPP penjualan",
+      },
+      sales_return: {
+        label: "Retur Penjualan",
+        description: "Akun retur/kontra untuk posting retur penjualan",
+      },
+      purchase_payable: {
+        label: "Hutang Pembelian",
+        description: "Akun hutang usaha untuk faktur supplier",
+      },
+      accounts_payable: {
+        label: "Hutang Usaha",
+        description: "Akun hutang usaha untuk faktur supplier",
+      },
+      purchase_advance: {
+        label: "Uang Muka Pembelian",
+        description: "Akun aset uang muka supplier untuk posting down payment",
+      },
+      purchase_advances: {
+        label: "Uang Muka Pembelian",
+        description: "Akun aset uang muka supplier untuk posting down payment",
+      },
+      gr_ir: {
+        label: "GR/IR",
+        description: "Akun clearing GR/IR untuk penerimaan barang dan faktur supplier",
+      },
+      purchase_gr_ir: {
+        label: "GR/IR Pembelian",
+        description: "Akun clearing GR/IR untuk penerimaan barang dan faktur supplier",
+      },
+      purchase_vat_in: {
+        label: "PPN Masukan Pembelian",
+        description: "Akun pajak masukan untuk PPN pembelian",
+      },
+      purchase_price_diff: {
+        label: "Selisih Harga Pembelian",
+        description: "Akun selisih harga pembelian",
+      },
+      vat_in: {
+        label: "PPN Masukan",
+        description: "Akun pajak masukan untuk PPN pembelian",
+      },
+      purchase_expense: {
+        label: "Beban Pembelian",
+        description: "Akun beban pembelian tambahan (pengiriman dan biaya lain)",
+      },
+      purchase_return: {
+        label: "Retur Pembelian",
+        description: "Akun kontra/beban untuk posting retur pembelian",
+      },
+      inventory: {
+        label: "Persediaan",
+        description: "Akun aset persediaan inti untuk mutasi stok",
+      },
+      inventory_asset: {
+        label: "Aset Persediaan",
+        description: "Akun aset persediaan inti untuk mutasi stok",
+      },
+      inventory_gain: {
+        label: "Keuntungan Persediaan",
+        description: "Akun keuntungan untuk penyesuaian stok positif",
+      },
+      inventory_loss: {
+        label: "Kerugian Persediaan",
+        description: "Akun beban untuk penyesuaian stok negatif",
+      },
+      inventory_revaluation_reserve: {
+        label: "Cadangan Revaluasi Persediaan",
+        description: "Akun cadangan ekuitas untuk keuntungan revaluasi persediaan",
+      },
+      cogs: {
+        label: "HPP",
+        description: "Akun harga pokok penjualan untuk pengeluaran persediaan",
+      },
+      sales_receivable_dp: {
+        label: "Uang Muka Pelanggan",
+        description: "Akun liabilitas uang muka pelanggan untuk down payment",
+      },
+      purchase_payable_dp: {
+        label: "Uang Muka Supplier",
+        description: "Akun liabilitas uang muka supplier untuk down payment",
+      },
+    },
     purchase: {
       inventory_asset: {
         label: "Aset Persediaan Pembelian",
@@ -275,6 +381,24 @@ export const financeSettingsId = {
       cash_default: {
         label: "Akun Kas Default",
         description: "Akun kas tangan default",
+      },
+    },
+    payroll: {
+      salary_expense: {
+        label: "Beban Gaji Payroll",
+        description: "Akun beban gaji payroll",
+      },
+      allowance_expense: {
+        label: "Beban Tunjangan Payroll",
+        description: "Akun beban tunjangan payroll",
+      },
+      payable_salary: {
+        label: "Hutang Gaji Payroll",
+        description: "Akun liabilitas hutang gaji payroll",
+      },
+      tax_pph21: {
+        label: "Pajak PPh21 Payroll",
+        description: "Akun hutang pajak PPh21 payroll",
       },
     },
   },
