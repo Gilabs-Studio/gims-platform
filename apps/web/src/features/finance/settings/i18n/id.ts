@@ -316,6 +316,10 @@ export const financeSettingsId = {
         label: "Aset Persediaan Pembelian",
         description: "Akun aset persediaan yang dipakai saat posting penerimaan barang",
       },
+      purchase_advance: {
+        label: "Uang Muka Pembelian",
+        description: "Akun aset uang muka supplier untuk posting down payment",
+      },
       gr_ir_clearing: {
         label: "Clearing GR/IR Pembelian",
         description: "Akun clearing GR/IR untuk penerimaan barang dan faktur supplier",

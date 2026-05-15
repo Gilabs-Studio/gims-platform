@@ -316,6 +316,10 @@ export const financeSettingsEn = {
         label: "Purchase Inventory Asset",
         description: "Inventory asset account used by goods receipt posting",
       },
+      purchase_advance: {
+        label: "Purchase Advance",
+        description: "Supplier advance asset account for down payment posting",
+      },
       gr_ir_clearing: {
         label: "Purchase GR/IR Clearing",
         description: "GR/IR clearing account for goods receipt and supplier invoices",
