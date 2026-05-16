@@ -167,19 +167,23 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     final url = ServiceLocator.instance.terminalService.receiptUrl(
       widget.order.id,
     );
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onWebResourceError: (_) {
-            if (!mounted) return;
-            setState(() => _receiptPreviewError = true);
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(url));
-    _receiptPreviewController = controller;
+    try {
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Colors.white)
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onWebResourceError: (_) {
+              if (!mounted) return;
+              setState(() => _receiptPreviewError = true);
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(url));
+      _receiptPreviewController = controller;
+    } catch (_) {
+      _receiptPreviewError = true;
+    }
   }
 
   @override
