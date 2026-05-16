@@ -147,7 +147,9 @@ class _PosShellState extends State<PosShell> {
                 case 'refresh':
                   _loadOutlets();
                   break;
-
+                case 'settings':
+                  _showSettings();
+                  break;
                 case 'logout':
                   widget.onLogout();
                   break;
@@ -160,7 +162,7 @@ class _PosShellState extends State<PosShell> {
                   child: Text('Ganti Outlet'),
                 ),
               const PopupMenuItem(value: 'refresh', child: Text('Refresh')),
-
+              const PopupMenuItem(value: 'settings', child: Text('Settings')),
               const PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
           ),
