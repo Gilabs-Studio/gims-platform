@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   AlertTriangle,
+  Ban,
   CheckCircle2,
   CircleDot,
   Clock,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
@@ -38,7 +40,9 @@ import {
   useServeOrder,
   useCompleteOrder,
   useServeOrderItem,
+  useCancelPendingPOSPayment,
   usePOSPayments,
+  useVoidOrder,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -285,67 +289,81 @@ interface SessionOrderRowProps {
   const payments = (paymentsData?.data ?? []) as POSPayment[];
   const paidPayment = payments.find((p) => p.status === "PAID") ?? null;
   const pendingServeCount = getPendingServeItemCount(order);
+    const canOpenReceipt =
+      !!paidPayment ||
+      order.status === "PAID" ||
+      order.status === "PARTIAL_SERVED" ||
+      order.status === "SERVED" ||
+      order.status === "COMPLETED";
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background/60 p-3 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-mono text-xs font-semibold truncate">#{order.order_number}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{order.customer_name || "Walk-in"}</p>
+      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-semibold truncate">#{order.order_number}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{order.customer_name || "Walk-in"}</p>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-5 px-2 text-[9px] rounded-full",
+                  order.status === "SERVED" && "border-success/35 bg-success/10 text-success",
+                  (order.status === "PAID" || order.status === "PARTIAL_SERVED") && "border-primary/35 bg-primary/10 text-primary",
+                  (order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") &&
+                    "border-amber-500/35 bg-amber-500/10 text-amber-700",
+                )}
+              >
+                {order.status.replace("_", " ")}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">Total</span>
+              <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+              {order.status !== "COMPLETED" && order.status !== "VOIDED" && (
+                <Badge variant="outline" className="h-5 rounded-full border-muted-foreground/20 px-2 text-[9px]">
+                  Items {order.items.length}
+                </Badge>
+              )}
+              {pendingServeCount > 0 && (
+                <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] text-primary">
+                  Need Serve {pendingServeCount}
+                </Badge>
+              )}
+              {order.status === "SERVED" && (
+                <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] text-success">
+                  Done Serve
+                </Badge>
+              )}
+            </div>
         </div>
-        <Badge
-          variant="outline"
-          className={cn(
-            "h-5 px-2 text-[9px] rounded-full",
-            order.status === "SERVED" && "border-success/35 bg-success/10 text-success",
-            (order.status === "PAID" || order.status === "PARTIAL_SERVED") && "border-primary/35 bg-primary/10 text-primary",
-            (order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") &&
-              "border-amber-500/35 bg-amber-500/10 text-amber-700",
-          )}
-        >
-          {order.status.replace("_", " ")}
-        </Badge>
-      </div>
 
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-muted-foreground">Total</span>
-        <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-        {order.status !== "COMPLETED" && order.status !== "VOIDED" && (
-          <Badge variant="outline" className="h-5 rounded-full border-muted-foreground/20 px-2 text-[9px]">
-            Items {order.items.length}
-          </Badge>
-        )}
-        {pendingServeCount > 0 && (
-          <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] text-primary">
-            Need Serve {pendingServeCount}
-          </Badge>
-        )}
-        {order.status === "SERVED" && (
-          <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] text-success">
-            Done Serve
-          </Badge>
-        )}
-      </div>
-
-      {paidPayment && (
-        <Button
-          type="button"
-          variant="outline"
-          className="h-7 w-full text-[11px] cursor-pointer"
-          onClick={() =>
-            onOpenReceipt({
-              order,
-              customerName: order.customer_name ?? undefined,
-              tenderAmount: paidPayment.method === "CASH" ? paidPayment.tender_amount : undefined,
-            })
-          }
-        >
-          {t("sidebar.viewReceipt")}
-        </Button>
-      )}
+          <div className="flex items-start">
+            {canOpenReceipt ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 min-w-[86px] px-3 text-[11px] cursor-pointer"
+                onClick={() =>
+                  onOpenReceipt({
+                    order,
+                    customerName: order.customer_name ?? undefined,
+                    tenderAmount: paidPayment?.method === "CASH" ? paidPayment.tender_amount : undefined,
+                  })
+                }
+              >
+                {t("sidebar.viewReceipt")}
+              </Button>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">No receipt</span>
+            )}
+          </div>
+        </div>
     </div>
   );
 }
@@ -443,6 +461,95 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt }: OrderDetailDialogPr
             </div>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface ActiveTableCancelDialogProps {
+  info: LiveTableInfo | null;
+  onClose: () => void;
+}
+
+function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps) {
+  const t = useTranslations("posTerminal.liveTable.payNow");
+  const cancelPayment = useCancelPendingPOSPayment();
+  const voidOrder = useVoidOrder();
+  const [reason, setReason] = useState("");
+  const order = info?.unpaidOrder ?? null;
+  const tableLabel = info ? (info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`) : "";
+
+  const { data: paymentsData } = usePOSPayments(order?.id ?? "", {
+    enabled: !!order?.id,
+  });
+
+  const payments = (paymentsData?.data ?? []) as POSPayment[];
+  const pendingPayment = payments.find((payment) => payment.status === "PENDING") ?? null;
+
+  if (!info || !order) return null;
+
+  const handleSubmit = async () => {
+    try {
+      if (pendingPayment) {
+        await cancelPayment.mutateAsync({
+          orderId: order.id,
+          paymentId: pendingPayment.id,
+          reason: reason.trim() || undefined,
+        });
+      } else {
+        await voidOrder.mutateAsync({
+          id: order.id,
+          data: {
+            reason: reason.trim() || "Cancelled at cashier",
+          },
+        });
+      }
+      toast.success(t("cancelPaymentSuccess"));
+      setReason("");
+      onClose();
+    } catch {
+      toast.error(t("cancelPaymentFailed"));
+    }
+  };
+
+  return (
+    <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="sm" className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t("cancelPaymentTitle")} · {tableLabel}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t("cancelPaymentDescription")}</p>
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+            <p className="text-xs text-muted-foreground">#{order.order_number}</p>
+            <p className="mt-1 text-sm font-medium">Rp {order.total_amount.toLocaleString("id-ID")}</p>
+          </div>
+          <Textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder={t("cancelPaymentPlaceholder")}
+            rows={4}
+          />
+          <div className="grid grid-cols-4 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="col-span-2 cursor-pointer"
+              onClick={onClose}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="col-span-2 cursor-pointer"
+              disabled={cancelPayment.isPending || voidOrder.isPending}
+              onClick={handleSubmit}
+            >
+              {cancelPayment.isPending || voidOrder.isPending ? t("cancelPaymentLoading") : t("cancelPaymentAction")}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -759,10 +866,11 @@ function LiveFloorView({
 
 interface TableSidebarProps {
   infos: LiveTableInfo[];
-  onServe: (orderId: string) => void;
-  onComplete: (orderId: string) => void;
+  onServe: (orderIds: string[]) => void;
+  onComplete: (orderIds: string[]) => void;
   onServeItem: (orderId: string, itemId: string) => void;
   onOpenPaymentAction: (info: LiveTableInfo) => void;
+  onOpenCancelPaymentAction: (info: LiveTableInfo) => void;
   paymentNotice: PaymentNotice | null;
   onOpenPaymentNotice: () => void;
   onDismissPaymentNotice: () => void;
@@ -777,6 +885,7 @@ function TableSidebar({
   onComplete,
   onServeItem,
   onOpenPaymentAction,
+  onOpenCancelPaymentAction,
   paymentNotice,
   onOpenPaymentNotice,
   onDismissPaymentNotice,
@@ -860,8 +969,8 @@ function TableSidebar({
               );
               const paymentOrderId = paymentOrder?.id;
               const serviceOrderId = serviceOrder?.id;
-              const completionOrder = doneOrders[0] ?? null;
-              const completionOrderId = completionOrder?.id;
+              const completionOrderId = doneOrders[0]?.id;
+              const serviceOrderIds = pendingServeOrders.map((order) => order.id);
 
               const canServe =
                 serviceOrder?.status === "PAID" ||
@@ -948,14 +1057,24 @@ function TableSidebar({
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         {t("sidebar.payment")} Queue
                       </p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="mt-1 h-6 w-full text-[10px] cursor-pointer"
-                        onClick={() => onOpenPaymentAction(info)}
-                      >
-                        {isWaitingPayment ? t("payNowAction") : t("confirmPayment")}
-                      </Button>
+                      <div className="mt-1 grid grid-cols-4 gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="col-span-3 h-6 w-full text-[10px] cursor-pointer"
+                          onClick={() => onOpenPaymentAction(info)}
+                        >
+                          {isWaitingPayment ? t("payNowAction") : t("confirmPayment")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="col-span-1 h-6 w-full px-0 cursor-pointer"
+                          onClick={() => onOpenCancelPaymentAction(info)}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
 
                       {isWaitingPayment && paymentOrder?.items.length ? (
                         <div className="mt-1.5 space-y-1">
@@ -1061,11 +1180,11 @@ function TableSidebar({
                           size="sm"
                           variant="secondary"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5"
-                          disabled={servingId === serviceOrderId}
-                          onClick={() => serviceOrderId && onServe(serviceOrderId)}
+                          disabled={serviceOrderIds.some((orderId) => servingId === orderId)}
+                          onClick={() => onServe(serviceOrderIds)}
                         >
                           <Utensils className="h-3 w-3" />
-                          {servingId === serviceOrderId ? t("sidebar.serving") + "…" : t("sidebar.allServed")}
+                          {serviceOrderIds.some((orderId) => servingId === orderId) ? t("sidebar.serving") + "…" : t("sidebar.allServed")}
                         </Button>
                       )}
                       {canComplete && (
@@ -1073,11 +1192,11 @@ function TableSidebar({
                           size="sm"
                           variant="default"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5 bg-orange-500 hover:bg-orange-600"
-                          disabled={completingId === completionOrderId}
-                          onClick={() => completionOrderId && onComplete(completionOrderId)}
+                          disabled={doneOrders.some((order) => completingId === order.id)}
+                          onClick={() => onComplete(doneOrders.map((order) => order.id))}
                         >
                           <LogOut className="h-3 w-3" />
-                          {completingId === completionOrderId ? t("sidebar.completing") + "…" : t("sidebar.customerLeft")}
+                          {doneOrders.some((order) => completingId === order.id) ? t("sidebar.completing") + "…" : t("sidebar.customerLeft")}
                         </Button>
                       )}
                     </div>
@@ -1148,12 +1267,13 @@ export function LiveTablePageClient() {
   const [servingItemId, setServingItemId] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(null);
   const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<LiveTableInfo | null>(null);
+  const [selectedCancelPaymentInfo, setSelectedCancelPaymentInfo] = useState<LiveTableInfo | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<POSOrder | null>(null);
   const [receiptCustomerName, setReceiptCustomerName] = useState<string | undefined>();
   const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<string | undefined>();
   const [receiptTenderAmount, setReceiptTenderAmount] = useState<number | undefined>();
 
-  const suppressedToastEvents = useMemo(() => ["pos.payment_confirmed", "pos.order_status_changed"], []);
+  const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed"], []);
 
   const handleWsEvent = useCallback((eventType: string, payload: {
     table_label?: string;
@@ -1205,32 +1325,49 @@ export function LiveTablePageClient() {
     setSelectedInfo(info);
   }, []);
 
+  const handleOpenCancelPaymentAction = useCallback((info: LiveTableInfo) => {
+    if (!info.unpaidOrder) return;
+    setSelectedCancelPaymentInfo(info);
+  }, []);
+
   const handleServe = useCallback(
-    async (orderId: string) => {
-      setServingId(orderId);
-      try {
-        await serveOrder.mutateAsync(orderId);
+    async (orderIds: string[]) => {
+      if (!orderIds.length) return;
+
+      setServingId(orderIds[0]);
+      const results = await Promise.allSettled(orderIds.map((orderId) => serveOrder.mutateAsync(orderId)));
+      const failedCount = results.filter((result) => result.status === "rejected").length;
+
+      if (failedCount === 0) {
         toast.success(t("messages.tableStatusChanged"));
-      } catch {
+      } else if (failedCount < orderIds.length) {
+        toast.warning(`${orderIds.length - failedCount}/${orderIds.length} orders served. Please retry remaining.`);
+      } else {
         toast.error(t("messages.updateStatusFailed"));
-      } finally {
-        setServingId(null);
       }
+
+      setServingId(null);
     },
     [serveOrder, t],
   );
 
   const handleComplete = useCallback(
-    async (orderId: string) => {
-      setCompletingId(orderId);
-      try {
-        await completeOrder.mutateAsync(orderId);
+    async (orderIds: string[]) => {
+      if (!orderIds.length) return;
+
+      setCompletingId(orderIds[0]);
+      const results = await Promise.allSettled(orderIds.map((orderId) => completeOrder.mutateAsync(orderId)));
+      const failedCount = results.filter((result) => result.status === "rejected").length;
+
+      if (failedCount === 0) {
         toast.success(t("messages.customerLeft"));
-      } catch {
+      } else if (failedCount < orderIds.length) {
+        toast.warning(`${orderIds.length - failedCount}/${orderIds.length} orders completed. Please retry remaining.`);
+      } else {
         toast.error(t("messages.updateStatusFailed"));
-      } finally {
-        setCompletingId(null);
       }
+
+      setCompletingId(null);
     },
     [completeOrder, t],
   );
@@ -1390,6 +1527,7 @@ export function LiveTablePageClient() {
           onComplete={handleComplete}
           onServeItem={handleServeItem}
           onOpenPaymentAction={handleOpenPaymentAction}
+          onOpenCancelPaymentAction={handleOpenCancelPaymentAction}
           paymentNotice={paymentNotice}
           onOpenPaymentNotice={handleOpenPaymentNotice}
           onDismissPaymentNotice={handleDismissPaymentNotice}
@@ -1420,6 +1558,10 @@ export function LiveTablePageClient() {
           setReceiptTenderAmount(tenderAmount);
           toast.success(t("messages.paymentConfirmed"), { id: "live-table-payment-confirmed" });
         }}
+      />
+      <ActiveTableCancelDialog
+        info={selectedCancelPaymentInfo}
+        onClose={() => setSelectedCancelPaymentInfo(null)}
       />
 
       {receiptOrder && (

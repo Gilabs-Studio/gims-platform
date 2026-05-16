@@ -80,9 +80,12 @@ export function SelfOrderStatus({
 
       {/* Order items */}
       <div className="bg-card p-5 rounded-3xl border border-border/50 shadow-sm flex-1 mb-8">
-        {order.payment_status === "CANCELLED" && (
+        {(order.payment_status === "CANCELLED" || order.status === "VOIDED" || order.status === "CANCELLED") && (
           <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {t("status.paymentCancelled")}
+            {order.cancel_reason && (
+              <p className="mt-1 text-xs text-destructive/80">{order.cancel_reason}</p>
+            )}
           </div>
         )}
         <div className="space-y-3 mb-4">

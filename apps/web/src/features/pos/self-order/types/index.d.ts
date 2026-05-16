@@ -61,6 +61,7 @@ export interface CustomerOrderResponse {
   table_label: string;
   status: string;
   payment_status?: string;
+  cancel_reason?: string;
   subtotal: number;
   tax_amount: number;
   total_amount: number;

@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -451,10 +452,33 @@ func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID
 
 func (u *publicPOSUsecase) toCustomerOrderResponse(ctx context.Context, order *dto.POSOrderResponse, tableLabel string) *dto.CustomerOrderResponse {
 	var paymentStatus *string
+	var cancelReason *string
 	payments, err := u.paymentUC.GetByOrderID(ctx, order.ID)
 	if err == nil && len(payments) > 0 {
 		latest := payments[0].Status
 		paymentStatus = &latest
+		for _, payment := range payments {
+			if payment.Status != "CANCELLED" {
+				continue
+			}
+			if payment.Notes == nil {
+				continue
+			}
+			note := strings.TrimSpace(*payment.Notes)
+			if note == "" {
+				continue
+			}
+			cancelReason = &note
+			break
+		}
+	}
+
+	// If no cancel reason from payment notes, check order's VoidReason (for direct void operations)
+	if cancelReason == nil && order.VoidReason != nil {
+		reason := strings.TrimSpace(*order.VoidReason)
+		if reason != "" {
+			cancelReason = &reason
+		}
 	}
 
 	return &dto.CustomerOrderResponse{
@@ -463,6 +487,7 @@ func (u *publicPOSUsecase) toCustomerOrderResponse(ctx context.Context, order *d
 		TableLabel:    tableLabel,
 		Status:        order.Status,
 		PaymentStatus: paymentStatus,
+		CancelReason:  cancelReason,
 		Subtotal:      order.Subtotal,
 		TaxAmount:     order.TaxAmount,
 		TotalAmount:   order.TotalAmount,
