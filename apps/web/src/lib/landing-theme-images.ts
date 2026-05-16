@@ -35,7 +35,16 @@ export type LandingScreenshotKey =
   | "posHero"
   | "posTerminalFlow"
   | "posLiveTable"
-  | "posFloorLayout";
+  | "posFloorLayout"
+  // Sales Orders
+  | "salesOrderHero"
+  | "salesOrderEntryFlow"
+  | "salesOrderBillingCollection"
+  | "salesOrderFulfillment"
+  // Quotations
+  | "quotationsTemplate"
+  | "quotationsCollaboration"
+  | "quotationsToSalesOrder";
 
 type ThemePair = {
   light: string;
@@ -186,6 +195,36 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   posFloorLayout: {
     light: "/screenshot/pos/pos-floor-layout.webp",
     dark: "/screenshot/pos/pos-floor-layout-dark.webp",
+  },
+  // Sales Orders
+  // Quotations
+  quotationsTemplate: {
+    light: "/screenshot/quotations/quotations-template.webp",
+    dark: "/screenshot/quotations/quotations-template-dark.webp",
+  },
+  quotationsCollaboration: {
+    light: "/screenshot/quotations/quotations-collaboration.webp",
+    dark: "/screenshot/quotations/quotations-collaboration-dark.webp",
+  },
+  quotationsToSalesOrder: {
+    light: "/screenshot/quotations/quotations-to-sales-order.webp",
+    dark: "/screenshot/quotations/quotations-to-sales-order-dark.webp",
+  },
+  salesOrderHero: {
+    light: "/screenshot/sales/sales-order-hero.webp",
+    dark: "/screenshot/sales/sales-order-hero-dark.webp",
+  },
+  salesOrderEntryFlow: {
+    light: "/screenshot/sales/sales-order-entry-flow.webp",
+    dark: "/screenshot/sales/sales-order-entry-flow-dark.webp",
+  },
+  salesOrderBillingCollection: {
+    light: "/screenshot/sales/sales-order-billing-collection.webp",
+    dark: "/screenshot/sales/sales-order-billing-collection-dark.webp",
+  },
+  salesOrderFulfillment: {
+    light: "/screenshot/sales/sales-order-fulfillment.webp",
+    dark: "/screenshot/sales/sales-order-fulfillment-dark.webp",
   },
 } as const;
 

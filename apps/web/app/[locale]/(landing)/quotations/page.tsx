@@ -65,6 +65,7 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
             description: isId
               ? "Susun item, harga, dan ketentuan dengan format yang konsisten untuk pelanggan."
               : "Arrange items, pricing, and terms in a consistent format for customers.",
+            screenshotKey: "quotationsTemplate",
             placeholder: "invoiceFlow",
           },
           {
@@ -72,6 +73,7 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
             description: isId
               ? "Tim bisa meninjau quotation tanpa kehilangan konteks peluang."
               : "Teams can review quotations without losing deal context.",
+            screenshotKey: "quotationsCollaboration",
             placeholder: "timelineFlow",
           },
           {
@@ -79,7 +81,7 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
             description: isId
               ? "Lanjutkan ke proses order tanpa mengetik ulang detail penawaran."
               : "Move to order processing without retyping quotation details.",
-            screenshotKey: "salesOrder",
+            screenshotKey: "quotationsToSalesOrder",
             placeholder: "terminalFlow",
           },
         ]}
