@@ -133,7 +133,7 @@ export function useNotifications(params?: ListNotificationsParams) {
           : query.data.meta?.pagination,
       },
     };
-  }, [params?.entity, params?.is_read, params?.page, params?.type, query.data, realtimeNotifications]);
+  }, [params, query.data, realtimeNotifications]);
 
   return {
     ...query,
