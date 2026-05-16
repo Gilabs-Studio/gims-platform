@@ -27,6 +27,8 @@ type PublicPOSUsecase interface {
 	InitiateDigitalPayment(ctx context.Context, token, orderID string, req *dto.InitiateCustomerPaymentRequest) (*dto.POSPaymentResponse, error)
 	// MarkPayAtCashier marks the order as waiting cashier payment and broadcasts status updates.
 	MarkPayAtCashier(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
+	// CancelCustomerOrder cancels a self-order if it is not yet processed.
+	CancelCustomerOrder(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
 	// CancelDigitalPayment cancels a pending digital payment and falls back to cashier waiting mode.
 	CancelDigitalPayment(ctx context.Context, token, orderID, paymentID string) (*dto.CustomerOrderResponse, error)
 }
@@ -138,10 +140,14 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 	// Build a staff-compatible CreateOrderRequest with OrderSource overridden inside usecase.
 	tableObjectID := qr.TableObjectID
 	tableLabel := qr.TableLabel
+	var tableID *string
+	if tableObjectID != "" {
+		tableID = &tableObjectID
+	}
 	createReq := &dto.CreateOrderRequest{
 		OutletID:     qr.OutletID,
 		OrderType:    "DINE_IN",
-		TableID:      &tableObjectID,
+		TableID:      tableID,
 		TableLabel:   &tableLabel,
 		CustomerName: &req.CustomerName,
 		Notes:        req.Notes,
@@ -178,7 +184,7 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 		})
 	}
 
-	return toCustomerOrderResponse(updated, tableLabel), nil
+	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
 }
 
 // ─── GetOrderStatus ───────────────────────────────────────────────────────────
@@ -209,7 +215,7 @@ func (u *publicPOSUsecase) GetOrderStatus(ctx context.Context, token, orderID st
 		tableLabel = *order.TableLabel
 	}
 
-	return toCustomerOrderResponse(order, tableLabel), nil
+	return u.toCustomerOrderResponse(orderCtx, order, tableLabel), nil
 }
 
 // ─── InitiateDigitalPayment ───────────────────────────────────────────────────
@@ -318,7 +324,62 @@ func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID 
 		})
 	}
 
-	return toCustomerOrderResponse(updated, tableLabel), nil
+	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
+}
+
+func (u *publicPOSUsecase) CancelCustomerOrder(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error) {
+	qr, err := u.qrTokenRepo.FindByToken(ctx, token)
+	if err != nil || qr == nil || !qr.IsActive {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if order.OutletID != qr.OutletID {
+		return nil, ErrPOSOrderNotFound
+	}
+
+	// Customer can only cancel if it's not yet being prepared and not paid.
+	if order.Status != string(posModels.PosOrderStatusDraft) && order.Status != "WAITING_PAYMENT" && order.Status != "WAITING_CASHIER" && order.Status != "PENDING" {
+		return nil, ErrPOSOrderCannotModify
+	}
+
+	// Use Void from POSOrderUsecase
+	_, err = u.orderUC.Void(orderCtx, orderID, &dto.VoidOrderRequest{
+		Reason: "Cancelled by customer via self-order UI",
+	}, "customer")
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	tableLabel := qr.TableLabel
+	if updated.TableLabel != nil {
+		tableLabel = *updated.TableLabel
+	}
+
+	if u.hub != nil {
+		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
+			"order_id":     updated.ID,
+			"order_number": updated.OrderNumber,
+			"status":       updated.Status,
+			"table_label":  tableLabel,
+		})
+	}
+
+	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
 }
 
 func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orderID, paymentID string) (*dto.CustomerOrderResponse, error) {
@@ -341,7 +402,8 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 		return nil, ErrPublicTokenInvalid
 	}
 
-	if err := u.paymentUC.CancelPendingPayment(orderCtx, orderID, paymentID, "customer"); err != nil {
+	reason := "Cancelled by customer via self-order"
+	if err := u.paymentUC.CancelPendingPayment(orderCtx, orderID, paymentID, "customer", &reason); err != nil {
 		return nil, err
 	}
 
@@ -365,7 +427,7 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 		})
 	}
 
-	return toCustomerOrderResponse(updated, tableLabel), nil
+	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -387,16 +449,24 @@ func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID
 	return publicCtx, outlet.TenantID, companyID, nil
 }
 
-func toCustomerOrderResponse(order *dto.POSOrderResponse, tableLabel string) *dto.CustomerOrderResponse {
+func (u *publicPOSUsecase) toCustomerOrderResponse(ctx context.Context, order *dto.POSOrderResponse, tableLabel string) *dto.CustomerOrderResponse {
+	var paymentStatus *string
+	payments, err := u.paymentUC.GetByOrderID(ctx, order.ID)
+	if err == nil && len(payments) > 0 {
+		latest := payments[0].Status
+		paymentStatus = &latest
+	}
+
 	return &dto.CustomerOrderResponse{
-		OrderID:     order.ID,
-		OrderNumber: order.OrderNumber,
-		TableLabel:  tableLabel,
-		Status:      order.Status,
-		Subtotal:    order.Subtotal,
-		TaxAmount:   order.TaxAmount,
-		TotalAmount: order.TotalAmount,
-		Items:       order.Items,
-		CreatedAt:   order.CreatedAt.Format(time.RFC3339),
+		OrderID:       order.ID,
+		OrderNumber:   order.OrderNumber,
+		TableLabel:    tableLabel,
+		Status:        order.Status,
+		PaymentStatus: paymentStatus,
+		Subtotal:      order.Subtotal,
+		TaxAmount:     order.TaxAmount,
+		TotalAmount:   order.TotalAmount,
+		Items:         order.Items,
+		CreatedAt:     order.CreatedAt.Format(time.RFC3339),
 	}
 }

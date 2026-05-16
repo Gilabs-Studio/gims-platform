@@ -5,10 +5,10 @@ package dto
 // PublicTableInfoResponse is the landing payload for a QR-scanned table URL.
 // It contains everything the customer needs to browse the menu and place an order.
 type PublicTableInfoResponse struct {
-	OutletID   string         `json:"outlet_id"`
-	OutletName string         `json:"outlet_name"`
-	TableLabel string         `json:"table_label"`
-	Token      string         `json:"token"`
+	OutletID   string           `json:"outlet_id"`
+	OutletName string           `json:"outlet_name"`
+	TableLabel string           `json:"table_label"`
+	Token      string           `json:"token"`
 	Catalog    []POSCatalogItem `json:"catalog"`
 	Config     PublicPOSConfig  `json:"config"`
 }
@@ -37,15 +37,16 @@ type CreateCustomerOrderRequest struct {
 // CustomerOrderResponse is returned after a customer places an order and
 // on subsequent status polling requests.
 type CustomerOrderResponse struct {
-	OrderID     string                 `json:"order_id"`
-	OrderNumber string                 `json:"order_number"`
-	TableLabel  string                 `json:"table_label"`
-	Status      string                 `json:"status"`
-	Subtotal    float64                `json:"subtotal"`
-	TaxAmount   float64                `json:"tax_amount"`
-	TotalAmount float64                `json:"total_amount"`
-	Items       []POSOrderItemResponse `json:"items"`
-	CreatedAt   string                 `json:"created_at"`
+	OrderID       string                 `json:"order_id"`
+	OrderNumber   string                 `json:"order_number"`
+	TableLabel    string                 `json:"table_label"`
+	Status        string                 `json:"status"`
+	PaymentStatus *string                `json:"payment_status,omitempty"`
+	Subtotal      float64                `json:"subtotal"`
+	TaxAmount     float64                `json:"tax_amount"`
+	TotalAmount   float64                `json:"total_amount"`
+	Items         []POSOrderItemResponse `json:"items"`
+	CreatedAt     string                 `json:"created_at"`
 }
 
 // InitiateCustomerPaymentRequest is the body for

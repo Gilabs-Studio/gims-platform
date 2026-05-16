@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreDatabase "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	invModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -114,46 +115,112 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 		return nil, ErrPOSOutletForbidden
 	}
 
+	if req.TableLabel != nil {
+		normalizedLabel := strings.TrimSpace(*req.TableLabel)
+		if normalizedLabel == "" {
+			req.TableLabel = nil
+		} else {
+			req.TableLabel = &normalizedLabel
+		}
+	}
+
+	if req.TableID != nil && strings.TrimSpace(*req.TableID) == "" {
+		req.TableID = nil
+	}
+
+	var result *dto.POSOrderResponse
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
+
+		lockKey := buildPOSTableOrderLockKey(req.OutletID, req.TableID, req.TableLabel)
+		if lockKey != "" {
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+				return fmt.Errorf("failed to acquire pos table lock: %w", err)
+			}
+		}
+
+		existing, findErr := u.findReusableTableOrder(txCtx, req)
+		if findErr != nil {
+			return findErr
+		}
+		if existing != nil {
+			result = mapper.ToPOSOrderResponse(existing)
+			return nil
+		}
+
+		orderNum, err := u.orderRepo.GetNextOrderNumber(txCtx, "ORD")
+		if err != nil {
+			return err
+		}
+
+		actorID := normalizeUUID(userID)
+
+		order := &posModels.PosOrder{
+			OrderNumber:  orderNum,
+			SessionID:    nil,
+			OutletID:     req.OutletID,
+			OrderType:    posModels.PosOrderType(req.OrderType),
+			TableID:      req.TableID,
+			TableLabel:   req.TableLabel,
+			CustomerID:   req.CustomerID,
+			CustomerName: req.CustomerName,
+			GuestCount:   req.GuestCount,
+			Status:       posModels.PosOrderStatusDraft,
+			Notes:        req.Notes,
+			CreatedBy:    actorID,
+		}
+		if order.GuestCount < 1 {
+			order.GuestCount = 1
+		}
+
+		if err := u.orderRepo.Create(txCtx, order); err != nil {
+			return err
+		}
+
+		result = mapper.ToPOSOrderResponse(order)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+
+}
+
+func (u *posOrderUsecase) findReusableTableOrder(ctx context.Context, req *dto.CreateOrderRequest) (*posModels.PosOrder, error) {
+
 	if req.TableID != nil && *req.TableID != "" {
 		existing, findErr := u.orderRepo.FindActiveByOutletAndTable(ctx, req.OutletID, *req.TableID)
 		if findErr == nil {
-			return mapper.ToPOSOrderResponse(existing), nil
+			return existing, nil
 		}
 		if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 			return nil, findErr
 		}
 	}
 
-	orderNum, err := u.orderRepo.GetNextOrderNumber(ctx, "ORD")
-	if err != nil {
-		return nil, err
+	if req.TableLabel != nil && strings.TrimSpace(*req.TableLabel) != "" {
+		existing, findErr := u.orderRepo.FindActiveByOutletAndTableLabel(ctx, req.OutletID, strings.TrimSpace(*req.TableLabel))
+		if findErr == nil {
+			return existing, nil
+		}
+		if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return nil, findErr
+		}
 	}
 
-	actorID := normalizeUUID(userID)
+	return nil, nil
+}
 
-	order := &posModels.PosOrder{
-		OrderNumber:  orderNum,
-		SessionID:    nil,
-		OutletID:     req.OutletID,
-		OrderType:    posModels.PosOrderType(req.OrderType),
-		TableID:      req.TableID,
-		TableLabel:   req.TableLabel,
-		CustomerID:   req.CustomerID,
-		CustomerName: req.CustomerName,
-		GuestCount:   req.GuestCount,
-		Status:       posModels.PosOrderStatusDraft,
-		Notes:        req.Notes,
-		CreatedBy:    actorID,
+func buildPOSTableOrderLockKey(outletID string, tableID, tableLabel *string) string {
+	if tableID != nil && strings.TrimSpace(*tableID) != "" {
+		return fmt.Sprintf("pos:order:create:%s:table-id:%s", outletID, strings.TrimSpace(*tableID))
 	}
-	if order.GuestCount < 1 {
-		order.GuestCount = 1
+	if tableLabel != nil && strings.TrimSpace(*tableLabel) != "" {
+		return fmt.Sprintf("pos:order:create:%s:table-label:%s", outletID, strings.ToLower(strings.TrimSpace(*tableLabel)))
 	}
-
-	if err := u.orderRepo.Create(ctx, order); err != nil {
-		return nil, err
-	}
-
-	return mapper.ToPOSOrderResponse(order), nil
+	return ""
 }
 
 // ─── GetByID ─────────────────────────────────────────────────────────────────

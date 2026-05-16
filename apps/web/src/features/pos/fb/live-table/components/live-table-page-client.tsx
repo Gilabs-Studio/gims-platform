@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -38,14 +39,13 @@ import {
   useCompleteOrder,
   useServeOrderItem,
   usePOSPayments,
-  useProcessCashPayment,
-  useInitiateDigitalPayment,
-  useCancelPendingPOSPayment,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
 import type { LayoutObject } from "@/features/pos/fb/floor-layout/types";
 import type { POSOrder, POSPayment } from "@/features/pos/terminal/types";
+import { ActiveTablePaymentDialog } from "./active-table-payment-dialog";
+import { POSReceiptDialog } from "@/features/pos/terminal/components/pos-receipt-dialog";
 
 type PaymentNotice = {
   tableLabel: string;
@@ -59,7 +59,6 @@ type PaymentNotice = {
 const STATUS_CONFIG: Record<
   LiveTableStatus,
   {
-    label: string;
     dot: string;
     card: string;
     text: string;
@@ -67,49 +66,54 @@ const STATUS_CONFIG: Record<
   }
 > = {
   AVAILABLE: {
-    label: "Available",
     dot: "bg-success",
-    card: "border-success/30 bg-success/10",
+    card: "border-success/30 bg-gradient-to-br from-success/15 via-success/5 to-background",
     text: "text-success",
     icon: CheckCircle2,
   },
   WAITING_PAYMENT: {
-    label: "Waiting Payment",
     dot: "bg-amber-500 animate-pulse",
-    card: "border-amber-500/40 bg-amber-500/10",
+    card: "border-amber-500/45 bg-gradient-to-br from-amber-500/18 via-amber-500/8 to-background",
     text: "text-amber-600",
     icon: CreditCard,
   },
   SEATED: {
-    label: "Occupied",
     dot: "bg-primary",
-    card: "border-primary/30 bg-primary/10",
+    card: "border-primary/40 bg-gradient-to-br from-primary/18 via-primary/8 to-background",
     text: "text-primary",
     icon: Users,
   },
   WARN_LONG: {
-    label: "Long Wait",
     dot: "bg-rose animate-pulse",
-    card: "border-rose/30 bg-rose/10",
+    card: "border-rose/40 bg-gradient-to-br from-rose/18 via-rose/8 to-background",
     text: "text-rose",
     icon: AlertTriangle,
   },
   PARTIAL_SERVED: {
-    label: "Partial",
     dot: "bg-warning",
-    card: "border-warning/30 bg-warning/10",
+    card: "border-warning/40 bg-gradient-to-br from-warning/18 via-warning/8 to-background",
     text: "text-warning",
     icon: Utensils,
   },
   SERVED: {
-    label: "Served",
     dot: "bg-purple",
-    card: "border-purple/30 bg-purple/10",
+    card: "border-purple/40 bg-gradient-to-br from-purple/16 via-purple/7 to-background",
     text: "text-purple",
     icon: CircleDot,
   },
 };
 
+function getStatusLabel(status: LiveTableStatus, t: ReturnType<typeof useTranslations>): string {
+  const labelMap: Record<LiveTableStatus, string> = {
+    AVAILABLE: t("statusLabels.available"),
+    WAITING_PAYMENT: t("statusLabels.waitingPayment"),
+    SEATED: t("statusLabels.occupied"),
+    WARN_LONG: t("statusLabels.longWait"),
+    PARTIAL_SERVED: t("statusLabels.partial"),
+    SERVED: t("statusLabels.served"),
+  };
+  return labelMap[status];
+}
 function formatDuration(sec: number): string {
   if (sec < 60) return `${sec}s`;
   const m = Math.floor(sec / 60);
@@ -122,6 +126,14 @@ function formatSeatCount(count: number): string {
   return `${count} seat${count === 1 ? "" : "s"}`;
 }
 
+function getPendingServeItemCount(order: POSOrder): number {
+  if (!order.items.length) return 0;
+  return order.items.reduce((total, item) => {
+    if (item.status === "SERVED" || item.status === "CANCELLED") return total;
+    return total + Math.max(item.quantity, 0);
+  }, 0);
+}
+
 // ─── Table Card ───────────────────────────────────────────────────────────────
 
 interface TableCardProps {
@@ -132,6 +144,7 @@ interface TableCardProps {
 function TableCard({ info, onClick }: TableCardProps) {
   const cfg = STATUS_CONFIG[info.status];
   const Icon = cfg.icon;
+    const t = useTranslations("posTerminal.liveTable");
   const label =
     info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
 
@@ -153,7 +166,7 @@ function TableCard({ info, onClick }: TableCardProps) {
       {/* Customer self-order badge */}
       {info.order?.order_source === "CUSTOMER" && (
         <span className="absolute top-2 left-2 rounded-full bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 leading-none">
-          Tamu
+          {t("guest")}
         </span>
       )}
       <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -161,12 +174,31 @@ function TableCard({ info, onClick }: TableCardProps) {
       </p>
       <div className={cn("mt-1.5 flex items-center gap-1.5 text-xs font-medium", cfg.text)}>
         <Icon className="h-3.5 w-3.5 shrink-0" />
-        <span>{cfg.label}</span>
+        <span>{getStatusLabel(info.status, t)}</span>
       </div>
       <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Users className="h-3.5 w-3.5 shrink-0" />
         <span>{formatSeatCount(info.seatCount)}</span>
       </div>
+      {(info.needsPaymentCount > 0 || info.needsServeCount > 0 || info.doneCount > 0) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {info.needsPaymentCount > 0 && (
+            <Badge variant="outline" className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700">
+              Pay {info.needsPaymentCount}
+            </Badge>
+          )}
+          {info.needsServeCount > 0 && (
+            <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary">
+              Serve {info.needsServeCount}
+            </Badge>
+          )}
+          {info.doneCount > 0 && (
+            <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success">
+              Done {info.doneCount}
+            </Badge>
+          )}
+        </div>
+      )}
       {info.order ? (
         <div className="mt-3 space-y-0.5">
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -179,9 +211,12 @@ function TableCard({ info, onClick }: TableCardProps) {
           <p className="text-[11px] text-muted-foreground font-mono truncate">
             #{info.order.order_number}
           </p>
+          {info.orders.length > 1 && (
+            <p className="text-[10px] text-muted-foreground">{info.orders.length} active orders in session</p>
+          )}
         </div>
       ) : (
-        <p className="mt-3 text-[11px] text-muted-foreground">Open</p>
+         <p className="mt-3 text-[11px] text-muted-foreground">{getStatusLabel(info.status, t)}</p>
       )}
     </button>
   );
@@ -223,22 +258,108 @@ function TableGrid({ infos, onTableClick }: TableGridProps) {
 interface OrderDetailDialogProps {
   info: LiveTableInfo | null;
   onClose: () => void;
+  onOpenReceipt: (payload: {
+    order: POSOrder;
+    customerName?: string;
+    customerPhone?: string;
+    tenderAmount?: number;
+  }) => void;
 }
 
-function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
-  // Hooks must be called before any conditional return.
-  const { data: paymentsData } = usePOSPayments(info?.order?.id ?? "", {
-    enabled: !!info?.order?.id,
+interface SessionOrderRowProps {
+  order: POSOrder;
+  onOpenReceipt: (payload: {
+    order: POSOrder;
+    customerName?: string;
+    customerPhone?: string;
+    tenderAmount?: number;
+  }) => void;
+}
+
+  function SessionOrderRow({ order, onOpenReceipt }: SessionOrderRowProps) {
+    const t = useTranslations("posTerminal.liveTable");
+  const { data: paymentsData } = usePOSPayments(order.id, {
+    enabled: !!order.id,
   });
+
+  const payments = (paymentsData?.data ?? []) as POSPayment[];
+  const paidPayment = payments.find((p) => p.status === "PAID") ?? null;
+  const pendingServeCount = getPendingServeItemCount(order);
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/60 p-3 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-mono text-xs font-semibold truncate">#{order.order_number}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{order.customer_name || "Walk-in"}</p>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "h-5 px-2 text-[9px] rounded-full",
+            order.status === "SERVED" && "border-success/35 bg-success/10 text-success",
+            (order.status === "PAID" || order.status === "PARTIAL_SERVED") && "border-primary/35 bg-primary/10 text-primary",
+            (order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") &&
+              "border-amber-500/35 bg-amber-500/10 text-amber-700",
+          )}
+        >
+          {order.status.replace("_", " ")}
+        </Badge>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-muted-foreground">Total</span>
+        <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        {order.status !== "COMPLETED" && order.status !== "VOIDED" && (
+          <Badge variant="outline" className="h-5 rounded-full border-muted-foreground/20 px-2 text-[9px]">
+            Items {order.items.length}
+          </Badge>
+        )}
+        {pendingServeCount > 0 && (
+          <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] text-primary">
+            Need Serve {pendingServeCount}
+          </Badge>
+        )}
+        {order.status === "SERVED" && (
+          <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] text-success">
+            Done Serve
+          </Badge>
+        )}
+      </div>
+
+      {paidPayment && (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-7 w-full text-[11px] cursor-pointer"
+          onClick={() =>
+            onOpenReceipt({
+              order,
+              customerName: order.customer_name ?? undefined,
+              tenderAmount: paidPayment.method === "CASH" ? paidPayment.tender_amount : undefined,
+            })
+          }
+        >
+          {t("sidebar.viewReceipt")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function OrderDetailDialog({ info, onClose, onOpenReceipt }: OrderDetailDialogProps) {
+  const t = useTranslations("posTerminal.liveTable");
 
   if (!info) return null;
   const cfg = STATUS_CONFIG[info.status];
   const Icon = cfg.icon;
   const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-  const order: POSOrder | null = info.order;
-
-  const payments = (paymentsData?.data ?? []) as POSPayment[];
-  const paidPayment = payments.find((p) => p.status === "PAID") ?? null;
+  const activeOrders = info.orders;
+  const order = info.order;
+  const sessionTotal = activeOrders.reduce((total, sessionOrder) => total + sessionOrder.total_amount, 0);
 
   return (
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
@@ -251,7 +372,7 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
               className={cn("gap-1 rounded-full border-current", cfg.text)}
             >
               <Icon className="h-3 w-3" />
-              {cfg.label}
+               {getStatusLabel(info.status, t)}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -259,7 +380,7 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
         {!order ? (
           <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
             <CheckCircle2 className="h-10 w-10 text-success/40" />
-            <p className="text-sm">Table is available</p>
+             <p className="text-sm">{t("messages.tableAvailable")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -271,12 +392,27 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
                 </p>
               </div>
               <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs text-muted-foreground mb-1">Guests</p>
-                <p className="font-bold text-sm">{order.guest_count}</p>
+                <p className="text-xs text-muted-foreground mb-1">Orders</p>
+                <p className="font-bold text-sm">{activeOrders.length}</p>
               </div>
               <div className="rounded-xl bg-muted/50 p-3">
-                <p className="text-xs text-muted-foreground mb-1">Order</p>
-                <p className="font-bold text-sm font-mono truncate">#{order.order_number}</p>
+                <p className="text-xs text-muted-foreground mb-1">Total</p>
+                <p className="font-bold text-sm tabular-nums">Rp {sessionTotal.toLocaleString("id-ID")}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-center">
+                <p className="text-[10px] text-amber-700 uppercase tracking-wider">Need Pay</p>
+                <p className="mt-0.5 text-sm font-semibold text-amber-700">{info.needsPaymentCount}</p>
+              </div>
+              <div className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-2 text-center">
+                <p className="text-[10px] text-primary uppercase tracking-wider">Need Serve</p>
+                <p className="mt-0.5 text-sm font-semibold text-primary">{info.needsServeCount}</p>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success/10 px-2.5 py-2 text-center">
+                <p className="text-[10px] text-success uppercase tracking-wider">Done</p>
+                <p className="mt-0.5 text-sm font-semibold text-success">{info.doneCount}</p>
               </div>
             </div>
 
@@ -291,66 +427,20 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
 
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Items
+                Session Orders
               </p>
-              <ScrollArea className="max-h-52">
-                <div className="space-y-1.5">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium text-muted-foreground w-5 text-right shrink-0">
-                          {item.quantity}×
-                        </span>
-                        <span className="truncate">{item.product_name}</span>
-                      </div>
-                      <span className="text-muted-foreground shrink-0 ml-2 tabular-nums">
-                        Rp {item.subtotal.toLocaleString("id-ID")}
-                      </span>
-                    </div>
+              <ScrollArea className="max-h-80">
+                <div className="space-y-2 pr-1">
+                  {activeOrders.map((sessionOrder) => (
+                    <SessionOrderRow
+                      key={sessionOrder.id}
+                      order={sessionOrder}
+                      onOpenReceipt={onOpenReceipt}
+                    />
                   ))}
                 </div>
               </ScrollArea>
             </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between font-semibold text-sm">
-              <span>Total</span>
-              <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
-            </div>
-
-            {paidPayment && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Payment
-                  </p>
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Method</span>
-                      <Badge variant="secondary" className="text-xs">{paidPayment.method}</Badge>
-                    </div>
-                    {paidPayment.method === "CASH" && paidPayment.tender_amount > 0 && (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Tender</span>
-                          <span className="tabular-nums">
-                            Rp {paidPayment.tender_amount.toLocaleString("id-ID")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between font-medium">
-                          <span className="text-muted-foreground">Change</span>
-                          <span className="tabular-nums text-success">
-                            Rp {paidPayment.change_amount.toLocaleString("id-ID")}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         )}
       </DialogContent>
@@ -358,177 +448,7 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
   );
 }
 
-interface QuickPaymentDialogProps {
-  info: LiveTableInfo | null;
-  onClose: () => void;
-}
 
-function QuickPaymentDialog({ info, onClose }: QuickPaymentDialogProps) {
-  const processCash = useProcessCashPayment();
-  const initiateDigital = useInitiateDigitalPayment();
-  const cancelPendingPayment = useCancelPendingPOSPayment();
-  const { data: paymentsData } = usePOSPayments(info?.order?.id ?? "", {
-    enabled: !!info?.order?.id,
-  });
-
-  if (!info?.order) return null;
-
-  const order = info.order;
-  const tableLabel = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-  const pendingDigitalPayment = (paymentsData?.data ?? []).find(
-    (payment) => payment.status === "PENDING" && payment.method === "DIGITAL"
-  );
-
-  const handleCashPayment = async () => {
-    try {
-      await processCash.mutateAsync({
-        orderId: order.id,
-        data: {
-          method: "CASH",
-          amount: order.total_amount,
-          customer_name: order.customer_name ?? undefined,
-        },
-      });
-      toast.success(`Pembayaran cash ${tableLabel} berhasil.`);
-      onClose();
-    } catch {
-      toast.error("Gagal memproses pembayaran cash.");
-    }
-  };
-
-  const handleXenditPayment = async () => {
-    try {
-      const result = await initiateDigital.mutateAsync({
-        orderId: order.id,
-        data: {
-          method: "DIGITAL",
-          amount: order.total_amount,
-          channel_code: "QRIS",
-          customer_name: order.customer_name ?? undefined,
-        },
-      });
-
-      const paymentUrl = result.data.payment_url?.trim();
-      if (paymentUrl) {
-        window.open(paymentUrl, "_blank", "noopener,noreferrer");
-      }
-
-      toast.success(`Pembayaran Xendit untuk ${tableLabel} dimulai.`);
-      onClose();
-    } catch {
-      toast.error("Gagal memulai pembayaran Xendit.");
-    }
-  };
-
-  const handleCancelPendingDigital = async () => {
-    if (!pendingDigitalPayment) return;
-    try {
-      await cancelPendingPayment.mutateAsync({
-        orderId: order.id,
-        paymentId: pendingDigitalPayment.id,
-      });
-      toast.success(`Pembayaran digital ${tableLabel} dibatalkan.`);
-    } catch {
-      toast.error("Gagal membatalkan pembayaran digital.");
-    }
-  };
-
-  const handleOpenPendingDigital = () => {
-    const paymentUrl = pendingDigitalPayment?.payment_url?.trim();
-    if (!paymentUrl) {
-      toast.error("Link pembayaran digital tidak ditemukan.");
-      return;
-    }
-    window.open(paymentUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const isProcessing =
-    processCash.isPending ||
-    initiateDigital.isPending ||
-    cancelPendingPayment.isPending;
-
-  return (
-    <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Konfirmasi Pembayaran {tableLabel}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="rounded-xl border bg-muted/30 p-3 text-sm">
-            <p className="text-muted-foreground">Order</p>
-            <p className="font-mono font-semibold">#{order.order_number}</p>
-            <p className="mt-2 text-muted-foreground">Total</p>
-            <p className="text-lg font-bold">Rp {order.total_amount.toLocaleString("id-ID")}</p>
-          </div>
-
-          {pendingDigitalPayment ? (
-            <div className="grid grid-cols-1 gap-2">
-              <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
-                Menunggu pembayaran digital dari customer.
-              </div>
-              <Button
-                type="button"
-                onClick={handleOpenPendingDigital}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                Buka Link Pembayaran Digital
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleCancelPendingDigital}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                {cancelPendingPayment.isPending ? "Membatalkan..." : "Batalkan Pembayaran Digital"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                Tutup
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              <Button
-                type="button"
-                onClick={handleCashPayment}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                {processCash.isPending ? "Memproses Cash..." : "Bayar Cash"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleXenditPayment}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                {initiateDigital.isPending ? "Memproses Xendit..." : "Bayar Xendit (QRIS)"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isProcessing}
-                className="cursor-pointer"
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ─── Live Table Stats Bar ─────────────────────────────────────────────────────
 
@@ -572,7 +492,7 @@ const STATUS_SVG: Record<
   { fill: string; stroke: string; text: string }
 > = {
   AVAILABLE:      { fill: "var(--pos-available-fill)", stroke: "var(--pos-available-stroke)", text: "var(--pos-available-text)" },
-  WAITING_PAYMENT: { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
+  WAITING_PAYMENT: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
   SEATED:         { fill: "var(--pos-seated-fill)", stroke: "var(--pos-seated-stroke)", text: "var(--pos-seated-text)" },
   WARN_LONG:      { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
   PARTIAL_SERVED: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
@@ -864,6 +784,7 @@ function TableSidebar({
   completingId,
   servingItemId,
 }: TableSidebarProps) {
+  const t = useTranslations("posTerminal.liveTable");
   const occupied = infos.filter((i) => i.status !== "AVAILABLE");
 
   return (
@@ -871,19 +792,19 @@ function TableSidebar({
       {/* Sidebar header */}
       <div className="px-3 py-2.5 border-b shrink-0">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Active Tables
+          {t("activeTablesTitle")}
         </p>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          {occupied.length} table{occupied.length !== 1 ? "s" : ""} occupied
+          {t("activeTablesDesc", { count: occupied.length })}
         </p>
 
         {paymentNotice && (
           <div className="mt-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2">
             <p className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
-              Konfirmasi Pembayaran
+              {t("confirmPaymentNotice")}
             </p>
             <p className="mt-1 text-[11px] text-foreground leading-snug">
-              {paymentNotice.tableLabel} · {paymentNotice.orderNumber ?? "Order"}
+              {paymentNotice.tableLabel} · {paymentNotice.orderNumber ?? t("payNow.order")}
             </p>
             <div className="mt-2 flex items-center gap-1.5">
               <Button
@@ -892,7 +813,7 @@ function TableSidebar({
                 className="h-6 px-2 text-[10px] cursor-pointer"
                 onClick={onOpenPaymentNotice}
               >
-                Lihat
+                {t("notice_view")}
               </Button>
               <Button
                 size="sm"
@@ -900,7 +821,7 @@ function TableSidebar({
                 className="h-6 px-2 text-[10px] cursor-pointer"
                 onClick={onDismissPaymentNotice}
               >
-                Tutup
+                {t("notice_close")}
               </Button>
             </div>
           </div>
@@ -912,7 +833,7 @@ function TableSidebar({
         {occupied.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
             <CheckCircle2 className="h-5 w-5 text-success" />
-            <p className="text-xs">All tables available</p>
+            <p className="text-xs">{t("allTablesAvailable")}</p>
           </div>
         ) : (
           <div className="p-2 space-y-2">
@@ -922,21 +843,35 @@ function TableSidebar({
               const tableLabel =
                 info.tableObj.label ??
                 `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-              const orderId = info.order?.id;
+              const paymentOrder = info.unpaidOrder;
+              const serviceOrder = info.serviceOrder;
+              const pendingPaymentOrders = info.unpaidOrders;
+              const pendingServeOrders = info.serviceOrders;
+              const doneOrders = info.servedOrders;
+              const serviceQueueItems = pendingServeOrders.flatMap((queueOrder) =>
+                queueOrder.items.map((item) => ({
+                  orderId: queueOrder.id,
+                  orderNumber: queueOrder.order_number,
+                  itemId: item.id,
+                  productName: item.product_name,
+                  quantity: item.quantity,
+                  status: item.status,
+                })),
+              );
+              const paymentOrderId = paymentOrder?.id;
+              const serviceOrderId = serviceOrder?.id;
+              const completionOrder = doneOrders[0] ?? null;
+              const completionOrderId = completionOrder?.id;
 
               const canServe =
-                info.status === "SEATED" ||
-                info.status === "WARN_LONG";
-              const isWaitingPayment = info.status === "WAITING_PAYMENT";
+                serviceOrder?.status === "PAID" ||
+                serviceOrder?.status === "PARTIAL_SERVED";
+              const isWaitingPayment = !!paymentOrder;
               const canServeItems =
-                info.status === "SEATED" ||
-                info.status === "WARN_LONG" ||
-                info.status === "PARTIAL_SERVED";
-              const canComplete = info.status === "SERVED";
-              const paymentConfirmed =
-                info.order?.status === "PAID" ||
-                info.order?.status === "PARTIAL_SERVED" ||
-                info.order?.status === "SERVED";
+                serviceOrder?.status === "PAID" ||
+                serviceOrder?.status === "PARTIAL_SERVED";
+              const canComplete = !!completionOrderId;
+              const paymentConfirmed = !paymentOrder && !!serviceOrder;
 
               return (
                 <div
@@ -958,7 +893,7 @@ function TableSidebar({
                       variant="outline"
                       className={cn("text-[10px] shrink-0 border-current", cfg.text)}
                     >
-                      {cfg.label}
+                       {getStatusLabel(info.status, t)}
                     </Badge>
                   </div>
 
@@ -981,6 +916,26 @@ function TableSidebar({
                     <span>{formatSeatCount(info.seatCount)}</span>
                   </div>
 
+                  {(info.needsPaymentCount > 0 || info.needsServeCount > 0 || info.doneCount > 0) && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {info.needsPaymentCount > 0 && (
+                        <Badge variant="outline" className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700">
+                          Pay {info.needsPaymentCount}
+                        </Badge>
+                      )}
+                      {info.needsServeCount > 0 && (
+                        <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary">
+                          Serve {info.needsServeCount}
+                        </Badge>
+                      )}
+                      {info.doneCount > 0 && (
+                        <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success">
+                          Done {info.doneCount}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
                   {/* Customer name if any */}
                   {info.order?.customer_name && (
                     <p className="text-[11px] text-muted-foreground truncate">
@@ -988,50 +943,73 @@ function TableSidebar({
                     </p>
                   )}
 
-                  {orderId && (
+                  {paymentOrderId && (
                     <div className="rounded-md border border-border/60 bg-background/50 px-2 py-1.5">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Payment
+                        {t("sidebar.payment")} Queue
                       </p>
-                      {paymentConfirmed ? (
-                        <div className="mt-1 flex items-center justify-between gap-1.5">
-                          <Badge className="h-5 text-[9px] bg-emerald-600 hover:bg-emerald-600">
-                            Confirmed
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-5 px-1.5 text-[9px] cursor-pointer"
-                            onClick={() => onOpenPaymentAction(info)}
-                          >
-                            Detail
-                          </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="mt-1 h-6 w-full text-[10px] cursor-pointer"
+                        onClick={() => onOpenPaymentAction(info)}
+                      >
+                        {isWaitingPayment ? t("payNowAction") : t("confirmPayment")}
+                      </Button>
+
+                      {isWaitingPayment && paymentOrder?.items.length ? (
+                        <div className="mt-1.5 space-y-1">
+                          {pendingPaymentOrders.slice(0, 2).map((queueOrder) => (
+                            <p key={queueOrder.id} className="text-[10px] text-muted-foreground line-clamp-1">
+                              #{queueOrder.order_number} · {queueOrder.items[0]?.quantity ?? 0}x {queueOrder.items[0]?.product_name ?? "Item"}
+                            </p>
+                          ))}
+                          {pendingPaymentOrders.length > 2 && (
+                            <p className="text-[10px] text-muted-foreground">+{pendingPaymentOrders.length - 2} more orders</p>
+                          )}
                         </div>
-                      ) : (
+                      ) : null}
+                    </div>
+                  )}
+
+                  {!paymentOrderId && paymentConfirmed && (
+                    <div className="rounded-md border border-border/60 bg-background/50 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        {t("sidebar.payment")}
+                      </p>
+                      <div className="mt-1 grid grid-cols-2 gap-1.5">
+                        <Badge className="h-5 text-[9px] bg-emerald-600 hover:bg-emerald-600">
+                          {t("paymentConfirmed")}
+                        </Badge>
                         <Button
                           size="sm"
-                          variant="secondary"
-                          className="mt-1 h-6 w-full text-[10px] cursor-pointer"
+                          variant="ghost"
+                          className="h-5 px-1.5 text-[9px] cursor-pointer"
                           onClick={() => onOpenPaymentAction(info)}
                         >
-                          {isWaitingPayment ? "Bayar Sekarang" : "Konfirmasi Pembayaran"}
+                          {t("viewDetail")}
                         </Button>
-                      )}
+                      </div>
                     </div>
                   )}
 
                   {/* Per-item serve list (shown when some items still pending) */}
-                  {orderId && canServeItems && info.order && info.order.items.length > 0 && (
+                  {serviceQueueItems.length > 0 && canServeItems && (
                     <div className="space-y-1 pt-0.5">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Items
+                        {t("sidebar.items")} Queue
                       </p>
-                      {info.order.items.map((item) => {
+                      {pendingServeOrders.length > 1 && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {pendingServeOrders.length} active serve orders
+                        </p>
+                      )}
+                      {serviceQueueItems.map((item) => {
                         const isItemServed = item.status === "SERVED";
-                        const itemKey = `${orderId}-${item.id}`;
+                        const itemKey = `${item.orderId}-${item.itemId}`;
                         return (
                           <div
-                            key={item.id}
+                            key={`${item.orderId}-${item.itemId}`}
                             className="flex items-center justify-between gap-1.5"
                           >
                             <div className="flex items-center gap-1 min-w-0">
@@ -1042,7 +1020,10 @@ function TableSidebar({
                                 )}
                               />
                               <span className="truncate text-[10px]">
-                                {item.quantity}× {item.product_name}
+                                {item.quantity}× {item.productName}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground">
+                                #{item.orderNumber}
                               </span>
                             </div>
                             {!isItemServed && (
@@ -1053,10 +1034,10 @@ function TableSidebar({
                                   servingItemId === itemKey && "opacity-50 pointer-events-none",
                                 )}
                                 onClick={() => {
-                                  if (servingItemId !== itemKey) onServeItem(orderId, item.id);
+                                  if (servingItemId !== itemKey) onServeItem(item.orderId, item.itemId);
                                 }}
                               >
-                                {servingItemId === itemKey ? "…" : "Sajikan"}
+                                {servingItemId === itemKey ? "…" : t("sidebar.serve")}
                               </Badge>
                             )}
                           </div>
@@ -1065,19 +1046,26 @@ function TableSidebar({
                     </div>
                   )}
 
+                  {doneOrders.length > 0 && (
+                    <div className="rounded-md border border-success/30 bg-success/10 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold text-success uppercase tracking-wider">Done Queue</p>
+                      <p className="mt-1 text-[10px] text-success/90">{doneOrders.length} served order waiting customer left</p>
+                    </div>
+                  )}
+
                   {/* Action buttons */}
-                  {orderId && (
+                  {(serviceOrderId || canComplete) && (
                     <div className="space-y-1.5 pt-0.5">
                       {canServe && (
                         <Button
                           size="sm"
                           variant="secondary"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5"
-                          disabled={servingId === orderId}
-                          onClick={() => onServe(orderId)}
+                          disabled={servingId === serviceOrderId}
+                          onClick={() => serviceOrderId && onServe(serviceOrderId)}
                         >
                           <Utensils className="h-3 w-3" />
-                          {servingId === orderId ? "Menyajikan…" : "Semua Disajikan"}
+                          {servingId === serviceOrderId ? t("sidebar.serving") + "…" : t("sidebar.allServed")}
                         </Button>
                       )}
                       {canComplete && (
@@ -1085,11 +1073,11 @@ function TableSidebar({
                           size="sm"
                           variant="default"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5 bg-orange-500 hover:bg-orange-600"
-                          disabled={completingId === orderId}
-                          onClick={() => onComplete(orderId)}
+                          disabled={completingId === completionOrderId}
+                          onClick={() => completionOrderId && onComplete(completionOrderId)}
                         >
                           <LogOut className="h-3 w-3" />
-                          {completingId === orderId ? "Memproses…" : "Customer Sudah Keluar"}
+                          {completingId === completionOrderId ? t("sidebar.completing") + "…" : t("sidebar.customerLeft")}
                         </Button>
                       )}
                     </div>
@@ -1112,6 +1100,7 @@ export function LiveTablePageClient() {
   const outletName = searchParams.get("outlet_name") ?? undefined;
   const floorPlanId = searchParams.get("floor_plan_id") ?? undefined;
 
+  const t = useTranslations("posTerminal.liveTable");
   const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
 
   // Register as full-screen so DashboardLayout hides the outer header/breadcrumb.
@@ -1159,6 +1148,12 @@ export function LiveTablePageClient() {
   const [servingItemId, setServingItemId] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(null);
   const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<LiveTableInfo | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<POSOrder | null>(null);
+  const [receiptCustomerName, setReceiptCustomerName] = useState<string | undefined>();
+  const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<string | undefined>();
+  const [receiptTenderAmount, setReceiptTenderAmount] = useState<number | undefined>();
+
+  const suppressedToastEvents = useMemo(() => ["pos.payment_confirmed", "pos.order_status_changed"], []);
 
   const handleWsEvent = useCallback((eventType: string, payload: {
     table_label?: string;
@@ -1175,13 +1170,13 @@ export function LiveTablePageClient() {
   }, []);
 
   // Real-time staff notifications and payment confirmation state in Active Tables.
-  usePosWs(outletId, { onEvent: handleWsEvent });
+  usePosWs(outletId, { onEvent: handleWsEvent, suppressToastEvents: suppressedToastEvents });
 
   const handleOpenPaymentNotice = useCallback(() => {
     if (!paymentNotice) return;
     const target = liveTableInfos.find((info) => {
       const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-      if (paymentNotice.orderId && info.order?.id === paymentNotice.orderId) {
+      if (paymentNotice.orderId && (info.unpaidOrder?.id === paymentNotice.orderId || info.order?.id === paymentNotice.orderId)) {
         return true;
       }
       return label === paymentNotice.tableLabel;
@@ -1200,9 +1195,9 @@ export function LiveTablePageClient() {
   }, []);
 
   const handleOpenPaymentAction = useCallback((info: LiveTableInfo) => {
-    if (!info.order) return;
+    if (!info.unpaidOrder && !info.order) return;
 
-    if (info.status === "WAITING_PAYMENT") {
+    if (info.unpaidOrder || info.status === "WAITING_PAYMENT") {
       setSelectedPaymentInfo(info);
       return;
     }
@@ -1215,14 +1210,14 @@ export function LiveTablePageClient() {
       setServingId(orderId);
       try {
         await serveOrder.mutateAsync(orderId);
-        toast.success("Status meja diubah ke Served");
+        toast.success(t("messages.tableStatusChanged"));
       } catch {
-        toast.error("Gagal memperbarui status");
+        toast.error(t("messages.updateStatusFailed"));
       } finally {
         setServingId(null);
       }
     },
-    [serveOrder],
+    [serveOrder, t],
   );
 
   const handleComplete = useCallback(
@@ -1230,14 +1225,14 @@ export function LiveTablePageClient() {
       setCompletingId(orderId);
       try {
         await completeOrder.mutateAsync(orderId);
-        toast.success("Meja sudah selesai, customer keluar");
+        toast.success(t("messages.customerLeft"));
       } catch {
-        toast.error("Gagal memperbarui status");
+        toast.error(t("messages.updateStatusFailed"));
       } finally {
         setCompletingId(null);
       }
     },
-    [completeOrder],
+    [completeOrder, t],
   );
 
   const handleServeItem = useCallback(
@@ -1246,14 +1241,14 @@ export function LiveTablePageClient() {
       setServingItemId(key);
       try {
         await serveOrderItem.mutateAsync({ orderId, itemId });
-        toast.success("Item disajikan");
+        toast.success(t("messages.itemServed"));
       } catch {
-        toast.error("Gagal menyajikan item");
+        toast.error(t("messages.serveItemFailed"));
       } finally {
         setServingItemId(null);
       }
     },
-    [serveOrderItem],
+    [serveOrderItem, t],
   );
 
   const handleTableClick = useCallback(
@@ -1285,7 +1280,7 @@ export function LiveTablePageClient() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center space-y-3">
           <LoadingSpinner className="mx-auto h-8 w-8 text-primary" strokeWidth={2} />
-          <p className="text-sm text-muted-foreground">Loading…</p>
+           <p className="text-sm text-muted-foreground">{t("messages.loading")}</p>
         </div>
       </div>
     );
@@ -1294,13 +1289,13 @@ export function LiveTablePageClient() {
   if (!plan) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 px-4">
-        <p className="font-semibold text-lg">No floor plan found</p>
-        <p className="text-sm text-muted-foreground text-center max-w-xs">
-          No published floor plan is associated with this outlet.
-        </p>
+         <p className="font-semibold text-lg">{t("messages.noFloorPlanTitle")}</p>
+         <p className="text-sm text-muted-foreground text-center max-w-xs">
+           {t("messages.noFloorPlanDescription")}
+         </p>
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
-          Go Back
+           {t("messages.goBack")}
         </Button>
       </div>
     );
@@ -1362,7 +1357,7 @@ export function LiveTablePageClient() {
         ).map(([key, cfg]) => (
           <div key={key} className="flex items-center gap-1.5 shrink-0">
             <span className={cn("h-2 w-2 rounded-full", cfg.dot)} />
-            <span className="text-[11px] text-muted-foreground">{cfg.label}</span>
+             <span className="text-[11px] text-muted-foreground">{getStatusLabel(key as LiveTableStatus, t)}</span>
           </div>
         ))}
       </div>
@@ -1407,11 +1402,42 @@ export function LiveTablePageClient() {
       <OrderDetailDialog
         info={selectedInfo}
         onClose={() => setSelectedInfo(null)}
+        onOpenReceipt={({ order, customerName, customerPhone, tenderAmount }) => {
+          setReceiptOrder(order);
+          setReceiptCustomerName(customerName ?? order.customer_name ?? undefined);
+          setReceiptCustomerPhone(customerPhone);
+          setReceiptTenderAmount(tenderAmount);
+        }}
       />
-      <QuickPaymentDialog
+      <ActiveTablePaymentDialog
         info={selectedPaymentInfo}
         onClose={() => setSelectedPaymentInfo(null)}
+        onSuccess={({ order, customerName, customerPhone, tenderAmount }) => {
+          setSelectedPaymentInfo(null);
+          setReceiptOrder(order);
+          setReceiptCustomerName(customerName ?? order.customer_name ?? undefined);
+          setReceiptCustomerPhone(customerPhone);
+          setReceiptTenderAmount(tenderAmount);
+          toast.success(t("messages.paymentConfirmed"), { id: "live-table-payment-confirmed" });
+        }}
       />
+
+      {receiptOrder && (
+        <POSReceiptDialog
+          open={!!receiptOrder}
+          onClose={() => {
+            setReceiptOrder(null);
+            setReceiptCustomerName(undefined);
+            setReceiptCustomerPhone(undefined);
+            setReceiptTenderAmount(undefined);
+          }}
+          order={receiptOrder}
+          customerName={receiptCustomerName}
+          customerPhone={receiptCustomerPhone}
+          outletName={outletName}
+          tenderAmount={receiptTenderAmount}
+        />
+      )}
     </div>
   );
 }

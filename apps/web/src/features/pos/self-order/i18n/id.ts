@@ -6,6 +6,7 @@ export const posSelflOrderId = {
       outOfStock: "Habis",
       add: "+ Tambah",
       viewOrder: "Lihat Pesanan",
+        item: "{count, plural, =1 {Item} other {Items}}",
       emptyTitle: "Menu belum tersedia",
       emptyDescription:
         "Produk untuk meja ini belum dipublikasikan. Silakan hubungi kasir atau admin outlet.",
@@ -29,6 +30,7 @@ export const posSelflOrderId = {
       total: "Total",
       payAtCashier: "Bayar di Kasir",
       payNow: "Bayar Sekarang",
+      cancel: "Batal",
       pleaseEnterName: "Masukkan nama Anda",
       selectPaymentMethod: "Pilih cara bayar",
     },
@@ -39,11 +41,15 @@ export const posSelflOrderId = {
       total: "Total",
       updatingEvery5Seconds: "Memperbarui otomatis setiap 5 detik",
       orderAgain: "Pesan Lagi",
+      cancelled: "Pesanan dibatalkan",
+      cancelFailed: "Gagal membatalkan pesanan",
+      paymentCancelled: "Pembayaran dibatalkan oleh kasir.",
       statusLabels: {
         PENDING: "Menunggu Konfirmasi",
         WAITING_PAYMENT: "Menunggu Pembayaran",
         CONFIRMED: "Dikonfirmasi",
         PREPARING: "Sedang Diproses",
+          IN_PROGRESS: "Sedang Berjalan",
         READY: "Siap Disajikan",
         SERVED: "Disajikan",
         COMPLETED: "Selesai",
@@ -53,6 +59,7 @@ export const posSelflOrderId = {
     },
     page: {
       loadingMenu: "Memuat menu...",
+      unpaidPayment: "Belum dibayar (kasir)",
       invalidQR: "QR tidak valid",
       invalidQRDescription: "Link QR ini tidak valid atau sudah kedaluwarsa.",
       outletClosed: "Outlet sedang tutup",
@@ -61,6 +68,7 @@ export const posSelflOrderId = {
       networkErrorDescription:
         "Terjadi gangguan koneksi atau server. Silakan refresh halaman beberapa saat lagi.",
       failedOrder: "Gagal membuat pesanan. Coba lagi.",
+      orderCannotModify: "Pesanan sebelumnya sudah tidak bisa diubah. Silakan mulai pesanan baru.",
     },
   },
 };

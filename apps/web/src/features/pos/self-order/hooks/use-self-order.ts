@@ -36,7 +36,13 @@ export function useOrderStatus(token: string, orderId: string) {
     select: (r) => r.data,
     enabled: !!token && !!orderId,
     retry: false,
-    refetchInterval: false,
+    refetchInterval: (query) => {
+      const status = (query.state.data as { status?: string } | undefined)?.status;
+      if (status === "PAID" || status === "COMPLETED" || status === "CANCELLED" || status === "VOIDED") {
+        return false;
+      }
+      return 5_000;
+    },
   });
 }
 
@@ -57,5 +63,11 @@ export function useInitiatePayment(token: string, orderId: string) {
 export function useMarkPayAtCashier(token: string, orderId: string) {
   return useMutation({
     mutationFn: () => selfOrderService.markPayAtCashier(token, orderId),
+  });
+}
+
+export function useCancelOrder(token: string, orderId: string) {
+  return useMutation({
+    mutationFn: () => selfOrderService.cancelOrder(token, orderId),
   });
 }

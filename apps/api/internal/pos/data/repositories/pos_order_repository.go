@@ -35,6 +35,7 @@ type PosOrderRepository interface {
 	Create(ctx context.Context, order *models.PosOrder) error
 	GetByID(ctx context.Context, id string) (*models.PosOrder, error)
 	FindActiveByOutletAndTable(ctx context.Context, outletID, tableID string) (*models.PosOrder, error)
+	FindActiveByOutletAndTableLabel(ctx context.Context, outletID, tableLabel string) (*models.PosOrder, error)
 	Update(ctx context.Context, order *models.PosOrder) error
 	List(ctx context.Context, params PosOrderListParams) ([]models.PosOrder, int64, error)
 	ListByParams(ctx context.Context, params POSOrderListParams) ([]models.PosOrder, int64, error)
@@ -80,7 +81,24 @@ func (r *posOrderRepository) FindActiveByOutletAndTable(ctx context.Context, out
 			models.PosOrderStatusDraft,
 			models.PosOrderStatusInProgress,
 			models.PosOrderStatusReady,
-			models.PosOrderStatusServed,
+		}).
+		Order("updated_at DESC").
+		First(&order).Error
+	if err != nil {
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *posOrderRepository) FindActiveByOutletAndTableLabel(ctx context.Context, outletID, tableLabel string) (*models.PosOrder, error) {
+	var order models.PosOrder
+	normalizedLabel := tableLabel
+	err := r.getDB(ctx).
+		Preload("Items").
+		Where("outlet_id = ? AND lower(trim(table_label)) = lower(trim(?)) AND status IN ?", outletID, normalizedLabel, []models.PosOrderStatus{
+			models.PosOrderStatusDraft,
+			models.PosOrderStatusInProgress,
+			models.PosOrderStatusReady,
 		}).
 		Order("updated_at DESC").
 		First(&order).Error

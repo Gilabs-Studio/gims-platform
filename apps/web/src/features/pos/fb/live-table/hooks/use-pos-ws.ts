@@ -20,6 +20,7 @@ export type PosWsEvent = {
 
 interface UsePosWsOptions {
   onEvent?: (eventType: string, payload: PosWsEvent["payload"] | undefined) => void;
+  suppressToastEvents?: string[];
 }
 
 function buildPosRealtimeNotification(
@@ -103,6 +104,7 @@ function nextDelay(attempt: number): number {
 export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions) {
   const queryClient = useQueryClient();
   const onEvent = options?.onEvent;
+  const suppressToastEvents = options?.suppressToastEvents ?? [];
   const addRealtimeNotification = useNotificationStore((state) => state.addRealtimeNotification);
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
@@ -144,20 +146,24 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
 
         if (eventType === "pos.new_customer_order") {
           const tableLabel = msg.payload?.table_label ?? "Meja";
-          toast.info(`Pesanan baru dari ${tableLabel}!`, {
-            duration: 8000,
-            position: "top-center",
-          });
+          if (!suppressToastEvents.includes(eventType)) {
+            toast.info(`Pesanan baru dari ${tableLabel}!`, {
+              duration: 8000,
+              position: "top-center",
+            });
+          }
           queryClient.invalidateQueries({ queryKey: posKeys.orders() });
           return;
         }
 
         if (eventType === "pos.payment_confirmed") {
           const tableLabel = msg.payload?.table_label ?? "Meja";
-          toast.success(`Pembayaran terkonfirmasi untuk ${tableLabel}.`, {
-            duration: 8000,
-            position: "top-center",
-          });
+          if (!suppressToastEvents.includes(eventType)) {
+            toast.success(`Pembayaran terkonfirmasi untuk ${tableLabel}.`, {
+              duration: 8000,
+              position: "top-center",
+            });
+          }
           queryClient.invalidateQueries({ queryKey: posKeys.orders() });
           return;
         }
@@ -165,10 +171,12 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
         if (eventType === "pos.order_status_changed") {
           if ((msg.payload?.status ?? "") === "PAID") {
             const tableLabel = msg.payload?.table_label ?? "Meja";
-            toast.success(`Status pembayaran ${tableLabel} sudah PAID.`, {
-              duration: 6000,
-              position: "top-center",
-            });
+            if (!suppressToastEvents.includes(eventType)) {
+              toast.success(`Status pembayaran ${tableLabel} sudah PAID.`, {
+                duration: 6000,
+                position: "top-center",
+              });
+            }
           }
           queryClient.invalidateQueries({ queryKey: posKeys.orders() });
         }
@@ -194,5 +202,5 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [addRealtimeNotification, onEvent, outletId, queryClient]);
+  }, [addRealtimeNotification, onEvent, outletId, queryClient, suppressToastEvents]);
 }

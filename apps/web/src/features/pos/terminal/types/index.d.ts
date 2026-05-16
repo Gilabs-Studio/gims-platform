@@ -163,7 +163,7 @@ export interface POSCatalogItem {
 // ─── Payment ─────────────────────────────────────────────────────────────────
 
 export type POSPaymentMethod = "CASH" | "CARD" | "QRIS" | "TRANSFER" | "DIGITAL";
-export type POSPaymentStatus = "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
+export type POSPaymentStatus = "PENDING" | "PAID" | "CANCELLED" | "FAILED" | "EXPIRED" | "REFUNDED";
 
 // Xendit payment channel categories for Indonesia
 export type XenditChannelCategory = "QR_CODE" | "EWALLET" | "BANK_TRANSFER" | "CARDS";

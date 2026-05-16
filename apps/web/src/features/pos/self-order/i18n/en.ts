@@ -6,6 +6,7 @@ export const posSelflOrderEn = {
       outOfStock: "Out of Stock",
       add: "+ Add",
       viewOrder: "View Order",
+        item: "{count, plural, =1 {Item} other {Items}}",
       emptyTitle: "Menu is not available yet",
       emptyDescription:
         "No products are published for this table yet. Please contact the cashier or outlet admin.",
@@ -29,6 +30,7 @@ export const posSelflOrderEn = {
       total: "Total",
       payAtCashier: "Pay at Cashier",
       payNow: "Pay Now",
+      cancel: "Cancel",
       pleaseEnterName: "Please enter your name",
       selectPaymentMethod: "Select payment method",
     },
@@ -39,11 +41,15 @@ export const posSelflOrderEn = {
       total: "Total",
       updatingEvery5Seconds: "Updating automatically every 5 seconds",
       orderAgain: "Order Again",
+      cancelled: "Order cancelled",
+      cancelFailed: "Failed to cancel order",
+      paymentCancelled: "Payment was cancelled by cashier.",
       statusLabels: {
         PENDING: "Awaiting Confirmation",
         WAITING_PAYMENT: "Waiting for Payment",
         CONFIRMED: "Confirmed",
         PREPARING: "Being Prepared",
+          IN_PROGRESS: "In Progress",
         READY: "Ready to Serve",
         SERVED: "Served",
         COMPLETED: "Completed",
@@ -53,6 +59,7 @@ export const posSelflOrderEn = {
     },
     page: {
       loadingMenu: "Loading menu...",
+      unpaidPayment: "Unpaid at cashier",
       invalidQR: "Invalid QR",
       invalidQRDescription: "This QR link is invalid or has expired.",
       outletClosed: "Outlet is closed",
@@ -61,6 +68,7 @@ export const posSelflOrderEn = {
       networkErrorDescription:
         "There was a network or server issue. Please refresh and try again shortly.",
       failedOrder: "Failed to create order. Try again.",
+      orderCannotModify: "The previous order can no longer be modified. Please start a new order.",
     },
   },
 };

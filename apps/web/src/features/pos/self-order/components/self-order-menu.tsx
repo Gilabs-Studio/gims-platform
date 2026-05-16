@@ -166,7 +166,7 @@ export function SelfOrderMenu({
               <div className="flex flex-col">
                 <span className="text-sm font-semibold leading-tight">{t("menu.viewOrder")}</span>
                 <span className="text-[11px] text-zinc-300 dark:text-zinc-600 font-medium leading-tight">
-                  {cart.length} {cart.length === 1 ? 'Item' : 'Items'}
+                   {cart.length} {t("menu.item", { count: cart.length })}
                 </span>
               </div>
             </div>

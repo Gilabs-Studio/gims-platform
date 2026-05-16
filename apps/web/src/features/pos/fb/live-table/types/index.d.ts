@@ -14,6 +14,15 @@ export interface LiveTableInfo {
   tableObj: LayoutObject;
   seatCount: number;
   status: LiveTableStatus;
+  orders: POSOrder[];
+  unpaidOrder: POSOrder | null;
+  unpaidOrders: POSOrder[];
+  serviceOrder: POSOrder | null;
+  serviceOrders: POSOrder[];
+  servedOrders: POSOrder[];
+  needsPaymentCount: number;
+  needsServeCount: number;
+  doneCount: number;
   order: POSOrder | null;
   // Duration in seconds since the order was created
   durationSec: number;

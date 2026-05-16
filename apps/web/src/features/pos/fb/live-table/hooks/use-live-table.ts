@@ -4,16 +4,38 @@ import { useMemo } from "react";
 import { useFloorLayouts, useFloorLayout } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
 import { usePOSOrderList } from "@/features/pos/terminal/hooks/use-pos";
 import type { LayoutObject } from "@/features/pos/fb/floor-layout/types";
+import type { POSOrder } from "@/features/pos/terminal/types";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
 
 const WARN_THRESHOLD_SEC = 30 * 60; // 30 minutes
 
 const WAITING_PAYMENT_STATUSES = ["DRAFT", "IN_PROGRESS", "READY", "WAITING_PAYMENT"] as const;
+const SERVICE_FLOW_STATUSES = ["PAID", "PARTIAL_SERVED", "SERVED"] as const;
 
-function deriveStatus(order: { status: string } | null, durationSec: number): LiveTableStatus {
-  if (!order) return "AVAILABLE";
-  if (WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number])) {
+function isPendingServeItem(status: POSOrder["items"][number]["status"]): boolean {
+  return status !== "SERVED" && status !== "CANCELLED";
+}
+
+function getOrderPendingServeCount(order: POSOrder): number {
+  if (!order.items?.length) return 0;
+  return order.items.reduce((total, item) => {
+    if (!isPendingServeItem(item.status)) return total;
+    return total + Math.max(item.quantity, 0);
+  }, 0);
+}
+
+function getOrderPaymentCount(order: POSOrder): number {
+  if (!order.items?.length) return 1;
+  return order.items.reduce((total, item) => total + Math.max(item.quantity, 0), 0);
+}
+
+function deriveStatus(unpaidOrder: POSOrder | null, serviceOrder: POSOrder | null, servedOrders: POSOrder[], durationSec: number): LiveTableStatus {
+  if (unpaidOrder) {
     return "WAITING_PAYMENT";
+  }
+  const order = serviceOrder;
+  if (!order) {
+    return servedOrders.length > 0 ? "SERVED" : "AVAILABLE";
   }
   // PAID → table is occupied (customer waiting for food)
   if (order.status === "PAID") {
@@ -25,6 +47,10 @@ function deriveStatus(order: { status: string } | null, durationSec: number): Li
   if (order.status === "SERVED") return "SERVED";
   // Any other status (DRAFT, IN_PROGRESS, READY, etc.) → still free for walk-ins
   return "AVAILABLE";
+}
+
+function normalizeLabel(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
 }
 
 function buildTableSeatCountMap(objects: LayoutObject[]): Map<string, number> {
@@ -110,58 +136,84 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
 
   const orders = useMemo(() => ordersData?.data ?? [], [ordersData?.data]);
 
-  // Build maps from table_id and table_label → most recent active order.
-  const tableOrderMaps = useMemo(() => {
-    const byTableID = new Map<string, (typeof orders)[number]>();
-    const byTableLabel = new Map<string, (typeof orders)[number]>();
-    for (const order of orders) {
-      // Show occupied tables for payment-waiting and post-payment lifecycle statuses.
+  const activeOrders = useMemo(() => {
+    return orders.filter((order) => {
       const isWaitingCustomerPayment =
         WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]);
-
-      const isPostPaymentOccupied = ["PAID", "PARTIAL_SERVED", "SERVED"].includes(order.status);
-      if (!isWaitingCustomerPayment && !isPostPaymentOccupied) continue;
-
-      if (order.table_id) {
-        const existingByID = byTableID.get(order.table_id);
-        if (!existingByID || order.created_at > existingByID.created_at) {
-          byTableID.set(order.table_id, order);
-        }
-      }
-
-      if (order.table_label) {
-        const existingByLabel = byTableLabel.get(order.table_label);
-        if (!existingByLabel || order.created_at > existingByLabel.created_at) {
-          byTableLabel.set(order.table_label, order);
-        }
-      }
-    }
-    return { byTableID, byTableLabel };
+      const isPostPaymentOccupied =
+        SERVICE_FLOW_STATUSES.includes(order.status as (typeof SERVICE_FLOW_STATUSES)[number]);
+      return isWaitingCustomerPayment || isPostPaymentOccupied;
+    });
   }, [orders]);
 
   // Build the live table info array — recomputes whenever ticker fires (nowProp changes)
   const liveTableInfos = useMemo<LiveTableInfo[]>(() => {
     return tableObjects.map((obj) => {
       const tableLabel = obj.label ?? obj.tableNumber?.toString() ?? obj.id;
-      const order =
-        tableOrderMaps.byTableID.get(obj.id) ??
-        tableOrderMaps.byTableLabel.get(tableLabel) ??
-        null;
+      const normalizedTableLabel = normalizeLabel(tableLabel);
+      const matchedMap = new Map<string, POSOrder>();
+
+      for (const order of activeOrders) {
+        const sameTableID = !!order.table_id && order.table_id === obj.id;
+        const sameTableLabel = normalizeLabel(order.table_label) === normalizedTableLabel;
+        if (!sameTableID && !sameTableLabel) continue;
+        matchedMap.set(order.id, order);
+      }
+
+      const matchedOrders = Array.from(matchedMap.values()).sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      const unpaidOrders = matchedOrders.filter((order) =>
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number])
+      );
+
+      const serviceFlowOrders = [...matchedOrders]
+        .filter((order) => SERVICE_FLOW_STATUSES.includes(order.status as (typeof SERVICE_FLOW_STATUSES)[number]))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      const serviceOrders = serviceFlowOrders.filter((order) =>
+        order.status === "PAID" || order.status === "PARTIAL_SERVED"
+      );
+
+      const servedOrders = serviceFlowOrders.filter((order) => order.status === "SERVED");
+
+      const unpaidOrder = unpaidOrders[0] ?? null;
+      const serviceOrder = serviceOrders[0] ?? null;
+
+      const needsPaymentCount = unpaidOrders.reduce((total, order) => total + getOrderPaymentCount(order), 0);
+      const needsServeCount = serviceOrders.reduce((total, order) => {
+        const count = getOrderPendingServeCount(order);
+        if (count > 0) return total + count;
+        return total + 1;
+      }, 0);
+      const doneCount = servedOrders.length;
+
+      const displayOrder = unpaidOrder ?? serviceOrder ?? servedOrders[0] ?? matchedOrders[0] ?? null;
       const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
       const durationSec =
-        order && typeof nowProp === "number"
-          ? Math.floor((nowProp - new Date(order.created_at).getTime()) / 1000)
+        displayOrder && typeof nowProp === "number"
+          ? Math.floor((nowProp - new Date(displayOrder.created_at).getTime()) / 1000)
           : 0;
       return {
         tableObj: obj,
         seatCount,
-        status: deriveStatus(order, durationSec),
-        order,
+        status: deriveStatus(unpaidOrder, serviceOrder, servedOrders, durationSec),
+        orders: matchedOrders,
+        unpaidOrder,
+        unpaidOrders,
+        serviceOrder,
+        serviceOrders,
+        servedOrders,
+        needsPaymentCount,
+        needsServeCount,
+        doneCount,
+        order: displayOrder,
         durationSec,
         isOverThreshold: durationSec > WARN_THRESHOLD_SEC,
       };
     });
-  }, [tableObjects, tableOrderMaps, tableSeatCountMap, nowProp]);
+  }, [tableObjects, activeOrders, tableSeatCountMap, nowProp]);
 
   const isLoading = plansLoading || planDetailLoading || ordersLoading;
 

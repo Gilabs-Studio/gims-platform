@@ -60,6 +60,7 @@ export interface CustomerOrderResponse {
   order_number: string;
   table_label: string;
   status: string;
+  payment_status?: string;
   subtotal: number;
   tax_amount: number;
   total_amount: number;

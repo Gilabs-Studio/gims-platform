@@ -14,10 +14,36 @@ import type {
   AssignTableRequest,
   POSOrderListParams,
   ProcessPaymentRequest,
+  POSOrder,
   UpdatePOSReceiptWhatsAppTemplateRequest,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
 } from "../types";
+
+type POSOrderListCache = { data?: POSOrder[] };
+type POSOrderDetailCache = { data?: POSOrder };
+
+function updateOrderInListCaches(
+  qc: ReturnType<typeof useQueryClient>,
+  orderId: string,
+  updater: (order: POSOrder) => POSOrder,
+) {
+  qc.setQueriesData<POSOrderListCache>({ queryKey: [...posKeys.orders(), "list"] }, (current) => {
+    if (!current?.data?.length) return current;
+    return {
+      ...current,
+      data: current.data.map((order) => (order.id === orderId ? updater(order) : order)),
+    };
+  });
+}
+
+function deriveOrderStatusFromItems(items: POSOrder["items"]): POSOrder["status"] {
+  if (!items.length) return "PAID";
+  const pendingExists = items.some((item) => item.status !== "SERVED" && item.status !== "CANCELLED");
+  if (!pendingExists) return "SERVED";
+  const servedExists = items.some((item) => item.status === "SERVED");
+  return servedExists ? "PARTIAL_SERVED" : "PAID";
+}
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -192,6 +218,11 @@ export function useProcessCashPayment() {
     mutationFn: ({ orderId, data }: { orderId: string; data: ProcessPaymentRequest }) =>
       posPaymentService.processCash(orderId, data),
     onMutate: async ({ orderId }) => {
+      await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
+      await qc.cancelQueries({ queryKey: posKeys.orders() });
+
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+
       const orderResponse = qc.getQueryData<{ data?: { outlet_id?: string; items?: Array<{ product_id: string; quantity: number }> } }>(
         posKeys.order(orderId)
       );
@@ -240,7 +271,23 @@ export function useProcessCashPayment() {
         }
       );
 
-      return { outletId, previousCatalog };
+      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
+        if (!current?.data) return current;
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            status: "PAID",
+          },
+        };
+      });
+
+      updateOrderInListCaches(qc, orderId, (order) => ({
+        ...order,
+        status: "PAID",
+      }));
+
+      return { outletId, previousCatalog, previousOrder };
     },
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
@@ -248,10 +295,14 @@ export function useProcessCashPayment() {
       qc.invalidateQueries({ queryKey: posKeys.orders() });
       qc.invalidateQueries({ queryKey: [...posKeys.all, "catalog"] });
     },
-    onError: (_, __, context) => {
+    onError: (_, variables, context) => {
       if (context?.outletId && context.previousCatalog) {
         qc.setQueryData(posKeys.catalog(context.outletId), context.previousCatalog);
       }
+      if (context?.previousOrder) {
+        qc.setQueryData(posKeys.order(variables.orderId), context.previousOrder);
+      }
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
       toast.error("Payment failed. Please try again.");
     },
   });
@@ -275,8 +326,8 @@ export function useInitiateDigitalPayment() {
 export function useCancelPendingPOSPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) =>
-      posPaymentService.cancelPending(orderId, paymentId),
+    mutationFn: ({ orderId, paymentId, reason }: { orderId: string; paymentId: string; reason?: string }) =>
+      posPaymentService.cancelPending(orderId, paymentId, reason),
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
       qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
@@ -383,7 +434,43 @@ export function useServeOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) => posOrderService.serve(orderId),
+    onMutate: async (orderId) => {
+      await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
+      await qc.cancelQueries({ queryKey: posKeys.orders() });
+
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+
+      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
+        if (!current?.data) return current;
+        const nextItems = current.data.items.map((item) => ({ ...item, status: "SERVED" as const }));
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            items: nextItems,
+            status: "SERVED",
+          },
+        };
+      });
+
+      updateOrderInListCaches(qc, orderId, (order) => {
+        const nextItems = order.items.map((item) => ({ ...item, status: "SERVED" as const }));
+        return {
+          ...order,
+          items: nextItems,
+          status: "SERVED",
+        };
+      });
+
+      return { previousOrder };
+    },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+    onError: (_, orderId, context) => {
+      if (context?.previousOrder) {
+        qc.setQueryData(posKeys.order(orderId), context.previousOrder);
+      }
       qc.invalidateQueries({ queryKey: posKeys.orders() });
     },
   });
@@ -404,7 +491,47 @@ export function useServeOrderItem() {
   return useMutation({
     mutationFn: ({ orderId, itemId }: { orderId: string; itemId: string }) =>
       posOrderService.serveItem(orderId, itemId),
+    onMutate: async ({ orderId, itemId }) => {
+      await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
+      await qc.cancelQueries({ queryKey: posKeys.orders() });
+
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+
+      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
+        if (!current?.data) return current;
+        const nextItems = current.data.items.map((item) =>
+          item.id === itemId ? { ...item, status: "SERVED" as const } : item,
+        );
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            items: nextItems,
+            status: deriveOrderStatusFromItems(nextItems),
+          },
+        };
+      });
+
+      updateOrderInListCaches(qc, orderId, (order) => {
+        const nextItems = order.items.map((item) =>
+          item.id === itemId ? { ...item, status: "SERVED" as const } : item,
+        );
+        return {
+          ...order,
+          items: nextItems,
+          status: deriveOrderStatusFromItems(nextItems),
+        };
+      });
+
+      return { previousOrder };
+    },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+    onError: (_, variables, context) => {
+      if (context?.previousOrder) {
+        qc.setQueryData(posKeys.order(variables.orderId), context.previousOrder);
+      }
       qc.invalidateQueries({ queryKey: posKeys.orders() });
     },
   });
