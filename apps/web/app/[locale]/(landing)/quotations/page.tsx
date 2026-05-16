@@ -52,7 +52,7 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
             : "Prepare professional quotations to speed up customer approval and deal closing."
         }
         heroImageAlt={isId ? "Tampilan quotation SalesView" : "SalesView quotation interface"}
-        heroImageKey="salesOrder"
+        heroImageKey="quotationsHero"
         introTitle={isId ? "Quotations siap kirim lebih cepat" : "Quotations ready to send faster"}
         introDescription={
           isId
@@ -61,20 +61,20 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
         }
         featureBlocks={[
           {
-            title: isId ? "Template penawaran rapi" : "Clean quotation templates",
+            title: isId ? "Buat quotation dengan cepat" : "Create quotations quickly",
             description: isId
-              ? "Susun item, harga, dan ketentuan dengan format yang konsisten untuk pelanggan."
-              : "Arrange items, pricing, and terms in a consistent format for customers.",
-            screenshotKey: "quotationsTemplate",
+              ? "Isi item, harga, dan ketentuan dalam form terstruktur agar penawaran siap dikirim lebih cepat."
+              : "Fill in items, pricing, and terms in a structured form so proposals are ready to send faster.",
+            screenshotKey: "quotationsForm",
             placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Kolaborasi sales lebih mudah" : "Easier sales collaboration",
+            title: isId ? "Detail quotation lengkap" : "Complete quotation details",
             description: isId
-              ? "Tim bisa meninjau quotation tanpa kehilangan konteks peluang."
-              : "Teams can review quotations without losing deal context.",
-            screenshotKey: "quotationsCollaboration",
-            placeholder: "timelineFlow",
+              ? "Lihat seluruh informasi penawaran—item, harga, status, dan riwayat—dalam satu tampilan detail."
+              : "View all proposal information—items, pricing, status, and history—in one detailed view.",
+            screenshotKey: "quotationsDetail",
+            placeholder: "scorecardFlow",
           },
           {
             title: isId ? "Konversi ke sales order" : "Convert to sales orders",

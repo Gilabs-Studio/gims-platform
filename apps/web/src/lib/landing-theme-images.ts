@@ -42,8 +42,10 @@ export type LandingScreenshotKey =
   | "salesOrderBillingCollection"
   | "salesOrderFulfillment"
   // Quotations
-  | "quotationsTemplate"
-  | "quotationsCollaboration"
+  | "quotationsHero"
+  | "quotationsList"
+  | "quotationsForm"
+  | "quotationsDetail"
   | "quotationsToSalesOrder";
 
 type ThemePair = {
@@ -198,13 +200,21 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   },
   // Sales Orders
   // Quotations
-  quotationsTemplate: {
-    light: "/screenshot/quotations/quotations-template.webp",
-    dark: "/screenshot/quotations/quotations-template-dark.webp",
+  quotationsHero: {
+    light: "/screenshot/quotations/quotations-list.webp",
+    dark: "/screenshot/quotations/quotations-list-dark.webp",
   },
-  quotationsCollaboration: {
-    light: "/screenshot/quotations/quotations-collaboration.webp",
-    dark: "/screenshot/quotations/quotations-collaboration-dark.webp",
+  quotationsList: {
+    light: "/screenshot/quotations/quotations-list.webp",
+    dark: "/screenshot/quotations/quotations-list-dark.webp",
+  },
+  quotationsForm: {
+    light: "/screenshot/quotations/quotations-form.webp",
+    dark: "/screenshot/quotations/quotations-form-dark.webp",
+  },
+  quotationsDetail: {
+    light: "/screenshot/quotations/quotations-detail.webp",
+    dark: "/screenshot/quotations/quotations-detail-dark.webp",
   },
   quotationsToSalesOrder: {
     light: "/screenshot/quotations/quotations-to-sales-order.webp",
