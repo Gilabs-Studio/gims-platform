@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { Layers, MapPin, Search, X, RotateCcw, ChevronLeft, Globe } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
+import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -630,7 +631,7 @@ function GeographicMapViewComponent() {
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50 backdrop-blur-sm">
             <div className="text-center text-muted-foreground">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary mx-auto mb-2" />
+              <LoadingSpinner className="mx-auto mb-2 h-8 w-8 text-primary" strokeWidth={2.5} />
               <p className="text-sm">{t("common.loading")}</p>
             </div>
           </div>
@@ -682,7 +683,7 @@ export const GeographicMapView = dynamic(
     loading: () => (
       <div className="flex items-center justify-center bg-muted h-full w-full">
         <div className="text-center text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary mx-auto mb-2" />
+          <LoadingSpinner className="mx-auto mb-2 h-8 w-8 text-primary" strokeWidth={2.5} />
           <p className="text-sm">Loading map...</p>
         </div>
       </div>

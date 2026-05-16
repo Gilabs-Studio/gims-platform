@@ -33,7 +33,6 @@ import {
 } from "../types";
 
 const EMPTY_COMPANIES: never[] = [];
-const EMPTY_VALUE_LIST: never[] = [];
 
 export const AccountingMappingForm = () => {
   const t = useTranslations("financeSettings");

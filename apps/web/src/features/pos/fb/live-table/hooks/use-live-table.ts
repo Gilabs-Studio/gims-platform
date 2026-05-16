@@ -8,8 +8,13 @@ import type { LiveTableInfo, LiveTableStatus } from "../types";
 
 const WARN_THRESHOLD_SEC = 30 * 60; // 30 minutes
 
+const WAITING_PAYMENT_STATUSES = ["DRAFT", "IN_PROGRESS", "READY", "WAITING_PAYMENT"] as const;
+
 function deriveStatus(order: { status: string } | null, durationSec: number): LiveTableStatus {
   if (!order) return "AVAILABLE";
+  if (WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number])) {
+    return "WAITING_PAYMENT";
+  }
   // PAID → table is occupied (customer waiting for food)
   if (order.status === "PAID") {
     return durationSec > WARN_THRESHOLD_SEC ? "WARN_LONG" : "SEATED";
@@ -95,38 +100,53 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
 
   const tableSeatCountMap = useMemo(() => buildTableSeatCountMap(layoutObjects), [layoutObjects]);
 
-  // Load all open orders for this outlet (poll every 15s for real-time status).
+  // Load orders once; real-time updates are pushed via WebSocket invalidation.
   const {
     data: ordersData,
     isLoading: ordersLoading,
   } = usePOSOrderList(
-    { outlet_id: outletId, per_page: 100 },
-    { refetchInterval: 15_000 }
+    { outlet_id: outletId, per_page: 100 }
   );
 
   const orders = useMemo(() => ordersData?.data ?? [], [ordersData?.data]);
 
-  // Build a map from table_label → most recent active order
-  const tableOrderMap = useMemo(() => {
-    const map = new Map<string, (typeof orders)[number]>();
+  // Build maps from table_id and table_label → most recent active order.
+  const tableOrderMaps = useMemo(() => {
+    const byTableID = new Map<string, (typeof orders)[number]>();
+    const byTableLabel = new Map<string, (typeof orders)[number]>();
     for (const order of orders) {
-      if (!order.table_label) continue;
-      // Only show a table as occupied when payment has been confirmed (PAID),
-      // partially served (PARTIAL_SERVED), or fully served (SERVED).
-      if (!["PAID", "PARTIAL_SERVED", "SERVED"].includes(order.status)) continue;
-      const existing = map.get(order.table_label);
-      if (!existing || order.created_at > existing.created_at) {
-        map.set(order.table_label, order);
+      // Show occupied tables for payment-waiting and post-payment lifecycle statuses.
+      const isWaitingCustomerPayment =
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]);
+
+      const isPostPaymentOccupied = ["PAID", "PARTIAL_SERVED", "SERVED"].includes(order.status);
+      if (!isWaitingCustomerPayment && !isPostPaymentOccupied) continue;
+
+      if (order.table_id) {
+        const existingByID = byTableID.get(order.table_id);
+        if (!existingByID || order.created_at > existingByID.created_at) {
+          byTableID.set(order.table_id, order);
+        }
+      }
+
+      if (order.table_label) {
+        const existingByLabel = byTableLabel.get(order.table_label);
+        if (!existingByLabel || order.created_at > existingByLabel.created_at) {
+          byTableLabel.set(order.table_label, order);
+        }
       }
     }
-    return map;
+    return { byTableID, byTableLabel };
   }, [orders]);
 
   // Build the live table info array — recomputes whenever ticker fires (nowProp changes)
   const liveTableInfos = useMemo<LiveTableInfo[]>(() => {
     return tableObjects.map((obj) => {
       const tableLabel = obj.label ?? obj.tableNumber?.toString() ?? obj.id;
-      const order = tableOrderMap.get(tableLabel) ?? null;
+      const order =
+        tableOrderMaps.byTableID.get(obj.id) ??
+        tableOrderMaps.byTableLabel.get(tableLabel) ??
+        null;
       const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
       const durationSec =
         order && typeof nowProp === "number"
@@ -141,7 +161,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
         isOverThreshold: durationSec > WARN_THRESHOLD_SEC,
       };
     });
-  }, [tableObjects, tableOrderMap, tableSeatCountMap, nowProp]);
+  }, [tableObjects, tableOrderMaps, tableSeatCountMap, nowProp]);
 
   const isLoading = plansLoading || planDetailLoading || ordersLoading;
 

@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	scheduleRead   = "crm_schedule.read"
-	scheduleCreate = "crm_schedule.create"
-	scheduleUpdate = "crm_schedule.update"
-	scheduleDelete = "crm_schedule.delete"
+	scheduleRead   = "crm_task.read"
+	scheduleCreate = "crm_task.create"
+	scheduleUpdate = "crm_task.update"
+	scheduleDelete = "crm_task.delete"
 )
 
 // RegisterScheduleRoutes registers all schedule-related routes

@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"gorm.io/gorm"

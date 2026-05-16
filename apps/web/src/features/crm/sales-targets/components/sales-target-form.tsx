@@ -35,6 +35,7 @@ export function SalesTargetForm({ open, onClose, target }: SalesTargetFormProps)
     form,
     t,
     isEdit,
+    isOwnScope,
     activeTab,
     setActiveTab,
     isLoading,
@@ -82,7 +83,7 @@ export function SalesTargetForm({ open, onClose, target }: SalesTargetFormProps)
                         <Select 
                           value={field.value} 
                           onValueChange={field.onChange}
-                          disabled={isEdit} // Cannot change employee once created
+                          disabled={isEdit || isOwnScope} // OWN scope uses backend/user-scoped employee
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={t("selectEmployee")} />

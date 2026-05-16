@@ -164,6 +164,19 @@ export function TaskFormDialog({
     form.setValue("due_date", dueDate ? format(dueDate, "yyyy-MM-dd") : "");
   }, [dueDate, form]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (employees.length !== 1) return;
+
+    const onlyEmployeeId = employees[0]?.id;
+    if (!onlyEmployeeId) return;
+
+    const currentAssigned = form.getValues("assigned_to");
+    if (!currentAssigned) {
+      form.setValue("assigned_to", onlyEmployeeId, { shouldValidate: true });
+    }
+  }, [open, employees, form]);
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -316,7 +329,7 @@ export function TaskFormDialog({
                 render={({ field }) => (
                   // key forces re-mount once employees are loaded so the Select displays the correct label
                   <Select key={`${field.value ?? ""}-${employees.length}`} value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger className="cursor-pointer">
+                    <SelectTrigger className="cursor-pointer" disabled={employees.length === 1}>
                       <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>

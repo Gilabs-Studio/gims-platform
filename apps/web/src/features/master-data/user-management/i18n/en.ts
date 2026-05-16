@@ -143,6 +143,8 @@ export const userManagementEn = {
     statusLabel: "Status",
     statusActive: "Active",
     statusInactive: "Inactive",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     cancel: "Cancel",
     submitCreate: "Create",
     submitUpdate: "Update",

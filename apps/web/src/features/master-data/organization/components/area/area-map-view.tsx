@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LoadingSpinner } from "@/components/loading";
 import { cn } from "@/lib/utils";
 import L from "leaflet";
 // Static imports are safe here — this whole file is loaded via dynamic({ ssr: false })
@@ -421,7 +422,7 @@ function AreaMapViewComponent({
     return (
       <div className={cn("flex items-center justify-center bg-muted h-full w-full", className)}>
         <div className="text-center text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary mx-auto mb-2" />
+          <LoadingSpinner className="mx-auto mb-2 h-8 w-8 text-primary" strokeWidth={2.5} />
           <p className="text-sm">Loading map...</p>
         </div>
       </div>
@@ -516,7 +517,7 @@ export const AreaMapView = dynamic(
     loading: () => (
       <div className="flex items-center justify-center bg-muted h-full w-full">
         <div className="text-center text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary mx-auto mb-2" />
+          <LoadingSpinner className="mx-auto mb-2 h-8 w-8 text-primary" strokeWidth={2.5} />
           <p className="text-sm">Loading map...</p>
         </div>
       </div>

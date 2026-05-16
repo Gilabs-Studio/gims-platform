@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -10,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -43,10 +46,13 @@ func (h *ActivityHandler) Create(c *gin.Context) {
 		}
 	}
 
-	// Use the explicitly provided employee_id if present; fall back to JWT user
-	employeeID := createdBy
-	if req.EmployeeID != nil && *req.EmployeeID != "" {
-		employeeID = *req.EmployeeID
+	employeeID, resolveErr := h.resolveActivityEmployeeID(c, req, createdBy)
+	if resolveErr != nil {
+		errors.ErrorResponse(c, "INVALID_FORMAT", map[string]interface{}{
+			"field":   "employee_id",
+			"message": resolveErr.Error(),
+		}, nil)
+		return
 	}
 
 	result, err := h.uc.Create(c.Request.Context(), req, employeeID)
@@ -61,6 +67,74 @@ func (h *ActivityHandler) Create(c *gin.Context) {
 	}
 
 	response.SuccessResponseCreated(c, result, meta)
+}
+
+func (h *ActivityHandler) resolveActivityEmployeeID(c *gin.Context, req dto.CreateActivityRequest, authUserID string) (string, error) {
+	candidate := ""
+
+	if req.EmployeeID != nil && strings.TrimSpace(*req.EmployeeID) != "" {
+		candidate = strings.TrimSpace(*req.EmployeeID)
+	} else if req.UserID != nil && strings.TrimSpace(*req.UserID) != "" {
+		candidate = strings.TrimSpace(*req.UserID)
+	} else {
+		candidate = strings.TrimSpace(authUserID)
+	}
+
+	if candidate == "" {
+		return "", fmt.Errorf("employee_id or user_id is required")
+	}
+
+	var employeeID string
+
+	// If candidate looks like a UUID, try ID lookup first.
+	if _, err := uuid.Parse(candidate); err == nil {
+		if err := h.db.WithContext(c.Request.Context()).
+			Table("employees").
+			Select("id").
+			Where("id = ? AND deleted_at IS NULL", candidate).
+			Scan(&employeeID).Error; err != nil {
+			return "", err
+		}
+		if employeeID != "" {
+			return employeeID, nil
+		}
+	}
+
+	// Try lookup by linked user_id (candidate may be a user id)
+	if err := h.db.WithContext(c.Request.Context()).
+		Table("employees").
+		Select("id").
+		Where("user_id = ? AND deleted_at IS NULL", candidate).
+		Scan(&employeeID).Error; err != nil {
+		return "", err
+	}
+	if employeeID != "" {
+		return employeeID, nil
+	}
+
+// Fallback: try lookup by employee_code (frontend may send codes like EMP-123)
+	if err := h.db.WithContext(c.Request.Context()).
+		Table("employees").
+		Select("id").
+		Where("employee_code = ? AND deleted_at IS NULL", candidate).
+		Scan(&employeeID).Error; err != nil {
+		return "", err
+	}
+	if employeeID != "" {
+		return employeeID, nil
+	}
+
+	// No employee found. If we have an authenticated user id, fall back to that
+	// so clients (users without linked employee rows) can still create activities.
+	// This writes the user UUID into the employee_id column; it's acceptable
+	// as a pragmatic fallback because some tenants don't create employee records
+	// for every user. Prefer linking employees in the long run.
+	if strings.TrimSpace(authUserID) != "" {
+		fmt.Printf("[WARN] activity: no employee profile found for candidate %s, falling back to auth user %s\n", candidate, authUserID)
+		return strings.TrimSpace(authUserID), nil
+	}
+
+	return "", fmt.Errorf("no employee profile found for the given employee_id/user_id")
 }
 
 // GetByID handles GET request to get an activity by ID

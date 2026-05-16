@@ -1,5 +1,18 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+
+interface LoadingSpinnerProps {
+  readonly className?: string;
+  readonly strokeWidth?: number;
+}
+
+export function LoadingSpinner({
+  className = "size-4 shrink-0 animate-spin",
+  strokeWidth = 2,
+}: LoadingSpinnerProps) {
+  return <Loader2 className={className} strokeWidth={strokeWidth} />;
+}
 
 export function LoginFormSkeleton() {
   return (
@@ -50,8 +63,6 @@ export function DashboardSkeleton() {
   );
 }
 
-import { Loader2 } from "lucide-react";
-
 interface ButtonLoadingProps {
   readonly children: React.ReactNode;
   readonly loading?: boolean;
@@ -62,7 +73,7 @@ export function ButtonLoading({ children, loading, loadingText }: ButtonLoadingP
   if (loading) {
     return (
       <span className="inline-flex items-center justify-center gap-2">
-        <Loader2 className="size-4 shrink-0 animate-spin" strokeWidth={2} />
+        <LoadingSpinner />
         <span className="truncate">{loadingText || children}</span>
       </span>
     );

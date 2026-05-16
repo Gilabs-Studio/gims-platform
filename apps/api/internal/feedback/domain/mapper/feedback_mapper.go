@@ -35,13 +35,16 @@ func ToFeedbackFormResponseList(forms []models.FeedbackForm) []dto.FeedbackFormR
 // ToFeedbackResponseItem converts a FeedbackResponse model to its admin list DTO.
 func ToFeedbackResponseItem(m *models.FeedbackResponse) dto.FeedbackResponseItem {
 	formTitle := ""
+	var schemaJSON json.RawMessage
 	if m.Form != nil {
 		formTitle = m.Form.Title
+		schemaJSON = json.RawMessage(m.Form.SchemaJSON)
 	}
 	return dto.FeedbackResponseItem{
 		ID:           m.ID,
 		FormID:       m.FormID,
 		FormTitle:    formTitle,
+		SchemaJSON:   schemaJSON,
 		OutletID:     m.OutletID,
 		SalesOrderID: m.SalesOrderID,
 		PosOrderID:   m.PosOrderID,

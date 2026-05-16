@@ -1,8 +1,9 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
+
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"gorm.io/gorm"
@@ -12,6 +13,7 @@ import (
 type POSPaymentRepository interface {
 	Create(ctx context.Context, payment *models.POSPayment) error
 	Update(ctx context.Context, payment *models.POSPayment) error
+	FindByID(ctx context.Context, id string) (*models.POSPayment, error)
 	FindByOrderID(ctx context.Context, orderID string) ([]models.POSPayment, error)
 	FindByExternalOrderID(ctx context.Context, externalOrderID string) (*models.POSPayment, error)
 }
@@ -31,6 +33,15 @@ func (r *posPaymentRepository) Create(ctx context.Context, payment *models.POSPa
 
 func (r *posPaymentRepository) Update(ctx context.Context, payment *models.POSPayment) error {
 	return database.GetDB(ctx, r.db).Save(payment).Error
+}
+
+func (r *posPaymentRepository) FindByID(ctx context.Context, id string) (*models.POSPayment, error) {
+	var payment models.POSPayment
+	err := database.GetDB(ctx, r.db).First(&payment, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &payment, nil
 }
 
 func (r *posPaymentRepository) FindByOrderID(ctx context.Context, orderID string) ([]models.POSPayment, error) {

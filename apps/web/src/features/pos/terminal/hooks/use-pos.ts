@@ -245,6 +245,7 @@ export function useProcessCashPayment() {
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
       qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
       qc.invalidateQueries({ queryKey: [...posKeys.all, "catalog"] });
     },
     onError: (_, __, context) => {
@@ -263,9 +264,26 @@ export function useInitiateDigitalPayment() {
       posPaymentService.initiateDigital(orderId, data),
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
     },
     onError: () => {
       toast.error("Failed to initiate digital payment.");
+    },
+  });
+}
+
+export function useCancelPendingPOSPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) =>
+      posPaymentService.cancelPending(orderId, paymentId),
+    onSuccess: (_, { orderId }) => {
+      qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
+      qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+    onError: () => {
+      toast.error("Failed to cancel digital payment.");
     },
   });
 }

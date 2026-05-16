@@ -1,6 +1,6 @@
 {
-    "name": "gims_pos",
-    "short_name": "gims_pos",
+    "name": "Salesview Pos",
+    "short_name": "Salesview Pos",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

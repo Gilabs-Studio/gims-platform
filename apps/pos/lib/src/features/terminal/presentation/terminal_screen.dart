@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../app/app.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/utils/formatters.dart';
-import '../../../core/utils/url_utils.dart';
 import '../domain/models/catalog_item.dart';
 import '../domain/models/cart_line.dart';
 import '../domain/models/pos_order.dart';
@@ -33,7 +31,6 @@ class TerminalScreen extends StatefulWidget {
 }
 
 class _TerminalScreenState extends State<TerminalScreen> {
-  final _customerName = TextEditingController();
   final _search = TextEditingController();
   List<CatalogItem> _catalog = const [];
   List<CartLine> _cart = [];
@@ -55,7 +52,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   void dispose() {
-    _customerName.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -98,6 +94,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Future<void> _openOrder() async {
     if (_cart.isEmpty) return;
     final svc = ServiceLocator.instance.terminalService;
+    final cartSnapshot = _cart
+        .map(
+          (line) => CartLine(
+            product: line.product,
+            quantity: line.quantity,
+            notes: line.notes,
+          ),
+        )
+        .toList(growable: false);
     setState(() => _loading = true);
     try {
       final selectedTable = widget.selectedTable;
@@ -107,7 +112,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
         tableId: selectedTable?.id,
         tableLabel: selectedTable?.label,
         guestCount: selectedTable?.seatCount ?? 1,
-        customerName: _customerName.text,
       );
       for (final line in _cart) {
         order = await svc.addItem(order.id, line);
@@ -118,17 +122,15 @@ class _TerminalScreenState extends State<TerminalScreen> {
         _cart = [];
       });
       if (!mounted) return;
-      final checkoutResult = await showModalBottomSheet<CheckoutResult>(
+      final checkoutResult = await showDialog<CheckoutResult>(
         context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        barrierDismissible: false,
         builder: (context) => CheckoutFlowSheet(
           order: order,
           config: _config,
           selectedTable: selectedTable,
           outletId: widget.outlet.id,
+          outletName: widget.outlet.name,
         ),
       );
       if (checkoutResult != null && mounted) {
@@ -136,6 +138,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
           checkoutResult.customerName,
           checkoutResult.tenderAmount,
         );
+      } else {
+        await _handleOrderCanceled(order, cartSnapshot);
       }
     } catch (error) {
       if (mounted) showError(context, error);
@@ -145,27 +149,32 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   void _handleOrderCompleted(String? customerName, double? tenderAmount) {
-    if (customerName != null && customerName.isNotEmpty) {
-      _customerName.text = customerName;
-    }
     setState(() {
       _cart = [];
+      _order = null;
     });
+    widget.onBackToLiveTable?.call();
   }
 
-  Future<void> _shareWhatsApp(PosOrder order, String? template) async {
-    final svc = ServiceLocator.instance.terminalService;
-    final receipt = svc.receiptUrl(order.id);
-    final text = (template == null || template.trim().isEmpty)
-        ? 'Terima kasih. Nota pesanan ${order.orderNumber}: $receipt'
-        : template
-              .replaceAll('{{order_number}}', order.orderNumber)
-              .replaceAll('{{receipt_url}}', receipt)
-              .replaceAll(
-                '{{total_amount}}',
-                formatMoney(order.totalAmount, _config?.currency ?? 'IDR'),
-              );
-    await openExternal('https://wa.me/?text=${Uri.encodeComponent(text)}');
+  Future<void> _handleOrderCanceled(
+    PosOrder order,
+    List<CartLine> cartSnapshot,
+  ) async {
+    if (!mounted) return;
+    setState(() {
+      _order = null;
+      _cart = cartSnapshot;
+    });
+
+    try {
+      await ServiceLocator.instance.terminalService.voidOrder(
+        order.id,
+        'Checkout canceled from terminal',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showError(context, error);
+    }
   }
 
   @override
@@ -188,18 +197,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 760;
         final selectedTable = widget.selectedTable;
-        final svc = ServiceLocator.instance.terminalService;
 
         final catalog = CatalogPanel(
           search: _search,
           products: products,
-          categories: _catalog
-              .map((item) => item.category?.trim())
-              .whereType<String>()
-              .where((value) => value.isNotEmpty)
-              .toSet()
-              .toList()
-            ..sort(),
+          categories:
+              _catalog
+                  .map((item) => item.category?.trim())
+                  .whereType<String>()
+                  .where((value) => value.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort(),
           onChanged: () => setState(() {}),
           onTap: _addToCart,
         );
@@ -207,23 +216,16 @@ class _TerminalScreenState extends State<TerminalScreen> {
           currency: _config?.currency ?? 'IDR',
           cart: _cart,
           order: _order,
-          customerName: _customerName,
           total: total,
           onQtyChanged: (line, qty) => setState(() => line.quantity = qty),
           onRemove: (line) => setState(
             () => _cart = _cart.where((item) => item != line).toList(),
           ),
           onOpenOrder: _openOrder,
-          onReceipt: _order == null
-              ? null
-              : () => openExternal(svc.receiptUrl(_order!.id)),
-          onWhatsApp: _order == null
-              ? null
-              : () => _shareWhatsApp(_order!, _config?.receiptWhatsAppTemplate),
         );
 
         return Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Column(
             children: [
               if (selectedTable != null)
@@ -245,7 +247,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: GimsColors.border),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(
+                                  GimsRadius.medium,
+                                ),
                               ),
                             ),
                           ),
@@ -258,8 +262,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(flex: 7, child: catalog),
-                          const SizedBox(width: 12),
-                          SizedBox(width: 360, child: cart),
+                          const SizedBox(width: 14),
+                          SizedBox(width: 390, child: cart),
                         ],
                       )
                     : Column(
