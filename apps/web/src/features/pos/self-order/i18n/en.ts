@@ -43,6 +43,7 @@ export const posSelflOrderEn = {
       orderAgain: "Order Again",
       cancelled: "Order cancelled",
       cancelFailed: "Failed to cancel order",
+      paymentCancelled: "Payment was cancelled by cashier.",
       statusLabels: {
         PENDING: "Awaiting Confirmation",
         WAITING_PAYMENT: "Waiting for Payment",
@@ -67,6 +68,7 @@ export const posSelflOrderEn = {
       networkErrorDescription:
         "There was a network or server issue. Please refresh and try again shortly.",
       failedOrder: "Failed to create order. Try again.",
+      orderCannotModify: "The previous order can no longer be modified. Please start a new order.",
     },
   },
 };

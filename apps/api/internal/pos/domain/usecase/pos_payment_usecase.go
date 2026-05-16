@@ -42,7 +42,7 @@ type POSPaymentUsecase interface {
 	// GetByOrderID returns all payments for an order
 	GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error)
 	// CancelPendingPayment cancels a pending digital payment and keeps order open for cashier payment.
-	CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string) error
+	CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string, reason *string) error
 }
 
 type posPaymentUsecase struct {
@@ -620,7 +620,7 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 	return result, nil
 }
 
-func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string) error {
+func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string, reason *string) error {
 	order, err := u.orderRepo.GetByID(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -649,12 +649,16 @@ func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, p
 		return fmt.Errorf("%w: payment is not pending", ErrPOSInvalidPayment)
 	}
 
-	payment.Status = models.POSPaymentStatusFailed
+	payment.Status = models.POSPaymentStatusCancelled
+	cancelReason := strings.TrimSpace(defaultString(reason))
+	if cancelReason == "" {
+		cancelReason = "Cancelled from POS live table"
+	}
 	note := strings.TrimSpace(defaultString(payment.Notes))
 	if note == "" {
-		note = "Cancelled from POS live table"
+		note = cancelReason
 	} else {
-		note = note + " | Cancelled from POS live table"
+		note = note + " | " + cancelReason
 	}
 	payment.Notes = &note
 
@@ -662,7 +666,13 @@ func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, p
 		return err
 	}
 
-	if order.Status == models.PosOrderStatusDraft {
+	if order.OrderSource == "CUSTOMER" {
+		order.Status = models.PosOrderStatusVoided
+		order.VoidReason = &cancelReason
+		if err := u.orderRepo.Update(ctx, order); err != nil {
+			return err
+		}
+	} else if order.Status == models.PosOrderStatusDraft {
 		order.Status = models.PosOrderStatusInProgress
 		if err := u.orderRepo.Update(ctx, order); err != nil {
 			return err
@@ -679,7 +689,8 @@ func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, p
 			"order_number":   order.OrderNumber,
 			"status":         string(order.Status),
 			"table_label":    tableLabel,
-			"payment_status": "WAITING_CASHIER",
+			"payment_status": "CANCELLED",
+			"cancel_reason":  cancelReason,
 			"cancelled_by":   normalizedActorID(actorID),
 		})
 	}
@@ -728,10 +739,10 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 			tableLabel = *order.TableLabel
 		}
 		payload := map[string]interface{}{
-			"order_id":      order.ID,
-			"order_number":  order.OrderNumber,
-			"status":        string(order.Status),
-			"table_label":   tableLabel,
+			"order_id":       order.ID,
+			"order_number":   order.OrderNumber,
+			"status":         string(order.Status),
+			"table_label":    tableLabel,
 			"payment_status": "PAID",
 		}
 		u.hub.Publish(order.OutletID, "pos.order_status_changed", payload)

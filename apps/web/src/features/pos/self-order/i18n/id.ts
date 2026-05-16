@@ -43,6 +43,7 @@ export const posSelflOrderId = {
       orderAgain: "Pesan Lagi",
       cancelled: "Pesanan dibatalkan",
       cancelFailed: "Gagal membatalkan pesanan",
+      paymentCancelled: "Pembayaran dibatalkan oleh kasir.",
       statusLabels: {
         PENDING: "Menunggu Konfirmasi",
         WAITING_PAYMENT: "Menunggu Pembayaran",
@@ -67,6 +68,7 @@ export const posSelflOrderId = {
       networkErrorDescription:
         "Terjadi gangguan koneksi atau server. Silakan refresh halaman beberapa saat lagi.",
       failedOrder: "Gagal membuat pesanan. Coba lagi.",
+      orderCannotModify: "Pesanan sebelumnya sudah tidak bisa diubah. Silakan mulai pesanan baru.",
     },
   },
 };

@@ -127,12 +127,14 @@ export const posTerminalId = {
       paymentConfirmed: "Dikonfirmasi",
       guest: "Tamu",
       sidebar: {
+        payment: "Pembayaran",
         items: "Item",
         serve: "Sajikan",
         serving: "Menyajikan",
         allServed: "Semua Disajikan",
         completing: "Memproses",
         customerLeft: "Customer Sudah Keluar",
+        viewReceipt: "Nota",
       },
       statusLabels: {
         available: "Tersedia",
@@ -181,6 +183,13 @@ export const posTerminalId = {
         cancel: "Batal",
         continueToPayment: "Lanjut ke Pembayaran",
         paymentFailed: "Pembayaran gagal. Silakan coba lagi.",
+        cancelPaymentTitle: "Batalkan Pembayaran",
+        cancelPaymentDescription: "Kasir dapat membatalkan pembayaran digital yang masih pending dan menuliskan alasannya.",
+        cancelPaymentPlaceholder: "Contoh: pelanggan batal pesan karena perubahan rencana.",
+        cancelPaymentAction: "Batalkan Pembayaran",
+        cancelPaymentLoading: "Membatalkan...",
+        cancelPaymentSuccess: "Pembayaran berhasil dibatalkan.",
+        cancelPaymentFailed: "Gagal membatalkan pembayaran.",
       },
     },
     receipt: {

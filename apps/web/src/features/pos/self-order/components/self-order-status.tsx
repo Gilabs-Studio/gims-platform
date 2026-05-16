@@ -80,6 +80,11 @@ export function SelfOrderStatus({
 
       {/* Order items */}
       <div className="bg-card p-5 rounded-3xl border border-border/50 shadow-sm flex-1 mb-8">
+        {order.payment_status === "CANCELLED" && (
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {t("status.paymentCancelled")}
+          </div>
+        )}
         <div className="space-y-3 mb-4">
           {order.items.map((item, i) => (
             <div key={i} className="flex justify-between items-start text-sm">

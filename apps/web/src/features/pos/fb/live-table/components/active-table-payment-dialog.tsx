@@ -8,18 +8,28 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { POSPaymentModal } from "@/features/pos/terminal/components/pos-payment-modal";
+import { useCancelPendingPOSPayment, usePOSPayments } from "@/features/pos/terminal/hooks/use-pos";
 import { PosLoyaltyRedeemPanel } from "@/features/loyalty/components/pos-loyalty-redeem-panel";
 import { useEnrollLoyaltyMember, useLookupLoyaltyMember, useLoyaltyProgram } from "@/features/loyalty/hooks/use-loyalty";
 import type { LoyaltyMember, RewardConfig } from "@/features/loyalty/types";
 import type { LiveTableInfo } from "../types";
+import type { POSOrder, POSPayment } from "@/features/pos/terminal/types";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+
+type ActiveTablePaymentSuccessPayload = {
+  order: POSOrder;
+  customerName?: string;
+  customerPhone?: string;
+  tenderAmount?: number;
+};
 
 interface ActiveTablePaymentDialogProps {
   info: LiveTableInfo | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (payload: ActiveTablePaymentSuccessPayload) => void;
 }
 
 function formatCurrency(amount: number) {
@@ -86,9 +96,14 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
   const [convertedMember, setConvertedMember] = useState<LoyaltyMember | null>(null);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
 
   const t = useTranslations("posTerminal.liveTable.payNow");
-  const order = info?.order ?? null;
+  const order = info?.unpaidOrder ?? info?.order ?? null;
+  const { data: paymentsData } = usePOSPayments(order?.id ?? "", {
+    enabled: !!order?.id,
+  });
+  const cancelPendingPayment = useCancelPendingPOSPayment();
   const tableLabel = info ? (info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`) : "";
   const customerName = order?.customer_name?.trim() ?? "";
   const lookupMemberQuery = useLookupLoyaltyMember(customerName.length >= 2 ? customerName : "", order?.outlet_id ?? "");
@@ -113,14 +128,25 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
   const amountBeforeDiscount = Math.max(order?.subtotal ?? 0, 0) + Math.max(order?.tax_amount ?? 0, 0) + Math.max(order?.service_charge ?? 0, 0);
   const rewardDiscount = calculateRewardDiscount(amountBeforeDiscount, selectedReward);
   const totalAfterReward = Math.max(amountBeforeDiscount - rewardDiscount, 0);
+  const payments = (paymentsData?.data ?? []) as POSPayment[];
+  const pendingPayment = payments.find((payment) => payment.status === "PENDING") ?? null;
 
   if (!info || !order) return null;
 
   const handleProceed = () => setShowPaymentModal(true);
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (
+    paidCustomerName?: string,
+    paidCustomerPhone?: string,
+    paidTenderAmount?: number,
+  ) => {
     setShowPaymentModal(false);
-    onSuccess();
+    onSuccess({
+      order: order as POSOrder,
+      customerName: paidCustomerName,
+      customerPhone: paidCustomerPhone,
+      tenderAmount: paidTenderAmount,
+    });
   };
 
   const handleConvertToMember = async () => {
@@ -141,6 +167,23 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
       toast.success(t("convertMemberSuccess"));
     } catch {
       toast.error(t("convertMemberFailed"));
+    }
+  };
+
+  const handleCancelPendingPayment = async () => {
+    if (!order || !pendingPayment) return;
+
+    try {
+      await cancelPendingPayment.mutateAsync({
+        orderId: order.id,
+        paymentId: pendingPayment.id,
+        reason: cancelReason.trim() || undefined,
+      });
+      toast.success(t("cancelPaymentSuccess"));
+      setCancelReason("");
+      onClose();
+    } catch {
+      toast.error(t("cancelPaymentFailed"));
     }
   };
 
@@ -267,6 +310,31 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
                 selectedRewardId={selectedReward?.id}
                 onSelectReward={setSelectedReward}
               />
+            )}
+
+            {pendingPayment && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-destructive">
+                  {t("cancelPaymentTitle")}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("cancelPaymentDescription")}</p>
+                <Textarea
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  placeholder={t("cancelPaymentPlaceholder")}
+                  rows={3}
+                  className="resize-none"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full cursor-pointer"
+                  disabled={cancelPendingPayment.isPending}
+                  onClick={handleCancelPendingPayment}
+                >
+                  {cancelPendingPayment.isPending ? t("cancelPaymentLoading") : t("cancelPaymentAction")}
+                </Button>
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-3 pt-2">

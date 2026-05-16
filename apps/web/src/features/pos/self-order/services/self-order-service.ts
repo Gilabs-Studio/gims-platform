@@ -10,7 +10,8 @@ import type {
 export class SelfOrderApiError extends Error {
   constructor(
     message: string,
-    public readonly status: number
+    public readonly status: number,
+    public readonly code?: string
   ) {
     super(message);
     this.name = "SelfOrderApiError";
@@ -33,11 +34,25 @@ async function request<T>(
     cache: "no-store",
   });
   const payload = (await res.json()) as ApiResponse<T>;
+  const errorPayload = payload as ApiResponse<T> & {
+    error?: {
+      code?: string;
+      message?: string;
+    };
+    code?: string;
+    message?: string;
+  };
 
   if (!res.ok || !payload?.success || payload?.data == null) {
+    const code = errorPayload?.error?.code ?? errorPayload?.code;
+    const message =
+      errorPayload?.error?.message ||
+      errorPayload?.message ||
+      "Self-order request failed";
     throw new SelfOrderApiError(
-      payload?.message || "Self-order request failed",
-      res.status
+      message,
+      res.status,
+      code
     );
   }
 

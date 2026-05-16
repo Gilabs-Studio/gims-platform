@@ -145,6 +145,10 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       setStep("status");
     } catch (err) {
       if (err instanceof SelfOrderApiError && err.status === 409) {
+        if (err.code === "POS_ORDER_CANNOT_MODIFY") {
+          toast.error(t("selfOrder.page.orderCannotModify"));
+          return;
+        }
         toast.error(t("selfOrder.page.outletClosed"));
         return;
       }
@@ -172,6 +176,10 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       setStep("status");
     } catch (err) {
       if (err instanceof SelfOrderApiError && err.status === 409) {
+        if (err.code === "POS_ORDER_CANNOT_MODIFY") {
+          toast.error(t("selfOrder.page.orderCannotModify"));
+          return;
+        }
         toast.error(t("selfOrder.page.outletClosed"));
         return;
       }

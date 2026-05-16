@@ -85,7 +85,15 @@ func (h *POSPaymentHandler) CancelPendingPayment(c *gin.Context) {
 		paymentID = c.Param("paymentId")
 	}
 
-	if err := h.uc.CancelPendingPayment(c.Request.Context(), orderID, paymentID, uc.userID); err != nil {
+	var req dto.CancelPendingPaymentRequest
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			coreErrors.HandleValidationError(c, err)
+			return
+		}
+	}
+
+	if err := h.uc.CancelPendingPayment(c.Request.Context(), orderID, paymentID, uc.userID, req.Reason); err != nil {
 		handlePOSPaymentError(c, err)
 		return
 	}

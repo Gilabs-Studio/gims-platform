@@ -127,12 +127,14 @@ export const posTerminalEn = {
       paymentConfirmed: "Confirmed",
       guest: "Guest",
       sidebar: {
+        payment: "Payment",
         items: "Items",
         serve: "Serve",
         serving: "Serving",
         allServed: "All Served",
         completing: "Processing",
         customerLeft: "Customer Left",
+        viewReceipt: "Receipt",
       },
       statusLabels: {
         available: "Available",
@@ -181,6 +183,13 @@ export const posTerminalEn = {
         cancel: "Cancel",
         continueToPayment: "Continue to Payment",
         paymentFailed: "Payment failed. Please retry.",
+        cancelPaymentTitle: "Cancel Payment",
+        cancelPaymentDescription: "Cashier can cancel a pending digital payment and add a reason.",
+        cancelPaymentPlaceholder: "Example: customer cancelled the order.",
+        cancelPaymentAction: "Cancel Payment",
+        cancelPaymentLoading: "Cancelling...",
+        cancelPaymentSuccess: "Payment cancelled successfully.",
+        cancelPaymentFailed: "Failed to cancel payment.",
       },
     },
     receipt: {
