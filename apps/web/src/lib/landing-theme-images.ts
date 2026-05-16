@@ -31,7 +31,11 @@ export type LandingScreenshotKey =
   | "crmHero"
   | "crmKanbanPipeline"
   | "crmActivityFollowup"
-  | "crmAreaMapping";
+  | "crmAreaMapping"
+  | "posHero"
+  | "posTerminalFlow"
+  | "posLiveTable"
+  | "posFloorLayout";
 
 type ThemePair = {
   light: string;
@@ -166,6 +170,22 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   crmAreaMapping: {
     light: "/screenshot/crm/crm-area-mapping.webp",
     dark: "/screenshot/crm/crm-area-mapping-dark.webp",
+  },
+  posHero: {
+    light: "/screenshot/pos/pos-hero.webp",
+    dark: "/screenshot/pos/pos-hero-dark.webp",
+  },
+  posTerminalFlow: {
+    light: "/screenshot/pos/pos-terminal-flow.webp",
+    dark: "/screenshot/pos/pos-terminal-flow-dark.webp",
+  },
+  posLiveTable: {
+    light: "/screenshot/pos/pos-live-table.webp",
+    dark: "/screenshot/pos/pos-live-table-dark.webp",
+  },
+  posFloorLayout: {
+    light: "/screenshot/pos/pos-floor-layout.webp",
+    dark: "/screenshot/pos/pos-floor-layout-dark.webp",
   },
 } as const;
 

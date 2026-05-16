@@ -104,22 +104,23 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
       descriptionSecondary: isId
         ? "Kasir tetap bisa melayani dengan konsisten karena tampilan terminal dibuat sederhana dan minim langkah berulang."
         : "Cashiers stay consistent because the terminal is built with fewer repetitive steps.",
+      screenshotKey: "posTerminalFlow",
       placeholder: "terminalFlow",
     },
     {
-      title: isId ? "Stok outlet langsung ikut ter-update" : "Store inventory updates in real time",
+      title: isId ? "Live table bantu servis tetap terkontrol" : "Live table keeps service under control",
       description: isId
-        ? "Setiap transaksi POS otomatis mengurangi stok, jadi tim operasional tidak perlu rekonsiliasi manual di akhir shift."
-        : "Every POS transaction updates stock automatically, so operations teams can skip manual end-of-shift reconciliation.",
-      screenshotKey: "stockInventory",
+        ? "Pantau status meja, durasi layanan, dan antrean pesanan secara real-time agar koordinasi tim outlet lebih cepat."
+        : "Track table status, service duration, and order queues in real time so outlet teams coordinate faster.",
+      screenshotKey: "posLiveTable",
       placeholder: "terminalFlow",
     },
     {
-      title: isId ? "Pantau performa outlet dari satu dashboard" : "Monitor outlet performance from one dashboard",
+      title: isId ? "Atur layout meja sesuai ritme outlet" : "Design floor layout for each outlet flow",
       description: isId
-        ? "Lihat ringkasan penjualan, performa kasir, dan tren operasional harian untuk bantu keputusan lebih cepat."
-        : "Track sales summaries, cashier performance, and daily operational trends for faster decisions.",
-      screenshotKey: "dashboard",
+        ? "Sesuaikan posisi meja dan area layanan supaya alur dine-in lebih efisien untuk jam ramai maupun jam normal."
+        : "Arrange table positions and service areas to keep dine-in flow efficient during peak and normal hours.",
+      screenshotKey: "posFloorLayout",
       placeholder: "multiOutlet",
     },
   ];
@@ -169,8 +170,8 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
           <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/40 bg-card shadow-[0_20px_50px_rgba(0,0,0,0.12)]">
             <div className="relative aspect-video w-full">
               <ThemeAwareImage
-                lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.light}
-                darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.dark}
+                lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.posHero.light}
+                darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.posHero.dark}
                 alt={isId ? "Tampilan POS SalesView" : "SalesView POS interface"}
                 fill
                 className="object-cover object-top"

@@ -211,12 +211,12 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
               <div className="flex flex-col gap-12 lg:gap-24 items-center lg:flex-row">
                 <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
                   <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-                    {isId ? "Penawaran menarik dalam dua klik" : "Attractive quotes in two clicks"}
+                    {isId ? "Pemetaan area untuk prioritas lapangan" : "Area mapping for field priority"}
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan SalesView yang akan menangani sisanya.`
-                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let SalesView handle the rest.`
+                      ? `Visualkan lead, deal, dan aktivitas di peta area agar tim sales tahu wilayah mana yang paling aktif dan mana yang perlu ditingkatkan.`
+                      : `Visualize leads, deals, and activities on a location map so sales teams can prioritize active regions and improve underperforming areas.`
                     }
                   </p>
                 </div>
