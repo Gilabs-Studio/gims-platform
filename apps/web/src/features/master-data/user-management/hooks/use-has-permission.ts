@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { hasPermissionCode } from "@/lib/permission-utils";
+import { hasPermissionCode, resolvePermissionScope } from "@/lib/permission-utils";
 
 function isPrivilegedRole(roleCode?: string): boolean {
   const normalized = roleCode?.trim().toLowerCase();
@@ -56,6 +56,6 @@ export function usePermissionScope(permissionCode: string): string | null {
 
 
     const permissions = user.permissions ?? {};
-    return permissions[permissionCode] ?? null;
+    return resolvePermissionScope(permissions, permissionCode);
   }, [user, permissionCode]);
 }

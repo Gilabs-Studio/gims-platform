@@ -147,7 +147,10 @@ func (u *taskUsecase) Create(ctx context.Context, req dto.CreateTaskRequest, cre
 }
 
 func (u *taskUsecase) GetByID(ctx context.Context, id string) (dto.TaskResponse, error) {
-	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Task{}, id, security.MixedOwnershipScopeQueryOptions("assigned_to")) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Task{}, id, security.ScopeQueryOptions{
+		OwnerEmployeeIDColumn: "assigned_to",
+		DivisionJoinSQL:       "assigned_to IN (SELECT id FROM employees WHERE division_id = ?)",
+	}) {
 		return dto.TaskResponse{}, errors.New("task not found")
 	}
 
@@ -363,18 +366,32 @@ func (u *taskUsecase) Cancel(ctx context.Context, id string) (dto.TaskResponse, 
 }
 
 func (u *taskUsecase) GetFormData(ctx context.Context) (*dto.TaskFormDataResponse, error) {
-	// Fetch employees
-	employees, _, err := u.employeeRepo.List(ctx, orgRepos.EmployeeListParams{
-		Page: 1, PerPage: 500, SortBy: "name", SortDir: "ASC",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch employees: %w", err)
-	}
-	employeeOptions := make([]dto.TaskEmployeeOption, 0, len(employees))
-	for _, emp := range employees {
-		employeeOptions = append(employeeOptions, dto.TaskEmployeeOption{
-			ID: emp.ID, EmployeeCode: emp.EmployeeCode, Name: emp.Name,
+	// Fetch employees (OWN scope: return only current scoped employee)
+	employeeOptions := make([]dto.TaskEmployeeOption, 0)
+	if scope, _ := ctx.Value("permission_scope").(string); scope == "OWN" {
+		scopedEmployeeID, _ := ctx.Value("scope_employee_id").(string)
+		if scopedEmployeeID != "" {
+			employee, err := u.employeeRepo.FindByID(ctx, scopedEmployeeID)
+			if err == nil && employee != nil {
+				employeeOptions = append(employeeOptions, dto.TaskEmployeeOption{
+					ID: employee.ID, EmployeeCode: employee.EmployeeCode, Name: employee.Name,
+				})
+			}
+		}
+	} else {
+		employees, _, err := u.employeeRepo.List(ctx, orgRepos.EmployeeListParams{
+			Page: 1, PerPage: 500, SortBy: "name", SortDir: "ASC",
 		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch employees: %w", err)
+		}
+
+		employeeOptions = make([]dto.TaskEmployeeOption, 0, len(employees))
+		for _, emp := range employees {
+			employeeOptions = append(employeeOptions, dto.TaskEmployeeOption{
+				ID: emp.ID, EmployeeCode: emp.EmployeeCode, Name: emp.Name,
+			})
+		}
 	}
 
 	// Fetch deals

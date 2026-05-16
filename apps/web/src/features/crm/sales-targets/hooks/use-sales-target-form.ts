@@ -9,6 +9,8 @@ import {
   useCreateSalesTarget,
   useUpdateSalesTarget,
 } from "./use-sales-targets";
+import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { EmployeeSalesTarget } from "../types";
 
 interface UseSalesTargetFormProps {
@@ -20,6 +22,13 @@ interface UseSalesTargetFormProps {
 export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetFormProps) {
   const t = useTranslations("salesTargets");
   const isEdit = !!target;
+  const { user } = useAuthStore();
+  const readScope = (usePermissionScope("sales_target.read") ?? "").toString().trim().toUpperCase();
+  const isOwnScope = readScope === "OWN";
+
+  const employeeIDRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const ownEmployeeId = typeof user?.employee_id === "string" ? user.employee_id.trim() : "";
+  const ownEmployeeIdSafe = employeeIDRegex.test(ownEmployeeId) ? ownEmployeeId : "";
   const [activeTab, setActiveTab] = useState("basic");
   
   const currentYear = new Date().getFullYear();
@@ -68,10 +77,23 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
 
   // Auto-select employee if only 1 is available (useful for OWN scope)
   useEffect(() => {
-    if (employees.length === 1 && !form.getValues("employee_id")) {
+    const currentEmployee = form.getValues("employee_id");
+    if (currentEmployee) {
+      return;
+    }
+
+    if (isOwnScope && ownEmployeeIdSafe) {
+      const employeeExists = employees.some((employee) => employee.id === ownEmployeeIdSafe);
+      if (employeeExists || employees.length === 0) {
+        setValue("employee_id", ownEmployeeIdSafe, { shouldValidate: true });
+        return;
+      }
+    }
+
+    if (employees.length === 1) {
       setValue("employee_id", employees[0].id, { shouldValidate: true });
     }
-  }, [employees, form, setValue]);
+  }, [employees, form, isOwnScope, ownEmployeeIdSafe, setValue]);
 
   // Reset form when modal opens/closes or target changes
   useEffect(() => {
@@ -98,7 +120,7 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
       } else {
         // Reset for create
         reset({
-          employee_id: "",
+          employee_id: isOwnScope ? ownEmployeeIdSafe : "",
           year: currentYear,
           total_target: 0,
           notes: "",
@@ -111,7 +133,7 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
       }
       setActiveTab("basic");
     }
-  }, [open, target, reset, currentYear]);
+  }, [open, target, reset, currentYear, isOwnScope, ownEmployeeIdSafe]);
 
   const handleNext = () => {
     // Validate basic tab before moving to months
@@ -124,6 +146,12 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
 
   const handleFormSubmit = async (data: CreateSalesTargetFormData) => {
     try {
+      if (!isEdit && !employeeIDRegex.test(String(data.employee_id || "").trim())) {
+        toast.error(t("validationError"));
+        setActiveTab("basic");
+        return;
+      }
+
       if (isEdit && target) {
         await updateTarget.mutateAsync({
           id: target.id,
@@ -186,6 +214,7 @@ export function useSalesTargetForm({ target, open, onClose }: UseSalesTargetForm
     form,
     t,
     isEdit,
+    isOwnScope,
     activeTab,
     setActiveTab,
     isLoading: createTarget.isPending || updateTarget.isPending,

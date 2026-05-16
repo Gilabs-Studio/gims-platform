@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { SalesTargetsList } from "./sales-targets-list";
 import { SalesTargetProgress } from "./sales-target-progress";
 import { useSalesTargets, useDeleteSalesTarget } from "../hooks/use-sales-targets";
@@ -18,11 +17,9 @@ import { toast } from "sonner";
 
 export function SalesTargetsDualUI() {
   const t = useTranslations("salesTargets");
-  const { user } = useAuthStore();
   
   // Resolve permission scope for sales_target.read (OWN, AREA, DIVISION, ALL, etc.)
-  const readScopeRaw = usePermissionScope("sales_target.read") || (user?.permissions?.["sales_target.read"] as string | null) || (user?.permissions?.["sales_target.*"] as string | null);
-  const readScope = (readScopeRaw ?? "").toString().trim().toUpperCase();
+  const readScope = (usePermissionScope("sales_target.read") ?? "").toString().trim().toUpperCase();
   const isOwnScope = readScope === "OWN";
   // Any scope other than OWN should be treated as manager view (table)
   const isManagerScope = !isOwnScope && readScope.length > 0;
@@ -42,7 +39,6 @@ export function SalesTargetsDualUI() {
   const { data, isLoading } = useSalesTargets({
     year: undefined,
     scope: isManagerScope ? readScope : undefined,
-    employee_id: isOwnScope ? user?.employee_id : undefined,
   });
 
   const handleDelete = async () => {

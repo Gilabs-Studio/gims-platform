@@ -83,6 +83,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
+	group.Use(middleware.ScopeMiddleware(db))
 
 	// Register routes
 	router.RegisterPipelineStageRoutes(group, pipelineStageH)

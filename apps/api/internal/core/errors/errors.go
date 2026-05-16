@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -634,10 +635,20 @@ func toSnakeCase(str string) string {
 		return str
 	}
 
+	runes := []rune(str)
 	var result strings.Builder
-	for i, r := range str {
-		if i > 0 && r >= 'A' && r <= 'Z' {
+	for i, r := range runes {
+		if i > 0 && unicode.IsUpper(r) {
+			prev := runes[i-1]
+			nextIsLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			if unicode.IsLower(prev) || (unicode.IsUpper(prev) && nextIsLower) {
+				result.WriteByte('_')
+			}
+		}
+
+		if r == '-' || r == ' ' {
 			result.WriteByte('_')
+			continue
 		}
 		result.WriteRune(r)
 	}
