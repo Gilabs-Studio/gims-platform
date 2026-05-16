@@ -42,6 +42,18 @@ interface POSPaymentModalProps {
   loyaltyMember?: LoyaltyMember;
   /** Available rewards for the loyalty member */
   loyaltyRewards?: RewardConfig[];
+  /** Start directly on payment tab without customer/reward step. */
+  paymentOnly?: boolean;
+  /** Prefill customer context used by payment-only mode. */
+  prefillCustomer?: {
+    customerMode?: "new" | "existing";
+    customerId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+  };
+  /** Prefill selected reward for payment-only mode. */
+  prefillReward?: RewardConfig | null;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -162,23 +174,28 @@ export function POSPaymentModal({
   onPaymentError,
   loyaltyMember,
   loyaltyRewards = [],
+  paymentOnly = false,
+  prefillCustomer,
+  prefillReward = null,
 }: POSPaymentModalProps) {
   // Multi-step flow: customer-select → reward (if loyalty) → payment
-  const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "reward" | "payment">("customer-select");
+  const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "reward" | "payment">(
+    paymentOnly ? "payment" : "customer-select"
+  );
   const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState(prefillCustomer?.customerName ?? "");
   const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
   const [enrollLoyalty, setEnrollLoyalty] = useState(false);
-  const [loyaltyPhone, setLoyaltyPhone] = useState("");
-  const [loyaltyEmail, setLoyaltyEmail] = useState("");
-  const [customerMode, setCustomerMode] = useState<"new" | "existing">("new");
-  const [customerId, setCustomerId] = useState<string | undefined>(undefined);
+  const [loyaltyPhone, setLoyaltyPhone] = useState(prefillCustomer?.customerPhone ?? "");
+  const [loyaltyEmail, setLoyaltyEmail] = useState(prefillCustomer?.customerEmail ?? "");
+  const [customerMode, setCustomerMode] = useState<"new" | "existing">(prefillCustomer?.customerMode ?? "new");
+  const [customerId, setCustomerId] = useState<string | undefined>(prefillCustomer?.customerId);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
-  const [selectedReward, setSelectedReward] = useState<RewardConfig | null>(null);
+  const [selectedReward, setSelectedReward] = useState<RewardConfig | null>(prefillReward);
 
   const hasCompletedDigitalPaymentRef = useRef(false);
   const autoOpenedPaymentUrlRef = useRef<string | null>(null);
@@ -253,6 +270,16 @@ export function POSPaymentModal({
   }
 
   const buildCustomerPayload = useCallback(() => {
+    if (paymentOnly) {
+      return {
+        customer_id: prefillCustomer?.customerId,
+        customer_name: prefillCustomer?.customerName || customerName.trim() || undefined,
+        customer_phone: prefillCustomer?.customerPhone || loyaltyPhone.trim() || undefined,
+        customer_email: prefillCustomer?.customerEmail || loyaltyEmail.trim() || undefined,
+        loyalty_member_id: effectiveMember?.id || undefined,
+      };
+    }
+
     if (customerMode === "existing") {
       if (!customerId || !selectedCustomer) {
         return null;
@@ -272,7 +299,20 @@ export function POSPaymentModal({
       customer_phone: loyaltyPhone.trim() || undefined,
       customer_email: loyaltyEmail.trim() || undefined,
     };
-  }, [customerMode, customerId, selectedCustomer, effectiveMember, customerName, loyaltyPhone, loyaltyEmail]);
+  }, [
+    paymentOnly,
+    prefillCustomer?.customerId,
+    prefillCustomer?.customerName,
+    prefillCustomer?.customerPhone,
+    prefillCustomer?.customerEmail,
+    customerMode,
+    customerId,
+    selectedCustomer,
+    effectiveMember,
+    customerName,
+    loyaltyPhone,
+    loyaltyEmail,
+  ]);
 
   const { data: paymentsData } = usePOSPayments(order.id, {
     // Only fetch payments list when polling for digital payment status confirmation.
@@ -426,23 +466,30 @@ export function POSPaymentModal({
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       // Reset semua state saat dialog ditutup
-      setPaymentFlow("customer-select");
+      setPaymentFlow(paymentOnly ? "payment" : "customer-select");
       setSelectedChannel(null);
       setDigitalPayment(null);
       setPollingEnabled(false);
       hasCompletedDigitalPaymentRef.current = false;
       autoOpenedPaymentUrlRef.current = null;
       setEnrollLoyalty(false);
-      setLoyaltyPhone("");
-      setLoyaltyEmail("");
-      setCustomerMode("new");
+      setLoyaltyPhone(prefillCustomer?.customerPhone ?? "");
+      setLoyaltyEmail(prefillCustomer?.customerEmail ?? "");
+      setCustomerMode(prefillCustomer?.customerMode ?? "new");
+      setCustomerId(prefillCustomer?.customerId);
+      setCustomerName(prefillCustomer?.customerName ?? "");
       resetCustomerSelection();
       setTenderInput("");
-      setSelectedReward(null);
+      setSelectedReward(prefillReward);
     } else {
-      // Saat modal dibuka, selalu mulai dari customer-select
-      setPaymentFlow("customer-select");
-      setSelectedReward(null);
+      // Saat modal dibuka, selalu mulai sesuai mode flow.
+      setPaymentFlow(paymentOnly ? "payment" : "customer-select");
+      setCustomerMode(prefillCustomer?.customerMode ?? "new");
+      setCustomerId(prefillCustomer?.customerId);
+      setCustomerName(prefillCustomer?.customerName ?? order.customer_name ?? "");
+      setLoyaltyPhone(prefillCustomer?.customerPhone ?? "");
+      setLoyaltyEmail(prefillCustomer?.customerEmail ?? "");
+      setSelectedReward(prefillReward);
     }
     onOpenChange(nextOpen);
   }
@@ -703,15 +750,19 @@ export function POSPaymentModal({
               </TabsContent>
             </Tabs>
 
-            {/* Back to reward step if member has rewards, otherwise back to customer selection */}
-            <Separator />
-            <Button
-              variant="outline"
-              className="w-full cursor-pointer"
-              onClick={() => setPaymentFlow(hasRewardOptions ? "reward" : "customer-select")}
-            >
-              {t("backToCustomer")}
-            </Button>
+            {!paymentOnly && (
+              <>
+                {/* Back to reward step if member has rewards, otherwise back to customer selection */}
+                <Separator />
+                <Button
+                  variant="outline"
+                  className="w-full cursor-pointer"
+                  onClick={() => setPaymentFlow(hasRewardOptions ? "reward" : "customer-select")}
+                >
+                  {t("backToCustomer")}
+                </Button>
+              </>
+            )}
           </>
         )}
       </DialogContent>

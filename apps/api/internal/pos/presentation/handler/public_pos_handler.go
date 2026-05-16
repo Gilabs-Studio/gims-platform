@@ -99,6 +99,23 @@ func (h *PublicPOSHandler) MarkPayAtCashier(c *gin.Context) {
 	}, nil)
 }
 
+// CancelCustomerOrder allows a customer to cancel their own un-processed order.
+func (h *PublicPOSHandler) CancelCustomerOrder(c *gin.Context) {
+	token := c.Param("token")
+	orderID := c.Param("orderId")
+
+	order, err := h.uc.CancelCustomerOrder(c.Request.Context(), token, orderID)
+	if err != nil {
+		handlePublicPOSError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{
+		"cancelled": true,
+		"order":     order,
+	}, nil)
+}
+
 // CancelDigitalPayment cancels a pending digital invoice and falls back to cashier payment mode.
 func (h *PublicPOSHandler) CancelDigitalPayment(c *gin.Context) {
 	token := c.Param("token")

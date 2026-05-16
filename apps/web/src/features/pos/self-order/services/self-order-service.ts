@@ -86,4 +86,14 @@ export const selfOrderService = {
       { method: "POST" }
     );
   },
+
+  cancelOrder(
+    token: string,
+    orderId: string
+  ): Promise<ApiResponse<{ cancelled: boolean; order: CustomerOrderResponse }>> {
+    return request<{ cancelled: boolean; order: CustomerOrderResponse }>(
+      `${BASE}/${token}/orders/${orderId}/cancel`,
+      { method: "POST" }
+    );
+  },
 };

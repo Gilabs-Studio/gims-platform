@@ -1,19 +1,26 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { QrCode, Store, WifiOff } from "lucide-react";
+import { QrCode, Store, WifiOff, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/loading";
 import { SelfOrderMenu } from "./self-order-menu";
 import { SelfOrderCart } from "./self-order-cart";
 import { SelfOrderCheckout } from "./self-order-checkout";
 import { SelfOrderStatus } from "./self-order-status";
-import { useTableInfo, useCreateOrder, useOrderStatus } from "../hooks/use-self-order";
+import { useTableInfo, useCreateOrder, useOrderStatus, useCancelOrder } from "../hooks/use-self-order";
 import { SelfOrderApiError, selfOrderService } from "../services/self-order-service";
 import type { POSCatalogItem, CartItem } from "../types";
 
 type Step = "menu" | "checkout" | "status";
+
+type PendingCashierPayment = {
+  orderId: string;
+  orderNumber: string;
+  totalAmount: number;
+};
 
 interface SelfOrderPageClientProps {
   token: string;
@@ -25,13 +32,36 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const pendingStorageKey = useMemo(() => `self-order:pending-cashier:${token}`, [token]);
+  const [pendingCashierPayment, setPendingCashierPayment] = useState<PendingCashierPayment | null>(() => {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(`self-order:pending-cashier:${token}`);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as PendingCashierPayment;
+      return parsed?.orderId ? parsed : null;
+    } catch {
+      window.localStorage.removeItem(`self-order:pending-cashier:${token}`);
+      return null;
+    }
+  });
 
   const { data: tableInfo, isError, error, isPending } = useTableInfo(token);
   const createOrder = useCreateOrder(token);
+  const trackedOrderId = orderId ?? pendingCashierPayment?.orderId ?? "";
   const { data: orderStatus } = useOrderStatus(
     token,
-    orderId ?? ""
+    trackedOrderId
   );
+  const cancelOrder = useCancelOrder(token, trackedOrderId);
+
+  const isTrackedOrderTerminal =
+    orderStatus?.status === "PAID" ||
+    orderStatus?.status === "COMPLETED" ||
+    orderStatus?.status === "CANCELLED" ||
+    orderStatus?.status === "VOIDED";
+
+  const visiblePendingCashierPayment = isTrackedOrderTerminal ? null : pendingCashierPayment;
 
   // ── Cart helpers ─────────────────────────────────────────────────────────────
 
@@ -96,6 +126,10 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   async function handleOrderAndPay(customerName: string) {
     try {
       const order = await placeOrder(customerName);
+      setPendingCashierPayment(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(pendingStorageKey);
+      }
       const payment = await selfOrderService.initiatePayment(token, order.order_id, {
         method: "QRIS",
         amount: order.total_amount,
@@ -122,6 +156,17 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
     try {
       const order = await placeOrder(customerName);
       await selfOrderService.markPayAtCashier(token, order.order_id);
+
+      const pendingInfo: PendingCashierPayment = {
+        orderId: order.order_id,
+        orderNumber: order.order_number,
+        totalAmount: order.total_amount,
+      };
+      setPendingCashierPayment(pendingInfo);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(pendingStorageKey, JSON.stringify(pendingInfo));
+      }
+
       setOrderId(order.order_id);
       setCart([]);
       setStep("status");
@@ -131,6 +176,22 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
         return;
       }
       toast.error(t("selfOrder.page.failedOrder"));
+    }
+  }
+
+  async function handleCancelOrder() {
+    if (!trackedOrderId) return;
+    try {
+      await cancelOrder.mutateAsync();
+      toast.success(t("selfOrder.status.cancelled"));
+      setPendingCashierPayment(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(pendingStorageKey);
+      }
+      setOrderId(trackedOrderId);
+      setStep("status");
+    } catch {
+      toast.error(t("selfOrder.status.cancelFailed"));
     }
   }
 
@@ -191,7 +252,13 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       <SelfOrderStatus
         order={orderStatus}
         currency={tableInfo.config.currency}
+        onCancelOrder={handleCancelOrder}
+        isCancelling={cancelOrder.isPending}
         onOrderMore={() => {
+          setPendingCashierPayment(null);
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(pendingStorageKey);
+          }
           setOrderId(null);
           setStep("menu");
         }}
@@ -222,8 +289,35 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="px-6 pt-10 pb-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{tableInfo.outlet_name}</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">{tableInfo.table_label}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{tableInfo.outlet_name}</p>
+            <h1 className="text-3xl font-extrabold tracking-tight">{tableInfo.table_label}</h1>
+          </div>
+
+          {visiblePendingCashierPayment && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto px-3 py-2 rounded-xl border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-left"
+              onClick={() => {
+                setOrderId(visiblePendingCashierPayment.orderId);
+                setStep("status");
+              }}
+            >
+              <div className="flex items-start gap-2">
+                <Wallet className="h-4 w-4 mt-0.5 text-amber-700" />
+                <div className="space-y-0.5">
+                  <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                    {t("selfOrder.page.unpaidPayment")}
+                  </p>
+                  <p className="text-xs text-foreground font-mono">#{visiblePendingCashierPayment.orderNumber}</p>
+                  <p className="text-xs text-foreground">Rp {visiblePendingCashierPayment.totalAmount.toLocaleString("id-ID")}</p>
+                </div>
+              </div>
+            </Button>
+          )}
+        </div>
       </div>
 
       <SelfOrderMenu

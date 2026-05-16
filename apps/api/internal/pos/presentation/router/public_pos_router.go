@@ -20,6 +20,7 @@ func RegisterPublicPOSRoutes(r *gin.Engine, h *handler.PublicPOSHandler) {
 	rg.GET("/orders/:orderId", h.GetOrderStatus)
 	rg.POST("/orders/:orderId/pay/digital", h.InitiateDigitalPayment)
 	rg.POST("/orders/:orderId/pay/cashier", h.MarkPayAtCashier)
+	rg.POST("/orders/:orderId/cancel", h.CancelCustomerOrder)
 	// Staff can use this state to switch a customer from pending digital to cashier flow.
 	rg.POST("/orders/:orderId/payments/:paymentId/cancel", h.CancelDigitalPayment)
 }

@@ -10,6 +10,8 @@ interface SelfOrderStatusProps {
   order: CustomerOrderResponse;
   currency: string;
   onOrderMore: () => void;
+  onCancelOrder?: () => void;
+  isCancelling?: boolean;
 }
 
 function formatCurrency(amount: number, currency: string) {
@@ -24,6 +26,8 @@ export function SelfOrderStatus({
   order,
   currency,
   onOrderMore,
+  onCancelOrder,
+  isCancelling,
 }: SelfOrderStatusProps) {
   const t = useTranslations("selfOrder");
 
@@ -35,11 +39,13 @@ export function SelfOrderStatus({
     WAITING_PAYMENT: { label: t("status.statusLabels.WAITING_PAYMENT"), icon: Clock, color: "text-amber-600" },
     CONFIRMED: { label: t("status.statusLabels.CONFIRMED"), icon: Clock, color: "text-blue-600" },
     PREPARING: { label: t("status.statusLabels.PREPARING"), icon: ChefHat, color: "text-orange-600" },
+    IN_PROGRESS: { label: t("status.statusLabels.IN_PROGRESS"), icon: ChefHat, color: "text-orange-600" },
     READY: { label: t("status.statusLabels.READY"), icon: CheckCircle2, color: "text-green-600" },
     SERVED: { label: t("status.statusLabels.SERVED"), icon: CheckCircle2, color: "text-green-600" },
     COMPLETED: { label: t("status.statusLabels.COMPLETED"), icon: CheckCircle2, color: "text-green-700" },
     PAID: { label: t("status.statusLabels.PAID"), icon: CheckCircle2, color: "text-green-700" },
     CANCELLED: { label: t("status.statusLabels.CANCELLED"), icon: XCircle, color: "text-destructive" },
+    VOIDED: { label: t("status.statusLabels.CANCELLED", { fallback: "Dibatalkan" }), icon: XCircle, color: "text-destructive" },
   };
 
   const cfg = STATUS_CONFIG[order.status] ?? {
@@ -51,7 +57,8 @@ export function SelfOrderStatus({
   const isTerminal =
     order.status === "COMPLETED" ||
     order.status === "PAID" ||
-    order.status === "CANCELLED";
+    order.status === "CANCELLED" ||
+    order.status === "VOIDED";
 
   return (
     <div className="flex flex-col min-h-screen bg-background px-6 py-10">
@@ -109,9 +116,20 @@ export function SelfOrderStatus({
         <Button 
           variant="outline" 
           onClick={onOrderMore}
-          className="h-14 w-full rounded-2xl border-border/50 text-base font-semibold shadow-sm hover:bg-muted/50 hover:border-border transition-all"
+          className="h-14 w-full rounded-2xl border-border/50 text-base font-semibold shadow-sm hover:bg-muted/50 hover:border-border transition-all cursor-pointer"
         >
           {t("status.orderAgain")}
+        </Button>
+      )}
+
+      {(order.status === "DRAFT" || order.status === "PENDING" || order.status === "WAITING_PAYMENT" || order.status === "WAITING_CASHIER") && onCancelOrder && (
+        <Button 
+          variant="destructive" 
+          onClick={onCancelOrder}
+          disabled={isCancelling}
+          className="h-14 w-full rounded-2xl text-base font-semibold shadow-sm transition-all cursor-pointer mt-4"
+        >
+          {isCancelling ? "Membatalkan..." : "Batalkan Pesanan"}
         </Button>
       )}
     </div>
