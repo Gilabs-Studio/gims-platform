@@ -208,6 +208,9 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 		return nil, fmt.Errorf("failed to generate visit code: %w", err)
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	report := &models.VisitReport{
 		Code:          code,
 		VisitDate:     visitDate,
@@ -224,6 +227,7 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 		Purpose:       req.Purpose,
 		Notes:         req.Notes,
 		CreatedBy:     createdBy,
+		TenantID:      tenantID,
 	}
 
 	if req.ScheduledTime != nil && *req.ScheduledTime != "" {
@@ -247,6 +251,7 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 				Quantity:      detailReq.Quantity,
 				Price:         detailReq.Price,
 				Answers:       answers,
+				TenantID:      tenantID,
 			}
 		}
 	}
