@@ -65,7 +65,12 @@ export type LandingScreenshotKey =
   | "goodsReceiptHero"
   | "goodsReceiptPO"
   | "goodsReceiptAudit"
-  | "goodsReceiptToInvoice";
+  | "goodsReceiptToInvoice"
+  // Employees
+  | "employeeHero"
+  | "employeeList"
+  | "employeeContract"
+  | "employeeHistory";
 
 type ThemePair = {
   light: string;
@@ -318,6 +323,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   goodsReceiptToInvoice: {
     light: "/screenshot/goods-receipt/goods-receipt-to-invoice.webp",
     dark: "/screenshot/goods-receipt/goods-receipt-to-invoice-dark.webp",
+  },
+  // Employees
+  employeeHero: {
+    light: "/screenshot/employees/employee-hero.webp",
+    dark: "/screenshot/employees/employee-hero-dark.webp",
+  },
+  employeeList: {
+    light: "/screenshot/employees/employee-list.webp",
+    dark: "/screenshot/employees/employee-list-dark.webp",
+  },
+  employeeContract: {
+    light: "/screenshot/employees/employee-contract.webp",
+    dark: "/screenshot/employees/employee-contract-dark.webp",
+  },
+  employeeHistory: {
+    light: "/screenshot/employees/employee-history.webp",
+    dark: "/screenshot/employees/employee-history-dark.webp",
   },
 } as const;
 
