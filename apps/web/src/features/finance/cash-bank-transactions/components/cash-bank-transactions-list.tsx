@@ -181,7 +181,7 @@ export function CashBankTransactionsList() {
             <SelectValue placeholder={t("fields.company")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="cursor-pointer">All Company</SelectItem>
+            <SelectItem value="all" className="cursor-pointer">{tCommon("allCompanies")}</SelectItem>
             {companyOptions.map((company) => (
               <SelectItem key={company.id} value={company.id} className="cursor-pointer">
                 {company.name}

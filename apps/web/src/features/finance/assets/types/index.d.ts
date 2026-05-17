@@ -525,9 +525,31 @@ export interface DepreciateAssetInput {
 }
 
 export interface TransferAssetInput {
-  location_id: string;
-  transfer_date: string;
-  description?: string;
+  to_location_id: string;
+  to_department_id?: string;
+  custodian_user_id?: string;
+  is_intercompany?: boolean;
+  effective_date: string;
+  notes?: string;
+}
+
+export interface TransferListParams {
+  asset_id?: string;
+  tenant_id?: string;
+  requested_by?: string;
+}
+
+export interface TransferListItem {
+  id: string;
+  status: string;
+  requested_by_name?: string;
+  requested_by?: string;
+  divisions_name?: string;
+  divisions_code?: string;
+  effective_date?: string;
+  requested_at?: string;
+  notes?: string;
+  reason?: string;
 }
 
 export interface DisposeAssetInput {

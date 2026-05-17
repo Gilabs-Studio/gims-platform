@@ -26,6 +26,7 @@ import {
 } from "../hooks/use-attendance-records";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import {
   formatDate,
@@ -178,9 +179,11 @@ export function AttendanceDetailModal({
                 </p>
                 <div className="h-[260px] overflow-hidden rounded-lg border border-border bg-muted/50">
                   {photoUrl ? (
-                    <img
+                    <Image
                       src={photoUrl}
                       alt={t("fields.checkInPhoto")}
+                      width={800}
+                      height={520}
                       className="h-full w-full object-cover"
                     />
                   ) : (

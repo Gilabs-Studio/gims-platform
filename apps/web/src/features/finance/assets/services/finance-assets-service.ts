@@ -53,7 +53,17 @@ export const financeAssetsService = {
   },
 
   transfer: async (id: string, data: TransferAssetInput): Promise<ApiResponse<Asset>> => {
-    const response = await apiClient.post<ApiResponse<Asset>>(`${ACTION_BASE_URL}/${id}/transfer`, data);
+    // adapt client payload: backend expects the new transfer request shape
+    const d = data as unknown as Record<string, unknown>;
+    const payload = {
+      to_location_id: d.to_location_id ?? d.location_id,
+      to_department_id: d.to_department_id,
+      custodian_user_id: d.custodian_user_id,
+      is_intercompany: d.is_intercompany,
+      effective_date: d.effective_date ?? d.transfer_date,
+      notes: d.notes ?? d.description,
+    };
+    const response = await apiClient.post<ApiResponse<Asset>>(`${ACTION_BASE_URL}/${id}/transfer`, payload);
     return response.data;
   },
 

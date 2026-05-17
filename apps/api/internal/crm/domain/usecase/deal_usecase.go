@@ -179,12 +179,16 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 		}
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	deal := &models.Deal{
 		ID:                uuid.New().String(),
+		TenantID:          tenantID,
 		Title:             req.Title,
 		Description:       req.Description,
 		Status:            models.DealStatusOpen,
-		PipelineStageID:   req.PipelineStageID,
+		PipelineStageID:    req.PipelineStageID,
 		Value:             dealValue,
 		Probability:       stage.Probability,
 		ExpectedCloseDate: expectedCloseDate,
@@ -202,6 +206,10 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 		Notes:             req.Notes,
 		CreatedBy:         &createdBy,
 		Items:             items,
+	}
+
+	for i := range deal.Items {
+		deal.Items[i].TenantID = tenantID
 	}
 
 	if err := u.dealRepo.Create(ctx, deal); err != nil {
@@ -504,6 +512,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 	// Create history record
 	history := &models.DealHistory{
 		ID:              uuid.New().String(),
+			TenantID:        deal.TenantID,
 		DealID:          id,
 		FromStageID:     &fromStageID,
 		FromStageName:   fromStageName,

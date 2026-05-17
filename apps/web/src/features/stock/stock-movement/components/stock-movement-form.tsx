@@ -37,55 +37,104 @@ import { useStockMovementProducts, type MovementType, type StockMovementSelectab
 import { useStockMovementWarehouses } from "../hooks/use-stock-movement-warehouses";
 import { stockMovementService } from "../services/movement-service";
 
-// ─── Batch Selector sub-component ────────────────────────────────────────────
-function BatchSelector({
-  productId,
+// Simplified product allocation UI: batch + qty in one place
+function ProductAllocation({
+  product,
   warehouseId,
-  value,
+  allocations,
   onChange,
   t,
 }: {
-  productId: string;
+  product: SelectableProduct;
   warehouseId: string;
-  value: string;
-  onChange: (batchId: string) => void;
+  allocations: { batch_id: string; qty: number }[];
+  onChange: (next: { batch_id: string; qty: number }[]) => void;
   t: ReturnType<typeof useTranslations<"stock_movement">>;
 }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["movement-batches", warehouseId, productId],
-    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId, { page: 1, per_page: 100 }),
-    enabled: !!productId && !!warehouseId,
+  const { data } = useQuery({
+    queryKey: ["movement-batches", warehouseId, product.product_id],
+    queryFn: () => inventoryService.getTreeBatches(warehouseId, product.product_id, { page: 1, per_page: 100 }),
+    enabled: !!product.product_id && !!warehouseId,
     staleTime: 60_000,
   });
 
-  // getTreeBatches returns ApiResponse<InventoryBatchesResponse>; unwrap both layers.
-  const batches = data?.data?.data ?? [];
+  const batches = useMemo(() => data?.data?.data ?? [], [data?.data?.data]);
+  const batchLabelMap = useMemo(
+    () => new Map(batches.map((batch) => [batch.id, batch.batch_number])),
+    [batches]
+  );
+  const [selectedBatch, setSelectedBatch] = useState("");
+  const [qtyInput, setQtyInput] = useState("");
+  const AUTO_BATCH_VALUE = "__AUTO__";
+  const allocatedQty = allocations.reduce((s, a) => s + a.qty, 0);
+  const remainingAvailable = product.available - allocatedQty;
 
-  // The Select component requires each <SelectItem /> to have a non-empty value string.
-  // We represent the "auto" choice internally as the sentinel "__AUTO__" but
-  // translate it to an empty string when invoking the external onChange so the
-  // parent still stores "" for auto selection.
-  const INTERNAL_AUTO = "__AUTO__";
-  const internalValue = value === "" ? INTERNAL_AUTO : value;
+  const handleAdd = () => {
+    const q = parseFloat(qtyInput);
+    if (isNaN(q) || q <= 0) return toast.error(t("form.invalidQty"));
+    if (q > remainingAvailable) return toast.error(t("form.insufficientStock"));
+    onChange([...allocations, { batch_id: selectedBatch, qty: q }]);
+    setSelectedBatch("");
+    setQtyInput("");
+  };
 
   return (
-    <Select value={internalValue} onValueChange={(v) => onChange(v === INTERNAL_AUTO ? "" : v)} disabled={isLoading}>
-      <SelectTrigger className="h-8 text-sm w-56 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-        <SelectValue placeholder={t("form.batchAuto")} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={INTERNAL_AUTO} className="cursor-pointer">{t("form.batchAuto")}</SelectItem>
-        {batches.map((b) => (
-          <SelectItem key={b.id} value={b.id} className="cursor-pointer">
-            <span className="font-mono text-xs">{b.batch_number}</span>
-            <span className="text-muted-foreground ml-2">&middot; {b.available} avail</span>
-            {b.expiry_date && (
-              <span className="text-muted-foreground ml-1">&middot; exp {b.expiry_date}</span>
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="space-y-2">
+      {/* Allocated items list */}
+      {allocations.length > 0 && (
+        <div className="space-y-1 p-2 bg-muted/30 rounded border text-sm">
+          {allocations.map((a, idx) => (
+            <div key={idx} className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs flex-1 truncate">
+                {a.batch_id ? `Batch: ${batchLabelMap.get(a.batch_id) ?? a.batch_id}` : t("form.batchAuto")}
+              </span>
+              <span className="font-semibold shrink-0">{a.qty} {product.uom_name}</span>
+              <button onClick={() => onChange(allocations.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-foreground">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add allocation */}
+      <div className="flex items-center gap-2">
+        <Select
+          value={selectedBatch || AUTO_BATCH_VALUE}
+          onValueChange={(value) => setSelectedBatch(value === AUTO_BATCH_VALUE ? "" : value)}
+        >
+          <SelectTrigger className="h-8 text-sm flex-1">
+            <SelectValue placeholder={t("form.batch")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={AUTO_BATCH_VALUE}>{t("form.batchAuto")}</SelectItem>
+            {batches.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                <span className="text-xs">{b.batch_number} ({b.available} avail)</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="number"
+          step="1"
+          min="1"
+          max={remainingAvailable}
+          value={qtyInput}
+          onChange={(e) => setQtyInput(e.target.value)}
+          placeholder="Qty"
+          className="w-20 h-8 text-sm text-right"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAdd}
+          className="shrink-0"
+        >
+          {t("form.add")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -100,8 +149,7 @@ export function StockMovementForm() {
   const [sourceWarehouseId, setSourceWarehouseId] = useState("");
   const [targetWarehouseId, setTargetWarehouseId] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [batchSelections, setBatchSelections] = useState<Record<string, string>>({});
+  const [batchSelections, setBatchSelections] = useState<Record<string, { batch_id: string; qty: number }[]>>({});
   const [referenceNumber, setReferenceNumber] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,7 +252,6 @@ export function StockMovementForm() {
   const handleTypeChange = (newType: MovementType) => {
     setType(newType);
     setSelectedIds(new Set());
-    setQuantities({});
     setBatchSelections({});
     if (newType !== "TRANSFER") setTargetWarehouseId("");
   };
@@ -212,24 +259,23 @@ export function StockMovementForm() {
   const handleSourceWarehouseChange = (id: string) => {
     setSourceWarehouseId(id);
     setSelectedIds(new Set());
-    setQuantities({});
     setBatchSelections({});
     setProductSearch("");
   };
 
   const handleToggleAll = () => {
     const newSelected = new Set(selectedIds);
-    const newQtys = { ...quantities };
     if (allSelected) {
-      selectableProducts.forEach((p) => newSelected.delete(p.product_id));
-    } else {
       selectableProducts.forEach((p) => {
-        newSelected.add(p.product_id);
-        if (!newQtys[p.product_id]) {
-          newQtys[p.product_id] = type === "IN" ? 1 : p.available;
-        }
+        newSelected.delete(p.product_id);
+        setBatchSelections((prev) => {
+          const next = { ...prev };
+          delete next[p.product_id];
+          return next;
+        });
       });
-      setQuantities(newQtys);
+    } else {
+      selectableProducts.forEach((p) => newSelected.add(p.product_id));
     }
     setSelectedIds(newSelected);
   };
@@ -245,25 +291,8 @@ export function StockMovementForm() {
       });
     } else {
       newSelected.add(product.product_id);
-      setQuantities((prev) => ({
-        ...prev,
-        [product.product_id]: prev[product.product_id] ?? (type === "IN" ? 1 : product.available),
-      }));
     }
     setSelectedIds(newSelected);
-  };
-
-  const handleQuantityChange = (productId: string, value: string) => {
-    const num = parseFloat(value);
-    if (!isNaN(num) && num > 0) {
-      if (type !== "IN") {
-        const product = rawProducts.find((p) => p.product_id === productId);
-        const max = product?.available ?? Infinity;
-        setQuantities((prev) => ({ ...prev, [productId]: Math.min(num, max) }));
-      } else {
-        setQuantities((prev) => ({ ...prev, [productId]: num }));
-      }
-    }
   };
 
   const canSubmit = useMemo(() => {
@@ -271,16 +300,12 @@ export function StockMovementForm() {
     if (type === "TRANSFER" && !targetWarehouseId) return false;
     if (type === "TRANSFER" && sourceWarehouseId === targetWarehouseId) return false;
     if (selectedIds.size === 0) return false;
+    // Check that each product has at least one allocation or will use default
     return Array.from(selectedIds).every((id) => {
-      const qty = quantities[id] ?? 0;
-      if (qty <= 0) return false;
-      if (type !== "IN") {
-        const product = rawProducts.find((p) => p.product_id === id);
-        if (product && qty > product.available) return false;
-      }
-      return true;
+      const allocations = batchSelections[id] ?? [];
+      return allocations.length > 0 || true; // At least allocations, or use default qty
     });
-  }, [sourceWarehouseId, targetWarehouseId, selectedIds, quantities, type, rawProducts]);
+  }, [sourceWarehouseId, targetWarehouseId, selectedIds, batchSelections, type]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -289,16 +314,38 @@ export function StockMovementForm() {
       const batchReferenceNumber = referenceNumber || `MANUAL-${Date.now()}`;
 
       for (const productId of Array.from(selectedIds)) {
-        await stockMovementService.createMovement({
-          type,
-          product_id: productId,
-          warehouse_id: sourceWarehouseId,
-          target_warehouse_id: type === "TRANSFER" ? targetWarehouseId : undefined,
-          quantity: quantities[productId] ?? 0,
-          reference_number: batchReferenceNumber,
-          description: description || undefined,
-          batch_id: type !== "IN" ? (batchSelections[productId] || undefined) : undefined,
-        });
+        const product = rawProducts.find((p) => p.product_id === productId);
+        if (!product) continue;
+
+        const allocations = batchSelections[productId] ?? [];
+
+        // If allocations provided, create one movement per allocation
+        if (allocations.length > 0) {
+          for (const alloc of allocations) {
+            await stockMovementService.createMovement({
+              type,
+              product_id: productId,
+              warehouse_id: sourceWarehouseId,
+              target_warehouse_id: type === "TRANSFER" ? targetWarehouseId : undefined,
+              quantity: alloc.qty,
+              reference_number: batchReferenceNumber,
+              description: description || undefined,
+              batch_id: alloc.batch_id || undefined,
+            });
+          }
+        } else {
+          // Use default qty
+          const defaultQty = type === "IN" ? 1 : product.available;
+          await stockMovementService.createMovement({
+            type,
+            product_id: productId,
+            warehouse_id: sourceWarehouseId,
+            target_warehouse_id: type === "TRANSFER" ? targetWarehouseId : undefined,
+            quantity: defaultQty,
+            reference_number: batchReferenceNumber,
+            description: description || undefined,
+          });
+        }
       }
 
       queryClient.removeQueries({ queryKey: ["stock-movements"] });
@@ -570,21 +617,18 @@ export function StockMovementForm() {
                 {filteredProducts.map((product) => {
                   const isSelectable = type === "IN" || product.available > 0;
                   const isSelected = selectedIds.has(product.product_id);
-                  const qty =
-                    quantities[product.product_id] ?? (type === "IN" ? 1 : product.available);
-                  const showBatchSelector = isSelected && type !== "IN";
 
                   return (
                     <div
                       key={product.product_id}
                       className={cn(
-                        "flex flex-col px-6 py-4 transition-colors gap-2",
+                        "flex flex-col px-6 py-4 transition-colors gap-3",
                         isSelected && "bg-primary/5",
                         !isSelected && isSelectable && "hover:bg-muted/20",
                         !isSelectable && "opacity-40 pointer-events-none"
                       )}
                     >
-                      {/* Main row: checkbox + product info + qty input */}
+                      {/* Checkbox + product info */}
                       <div className="flex items-center gap-4">
                         <Checkbox
                           id={`p-${product.product_id}`}
@@ -615,47 +659,16 @@ export function StockMovementForm() {
                             </div>
                           )}
                         </label>
-
-                        {/* Quantity input — shown only when row is selected */}
-                        {isSelected && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs text-muted-foreground hidden sm:block">
-                              {t("form.qty")}
-                            </span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              max={type !== "IN" ? product.available : undefined}
-                              value={qty}
-                              onChange={(e) =>
-                                handleQuantityChange(product.product_id, e.target.value)
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-24 h-8 text-right text-sm"
-                            />
-                            {product.uom_name && (
-                              <span className="text-xs text-muted-foreground hidden sm:block">
-                                {product.uom_name}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
 
-                      {/* Batch selector row — OUT/TRANSFER only when product is selected */}
-                      {showBatchSelector && (
-                        <div className="ml-8 flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {t("form.batch")}
-                          </span>
-                          <BatchSelector
-                            productId={product.product_id}
+                      {/* Allocation form — shown only when row is selected */}
+                      {isSelected && (
+                        <div className="ml-8">
+                          <ProductAllocation
+                            product={product}
                             warehouseId={sourceWarehouseId}
-                            value={batchSelections[product.product_id] ?? ""}
-                            onChange={(batchId) =>
-                              setBatchSelections((prev) => ({ ...prev, [product.product_id]: batchId }))
-                            }
+                            allocations={batchSelections[product.product_id] ?? []}
+                            onChange={(next) => setBatchSelections((prev) => ({ ...prev, [product.product_id]: next }))}
                             t={t}
                           />
                         </div>

@@ -28,6 +28,87 @@ type areaMappingRepository struct {
 	db *gorm.DB
 }
 
+func buildInPlaceholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+
+	placeholders := "?"
+	for i := 1; i < count; i++ {
+		placeholders += ", ?"
+	}
+
+	return placeholders
+}
+
+func appendStringsAsArgs(args []interface{}, values []string) []interface{} {
+	for _, value := range values {
+		args = append(args, value)
+	}
+	return args
+}
+
+func buildCRMScopeFilter(ctx context.Context, tableAlias string) (string, []interface{}) {
+	scope, _ := ctx.Value("permission_scope").(string)
+	if scope == "" || scope == "ALL" {
+		return "", nil
+	}
+
+	userID, _ := ctx.Value("scope_user_id").(string)
+	employeeID, _ := ctx.Value("scope_employee_id").(string)
+	divisionID, _ := ctx.Value("scope_division_id").(string)
+	areaIDs, _ := ctx.Value("scope_area_ids").([]string)
+
+	ownerClause := func() (string, []interface{}) {
+		conditions := ""
+		args := make([]interface{}, 0, 2)
+
+		if employeeID != "" {
+			conditions += tableAlias + ".assigned_to = ?"
+			args = append(args, employeeID)
+		}
+		if userID != "" {
+			if conditions != "" {
+				conditions += " OR "
+			}
+			conditions += tableAlias + ".created_by = ?"
+			args = append(args, userID)
+		}
+
+		if conditions == "" {
+			return " AND 1 = 0", nil
+		}
+
+		return " AND (" + conditions + ")", args
+	}
+
+	switch scope {
+	case "OWN":
+		return ownerClause()
+	case "DIVISION":
+		if divisionID == "" {
+			return ownerClause()
+		}
+
+		clause := " AND ((" + tableAlias + ".assigned_to IN (SELECT id FROM employees WHERE division_id = ? AND deleted_at IS NULL)) OR (" + tableAlias + ".created_by IN (SELECT user_id FROM employees WHERE division_id = ? AND user_id IS NOT NULL AND deleted_at IS NULL)))"
+		return clause, []interface{}{divisionID, divisionID}
+	case "AREA":
+		if len(areaIDs) == 0 {
+			return ownerClause()
+		}
+
+		placeholders := buildInPlaceholders(len(areaIDs))
+		clause := " AND ((" + tableAlias + ".assigned_to IN (SELECT employee_id FROM employee_areas WHERE area_id IN (" + placeholders + ") AND deleted_at IS NULL)) OR (" + tableAlias + ".created_by IN (SELECT user_id FROM employees WHERE id IN (SELECT employee_id FROM employee_areas WHERE area_id IN (" + placeholders + ") AND deleted_at IS NULL) AND user_id IS NOT NULL AND deleted_at IS NULL)))"
+
+		args := make([]interface{}, 0, len(areaIDs)*2)
+		args = appendStringsAsArgs(args, areaIDs)
+		args = appendStringsAsArgs(args, areaIDs)
+		return clause, args
+	default:
+		return ownerClause()
+	}
+}
+
 func resolveTenantScope(ctx context.Context) (tenantID string, enabled bool) {
 	if v := ctx.Value("is_system_admin"); v != nil {
 		if isSystemAdmin, ok := v.(bool); ok && isSystemAdmin {
@@ -56,9 +137,11 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 	taskJoin := "LEFT JOIN crm_tasks t ON l.id = t.lead_id AND t.deleted_at IS NULL"
 	dealJoin := "LEFT JOIN crm_deals d ON l.id = d.lead_id AND d.deleted_at IS NULL"
 	tenantWhereFilter := ""
+	scopeWhereFilter := ""
 	whereDateFilter := ""
 	args := make([]interface{}, 0)
 	tenantID, tenantScoped := resolveTenantScope(ctx)
+	scopeClause, scopeArgs := buildCRMScopeFilter(ctx, "l")
 
 	if tenantScoped {
 		activityJoin += " AND a.tenant_id = l.tenant_id"
@@ -66,6 +149,11 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 		dealJoin += " AND d.tenant_id = l.tenant_id"
 		tenantWhereFilter = " AND l.tenant_id = ?"
 		args = append(args, tenantID)
+	}
+
+	if scopeClause != "" {
+		scopeWhereFilter = scopeClause
+		args = append(args, scopeArgs...)
 	}
 
 	if startDate != nil && endDate != nil {
@@ -114,9 +202,10 @@ func (r *areaMappingRepository) GetLeadsForMapping(ctx context.Context, startDat
 			AND l.longitude IS NOT NULL
 			%s
 			%s
+			%s
 		GROUP BY l.id, l.code, l.first_name, l.last_name, l.latitude, l.longitude, l.province, l.city, ls.name, l.lead_score, l.estimated_value, l.assigned_to, e.name
 		ORDER BY intensity_score DESC
-	`, activityJoin, taskJoin, dealJoin, tenantWhereFilter, whereDateFilter)
+	`, activityJoin, taskJoin, dealJoin, tenantWhereFilter, scopeWhereFilter, whereDateFilter)
 
 	if err := r.getDB(ctx).Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, err
@@ -130,12 +219,19 @@ func (r *areaMappingRepository) GetPipelinesForMapping(ctx context.Context, star
 	var results []dto.AreaMappingPipelineData
 
 	tenantWhereFilter := ""
+	scopeWhereFilter := ""
 	whereDateFilter := ""
 	args := make([]interface{}, 0)
 	tenantID, tenantScoped := resolveTenantScope(ctx)
+	scopeClause, scopeArgs := buildCRMScopeFilter(ctx, "d")
 	if tenantScoped {
 		tenantWhereFilter = " AND d.tenant_id = ?"
 		args = append(args, tenantID)
+	}
+
+	if scopeClause != "" {
+		scopeWhereFilter = scopeClause
+		args = append(args, scopeArgs...)
 	}
 
 	if startDate != nil && endDate != nil {
@@ -182,8 +278,9 @@ func (r *areaMappingRepository) GetPipelinesForMapping(ctx context.Context, star
 			AND COALESCE(l.longitude, c.longitude) IS NOT NULL
 			%s
 			%s
+			%s
 		ORDER BY intensity_score DESC, d.created_at DESC
-	`, tenantWhereFilter, whereDateFilter)
+	`, tenantWhereFilter, scopeWhereFilter, whereDateFilter)
 
 	if err := r.getDB(ctx).Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, err

@@ -148,6 +148,7 @@ export const stockOpnameEn = {
     columns: {
       productCode: "Product Code",
       productName: "Product Name",
+      batchNumber: "Batch",
       systemQty: "System Qty",
       physicalQty: "Physical Qty",
       varianceQty: "Variance",

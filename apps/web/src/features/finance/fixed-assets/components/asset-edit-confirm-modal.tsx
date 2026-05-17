@@ -28,18 +28,16 @@ interface DepreciationImpact {
   depreciation_method: string;
 }
 
-interface FieldChange {
-  field_name: string;
-  old_value: any;
-  new_value: any;
-  group: string;
-  depreciation_impact?: DepreciationImpact;
+interface AssetSnapshot {
+  [key: string]: unknown;
+  book_value?: number;
+  depreciation_method?: string;
 }
 
 interface AssetEditConfirmModalProps {
   isOpen: boolean;
-  asset: any;
-  changes: Record<string, any>;
+  asset: AssetSnapshot;
+  changes: Record<string, unknown>;
   changedFields: string[];
   isLoading: boolean;
   onConfirm: () => Promise<void>;
@@ -116,13 +114,13 @@ export function AssetEditConfirmModal({
                       <div>
                         <span className="text-gray-600">Current: </span>
                         <span className="font-mono text-red-600">
-                          {formatValue(asset?.[fieldName] || changes?.[fieldName]?.old)}
+                          {formatValue(asset?.[fieldName] || (changes?.[fieldName] as { old?: unknown })?.old)}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600">New: </span>
                         <span className="font-mono text-green-600">
-                          {formatValue(changes?.[fieldName]?.new)}
+                          {formatValue((changes?.[fieldName] as { new?: unknown })?.new)}
                         </span>
                       </div>
                     </div>
@@ -138,7 +136,6 @@ export function AssetEditConfirmModal({
               <DepreciationImpactPreview
                 asset={asset}
                 changes={changes}
-                changedFields={changedFields}
               />
             ) : (
               <Card>
@@ -179,11 +176,9 @@ export function AssetEditConfirmModal({
 function DepreciationImpactPreview({
   asset,
   changes,
-  changedFields,
 }: {
-  asset: any;
-  changes: Record<string, any>;
-  changedFields: string[];
+  asset: Record<string, unknown>;
+  changes: Record<string, unknown>;
 }) {
   // Mock depreciation impact - in real implementation, calculate from changes
   const mockImpact: DepreciationImpact = {
@@ -193,10 +188,10 @@ function DepreciationImpactPreview({
     old_total_remaining: 1200,
     new_total_remaining: 1440,
     impact_amount: 240,
-    new_book_value: asset?.book_value - 240,
+    new_book_value: Number((asset as Record<string, unknown>)?.book_value) - 240,
     entries_to_regenerate: 12,
     first_affected_period: '2026-05',
-    depreciation_method: changes.deprecationMethod?.new || asset?.depreciation_method,
+    depreciation_method: String((changes.deprecationMethod as { new?: unknown } | undefined)?.new ?? asset?.depreciation_method ?? 'SL'),
   };
 
   const isDegrading = mockImpact.impact_amount > 0;
@@ -303,7 +298,7 @@ function DepreciationImpactPreview({
             ${mockImpact.new_book_value.toFixed(2)}
           </div>
           <p className="text-xs text-gray-600 mt-2">
-            Current Book Value: ${(asset?.book_value || 0).toFixed(2)}
+            Current Book Value: ${Number(asset?.book_value ?? 0).toFixed(2)}
           </p>
         </CardContent>
       </Card>
@@ -328,7 +323,7 @@ function formatFieldName(fieldName: string): string {
     .trim();
 }
 
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined) return 'N/A';
   if (typeof value === 'number') return value.toFixed(2);
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -69,9 +70,9 @@ export function CoaList() {
   const t = useTranslations("financeCoa");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("coa.create");
-  const canUpdate = useUserPermission("coa.update");
-  const canDelete = useUserPermission("coa.delete");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.COA.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.COA.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.COA.DELETE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

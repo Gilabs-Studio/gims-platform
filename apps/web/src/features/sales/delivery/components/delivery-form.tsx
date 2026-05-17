@@ -679,7 +679,7 @@ export function DeliveryForm({
 																		// insert a new allocation row after current index
 																		// use the insert function returned from the hook via props
 																		// build a shallow clone of current item with reset batch/warehouse/qty
-																		const itemClone: any = {
+																		const itemClone = {
 																			product_id: currentItem?.product_id || "",
 																			product_name: currentItem?.product_name || "Selected product",
 																			warehouse_id: "",
@@ -689,11 +689,11 @@ export function DeliveryForm({
 																			price: currentItem?.price || 0,
 																			installation_status: "",
 																			function_test_status: "",
-																			row_type: "allocation",
+																			row_type: "allocation" as const,
 																			allocation_parent_index: index,
 																		};
 																		// call insert from hook return
-																		insert(index + 1, itemClone);
+																		insert(index + 1, itemClone as DeliveryOrderItemFormData);
 																	}}
 																>
 																	<Plus className="h-4 w-4 mr-2" />

@@ -76,3 +76,27 @@ type OutletOption struct {
 type FloorPlanFormDataResponse struct {
 	Outlets []OutletOption `json:"outlets"`
 }
+
+// ─── Table QR Token DTOs ─────────────────────────────────────────────────────
+
+// GenerateTableTokenRequest requests creation (or rotation) of a QR token for a table.
+type GenerateTableTokenRequest struct {
+	TableLabel string `json:"table_label" binding:"required,max=50"`
+}
+
+// TableQRTokenResponse returned to the staff client.
+type TableQRTokenResponse struct {
+	ID            string `json:"id"`
+	FloorPlanID   string `json:"floor_plan_id"`
+	TableObjectID string `json:"table_object_id"`
+	TableLabel    string `json:"table_label"`
+	Token         string `json:"token"`
+	IsActive      bool   `json:"is_active"`
+	CreatedAt     string `json:"created_at"`
+	// SelfOrderURL is the public URL customers use to scan and place orders.
+	// Resolved dynamically from the request origin so it works in both dev and prod.
+	SelfOrderURL string `json:"self_order_url,omitempty"`
+	// QRBase64 is a data URI (data:image/png;base64,...) ready for <img src> or print.
+	QRBase64 string `json:"qr_base64,omitempty"`
+}
+

@@ -269,6 +269,10 @@ func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, s
 	return s.lines, nil
 }
 
+func (s stubFinanceReportRepository) GetGLAccountTransactionsByAccounts(context.Context, []string, time.Time, time.Time, *string, *string) ([]financeModels.JournalLine, error) {
+	return s.lines, nil
+}
+
 func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string, _ *string) (float64, error) {
 	if s.getNetProfitFn != nil {
 		return s.getNetProfitFn(startDate, endDate), nil

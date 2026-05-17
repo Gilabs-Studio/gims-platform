@@ -342,7 +342,6 @@ export function LeadFormDialog({
                               t("form.contactRolePlaceholder") ||
                               "Select Contact Role"
                             }
-                            createPermission="crm_contact_role.create"
                             createLabel={`${tCommon("create")} "{query}"`}
                             onCreateClick={(query) =>
                               openQuickCreate("contactRole", query)

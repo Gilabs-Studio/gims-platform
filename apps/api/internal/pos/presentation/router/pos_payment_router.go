@@ -17,6 +17,7 @@ func RegisterPOSPaymentRoutes(rg *gin.RouterGroup, h *handler.POSPaymentHandler)
 	payments.GET("", h.GetByOrder)
 	payments.POST("/cash", h.ProcessCash)
 	payments.POST("/digital", h.InitiateDigitalPayment)
+	payments.POST("/:paymentID/cancel", h.CancelPendingPayment)
 
 	// Xendit webhook — no auth required (server-to-server callback from Xendit)
 	// Registered directly on the parent group to avoid the permission middleware

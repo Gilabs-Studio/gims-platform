@@ -36,6 +36,7 @@ export interface StockOpnameItem {
   product_id: string;
   product_name?: string;
   product_code?: string;
+  product_image_url?: string | null;
   
   system_qty: number;
   physical_qty: number | null;
@@ -43,6 +44,10 @@ export interface StockOpnameItem {
   unit_cost: number;
   
   notes?: string;
+
+  inventory_batch_id?: string | null;
+  batch_number?: string;
+  batch_qty?: number;
 }
 
 export interface StockOpnameFilter {
@@ -87,6 +92,9 @@ export interface StockOpnameItemRequest {
     system_qty: number;
     physical_qty?: number | null;
     notes?: string;
+    inventory_batch_id?: string | null;
+    batch_number?: string;
+    batch_qty?: number;
 }
 
 export interface UpdateStockOpnameStatusRequest {

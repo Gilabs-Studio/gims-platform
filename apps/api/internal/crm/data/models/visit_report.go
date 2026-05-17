@@ -39,8 +39,8 @@ const (
 // Combines: interest survey (ERP) + approval workflow + GPS + photos (CRM)
 type VisitReport struct {
 	ID   string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index;uniqueIndex:uq_crm_visit_reports_tenant_code" json:"tenant_id,omitempty"`
+	Code string `gorm:"type:varchar(50);not null;uniqueIndex:uq_crm_visit_reports_tenant_code" json:"code"`
 
 	// Relations
 	CustomerID   *string                  `gorm:"type:uuid;index" json:"customer_id"`

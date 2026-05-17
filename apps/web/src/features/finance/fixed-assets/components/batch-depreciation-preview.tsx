@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +81,7 @@ export function BatchDepreciationPreview({
   periodValidationError,
 }: BatchDepreciationPreviewProps) {
   const t = useTranslations("financeFixedAssets.batchDepreciation");
-  const canDepreciate = useUserPermission("asset.depreciate");
+  const canDepreciate = useUserPermission(FINANCE_PERMISSIONS.ASSET.DEPRECIATE);
   const currentYear = new Date().getFullYear();
   const previewLines = getPreviewLines(previewData);
   const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);

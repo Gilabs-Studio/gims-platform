@@ -13,6 +13,11 @@ class GimsColors {
   static const card = Colors.white;
 }
 
+class GimsRadius {
+  static const small = 8.0;
+  static const medium = 12.0;
+}
+
 ThemeData buildGimsTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: GimsColors.primary,
@@ -43,28 +48,36 @@ ThemeData buildGimsTheme() {
       color: GimsColors.card,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(GimsRadius.medium),
         side: const BorderSide(color: GimsColors.border),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GimsRadius.medium),
+        ),
         minimumSize: const Size(48, 44),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        side: const BorderSide(color: GimsColors.border),
+        foregroundColor: GimsColors.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GimsRadius.medium),
+        ),
         minimumSize: const Size(48, 44),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(GimsRadius.medium),
+      ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(GimsRadius.medium),
         borderSide: const BorderSide(color: GimsColors.border),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -78,6 +91,21 @@ ThemeData buildGimsTheme() {
               ? FontWeight.w600
               : FontWeight.w400,
         ),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GimsRadius.medium),
+          ),
+        ),
+        side: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return BorderSide(
+            color: selected ? GimsColors.primary : GimsColors.border,
+          );
+        }),
       ),
     ),
   );

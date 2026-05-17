@@ -47,6 +47,13 @@ type taskRepository struct {
 	db *gorm.DB
 }
 
+func taskScopeQueryOptions() security.ScopeQueryOptions {
+	return security.ScopeQueryOptions{
+		OwnerEmployeeIDColumn: "assigned_to",
+		DivisionJoinSQL:       "assigned_to IN (SELECT id FROM employees WHERE division_id = ?)",
+	}
+}
+
 // NewTaskRepository creates a new task repository
 func NewTaskRepository(db *gorm.DB) TaskRepository {
 	return &taskRepository{db: db}
@@ -75,7 +82,7 @@ func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task,
 
 func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]models.Task, int64, error) {
 	query := database.GetDB(ctx, r.db).Model(&models.Task{})
-	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
+	query = security.ApplyScopeFilter(query, ctx, taskScopeQueryOptions())
 
 	if params.Search != "" {
 		searchTerm := "%" + params.Search + "%"

@@ -43,6 +43,8 @@ export const stockMovementId = {
       transferWarehouse: "Gudang",
       transferLinkedMovement: "Transfer ini terhubung dengan pergerakan masuk/keluar yang cocok di atas.",
       transferSingleMovement: "Hanya satu sisi transfer yang tersedia pada halaman ini.",
+      batchNumber: "Batch",
+      batchUnknown: "N/A",
     },
     form: {
       createTitle: "Buat Pergerakan Stok",
@@ -83,6 +85,9 @@ export const stockMovementId = {
       qty: "Jumlah",
       batch: "Batch",
       batchAuto: "Auto (FIFO)",
+      add: "Tambah",
+      selectBatch: "Silakan pilih batch",
+      invalidQty: "Jumlah tidak valid",
       // Detail
       referenceNumber: "Nomor Referensi",
       referenceNumberPlaceholder: "cth. TRF-2026-001 (otomatis jika dikosongkan)",

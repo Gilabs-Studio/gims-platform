@@ -135,7 +135,7 @@ func TestFloorPlanCreateUseOutletScopeWhenOutletMatchesUserCompany(t *testing.T)
 		},
 	}
 
-	uc := NewFloorPlanUsecase(repo, outletRepo)
+	uc := NewFloorPlanUsecase(repo, outletRepo, nil)
 	resp, err := uc.Create(context.Background(), &dto.CreateFloorPlanRequest{
 		OutletID:    outletID,
 		Name:        "Main Dining",
@@ -161,7 +161,7 @@ func TestFloorPlanCreateRejectWhenOutletOutsideUserCompany(t *testing.T) {
 		},
 	}
 
-	uc := NewFloorPlanUsecase(repo, outletRepo)
+	uc := NewFloorPlanUsecase(repo, outletRepo, nil)
 	resp, err := uc.Create(context.Background(), &dto.CreateFloorPlanRequest{
 		OutletID:    outletID,
 		Name:        "Main Dining",
@@ -175,7 +175,7 @@ func TestFloorPlanCreateRejectWhenOutletOutsideUserCompany(t *testing.T) {
 func TestFloorPlanListScopeByCompanyWhenNonOwner(t *testing.T) {
 	repo := &floorPlanRepoStub{}
 	outletRepo := &outletRepoStub{}
-	uc := NewFloorPlanUsecase(repo, outletRepo)
+	uc := NewFloorPlanUsecase(repo, outletRepo, nil)
 
 	_, _, err := uc.List(context.Background(), repositories.FloorPlanListParams{
 		OutletID: testOutletID,

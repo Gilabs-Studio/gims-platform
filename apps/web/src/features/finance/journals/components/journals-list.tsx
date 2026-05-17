@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -48,8 +49,8 @@ export function JournalsList() {
   const tCommon = useTranslations("common");
   const initialOpenJournalId = getInitialOpenJournalFromURL();
 
-  const canCreate = useUserPermission("journal.create");
-  const canViewTrialBalance = useUserPermission("trial_balance_report.read");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.CREATE);
+  const canViewTrialBalance = useUserPermission(FINANCE_PERMISSIONS.REPORT.TRIAL_BALANCE_READ);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

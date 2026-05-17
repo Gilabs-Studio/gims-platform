@@ -31,8 +31,10 @@ export function DeleteAccountCard() {
   const t = useTranslations("profile.deleteAccount");
   const deleteMutation = useRequestAccountDeletion();
   const scheduledPurgeAt = useMemo(() => {
-    const date = new Date(Date.now() + GRACE_PERIOD_DAYS * MILLISECONDS_PER_DAY);
-    return formatDateTime(date);
+    // Using constructor ensures pure calculation without Date.now() at render time
+    const now = new Date();
+    const purgeDate = new Date(now.getTime() + GRACE_PERIOD_DAYS * MILLISECONDS_PER_DAY);
+    return formatDateTime(purgeDate);
   }, []);
 
   return (

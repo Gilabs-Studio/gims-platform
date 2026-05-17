@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -24,9 +25,9 @@ export function TaxInvoicesList() {
   const t = useTranslations("financeTaxInvoices");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("tax_invoice.create");
-  const canUpdate = useUserPermission("tax_invoice.update");
-  const canDelete = useUserPermission("tax_invoice.delete");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.TAX_INVOICE.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.TAX_INVOICE.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.TAX_INVOICE.DELETE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

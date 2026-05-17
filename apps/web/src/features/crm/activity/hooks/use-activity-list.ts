@@ -10,7 +10,7 @@ export function useActivityList() {
   const t = useTranslations("crmActivity");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("crm_activity.create");
+  const canCreate = useUserPermission("crm_task.create");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);

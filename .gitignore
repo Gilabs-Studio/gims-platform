@@ -57,3 +57,8 @@ apps/erp-front-end/
 CLAUDE.md
 .CLAUDE/
 .pi*/
+
+
+# Database backups (production/local)
+backup/
+*.dump

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -96,13 +97,13 @@ export function NonTradePayablesList() {
   const t = useTranslations("financeNonTradePayables");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("non_trade_payable.create");
-  const canUpdate = useUserPermission("non_trade_payable.update");
-  const canSubmit = useUserPermission("non_trade_payable.submit");
-  const canDelete = useUserPermission("non_trade_payable.delete");
-  const canApprove = useUserPermission("non_trade_payable.approve");
-  const canReject = useUserPermission("non_trade_payable.reject");
-  const canPay = useUserPermission("non_trade_payable.pay");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.UPDATE);
+  const canSubmit = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.SUBMIT);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.DELETE);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.APPROVE);
+  const canReject = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.REJECT);
+  const canPay = useUserPermission(FINANCE_PERMISSIONS.NON_TRADE_PAYABLE.PAY);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

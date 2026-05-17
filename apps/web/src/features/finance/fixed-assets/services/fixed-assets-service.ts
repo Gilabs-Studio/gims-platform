@@ -59,6 +59,14 @@ export const fixedAssetsService = {
     return response.data;
   },
 
+  approveDepreciation: async (data: RunDepreciationRequest): Promise<ApiResponse<BatchDepreciationRunResponse>> => {
+    const response = await apiClient.post<ApiResponse<BatchDepreciationRunResponse>>(
+      `${DEPRECIATION_BASE_URL}/approve`,
+      data
+    );
+    return response.data;
+  },
+
   // Disposal
   previewDisposal: async (assetId: string, proceedsAmount: number, disposalAccountId?: string): Promise<ApiResponse<DisposalPreviewResponse>> => {
     const response = await apiClient.post<ApiResponse<DisposalPreviewResponse>>(

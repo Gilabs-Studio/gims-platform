@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -71,11 +72,11 @@ export function ClosingList() {
   const t = useTranslations("financeClosing");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("financial_closing.create");
-  const canApprove = useUserPermission("financial_closing.approve");
-  const canReopen = useUserPermission("financial_closing.reopen");
-  const canYearEnd = useUserPermission("financial_closing.year_end");
-  const canDelete = useUserPermission("financial_closing.delete");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.FINANCIAL_CLOSING.CREATE);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.FINANCIAL_CLOSING.APPROVE);
+  const canReopen = useUserPermission(FINANCE_PERMISSIONS.FINANCIAL_CLOSING.REOPEN);
+  const canYearEnd = useUserPermission(FINANCE_PERMISSIONS.FINANCIAL_CLOSING.YEAR_END);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.FINANCIAL_CLOSING.DELETE);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);

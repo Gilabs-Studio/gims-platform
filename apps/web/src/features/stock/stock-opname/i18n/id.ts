@@ -148,6 +148,7 @@ export const stockOpnameId = {
     columns: {
       productCode: "Kode Produk",
       productName: "Nama Produk",
+      batchNumber: "Batch",
       systemQty: "Qty Sistem",
       physicalQty: "Qty Fisik",
       varianceQty: "Selisih",

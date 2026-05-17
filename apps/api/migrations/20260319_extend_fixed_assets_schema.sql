@@ -91,10 +91,10 @@ BEGIN
     END IF;
     
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_assets')
-       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'departments')
+       AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'divisions')
        AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_fixed_assets_department') THEN
         ALTER TABLE fixed_assets ADD CONSTRAINT fk_fixed_assets_department 
-        FOREIGN KEY (department_id) REFERENCES departments(id);
+        FOREIGN KEY (department_id) REFERENCES divisions(id);
     END IF;
     
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_assets')
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS asset_assignment_histories (
     tenant_id UUID,
     asset_id UUID NOT NULL REFERENCES fixed_assets(id) ON DELETE CASCADE,
     employee_id UUID REFERENCES employees(id),
-    department_id UUID REFERENCES departments(id),
+    department_id UUID REFERENCES divisions(id),
     location_id UUID,
     assigned_at TIMESTAMPTZ DEFAULT NOW(),
     assigned_by UUID REFERENCES users(id),

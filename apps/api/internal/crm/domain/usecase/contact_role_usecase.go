@@ -32,10 +32,22 @@ func NewContactRoleUsecase(repo repositories.ContactRoleRepository) ContactRoleU
 }
 
 func (u *contactRoleUsecase) Create(ctx context.Context, req dto.CreateContactRoleRequest) (dto.ContactRoleResponse, error) {
+	exists, err := u.repo.ExistsByName(ctx, req.Name, "")
+	if err != nil {
+		return dto.ContactRoleResponse{}, err
+	}
+	if exists {
+		return dto.ContactRoleResponse{}, errors.New("contact role with this name already exists")
+	}
+
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	roleID := uuid.New().String()
 
 	role := &models.ContactRole{
 		ID:          roleID,
+		TenantID:    tenantID,
 		Name:        req.Name,
 		Code:        generateContactRoleCode(req.Name, roleID),
 		Description: req.Description,
@@ -73,6 +85,13 @@ func (u *contactRoleUsecase) Update(ctx context.Context, id string, req dto.Upda
 	}
 
 	if req.Name != "" {
+		exists, existsErr := u.repo.ExistsByName(ctx, req.Name, id)
+		if existsErr != nil {
+			return dto.ContactRoleResponse{}, existsErr
+		}
+		if exists {
+			return dto.ContactRoleResponse{}, errors.New("contact role with this name already exists")
+		}
 		role.Name = req.Name
 	}
 	if req.Description != "" {

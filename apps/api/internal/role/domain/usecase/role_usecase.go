@@ -419,7 +419,7 @@ func (u *roleUsecase) AssignPermissions(ctx context.Context, roleID string, perm
 		return err
 	}
 
-	permissionIDs, err = u.withPreservedAlwaysSafePermissionIDs(ctx, roleID, permissionIDs)
+	permissionIDs, err = u.withPreservedAlwaysSafePermissionIDs(ctx, role.Code, roleID, permissionIDs)
 	if err != nil {
 		return err
 	}
@@ -481,7 +481,7 @@ func (u *roleUsecase) AssignPermissionsWithScope(ctx context.Context, roleID str
 		})
 	}
 
-	rolePerms, err = u.withPreservedAlwaysSafeRolePermissions(ctx, roleID, rolePerms)
+	rolePerms, err = u.withPreservedAlwaysSafeRolePermissions(ctx, role.Code, roleID, rolePerms)
 	if err != nil {
 		return err
 	}
@@ -1516,31 +1516,15 @@ func isAlwaysSafePermissionCode(code string) bool {
 // Regular roles can freely remove permissions.
 func isSpecialRole(roleCode string) bool {
 	specialRoles := map[string]bool{
-		"tenant_owner":    true, // Account owner
-		"admin":           true, // Full system admin
-		"outlet_manager":  true, // Outlet manager
-		"manager":         true, // Generic manager
-		"sales_manager":   true, // Sales department manager
-		"finance_manager": true, // Finance department manager
-		"hr_manager":      true, // HR department manager
-		"area_supervisor": true, // Area supervisor
-		"sales_director":  true, // Sales director
+		"tenant_owner": true, // Account owner
+		"admin":        true, // Full system admin
 	}
 	return specialRoles[roleCode]
 }
 
-func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, roleID string, permissionIDs []string) ([]string, error) {
-	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
-	if err != nil {
-		return nil, err
-	}
-	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	seen := make(map[string]struct{}, len(permissionIDs)+len(alwaysSafeRows))
-	result := make([]string, 0, len(permissionIDs)+len(alwaysSafeRows))
+func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, roleCode, roleID string, permissionIDs []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(permissionIDs))
+	result := make([]string, 0, len(permissionIDs))
 	for _, permissionID := range permissionIDs {
 		if permissionID == "" {
 			continue
@@ -1550,6 +1534,19 @@ func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, 
 		}
 		seen[permissionID] = struct{}{}
 		result = append(result, permissionID)
+	}
+
+	if !isSpecialRole(roleCode) {
+		return result, nil
+	}
+
+	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
+	if err != nil {
+		return nil, err
 	}
 	for _, row := range alwaysSafeRows {
 		if row.PermissionID == "" {
@@ -1575,17 +1572,8 @@ func (u *roleUsecase) withPreservedAlwaysSafePermissionIDs(ctx context.Context, 
 	return result, nil
 }
 
-func (u *roleUsecase) withPreservedAlwaysSafeRolePermissions(ctx context.Context, roleID string, rolePerms []models.RolePermission) ([]models.RolePermission, error) {
-	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
-	if err != nil {
-		return nil, err
-	}
-	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	byPermissionID := make(map[string]models.RolePermission, len(rolePerms)+len(alwaysSafeRows))
+func (u *roleUsecase) withPreservedAlwaysSafeRolePermissions(ctx context.Context, roleCode, roleID string, rolePerms []models.RolePermission) ([]models.RolePermission, error) {
+	byPermissionID := make(map[string]models.RolePermission, len(rolePerms))
 	for _, rolePerm := range rolePerms {
 		if rolePerm.PermissionID == "" {
 			continue
@@ -1594,6 +1582,23 @@ func (u *roleUsecase) withPreservedAlwaysSafeRolePermissions(ctx context.Context
 			rolePerm.Scope = models.ScopeAll
 		}
 		byPermissionID[rolePerm.PermissionID] = rolePerm
+	}
+
+	if !isSpecialRole(roleCode) {
+		result := make([]models.RolePermission, 0, len(byPermissionID))
+		for _, rolePerm := range byPermissionID {
+			result = append(result, rolePerm)
+		}
+		return result, nil
+	}
+
+	alwaysSafeRows, err := u.loadExistingAlwaysSafeRolePermissions(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	mandatoryPermissionIDs, err := u.loadMandatoryPermissionIDs(ctx)
+	if err != nil {
+		return nil, err
 	}
 	for _, row := range alwaysSafeRows {
 		if row.PermissionID == "" {

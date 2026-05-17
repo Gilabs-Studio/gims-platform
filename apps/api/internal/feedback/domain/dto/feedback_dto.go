@@ -121,6 +121,7 @@ type FeedbackResponseItem struct {
 	ID           string          `json:"id"`
 	FormID       string          `json:"form_id"`
 	FormTitle    string          `json:"form_title"`
+	SchemaJSON   json.RawMessage `json:"schema_json,omitempty"`
 	OutletID     string          `json:"outlet_id"`
 	OutletName   string          `json:"outlet_name"`
 	SalesOrderID *string         `json:"sales_order_id,omitempty"`

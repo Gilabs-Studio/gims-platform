@@ -14,14 +14,21 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
-export const useFinanceSettings = () => {
+export const useFinanceSettings = (companyId?: string) => {
+  // Allow query to run for:
+  // 1. undefined (no parameter, fetch global settings) - for payment form etc
+  // 2. non-empty string (specific company) - for accounting mapping form
+  // Disable only for empty string (form not ready)
+  const enabled = companyId !== "";
+  
   return useQuery({
-    queryKey: ["financeSettings"],
-    queryFn: () => financeSettingsService.getAll(),
+    queryKey: ["financeSettings", companyId],
+    queryFn: () => financeSettingsService.getAll(companyId),
+    enabled,
   });
 };
 
-export const useBatchUpsertFinanceSettings = () => {
+export const useBatchUpsertFinanceSettings = (companyId?: string) => {
   const queryClient = useQueryClient();
   const t = useTranslations("common");
 
@@ -113,24 +120,24 @@ export const useBatchUpsertFinanceSettings = () => {
         }
 
         if (coaCode.length === 0) {
-          await financeSettingsService.deleteByKey(key);
+          await financeSettingsService.deleteByKey(key, companyId);
           return;
         }
 
         await financeSettingsService.upsertByKey(key, {
           coa_code: coaCode,
           label,
-        });
+        }, companyId);
       }),
     );
 
-    return financeSettingsService.getAll();
+    return financeSettingsService.getAll(companyId);
   };
 
   return useMutation({
     mutationFn: batchUpsert,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financeSettings"] });
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", companyId] });
       toast.success(t("saved"));
     },
     onError: (error: unknown) => {
@@ -196,35 +203,38 @@ function resolveFiscalYearMutationErrorMessage(error: unknown): string {
 
 export const useCreateFiscalYear = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: (payload: CreateFiscalYearInput) => financeSettingsService.createFiscalYear(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
-      toast.success("Fiscal year created");
+      toast.success(tCommon("saved"));
     },
   });
 };
 
 export const useUpdateFiscalYear = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId, payload }: { id: string; companyId: string; payload: UpdateFiscalYearInput }) =>
       financeSettingsService.updateFiscalYear(id, companyId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
-      toast.success("Fiscal year updated");
+      toast.success(tCommon("saved"));
     },
   });
 };
 
 export const useActivateFiscalYear = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
       financeSettingsService.activateFiscalYear(id, companyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
-      toast.success("Fiscal year activated");
+      toast.success(tCommon("saved"));
     },
     onError: (error: unknown) => {
       toast.error(resolveFiscalYearMutationErrorMessage(error));
@@ -234,12 +244,13 @@ export const useActivateFiscalYear = () => {
 
 export const useLockFiscalYear = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
       financeSettingsService.lockFiscalYear(id, companyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
-      toast.success("Fiscal year locked");
+      toast.success(tCommon("saved"));
     },
     onError: (error: unknown) => {
       toast.error(resolveFiscalYearMutationErrorMessage(error));
@@ -249,12 +260,13 @@ export const useLockFiscalYear = () => {
 
 export const useDeleteFiscalYear = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
       financeSettingsService.deleteFiscalYear(id, companyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
-      toast.success("Fiscal year deleted");
+      toast.success(tCommon("saved"));
     },
     onError: (error: unknown) => {
       toast.error(resolveFiscalYearMutationErrorMessage(error));
@@ -272,36 +284,39 @@ export const useTaxConfigurations = (params: ListTaxConfigurationParams) => {
 
 export const useCreateTaxConfiguration = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: (payload: CreateTaxConfigurationInput) =>
       financeSettingsService.createTaxConfiguration(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
-      toast.success("Tax configuration created");
+      toast.success(tCommon("saved"));
     },
   });
 };
 
 export const useUpdateTaxConfiguration = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId, payload }: { id: string; companyId: string; payload: UpdateTaxConfigurationInput }) =>
       financeSettingsService.updateTaxConfiguration(id, companyId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
-      toast.success("Tax configuration updated");
+      toast.success(tCommon("saved"));
     },
   });
 };
 
 export const useToggleTaxConfigurationStatus = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: ({ id, companyId, isActive }: { id: string; companyId: string; isActive: boolean }) =>
       financeSettingsService.toggleTaxConfigurationStatus(id, companyId, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
-      toast.success("Tax configuration status updated");
+      toast.success(tCommon("saved"));
     },
   });
 };
@@ -316,12 +331,13 @@ export const useInventorySettings = (companyId: string) => {
 
 export const useUpdateInventorySettings = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: (payload: UpdateInventorySettingsInput) =>
       financeSettingsService.updateInventorySettings(payload),
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "inventorySettings", payload.company_id] });
-      toast.success("Inventory settings updated");
+      toast.success(tCommon("saved"));
     },
   });
 };
@@ -362,13 +378,14 @@ export const useSimulateOpeningBalance = () => {
 
 export const usePostOpeningBalance = () => {
   const queryClient = useQueryClient();
+  const tCommon = useTranslations("common");
   return useMutation({
     mutationFn: (payload: { company_id: string; fiscal_year_id: string }) =>
       financeSettingsService.postOpeningBalance(payload),
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalance", payload.company_id, payload.fiscal_year_id] });
       queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalanceSummary", payload.company_id, payload.fiscal_year_id] });
-      toast.success("Opening balance posted");
+      toast.success(tCommon("saved"));
     },
   });
 };

@@ -235,9 +235,59 @@ type DepreciationHistoryResponse struct {
 }
 
 type TransferAssetRequest struct {
-	LocationID   string `json:"location_id" binding:"required,uuid"`
-	TransferDate string `json:"transfer_date" binding:"required"`
-	Description  string `json:"description"`
+	ToLocationID   string  `json:"to_location_id" binding:"required,uuid"`
+	ToDepartmentID string  `json:"to_department_id" binding:"required,uuid"`
+	CustodianUserID *string `json:"custodian_user_id" binding:"omitempty,uuid"`
+	IsIntercompany bool    `json:"is_intercompany"`
+	EffectiveDate  string  `json:"effective_date" binding:"required"`
+	Notes          string  `json:"notes"`
+}
+
+type RejectTransferRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+type ListTransfersRequest struct {
+	Status  string `form:"status"`
+	AssetID string `form:"asset_id"`
+	Page    int    `form:"page,default=1" binding:"omitempty,min=1"`
+	PerPage int    `form:"per_page,default=50" binding:"omitempty,min=1,max=500"`
+}
+
+type AssetTransferResponse struct {
+	ID                  string     `json:"id"`
+	AssetID             string     `json:"asset_id"`
+	AssetCode           string     `json:"asset_code,omitempty"`
+	AssetName           string     `json:"asset_name,omitempty"`
+	DivisionsName       string     `json:"divisions_name,omitempty"`
+	DivisionsCode       string     `json:"divisions_code,omitempty"`
+	FromLocationID      *string    `json:"from_location_id,omitempty"`
+	ToLocationID        *string    `json:"to_location_id,omitempty"`
+	FromDepartmentID    *string    `json:"from_department_id,omitempty"`
+	ToDepartmentID      *string    `json:"to_department_id,omitempty"`
+	FromCustodianID     *string    `json:"from_custodian_id,omitempty"`
+	ToCustodianID       *string    `json:"to_custodian_id,omitempty"`
+	FromCompanyID       *string    `json:"from_company_id,omitempty"`
+	ToCompanyID         *string    `json:"to_company_id,omitempty"`
+	TransferDate        string     `json:"transfer_date"`
+	Notes               *string    `json:"notes,omitempty"`
+	Status              string     `json:"status"`
+	IsIntercompany      bool       `json:"is_intercompany"`
+	CurrentApprovalRole string     `json:"current_approval_role,omitempty"`
+	ApprovalStepIndex   int        `json:"approval_step_index"`
+	ApprovalStepTotal   int        `json:"approval_step_total"`
+	RequestedBy         *string    `json:"requested_by,omitempty"`
+	RequestedByName     *string    `json:"requested_by_name,omitempty"`
+	RequestedAt         time.Time  `json:"requested_at"`
+	DhApprovedBy        *string    `json:"dh_approved_by,omitempty"`
+	DhApprovedAt        *time.Time `json:"dh_approved_at,omitempty"`
+	FcApprovedBy        *string    `json:"fc_approved_by,omitempty"`
+	FcApprovedAt        *time.Time `json:"fc_approved_at,omitempty"`
+	RejectedBy          *string    `json:"rejected_by,omitempty"`
+	RejectedAt          *time.Time `json:"rejected_at,omitempty"`
+	RejectionReason     *string    `json:"rejection_reason,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type DisposeAssetRequest struct {

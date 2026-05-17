@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
@@ -126,10 +127,10 @@ export function ValuationJournalsList() {
     setPage(1);
   };
 
-  const canRun = useUserPermission("journal_valuation.run");
-  const canApprove = useUserPermission("journal_valuation.approve");
-  const canExport = useUserPermission("journal_valuation.export");
-  const canOpenJournal = useUserPermission("journal.read");
+  const canRun = useUserPermission(FINANCE_PERMISSIONS.JOURNAL_VALUATION.RUN);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.JOURNAL_VALUATION.APPROVE);
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.JOURNAL_VALUATION.EXPORT);
+  const canOpenJournal = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.READ);
 
   const previewMutation = usePreviewFinanceValuationJournal();
   const runMutation = useRunFinanceValuationJournal();

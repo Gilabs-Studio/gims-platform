@@ -180,7 +180,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
                     <SelectValue placeholder={tCommon("select_placeholder") || "Select Invoice"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">{t("fields.none")}</SelectItem>
                     {supplierInvoices.map((inv: SupplierInvoiceOption) => (
                       <SelectItem key={inv.id} value={inv.id}>
                         {inv.invoice_number} ({inv.code})
@@ -197,12 +197,12 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
               <div>
                 <p className="font-semibold text-muted-foreground uppercase">{t("fields.invoiceValue")}</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
-                  <span>DPP:</span> <span className="text-right font-medium">{formatCurrency(selectedSI?.sub_total ?? 0)}</span>
-                  <span>VAT:</span> <span className="text-right font-medium text-primary">{formatCurrency(selectedSI?.tax_amount ?? 0)}</span>
+                  <span>{t("fields.dpp")}:</span> <span className="text-right font-medium">{formatCurrency(selectedSI?.sub_total ?? 0)}</span>
+                  <span>{t("fields.vat")}:</span> <span className="text-right font-medium text-primary">{formatCurrency(selectedSI?.tax_amount ?? 0)}</span>
                 </div>
               </div>
               <div className="text-right flex flex-col justify-center">
-                <p className="text-[10px] text-muted-foreground italic">Syncing values from Purchase record...</p>
+                <p className="text-[10px] text-muted-foreground italic">{t("fields.syncing")}</p>
               </div>
             </div>
           )}

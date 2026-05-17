@@ -4,6 +4,7 @@ package dto
 type AdjustStockItem struct {
 	ProductID   string  `json:"product_id"`
 	VarianceQty float64 `json:"variance_qty"` // Positive = surplus, Negative = shortage
+	BatchID     *string `json:"batch_id,omitempty"`
 }
 
 // AdjustStockFromOpnameRequest contains all data needed to create ADJUST movements from a posted Stock Opname

@@ -39,7 +39,7 @@ type InventoryUsecase interface {
 	// Stock Management
 	ReserveStock(ctx context.Context, productID string, quantity float64) error
 	ReleaseStock(ctx context.Context, productID string, quantity float64) error
-	DeductStock(ctx context.Context, batchID string, quantity float64) error
+	DeductStock(ctx context.Context, batchID string, quantity float64, params ...interface{}) error
 	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
 	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error)
 	CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error
@@ -326,17 +326,17 @@ func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, q
 	return u.repo.UpdateProductReservedStock(ctx, productID, -quantity)
 }
 
-func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
+func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64, params ...interface{}) error {
 	if tx := database.GetTx(ctx); tx != nil {
-		return u.deductStockWithTx(ctx, tx, batchID, quantity)
+		return u.deductStockWithTx(ctx, tx, batchID, quantity, params...)
 	}
 
 	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
-		return u.deductStockWithTx(database.WithTx(ctx, tx), tx, batchID, quantity)
+		return u.deductStockWithTx(database.WithTx(ctx, tx), tx, batchID, quantity, params...)
 	})
 }
 
-func (u *inventoryUsecase) deductStockWithTx(ctx context.Context, tx *gorm.DB, batchID string, quantity float64) error {
+func (u *inventoryUsecase) deductStockWithTx(ctx context.Context, tx *gorm.DB, batchID string, quantity float64, params ...interface{}) error {
 	// First fetch batch to get product ID for aggregate update
 	batch, err := u.repo.GetBatchByID(ctx, batchID)
 	if err != nil {
@@ -356,8 +356,22 @@ func (u *inventoryUsecase) deductStockWithTx(ctx context.Context, tx *gorm.DB, b
 		return ErrInsufficientBatchStock
 	}
 
+	// Allow custom transaction type (e.g., "SO" for sales orders), default to "GI"
+	ledgerType := "GI"
+	transactionID := batchID // Default to batch ID
+	if len(params) > 0 {
+		if v, ok := params[0].(string); ok && v != "" {
+			ledgerType = v
+		}
+	}
+	if len(params) > 1 {
+		if v, ok := params[1].(string); ok && v != "" {
+			transactionID = v
+		}
+	}
+
 	stockValue := runningQty * currentHpp
-	if err := u.appendStockLedger(ctx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+	if err := u.appendStockLedger(ctx, tx, batch.ProductID, transactionID, ledgerType, -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
 		return err
 	}
 
@@ -642,16 +656,18 @@ func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.A
 				return err
 			}
 
-			// Find the oldest batch for this product+warehouse to attach the movement
-			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
-			if err != nil {
-				return err
-			}
-
-			// Determine batch ID — use the first (oldest) batch if available
+			// Determine batch ID — use the specific batch from opname if provided
 			batchID := ""
-			if len(batches) > 0 {
-				batchID = batches[0].ID
+			if item.BatchID != nil && *item.BatchID != "" {
+				batchID = *item.BatchID
+			} else {
+				batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
+				if err != nil {
+					return err
+				}
+				if len(batches) > 0 {
+					batchID = batches[0].ID
+				}
 			}
 
 			// Create the ADJUST stock movement

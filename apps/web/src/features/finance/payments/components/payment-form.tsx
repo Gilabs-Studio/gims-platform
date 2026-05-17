@@ -14,20 +14,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
-
 import { useFinanceCoaTree, useFinanceChartOfAccounts } from "@/features/finance/coa/hooks/use-finance-coa";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
+import { useFinanceSettings } from "@/features/finance/settings/hooks/use-finance-settings";
+import type { SystemAccountMapping } from "@/features/finance/settings/types";
 import { paymentFormSchema, type PaymentFormValues } from "../schemas/payment.schema";
 import { useCreateFinancePayment, useFinancePayment, useUpdateFinancePayment } from "../hooks/use-finance-payments";
-import { useFinanceSettings } from "@/features/finance/settings/hooks/use-finance-settings";
 import { AsyncSelect } from "@/components/ui/async-select";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeNonTradePayablesService } from "@/features/finance/non-trade-payables/services/finance-non-trade-payables-service";
 
 const EMPTY_COA_LIST: never[] = [];
 const EMPTY_VALUE_LIST: never[] = [];
+const PAYABLE_SUPPLIER_STATUSES = new Set(["APPROVED", "UNPAID", "PARTIAL", "WAITING_PAYMENT"]);
 
 type Props = {
   open: boolean;
@@ -78,55 +79,48 @@ function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetc
 
   const fetcher = useCallback(async (query: string) => {
     if (!refType) return [];
-    
+
     try {
-      console.log(`DocumentFetcher: Fetching ${refType} with query "${query}"`);
       if (refType === "SUPPLIER_INVOICE") {
         const res = await supplierInvoicesService.list({ search: query, per_page: 100 });
-        console.log("DocumentFetcher: Invoices result:", res);
         if (!res?.data || !Array.isArray(res.data)) return [];
 
         const items = res.data
-          .filter(si => si.remaining_amount > 0 && 
-                  ["APPROVED", "UNPAID", "PARTIAL", "WAITING_PAYMENT"].includes(si.status))
-          .map(si => ({ 
-            id: si.id, 
+          .filter((si) => si.remaining_amount > 0 && PAYABLE_SUPPLIER_STATUSES.has(String(si.status).toUpperCase()))
+          .map((si) => ({
+            id: si.id,
             label: `${si.code} - ${si.invoice_number} (${si.supplier_name})`,
-            balance: Number(si.remaining_amount || 0)
+            balance: Number(si.remaining_amount || 0),
           }));
-        console.log(`DocumentFetcher: Found ${items.length} payable invoices`);
         return items;
-      } 
-      
+      }
+
       if (refType === "NON_TRADE_PAYABLE") {
         const res = await financeNonTradePayablesService.list({ search: query, per_page: 100 });
-        console.log("DocumentFetcher: NTP result:", res);
         if (!res?.data || !Array.isArray(res.data)) return [];
 
         const items = res.data
           .filter((ntp) => ntp.amount > 0 && ntp.status.toLowerCase() !== "paid")
-          .map(ntp => ({ 
-            id: ntp.id, 
+          .map((ntp) => ({
+            id: ntp.id,
             label: `${ntp.code} - ${ntp.description}`,
-            balance: Number(ntp.amount || 0)
+            balance: Number(ntp.amount || 0),
           }));
-        console.log(`DocumentFetcher: Found ${items.length} payable NTPs`);
         return items;
       }
 
       if (refType === "UP_COUNTRY_COST") {
-        // Mocking for now, will implement actual Travel Reimbursement service later
         return [];
       }
-    } catch (err) {
-      console.error("DocumentFetcher error:", err);
+    } catch {
+      return [];
     }
     return [];
   }, [refType]);
 
   return (
     <AsyncSelect
-      label="Document"
+      label={t("fields.document")}
       placeholder={placeholder || t("fields.selectDocument")}
       value={value || ""}
       fetcher={fetcher}
@@ -138,7 +132,7 @@ function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetc
           <span className="font-medium text-sm">{it.label}</span>
           {it.balance !== undefined && (
             <span className="text-[10px] text-muted-foreground font-mono">
-              Balance: Rp {it.balance.toLocaleString()}
+              {t("fields.balance")}: Rp {it.balance.toLocaleString()}
             </span>
           )}
         </div>
@@ -166,10 +160,10 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   const bankAccounts = bankAccountsData?.data ?? EMPTY_VALUE_LIST;
 
   const { data: settingsData } = useFinanceSettings();
-  const settings = settingsData?.data ?? EMPTY_VALUE_LIST;
+  const settings = (settingsData?.data ?? EMPTY_VALUE_LIST) as SystemAccountMapping[];
 
   const settingsByKey = useMemo(
-    () => new Map(settings.map((setting) => [setting.key, setting.coa_code])),
+    () => new Map(settings.map((setting: SystemAccountMapping) => [setting.key, setting.coa_code])),
     [settings],
   );
 
@@ -356,9 +350,9 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="SUPPLIER_INVOICE" className="cursor-pointer">Purchase Invoice</SelectItem>
-                              <SelectItem value="NON_TRADE_PAYABLE" className="cursor-pointer">Non-Trade Payable</SelectItem>
-                              <SelectItem value="UP_COUNTRY_COST" className="cursor-pointer">Travel Reimbursement</SelectItem>
+                              <SelectItem value="SUPPLIER_INVOICE" className="cursor-pointer">{t("fields.referenceTypes.supplierInvoice")}</SelectItem>
+                              <SelectItem value="NON_TRADE_PAYABLE" className="cursor-pointer">{t("fields.referenceTypes.nonTradePayable")}</SelectItem>
+                              <SelectItem value="UP_COUNTRY_COST" className="cursor-pointer">{t("fields.referenceTypes.upCountryCost")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -409,7 +403,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                             {t("fields.account")}
-                            <Badge variant="secondary" className="text-[10px] font-medium h-4 py-0 leading-none">SYSTEM MAPPED</Badge>
+                            <Badge variant="secondary" className="text-[10px] font-medium h-4 py-0 leading-none">{t("fields.mappedStatus")}</Badge>
                           </Label>
                           <Select
                             value={currentAllocation?.chart_of_account_id || ""}

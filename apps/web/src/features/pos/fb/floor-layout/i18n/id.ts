@@ -126,5 +126,17 @@ export const floorLayoutId = {
     // Floor switcher
     floor: "Lantai",
     addFloor: "Tambah Lantai",
+    // Table QR dialog
+    tableQr: {
+      dialogTitle: "QR Code - {table}",
+      printPageTitle: "QR Meja - {table}",
+      imageAlt: "QR {table}",
+      openOrPrintQr: "Lihat / Cetak QR",
+      scanHint: "Scan untuk memesan",
+      rotateToken: "Ganti Token",
+      printQr: "Cetak QR",
+      noQrHint: "Belum ada QR code untuk meja ini. Klik tombol di bawah untuk membuat token.",
+      generateQr: "Buat QR Code",
+    },
   },
 };

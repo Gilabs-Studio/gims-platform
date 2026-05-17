@@ -28,6 +28,7 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { useDivisions } from "@/features/master-data/organization/hooks/use-divisions";
 
 import {
   depreciateAssetSchema,
@@ -105,6 +106,14 @@ export function AssetActionsDialogs({
   const { data: employeesData } = useEmployees({ page: 1, per_page: 100 });
   const employeeOptions = employeesData?.data ?? [];
 
+  const { data: divisionsData } = useDivisions({
+    page: 1,
+    per_page: 100,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
+  const departmentOptions = divisionsData?.data ?? [];
+
   const defaultDepreciate: DepreciateAssetValues = useMemo(
     () => ({ as_of_date: new Date().toISOString().slice(0, 10) }),
     [],
@@ -112,11 +121,14 @@ export function AssetActionsDialogs({
 
   const defaultTransfer: TransferAssetValues = useMemo(
     () => ({
-      location_id: asset?.location_id ?? "",
-      transfer_date: new Date().toISOString().slice(0, 10),
-      description: "",
+      to_location_id: asset?.location_id ?? "",
+      to_department_id: asset?.department_id ?? undefined,
+      custodian_user_id: asset?.custodian_user_id ?? undefined,
+      is_intercompany: false,
+      effective_date: new Date().toISOString().slice(0, 10),
+      notes: "",
     }),
-    [asset?.location_id],
+    [asset?.location_id, asset?.department_id, asset?.custodian_user_id],
   );
 
   const defaultDispose: DisposeAssetValues = useMemo(
@@ -213,7 +225,17 @@ export function AssetActionsDialogs({
 
   const transferLocationId = useWatch({
     control: transferForm.control,
-    name: "location_id",
+    name: "to_location_id",
+  });
+
+  const transferDepartmentId = useWatch({
+    control: transferForm.control,
+    name: "to_department_id",
+  });
+
+  const transferCustodianUserId = useWatch({
+    control: transferForm.control,
+    name: "custodian_user_id",
   });
 
   const assignEmployeeId = useWatch({
@@ -284,9 +306,12 @@ export function AssetActionsDialogs({
       await transferMutation.mutateAsync({
         id,
         data: {
-          location_id: values.location_id,
-          transfer_date: values.transfer_date,
-          description: values.description ?? "",
+          to_location_id: values.to_location_id,
+          to_department_id: values.to_department_id,
+          custodian_user_id: values.custodian_user_id,
+          is_intercompany: values.is_intercompany ?? false,
+          effective_date: values.effective_date,
+          notes: values.notes ?? "",
         },
       });
       toast.success(t("toast.done"));
@@ -460,11 +485,11 @@ export function AssetActionsDialogs({
             onSubmit={transferForm.handleSubmit(submitTransfer)}
           >
             <div className="space-y-2">
-              <Label>{t("fields.location")}</Label>
+              <Label>{t("fields.toLocation")}</Label>
               <Select
                 value={transferLocationId || ""}
                 onValueChange={(v) =>
-                  transferForm.setValue("location_id", v, { shouldDirty: true })
+                  transferForm.setValue("to_location_id", v, { shouldDirty: true })
                 }
               >
                 <SelectTrigger className="cursor-pointer">
@@ -483,14 +508,63 @@ export function AssetActionsDialogs({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t("fields.department")}</Label>
+                <Select
+                  value={transferDepartmentId || ""}
+                  onValueChange={(v) =>
+                    transferForm.setValue("to_department_id", v, { shouldDirty: true })
+                  }
+                >
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder={t("placeholders.select")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departmentOptions.map((department) => (
+                      <SelectItem
+                        key={department.id}
+                        value={department.id}
+                        className="cursor-pointer"
+                      >
+                        {department.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t("fields.custodian")}</Label>
+                <Select
+                  value={transferCustodianUserId || ""}
+                  onValueChange={(v) =>
+                    transferForm.setValue("custodian_user_id", v, { shouldDirty: true })
+                  }
+                >
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder={t("placeholders.select")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employeeOptions.map((e) => (
+                      <SelectItem key={e.id} value={e.id} className="cursor-pointer">
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="adjust_date">{t("fields.transactionDate")}</Label>
+              <Label htmlFor="effective_date">{t("fields.effectiveDate")}</Label>
               <Controller
-                name="transaction_date"
-                control={adjustForm.control}
+                name="effective_date"
+                control={transferForm.control}
                 render={({ field }) => (
                   <DatePicker
-                    id="adjust_date"
+                    id="effective_date"
                     value={field.value}
                     onChange={field.onChange}
                     placeholder={t("placeholders.selectDate")}
@@ -498,16 +572,12 @@ export function AssetActionsDialogs({
                 )}
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="transfer_description">
-                {t("dialogs.description")}
-              </Label>
-              <Textarea
-                id="transfer_description"
-                rows={4}
-                {...transferForm.register("description")}
-              />
+              <Label htmlFor="transfer_notes">{t("dialogs.notes")}</Label>
+              <Textarea id="transfer_notes" rows={4} {...transferForm.register("notes")} />
             </div>
+
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
                 type="button"
@@ -518,11 +588,7 @@ export function AssetActionsDialogs({
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button
-                type="submit"
-                className="cursor-pointer"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>

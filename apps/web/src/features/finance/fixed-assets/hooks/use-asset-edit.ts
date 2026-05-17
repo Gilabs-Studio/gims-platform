@@ -11,12 +11,12 @@ interface EditAssetResponse {
   name: string;
   changed_fields?: Array<{
     field_name: string;
-    old_value: any;
-    new_value: any;
+    old_value: unknown;
+    new_value: unknown;
     group: string;
-    depreciation_impact?: any;
+    depreciation_impact?: unknown;
   }>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -28,8 +28,23 @@ interface EditAssetResponse {
 export function useAssetEdit() {
   const queryClient = useQueryClient();
 
+  const getErrorResponse = (error: unknown): { message?: string; code?: string } | null => {
+    if (!error || typeof error !== 'object' || !('response' in error)) {
+      return null;
+    }
+
+    const response = (error as { response?: { data?: unknown } }).response;
+    const data = response?.data;
+
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    return data as { message?: string; code?: string };
+  };
+
   const mutation = useMutation({
-    mutationFn: async (params: { assetId: string; data: Record<string, any> }) => {
+    mutationFn: async (params: { assetId: string; data: Record<string, unknown> }) => {
       const response = await apiClient.patch<EditAssetResponse>(
         `/finance/fixed-assets/assets/${params.assetId}`,
         params.data
@@ -48,13 +63,14 @@ export function useAssetEdit() {
           queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
         }
         queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
-      } catch (e) {
+      } catch {
         // ignore
       }
     },
-    onError: (error: any) => {
-      const message = error?.response?.data?.message || error?.message || 'Failed to update asset';
-      const code = error?.response?.data?.code;
+    onError: (error: unknown) => {
+      const errorResponse = getErrorResponse(error);
+      const message = errorResponse?.message || (error instanceof Error ? error.message : 'Failed to update asset');
+      const code = errorResponse?.code;
 
       if (code === 'ASSET_FIELD_IMMUTABLE') {
         toast.error('Cannot Edit Immutable Fields', {
@@ -73,7 +89,7 @@ export function useAssetEdit() {
   });
 
   return {
-    editAsset: async (assetId: string, data: Record<string, any>) => {
+    editAsset: async (assetId: string, data: Record<string, unknown>) => {
       return mutation.mutateAsync({ assetId, data });
     },
     isLoading: mutation.isPending,

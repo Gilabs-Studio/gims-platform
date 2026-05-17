@@ -64,9 +64,13 @@ func (u *pipelineStageUsecase) Create(ctx context.Context, req dto.CreatePipelin
 		isLost = *req.IsLost
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	stageID := uuid.New().String()
 	stage := &models.PipelineStage{
 		ID:          stageID,
+		TenantID:    tenantID,
 		Name:        req.Name,
 		Code:        generatePipelineStageCode(req.Name, stageID),
 		Order:       req.Probability,

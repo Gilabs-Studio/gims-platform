@@ -25,7 +25,7 @@ const (
 type Deal struct {
 	ID          string     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Code        string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	Code        string     `gorm:"type:varchar(50);not null;uniqueIndex:uq_crm_deals_tenant_code" json:"code"`
 	Title       string     `gorm:"type:varchar(200);not null;index" json:"title"`
 	Description string     `gorm:"type:text" json:"description"`
 	Status      DealStatus `gorm:"type:varchar(20);default:'open';index" json:"status"`
@@ -97,7 +97,18 @@ func generateDealCode(tx *gorm.DB) string {
 	prefix := fmt.Sprintf("DEAL-%s", now.Format("200601"))
 
 	var count int64
-	tx.Model(&Deal{}).Where("code LIKE ?", prefix+"%").Count(&count)
+
+	tenantID := ""
+	if tx != nil && tx.Statement != nil && tx.Statement.Context != nil {
+		if tid, ok := tx.Statement.Context.Value("tenant_id").(string); ok {
+			tenantID = tid
+		}
+	}
+
+	tx.Model(&Deal{}).
+		Where("code LIKE ?", prefix+"%").
+		Where("COALESCE(tenant_id::text, '__global__') = COALESCE(?, '__global__')", tenantID).
+		Count(&count)
 
 	return fmt.Sprintf("%s-%05d", prefix, count+1)
 }

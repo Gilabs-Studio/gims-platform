@@ -17,6 +17,19 @@ function isGrantedScope(value: string | boolean | null | undefined): boolean {
   return false;
 }
 
+function normalizeScopeValue(value: string | boolean | null | undefined): string | null {
+  if (typeof value === "boolean") {
+    return value ? "ALL" : null;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toUpperCase();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  return null;
+}
+
 export function hasPermissionCode(
   permissions: PermissionMap,
   permissionCode: string,
@@ -49,4 +62,31 @@ export function hasAnyPermission(
   permissionCodes: readonly string[],
 ): boolean {
   return permissionCodes.some((code) => hasPermissionCode(permissions, code));
+}
+
+export function resolvePermissionScope(
+  permissions: PermissionMap,
+  permissionCode: string,
+): string | null {
+  const code = permissionCode.trim();
+  if (!code) return "ALL";
+
+  if (Object.prototype.hasOwnProperty.call(permissions, code)) {
+    return normalizeScopeValue(permissions[code]);
+  }
+
+  const [module] = code.split(".");
+  const wildcard = `${module}.*`;
+  if (Object.prototype.hasOwnProperty.call(permissions, wildcard)) {
+    return normalizeScopeValue(permissions[wildcard]);
+  }
+
+  const aliases = permissionAliasMap[code] ?? [];
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(permissions, alias)) {
+      return normalizeScopeValue(permissions[alias]);
+    }
+  }
+
+  return null;
 }

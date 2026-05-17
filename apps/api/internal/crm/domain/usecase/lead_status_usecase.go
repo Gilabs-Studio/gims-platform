@@ -38,8 +38,11 @@ func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatus
 	}
 
 	statusID := uuid.New().String()
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
 	status := &models.LeadStatus{
 		ID:          statusID,
+		TenantID:    tenantID,
 		Name:        req.Name,
 		Code:        generateLeadStatusCode(req.Name, statusID),
 		Description: req.Description,

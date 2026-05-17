@@ -72,6 +72,35 @@ func (h *POSPaymentHandler) InitiateDigitalPayment(c *gin.Context) {
 	response.SuccessResponse(c, payment, nil)
 }
 
+// CancelPendingPayment cancels a pending digital payment and reopens cashier fallback flow.
+func (h *POSPaymentHandler) CancelPendingPayment(c *gin.Context) {
+	uc, ok := extractUserContext(c)
+	if !ok {
+		return
+	}
+
+	orderID := getOrderIDParam(c)
+	paymentID := c.Param("paymentID")
+	if paymentID == "" {
+		paymentID = c.Param("paymentId")
+	}
+
+	var req dto.CancelPendingPaymentRequest
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			coreErrors.HandleValidationError(c, err)
+			return
+		}
+	}
+
+	if err := h.uc.CancelPendingPayment(c.Request.Context(), orderID, paymentID, uc.userID, req.Reason); err != nil {
+		handlePOSPaymentError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"cancelled": true}, nil)
+}
+
 // GetByOrder returns all payments for an order
 func (h *POSPaymentHandler) GetByOrder(c *gin.Context) {
 	payments, err := h.uc.GetByOrderID(c.Request.Context(), getOrderIDParam(c))
@@ -105,6 +134,8 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		coreErrors.NotFoundResponse(c, "pos_order", "")
 	case errors.Is(err, usecase.ErrPOSOrderAlreadyPaid):
 		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
+	case errors.Is(err, usecase.ErrPOSPaymentNotFound):
+		coreErrors.NotFoundResponse(c, "pos_payment", "")
 	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
 	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
@@ -114,6 +145,6 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		reason := "Failed to create digital payment invoice"
 		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": reason}, nil)
 	default:
-		coreErrors.InternalServerErrorResponse(c, "")
+		coreErrors.ErrorResponse(c, "INTERNAL_SERVER_ERROR", map[string]interface{}{"reason": err.Error()}, nil)
 	}
 }

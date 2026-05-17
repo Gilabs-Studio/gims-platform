@@ -204,6 +204,20 @@ func (h *AssetHandler) RunDepreciation(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *AssetHandler) ApproveDepreciationRun(c *gin.Context) {
+	var req dto.RunDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.ApproveDepreciationRun(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "DEPRECIATION_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *AssetHandler) GetDepreciationHistory(c *gin.Context) {
 	period := strings.TrimSpace(c.Query("period"))
 	if period == "" {
@@ -228,6 +242,45 @@ func (h *AssetHandler) Transfer(c *gin.Context) {
 	res, err := h.uc.Transfer(c.Request.Context(), id, &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_TRANSFER_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) ListTransfers(c *gin.Context) {
+	var req dto.ListTransfersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.ListTransfers(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "TRANSFER_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) ApproveTransfer(c *gin.Context) {
+	transferID := strings.TrimSpace(c.Param("transfer_id"))
+	res, err := h.uc.ApproveTransfer(c.Request.Context(), transferID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "TRANSFER_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) RejectTransfer(c *gin.Context) {
+	transferID := strings.TrimSpace(c.Param("transfer_id"))
+	var req dto.RejectTransferRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.RejectTransfer(c.Request.Context(), transferID, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "TRANSFER_REJECT_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

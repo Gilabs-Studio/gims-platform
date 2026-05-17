@@ -174,6 +174,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAssetCategoryRoutes(group, assetCategoryH)
 	router.RegisterAssetLocationRoutes(group, assetLocationH)
 	router.RegisterAssetRoutes(group, assetH)
+	router.RegisterAssetTransferRoutes(group, assetH)
 	router.RegisterDepreciationRoutes(group, assetH)
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterFiscalYearRoutes(group, fiscalYearH)

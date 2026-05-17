@@ -45,10 +45,14 @@ import { productService } from "@/features/master-data/product/services/product-
 import { useProduct } from "@/features/master-data/product/hooks/use-products";
 import type { Product } from "@/features/master-data/product/types";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { MovementDetailDialog } from "@/features/stock/stock-movement/components/movement-detail-dialog";
+import type { StockMovement } from "@/features/stock/stock-movement/types";
+import { stockMovementService } from "@/features/stock/stock-movement/services/movement-service";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
-import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
+// StockOpnameDetailDialog removed: open opname page instead of dialog
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import type { SalesOrder } from "@/features/sales/order/types";
+import { orderService } from "@/features/sales/order/services/order-service";
 import { useStockLedger } from "../hooks/use-stock-ledger";
 
 type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER" | "SO";
@@ -178,6 +182,10 @@ export function StockLedgerPage() {
   const [refEntityType, setRefEntityType] = useState<string | null>(null);
   const [refEntityId, setRefEntityId] = useState<string | null>(null);
 
+  const [movementDialogOpen, setMovementDialogOpen] = useState(false);
+  const [movementItem, setMovementItem] = useState<StockMovement | null>(null);
+  const [relatedMovements, setRelatedMovements] = useState<StockMovement[] | null>(null);
+
   const [soOpen, setSoOpen] = useState(false);
   const [soItem, setSoItem] = useState<SalesOrder | null>(null);
 
@@ -266,15 +274,49 @@ export function StockLedgerPage() {
 
   const handleRefClick = (row: { transaction_type: string; transaction_id: string }) => {
     if (row.transaction_type === "SO" && canViewSalesOrder) {
-      setSoItem({ id: row.transaction_id } as SalesOrder);
-      setSoOpen(true);
+      (async () => {
+        try {
+          // transaction_id is now the SO code (e.g., "SO-2024-0001"), search for it
+          const res = await orderService.list({ search: row.transaction_id, page: 1, per_page: 1 });
+          const order = res.data?.[0] ?? null;
+          setSoItem(order);
+          setSoOpen(true);
+        } catch {
+          // fallback silently if fetch fails
+        }
+      })();
       return;
     }
+
+    if (row.transaction_type === "OPNAME" && canViewOpname) {
+      // Open opname in its dedicated page
+      router.push(`/stock/opname/${row.transaction_id}`);
+      return;
+    }
+
     const hasPermission =
       (row.transaction_type === "GR" && canViewGR) ||
-      (row.transaction_type === "OPNAME" && canViewOpname) ||
       (row.transaction_type === "TRANSFER" && canViewTransfer);
     if (!hasPermission) return;
+    // For TRANSFER, fetch related movements and open movement detail dialog
+    if (row.transaction_type === "TRANSFER" && canViewTransfer) {
+      (async () => {
+        try {
+          const res = await stockMovementService.getMovements({ page: 1, per_page: 100, search: row.transaction_id });
+          const movements = res.data?.data ?? [];
+          setRelatedMovements(movements);
+          setMovementItem(movements.find((m) => m.ref_number === row.transaction_id) ?? movements[0] ?? null);
+          setMovementDialogOpen(true);
+        } catch {
+          // fallback to simple ref entity modal
+          setRefEntityType(row.transaction_type);
+          setRefEntityId(row.transaction_id);
+          setRefEntityOpen(true);
+        }
+      })();
+      return;
+    }
+
     setRefEntityType(row.transaction_type);
     setRefEntityId(row.transaction_id);
     setRefEntityOpen(true);
@@ -654,10 +696,11 @@ export function StockLedgerPage() {
         goodsReceiptId={refEntityId}
       />
 
-      <StockOpnameDetailDialog
-        open={refEntityOpen && refEntityType === "OPNAME"}
-        onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
-        opnameId={refEntityType === "OPNAME" ? refEntityId : null}
+      <MovementDetailDialog
+        open={movementDialogOpen}
+        onOpenChange={setMovementDialogOpen}
+        item={movementItem}
+        relatedMovements={relatedMovements ?? undefined}
       />
 
       <OrderDetailModal

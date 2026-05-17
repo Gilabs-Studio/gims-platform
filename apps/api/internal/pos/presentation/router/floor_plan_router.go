@@ -22,4 +22,9 @@ func RegisterFloorPlanRoutes(rg *gin.RouterGroup, h *handler.FloorPlanHandler) {
 	plans.DELETE("/:id", middleware.RequirePermission("pos.layout.delete"), h.Delete)
 	plans.POST("/:id/publish", middleware.RequirePermission("pos.layout.update"), h.Publish)
 	plans.GET("/:id/versions", middleware.RequirePermission("pos.layout.read"), h.ListVersions)
+
+	// Table QR token management — static /table-tokens before parameterized /:objectId/token
+	plans.GET("/:id/table-tokens", middleware.RequirePermission("pos.layout.read"), h.ListTableTokens)
+	plans.POST("/:id/tables/:objectId/token", middleware.RequirePermission("pos.layout.update"), h.GenerateTableToken)
+	plans.DELETE("/:id/tables/:objectId/token", middleware.RequirePermission("pos.layout.update"), h.RevokeTableToken)
 }

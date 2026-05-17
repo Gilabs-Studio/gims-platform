@@ -37,10 +37,13 @@ type SaveStockOpnameItemsRequest struct {
 }
 
 type StockOpnameItemRequest struct {
-	ProductID   string   `json:"product_id" validate:"required,uuid"`
-	SystemQty   float64  `json:"system_qty"`
-	PhysicalQty *float64 `json:"physical_qty"`
-	Notes       string   `json:"notes"`
+	ProductID        string   `json:"product_id" validate:"required,uuid"`
+	SystemQty        float64  `json:"system_qty"`
+	PhysicalQty      *float64 `json:"physical_qty"`
+	Notes            string   `json:"notes"`
+	InventoryBatchID *string  `json:"inventory_batch_id"`
+	BatchNumber      string   `json:"batch_number"`
+	BatchQty         float64  `json:"batch_qty"`
 }
 
 type StockOpnameResponse struct {
@@ -67,16 +70,20 @@ type StockOpnameResponse struct {
 }
 
 type StockOpnameItemResponse struct {
-	ID            string   `json:"id"`
-	StockOpnameID string   `json:"stock_opname_id"`
-	ProductID     string   `json:"product_id"`
-	ProductName   string   `json:"product_name,omitempty"`
-	ProductCode   string   `json:"product_code,omitempty"`
-	SystemQty     float64  `json:"system_qty"`
-	PhysicalQty   *float64 `json:"physical_qty"`
-	VarianceQty   float64  `json:"variance_qty"`
-	UnitCost      float64  `json:"unit_cost"`
-	Notes         string   `json:"notes"`
+	ID               string   `json:"id"`
+	StockOpnameID    string   `json:"stock_opname_id"`
+	ProductID        string   `json:"product_id"`
+	ProductName      string   `json:"product_name,omitempty"`
+	ProductCode      string   `json:"product_code,omitempty"`
+	ProductImageURL  *string  `json:"product_image_url,omitempty"`
+	SystemQty        float64  `json:"system_qty"`
+	PhysicalQty      *float64 `json:"physical_qty"`
+	VarianceQty      float64  `json:"variance_qty"`
+	UnitCost         float64  `json:"unit_cost"`
+	Notes            string   `json:"notes"`
+	InventoryBatchID *string  `json:"inventory_batch_id,omitempty"`
+	BatchNumber      string   `json:"batch_number,omitempty"`
+	BatchQty         float64  `json:"batch_qty,omitempty"`
 }
 
 type ListStockOpnamesRequest struct {
@@ -95,8 +102,11 @@ type ListStockOpnameItemsRequest struct {
 }
 
 type WarehouseStockSnapshot struct {
-	ProductID string
-	SystemQty float64
+	ProductID   string
+	SystemQty   float64
+	BatchID     string
+	BatchNumber string
+	BatchQty    float64
 }
 
 // UserWarehouseInfo holds minimal warehouse data for a user's assigned warehouse.

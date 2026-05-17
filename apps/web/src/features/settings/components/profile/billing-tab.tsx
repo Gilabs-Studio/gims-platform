@@ -786,7 +786,7 @@ export function BillingTab() {
         setIsUpgrading(false);
       }
     })();
-  }, [subscription, outletCount, currentOutletLimit, submitBillingChange]);
+  }, [subscription, outletCount, currentOutletLimit, submitBillingChange, t]);
 
   const confirmSeatDowngrade = useCallback(async () => {
     if (pendingSeatDowngradeTarget == null) {

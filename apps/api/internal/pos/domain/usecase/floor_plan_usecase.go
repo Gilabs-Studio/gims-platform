@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -37,16 +38,21 @@ type FloorPlanUsecase interface {
 	Publish(ctx context.Context, id string, userID string, userCompanyID string, isOwner bool) (*dto.FloorPlanResponse, error)
 	ListVersions(ctx context.Context, floorPlanID string, userCompanyID string, isOwner bool) ([]dto.LayoutVersionResponse, error)
 	GetFormData(ctx context.Context, userCompanyID string, isOwner bool) (*dto.FloorPlanFormDataResponse, error)
+	// Table QR token management
+	GenerateTableToken(ctx context.Context, floorPlanID, tableObjectID string, req *dto.GenerateTableTokenRequest, userCompanyID string, isOwner bool) (*dto.TableQRTokenResponse, error)
+	ListTableTokens(ctx context.Context, floorPlanID string, userCompanyID string, isOwner bool) ([]dto.TableQRTokenResponse, error)
+	RevokeTableToken(ctx context.Context, floorPlanID, tableObjectID string, userCompanyID string, isOwner bool) error
 }
 
 type floorPlanUsecase struct {
-	repo       repositories.FloorPlanRepository
-	outletRepo orgRepo.OutletRepository
+	repo         repositories.FloorPlanRepository
+	outletRepo   orgRepo.OutletRepository
+	qrTokenRepo  repositories.TableQRTokenRepository
 }
 
 // NewFloorPlanUsecase creates a new instance
-func NewFloorPlanUsecase(repo repositories.FloorPlanRepository, outletRepo orgRepo.OutletRepository) FloorPlanUsecase {
-	return &floorPlanUsecase{repo: repo, outletRepo: outletRepo}
+func NewFloorPlanUsecase(repo repositories.FloorPlanRepository, outletRepo orgRepo.OutletRepository, qrTokenRepo repositories.TableQRTokenRepository) FloorPlanUsecase {
+	return &floorPlanUsecase{repo: repo, outletRepo: outletRepo, qrTokenRepo: qrTokenRepo}
 }
 
 func (u *floorPlanUsecase) resolveCompanyID(ctx context.Context, plan *models.FloorPlan) string {
@@ -428,4 +434,77 @@ func (u *floorPlanUsecase) GetFormData(ctx context.Context, userCompanyID string
 	}
 
 	return &dto.FloorPlanFormDataResponse{Outlets: outlets}, nil
+}
+
+// ─── Table QR Token methods ───────────────────────────────────────────────────
+
+// GenerateTableToken creates (or rotates) a QR token for the given table object.
+func (u *floorPlanUsecase) GenerateTableToken(ctx context.Context, floorPlanID, tableObjectID string, req *dto.GenerateTableTokenRequest, userCompanyID string, isOwner bool) (*dto.TableQRTokenResponse, error) {
+	plan, err := u.repo.FindByID(ctx, floorPlanID)
+	if err != nil {
+		return nil, ErrFloorPlanNotFound
+	}
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
+		return nil, ErrFloorPlanForbidden
+	}
+
+	token := &models.PosTableQRToken{
+		TenantID:      plan.TenantID,
+		OutletID:      plan.OutletID,
+		FloorPlanID:   floorPlanID,
+		TableObjectID: tableObjectID,
+		TableLabel:    req.TableLabel,
+		IsActive:      true,
+	}
+
+	created, err := u.qrTokenRepo.GenerateForTable(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate table token: %w", err)
+	}
+	return toTableQRTokenResponse(created), nil
+}
+
+// ListTableTokens returns all active QR tokens for a floor plan.
+func (u *floorPlanUsecase) ListTableTokens(ctx context.Context, floorPlanID string, userCompanyID string, isOwner bool) ([]dto.TableQRTokenResponse, error) {
+	plan, err := u.repo.FindByID(ctx, floorPlanID)
+	if err != nil {
+		return nil, ErrFloorPlanNotFound
+	}
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
+		return nil, ErrFloorPlanForbidden
+	}
+
+	tokens, err := u.qrTokenRepo.FindByFloorPlan(ctx, floorPlanID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]dto.TableQRTokenResponse, 0, len(tokens))
+	for i := range tokens {
+		result = append(result, *toTableQRTokenResponse(&tokens[i]))
+	}
+	return result, nil
+}
+
+// RevokeTableToken deactivates a QR token so its URL is no longer valid.
+func (u *floorPlanUsecase) RevokeTableToken(ctx context.Context, floorPlanID, tableObjectID string, userCompanyID string, isOwner bool) error {
+	plan, err := u.repo.FindByID(ctx, floorPlanID)
+	if err != nil {
+		return ErrFloorPlanNotFound
+	}
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
+		return ErrFloorPlanForbidden
+	}
+	return u.qrTokenRepo.Revoke(ctx, floorPlanID, tableObjectID)
+}
+
+func toTableQRTokenResponse(t *models.PosTableQRToken) *dto.TableQRTokenResponse {
+	return &dto.TableQRTokenResponse{
+		ID:            t.ID,
+		FloorPlanID:   t.FloorPlanID,
+		TableObjectID: t.TableObjectID,
+		TableLabel:    t.TableLabel,
+		Token:         t.Token,
+		IsActive:      t.IsActive,
+		CreatedAt:     t.CreatedAt.Format(time.RFC3339),
+	}
 }

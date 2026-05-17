@@ -39,8 +39,12 @@ func (u *activityTypeUsecase) Create(ctx context.Context, req dto.CreateActivity
 
 	activityTypeID := uuid.New().String()
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	actType := &models.ActivityType{
 		ID:          activityTypeID,
+		TenantID:    tenantID,
 		Name:        req.Name,
 		Code:        generateActivityTypeCode(req.Name, activityTypeID),
 		Description: req.Description,
