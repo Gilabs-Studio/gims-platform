@@ -70,7 +70,12 @@ export type LandingScreenshotKey =
   | "employeeHero"
   | "employeeList"
   | "employeeContract"
-  | "employeeHistory";
+  | "employeeHistory"
+  // Attendance
+  | "attendanceHero"
+  | "attendanceClockIn"
+  | "attendanceCalendar"
+  | "attendanceAdmin";
 
 type ThemePair = {
   light: string;
@@ -340,6 +345,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   employeeHistory: {
     light: "/screenshot/employees/employee-history.webp",
     dark: "/screenshot/employees/employee-history-dark.webp",
+  },
+  // Attendance
+  attendanceHero: {
+    light: "/screenshot/attendance/attendance-hero.webp",
+    dark: "/screenshot/attendance/attendance-hero-dark.webp",
+  },
+  attendanceClockIn: {
+    light: "/screenshot/attendance/attendance-clock-in.webp",
+    dark: "/screenshot/attendance/attendance-clock-in-dark.webp",
+  },
+  attendanceCalendar: {
+    light: "/screenshot/attendance/attendance-calendar.webp",
+    dark: "/screenshot/attendance/attendance-calendar-dark.webp",
+  },
+  attendanceAdmin: {
+    light: "/screenshot/attendance/attendance-admin.webp",
+    dark: "/screenshot/attendance/attendance-admin-dark.webp",
   },
 } as const;
 
