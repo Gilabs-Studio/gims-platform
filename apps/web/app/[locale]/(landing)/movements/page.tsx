@@ -9,16 +9,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/movements",
-    title: locale === "id" ? "Pergerakan Stok (Movements) | SalesView" : "Stock Movements Tracking | SalesView",
+    title:
+      locale === "id"
+        ? "Sistem Pergerakan Stok (IN, OUT, Transfer, Adjust) | Audit Mutasi Gudang | SalesView"
+        : "Stock Movement System (IN, OUT, Transfer, Adjust) | Warehouse Mutation Audit | SalesView",
     description:
       locale === "id"
-        ? "Lacak perpindahan stok antar lokasi dengan histori yang jelas untuk kontrol gudang lebih baik dan pengambilan keputusan operasional."
-        : "Track stock transfers across locations with clear history for better warehouse control and operational decision-making.",
+        ? "Catat empat jenis mutasi stok — IN, OUT, ADJUST, dan TRANSFER antar gudang — dengan filter lengkap, detail qty in/out/balance, dan tautan referensi ke delivery order, goods receipt, dan stock opname."
+        : "Record four stock movement types — IN, OUT, ADJUST, and inter-warehouse TRANSFER — with full filters, qty in/out/balance detail, and reference links to delivery orders, goods receipt, and stock opname.",
     keywords:
       locale === "id"
-        ? ["pergerakan stok", "stock movement", "transfer gudang", "inventory tracking", "salesview movements"]
-        : ["stock movement", "inventory transfer", "warehouse movement", "inventory tracking", "salesview movements"],
-    imageAlt: "SalesView stock movements overview",
+        ? [
+            "pergerakan stok",
+            "stock movement",
+            "mutasi gudang",
+            "transfer antar gudang",
+            "IN OUT stok",
+            "adjustment stok",
+            "audit pergerakan barang",
+            "salesview movements",
+          ]
+        : [
+            "stock movement",
+            "warehouse transfer",
+            "inventory IN OUT",
+            "stock adjustment",
+            "mutation audit",
+            "inter-warehouse movement",
+            "inventory tracking",
+            "salesview movements",
+          ],
+    imageAlt: "SalesView stock movements tracking overview",
   });
 }
 
@@ -34,7 +55,9 @@ export default async function MovementsLandingPage({ params }: { params: Promise
     name: "SalesView Movements",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: isId ? "Sistem pelacakan pergerakan stok." : "Stock movement tracking system.",
+    description: isId
+      ? "Sistem pencatatan pergerakan stok: IN, OUT, ADJUST, dan TRANSFER antar gudang dengan audit trail dan referensi dokumen."
+      : "Stock movement tracking system: IN, OUT, ADJUST, and inter-warehouse TRANSFER with audit trail and document references.",
     url: `https://salesview.id/${locale}/movements`,
   };
 
@@ -48,42 +71,61 @@ export default async function MovementsLandingPage({ params }: { params: Promise
         heroAccent={isId ? "Terdokumentasi." : "Stay Documented."}
         heroDescription={
           isId
-            ? "Pantau transfer stok antar lokasi dengan histori yang mudah ditelusuri."
-            : "Monitor stock transfers across locations with history that is easy to trace."
+            ? "Catat empat jenis mutasi — IN, OUT, ADJUST, TRANSFER — dengan filter lengkap dan jejak referensi ke dokumen asal."
+            : "Record four movement types — IN, OUT, ADJUST, TRANSFER — with full filters and reference links back to source documents."
         }
         heroImageAlt={isId ? "Tampilan pergerakan stok SalesView" : "SalesView stock movements interface"}
-        heroImageKey="stockInventory"
+        heroImageKey="movementHero"
         introTitle={isId ? "Lacak barang lintas lokasi" : "Track inventory across locations"}
         introDescription={
           isId
-            ? "Pergerakan stok tercatat rapi untuk membantu kontrol operasional harian."
-            : "Stock movements are recorded clearly to support daily operational control."
+            ? "Pergerakan stok tercatat rapi — dari barang masuk, keluar, adjustment, hingga transfer antar gudang — dengan histori yang siap diaudit."
+            : "Stock movements are recorded cleanly — from inbound, outbound, adjustment, to inter-warehouse transfer — with audit-ready history."
         }
         featureBlocks={[
           {
-            title: isId ? "Transfer antar gudang" : "Inter-warehouse transfers",
+            title: isId ? "Empat jenis mutasi stok" : "Four movement types",
             description: isId
-              ? "Kelola perpindahan stok agar distribusi barang lebih terencana."
-              : "Manage stock transfer so item distribution remains planned.",
-            placeholder: "warehouseFlow",
-          },
-          {
-            title: isId ? "Histori movement lengkap" : "Complete movement history",
-            description: isId
-              ? "Simpan jejak perpindahan untuk memudahkan investigasi saat ada selisih."
-              : "Store transfer logs to simplify investigation when discrepancies appear.",
-            placeholder: "timelineFlow",
-          },
-          {
-            title: isId ? "Kontrol stok lintas outlet" : "Cross-outlet stock control",
-            description: isId
-              ? "Pastikan setiap lokasi memiliki visibilitas terhadap stok yang bergerak."
-              : "Ensure each location has visibility into moving stock.",
-            screenshotKey: "dashboard",
+              ? "IN untuk barang masuk, OUT untuk keluar, ADJUST untuk koreksi stok, dan TRANSFER untuk pindah antar gudang — semua dalam satu tabel yang bisa difilter."
+              : "IN for inbound, OUT for outbound, ADJUST for corrections, TRANSFER for inter-warehouse moves — all in one filterable table.",
+            screenshotKey: "movementList",
             placeholder: "multiOutlet",
+          },
+          {
+            title: isId ? "Filter lengkap per gudang dan rentang" : "Full filtering by warehouse and date range",
+            description: isId
+              ? "Filter berdasarkan gudang, produk, tipe mutasi, dan rentang tanggal — semua langsung tanpa reload. Ekspor CSV sekali klik."
+              : "Filter by warehouse, product, movement type, and date range — all live without reload. Export CSV in one click.",
+            screenshotKey: "movementFilter",
+            placeholder: "terminalFlow",
+          },
+          {
+            title: isId ? "Detail mutasi dengan referensi dokumen" : "Movement detail with document references",
+            description: isId
+              ? "Klik baris mana pun untuk melihat qty in, qty out, balance, unit cost, dan total value — plus tautan ke dokumen asal: delivery order, goods receipt, atau stock opname."
+              : "Click any row to see qty in, qty out, balance, unit cost, and total value — plus links to source documents: delivery order, goods receipt, or stock opname.",
+            descriptionSecondary: isId
+              ? "Setiap mutasi tercatat di ledger dan bisa ditelusuri ke journal entry."
+              : "Every movement is recorded in the ledger and traceable to its journal entry.",
+            screenshotKey: "movementDetail",
+            placeholder: "scorecardFlow",
           },
         ]}
         finalTitle={isId ? "Perpindahan barang lebih mudah dipantau" : "Item transfers become easier to monitor"}
+        finalPoints={[
+          {
+            title: isId ? "4 tipe mutasi" : "4 types",
+            description: isId
+              ? "IN, OUT, ADJUST, TRANSFER — tercakup semua."
+              : "IN, OUT, ADJUST, TRANSFER — all covered.",
+          },
+          {
+            title: isId ? "Terhubung dokumen" : "Doc-linked",
+            description: isId
+              ? "Tautan ke DO, GR, opname, dan journal."
+              : "Links to DO, GR, opname, and journal.",
+          },
+        ]}
         finalCtaLabel={isId ? "Mulai Tracking Movement" : "Start Tracking Movements"}
       />
     </>

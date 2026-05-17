@@ -56,6 +56,11 @@ export type LandingScreenshotKey =
   | "stockInventoryList"
   | "stockInventoryBatch"
   | "stockOpnameVariance"
+  // Stock Movements
+  | "movementHero"
+  | "movementList"
+  | "movementFilter"
+  | "movementDetail"
   // Goods Receipt
   | "goodsReceiptHero"
   | "goodsReceiptPO"
@@ -279,6 +284,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   stockOpnameVariance: {
     light: "/screenshot/stock/stock-opname-variance.webp",
     dark: "/screenshot/stock/stock-opname-variance-dark.webp",
+  },
+  // Stock Movements
+  movementHero: {
+    light: "/screenshot/movements/movement-hero.webp",
+    dark: "/screenshot/movements/movement-hero-dark.webp",
+  },
+  movementList: {
+    light: "/screenshot/movements/movement-list.webp",
+    dark: "/screenshot/movements/movement-list-dark.webp",
+  },
+  movementFilter: {
+    light: "/screenshot/movements/movement-filter.webp",
+    dark: "/screenshot/movements/movement-filter-dark.webp",
+  },
+  movementDetail: {
+    light: "/screenshot/movements/movement-detail.webp",
+    dark: "/screenshot/movements/movement-detail-dark.webp",
   },
   // Goods Receipt
   goodsReceiptHero: {
