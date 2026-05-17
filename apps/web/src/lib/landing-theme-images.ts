@@ -80,7 +80,12 @@ export type LandingScreenshotKey =
   | "recruitmentHero"
   | "recruitmentKanban"
   | "recruitmentRequest"
-  | "recruitmentConvert";
+  | "recruitmentConvert"
+  // Travel Planner
+  | "travelHero"
+  | "travelItinerary"
+  | "travelMap"
+  | "travelExpense";
 
 type ThemePair = {
   light: string;
@@ -384,6 +389,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   recruitmentConvert: {
     light: "/screenshot/recruitment/recruitment-convert.webp",
     dark: "/screenshot/recruitment/recruitment-convert-dark.webp",
+  },
+  // Travel Planner
+  travelHero: {
+    light: "/screenshot/travel/travel-hero.webp",
+    dark: "/screenshot/travel/travel-hero-dark.webp",
+  },
+  travelItinerary: {
+    light: "/screenshot/travel/travel-itinerary.webp",
+    dark: "/screenshot/travel/travel-itinerary-dark.webp",
+  },
+  travelMap: {
+    light: "/screenshot/travel/travel-map.webp",
+    dark: "/screenshot/travel/travel-map-dark.webp",
+  },
+  travelExpense: {
+    light: "/screenshot/travel/travel-expense.webp",
+    dark: "/screenshot/travel/travel-expense-dark.webp",
   },
 } as const;
 
