@@ -45,14 +45,14 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
         locale={locale}
         label="SalesView Reconciliation"
         heroTitle={isId ? "Rekonsiliasi yang" : "Reconciliation that"}
-        heroAccent={isId ? "Lebih Terkontrol." : "Stays Controlled."}
+        heroAccent={isId ? "Lebih Terkontrol" : "Stays Controlled"}
         heroDescription={
           isId
             ? "Bandingkan mutasi dan transaksi internal dengan alur yang jelas untuk mempercepat closing."
             : "Compare bank movements and internal transactions through a clear flow to accelerate closing."
         }
         heroImageAlt={isId ? "Tampilan rekonsiliasi SalesView" : "SalesView reconciliation interface"}
-        heroImageKey="profitLoss"
+        heroImageKey="reconciliationHero"
         introTitle={isId ? "Kurangi friksi saat closing" : "Reduce friction during closing"}
         introDescription={
           isId
@@ -65,6 +65,7 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
             description: isId
               ? "Cocokkan data mutasi dan transaksi agar anomali cepat ditemukan."
               : "Match movement and transaction data so anomalies are found faster.",
+            screenshotKey: "reconciliationTransactionMatching",
             placeholder: "warehouseFlow",
           },
           {
@@ -72,6 +73,7 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
             description: isId
               ? "Telusuri selisih dengan tampilan yang membantu investigasi lebih terarah."
               : "Trace differences with views that make investigation more directed.",
+            screenshotKey: "reconciliationVarianceTracing",
             placeholder: "timelineFlow",
           },
           {
@@ -79,6 +81,7 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
             description: isId
               ? "Selesaikan period closing dengan data yang telah tervalidasi lintas transaksi."
               : "Finish period closing with data validated across transactions.",
+            screenshotKey: "reconciliationClosingConfidence",
             placeholder: "scorecardFlow",
           },
         ]}

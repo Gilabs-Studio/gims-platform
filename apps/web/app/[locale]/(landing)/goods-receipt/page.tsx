@@ -9,16 +9,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/goods-receipt",
-    title: locale === "id" ? "Penerimaan Barang (Goods Receipt) | SalesView" : "Goods Receipt Management | SalesView",
+    title:
+      locale === "id"
+        ? "Sistem Penerimaan Barang (Goods Receipt) | Terhubung PO & Supplier Invoice | SalesView"
+        : "Goods Receipt System | Linked to PO & Supplier Invoice | SalesView",
     description:
       locale === "id"
-        ? "Catat penerimaan barang dengan alur terstruktur agar data stok masuk tetap akurat dan langsung siap diproses ke inventory."
-        : "Record goods receipt with a structured workflow so inbound stock data stays accurate and ready for downstream inventory processing.",
+        ? "Catat penerimaan barang per purchase order, validasi kuantitas, lacak audit trail, dan teruskan ke faktur supplier — semua dalam satu alur goods receipt yang akurat dan siap diaudit."
+        : "Record goods receipt per purchase order, validate quantities, track audit trails, and pass to supplier invoice — all in one accurate, audit-ready goods receipt workflow.",
     keywords:
       locale === "id"
-        ? ["penerimaan barang", "goods receipt", "stok masuk", "supply chain", "salesview receipt"]
-        : ["goods receipt", "inbound inventory", "warehouse receiving", "supply chain", "salesview receipt"],
-    imageAlt: "SalesView goods receipt overview",
+        ? [
+            "penerimaan barang",
+            "goods receipt",
+            "validasi barang masuk",
+            "purchase order matching",
+            "barang masuk gudang",
+            "audit trail penerimaan",
+            "konversi faktur supplier",
+            "salesview goods receipt",
+          ]
+        : [
+            "goods receipt",
+            "inbound receiving",
+            "purchase order matching",
+            "warehouse receiving",
+            "receipt audit trail",
+            "supplier invoice conversion",
+            "goods receipt software",
+            "salesview goods receipt",
+          ],
+    imageAlt: "SalesView goods receipt management overview",
   });
 }
 
@@ -34,7 +55,9 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
     name: "SalesView Goods Receipt",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: isId ? "Sistem penerimaan barang untuk gudang." : "Warehouse goods receipt system.",
+    description: isId
+      ? "Sistem penerimaan barang gudang yang terhubung ke purchase order, audit trail, dan konversi faktur supplier."
+      : "Warehouse goods receipt system linked to purchase orders, audit trails, and supplier invoice conversion.",
     url: `https://salesview.id/${locale}/goods-receipt`,
   };
 
@@ -45,45 +68,64 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
         locale={locale}
         label="SalesView Goods Receipt"
         heroTitle={isId ? "Penerimaan Barang yang" : "Goods Receipt that"}
-        heroAccent={isId ? "Lebih Akurat." : "Stays Accurate."}
+        heroAccent={isId ? "Lebih Akurat" : "Stays Accurate"}
         heroDescription={
           isId
-            ? "Pastikan barang masuk tercatat jelas agar stok dan purchasing selalu sinkron."
-            : "Ensure inbound goods are recorded clearly so inventory and purchasing stay synchronized."
+            ? "Catat barang masuk per purchase order, validasi kuantitas, dan teruskan ke faktur supplier — semua dalam satu alur yang siap diaudit."
+            : "Record inbound goods per purchase order, validate quantities, and pass to supplier invoice — all in one audit-ready workflow."
         }
         heroImageAlt={isId ? "Tampilan penerimaan barang SalesView" : "SalesView goods receipt interface"}
-        heroImageKey="stockInventory"
+        heroImageKey="goodsReceiptHero"
         introTitle={isId ? "Kurangi kesalahan stok masuk" : "Reduce inbound stock mistakes"}
         introDescription={
           isId
-            ? "Goods receipt membantu tim gudang mencatat barang masuk dengan langkah yang konsisten."
-            : "Goods receipt helps warehouse teams record inbound items with consistent steps."
+            ? "Goods receipt dirancang agar tim gudang mencatat barang masuk dengan langkah yang konsisten dan jejak data yang lengkap."
+            : "Goods receipt is designed so warehouse teams record inbound items with consistent steps and a complete data trail."
         }
         featureBlocks={[
           {
-            title: isId ? "Catat barang per dokumen" : "Record items by document",
+            title: isId ? "Catat barang per purchase order" : "Record items per purchase order",
             description: isId
-              ? "Hubungkan penerimaan barang dengan dokumen pembelian agar jejak data lengkap."
-              : "Connect receipt records with purchase documents for complete traceability.",
+              ? "Hubungkan setiap penerimaan barang ke purchase order — pilih PO yang sudah approved, isi kuantitas per item, dan simpan dalam satu langkah."
+              : "Link every goods receipt to a purchase order — select an approved PO, fill in quantities per item, and save in one step.",
+            descriptionSecondary: isId
+              ? "Setiap item divalidasi agar quantity received > 0 sebelum bisa disimpan."
+              : "Each item is validated so quantity received > 0 before saving.",
+            screenshotKey: "goodsReceiptPO",
             placeholder: "warehouseFlow",
           },
           {
-            title: isId ? "Validasi kuantitas masuk" : "Validate received quantities",
+            title: isId ? "Jejak audit dari draft sampai closed" : "Audit trail from draft to closed",
             description: isId
-              ? "Pastikan kuantitas diterima sesuai sehingga update stok lebih presisi."
-              : "Ensure received quantities match expectations so stock updates remain precise.",
-            screenshotKey: "stockInventory",
-            placeholder: "terminalFlow",
+              ? "Setiap status — DRAFT, SUBMITTED, APPROVED, REJECTED, CLOSED — tercatat dengan timestamp dan user yang melakukan aksi."
+              : "Every status — DRAFT, SUBMITTED, APPROVED, REJECTED, CLOSED — is logged with a timestamp and the user who performed the action.",
+            screenshotKey: "goodsReceiptAudit",
+            placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Sinkron ke inventory" : "Synced to inventory",
+            title: isId ? "Teruskan ke faktur supplier" : "Pass to supplier invoice",
             description: isId
-              ? "Data penerimaan langsung memperbarui inventory untuk operasional berikutnya."
-              : "Receipt data updates inventory directly for downstream operations.",
-            placeholder: "multiOutlet",
+              ? "Begitu barang diterima dan disetujui, konversi goods receipt ke supplier invoice dalam satu klik — data quantity dan harga langsung terbawa."
+              : "Once goods are received and approved, convert the goods receipt to a supplier invoice in one click — quantity and cost data carry over automatically.",
+            screenshotKey: "goodsReceiptToInvoice",
+            placeholder: "invoiceFlow",
           },
         ]}
         finalTitle={isId ? "Gudang bekerja dengan data yang lebih presisi" : "Warehouses operate with more precise data"}
+        finalPoints={[
+          {
+            title: isId ? "Terhubung PO" : "PO-linked",
+            description: isId
+              ? "Setiap penerimaan merujuk ke purchase order yang sah."
+              : "Every receipt references a valid purchase order.",
+          },
+          {
+            title: isId ? "Siap audit" : "Audit-ready",
+            description: isId
+              ? "Audit trail lengkap dari draft sampai closed."
+              : "Full audit trail from draft to closed.",
+          },
+        ]}
         finalCtaLabel={isId ? "Mulai Goods Receipt" : "Start Goods Receipt"}
       />
     </>

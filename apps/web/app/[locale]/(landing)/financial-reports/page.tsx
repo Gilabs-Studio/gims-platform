@@ -45,14 +45,14 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
         locale={locale}
         label="SalesView Financial Reports"
         heroTitle={isId ? "Laporan Keuangan yang" : "Financial Reports that"}
-        heroAccent={isId ? "Lebih Cepat." : "Move Faster."}
+        heroAccent={isId ? "Lebih Cepat" : "Move Faster"}
         heroDescription={
           isId
             ? "Pantau performa keuangan tanpa menunggu kompilasi manual yang memakan waktu."
             : "Monitor financial performance without waiting for time-consuming manual compilation."
         }
         heroImageAlt={isId ? "Tampilan laporan keuangan SalesView" : "SalesView financial reports interface"}
-        heroImageKey="dashboard"
+        heroImageKey="financialReportsHero"
         introTitle={isId ? "Dari data operasional ke insight" : "From operational data to insight"}
         introDescription={
           isId
@@ -65,7 +65,7 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
             description: isId
               ? "Lihat ringkasan metrik utama agar keputusan strategis lebih cepat diambil."
               : "View key metric summaries to speed up strategic decisions.",
-            screenshotKey: "dashboard",
+            screenshotKey: "financialReportsSummary",
             placeholder: "multiOutlet",
           },
           {
@@ -73,7 +73,7 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
             description: isId
               ? "Pantau tren laba rugi dengan data yang konsisten dari operasional harian."
               : "Track P&L trends using data that stays consistent from daily operations.",
-            screenshotKey: "profitLoss",
+            screenshotKey: "financialReportsProfitLoss",
             placeholder: "terminalFlow",
           },
           {
@@ -81,6 +81,7 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
             description: isId
               ? "Gunakan laporan untuk review bulanan tanpa menyiapkan ulang data dari nol."
               : "Use reports for monthly reviews without rebuilding data from scratch.",
+            screenshotKey: "financialReportsReview",
             placeholder: "scorecardFlow",
           },
         ]}
