@@ -68,7 +68,7 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
         locale={locale}
         label="SalesView Goods Receipt"
         heroTitle={isId ? "Penerimaan Barang yang" : "Goods Receipt that"}
-        heroAccent={isId ? "Lebih Akurat." : "Stays Accurate."}
+        heroAccent={isId ? "Lebih Akurat" : "Stays Accurate"}
         heroDescription={
           isId
             ? "Catat barang masuk per purchase order, validasi kuantitas, dan teruskan ke faktur supplier — semua dalam satu alur yang siap diaudit."

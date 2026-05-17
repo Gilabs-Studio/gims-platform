@@ -68,7 +68,7 @@ export default async function MovementsLandingPage({ params }: { params: Promise
         locale={locale}
         label="SalesView Movements"
         heroTitle={isId ? "Pergerakan Stok yang" : "Stock Movements that"}
-        heroAccent={isId ? "Terdokumentasi." : "Stay Documented."}
+        heroAccent={isId ? "Terdokumentasi" : "Stay Documented"}
         heroDescription={
           isId
             ? "Catat empat jenis mutasi — IN, OUT, ADJUST, TRANSFER — dengan filter lengkap dan jejak referensi ke dokumen asal."

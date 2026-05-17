@@ -68,7 +68,7 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
         locale={locale}
         label="SalesView Inventory"
         heroTitle={isId ? "Inventory yang" : "Inventory that"}
-        heroAccent={isId ? "Lebih Presisi." : "Stays Precise."}
+        heroAccent={isId ? "Lebih Presisi" : "Stays Precise"}
         heroDescription={
           isId
             ? "Kendalikan stok lintas gudang dengan visibilitas real-time, batch tracking, dan stock opname — semua tersambung dalam satu alur."

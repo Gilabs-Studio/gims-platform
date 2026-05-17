@@ -68,7 +68,7 @@ export default async function AttendanceLandingPage({ params }: { params: Promis
         locale={locale}
         label="SalesView Attendance"
         heroTitle={isId ? "Attendance yang" : "Attendance that"}
-        heroAccent={isId ? "Terkendali." : "Stays Controlled."}
+        heroAccent={isId ? "Terkendali" : "Stays Controlled"}
         heroDescription={
           isId
             ? "Clock-in/out dengan GPS dan foto, pantau kalender kehadiran, dan lihat statistik bulanan — semua dalam satu sistem absensi yang terhubung ke data karyawan."

@@ -47,7 +47,7 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
         locale={locale}
         label="SalesView Invoicing"
         heroTitle={isId ? "Invoicing yang" : "Invoicing that"}
-        heroAccent={isId ? "Lebih Ringkas." : "Stays Focused."}
+        heroAccent={isId ? "Lebih Ringkas" : "Stays Focused"}
         heroDescription={
           isId
             ? "Buat faktur, pantau pembayaran, dan lakukan follow-up tanpa lompat antar sistem."

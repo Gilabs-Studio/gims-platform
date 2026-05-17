@@ -88,7 +88,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             {isId ? `Customer Relationship` : `Customer Relationship`}
             <br />
             <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Magic.` : `Magic.`}
+              {isId ? `Magic` : `Magic`}
             </span>
           </h1>
           <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">

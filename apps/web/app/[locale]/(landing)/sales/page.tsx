@@ -47,7 +47,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
         locale={locale}
         label="SalesView Sales Orders"
         heroTitle={isId ? "Sales Orders yang" : "Sales Orders that"}
-        heroAccent={isId ? "Siap Eksekusi." : "Are Execution-Ready."}
+        heroAccent={isId ? "Siap Eksekusi" : "Are Execution-Ready"}
         heroDescription={
           isId
             ? "Ubah proses penjualan menjadi lebih terstruktur dari pencatatan order sampai koordinasi tim."

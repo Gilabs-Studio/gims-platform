@@ -45,7 +45,7 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
         locale={locale}
         label="SalesView Financial Reports"
         heroTitle={isId ? "Laporan Keuangan yang" : "Financial Reports that"}
-        heroAccent={isId ? "Lebih Cepat." : "Move Faster."}
+        heroAccent={isId ? "Lebih Cepat" : "Move Faster"}
         heroDescription={
           isId
             ? "Pantau performa keuangan tanpa menunggu kompilasi manual yang memakan waktu."

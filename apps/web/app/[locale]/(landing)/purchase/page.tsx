@@ -68,7 +68,7 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
         locale={locale}
         label="SalesView Purchase"
         heroTitle={isId ? "Pengadaan Barang yang" : "Procurement that"}
-        heroAccent={isId ? "Terkoordinasi." : "Stays Coordinated."}
+        heroAccent={isId ? "Terkoordinasi" : "Stays Coordinated"}
         heroDescription={
           isId
             ? "Satukan permintaan pembelian, purchase order, penerimaan barang, dan kontrol hutang supplier dalam satu alur kerja yang stabil."

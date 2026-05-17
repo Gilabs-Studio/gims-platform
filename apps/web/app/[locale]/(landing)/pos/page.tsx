@@ -137,7 +137,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
             {isId ? `Sistem Kasir yang` : `A Point of Sale that`}
             <br />
             <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Menyenangkan.` : `Delights.`}
+              {isId ? `Menyenangkan` : `Delights`}
             </span>
           </h1>
           <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">

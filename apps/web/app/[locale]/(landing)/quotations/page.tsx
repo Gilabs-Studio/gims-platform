@@ -45,7 +45,7 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
         locale={locale}
         label="SalesView Quotations"
         heroTitle={isId ? "Penawaran Harga yang" : "Quotations that"}
-        heroAccent={isId ? "Meyakinkan." : "Win Confidence."}
+        heroAccent={isId ? "Meyakinkan" : "Win Confidence"}
         heroDescription={
           isId
             ? "Siapkan quotation profesional untuk mempercepat approval pelanggan dan proses closing."

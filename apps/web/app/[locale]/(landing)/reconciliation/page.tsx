@@ -45,7 +45,7 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
         locale={locale}
         label="SalesView Reconciliation"
         heroTitle={isId ? "Rekonsiliasi yang" : "Reconciliation that"}
-        heroAccent={isId ? "Lebih Terkontrol." : "Stays Controlled."}
+        heroAccent={isId ? "Lebih Terkontrol" : "Stays Controlled"}
         heroDescription={
           isId
             ? "Bandingkan mutasi dan transaksi internal dengan alur yang jelas untuk mempercepat closing."

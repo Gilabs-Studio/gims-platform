@@ -68,7 +68,7 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
         locale={locale}
         label="SalesView Evaluation"
         heroTitle={isId ? "Evaluasi Kinerja yang" : "Performance Evaluation that"}
-        heroAccent={isId ? "Terukur." : "Stays Measurable."}
+        heroAccent={isId ? "Terukur" : "Stays Measurable"}
         heroDescription={
           isId
             ? "Buat group evaluasi dengan kriteria berbobot, jalankan penilaian SELF & MANAGER per periode, dan lihat skor tertimbang — semua dengan audit trail."

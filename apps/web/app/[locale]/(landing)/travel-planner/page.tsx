@@ -68,7 +68,7 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
         locale={locale}
         label="SalesView Travel Planner"
         heroTitle={isId ? "Travel Planner yang" : "Travel Planning that"}
-        heroAccent={isId ? "Lebih Terkontrol." : "Stays Organized."}
+        heroAccent={isId ? "Lebih Terkontrol" : "Stays Organized"}
         heroDescription={
           isId
             ? "Rencanakan perjalanan dinas multi-hari dengan itinerary, peta interaktif, dan pencatatan expense — semua dalam satu workspace."

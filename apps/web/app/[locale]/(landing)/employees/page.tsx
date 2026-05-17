@@ -68,7 +68,7 @@ export default async function EmployeesLandingPage({ params }: { params: Promise
         locale={locale}
         label="SalesView Employees"
         heroTitle={isId ? "Data Karyawan yang" : "Employee Data that"}
-        heroAccent={isId ? "Tersentralisasi." : "Stay Centralized."}
+        heroAccent={isId ? "Tersentralisasi" : "Stay Centralized"}
         heroDescription={
           isId
             ? "Simpan profil, kontrak, riwayat pendidikan, sertifikasi, hingga aset karyawan dalam satu master data yang terhubung ke seluruh modul HR."

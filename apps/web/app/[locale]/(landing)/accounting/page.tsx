@@ -47,7 +47,7 @@ export default async function AccountingLandingPage({ params }: { params: Promis
         locale={locale}
         label="SalesView Accounting"
         heroTitle={isId ? "Accounting yang" : "Accounting that"}
-        heroAccent={isId ? "Terkoneksi." : "Stays Connected."}
+        heroAccent={isId ? "Terkoneksi" : "Stays Connected"}
         heroDescription={
           isId
             ? "Satukan jurnal, buku besar, dan posting transaksi dari modul lain dalam satu alur yang konsisten."

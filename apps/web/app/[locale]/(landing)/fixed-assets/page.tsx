@@ -45,7 +45,7 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
         locale={locale}
         label="SalesView Fixed Assets"
         heroTitle={isId ? "Aset Tetap yang" : "Fixed Assets that"}
-        heroAccent={isId ? "Lebih Teratur." : "Stay Structured."}
+        heroAccent={isId ? "Lebih Teratur" : "Stay Structured"}
         heroDescription={
           isId
             ? "Catat aset, nilai, dan status pemakaian agar keputusan investasi lebih berbasis data."

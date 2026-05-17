@@ -68,7 +68,7 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
         locale={locale}
         label="SalesView Recruitment"
         heroTitle={isId ? "Recruitment yang" : "Recruitment that"}
-        heroAccent={isId ? "Lebih Terarah." : "Stays Focused."}
+        heroAccent={isId ? "Lebih Terarah" : "Stays Focused"}
         heroDescription={
           isId
             ? "Buat recruitment request, lihat kandidat dalam kanban board, pindahkan antar tahapan, dan convert applicant yang diterima langsung ke data karyawan."
