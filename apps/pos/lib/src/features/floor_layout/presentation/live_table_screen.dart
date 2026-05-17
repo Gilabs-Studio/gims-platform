@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -40,6 +41,8 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   PosConfig? _config;
   DateTime _now = DateTime.now();
   bool _loading = true;
+  // Throttle fallback HTTP sync: only reload if last WS-triggered sync was >10s ago.
+  DateTime? _lastWsSyncAt;
 
   String? _servingOrderId;
   String? _completingOrderId;
@@ -129,42 +132,91 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
   void _handleWsEvent(PosWsEvent event) {
     if (event.outletId != null && event.outletId != widget.outlet.id) return;
-    switch (event.event) {
-      case 'pos.new_customer_order':
-        final order = _orderFromEvent(event);
-        if (order == null) return;
-        NotificationSoundService.instance.play();
-        setState(() => _upsertOrder(order));
-        break;
-      case 'pos.order_status_changed':
-      case 'pos.payment_confirmed':
-      case 'pos.table_updated':
-        final order = _orderFromEvent(event);
-        if (order == null) return;
-        setState(() {
-          if (_isTerminalCleared(order.status)) {
-            _orders = _orders.where((item) => item.id != order.id).toList();
-          } else {
-            _upsertOrder(order);
+    try {
+      switch (event.event) {
+        case 'pos.new_customer_order':
+          final order = _orderFromEvent(event);
+          if (order == null) {
+            _safeFallbackSync();
+            return;
           }
-        });
-        break;
+          NotificationSoundService.instance.play();
+          setState(() => _upsertOrder(order));
+          break;
+        case 'pos.order_status_changed':
+        case 'pos.payment_confirmed':
+        case 'pos.table_updated':
+          final order = _orderFromEvent(event);
+          if (order == null) {
+            _safeFallbackSync();
+            return;
+          }
+          setState(() {
+            if (_isTerminalCleared(order.status)) {
+              _orders = _orders.where((item) => item.id != order.id).toList();
+            } else {
+              _upsertOrder(order);
+            }
+          });
+          break;
+      }
+    } catch (e, st) {
+      // Keep stream alive when one malformed payload is received.
     }
   }
 
   PosOrder? _orderFromEvent(PosWsEvent event) {
     final rawOrder = event.data['order'];
+
+    // Strategy 1: Direct Map<String, dynamic>
     if (rawOrder is Map<String, dynamic>) {
-      return PosOrder.fromJson(rawOrder);
+      try {
+        final order = PosOrder.fromJson(rawOrder);
+        return order;
+      } catch (e) {
+      }
     }
+
+    // Strategy 2: Dynamic Map (cast all keys to String)
     if (rawOrder is Map) {
-      return PosOrder.fromJson(rawOrder.map((key, value) => MapEntry('$key', value)));
+      try {
+        final order = PosOrder.fromJson(
+          rawOrder.map((key, value) => MapEntry('$key', value)),
+        );
+        return order;
+      } catch (e) {
+      }
     }
+
+    // Strategy 3: String JSON (decode and retry)
+    if (rawOrder is String && rawOrder.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawOrder);
+        if (decoded is Map<String, dynamic>) {
+          final order = PosOrder.fromJson(decoded);
+          return order;
+        }
+        if (decoded is Map) {
+          final order = PosOrder.fromJson(
+            decoded.map((key, value) => MapEntry('$key', value)),
+          );
+          return order;
+        }
+      } catch (e) {
+      }
+    }
+
+    // Strategy 4: Fallback - use root data as order (event.data['id'] or event.data['order_id'])
     if (event.data['id'] is String || event.data['order_id'] is String) {
-      final data = Map<String, dynamic>.from(event.data);
-      data['id'] = data['id'] ?? data['order_id'];
-      return PosOrder.fromJson(data);
+      try {
+        final data = Map<String, dynamic>.from(event.data);
+        data['id'] = data['id'] ?? data['order_id'];
+        final order = PosOrder.fromJson(data);
+        return order;
+      } catch (e) {
+      }
     }
+
     return null;
   }
 
@@ -178,6 +230,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     }
     _orders = next;
     _now = DateTime.now();
+  }
+
+  /// Throttled fallback: reloads orders via HTTP when a WS event cannot be parsed.
+  /// Fires at most once per 10 s to avoid hammering the API.
+  void _safeFallbackSync() {
+    final now = DateTime.now();
+    if (_lastWsSyncAt != null &&
+        now.difference(_lastWsSyncAt!).inSeconds < 10) {
+      return;
+    }
+    _lastWsSyncAt = now;
+    _load(silent: true);
   }
 
   List<LiveTableData> _liveTables() {
@@ -240,7 +304,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   bool _canServeAll(String status) {
-    return status == 'SEATED' || status == 'WARN_LONG' || status == 'PARTIAL_SERVED';
+    return status == 'SEATED' ||
+        status == 'WARN_LONG' ||
+        status == 'PARTIAL_SERVED';
   }
 
   bool _canComplete(String status) {
@@ -305,10 +371,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   bool _isTerminalCleared(PosOrderStatus status) {
-    return {
-      PosOrderStatus.completed,
-      PosOrderStatus.voided,
-    }.contains(status);
+    return {PosOrderStatus.completed, PosOrderStatus.voided}.contains(status);
   }
 
   Future<void> _payOrder(LiveTableData info) async {
@@ -316,7 +379,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     if (order == null) return;
     final result = await showDialog<CheckoutResult>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => CheckoutFlowSheet(
         order: order,
         config: _config,
@@ -345,8 +408,14 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
         title: Text('Cancel ${_tableLabel(info)}?'),
         content: Text('Order ${order.orderNumber} akan dibatalkan.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel'),
+          ),
         ],
       ),
     );
