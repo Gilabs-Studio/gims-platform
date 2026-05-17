@@ -71,6 +71,7 @@ const FEATURE_PATH_BY_LABEL: Record<string, string> = {
   "SalesView Quotations": "/quotations",
   "SalesView Sales Orders": "/sales",
   "SalesView Invoicing": "/invoicing",
+  "SalesView Purchase": "/purchase",
   "SalesView Goods Receipt": "/goods-receipt",
   "SalesView Movements": "/movements",
   "SalesView Inventory": "/stock",
@@ -94,6 +95,7 @@ function getRelatedLinks(label: string): InternalLink[] {
     group = "finance";
   } else if (
     lowerLabel.includes("inventory") ||
+    lowerLabel.includes("purchase") ||
     lowerLabel.includes("goods receipt") ||
     lowerLabel.includes("movements")
   ) {

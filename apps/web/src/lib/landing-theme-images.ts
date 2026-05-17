@@ -46,7 +46,12 @@ export type LandingScreenshotKey =
   | "quotationsList"
   | "quotationsForm"
   | "quotationsDetail"
-  | "quotationsToSalesOrder";
+  | "quotationsToSalesOrder"
+  // Purchase
+  | "purchaseHero"
+  | "purchaseRequisitionToPO"
+  | "purchaseGRToInvoice"
+  | "purchasePayableRecap";
 
 type ThemePair = {
   light: string;
@@ -235,6 +240,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   salesOrderFulfillment: {
     light: "/screenshot/sales/sales-order-fulfillment.webp",
     dark: "/screenshot/sales/sales-order-fulfillment-dark.webp",
+  },
+  // Purchase
+  purchaseHero: {
+    light: "/screenshot/purchase/purchase-hero.webp",
+    dark: "/screenshot/purchase/purchase-hero-dark.webp",
+  },
+  purchaseRequisitionToPO: {
+    light: "/screenshot/purchase/purchase-requisition-to-po.webp",
+    dark: "/screenshot/purchase/purchase-requisition-to-po-dark.webp",
+  },
+  purchaseGRToInvoice: {
+    light: "/screenshot/purchase/purchase-gr-to-invoice.webp",
+    dark: "/screenshot/purchase/purchase-gr-to-invoice-dark.webp",
+  },
+  purchasePayableRecap: {
+    light: "/screenshot/purchase/purchase-payable-recap.webp",
+    dark: "/screenshot/purchase/purchase-payable-recap-dark.webp",
   },
 } as const;
 

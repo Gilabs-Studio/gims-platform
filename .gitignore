@@ -53,10 +53,7 @@ pnpm-debug.log*
 apps/erp-api/
 apps/erp-front-end/
 
+#AI Agents
 CLAUDE.md
 .CLAUDE/
-.playwright-mcp/
-.sisyphus/
-
 .pi*/
-.leann
