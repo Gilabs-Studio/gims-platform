@@ -18,6 +18,7 @@ import { SubscriptionLifecycleGuard } from "@/features/auth/components/subscript
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 import { useWebSocket as useNotificationWebSocket } from "@/features/notifications/hooks/use-web-socket";
+import { useAttendanceTodayWebSocket } from "@/features/hrd/attendance-records/hooks/use-attendance-today-ws";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
@@ -139,6 +140,7 @@ export const DashboardLayout = memo(function DashboardLayout({
 
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
   useNotificationWebSocket();
+  useAttendanceTodayWebSocket();
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const isGeneralDashboardPage = Boolean(

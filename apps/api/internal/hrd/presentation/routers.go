@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	hrdMapper "github.com/gilabs/gims/api/internal/hrd/domain/mapper"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
+	hrdWS "github.com/gilabs/gims/api/internal/hrd/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/handler"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/router"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -86,6 +87,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	holidayUC := usecase.NewHolidayUsecase(holidayRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo, employeeRepo)
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo, leaveRequestRepo, employeeRepo, divisionRepo, overtimeUC)
+	attendanceHub := hrdWS.DefaultAttendanceHub()
+	attendanceUC = usecase.WithAttendanceTodayPublisher(attendanceUC, attendanceHub)
 	leaveRequestUC := usecase.NewLeaveRequestUsecase(db, leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo, attendanceRepo)
 	evaluationGroupUC := usecase.NewEvaluationGroupUsecase(db, evaluationGroupRepo, evaluationCriteriaRepo, auditService)
 	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo, auditService)
@@ -109,6 +112,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
 	holidayHandler := handler.NewHolidayHandler(holidayUC)
 	attendanceHandler := handler.NewAttendanceRecordHandler(attendanceUC)
+	attendanceWSHandler := handler.NewAttendanceWSHandler(attendanceHub, employeeRepo)
 	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC, employeeRepo)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
 	evaluationGroupHandler := handler.NewEvaluationGroupHandler(evaluationGroupUC)
@@ -126,7 +130,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Register routes
 	router.RegisterWorkScheduleRoutes(hrdGroup, workScheduleHandler)
 	router.RegisterHolidayRoutes(hrdGroup, holidayHandler)
-	router.RegisterAttendanceRecordRoutes(hrdGroup, attendanceHandler)
+	router.RegisterAttendanceRecordRoutes(hrdGroup, attendanceHandler, attendanceWSHandler)
 	router.RegisterOvertimeRequestRoutes(hrdGroup, overtimeHandler)
 	router.RegisterLeaveRequestRoutes(hrdGroup, leaveRequestHandler)
 	router.SetupEvaluationGroupRoutes(hrdGroup, evaluationGroupHandler)
