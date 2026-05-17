@@ -1,4 +1,11 @@
 // k6/transaction-test.js
+// ⚠️ DEPRECATED: This legacy file is superseded by k6/tests/transaction-test.js
+// which composes 4 modular E2E workflows (revenue, purchase, JE, attendance).
+// This file is kept for backward compatibility. Prefer the new structure.
+//
+// New test: k6 run k6/tests/transaction-test.js
+// New script: pnpm k6:transaction:v2
+//
 // Sales transaction workflow test aligned with current backend contracts.
 
 import { check, sleep, group } from "k6";
