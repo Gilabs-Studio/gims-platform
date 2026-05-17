@@ -36,7 +36,7 @@ func (h *ContactRoleHandler) Create(c *gin.Context) {
 
 	result, err := h.uc.Create(c.Request.Context(), req)
 	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
+		handleContactRoleError(c, err)
 		return
 	}
 
@@ -139,10 +139,7 @@ func (h *ContactRoleHandler) Update(c *gin.Context) {
 
 	result, err := h.uc.Update(c.Request.Context(), id, req)
 	if err != nil {
-		errors.ErrorResponse(c, "CRM_CONTACT_ROLE_NOT_FOUND", map[string]interface{}{
-			"contact_role_id": id,
-			"message":         err.Error(),
-		}, nil)
+		handleContactRoleError(c, err)
 		return
 	}
 
@@ -181,4 +178,20 @@ func (h *ContactRoleHandler) Delete(c *gin.Context) {
 	}
 
 	response.SuccessResponseDeleted(c, "crm_contact_role", id, meta)
+}
+
+// handleContactRoleError maps business errors to appropriate HTTP responses.
+func handleContactRoleError(c *gin.Context, err error) {
+	switch err.Error() {
+	case "contact role not found":
+		errors.ErrorResponse(c, "CRM_CONTACT_ROLE_NOT_FOUND", map[string]interface{}{
+			"message": err.Error(),
+		}, nil)
+	case "contact role with this name already exists":
+		errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{
+			"message": err.Error(),
+		}, nil)
+	default:
+		errors.InternalServerErrorResponse(c, err.Error())
+	}
 }

@@ -540,6 +540,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: bank code tenant-scoped unique index migration failed (non-fatal): %v", err)
 	}
 
+	if err := ensureCRMContactRoleTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM contact role tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureFixedAssetListIndexes(); err != nil {
 		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
 	}
@@ -754,6 +758,35 @@ func ensureBankCodeTenantScopedUniqueIndex() error {
 	return DB.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_banks_tenant_code_active
 		ON banks ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMContactRoleTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_contact_roles DROP CONSTRAINT IF EXISTS crm_contact_roles_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_contact_roles DROP CONSTRAINT IF EXISTS idx_crm_contact_roles_name`).Error
+	_ = DB.Exec(`ALTER TABLE crm_contact_roles DROP CONSTRAINT IF EXISTS crm_contact_roles_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_contact_roles DROP CONSTRAINT IF EXISTS idx_crm_contact_roles_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_contact_roles_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_contact_roles_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_contact_roles_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_contact_roles_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_contact_roles_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_contact_roles_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_contact_roles_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_contact_roles_code_key`).Error
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_contact_roles_tenant_name_active
+		ON crm_contact_roles ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_contact_roles_tenant_code_active
+		ON crm_contact_roles ((COALESCE(tenant_id::text, '__global__')), lower(code))
 		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
 	`).Error
 }

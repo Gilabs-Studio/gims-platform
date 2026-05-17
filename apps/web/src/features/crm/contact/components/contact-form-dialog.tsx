@@ -141,7 +141,6 @@ export function ContactFormDialog({
 										}))}
 										placeholder={t("form.contactRolePlaceholder")}
 										searchPlaceholder={t("searchPlaceholder")}
-										createPermission="crm_contact_role.create"
 										createLabel={`${tCommon("create") || "Create"} "{query}"`}
 										onCreateClick={(query) => {
 											void handleCreateContactRole(query);
