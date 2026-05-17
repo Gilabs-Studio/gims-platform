@@ -88,6 +88,7 @@ func isPublicAuthEndpoint(path string) bool {
 	// without an established browser session. Client-side CSRF isn't applicable until
 	// after successful login when browser cookies are set.
 	publicAuthPaths := []string{
+		"/api/v1/auth/login",
 		"/api/v1/auth/csrf",
 		"/api/v1/auth/refresh-token",
 		"/api/v1/auth/plans",
