@@ -51,7 +51,11 @@ export type LandingScreenshotKey =
   | "purchaseHero"
   | "purchaseRequisitionToPO"
   | "purchaseGRToInvoice"
-  | "purchasePayableRecap";
+  | "purchasePayableRecap"
+  // Stock / Inventory
+  | "stockInventoryList"
+  | "stockInventoryBatch"
+  | "stockOpnameVariance";
 
 type ThemePair = {
   light: string;
@@ -257,6 +261,19 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   purchasePayableRecap: {
     light: "/screenshot/purchase/purchase-payable-recap.webp",
     dark: "/screenshot/purchase/purchase-payable-recap-dark.webp",
+  },
+  // Stock / Inventory
+  stockInventoryList: {
+    light: "/screenshot/stock/stock-inventory-list.webp",
+    dark: "/screenshot/stock/stock-inventory-list-dark.webp",
+  },
+  stockInventoryBatch: {
+    light: "/screenshot/stock/stock-inventory-batch.webp",
+    dark: "/screenshot/stock/stock-inventory-batch-dark.webp",
+  },
+  stockOpnameVariance: {
+    light: "/screenshot/stock/stock-opname-variance.webp",
+    dark: "/screenshot/stock/stock-opname-variance-dark.webp",
   },
 } as const;
 
