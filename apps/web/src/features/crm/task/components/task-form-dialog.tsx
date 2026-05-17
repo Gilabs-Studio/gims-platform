@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import { Loader2, CalendarIcon, Bell, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -111,7 +111,7 @@ export function TaskFormDialog({
   const { form, onSubmit, isSubmitting } = useTaskForm(formProps);
   const { data: formDataRes } = useTaskFormData({ enabled: open });
 
-  const employees = formDataRes?.data?.employees ?? [];
+  const employees = useMemo(() => formDataRes?.data?.employees ?? [], [formDataRes?.data?.employees]);
 
   const {
     register,

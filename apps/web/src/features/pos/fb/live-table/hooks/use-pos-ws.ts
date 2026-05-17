@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { posKeys } from "@/features/pos/terminal/hooks/use-pos";
@@ -104,7 +104,7 @@ function nextDelay(attempt: number): number {
 export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions) {
   const queryClient = useQueryClient();
   const onEvent = options?.onEvent;
-  const suppressToastEvents = options?.suppressToastEvents ?? [];
+  const suppressToastEvents = useMemo(() => options?.suppressToastEvents ?? [], [options?.suppressToastEvents]);
   const addRealtimeNotification = useNotificationStore((state) => state.addRealtimeNotification);
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
