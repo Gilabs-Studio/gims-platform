@@ -85,7 +85,12 @@ export type LandingScreenshotKey =
   | "travelHero"
   | "travelItinerary"
   | "travelMap"
-  | "travelExpense";
+  | "travelExpense"
+  // Evaluation
+  | "evaluationHero"
+  | "evaluationCriteria"
+  | "evaluationEmployee"
+  | "evaluationGroup";
 
 type ThemePair = {
   light: string;
@@ -406,6 +411,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   travelExpense: {
     light: "/screenshot/travel/travel-expense.webp",
     dark: "/screenshot/travel/travel-expense-dark.webp",
+  },
+  // Evaluation
+  evaluationHero: {
+    light: "/screenshot/evaluation/evaluation-hero.webp",
+    dark: "/screenshot/evaluation/evaluation-hero-dark.webp",
+  },
+  evaluationCriteria: {
+    light: "/screenshot/evaluation/evaluation-criteria.webp",
+    dark: "/screenshot/evaluation/evaluation-criteria-dark.webp",
+  },
+  evaluationEmployee: {
+    light: "/screenshot/evaluation/evaluation-employee.webp",
+    dark: "/screenshot/evaluation/evaluation-employee-dark.webp",
+  },
+  evaluationGroup: {
+    light: "/screenshot/evaluation/evaluation-group.webp",
+    dark: "/screenshot/evaluation/evaluation-group-dark.webp",
   },
 } as const;
 

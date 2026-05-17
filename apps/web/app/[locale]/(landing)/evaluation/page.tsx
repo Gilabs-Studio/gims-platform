@@ -9,16 +9,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/evaluation",
-    title: locale === "id" ? "Evaluasi Kinerja & KPI Karyawan | SalesView" : "Employee Performance & KPI Review | SalesView",
+    title:
+      locale === "id"
+        ? "Sistem Evaluasi Kinerja: Group, Kriteria & Penilaian Karyawan | SalesView"
+        : "Performance Evaluation System: Groups, Criteria & Employee Appraisal | SalesView",
     description:
       locale === "id"
-        ? "Jalankan siklus penilaian performa, review KPI, dan tindak lanjut pengembangan karyawan secara terstruktur untuk peningkatan performa tim."
-        : "Run performance appraisal cycles, KPI reviews, and employee development follow-ups in a structured workflow to improve team performance.",
+        ? "Bangun group evaluasi dengan kriteria berbobot, lakukan penilaian SELF dan MANAGER per periode, lihat skor tertimbang per karyawan, dan lacak perubahan lewat audit trail — sistem appraisal yang terstruktur dan terukur."
+        : "Build evaluation groups with weighted criteria, perform SELF and MANAGER appraisals per period, see weighted scores per employee, and track changes via audit trail — a structured and measurable appraisal system.",
     keywords:
       locale === "id"
-        ? ["evaluasi kinerja", "review kpi", "penilaian karyawan", "appraisal karyawan", "salesview evaluation"]
-        : ["performance evaluation", "kpi review", "employee appraisal", "review workflow", "salesview evaluation"],
-    imageAlt: "SalesView evaluation overview",
+        ? [
+            "sistem evaluasi kinerja",
+            "kriteria penilaian berbobot",
+            "appraisal karyawan",
+            "evaluasi SELF MANAGER",
+            "skor KPI karyawan",
+            "audit trail evaluasi",
+            "group evaluasi HR",
+            "salesview evaluation",
+          ]
+        : [
+            "performance evaluation system",
+            "weighted appraisal criteria",
+            "employee appraisal",
+            "SELF MANAGER evaluation",
+            "employee KPI score",
+            "evaluation audit trail",
+            "HR evaluation group",
+            "salesview evaluation",
+          ],
+    imageAlt: "SalesView evaluation employee appraisal overview",
   });
 }
 
@@ -34,7 +55,9 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
     name: "SalesView Evaluation",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: isId ? "Sistem evaluasi kinerja karyawan." : "Employee performance evaluation system.",
+    description: isId
+      ? "Sistem evaluasi kinerja dengan group kriteria berbobot, penilaian SELF & MANAGER, dan audit trail."
+      : "Performance evaluation system with weighted criteria groups, SELF & MANAGER appraisals, and audit trail.",
     url: `https://salesview.id/${locale}/evaluation`,
   };
 
@@ -48,43 +71,68 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
         heroAccent={isId ? "Terukur." : "Stays Measurable."}
         heroDescription={
           isId
-            ? "Jalankan evaluasi KPI dengan struktur yang membantu diskusi performa lebih objektif."
-            : "Run KPI evaluations with a structure that supports more objective performance reviews."
+            ? "Buat group evaluasi dengan kriteria berbobot, jalankan penilaian SELF & MANAGER per periode, dan lihat skor tertimbang — semua dengan audit trail."
+            : "Create evaluation groups with weighted criteria, run SELF & MANAGER appraisals per period, and see weighted scores — all with audit trail."
         }
         heroImageAlt={isId ? "Tampilan evaluasi SalesView" : "SalesView evaluation interface"}
-        heroImageKey="dashboard"
+        heroImageKey="evaluationHero"
         introTitle={isId ? "Dari penilaian ke tindak lanjut" : "From evaluation to follow-up"}
         introDescription={
           isId
-            ? "Evaluation membantu tim memantau progres perbaikan secara berkelanjutan."
-            : "Evaluation helps teams monitor improvement progress continuously."
+            ? "Evaluation menyediakan kerangka appraisal yang bisa disesuaikan — group, kriteria, bobot, sampai penilaian per karyawan — untuk diskusi performa yang lebih objektif."
+            : "Evaluation provides a customizable appraisal framework — groups, criteria, weights, per-employee scoring — for more objective performance discussions."
         }
         featureBlocks={[
           {
-            title: isId ? "KPI lebih terstruktur" : "More structured KPI tracking",
+            title: isId ? "Group & kriteria evaluasi berbobot" : "Weighted evaluation groups & criteria",
             description: isId
-              ? "Kelola indikator performa agar evaluasi tidak hanya bersifat subjektif."
-              : "Manage performance indicators so evaluations go beyond subjective opinions.",
+              ? "Buat group evaluasi (misal: Technical Skills, Soft Skills) lalu tambahkan kriteria dengan bobot (weight) dan skor maksimal (max_score). Total weight per group divalidasi agar tidak kelebihan."
+              : "Create evaluation groups (e.g. Technical Skills, Soft Skills) then add criteria with weight and max score. Total weight per group is validated to prevent overflow.",
+            descriptionSecondary: isId
+              ? "Group bisa diaktifkan/nonaktifkan (is_active) tanpa menghapus data."
+              : "Groups can be toggled active/inactive without deleting data.",
+            screenshotKey: "evaluationCriteria",
             placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Review periodik" : "Periodic reviews",
+            title: isId ? "Penilaian SELF & MANAGER per periode" : "SELF & MANAGER appraisal per period",
             description: isId
-              ? "Buat ritme review yang konsisten untuk menjaga fokus tim."
-              : "Build consistent review cadence to keep teams aligned.",
-            placeholder: "timelineFlow",
+              ? "Jalankan evaluasi per karyawan dalam periode tertentu (period_start–period_end). Evaluator memberikan skor per kriteria — sistem otomatis menghitung weighted_score dan overall_score."
+              : "Run evaluations per employee in a specific period (period_start–period_end). Evaluator scores each criterion — system auto-calculates weighted_score and overall_score.",
+            descriptionSecondary: isId
+              ? "Dua tipe evaluasi: SELF (karyawan menilai diri sendiri) dan MANAGER (atasan menilai)."
+              : "Two evaluation types: SELF (employee self-rating) and MANAGER (supervisor rating).",
+            screenshotKey: "evaluationEmployee",
+            placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Ringkasan untuk manajemen" : "Management-ready summaries",
+            title: isId ? "Group evaluasi siap pakai" : "Ready-to-use evaluation groups",
             description: isId
-              ? "Sajikan ringkasan evaluasi agar keputusan pembinaan lebih cepat diambil."
-              : "Provide evaluation summaries so coaching decisions can be made faster.",
-            screenshotKey: "dashboard",
+              ? "Buat dan kelola group evaluasi — atur nama, deskripsi, dan status aktif/nonaktif. Setiap group menampung kriteria berbobot yang siap digunakan untuk penilaian karyawan."
+              : "Create and manage evaluation groups — set name, description, and active/inactive status. Each group holds weighted criteria ready for employee appraisals.",
+            descriptionSecondary: isId
+              ? "Group bisa dinonaktifkan tanpa menghapus data historis penilaian."
+              : "Groups can be deactivated without deleting historical appraisal data.",
+            screenshotKey: "evaluationGroup",
             placeholder: "multiOutlet",
           },
         ]}
-        finalTitle={isId ? "Evaluasi yang mendorong pertumbuhan tim" : "Evaluation that drives team growth"}
-        finalCtaLabel={isId ? "Mulai Evaluation" : "Start Evaluation"}
+        finalTitle={isId ? "Penilaian karyawan lebih objektif, proses lebih transparan" : "Employee appraisal more objective, process more transparent"}
+        finalPoints={[
+          {
+            title: isId ? "Bobot kriteria" : "Weighted criteria",
+            description: isId
+              ? "Setiap kriteria punya weight dan max_score sendiri."
+              : "Each criterion has its own weight and max_score.",
+          },
+          {
+            title: isId ? "Skor otomatis" : "Auto-calculated scores",
+            description: isId
+              ? "Weighted score dan overall score dihitung otomatis."
+              : "Weighted score and overall score calculated automatically.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Evaluasi" : "Start Evaluation"}
       />
     </>
   );
