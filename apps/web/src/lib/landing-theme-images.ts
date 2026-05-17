@@ -55,7 +55,12 @@ export type LandingScreenshotKey =
   // Stock / Inventory
   | "stockInventoryList"
   | "stockInventoryBatch"
-  | "stockOpnameVariance";
+  | "stockOpnameVariance"
+  // Goods Receipt
+  | "goodsReceiptHero"
+  | "goodsReceiptPO"
+  | "goodsReceiptAudit"
+  | "goodsReceiptToInvoice";
 
 type ThemePair = {
   light: string;
@@ -274,6 +279,23 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
   stockOpnameVariance: {
     light: "/screenshot/stock/stock-opname-variance.webp",
     dark: "/screenshot/stock/stock-opname-variance-dark.webp",
+  },
+  // Goods Receipt
+  goodsReceiptHero: {
+    light: "/screenshot/goods-receipt/goods-receipt-hero.webp",
+    dark: "/screenshot/goods-receipt/goods-receipt-hero-dark.webp",
+  },
+  goodsReceiptPO: {
+    light: "/screenshot/goods-receipt/goods-receipt-po.webp",
+    dark: "/screenshot/goods-receipt/goods-receipt-po-dark.webp",
+  },
+  goodsReceiptAudit: {
+    light: "/screenshot/goods-receipt/goods-receipt-audit.webp",
+    dark: "/screenshot/goods-receipt/goods-receipt-audit-dark.webp",
+  },
+  goodsReceiptToInvoice: {
+    light: "/screenshot/goods-receipt/goods-receipt-to-invoice.webp",
+    dark: "/screenshot/goods-receipt/goods-receipt-to-invoice-dark.webp",
   },
 } as const;
 
