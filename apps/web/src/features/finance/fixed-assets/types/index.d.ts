@@ -54,15 +54,17 @@ export interface BatchDepreciationPreviewResponse {
 }
 
 export interface BatchDepreciationRunResponse {
-  journal_ids: string[];
+  journal_ids?: string[];
   currency_code?: string;
-  total_assets: number;
-  successful: number;
-  failed: number;
-  skipped: number;
-  total_amount: number;
-  errors: string[];
-  completed_at: string;
+  total_assets?: number;
+  successful?: number;
+  processed?: number;
+  posted?: number;
+  failed?: number;
+  skipped?: number;
+  total_amount?: number;
+  errors?: string[];
+  completed_at?: string;
   items?: Array<{
     asset_id?: string;
     asset_code?: string;

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Printer, Settings2, X } from "lucide-react";
+import { MessageCircle, Printer, Settings2 } from "lucide-react";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { posOrderService } from "../services/pos-service";
 import type { POSOrder } from "../types";
@@ -142,18 +142,6 @@ export function POSReceiptDialog({
               {t("title")}
             </DialogTitle>
           </DialogHeader>
-
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              aria-label={t("close")}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogClose>
         </div>
 
         <div className="rounded-md border bg-card overflow-hidden">

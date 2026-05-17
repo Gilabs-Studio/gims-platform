@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -55,7 +56,7 @@ export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
-  const canExport = useUserPermission("general_ledger_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_EXPORT);
   const exportProgress = useExportProgress();
 
   const now = useMemo(() => new Date(), []);
@@ -184,28 +185,28 @@ export function GeneralLedgerView() {
       label: t("total_debit"),
       value: formatCurrency(summary.totalDebit),
       Icon: TrendingUp,
-      desc: "Total transaksi masuk pencatatan debit",
+      desc: t("total_debit_desc"),
       valueClass: "",
     },
     {
       label: t("total_credit"),
       value: formatCurrency(summary.totalCredit),
       Icon: TrendingDown,
-      desc: "Total transaksi keluar pencatatan kredit",
+      desc: t("total_credit_desc"),
       valueClass: "",
     },
     {
       label: t("net_balance"),
       value: formatCurrency(summary.netBalance),
       Icon: Minus,
-      desc: "Selisih debit & kredit",
+      desc: t("net_balance_desc"),
       valueClass: summary.netBalance >= 0 ? "text-success" : "text-destructive",
     },
     {
       label: t("total_accounts"),
       value: summary.totalAccounts.toLocaleString(),
       Icon: BookOpenText,
-      desc: "Jumlah akun yang terlibat",
+      desc: t("total_accounts_desc"),
       valueClass: "",
     },
   ];

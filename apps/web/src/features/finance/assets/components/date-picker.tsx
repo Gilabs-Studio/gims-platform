@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -43,12 +44,14 @@ function formatDateLabel(value: string): string {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Pilih tanggal",
+  placeholder,
   disabled = false,
   disabledBefore,
   disabledAfter,
   id,
 }: DatePickerProps) {
+  const t = useTranslations("financeAssets");
+  const resolvedPlaceholder = placeholder ?? t("placeholders.selectDate");
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -63,7 +66,7 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? formatDateLabel(value) : placeholder}
+          {value ? formatDateLabel(value) : resolvedPlaceholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

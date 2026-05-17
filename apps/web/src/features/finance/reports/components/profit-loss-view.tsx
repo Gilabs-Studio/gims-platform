@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ function toApiDate(d: Date): string {
 export function ProfitLossView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("profit_loss_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.PROFIT_LOSS_EXPORT);
 
   const now = new Date();
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
@@ -100,13 +101,13 @@ export function ProfitLossView() {
   };
 
   const metrics = [
-    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp, desc: "Pendapatan kotor usaha", valueClass: "" },
-    { label: t("total_expenses"), value: formatCurrency(report?.expense_total ?? 0), Icon: TrendingDown, desc: "Total beban dan pengeluaran", valueClass: "" },
+    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp, desc: t("total_revenue_desc"), valueClass: "" },
+    { label: t("total_expenses"), value: formatCurrency(report?.expense_total ?? 0), Icon: TrendingDown, desc: t("total_expenses_desc"), valueClass: "" },
     {
       label: t("net_profit_loss"),
       value: formatCurrency(netProfit),
       Icon: Wallet,
-      desc: "Keuntungan bersih atau kerugian",
+      desc: t("net_profit_loss_desc"),
       valueClass: netProfit >= 0 ? "text-success" : "text-destructive",
     },
   ];

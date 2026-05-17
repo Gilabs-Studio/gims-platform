@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -876,7 +878,8 @@ func (s *inventoryValuationStrategy) Calculate(ctx context.Context, periodStart,
 	}
 
 	rows := make([]row, 0)
-	err := s.db.WithContext(ctx).Raw(`
+	queryDB := database.GetDB(ctx, s.db)
+	query := `
 		SELECT
 			ib.product_id,
 			COALESCE(SUM(ib.current_quantity), 0) AS qty,
@@ -891,8 +894,14 @@ func (s *inventoryValuationStrategy) Calculate(ctx context.Context, periodStart,
 		FROM inventory_batches ib
 		WHERE ib.is_active = true
 			AND ib.current_quantity > 0
-		GROUP BY ib.product_id
-	`, periodStart, periodEnd).Scan(&rows).Error
+	`
+	args := []interface{}{periodStart, periodEnd}
+	if tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx)); tenantID != "" {
+		query += " AND ib.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+	query += " GROUP BY ib.product_id"
+	err := queryDB.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -939,14 +948,16 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 	_ = periodStart
 	_ = periodEnd
 
-	if !s.db.Migrator().HasTable("exchange_rates") {
+	queryDB := database.GetDB(ctx, s.db)
+	if !queryDB.Migrator().HasTable("exchange_rates") {
 		return &ValuationResult{Items: nil, TotalDelta: 0}, nil
 	}
 
 	items := make([]ValuationItem, 0)
 	totalDelta := 0.0
+	tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx))
 
-	if s.db.Migrator().HasColumn(&salesModels.CustomerInvoice{}, "exchange_rate") {
+	if queryDB.Migrator().HasColumn(&salesModels.CustomerInvoice{}, "exchange_rate") {
 		type arRow struct {
 			ID           string
 			Remaining    float64
@@ -954,7 +965,7 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 			CurrentRate  float64
 		}
 		arRows := make([]arRow, 0)
-		_ = s.db.WithContext(ctx).Raw(`
+		query := `
 			SELECT
 				ci.id,
 				COALESCE(ci.remaining_amount, 0) AS remaining,
@@ -968,7 +979,13 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 			FROM customer_invoices ci
 			WHERE ci.status IN (?, ?, ?)
 				AND COALESCE(ci.remaining_amount, 0) > 0
-		`, salesModels.CustomerInvoiceStatusUnpaid, salesModels.CustomerInvoiceStatusPartial, salesModels.CustomerInvoiceStatusWaitingPayment).Scan(&arRows).Error
+		`
+		args := []interface{}{salesModels.CustomerInvoiceStatusUnpaid, salesModels.CustomerInvoiceStatusPartial, salesModels.CustomerInvoiceStatusWaitingPayment}
+		if tenantID != "" {
+			query += " AND ci.tenant_id = ?"
+			args = append(args, tenantID)
+		}
+		_ = queryDB.WithContext(ctx).Raw(query, args...).Scan(&arRows).Error
 
 		for _, row := range arRows {
 			if row.ExchangeRate <= 0 || row.CurrentRate <= 0 {
@@ -996,7 +1013,7 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 		}
 	}
 
-	if s.db.Migrator().HasColumn(&purchaseModels.SupplierInvoice{}, "exchange_rate") {
+	if queryDB.Migrator().HasColumn(&purchaseModels.SupplierInvoice{}, "exchange_rate") {
 		type apRow struct {
 			ID           string
 			Remaining    float64
@@ -1004,7 +1021,7 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 			CurrentRate  float64
 		}
 		apRows := make([]apRow, 0)
-		_ = s.db.WithContext(ctx).Raw(`
+		query := `
 			SELECT
 				si.id,
 				COALESCE(si.remaining_amount, 0) AS remaining,
@@ -1018,7 +1035,13 @@ func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, period
 			FROM supplier_invoices si
 			WHERE si.status IN (?, ?, ?)
 				AND COALESCE(si.remaining_amount, 0) > 0
-		`, purchaseModels.SupplierInvoiceStatusUnpaid, purchaseModels.SupplierInvoiceStatusPartial, purchaseModels.SupplierInvoiceStatusWaitingPayment).Scan(&apRows).Error
+		`
+		args := []interface{}{purchaseModels.SupplierInvoiceStatusUnpaid, purchaseModels.SupplierInvoiceStatusPartial, purchaseModels.SupplierInvoiceStatusWaitingPayment}
+		if tenantID != "" {
+			query += " AND si.tenant_id = ?"
+			args = append(args, tenantID)
+		}
+		_ = queryDB.WithContext(ctx).Raw(query, args...).Scan(&apRows).Error
 
 		for _, row := range apRows {
 			if row.ExchangeRate <= 0 || row.CurrentRate <= 0 {
@@ -1062,12 +1085,19 @@ func (s *depreciationValuationStrategy) Calculate(ctx context.Context, periodSta
 		BookValue float64
 	}
 	rows := make([]row, 0)
-	err := s.db.WithContext(ctx).Raw(`
+	queryDB := database.GetDB(ctx, s.db)
+	query := `
 		SELECT ad.id, ad.asset_id, COALESCE(ad.amount, 0) AS amount, COALESCE(ad.book_value, 0) AS book_value
 		FROM asset_depreciations ad
 		WHERE ad.status = ?
 			AND DATE(ad.depreciation_date) BETWEEN DATE(?) AND DATE(?)
-	`, financeModels.AssetDepreciationStatusApproved, periodStart, periodEnd).Scan(&rows).Error
+	`
+	args := []interface{}{financeModels.AssetDepreciationStatusApproved, periodStart, periodEnd}
+	if tenantID := strings.TrimSpace(middleware.TenantFromContext(ctx)); tenantID != "" {
+		query += " AND ad.tenant_id = ?"
+		args = append(args, tenantID)
+	}
+	err := queryDB.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,8 @@ export const financeTaxInvoicesId = {
     linkedInvoice: "Link ke Invoice Supplier",
     invoiceValue: "Nilai Invoice",
     discrepancy: "Selisih PPN Terdeteksi!",
+    none: "Tidak Ada",
+    syncing: "Menyinkronkan nilai dari catatan Pembelian...",
   },
   actions: {
     create: "Buat",

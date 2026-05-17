@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import { Loader2, CalendarIcon, Bell, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -111,7 +111,7 @@ export function TaskFormDialog({
   const { form, onSubmit, isSubmitting } = useTaskForm(formProps);
   const { data: formDataRes } = useTaskFormData({ enabled: open });
 
-  const employees = formDataRes?.data?.employees ?? [];
+  const employees = useMemo(() => formDataRes?.data?.employees ?? [], [formDataRes?.data?.employees]);
 
   const {
     register,
@@ -163,6 +163,19 @@ export function TaskFormDialog({
   useEffect(() => {
     form.setValue("due_date", dueDate ? format(dueDate, "yyyy-MM-dd") : "");
   }, [dueDate, form]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (employees.length !== 1) return;
+
+    const onlyEmployeeId = employees[0]?.id;
+    if (!onlyEmployeeId) return;
+
+    const currentAssigned = form.getValues("assigned_to");
+    if (!currentAssigned) {
+      form.setValue("assigned_to", onlyEmployeeId, { shouldValidate: true });
+    }
+  }, [open, employees, form]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -316,7 +329,7 @@ export function TaskFormDialog({
                 render={({ field }) => (
                   // key forces re-mount once employees are loaded so the Select displays the correct label
                   <Select key={`${field.value ?? ""}-${employees.length}`} value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger className="cursor-pointer">
+                    <SelectTrigger className="cursor-pointer" disabled={employees.length === 1}>
                       <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>

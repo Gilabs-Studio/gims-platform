@@ -620,8 +620,8 @@ func SeedAIIntentRegistry() error {
 		{
 			ID: IntentListSalaryID, IntentCode: "LIST_SALARY", DisplayName: "List Salary Records",
 			Description: "Query salary/payroll records",
-			Module:      "finance", ActionType: "QUERY", RequiredPermission: "salary.read", RequiresConfirmation: false,
-			EndpointPath:    "/api/v1/finance/salary",
+			Module:      "hrd", ActionType: "QUERY", RequiredPermission: "salary.read", RequiresConfirmation: false,
+			EndpointPath:    "/api/v1/hrd/salary",
 			ParameterSchema: strPtr(`{"employee_name":"string","period":"string"}`),
 			IsActive:        true,
 		},

@@ -1,6 +1,6 @@
-# GIMS POS Mobile
+# Salesview POS Mobile
 
-Flutter mobile client for the GIMS POS module.
+Flutter mobile client for the Salesview POS module.
 
 ## Backend Contract Notes
 

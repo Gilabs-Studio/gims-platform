@@ -22,7 +22,7 @@ enum PosFeature {
   ),
   feedback(
     'Feedback',
-    'Form feedback outlet dan rating pelanggan',
+    'Response feedback pelanggan per outlet',
     Icons.rate_review_outlined,
   );
 

@@ -330,6 +330,14 @@ function SalesOrderLink({
 function DetailContent({ item }: { item: FeedbackResponseItem }) {
   const t = useTranslations("feedback.responses");
 
+  // Build question ID -> label map from schema
+  const questionMap = new Map<string, string>();
+  if (item.schema_json?.questions) {
+    for (const q of item.schema_json.questions) {
+      questionMap.set(q.id, q.label);
+    }
+  }
+
   const entries = Object.entries(item.answers ?? {});
 
   return (
@@ -379,18 +387,21 @@ function DetailContent({ item }: { item: FeedbackResponseItem }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map(([key, val]) => (
-                <TableRow key={key}>
-                  <TableCell className="text-muted-foreground wrap-break-word">{key}</TableCell>
-                  <TableCell>
-                    {Array.isArray(val)
-                      ? val.join(", ")
-                      : val !== null && val !== undefined
-                      ? String(val)
-                      : t("detail.noAnswer")}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {entries.map(([key, val]) => {
+                const qLabel = questionMap.get(key) || key; // fallback to key if label not found
+                return (
+                  <TableRow key={key}>
+                    <TableCell className="text-muted-foreground wrap-break-word">{qLabel}</TableCell>
+                    <TableCell>
+                      {Array.isArray(val)
+                        ? val.join(", ")
+                        : val !== null && val !== undefined
+                        ? String(val)
+                        : t("detail.noAnswer")}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

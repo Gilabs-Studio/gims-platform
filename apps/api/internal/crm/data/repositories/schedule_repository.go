@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
@@ -51,10 +52,13 @@ func (r *scheduleRepository) Create(ctx context.Context, schedule *models.Schedu
 
 func (r *scheduleRepository) FindByID(ctx context.Context, id string) (*models.Schedule, error) {
 	var schedule models.Schedule
-	err := database.GetDB(ctx, r.db).
+	query := database.GetDB(ctx, r.db)
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
+	err := query.
 		Preload("Task").
 		Preload("Employee").
-		First(&schedule, "id = ?", id).Error
+		Where("id = ?", id).
+		First(&schedule).Error
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +67,7 @@ func (r *scheduleRepository) FindByID(ctx context.Context, id string) (*models.S
 
 func (r *scheduleRepository) List(ctx context.Context, params ScheduleListParams) ([]models.Schedule, int64, error) {
 	query := database.GetDB(ctx, r.db).Model(&models.Schedule{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.Search != "" {
 		searchTerm := "%" + params.Search + "%"
@@ -121,10 +126,13 @@ func (r *scheduleRepository) Delete(ctx context.Context, id string) error {
 
 func (r *scheduleRepository) FindByTaskID(ctx context.Context, taskID string) (*models.Schedule, error) {
 	var schedule models.Schedule
-	err := database.GetDB(ctx, r.db).
+	query := database.GetDB(ctx, r.db)
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
+	err := query.
 		Preload("Task").
 		Preload("Employee").
-		First(&schedule, "task_id = ?", taskID).Error
+		Where("task_id = ?", taskID).
+		First(&schedule).Error
 	if err != nil {
 		return nil, err
 	}
@@ -132,5 +140,7 @@ func (r *scheduleRepository) FindByTaskID(ctx context.Context, taskID string) (*
 }
 
 func (r *scheduleRepository) DeleteByTaskID(ctx context.Context, taskID string) error {
-	return database.GetDB(ctx, r.db).Where("task_id = ?", taskID).Delete(&models.Schedule{}).Error
+	query := database.GetDB(ctx, r.db)
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
+	return query.Where("task_id = ?", taskID).Delete(&models.Schedule{}).Error
 }

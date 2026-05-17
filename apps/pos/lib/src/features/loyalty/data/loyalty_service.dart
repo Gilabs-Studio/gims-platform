@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../domain/models/loyalty_member.dart';
 import '../../../shared/models/api_list.dart';
 
@@ -17,6 +18,31 @@ class LoyaltyService {
       queryParameters: {'name': name, 'outlet_id': outletId},
     );
     return LoyaltyMemberLookup.fromJson(_dataMap(response.data));
+  }
+
+  Future<LoyaltyMemberLookup?> getMemberByCustomer(String customerId) async {
+    try {
+      final response = await _api.get<Map<String, dynamic>>(
+        '/loyalty/members/by-customer/$customerId',
+      );
+      final data = _dataMap(response.data);
+      if (data.isEmpty) return null;
+
+      return LoyaltyMemberLookup(
+        found: true,
+        memberId: data['id'] as String?,
+        memberCode: data['member_code'] as String?,
+        customerId: data['customer_id'] as String?,
+        customerName: data['customer_name'] as String?,
+        currentTier: data['current_tier'] as String?,
+        pointBalance: (data['point_balance'] as num?)?.toDouble() ?? 0,
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 404 || error.code == 'NOT_FOUND') {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   Future<LoyaltyMemberLookup> enrollMember({

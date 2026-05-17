@@ -60,3 +60,8 @@ CLAUDE.md
 
 .pi*/
 .leann
+
+
+# Database backups (production/local)
+backup/
+*.dump

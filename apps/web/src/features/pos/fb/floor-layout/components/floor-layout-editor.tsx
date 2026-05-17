@@ -98,7 +98,11 @@ export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProp
       <div className="flex-1 flex overflow-hidden">
         <LayoutPalette editor={editor} />
         <FloorCanvas editor={editor} />
-        <ObjectInspector editor={editor} />
+        <ObjectInspector
+          editor={editor}
+          floorPlanId={floorPlanId}
+          outletName={floorPlan?.outlet_name ?? ""}
+        />
       </div>
 
       {/* Publish dialog */}

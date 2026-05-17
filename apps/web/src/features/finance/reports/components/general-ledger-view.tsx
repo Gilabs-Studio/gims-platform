@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -45,7 +46,7 @@ function parseApiDate(value: string | null, fallback: Date): Date {
 export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("general_ledger_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_EXPORT);
   const exportProgress = useExportProgress();
   const searchParams = useSearchParams();
 
@@ -159,16 +160,34 @@ export function GeneralLedgerView() {
   };
 
   const metrics = [
-    { label: t("total_debit"), value: formatCurrency(summary.totalDebit), Icon: TrendingUp, desc: "Total transaksi masuk pencatatan debit", valueClass: "" },
-    { label: t("total_credit"), value: formatCurrency(summary.totalCredit), Icon: TrendingDown, desc: "Total transaksi keluar pencatatan kredit", valueClass: "" },
+    {
+      label: t("total_debit"),
+      value: formatCurrency(summary.totalDebit),
+      Icon: TrendingUp,
+      desc: t("total_debit_desc"),
+      valueClass: "",
+    },
+    {
+      label: t("total_credit"),
+      value: formatCurrency(summary.totalCredit),
+      Icon: TrendingDown,
+      desc: t("total_credit_desc"),
+      valueClass: "",
+    },
     {
       label: t("net_balance"),
       value: formatCurrency(summary.netBalance),
       Icon: Minus,
-      desc: "Selisih debit & kredit",
+      desc: t("net_balance_desc"),
       valueClass: summary.netBalance >= 0 ? "text-success" : "text-destructive",
     },
-    { label: t("total_accounts"), value: summary.totalAccounts.toLocaleString(), Icon: BookOpenText, desc: "Jumlah akun yang terlibat", valueClass: "" },
+    {
+      label: t("total_accounts"),
+      value: summary.totalAccounts.toLocaleString(),
+      Icon: BookOpenText,
+      desc: t("total_accounts_desc"),
+      valueClass: "",
+    },
   ];
 
   return (
@@ -217,7 +236,6 @@ export function GeneralLedgerView() {
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
-          <Skeleton className="h-80 w-full" />
         </div>
       ) : isError ? (
         <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
@@ -231,7 +249,6 @@ export function GeneralLedgerView() {
                     <Icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">{label}</p>
                     <p className={`text-2xl font-bold tracking-tight ${valueClass ?? ""}`}>{value}</p>
                     <p className="text-xs text-muted-foreground mt-1">{desc}</p>
                   </div>

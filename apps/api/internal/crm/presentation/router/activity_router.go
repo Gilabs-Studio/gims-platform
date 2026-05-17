@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	activityRead   = "crm_activity.read"
-	activityCreate = "crm_activity.create"
+	activityRead   = "crm_task.read"
+	activityCreate = "crm_task.create"
 )
 
 // RegisterActivityRoutes registers all activity-related routes

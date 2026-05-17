@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 
@@ -15,6 +16,7 @@ import {
 } from "../hooks/use-finance-aging-reports";
 import type { AgingBucketDefinition, AgingReportType } from "../types";
 import { defaultAgingBucketConfig } from "./aging-table";
+import { useTranslations } from "next-intl";
 
 type BucketDraft = {
   key: string;
@@ -53,7 +55,7 @@ function parseNonNegativeInt(raw: string): number | undefined {
 }
 
 function reportTypeLabel(reportType: AgingReportType): string {
-  return reportType === "ar" ? "Piutang (AR)" : "Hutang (AP)";
+  return reportType === "ar" ? "Accounts Receivable (AR)" : "Accounts Payable (AP)";
 }
 
 function reportTypeKeyPrefix(reportType: AgingReportType): string {
@@ -68,6 +70,7 @@ type AgingBucketDraftEditorProps = {
 };
 
 function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }: AgingBucketDraftEditorProps) {
+  const t = useTranslations("financeAgingReports");
   const [drafts, setDrafts] = useState<BucketDraft[]>(() => sourceBuckets.map(toDraft));
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -96,7 +99,7 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
 
   const validateDrafts = (items: BucketDraft[]): { buckets: AgingBucketDefinition[]; error?: string } => {
     if (items.length === 0) {
-      return { buckets: [], error: "Bucket aging tidak boleh kosong" };
+      return { buckets: [], error: t("config.emptyBuckets") };
     }
 
     const seenKeys = new Set<string>();
@@ -111,13 +114,13 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
       const maxDays = parseNonNegativeInt(draft.max_days);
 
       if (draft.min_days.trim() && minDays === undefined) {
-        return { buckets: [], error: `Min pada baris ${index + 1} harus bilangan bulat >= 0` };
+        return { buckets: [], error: t("config.invalidMin", { index: index + 1 }) };
       }
       if (draft.max_days.trim() && maxDays === undefined) {
-        return { buckets: [], error: `Max pada baris ${index + 1} harus bilangan bulat >= 0` };
+        return { buckets: [], error: t("config.invalidMax", { index: index + 1 }) };
       }
       if (minDays !== undefined && maxDays !== undefined && minDays > maxDays) {
-        return { buckets: [], error: `Rentang pada baris ${index + 1} tidak valid (min > max)` };
+        return { buckets: [], error: t("config.invalidRange", { index: index + 1 }) };
       }
 
       const key = normalizeKey(draft.key || draft.label, index);
@@ -188,21 +191,18 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">Sedang mengatur {activeLabel}.</p>
+      <p className="text-sm text-muted-foreground">{t("config.editing", { label: activeLabel })}</p>
       <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
-        <p className="font-medium">Panduan key</p>
-        <p className="text-muted-foreground">
-          Key boleh dikosongkan agar sistem membuat otomatis. Jika diisi, gunakan huruf kecil, angka, dan underscore.
-          Contoh: <span className="font-mono">ar_current</span>, <span className="font-mono">ar_1_30</span>, <span className="font-mono">ap_current</span>, <span className="font-mono">ap_1_30</span>.
-        </p>
+        <p className="font-medium">{t("config.guideTitle")}</p>
+        <p className="text-muted-foreground">{t("config.guideDescription")}</p>
       </div>
       <div className="space-y-2">
         {drafts.map((draft, index) => (
           <div key={`aging-bucket-${index}`} className="grid grid-cols-12 gap-2 items-center">
-            <Input className="col-span-3" placeholder="Key" value={draft.key} onChange={(event) => onUpdateDraft(index, "key", event.target.value)} />
-            <Input className="col-span-4" placeholder="Label" value={draft.label} onChange={(event) => onUpdateDraft(index, "label", event.target.value)} />
-            <Input className="col-span-2" placeholder="Min" inputMode="numeric" value={draft.min_days} onChange={(event) => onUpdateDraft(index, "min_days", event.target.value)} />
-            <Input className="col-span-2" placeholder="Max" inputMode="numeric" value={draft.max_days} onChange={(event) => onUpdateDraft(index, "max_days", event.target.value)} />
+            <Input className="col-span-3" placeholder={t("config.keyPlaceholder")} value={draft.key} onChange={(event) => onUpdateDraft(index, "key", event.target.value)} />
+            <Input className="col-span-4" placeholder={t("config.labelPlaceholder")} value={draft.label} onChange={(event) => onUpdateDraft(index, "label", event.target.value)} />
+            <Input className="col-span-2" placeholder={t("config.minPlaceholder")} inputMode="numeric" value={draft.min_days} onChange={(event) => onUpdateDraft(index, "min_days", event.target.value)} />
+            <Input className="col-span-2" placeholder={t("config.maxPlaceholder")} inputMode="numeric" value={draft.max_days} onChange={(event) => onUpdateDraft(index, "max_days", event.target.value)} />
             <div className="col-span-1 flex justify-end">
               <Button type="button" variant="outline" size="icon" className="cursor-pointer" onClick={() => onRemoveBucket(index)}>
                 -
@@ -214,10 +214,10 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
       {validationError ? <p className="text-sm text-destructive">{validationError}</p> : null}
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" className="cursor-pointer" onClick={onAddBucket}>
-          Tambah bucket
+          {t("config.addBucket")}
         </Button>
         <Button type="button" className="cursor-pointer" onClick={handleSave} disabled={isSaving}>
-          Simpan konfigurasi
+          {t("config.saveConfig")}
         </Button>
       </div>
     </>
@@ -227,7 +227,7 @@ function AgingBucketDraftEditor({ reportType, sourceBuckets, isSaving, onSave }:
 export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportType }) {
   const { user } = useAuthStore();
   const permissions = user?.permissions ?? {};
-  const canManage = hasPermissionCode(permissions, "finance_settings.update");
+  const canManage = hasPermissionCode(permissions, FINANCE_PERMISSIONS.FINANCE_SETTINGS.UPDATE);
 
   const configQuery = useFinanceAgingBucketConfig(reportType, { enabled: canManage });
   const updateMutation = useUpdateFinanceAgingBucketConfig(reportType);
@@ -236,6 +236,8 @@ export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportT
     return configQuery.data?.data?.buckets?.length ? configQuery.data.data.buckets : defaultAgingBucketConfig;
   }, [configQuery.data?.data?.buckets]);
 
+  const t = useTranslations("financeAgingReports");
+
   if (!canManage) {
     return null;
   }
@@ -243,7 +245,7 @@ export function AgingBucketConfigCard({ reportType }: { reportType: AgingReportT
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Konfigurasi Umur Aging</CardTitle>
+        <CardTitle>{t("config.title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <AgingBucketDraftEditor

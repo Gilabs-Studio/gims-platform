@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -23,9 +24,9 @@ export function AssetLocationList() {
   const t = useTranslations("financeAssetLocations");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("asset_location.create");
-  const canUpdate = useUserPermission("asset_location.update");
-  const canDelete = useUserPermission("asset_location.delete");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.ASSET_LOCATION.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET_LOCATION.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.ASSET_LOCATION.DELETE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

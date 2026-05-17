@@ -26,6 +26,12 @@ type ProcessPaymentRequest struct {
 	ChannelCode *string `json:"channel_code"`
 }
 
+// CancelPendingPaymentRequest carries an optional cashier reason when cancelling
+// a pending payment.
+type CancelPendingPaymentRequest struct {
+	Reason *string `json:"reason" binding:"omitempty,max=500"`
+}
+
 // POSPaymentResponse returned to client for payment operations
 type POSPaymentResponse struct {
 	ID              string     `json:"id"`
@@ -53,11 +59,10 @@ type XenditWebhookPayload struct {
 	// ExternalID matches the ExternalOrderID stored in POSPayment
 	ExternalID string `json:"external_id"`
 	// Status: PAID, EXPIRED, or other Xendit invoice statuses
-	Status          string `json:"status"`
-	ID              string `json:"id"` // Xendit invoice ID
-	PaymentMethod   string `json:"payment_method"`
-	PaymentChannel  string `json:"payment_channel"`
-	PaidAmount      float64 `json:"paid_amount"`
-	PaidAt          string  `json:"paid_at"`
+	Status         string  `json:"status"`
+	ID             string  `json:"id"` // Xendit invoice ID
+	PaymentMethod  string  `json:"payment_method"`
+	PaymentChannel string  `json:"payment_channel"`
+	PaidAmount     float64 `json:"paid_amount"`
+	PaidAt         string  `json:"paid_at"`
 }
-

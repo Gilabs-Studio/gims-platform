@@ -17,6 +17,7 @@ import { AIChatWidget } from "@/features/ai-chat/components/ai-chat-widget";
 import { SubscriptionLifecycleGuard } from "@/features/auth/components/subscription-lifecycle-guard";
 import { NotificationDrawer } from "@/features/notifications/components/notification-drawer";
 import { useNotificationStore } from "@/features/notifications/stores/use-notification-store";
+import { useWebSocket as useNotificationWebSocket } from "@/features/notifications/hooks/use-web-socket";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useValidateRole } from "@/features/auth/hooks/use-validate-role";
@@ -137,13 +138,15 @@ export const DashboardLayout = memo(function DashboardLayout({
   useValidateRole();
 
   const { isDrawerOpen, closeDrawer } = useNotificationStore();
+  useNotificationWebSocket();
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const isGeneralDashboardPage = Boolean(
     pathname && /(^|\/)dashboard$/.test(pathname) && !pathname.includes("/system/"),
   );
+  const isTenantOwner = user?.role?.is_owner === true;
   const { data: onboardingState } = useOnboardingState({
-    enabled: isGeneralDashboardPage,
+    enabled: isGeneralDashboardPage && isTenantOwner,
   });
 
   const userName = user?.name ?? "User";
@@ -438,7 +441,7 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/travel-planner") ||
     pathname?.includes("/visit-planner");
   const isDashboardOnboardingMode =
-    isGeneralDashboardPage && onboardingState?.completed === false;
+    isGeneralDashboardPage && isTenantOwner && onboardingState?.completed === false;
   const shouldShowDashboardHeader = !isAIChatbotPage && !isFullScreenMapPage;
 
   const handleOpenAttendanceDrawer = useCallback(
@@ -558,7 +561,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 isAIChatbotPage || isFullScreenMapPage
                   ? "h-[calc(100vh-1px)] gap-0 p-0"
                   : isDashboardOnboardingMode
-                    ? "min-h-screen items-center justify-center gap-0 p-0"
+                      ? "min-h-screen items-center justify-center gap-0 overflow-y-auto px-4 py-6"
                     : "gap-4 p-4 md:p-6",
               )}
             >
@@ -596,7 +599,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={(open) => setIsCommandPaletteOpen(open)}
           menus={menus}
         />
-        {!isAIChatbotPage && <AIChatWidget />}
+        {!isAIChatbotPage && !isPOSPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
   );

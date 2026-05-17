@@ -118,9 +118,25 @@ func (sf *ScopeFilter) applyOwn(db *gorm.DB, opts ScopeQueryOptions) *gorm.DB {
 		conditions = append(conditions, opts.OwnerUserIDColumn+" = ?")
 		args = append(args, sf.UserID)
 	}
+	// Prefer exact employee match when available
 	if columnExists(db, opts.OwnerEmployeeIDColumn) && sf.EmployeeID != "" {
 		conditions = append(conditions, opts.OwnerEmployeeIDColumn+" = ?")
 		args = append(args, sf.EmployeeID)
+	}
+
+	// If no employee id in context but we have a user id, allow matching
+	// records where the employee column points to an employee whose user_id
+	// equals the current user. This covers users who don't have a resolved
+	// employee in middleware but records still reference employees linked to
+	// that user's account.
+	if columnExists(db, opts.OwnerEmployeeIDColumn) && sf.EmployeeID == "" && sf.UserID != "" {
+		// Cover two cases:
+		// 1) some records may have employee_id set to the user's UUID (legacy/mistmatch)
+		// 2) normal case where employee_id refers to an employee row linked to user_id
+		conditions = append(conditions, opts.OwnerEmployeeIDColumn+" = ?")
+		args = append(args, sf.UserID)
+		conditions = append(conditions, opts.OwnerEmployeeIDColumn+" IN (SELECT id FROM employees WHERE user_id = ? AND deleted_at IS NULL)")
+		args = append(args, sf.UserID)
 	}
 
 	if len(conditions) == 0 {

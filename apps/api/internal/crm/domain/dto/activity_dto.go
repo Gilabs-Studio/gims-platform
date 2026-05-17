@@ -6,7 +6,8 @@ import "encoding/json"
 type CreateActivityRequest struct {
 	Type           string  `json:"type" binding:"required,min=1"`
 	ActivityTypeID *string `json:"activity_type_id" binding:"omitempty,uuid"`
-	EmployeeID     *string `json:"employee_id" binding:"omitempty,uuid"`
+	EmployeeID     *string `json:"employee_id"`
+	UserID         *string `json:"user_id"`
 	CustomerID     *string `json:"customer_id" binding:"omitempty,uuid"`
 	ContactID      *string `json:"contact_id" binding:"omitempty,uuid"`
 	DealID         *string `json:"deal_id" binding:"omitempty,uuid"`
