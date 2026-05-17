@@ -52,7 +52,6 @@ export function useTodayAttendance() {
     queryKey: attendanceKeys.today(),
     queryFn: () => attendanceRecordService.getTodayAttendance(),
     staleTime: 1000 * 30,
-    refetchInterval: 1000 * 60,
   });
 }
 

@@ -356,6 +356,7 @@ func AutoMigrate() error {
 		&pos.POSConfig{},
 		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
+		&pos.POSDeviceToken{},
 		// Feedback module
 		&feedback.FeedbackForm{},
 		&feedback.FeedbackToken{},
@@ -542,6 +543,34 @@ func AutoMigrate() error {
 
 	if err := ensureCRMContactRoleTenantScopedUniqueIndexes(); err != nil {
 		log.Printf("Warning: CRM contact role tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMPipelineStageTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM pipeline stage tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMLeadSourceTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM lead source tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMLeadStatusTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM lead status tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMActivityTypeTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM activity type tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMLeadsTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM leads tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMVisitReportsTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM visit reports tenant-scoped unique indexes migration failed (non-fatal): %v", err)
+	}
+
+	if err := ensureCRMDealsTenantScopedUniqueIndexes(); err != nil {
+		log.Printf("Warning: CRM deals tenant-scoped unique indexes migration failed (non-fatal): %v", err)
 	}
 
 	if err := ensureFixedAssetListIndexes(); err != nil {
@@ -787,6 +816,159 @@ func ensureCRMContactRoleTenantScopedUniqueIndexes() error {
 	return DB.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_contact_roles_tenant_code_active
 		ON crm_contact_roles ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMPipelineStageTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_pipeline_stages DROP CONSTRAINT IF EXISTS crm_pipeline_stages_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_pipeline_stages DROP CONSTRAINT IF EXISTS idx_crm_pipeline_stages_name`).Error
+	_ = DB.Exec(`ALTER TABLE crm_pipeline_stages DROP CONSTRAINT IF EXISTS crm_pipeline_stages_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_pipeline_stages DROP CONSTRAINT IF EXISTS idx_crm_pipeline_stages_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_pipeline_stages_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_pipeline_stages_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_pipeline_stages_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_pipeline_stages_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_pipeline_stages_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_pipeline_stages_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_pipeline_stages_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_pipeline_stages_code_key`).Error
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_pipeline_stages_tenant_name_active
+		ON crm_pipeline_stages ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_pipeline_stages_tenant_code_active
+		ON crm_pipeline_stages ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMLeadSourceTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_lead_sources DROP CONSTRAINT IF EXISTS crm_lead_sources_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_sources DROP CONSTRAINT IF EXISTS idx_crm_lead_sources_name`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_sources DROP CONSTRAINT IF EXISTS crm_lead_sources_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_sources DROP CONSTRAINT IF EXISTS idx_crm_lead_sources_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_lead_sources_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_lead_sources_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_lead_sources_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_lead_sources_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_lead_sources_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_lead_sources_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_lead_sources_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_lead_sources_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_lead_sources_tenant_code_active
+		ON crm_lead_sources ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMLeadStatusTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_lead_statuses DROP CONSTRAINT IF EXISTS crm_lead_statuses_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_statuses DROP CONSTRAINT IF EXISTS idx_crm_lead_statuses_name`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_statuses DROP CONSTRAINT IF EXISTS crm_lead_statuses_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_lead_statuses DROP CONSTRAINT IF EXISTS idx_crm_lead_statuses_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_lead_statuses_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_lead_statuses_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_lead_statuses_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_lead_statuses_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_lead_statuses_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_lead_statuses_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_lead_statuses_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_lead_statuses_code_key`).Error
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_lead_statuses_tenant_name_active
+		ON crm_lead_statuses ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_lead_statuses_tenant_code_active
+		ON crm_lead_statuses ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMActivityTypeTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_activity_types DROP CONSTRAINT IF EXISTS crm_activity_types_name_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_activity_types DROP CONSTRAINT IF EXISTS idx_crm_activity_types_name`).Error
+	_ = DB.Exec(`ALTER TABLE crm_activity_types DROP CONSTRAINT IF EXISTS crm_activity_types_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_activity_types DROP CONSTRAINT IF EXISTS idx_crm_activity_types_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_activity_types_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_activity_types_name`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_activity_types_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_activity_types_name_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_activity_types_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_activity_types_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_activity_types_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_activity_types_code_key`).Error
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_activity_types_tenant_name_active
+		ON crm_activity_types ((COALESCE(tenant_id::text, '__global__')), lower(name))
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_activity_types_tenant_code_active
+		ON crm_activity_types ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMLeadsTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_leads DROP CONSTRAINT IF EXISTS crm_leads_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_leads DROP CONSTRAINT IF EXISTS idx_crm_leads_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_leads_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_leads_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_leads_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_leads_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_leads_tenant_code_active
+		ON crm_leads ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMVisitReportsTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_visit_reports DROP CONSTRAINT IF EXISTS crm_visit_reports_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_visit_reports DROP CONSTRAINT IF EXISTS idx_crm_visit_reports_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_visit_reports_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_visit_reports_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_visit_reports_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_visit_reports_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_visit_reports_tenant_code_active
+		ON crm_visit_reports ((COALESCE(tenant_id::text, '__global__')), lower(code))
+		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
+	`).Error
+}
+
+func ensureCRMDealsTenantScopedUniqueIndexes() error {
+	_ = DB.Exec(`ALTER TABLE crm_deals DROP CONSTRAINT IF EXISTS crm_deals_code_key`).Error
+	_ = DB.Exec(`ALTER TABLE crm_deals DROP CONSTRAINT IF EXISTS idx_crm_deals_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS idx_crm_deals_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_deals_code`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS crm_deals_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_deals_code_key`).Error
+
+	return DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_deals_tenant_code_active
+		ON crm_deals ((COALESCE(tenant_id::text, '__global__')), lower(code))
 		WHERE deleted_at IS NULL AND COALESCE(code, '') <> ''
 	`).Error
 }

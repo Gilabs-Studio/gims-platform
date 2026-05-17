@@ -53,7 +53,7 @@ export function LandingHeader() {
                   megaMenuOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Aplikasi
+                {locale === "id" ? "Aplikasi" : "Apps"}
                 <ChevronDown className={cn("h-4 w-4 transition-transform", megaMenuOpen && "rotate-180")} />
               </button>
             </div>
@@ -102,7 +102,7 @@ export function LandingHeader() {
               size="sm"
               className="cursor-pointer rounded-full px-5 text-sm shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground font-accent font-medium tracking-wide"
             >
-              Uji coba gratis
+              {locale === "id" ? "Uji coba gratis" : "Free trial"}
             </Button>
           </Link>
         </div>
@@ -175,7 +175,7 @@ export function LandingHeader() {
         <div className="border-b border-border bg-background/95 backdrop-blur-md md:hidden max-h-[80vh] overflow-y-auto">
           <nav className="mx-auto flex flex-col gap-1 px-6 py-4">
             <div className="py-2">
-              <h3 className="text-sm font-semibold tracking-wider text-primary uppercase pb-2">Aplikasi</h3>
+              <h3 className="text-sm font-semibold tracking-wider text-primary uppercase pb-2">{locale === "id" ? "Aplikasi" : "Apps"}</h3>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 {marketingApps.map((topMenu) => (
                   <div key={topMenu.category.en} className="flex flex-col gap-1">
@@ -218,7 +218,7 @@ export function LandingHeader() {
               </Link>
               <Link href="/register" prefetch={false}>
                 <Button className="w-full cursor-pointer rounded-full bg-primary text-primary-foreground font-medium">
-                  Uji coba gratis
+                  {locale === "id" ? "Uji coba gratis" : "Free trial"}
                 </Button>
               </Link>
             </div>

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
@@ -9,6 +11,7 @@ import '../../../app/app.dart';
 import '../domain/models/outlet.dart';
 import 'widgets/home_grid.dart';
 import '../../terminal/presentation/unified_terminal_flow.dart';
+import '../../terminal/data/push_notification_service.dart';
 import '../../floor_layout/presentation/floor_editor_screen.dart';
 import '../../loyalty/presentation/loyalty_screen.dart';
 import '../../feedback/presentation/feedback_screen.dart';
@@ -29,6 +32,7 @@ class _PosShellState extends State<PosShell> {
   Outlet? _outlet;
   bool _outletLoading = true;
   PosFeature? _feature;
+  StreamSubscription<Map<String, dynamic>>? _notificationTapSub;
   final _baseUrlController = TextEditingController(
     text: ApiClient.instance.baseUrl,
   );
@@ -36,11 +40,14 @@ class _PosShellState extends State<PosShell> {
   @override
   void initState() {
     super.initState();
+    _notificationTapSub = PushNotificationService.instance.notificationTaps
+        .listen(_handleNotificationTap);
     _loadOutlets();
   }
 
   @override
   void dispose() {
+    _notificationTapSub?.cancel();
     _baseUrlController.dispose();
     super.dispose();
   }
@@ -53,6 +60,10 @@ class _PosShellState extends State<PosShell> {
         _outlets = outlets;
         _outlet = outlets.isNotEmpty ? outlets.first : null;
       });
+      final selected = outlets.isNotEmpty ? outlets.first : null;
+      if (selected != null) {
+        await _registerPushForOutlet(selected);
+      }
     } catch (error) {
       if (mounted) {
         if (isAuthError(error)) {
@@ -68,6 +79,25 @@ class _PosShellState extends State<PosShell> {
 
   void _handleAuthError(Object error) {
     if (isAuthError(error)) widget.onLogout();
+  }
+
+  Future<void> _registerPushForOutlet(Outlet outlet) async {
+    try {
+      await PushNotificationService.instance.registerForOutlet(outlet);
+    } catch (_) {
+      // Foreground WebSocket remains the source of truth when push setup fails.
+    }
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    final outletId = data['outlet_id'] as String?;
+    if (outletId == null || outletId.isEmpty) return;
+    final matches = _outlets.where((outlet) => outlet.id == outletId);
+    if (matches.isEmpty) return;
+    setState(() {
+      _outlet = matches.first;
+      _feature = PosFeature.terminal;
+    });
   }
 
   @override
@@ -222,6 +252,7 @@ class _PosShellState extends State<PosShell> {
                     _outlet = item;
                     _feature = null;
                   });
+                  _registerPushForOutlet(item);
                   Navigator.pop(dialogContext);
                 },
               );

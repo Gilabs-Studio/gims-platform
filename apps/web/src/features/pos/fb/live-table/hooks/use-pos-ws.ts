@@ -4,22 +4,27 @@ import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { posKeys } from "@/features/pos/terminal/hooks/use-pos";
+import type { POSOrder } from "@/features/pos/terminal/types";
 import { buildRealtimeNotificationId, useNotificationStore } from "@/features/notifications/stores/use-notification-store";
 import type { Notification } from "@/features/notifications/types";
 
 export type PosWsEvent = {
   type?: string;
   event?: string;
-  payload?: {
+  data?: PosWsPayload;
+  payload?: PosWsPayload;
+};
+
+export type PosWsPayload = {
     order_id?: string;
     order_number?: string;
     table_label?: string;
     status?: string;
-  };
+    order?: POSOrder;
 };
 
 interface UsePosWsOptions {
-  onEvent?: (eventType: string, payload: PosWsEvent["payload"] | undefined) => void;
+  onEvent?: (eventType: string, payload: PosWsPayload | undefined) => void;
   suppressToastEvents?: string[];
 }
 
@@ -83,6 +88,39 @@ function buildPosRealtimeNotification(
   return null;
 }
 
+type POSOrderListCache = { data?: POSOrder[] };
+type POSOrderDetailCache = { data?: POSOrder };
+
+function orderFromPayload(payload: PosWsPayload | undefined): POSOrder | null {
+  if (!payload?.order) return null;
+  return payload.order;
+}
+
+function isClearedOrderStatus(status: POSOrder["status"]): boolean {
+  return status === "COMPLETED" || status === "VOIDED";
+}
+
+function applyRealtimeOrder(queryClient: ReturnType<typeof useQueryClient>, payload: PosWsPayload | undefined) {
+  const order = orderFromPayload(payload);
+  if (!order) return;
+
+  queryClient.setQueriesData<POSOrderListCache>({ queryKey: [...posKeys.orders(), "list"] }, (current) => {
+    if (!current?.data) return current;
+    const exists = current.data.some((item) => item.id === order.id);
+    const data = isClearedOrderStatus(order.status)
+      ? current.data.filter((item) => item.id !== order.id)
+      : exists
+        ? current.data.map((item) => (item.id === order.id ? order : item))
+        : [order, ...current.data];
+    return { ...current, data };
+  });
+
+  queryClient.setQueryData<POSOrderDetailCache>(posKeys.order(order.id), (current) => {
+    if (isClearedOrderStatus(order.status)) return current;
+    return { ...(current ?? {}), data: order };
+  });
+}
+
 function getWsUrl(outletId?: string): string {
   const apiOrigin =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
@@ -99,7 +137,7 @@ function nextDelay(attempt: number): number {
 
 /**
  * Connects to the POS staff WebSocket for an outlet.
- * Realtime events invalidate POS order queries and show operator notifications.
+ * Realtime events update POS order cache directly and show operator notifications.
  */
 export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions) {
   const queryClient = useQueryClient();
@@ -146,50 +184,50 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
           return;
         }
 
-        const eventType = msg.type ?? msg.event;
+        const eventType = msg.event ?? msg.type;
         if (!eventType) return;
-        onEvent?.(eventType, msg.payload);
+        const payload = msg.data ?? msg.payload;
+        onEvent?.(eventType, payload);
 
-        const realtimeNotification = buildPosRealtimeNotification(eventType, msg.payload, id);
+        const realtimeNotification = buildPosRealtimeNotification(eventType, payload, id);
         if (realtimeNotification) {
           addRealtimeNotification(realtimeNotification);
         }
 
+        applyRealtimeOrder(queryClient, payload);
+
         if (eventType === "pos.new_customer_order") {
-          const tableLabel = msg.payload?.table_label ?? "Meja";
-          const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+          const tableLabel = payload?.table_label ?? "Meja";
+          const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
           if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
             toast.info(`Pesanan baru dari ${tableLabel}!`, {
               duration: 5000,
             });
           }
-          queryClient.invalidateQueries({ queryKey: posKeys.orders() });
           return;
         }
 
         if (eventType === "pos.payment_confirmed") {
-          const tableLabel = msg.payload?.table_label ?? "Meja";
-          const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+          const tableLabel = payload?.table_label ?? "Meja";
+          const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
           if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
             toast.success(`Pembayaran terkonfirmasi untuk ${tableLabel}.`, {
               duration: 5000,
             });
           }
-          queryClient.invalidateQueries({ queryKey: posKeys.orders() });
           return;
         }
 
         if (eventType === "pos.order_status_changed") {
-          if ((msg.payload?.status ?? "") === "PAID") {
-            const tableLabel = msg.payload?.table_label ?? "Meja";
-            const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+          if ((payload?.status ?? "") === "PAID") {
+            const tableLabel = payload?.table_label ?? "Meja";
+            const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
             if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
               toast.success(`Status pembayaran ${tableLabel} sudah PAID.`, {
                 duration: 5000,
               });
             }
           }
-          queryClient.invalidateQueries({ queryKey: posKeys.orders() });
         }
       };
 

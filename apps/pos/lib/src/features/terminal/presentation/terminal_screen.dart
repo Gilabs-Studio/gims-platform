@@ -124,7 +124,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       if (!mounted) return;
       final checkoutResult = await showDialog<CheckoutResult>(
         context: context,
-        barrierDismissible: false,
+        barrierDismissible: true,
         builder: (context) => CheckoutFlowSheet(
           order: order,
           config: _config,

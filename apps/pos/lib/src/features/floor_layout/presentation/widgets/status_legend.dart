@@ -11,6 +11,7 @@ class StatusLegend extends StatelessWidget {
     return Card(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), child: Row(children: [
       const Expanded(child: Wrap(spacing: 8, runSpacing: 8, children: [
         _LegendDot(color: Colors.white, label: 'Available'),
+        _LegendDot(color: Color(0xfffffbeb), label: 'Waiting Payment'),
         _LegendDot(color: Color(0xffdbeafe), label: 'Seated'),
         _LegendDot(color: Color(0xffffedd5), label: '>30m'),
         _LegendDot(color: Color(0xfffef3c7), label: 'Partial'),

@@ -96,6 +96,64 @@ func isHTTPS(c *gin.Context) bool {
 	return false
 }
 
+func authCookieDomain() string {
+	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+		return config.AppConfig.Server.RootDomain
+	}
+	return ""
+}
+
+func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
+	domain := authCookieDomain()
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_access_token",
+		Value:    accessToken,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
+		Domain:   domain,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
+		Domain:   domain,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+func clearAuthCookies(c *gin.Context) {
+	domain := authCookieDomain()
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_access_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Domain:   domain,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "gims_refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Domain:   domain,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
 // Login handles login request
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
@@ -132,36 +190,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Security: Set HttpOnly Cookies
-	// Determine root domain for production (e.g., .gilabs.id or .salesview.id)
-	// In production, use RootDomain so cookies work across all subdomains
-	domain := ""
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		domain = config.AppConfig.Server.RootDomain
-	}
-
-	// Access Token
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	// Refresh Token
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	// Map to Presentation DTO (Strict Mode: No tokens in JSON)
 	resp := authDTO.LoginResponseDTO{
@@ -177,10 +206,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions:      loginResponse.User.Permissions,
-			TenantID:         loginResponse.User.TenantID,
-			TenantName:       loginResponse.User.TenantName,
-			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			Permissions:        loginResponse.User.Permissions,
+			TenantID:           loginResponse.User.TenantID,
+			TenantName:         loginResponse.User.TenantName,
+			SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
 			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "", // Removed for security
@@ -221,50 +250,20 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
 			return
 		}
+		if err == usecase.ErrRefreshTokenInvalid || err == usecase.ErrRefreshTokenRevoked || err == usecase.ErrRefreshTokenExpired {
+			clearAuthCookies(c)
+			errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
+			return
+		}
 		// Clear cookies if refresh fails
-		http.SetCookie(c.Writer, &http.Cookie{
-			Name:     "gims_access_token",
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteNoneMode,
-		})
-		http.SetCookie(c.Writer, &http.Cookie{
-			Name:     "gims_refresh_token",
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			Secure:   true,
-			HttpOnly: true,
-			SameSite: http.SameSiteNoneMode,
-		})
+		clearAuthCookies(c)
 
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
 	}
 
 	// Security: Set New HttpOnly Cookies
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	// Map to Presentation DTO
 	resp := authDTO.LoginResponseDTO{
@@ -280,10 +279,10 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions:      loginResponse.User.Permissions,
-			TenantID:         loginResponse.User.TenantID,
-			TenantName:       loginResponse.User.TenantName,
-			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			Permissions:        loginResponse.User.Permissions,
+			TenantID:           loginResponse.User.TenantID,
+			TenantName:         loginResponse.User.TenantName,
+			SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
 			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",
@@ -318,24 +317,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// ALWAYS Clear Cookies on Logout
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	clearAuthCookies(c)
 	// Also clear CSRF token cookie
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_csrf_token",
@@ -376,7 +358,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 			// Provide enhanced error messages for user_count field validation
 			var fieldErrors []response.FieldError
 			hasUserCountError := false
-			
+
 			for _, fieldError := range validationErrors {
 				if fieldError.StructField() == "UserCount" {
 					hasUserCountError = true
@@ -396,13 +378,13 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 					})
 				}
 			}
-			
+
 			// If we found user_count errors, return them with better context
 			if hasUserCountError && len(fieldErrors) > 0 {
 				errors.ValidationErrorResponse(c, fieldErrors)
 				return
 			}
-			
+
 			// For other validation errors, use generic handler
 			errors.HandleValidationError(c, validationErrors)
 			return
@@ -497,10 +479,10 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions:      loginResponse.User.Permissions,
-			TenantID:         loginResponse.User.TenantID,
-			TenantName:       loginResponse.User.TenantName,
-			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			Permissions:        loginResponse.User.Permissions,
+			TenantID:           loginResponse.User.TenantID,
+			TenantName:         loginResponse.User.TenantName,
+			SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
 			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",
@@ -572,10 +554,10 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 				DataScope: loginResponse.User.RoleDataScope,
 				IsOwner:   loginResponse.User.IsOwner,
 			},
-			Permissions:      loginResponse.User.Permissions,
-			TenantID:         loginResponse.User.TenantID,
-			TenantName:       loginResponse.User.TenantName,
-			SubscriptionPlan: loginResponse.User.SubscriptionPlan,
+			Permissions:        loginResponse.User.Permissions,
+			TenantID:           loginResponse.User.TenantID,
+			TenantName:         loginResponse.User.TenantName,
+			SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
 			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
 		},
 		AccessToken:  "",

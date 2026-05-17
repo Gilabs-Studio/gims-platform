@@ -10,9 +10,9 @@ import (
 // PipelineStage represents a configurable pipeline stage for deal management
 type PipelineStage struct {
 	ID          string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
-	Code        string         `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index;uniqueIndex:uq_crm_pipeline_stages_tenant_code" json:"tenant_id,omitempty"`
+	Name        string         `gorm:"type:varchar(100);not null" json:"name"`
+	Code        string         `gorm:"type:varchar(50);not null;uniqueIndex:uq_crm_pipeline_stages_tenant_code" json:"code"`
 	Order       int            `gorm:"not null;index" json:"order"`
 	Color       string         `gorm:"type:varchar(20)" json:"color"`
 	Probability int            `gorm:"type:int;default:0" json:"probability"`

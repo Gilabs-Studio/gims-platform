@@ -71,6 +71,7 @@ const FEATURE_PATH_BY_LABEL: Record<string, string> = {
   "SalesView Quotations": "/quotations",
   "SalesView Sales Orders": "/sales",
   "SalesView Invoicing": "/invoicing",
+  "SalesView Purchase": "/purchase",
   "SalesView Goods Receipt": "/goods-receipt",
   "SalesView Movements": "/movements",
   "SalesView Inventory": "/stock",
@@ -94,6 +95,7 @@ function getRelatedLinks(label: string): InternalLink[] {
     group = "finance";
   } else if (
     lowerLabel.includes("inventory") ||
+    lowerLabel.includes("purchase") ||
     lowerLabel.includes("goods receipt") ||
     lowerLabel.includes("movements")
   ) {
@@ -305,14 +307,15 @@ export function FeatureLandingPage({
         <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/40 bg-card shadow-sm">
           <div className="relative aspect-video w-full">
             <ThemeAwareImage
-              lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[heroImageKey].light}
-              darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[heroImageKey].dark}
-              alt={heroImageAlt}
-              fill
-              className="object-cover object-top"
-              sizes="(max-width: 1280px) 100vw, 1280px"
-              priority
-            />
+                lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[heroImageKey].light}
+                darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[heroImageKey].dark}
+                alt={heroImageAlt}
+                fill
+                className="object-cover object-top"
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                priority
+                fallback={<PlaceholderVisual variant={featureBlocks?.[0]?.placeholder ?? "multiOutlet"} />}
+              />
           </div>
         </div>
       </section>
@@ -335,16 +338,17 @@ export function FeatureLandingPage({
                   className={`flex flex-col gap-12 lg:gap-20 items-center ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"}`}
                 >
                   <div className="lg:w-1/2 w-full">
-                    <div className="aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-6 md:p-8 flex items-center justify-center relative">
+                    <div className="aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm p-6 md:p-8 flex items-center justify-center relative">
                       {useScreenshot ? (
                         <ThemeAwareImage
-                          lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].light}
-                          darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].dark}
-                          alt={feature.title}
-                          fill
-                          className="object-cover object-top"
-                          sizes="(max-width: 1024px) 100vw, 50vw"
-                        />
+                            lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].light}
+                            darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[feature.screenshotKey!].dark}
+                            alt={feature.title}
+                            fill
+                            className="object-cover object-top"
+                            sizes="(max-width: 1024px) 100vw, 50vw"
+                            fallback={<PlaceholderVisual variant={feature.placeholder} />}
+                          />
                       ) : (
                         <PlaceholderVisual variant={feature.placeholder} />
                       )}

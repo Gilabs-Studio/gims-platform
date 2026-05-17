@@ -5,6 +5,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/general/data/repositories"
 	"github.com/gilabs/gims/api/internal/general/domain/usecase"
+	generalWS "github.com/gilabs/gims/api/internal/general/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/general/presentation/handler"
 	"github.com/gilabs/gims/api/internal/general/presentation/router"
 	"github.com/gin-gonic/gin"
@@ -24,10 +25,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize usecases
 	dashboardUC := usecase.NewDashboardUsecase(dashboardRepo, layoutRepo)
 	onboardingUC := usecase.NewOnboardingUsecase(onboardingRepo)
+	onboardingHub := generalWS.DefaultOnboardingHub()
+	onboardingUC = usecase.WithOnboardingPublisher(onboardingUC, onboardingHub)
 
 	// Initialize handlers
 	dashboardHandler := handler.NewDashboardHandler(dashboardUC)
 	onboardingHandler := handler.NewOnboardingHandler(onboardingUC)
+	onboardingWSHandler := handler.NewOnboardingWSHandler(onboardingHub)
 
 	// Create group with auth middleware
 	group := api.Group("/general")
@@ -36,5 +40,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Register routes
 	router.RegisterDashboardRoutes(group, dashboardHandler, db)
-	router.RegisterOnboardingRoutes(group, onboardingHandler)
+	router.RegisterOnboardingRoutes(group, onboardingHandler, onboardingWSHandler)
 }

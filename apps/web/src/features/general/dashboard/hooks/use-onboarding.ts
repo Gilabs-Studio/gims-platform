@@ -13,9 +13,6 @@ export function useOnboardingState(options?: { enabled?: boolean }) {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    // Keep polling only while onboarding is still in progress.
-    refetchInterval: (query) =>
-      query.state.data?.completed ? false : 10_000,
     enabled: options?.enabled ?? true,
   });
 }

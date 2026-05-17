@@ -47,14 +47,14 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
         locale={locale}
         label="SalesView Sales Orders"
         heroTitle={isId ? "Sales Orders yang" : "Sales Orders that"}
-        heroAccent={isId ? "Siap Eksekusi." : "Are Execution-Ready."}
+        heroAccent={isId ? "Siap Eksekusi" : "Are Execution-Ready"}
         heroDescription={
           isId
             ? "Ubah proses penjualan menjadi lebih terstruktur dari pencatatan order sampai koordinasi tim."
             : "Make sales execution more structured from order capture to team coordination."
         }
         heroImageAlt={isId ? "Tampilan sales orders SalesView" : "SalesView sales orders interface"}
-        heroImageKey="salesOrder"
+        heroImageKey="salesOrderHero"
         introTitle={isId ? "Penjualan bergerak lebih cepat" : "Move sales execution faster"}
         introDescription={
           isId
@@ -67,7 +67,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
             description: isId
               ? "Catat pesanan dengan format yang konsisten untuk mengurangi kesalahan proses."
               : "Capture orders in a consistent format to reduce execution errors.",
-            screenshotKey: "salesOrder",
+            screenshotKey: "salesOrderEntryFlow",
             placeholder: "terminalFlow",
           },
           {
@@ -75,6 +75,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
             description: isId
               ? "Hubungkan proses sales dengan tim operasional agar eksekusi order lebih mulus."
               : "Connect sales flow with operations teams for smoother order fulfillment.",
+            screenshotKey: "salesOrderFulfillment",
             placeholder: "multiOutlet",
           },
           {
@@ -82,7 +83,7 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
             description: isId
               ? "Pantau progres order dan performa tim dari satu tampilan terpusat."
               : "Track order progress and team performance from one centralized view.",
-            screenshotKey: "dashboard",
+            screenshotKey: "salesOrderBillingCollection",
             placeholder: "timelineFlow",
           },
         ]}

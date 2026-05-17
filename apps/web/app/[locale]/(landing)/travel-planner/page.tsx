@@ -9,16 +9,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/travel-planner",
-    title: locale === "id" ? "Travel Planner untuk Approval Perjalanan Dinas | SalesView" : "Business Trip Approval Travel Planner | SalesView",
+    title:
+      locale === "id"
+        ? "Travel Planner: Itinerary Multi-hari, Peta Interaktif & Expense | SalesView"
+        : "Travel Planner: Multi-day Itinerary, Interactive Map & Expenses | SalesView",
     description:
       locale === "id"
-        ? "Atur pengajuan perjalanan dinas, proses approval, dan monitoring itinerary dalam satu workflow travel planner."
-        : "Manage business trip requests, approval flow, and itinerary status tracking in one travel planner workflow.",
+        ? "Rencanakan perjalanan dinas multi-hari dengan itinerary per hari, peta interaktif dengan stop dan optimasi rute, catat expense (transport, accommodation, meal, fuel), dan link ke visit report — semua dalam satu workspace kolaboratif."
+        : "Plan multi-day business trips with daily itineraries, interactive maps with stops and route optimization, record expenses (transport, accommodation, meal, fuel), and link to visit reports — all in one collaborative workspace.",
     keywords:
       locale === "id"
-        ? ["travel planner", "perjalanan dinas", "approval perjalanan", "pengajuan dinas", "salesview travel"]
-        : ["travel planner", "business trip", "travel approval", "trip request workflow", "salesview travel"],
-    imageAlt: "SalesView travel planner overview",
+        ? [
+            "travel planner bisnis",
+            "itinerary perjalanan dinas",
+            "peta perjalanan interaktif",
+            "expense perjalanan dinas",
+            "optimasi rute",
+            "visit report",
+            "rencana perjalanan multi-hari",
+            "salesview travel planner",
+          ]
+        : [
+            "business travel planner",
+            "trip itinerary",
+            "interactive travel map",
+            "travel expense tracking",
+            "route optimization",
+            "visit report",
+            "multi-day travel plan",
+            "salesview travel planner",
+          ],
+    imageAlt: "SalesView travel planner collaborative workspace overview",
   });
 }
 
@@ -34,7 +55,9 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
     name: "SalesView Travel Planner",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: isId ? "Travel planner untuk perjalanan dinas tim." : "Travel planner for team business trips.",
+    description: isId
+      ? "Travel planner kolaboratif dengan itinerary multi-hari, peta interaktif, dan pencatatan expense perjalanan dinas."
+      : "Collaborative travel planner with multi-day itinerary, interactive maps, and business trip expense tracking.",
     url: `https://salesview.id/${locale}/travel-planner`,
   };
 
@@ -45,44 +68,64 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
         locale={locale}
         label="SalesView Travel Planner"
         heroTitle={isId ? "Travel Planner yang" : "Travel Planning that"}
-        heroAccent={isId ? "Lebih Terkontrol." : "Stays Organized."}
+        heroAccent={isId ? "Lebih Terkontrol" : "Stays Organized"}
         heroDescription={
           isId
-            ? "Rencanakan perjalanan dinas dan pantau status pengajuan dalam satu alur kerja."
-            : "Plan business travel and monitor request status in one unified workflow."
+            ? "Rencanakan perjalanan dinas multi-hari dengan itinerary, peta interaktif, dan pencatatan expense — semua dalam satu workspace."
+            : "Plan multi-day business trips with itinerary, interactive maps, and expense tracking — all in one workspace."
         }
         heroImageAlt={isId ? "Tampilan travel planner SalesView" : "SalesView travel planner interface"}
-        heroImageKey="dashboard"
+        heroImageKey="travelHero"
         introTitle={isId ? "Atur mobilitas tim dengan rapi" : "Organize team mobility cleanly"}
         introDescription={
           isId
-            ? "Travel planner membantu tim HR dan operasional bekerja dengan visibilitas yang lebih baik."
-            : "Travel planner gives HR and operations better visibility into mobility planning."
+            ? "Travel planner memberi tim HR dan operasional visibilitas penuh atas rencana perjalanan, rute, dan biaya — dari hari pertama sampai selesai."
+            : "Travel planner gives HR and operations full visibility into travel plans, routes, and costs — from day one to completion."
         }
         featureBlocks={[
           {
-            title: isId ? "Pengajuan perjalanan" : "Travel requests",
+            title: isId ? "Itinerary multi-hari per perjalanan" : "Multi-day itinerary per trip",
             description: isId
-              ? "Buat pengajuan perjalanan dinas dengan detail yang mudah ditinjau."
-              : "Create business trip requests with details that are easy to review.",
+              ? "Buat rencana perjalanan dengan beberapa hari — setiap hari punya daftar stop (pickup, dropoff, checkpoint, rest) dan catatan harian. Atur ulang stop dengan drag."
+              : "Create travel plans with multiple days — each day has a list of stops (pickup, dropoff, checkpoint, rest) and daily notes. Reorder stops by drag.",
+            descriptionSecondary: isId
+              ? "Status plan mengalir dari draft → active → completed / cancelled."
+              : "Plan status flows from draft → active → completed / cancelled.",
+            screenshotKey: "travelItinerary",
             placeholder: "timelineFlow",
           },
           {
-            title: isId ? "Monitoring status" : "Status monitoring",
+            title: isId ? "Peta interaktif dengan optimasi rute" : "Interactive map with route optimization",
             description: isId
-              ? "Pantau status approval agar koordinasi perjalanan lebih lancar."
-              : "Monitor approval status to keep travel coordination smoother.",
-            placeholder: "scorecardFlow",
+              ? "Lihat semua stop dalam peta interaktif — tambahkan tempat dari Google Places atau manual. Optimasi rute otomatis untuk urutan perjalanan paling efisien."
+              : "View all stops on an interactive map — add places from Google Places or manually. Auto-optimize routes for the most efficient travel order.",
+            screenshotKey: "travelMap",
+            placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Dokumentasi terpusat" : "Centralized documentation",
+            title: isId ? "Catat expense dan link ke visit report" : "Track expenses and link to visit reports",
             description: isId
-              ? "Simpan data perjalanan agar histori aktivitas lebih mudah dilacak."
-              : "Store trip records so activity history is easier to trace.",
-            placeholder: "invoiceFlow",
+              ? "Catat biaya perjalanan — transport, accommodation, meal, fuel, toll, parking. Lihat total per plan. Linkkan travel plan ke visit report untuk jejak lapangan yang lengkap."
+              : "Record travel expenses — transport, accommodation, meal, fuel, toll, parking. See totals per plan. Link travel plans to visit reports for a complete field trail.",
+            screenshotKey: "travelExpense",
+            placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Perjalanan dinas lebih terencana" : "Business trips become better planned"}
+        finalTitle={isId ? "Perjalanan dinas lebih terencana, biaya lebih terkontrol" : "Business trips more planned, costs more controlled"}
+        finalPoints={[
+          {
+            title: isId ? "Multi-hari" : "Multi-day",
+            description: isId
+              ? "Itinerary harian dengan stop dan catatan."
+              : "Daily itinerary with stops and notes.",
+          },
+          {
+            title: isId ? "Peta + rute" : "Map + route",
+            description: isId
+              ? "Peta interaktif dengan optimasi rute otomatis."
+              : "Interactive map with auto route optimization.",
+          },
+        ]}
         finalCtaLabel={isId ? "Mulai Travel Planner" : "Start Travel Planner"}
       />
     </>
