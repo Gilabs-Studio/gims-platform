@@ -9,16 +9,37 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/recruitment",
-    title: locale === "id" ? "Software Recruitment Pipeline Kandidat | SalesView" : "Candidate Pipeline Recruitment Software | SalesView",
+    title:
+      locale === "id"
+        ? "Sistem Recruitment Pipeline: Kanban Kandidat, Approval & Convert | SalesView"
+        : "Recruitment Pipeline System: Candidate Kanban, Approval & Convert | SalesView",
     description:
       locale === "id"
-        ? "Kelola sourcing kandidat, tahapan seleksi, dan koordinasi hiring dalam satu alur recruitment yang terukur untuk mempercepat proses rekrutmen."
-        : "Manage candidate sourcing, selection stages, and hiring coordination in one measurable recruitment workflow to accelerate hiring cycles.",
+        ? "Kelola recruitment request dengan approval, lihat kandidat dalam kanban board per tahapan, pindahkan antar stage, dan convert applicant yang diterima menjadi employee — semua terhubung ke master data karyawan."
+        : "Manage recruitment requests with approval, view candidates in a kanban board per stage, move between stages, and convert accepted applicants into employees — all connected to employee master data.",
     keywords:
       locale === "id"
-        ? ["software recruitment", "pipeline kandidat", "proses hiring", "seleksi kandidat", "salesview recruitment"]
-        : ["recruitment software", "candidate pipeline", "hiring workflow", "candidate selection", "salesview recruitment"],
-    imageAlt: "SalesView recruitment overview",
+        ? [
+            "sistem recruitment",
+            "kanban kandidat",
+            "pipeline recruitment",
+            "convert applicant karyawan",
+            "approval hiring",
+            "rekrutmen HR",
+            "tahapan seleksi",
+            "salesview recruitment",
+          ]
+        : [
+            "recruitment system",
+            "candidate kanban",
+            "recruitment pipeline",
+            "convert applicant to employee",
+            "hiring approval",
+            "HR recruitment",
+            "candidate selection stages",
+            "salesview recruitment",
+          ],
+    imageAlt: "SalesView recruitment pipeline overview",
   });
 }
 
@@ -34,7 +55,9 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
     name: "SalesView Recruitment",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: isId ? "Sistem recruitment untuk tim HR." : "Recruitment system for HR teams.",
+    description: isId
+      ? "Sistem recruitment dengan kanban kandidat, approval request, dan konversi applicant ke employee."
+      : "Recruitment system with candidate kanban, request approval, and applicant-to-employee conversion.",
     url: `https://salesview.id/${locale}/recruitment`,
   };
 
@@ -48,42 +71,64 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
         heroAccent={isId ? "Lebih Terarah." : "Stays Focused."}
         heroDescription={
           isId
-            ? "Atur tahapan kandidat agar proses hiring lebih cepat dan tidak kehilangan konteks."
-            : "Organize candidate stages so hiring moves faster without losing context."
+            ? "Buat recruitment request, lihat kandidat dalam kanban board, pindahkan antar tahapan, dan convert applicant yang diterima langsung ke data karyawan."
+            : "Create recruitment requests, view candidates in a kanban board, move between stages, and convert accepted applicants directly to employee records."
         }
         heroImageAlt={isId ? "Tampilan recruitment SalesView" : "SalesView recruitment interface"}
-        heroImageKey="dashboard"
+        heroImageKey="recruitmentHero"
         introTitle={isId ? "Sederhanakan proses hiring" : "Simplify your hiring process"}
         introDescription={
           isId
-            ? "Recruitment membantu tim HR menjaga alur seleksi tetap konsisten."
-            : "Recruitment helps HR teams keep candidate selection flow consistent."
+            ? "Recruitment membantu tim HR dari request pembukaan posisi, seleksi kandidat di kanban, sampai onboarding ke data karyawan."
+            : "Recruitment supports HR teams from position requests and candidate selection in kanban through onboarding to employee records."
         }
         featureBlocks={[
           {
-            title: isId ? "Pipeline kandidat" : "Candidate pipeline",
+            title: isId ? "Kanban board kandidat per tahapan" : "Candidate kanban board per stage",
             description: isId
-              ? "Kelola kandidat dari tahap awal hingga final dengan visibilitas yang lebih baik."
-              : "Manage candidates from early stage to final step with better visibility.",
-            placeholder: "timelineFlow",
-          },
-          {
-            title: isId ? "Kolaborasi tim hiring" : "Hiring team collaboration",
-            description: isId
-              ? "Catat evaluasi agar keputusan hiring dibuat berdasarkan data yang sama."
-              : "Log evaluations so hiring decisions are based on shared context.",
-            placeholder: "scorecardFlow",
-          },
-          {
-            title: isId ? "Monitoring progres" : "Progress monitoring",
-            description: isId
-              ? "Pantau progres recruitment tanpa perlu spreadsheet terpisah."
-              : "Track recruitment progress without relying on separate spreadsheets.",
-            screenshotKey: "dashboard",
+              ? "Lihat semua applicant dalam tampilan kanban — setiap kolom mewakili satu tahapan seleksi. Pindahkan kandidat antar stage dengan drag atau klik move."
+              : "View all applicants in a kanban board — each column represents a selection stage. Move candidates between stages via drag or click move.",
+            descriptionSecondary: isId
+              ? "Detail kandidat tampil di sheet samping tanpa meninggalkan kanban."
+              : "Applicant detail shows in a side sheet without leaving the kanban.",
+            screenshotKey: "recruitmentKanban",
             placeholder: "multiOutlet",
           },
+          {
+            title: isId ? "Recruitment request dengan approval" : "Recruitment request with approval",
+            description: isId
+              ? "Buat permintaan rekrutmen — pilih divisi, posisi, jumlah, employment type (FULL_TIME/PART_TIME/CONTRACT/INTERN), salary range, priority, dan job description."
+              : "Create recruitment requests — select division, position, count, employment type (FULL_TIME/PART_TIME/CONTRACT/INTERN), salary range, priority, and job description.",
+            descriptionSecondary: isId
+              ? "Status mengalir dari DRAFT → PENDING → APPROVED → OPEN → CLOSED dengan audit lengkap."
+              : "Status flows from DRAFT → PENDING → APPROVED → OPEN → CLOSED with full audit.",
+            screenshotKey: "recruitmentRequest",
+            placeholder: "invoiceFlow",
+          },
+          {
+            title: isId ? "Convert applicant ke data karyawan" : "Convert applicant to employee",
+            description: isId
+              ? "Begitu kandidat diterima, convert langsung ke employee — data applicant dijembatani ke form karyawan tanpa input ulang."
+              : "Once a candidate is accepted, convert directly to employee — applicant data bridges to the employee form without re-entry.",
+            screenshotKey: "recruitmentConvert",
+            placeholder: "timelineFlow",
+          },
         ]}
-        finalTitle={isId ? "Hiring lebih cepat dan terarah" : "Faster, more focused hiring"}
+        finalTitle={isId ? "Rekrutmen lebih cepat, data karyawan otomatis" : "Faster recruitment, automatic employee records"}
+        finalPoints={[
+          {
+            title: isId ? "Kanban kandidat" : "Candidate kanban",
+            description: isId
+              ? "Pindahkan kandidat antar tahapan seleksi."
+              : "Move candidates between selection stages.",
+          },
+          {
+            title: isId ? "Convert otomatis" : "Auto-convert",
+            description: isId
+              ? "Applicant diterima langsung jadi data karyawan."
+              : "Accepted applicants become employee records instantly.",
+          },
+        ]}
         finalCtaLabel={isId ? "Mulai Recruitment" : "Start Recruitment"}
       />
     </>
