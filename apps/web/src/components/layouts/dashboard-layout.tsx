@@ -144,8 +144,9 @@ export const DashboardLayout = memo(function DashboardLayout({
   const isGeneralDashboardPage = Boolean(
     pathname && /(^|\/)dashboard$/.test(pathname) && !pathname.includes("/system/"),
   );
+  const isTenantOwner = user?.role?.is_owner === true;
   const { data: onboardingState } = useOnboardingState({
-    enabled: isGeneralDashboardPage,
+    enabled: isGeneralDashboardPage && isTenantOwner,
   });
 
   const userName = user?.name ?? "User";
@@ -440,7 +441,7 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/travel-planner") ||
     pathname?.includes("/visit-planner");
   const isDashboardOnboardingMode =
-    isGeneralDashboardPage && onboardingState?.completed === false;
+    isGeneralDashboardPage && isTenantOwner && onboardingState?.completed === false;
   const shouldShowDashboardHeader = !isAIChatbotPage && !isFullScreenMapPage;
 
   const handleOpenAttendanceDrawer = useCallback(
@@ -560,7 +561,7 @@ export const DashboardLayout = memo(function DashboardLayout({
                 isAIChatbotPage || isFullScreenMapPage
                   ? "h-[calc(100vh-1px)] gap-0 p-0"
                   : isDashboardOnboardingMode
-                    ? "min-h-screen items-center justify-center gap-0 p-0"
+                      ? "min-h-screen items-center justify-center gap-0 overflow-y-auto px-4 py-6"
                     : "gap-4 p-4 md:p-6",
               )}
             >
