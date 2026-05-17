@@ -200,9 +200,7 @@ Then open `ios/Runner.xcworkspace` in Xcode:
 - Visual Studio 2022 with "Desktop development with C++" workload
 - Windows 10 SDK (10.0.19041.0+) installed via Visual Studio Installer
 
-### 3.2 Build MSIX (recommended for distribution)
-
-MSIX packages can be served via a web server (double-click to install) or published to the Microsoft Store.
+### 3.2 Build Release Output
 
 ```bash
 cd apps/pos
@@ -213,35 +211,48 @@ flutter build windows --release --dart-define=GIMS_API_URL=https://your-server.c
 
 **Output:** `build/windows/x64/runner/Release/`
 
-### 3.3 Package as MSIX
+### 3.3 Build Installer (Inno Setup, recommended)
 
-Use the [MSIX Packaging Tool](https://learn.microsoft.com/en-us/windows/msix/packaging-tool/tool-overview) or create a packaging project:
+Prerequisites:
 
-```bash
-# Create an MSIX installer via the MSIX Hero tool or PowerShell
-# From an admin PowerShell:
-msix pack --source build\windows\x64\runner\Release\ --output gims_pos.msix
+1. Install [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+2. The helper will auto-detect `ISCC.exe` from the registry or common install paths
+
+Then run the bundled packaging script:
+
+```powershell
+cd apps\pos
+.\installer\build_windows_installer.ps1 -ApiUrl https://your-server.com
 ```
 
-### 3.4 Create Self-Contained ZIP Distribution
+If Inno Setup is installed in a custom location, pass it explicitly:
 
-```bash
-cd apps/pos
+```powershell
+.\installer\build_windows_installer.ps1 -ApiUrl https://your-server.com -IsccPath "D:\Program Files\Inno Setup 6\ISCC.exe"
+```
+
+This will:
+
+1. build the Windows release
+2. package `build/windows/x64/runner/Release/`
+3. emit `build/windows/installer/output/salesview_pos_setup.exe`
+
+### 3.4 Optional ZIP Distribution
+
+```powershell
+cd apps\pos
 Compress-Archive -Path build\windows\x64\runner\Release\* `
   -DestinationPath gims_pos_windows.zip
 ```
 
-Users extract the ZIP and run `gims_pos.exe`.
+Users extract the ZIP and run `salesview_pos.exe`.
 
 ### 3.5 Windows-Specific Notes
 
 - The binary name is defined in `windows/CMakeLists.txt` (`BINARY_NAME` variable).
 - Version info is compiled into the binary via `FLUTTER_VERSION` macros in `windows/runner/CMakeLists.txt:24-28`.
-- For enterprise deployment, consider code-signing the `.exe` with a certificate:
-  ```powershell
-  signtool sign /fd SHA256 /a /f cert.pfx /p <password> ^
-    build\windows\x64\runner\Release\gims_pos.exe
-  ```
+- The installer branding lives in `installer/salesview_pos.iss`.
+- For enterprise deployment, consider code-signing the installer and `.exe` with a certificate.
 
 ---
 
@@ -277,7 +288,7 @@ flutter build apk --release \
 | Android APK (split) | `flutter build apk --release --split-per-abi --dart-define=GIMS_API_URL=<url>` | 3 per-ABI APKs |
 | Android AAB | `flutter build appbundle --release --dart-define=GIMS_API_URL=<url>` | `build/app/outputs/bundle/release/app-release.aab` |
 | iOS IPA | `flutter build ipa --release --dart-define=GIMS_API_URL=<url>` | `build/ios/ipa/gims_pos.ipa` |
-| Windows | `flutter build windows --release --dart-define=GIMS_API_URL=<url>` | `build/windows/x64/runner/Release/` |
+| Windows installer | `.\installer\build_windows_installer.ps1 -ApiUrl <url>` | `build/windows/installer/output/salesview_pos_setup.exe` |
 
 ---
 
