@@ -10,8 +10,12 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/url_utils.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../outlet/domain/models/outlet.dart';
+import '../../terminal/data/notification_sound_service.dart';
+import '../../terminal/data/pos_ws_service.dart';
 import '../../terminal/domain/models/pos_order.dart';
+import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
+import '../../terminal/presentation/widgets/checkout_flow_sheet.dart';
 import '../domain/live_table_data.dart';
 import '../domain/models/floor_plan.dart';
 import 'widgets/floor_canvas.dart';
@@ -28,10 +32,12 @@ class LiveTableScreen extends StatefulWidget {
 }
 
 class _LiveTableScreenState extends State<LiveTableScreen> {
-  Timer? _timer;
   Timer? _clockTimer;
+  PosWsService? _wsService;
+  StreamSubscription<PosWsEvent>? _wsSub;
   FloorPlan? _plan;
   List<PosOrder> _orders = const [];
+  PosConfig? _config;
   DateTime _now = DateTime.now();
   bool _loading = true;
 
@@ -43,10 +49,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   void initState() {
     super.initState();
     _load();
-    _timer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _load(silent: true),
-    );
+    _connectWs();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
@@ -58,14 +61,30 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.outlet.id != widget.outlet.id) {
       _load();
+      _connectWs();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _wsSub?.cancel();
+    _wsService?.dispose();
     _clockTimer?.cancel();
     super.dispose();
+  }
+
+  void _connectWs() {
+    _wsSub?.cancel();
+    _wsService?.dispose();
+    final service = PosWsService(
+      outletId: widget.outlet.id,
+      onAuthRejected: (error) {
+        if (mounted) showError(context, error);
+      },
+    );
+    _wsService = service;
+    _wsSub = service.events.listen(_handleWsEvent);
+    service.connect();
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -84,6 +103,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       final orders = await terminalService.listOrders(
         outletId: widget.outlet.id,
       );
+      final config = await terminalService.getConfig(widget.outlet.id);
 
       final plan = plans.isEmpty
           ? null
@@ -93,6 +113,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       setState(() {
         _plan = plan;
         _orders = orders;
+        _config = config;
         _now = DateTime.now();
       });
     } catch (error) {
@@ -104,6 +125,59 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  void _handleWsEvent(PosWsEvent event) {
+    if (event.outletId != null && event.outletId != widget.outlet.id) return;
+    switch (event.event) {
+      case 'pos.new_customer_order':
+        final order = _orderFromEvent(event);
+        if (order == null) return;
+        NotificationSoundService.instance.play();
+        setState(() => _upsertOrder(order));
+        break;
+      case 'pos.order_status_changed':
+      case 'pos.payment_confirmed':
+      case 'pos.table_updated':
+        final order = _orderFromEvent(event);
+        if (order == null) return;
+        setState(() {
+          if (_isTerminalCleared(order.status)) {
+            _orders = _orders.where((item) => item.id != order.id).toList();
+          } else {
+            _upsertOrder(order);
+          }
+        });
+        break;
+    }
+  }
+
+  PosOrder? _orderFromEvent(PosWsEvent event) {
+    final rawOrder = event.data['order'];
+    if (rawOrder is Map<String, dynamic>) {
+      return PosOrder.fromJson(rawOrder);
+    }
+    if (rawOrder is Map) {
+      return PosOrder.fromJson(rawOrder.map((key, value) => MapEntry('$key', value)));
+    }
+    if (event.data['id'] is String || event.data['order_id'] is String) {
+      final data = Map<String, dynamic>.from(event.data);
+      data['id'] = data['id'] ?? data['order_id'];
+      return PosOrder.fromJson(data);
+    }
+    return null;
+  }
+
+  void _upsertOrder(PosOrder order) {
+    final next = [..._orders];
+    final index = next.indexWhere((item) => item.id == order.id);
+    if (index >= 0) {
+      next[index] = order;
+    } else {
+      next.add(order);
+    }
+    _orders = next;
+    _now = DateTime.now();
   }
 
   List<LiveTableData> _liveTables() {
@@ -120,11 +194,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     final activeOrders = <String, PosOrder>{};
     for (final order in _orders) {
       if (order.tableLabel == null) continue;
-      if (!{
-        PosOrderStatus.paid,
-        PosOrderStatus.partialServed,
-        PosOrderStatus.served,
-      }.contains(order.status)) {
+      if (!_isLiveTableActive(order.status)) {
         continue;
       }
 
@@ -147,6 +217,13 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           status = 'PARTIAL_SERVED';
         } else if (order.status == PosOrderStatus.served) {
           status = 'SERVED';
+        } else if ({
+          PosOrderStatus.draft,
+          PosOrderStatus.inProgress,
+          PosOrderStatus.ready,
+          PosOrderStatus.waitingPayment,
+        }.contains(order.status)) {
+          status = 'WAITING_PAYMENT';
         } else {
           status = duration.inMinutes > 30 ? 'WARN_LONG' : 'SEATED';
         }
@@ -163,7 +240,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   bool _canServeAll(String status) {
-    return status == 'SEATED' || status == 'WARN_LONG';
+    return status == 'SEATED' || status == 'WARN_LONG' || status == 'PARTIAL_SERVED';
   }
 
   bool _canComplete(String status) {
@@ -182,8 +259,10 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
     setState(() => _servingOrderId = order.id);
     try {
-      await ServiceLocator.instance.terminalService.serveOrder(order.id);
-      await _load(silent: true);
+      final updated = await ServiceLocator.instance.terminalService.serveOrder(
+        order.id,
+      );
+      setState(() => _upsertOrder(updated));
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
@@ -197,12 +276,91 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
     setState(() => _completingOrderId = order.id);
     try {
-      await ServiceLocator.instance.terminalService.completeOrder(order.id);
-      await _load(silent: true);
+      final updated = await ServiceLocator.instance.terminalService
+          .completeOrder(order.id);
+      setState(() {
+        if (_isTerminalCleared(updated.status)) {
+          _orders = _orders.where((item) => item.id != updated.id).toList();
+        } else {
+          _upsertOrder(updated);
+        }
+      });
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
       if (mounted) setState(() => _completingOrderId = null);
+    }
+  }
+
+  bool _isLiveTableActive(PosOrderStatus status) {
+    return {
+      PosOrderStatus.draft,
+      PosOrderStatus.inProgress,
+      PosOrderStatus.ready,
+      PosOrderStatus.waitingPayment,
+      PosOrderStatus.paid,
+      PosOrderStatus.partialServed,
+      PosOrderStatus.served,
+    }.contains(status);
+  }
+
+  bool _isTerminalCleared(PosOrderStatus status) {
+    return {
+      PosOrderStatus.completed,
+      PosOrderStatus.voided,
+    }.contains(status);
+  }
+
+  Future<void> _payOrder(LiveTableData info) async {
+    final order = info.order;
+    if (order == null) return;
+    final result = await showDialog<CheckoutResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CheckoutFlowSheet(
+        order: order,
+        config: _config,
+        selectedTable: TableSelection(
+          id: info.table.id,
+          label: _tableLabel(info),
+          seatCount: info.seatCount,
+        ),
+        outletId: widget.outlet.id,
+        outletName: widget.outlet.name,
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _orders = _orders.where((item) => item.id != order.id).toList();
+      });
+    }
+  }
+
+  Future<void> _cancelOrder(LiveTableData info) async {
+    final order = info.order;
+    if (order == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cancel ${_tableLabel(info)}?'),
+        content: Text('Order ${order.orderNumber} akan dibatalkan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Cancel')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ServiceLocator.instance.terminalService.voidOrder(
+        order.id,
+        'Cancelled from live table',
+      );
+      setState(() {
+        _orders = _orders.where((item) => item.id != order.id).toList();
+      });
+    } catch (error) {
+      if (mounted) showError(context, error);
     }
   }
 
@@ -213,11 +371,11 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     final key = '${order.id}-${item.id}';
     setState(() => _servingItemKey = key);
     try {
-      await ServiceLocator.instance.terminalService.serveItem(
+      final updated = await ServiceLocator.instance.terminalService.serveItem(
         order.id,
         item.id,
       );
-      await _load(silent: true);
+      setState(() => _upsertOrder(updated));
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
@@ -274,6 +432,26 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                 runSpacing: 8,
                 children: [
                   FilledButton.icon(
+                    onPressed: info.status == 'WAITING_PAYMENT'
+                        ? () async {
+                            Navigator.pop(ctx);
+                            await _payOrder(info);
+                          }
+                        : null,
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Pay Now'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: info.status == 'WAITING_PAYMENT'
+                        ? () async {
+                            Navigator.pop(ctx);
+                            await _cancelOrder(info);
+                          }
+                        : null,
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Cancel'),
+                  ),
+                  FilledButton.icon(
                     onPressed: _canServeAll(info.status)
                         ? () async {
                             Navigator.pop(ctx);
@@ -300,7 +478,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                       ),
                     ),
                     icon: const Icon(Icons.receipt_long),
-                    label: const Text('Nota'),
+                    label: const Text('View Order'),
                   ),
                 ],
               ),
@@ -374,6 +552,8 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                         onServeAll: _serveOrder,
                         onComplete: _completeOrder,
                         onServeItem: _serveItem,
+                        onPay: _payOrder,
+                        onCancel: _cancelOrder,
                         onOpenReceipt: (orderId) => openExternal(
                           ServiceLocator.instance.terminalService.receiptUrl(
                             orderId,
@@ -398,6 +578,8 @@ class _ActiveTableSidebar extends StatelessWidget {
     required this.onServeAll,
     required this.onComplete,
     required this.onServeItem,
+    required this.onPay,
+    required this.onCancel,
     required this.onOpenReceipt,
     this.servingOrderId,
     this.completingOrderId,
@@ -412,6 +594,8 @@ class _ActiveTableSidebar extends StatelessWidget {
   final Future<void> Function(LiveTableData info) onComplete;
   final Future<void> Function(LiveTableData info, PosOrderItem item)
   onServeItem;
+  final Future<void> Function(LiveTableData info) onPay;
+  final Future<void> Function(LiveTableData info) onCancel;
   final void Function(String orderId) onOpenReceipt;
 
   @override
@@ -470,10 +654,13 @@ class _ActiveTableSidebar extends StatelessWidget {
                           info.table.tableNumber?.toString() ??
                           info.table.id;
                       final canServeAll =
-                          info.status == 'SEATED' || info.status == 'WARN_LONG';
+                          info.status == 'SEATED' ||
+                          info.status == 'WARN_LONG' ||
+                          info.status == 'PARTIAL_SERVED';
                       final canServeItems =
                           canServeAll || info.status == 'PARTIAL_SERVED';
                       final canComplete = info.status == 'SERVED';
+                      final canPay = info.status == 'WAITING_PAYMENT';
 
                       return Container(
                         decoration: BoxDecoration(
@@ -585,6 +772,39 @@ class _ActiveTableSidebar extends StatelessWidget {
                                 ),
                             ],
                             const SizedBox(height: 8),
+                            if (canPay) ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: FilledButton(
+                                      onPressed: () => onPay(info),
+                                      style: FilledButton.styleFrom(
+                                        minimumSize: const Size(0, 32),
+                                      ),
+                                      child: const Text(
+                                        'Pay Now',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => onCancel(info),
+                                      style: OutlinedButton.styleFrom(
+                                        minimumSize: const Size(0, 32),
+                                      ),
+                                      child: const Icon(
+                                        Icons.cancel_outlined,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                             Row(
                               children: [
                                 Expanded(
@@ -633,7 +853,7 @@ class _ActiveTableSidebar extends StatelessWidget {
                               child: TextButton.icon(
                                 onPressed: () => onOpenReceipt(order.id),
                                 icon: const Icon(Icons.receipt_long, size: 16),
-                                label: const Text('Nota'),
+                                label: const Text('View Order'),
                               ),
                             ),
                           ],
@@ -654,6 +874,8 @@ class _ActiveTableSidebar extends StatelessWidget {
     switch (status) {
       case 'SEATED':
         return const Color(0xffeff6ff);
+      case 'WAITING_PAYMENT':
+        return const Color(0xfffffbeb);
       case 'WARN_LONG':
         return const Color(0xffffedd5);
       case 'PARTIAL_SERVED':
@@ -697,6 +919,8 @@ class _StatusChip extends StatelessWidget {
     switch (status) {
       case 'SEATED':
         return ('Occupied', const Color(0xff1d4ed8));
+      case 'WAITING_PAYMENT':
+        return ('Waiting Payment', const Color(0xff92400e));
       case 'WARN_LONG':
         return ('Long Wait', const Color(0xffc2410c));
       case 'PARTIAL_SERVED':

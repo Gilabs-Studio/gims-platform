@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../../core/network/api_client.dart';
@@ -8,13 +9,24 @@ import '../../../core/network/api_client.dart';
 /// POS WebSocket event from the server.
 class PosWsEvent {
   final String event;
-  final Map<String, dynamic> payload;
+  final Map<String, dynamic> data;
+  final String? outletId;
+  final String? tenantId;
 
-  const PosWsEvent({required this.event, required this.payload});
+  const PosWsEvent({
+    required this.event,
+    required this.data,
+    this.outletId,
+    this.tenantId,
+  });
+
+  Map<String, dynamic> get payload => data;
 
   factory PosWsEvent.fromJson(Map<String, dynamic> json) => PosWsEvent(
-        event: json['event'] as String? ?? '',
-        payload: json['payload'] as Map<String, dynamic>? ?? {},
+        event: json['event'] as String? ?? json['type'] as String? ?? '',
+        data: _mapValue(json['data']) ?? _mapValue(json['payload']) ?? {},
+        outletId: json['outlet_id'] as String?,
+        tenantId: json['tenant_id'] as String?,
       );
 }
 
@@ -29,9 +41,10 @@ class PosWsEvent {
 /// service.dispose();
 /// ```
 class PosWsService {
-  PosWsService({required this.outletId});
+  PosWsService({required this.outletId, this.onAuthRejected});
 
   final String outletId;
+  final void Function(Object error)? onAuthRejected;
 
   final _controller = StreamController<PosWsEvent>.broadcast();
   Stream<PosWsEvent> get events => _controller.stream;
@@ -52,7 +65,11 @@ class PosWsService {
   Future<void> connect() async {
     if (_disposed) return;
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
+      final cookie = ApiClient.instance.cookieHeader;
+      _channel = IOWebSocketChannel.connect(
+        Uri.parse(_wsUrl),
+        headers: cookie == null ? null : {'Cookie': cookie},
+      );
       await _channel!.ready;
       _attempt = 0;
 
@@ -70,7 +87,13 @@ class PosWsService {
         onError: (_) => _scheduleReconnect(),
         cancelOnError: false,
       );
-    } catch (_) {
+    } catch (error) {
+      final text = error.toString();
+      if (text.contains('401') || text.contains('403')) {
+        onAuthRejected?.call(error);
+        dispose();
+        return;
+      }
       _scheduleReconnect();
     }
   }
@@ -93,4 +116,12 @@ class PosWsService {
     _channel?.sink.close();
     _controller.close();
   }
+}
+
+Map<String, dynamic>? _mapValue(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    return value.map((key, item) => MapEntry('$key', item));
+  }
+  return null;
 }

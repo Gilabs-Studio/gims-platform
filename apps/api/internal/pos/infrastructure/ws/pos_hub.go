@@ -2,9 +2,11 @@ package ws
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -19,25 +21,32 @@ const (
 	PosEventOrderStatusChanged PosEventType = "pos.order_status_changed"
 	// PosEventPaymentConfirmed fires when order payment is confirmed (cash or webhook-settled).
 	PosEventPaymentConfirmed PosEventType = "pos.payment_confirmed"
+	// PosEventTableUpdated fires when a table state can be updated from the payload.
+	PosEventTableUpdated PosEventType = "pos.table_updated"
 )
 
 // PosEvent is the envelope sent over every WebSocket connection.
 type PosEvent struct {
+	Event     PosEventType           `json:"event"`
 	Type      PosEventType           `json:"type"`
+	Data      map[string]interface{} `json:"data"`
+	// Payload is kept as a backward-compatible alias for older clients.
+	Payload   map[string]interface{} `json:"payload,omitempty"`
 	OutletID  string                 `json:"outlet_id"`
-	Payload   map[string]interface{} `json:"payload"`
+	TenantID  string                 `json:"tenant_id"`
 	Timestamp string                 `json:"timestamp"`
 }
 
 type posSubscriber struct {
 	id       string
 	conn     *websocket.Conn
+	tenantID string
 	outletID string
 	mu       sync.Mutex
 }
 
 // PosHub manages WebSocket connections for the POS real-time event system.
-// Subscriptions are keyed by outlet_id so events fan-out only to relevant staff.
+// Subscriptions are keyed by tenant_id + outlet_id so events fan-out only to relevant staff.
 type PosHub struct {
 	mu          sync.RWMutex
 	subscribers map[string]*posSubscriber
@@ -57,9 +66,9 @@ func DefaultPosHub() *PosHub {
 	return defaultPosHub
 }
 
-// Register adds a WebSocket connection subscribed to events for the given outlet.
+// Register adds a WebSocket connection subscribed to events for one tenant/outlet channel.
 // Returns the subscriber ID needed to unregister later.
-func (h *PosHub) Register(conn *websocket.Conn, outletID string) string {
+func (h *PosHub) Register(conn *websocket.Conn, tenantID, outletID string) string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -67,6 +76,7 @@ func (h *PosHub) Register(conn *websocket.Conn, outletID string) string {
 	h.subscribers[id] = &posSubscriber{
 		id:       id,
 		conn:     conn,
+		tenantID: tenantID,
 		outletID: outletID,
 	}
 	return id
@@ -89,19 +99,35 @@ func (h *PosHub) Unregister(id string) {
 }
 
 // PublishEvent broadcasts an event using a typed PosEventType.
-func (h *PosHub) PublishEvent(outletID string, eventType PosEventType, payload map[string]interface{}) {
-	h.Publish(outletID, string(eventType), payload)
+func (h *PosHub) PublishEvent(tenantID, outletID string, eventType PosEventType, payload map[string]interface{}) {
+	h.Publish(tenantID, outletID, string(eventType), payload)
 }
 
 // Publish satisfies the usecase.POSHubPublisher interface with a plain string event type.
-func (h *PosHub) Publish(outletID string, eventType string, payload map[string]interface{}) {
-	event := PosEvent{
-		Type:      PosEventType(eventType),
-		OutletID:  outletID,
-		Payload:   payload,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+func (h *PosHub) Publish(tenantID, outletID string, eventType string, payload map[string]interface{}) {
+	if tenantID == "" || outletID == "" || eventType == "" {
+		log.Printf("[pos_ws] refused broadcast missing tenant/outlet/event tenant_id=%q outlet_id=%q event=%q", tenantID, outletID, eventType)
+		return
+	}
+	if payload == nil {
+		payload = map[string]interface{}{}
 	}
 
+	event := PosEvent{
+		Event:     PosEventType(eventType),
+		Type:      PosEventType(eventType),
+		Data:      payload,
+		Payload:   payload,
+		OutletID:  outletID,
+		TenantID:  tenantID,
+		Timestamp: apptime.Now().UTC().Format(time.RFC3339),
+	}
+
+	h.deliver(event)
+	publishPosToRedis(event)
+}
+
+func (h *PosHub) deliver(event PosEvent) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return
@@ -110,7 +136,7 @@ func (h *PosHub) Publish(outletID string, eventType string, payload map[string]i
 	h.mu.RLock()
 	targets := make([]*posSubscriber, 0)
 	for _, sub := range h.subscribers {
-		if sub.outletID == outletID {
+		if sub.tenantID == event.TenantID && sub.outletID == event.OutletID {
 			targets = append(targets, sub)
 		}
 	}

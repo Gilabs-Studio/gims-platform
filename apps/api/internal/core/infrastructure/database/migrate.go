@@ -356,6 +356,7 @@ func AutoMigrate() error {
 		&pos.POSConfig{},
 		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
+		&pos.POSDeviceToken{},
 		// Feedback module
 		&feedback.FeedbackForm{},
 		&feedback.FeedbackToken{},

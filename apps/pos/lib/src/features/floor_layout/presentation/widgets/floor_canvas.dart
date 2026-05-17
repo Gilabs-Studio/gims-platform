@@ -222,6 +222,8 @@ class _ObjectPainter extends CustomPainter {
     switch (status) {
       case 'WARN_LONG':
         return const Color(0xffffedd5);
+      case 'WAITING_PAYMENT':
+        return const Color(0xfffffbeb);
       case 'PARTIAL_SERVED':
         return const Color(0xfffef3c7);
       case 'SERVED':

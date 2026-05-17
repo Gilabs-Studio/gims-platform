@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/pos_ws_service.dart';
+import '../../data/notification_sound_service.dart';
 
 /// Listens to the POS WebSocket and shows an in-app banner whenever a new
 /// customer self-order arrives.
@@ -73,6 +74,7 @@ class _NewOrderNotificationBannerState
     final message = 'Pesanan baru dari $tableLabel!';
 
     widget.onNewOrder?.call();
+    NotificationSoundService.instance.play();
 
     setState(() => _bannerMessage = message);
     _animController.forward(from: 0);

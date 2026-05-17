@@ -82,6 +82,7 @@ type posOrderUsecase struct {
 	productRepo   repositories.POSProductRepository
 	configRepo    repositories.POSConfigRepository
 	recipeService invUsecase.RecipeConsumptionService
+	hub           POSHubPublisher
 }
 
 // NewPOSOrderUsecase constructs a POSOrderUsecase.
@@ -92,7 +93,7 @@ func NewPOSOrderUsecase(
 	productRepo repositories.POSProductRepository,
 	configRepo repositories.POSConfigRepository,
 	recipeService invUsecase.RecipeConsumptionService,
-) POSOrderUsecase {
+) *posOrderUsecase {
 	return &posOrderUsecase{
 		db:            db,
 		orderRepo:     orderRepo,
@@ -101,6 +102,11 @@ func NewPOSOrderUsecase(
 		configRepo:    configRepo,
 		recipeService: recipeService,
 	}
+}
+
+func (u *posOrderUsecase) WithPOSHub(hub POSHubPublisher) *posOrderUsecase {
+	u.hub = hub
+	return u
 }
 
 // ─── Create ──────────────────────────────────────────────────────────────────
@@ -168,6 +174,9 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 			Status:       posModels.PosOrderStatusDraft,
 			Notes:        req.Notes,
 			CreatedBy:    actorID,
+		}
+		if strings.EqualFold(strings.TrimSpace(userID), "customer") {
+			order.OrderSource = "CUSTOMER"
 		}
 		if order.GuestCount < 1 {
 			order.GuestCount = 1
@@ -313,7 +322,9 @@ func (u *posOrderUsecase) Confirm(ctx context.Context, id string, req *dto.Confi
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	return mapper.ToPOSOrderResponse(order), nil
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
 }
 
 // ─── Void ────────────────────────────────────────────────────────────────────
@@ -335,7 +346,9 @@ func (u *posOrderUsecase) Void(ctx context.Context, id string, req *dto.VoidOrde
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	return mapper.ToPOSOrderResponse(order), nil
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
 }
 
 // ─── AddItem ─────────────────────────────────────────────────────────────────
@@ -528,7 +541,9 @@ func (u *posOrderUsecase) AssignTable(ctx context.Context, orderID string, req *
 		return nil, err
 	}
 
-	return mapper.ToPOSOrderResponse(order), nil
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
 }
 
 // ─── DeductStock ─────────────────────────────────────────────────────────────
@@ -757,7 +772,9 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	return mapper.ToPOSOrderResponse(order), nil
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
 }
 
 // MarkItemServed marks a single order item as served.
@@ -817,7 +834,11 @@ func (u *posOrderUsecase) MarkItemServed(ctx context.Context, orderID, itemID st
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	return u.fetchOrderResponse(ctx, orderID)
+	resp, err := u.fetchOrderResponse(ctx, orderID)
+	if err == nil {
+		u.publishOrderStatus(ctx, resp, "")
+	}
+	return resp, err
 }
 
 // MarkCompleted transitions a SERVED order to COMPLETED after the session is fully closed.
@@ -837,7 +858,20 @@ func (u *posOrderUsecase) MarkCompleted(ctx context.Context, id string) (*dto.PO
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	return mapper.ToPOSOrderResponse(order), nil
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
+}
+
+func (u *posOrderUsecase) publishOrderStatus(ctx context.Context, order *dto.POSOrderResponse, paymentStatus string) {
+	if u.hub == nil || order == nil {
+		return
+	}
+	tenantID := order.TenantID
+	if tenantID == "" {
+		tenantID = scopeString(ctx, "tenant_id")
+	}
+	u.hub.Publish(tenantID, order.OutletID, "pos.order_status_changed", posOrderRealtimePayload(order, paymentStatus, ""))
 }
 
 func normalizeUUID(value string) string {

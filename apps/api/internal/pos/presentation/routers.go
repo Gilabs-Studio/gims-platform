@@ -19,6 +19,7 @@ import (
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
+	"github.com/gilabs/gims/api/internal/pos/domain/provider"
 	"github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/pos/presentation/handler"
 	"github.com/gilabs/gims/api/internal/pos/presentation/router"
@@ -48,6 +49,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	bankAccountRepo := coreRepos.NewBankAccountRepository(db)
 	sessionRepo := repositories.NewPosSessionRepository(db)
 	qrTokenRepo := repositories.NewTableQRTokenRepository(db)
+	deviceTokenRepo := repositories.NewPOSDeviceTokenRepository(db)
 
 	outletRepo := orgRepo.NewOutletRepository(db)
 	salesOrderRepo := salesRepos.NewSalesOrderRepository(db)
@@ -62,11 +64,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo, qrTokenRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
+	orderUC = orderUC.WithPOSHub(posHub)
 	paymentUC := usecase.NewPOSPaymentUsecase(db, paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, customerInvoiceUC, salesPaymentUC, salesPaymentRepo, bankAccountRepo, credentialCipher)
 	paymentUC = paymentUC.WithPOSHub(posHub)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 	sessionUC := usecase.NewPOSSessionUsecase(sessionRepo, outletRepo)
+	deviceTokenUC := usecase.NewPOSDeviceTokenUsecase(deviceTokenRepo, outletRepo)
 
 	// ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -91,12 +95,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)
 	sessionH := handler.NewPOSSessionHandler(sessionUC)
+	deviceTokenH := handler.NewPOSDeviceTokenHandler(deviceTokenUC)
 
 	// ─── Public self-order handler ────────────────────────────────────────────
 
-	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub)
+	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub, deviceTokenRepo, provider.NewMultiPlatformPushNotifier())
 	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
-	posWSH := handler.NewPOSWSHandler(posHub)
+	posWSH := handler.NewPOSWSHandler(posHub, outletRepo)
 
 	// ─── Route group ─────────────────────────────────────────────────────────
 
@@ -110,9 +115,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPOSConfigRoutes(group, configH)
 	router.RegisterXenditConfigRoutes(group, xenditH)
 	router.RegisterPOSSessionRoutes(group, sessionH)
+	group.POST("/device-token", middleware.RequirePermission("pos.order.read"), deviceTokenH.Register)
 
 	// Staff WebSocket — requires auth (already applied by group.Use above)
-	group.GET("/ws", posWSH.Subscribe)
+	group.GET("/ws", middleware.RequirePermission("pos.order.read"), posWSH.Subscribe)
 
 	// Public self-order routes — unauthenticated, rate-limited
 	router.RegisterPublicPOSRoutes(r, publicPOSH)

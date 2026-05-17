@@ -70,3 +70,14 @@ func isOutletAllowed(outletIDs []string, outletID string) bool {
 	}
 	return false
 }
+
+// ResolveScopedPOSOutletIDs exposes POS outlet scope resolution for presentation
+// code that must authorize long-lived connections before handing them to a hub.
+func ResolveScopedPOSOutletIDs(ctx context.Context, outletRepo orgRepo.OutletRepository) ([]string, error) {
+	return resolveScopedPOSOutletIDs(ctx, outletRepo)
+}
+
+// IsOutletAllowed reports whether outletID is included in a resolved POS scope.
+func IsOutletAllowed(outletIDs []string, outletID string) bool {
+	return isOutletAllowed(outletIDs, outletID)
+}

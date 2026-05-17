@@ -30,6 +30,9 @@ class ApiClient {
   String get apiOrigin => _baseUrl.replaceAll(RegExp(r'/+$'), '');
   String get apiV1 => '$apiOrigin/api/v1';
   bool get hasSession => _cookies.containsKey('gims_access_token');
+  String? get cookieHeader => _cookies.isEmpty
+      ? null
+      : _cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
 
   Future<void> init() async {
     if (_isReady) return;
