@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	coreMiddleware "github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -61,6 +62,10 @@ type AttendanceRecordUsecase interface {
 	ProcessAutoAbsent(ctx context.Context, date time.Time, companyID string) (*dto.AutoAbsentResult, error)
 }
 
+type AttendanceTodayPublisher interface {
+	Publish(tenantID string, eventType string, payload map[string]interface{})
+}
+
 type attendanceRecordUsecase struct {
 	attendanceRepo    repositories.AttendanceRecordRepository
 	workScheduleRepo  repositories.WorkScheduleRepository
@@ -69,6 +74,7 @@ type attendanceRecordUsecase struct {
 	employeeRepo      orgRepos.EmployeeRepository
 	divisionRepo      orgRepos.DivisionRepository
 	overtimeRequestUC OvertimeRequestUsecase
+	todayPublisher    AttendanceTodayPublisher
 	mapper            *mapper.AttendanceRecordMapper
 	wsMapper          *mapper.WorkScheduleMapper
 	holidayMapper     *mapper.HolidayMapper
@@ -96,6 +102,16 @@ func NewAttendanceRecordUsecase(
 		wsMapper:          mapper.NewWorkScheduleMapper(),
 		holidayMapper:     mapper.NewHolidayMapper(),
 	}
+}
+
+// WithAttendanceTodayPublisher attaches an optional realtime publisher for attendance today updates.
+func WithAttendanceTodayPublisher(uc AttendanceRecordUsecase, publisher AttendanceTodayPublisher) AttendanceRecordUsecase {
+	impl, ok := uc.(*attendanceRecordUsecase)
+	if !ok {
+		return uc
+	}
+	impl.todayPublisher = publisher
+	return impl
 }
 
 func (u *attendanceRecordUsecase) List(ctx context.Context, req *dto.ListAttendanceRecordsRequest) ([]dto.AttendanceRecordResponse, *utils.PaginationResult, error) {
@@ -346,6 +362,8 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		return nil, err
 	}
 
+	u.publishTodayUpdate(ctx, employeeID, "clock_in", ar, false)
+
 	resp := u.mapper.ToResponse(ar, ar.EmployeeID)
 	return resp, nil
 }
@@ -469,6 +487,8 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 		)
 	}
 
+	u.publishTodayUpdate(ctx, employeeID, "clock_out", ar, false)
+
 	resp := u.mapper.ToResponse(ar, employeeID)
 	return resp, nil
 }
@@ -543,6 +563,8 @@ func (u *attendanceRecordUsecase) CreateManualEntry(ctx context.Context, req *dt
 		return nil, err
 	}
 
+	u.publishTodayUpdateIfToday(ctx, req.EmployeeID, date, "manual_create", ar, false)
+
 	resp := u.mapper.ToResponse(ar, req.EmployeeID)
 	return resp, nil
 }
@@ -599,12 +621,14 @@ func (u *attendanceRecordUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
+	u.publishTodayUpdateIfToday(ctx, ar.EmployeeID, ar.Date, "manual_update", ar, false)
+
 	resp := u.mapper.ToResponse(ar, ar.EmployeeID)
 	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) Delete(ctx context.Context, id string) error {
-	_, err := u.attendanceRepo.FindByID(ctx, id)
+	ar, err := u.attendanceRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrAttendanceNotFound
@@ -612,7 +636,13 @@ func (u *attendanceRecordUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	return u.attendanceRepo.Delete(ctx, id)
+	if err := u.attendanceRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	u.publishTodayUpdateIfToday(ctx, ar.EmployeeID, ar.Date, "delete", ar, true)
+
+	return nil
 }
 
 func (u *attendanceRecordUsecase) GetMonthlyStats(ctx context.Context, req *dto.MonthlyReportRequest) ([]dto.MonthlyAttendanceStats, error) {
@@ -978,6 +1008,7 @@ func (u *attendanceRecordUsecase) ProcessAutoAbsent(ctx context.Context, date ti
 				result.Errors++
 				continue
 			}
+			u.publishTodayUpdateIfToday(ctx, empID, dateOnly, "auto_absent_leave", ar, false)
 			result.LeaveCreated++
 			continue
 		}
@@ -996,8 +1027,61 @@ func (u *attendanceRecordUsecase) ProcessAutoAbsent(ctx context.Context, date ti
 			result.Errors++
 			continue
 		}
+		u.publishTodayUpdateIfToday(ctx, empID, dateOnly, "auto_absent", ar, false)
 		result.AbsentCreated++
 	}
 
 	return result, nil
+}
+
+func (u *attendanceRecordUsecase) publishTodayUpdateIfToday(
+	ctx context.Context,
+	employeeID string,
+	recordDate time.Time,
+	trigger string,
+	record *models.AttendanceRecord,
+	deleted bool,
+) {
+	if !u.isTodayForEmployee(recordDate, employeeID) {
+		return
+	}
+	u.publishTodayUpdate(ctx, employeeID, trigger, record, deleted)
+}
+
+func (u *attendanceRecordUsecase) publishTodayUpdate(
+	ctx context.Context,
+	employeeID string,
+	trigger string,
+	record *models.AttendanceRecord,
+	deleted bool,
+) {
+	if u.todayPublisher == nil {
+		return
+	}
+
+	tenantID := coreMiddleware.TenantFromContext(ctx)
+	if tenantID == "" {
+		return
+	}
+
+	payload := map[string]interface{}{
+		"employee_id": employeeID,
+		"trigger":     trigger,
+		"deleted":     deleted,
+	}
+
+	if record != nil {
+		payload["attendance_id"] = record.ID
+		payload["date"] = record.Date.Format("2006-01-02")
+	}
+
+	u.todayPublisher.Publish(tenantID, "hrd.attendance.today_updated", payload)
+}
+
+func (u *attendanceRecordUsecase) isTodayForEmployee(recordDate time.Time, employeeID string) bool {
+	loc := apptime.LocationForEmployee(employeeID)
+	today := apptime.NowForEmployee(employeeID).In(loc)
+	rec := recordDate.In(loc)
+
+	return today.Year() == rec.Year() && today.YearDay() == rec.YearDay()
 }

@@ -22,6 +22,7 @@ func (m *OutletMapper) ToResponse(outlet *models.Outlet) *dto.OutletResponse {
 
 	resp := &dto.OutletResponse{
 		ID:          outlet.ID,
+		TenantID:    outlet.TenantID,
 		Code:        outlet.Code,
 		Name:        outlet.Name,
 		Description: outlet.Description,

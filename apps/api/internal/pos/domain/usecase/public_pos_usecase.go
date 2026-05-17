@@ -10,6 +10,7 @@ import (
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
+	"github.com/gilabs/gims/api/internal/pos/domain/provider"
 )
 
 // ErrPublicTokenInvalid is returned when the scanned QR token does not match any active record.
@@ -37,7 +38,7 @@ type PublicPOSUsecase interface {
 // POSHubPublisher is a narrow interface used by this usecase to broadcast WS events.
 // It avoids an import cycle with the ws infrastructure package.
 type POSHubPublisher interface {
-	Publish(outletID string, eventType string, payload map[string]interface{})
+	Publish(tenantID string, outletID string, eventType string, payload map[string]interface{})
 }
 
 type publicPOSUsecase struct {
@@ -48,6 +49,8 @@ type publicPOSUsecase struct {
 	outletRepo  orgRepos.OutletRepository
 	productRepo repositories.POSProductRepository
 	hub         POSHubPublisher
+	deviceTokenRepo repositories.POSDeviceTokenRepository
+	pushNotifier provider.PushNotifier
 }
 
 // NewPublicPOSUsecase creates a PublicPOSUsecase.
@@ -60,6 +63,8 @@ func NewPublicPOSUsecase(
 	outletRepo orgRepos.OutletRepository,
 	productRepo repositories.POSProductRepository,
 	hub POSHubPublisher,
+	deviceTokenRepo repositories.POSDeviceTokenRepository,
+	pushNotifier provider.PushNotifier,
 ) PublicPOSUsecase {
 	return &publicPOSUsecase{
 		qrTokenRepo: qrTokenRepo,
@@ -69,6 +74,8 @@ func NewPublicPOSUsecase(
 		outletRepo:  outletRepo,
 		productRepo: productRepo,
 		hub:         hub,
+		deviceTokenRepo: deviceTokenRepo,
+		pushNotifier: pushNotifier,
 	}
 }
 
@@ -133,7 +140,7 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 	}
 
 	// Build context for unauthenticated customer operations (RBAC + tenant scoping).
-	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -176,16 +183,34 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 
 	// Broadcast WS event so staff dashboard refreshes instantly.
 	if u.hub != nil {
-		u.hub.Publish(qr.OutletID, "pos.new_customer_order", map[string]interface{}{
-			"order_id":     updated.ID,
-			"order_number": updated.OrderNumber,
-			"table_label":  tableLabel,
-			"customer":     req.CustomerName,
-			"total_amount": updated.TotalAmount,
-		})
+		u.hub.Publish(tenantID, qr.OutletID, "pos.new_customer_order", posOrderRealtimePayload(updated, "WAITING_CASHIER", ""))
 	}
+	u.pushNewOrderNotification(ctx, tenantID, qr.OutletID, updated)
 
 	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
+}
+
+func (u *publicPOSUsecase) pushNewOrderNotification(ctx context.Context, tenantID, outletID string, order *dto.POSOrderResponse) {
+	if u.deviceTokenRepo == nil || u.pushNotifier == nil || order == nil {
+		return
+	}
+	tokens, err := u.deviceTokenRepo.FindByScope(ctx, tenantID, outletID)
+	if err != nil {
+		return
+	}
+	tableLabel := "Meja"
+	if order.TableLabel != nil && strings.TrimSpace(*order.TableLabel) != "" {
+		tableLabel = strings.TrimSpace(*order.TableLabel)
+	}
+	_ = u.pushNotifier.Send(ctx, tokens, provider.PushPayload{
+		Title: "Order Baru",
+		Body:  tableLabel,
+		Data: map[string]string{
+			"outlet_id": outletID,
+			"tenant_id": tenantID,
+			"order_id":  order.ID,
+		},
+	})
 }
 
 // ─── GetOrderStatus ───────────────────────────────────────────────────────────
@@ -227,7 +252,7 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, _, companyID, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, companyID, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -259,13 +284,9 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 		if order.TableLabel != nil {
 			tableLabel = *order.TableLabel
 		}
-		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
-			"order_id":       order.ID,
-			"order_number":   order.OrderNumber,
-			"status":         order.Status,
-			"table_label":    tableLabel,
-			"payment_status": "WAITING_DIGITAL",
-		})
+		payload := posOrderRealtimePayload(order, "WAITING_DIGITAL", "")
+		payload["table_label"] = tableLabel
+		u.hub.Publish(tenantID, qr.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return payment, nil
@@ -277,7 +298,7 @@ func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID 
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -316,13 +337,9 @@ func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID 
 	}
 
 	if u.hub != nil {
-		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
-			"order_id":       updated.ID,
-			"order_number":   updated.OrderNumber,
-			"status":         updated.Status,
-			"table_label":    tableLabel,
-			"payment_status": "WAITING_CASHIER",
-		})
+		payload := posOrderRealtimePayload(updated, "WAITING_CASHIER", "")
+		payload["table_label"] = tableLabel
+		u.hub.Publish(tenantID, qr.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
@@ -334,7 +351,7 @@ func (u *publicPOSUsecase) CancelCustomerOrder(ctx context.Context, token, order
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -372,12 +389,9 @@ func (u *publicPOSUsecase) CancelCustomerOrder(ctx context.Context, token, order
 	}
 
 	if u.hub != nil {
-		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
-			"order_id":     updated.ID,
-			"order_number": updated.OrderNumber,
-			"status":       updated.Status,
-			"table_label":  tableLabel,
-		})
+		payload := posOrderRealtimePayload(updated, "", "")
+		payload["table_label"] = tableLabel
+		u.hub.Publish(tenantID, qr.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
@@ -389,7 +403,7 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -419,13 +433,9 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 	}
 
 	if u.hub != nil {
-		u.hub.Publish(qr.OutletID, "pos.order_status_changed", map[string]interface{}{
-			"order_id":       updated.ID,
-			"order_number":   updated.OrderNumber,
-			"status":         updated.Status,
-			"table_label":    tableLabel,
-			"payment_status": "WAITING_CASHIER",
-		})
+		payload := posOrderRealtimePayload(updated, "WAITING_CASHIER", "")
+		payload["table_label"] = tableLabel
+		u.hub.Publish(tenantID, qr.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil

@@ -6,9 +6,10 @@ import (
 )
 
 // RegisterOnboardingRoutes registers tenant onboarding state routes.
-func RegisterOnboardingRoutes(rg *gin.RouterGroup, h *handler.OnboardingHandler) {
+func RegisterOnboardingRoutes(rg *gin.RouterGroup, h *handler.OnboardingHandler, wsH *handler.OnboardingWSHandler) {
 	g := rg.Group("/onboarding")
 	{
+		g.GET("/ws", wsH.Subscribe)
 		g.GET("", h.GetState)
 		g.PUT("/business-type", h.SetBusinessType)
 		g.PUT("/complete", h.MarkComplete)
