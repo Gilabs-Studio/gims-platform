@@ -598,7 +598,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={(open) => setIsCommandPaletteOpen(open)}
           menus={menus}
         />
-        {!isAIChatbotPage && <AIChatWidget />}
+        {!isAIChatbotPage && !isPOSPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
   );
