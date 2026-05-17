@@ -42,6 +42,7 @@ type CustomerOrderResponse struct {
 	TableLabel    string                 `json:"table_label"`
 	Status        string                 `json:"status"`
 	PaymentStatus *string                `json:"payment_status,omitempty"`
+	CancelReason  *string                `json:"cancel_reason,omitempty"`
 	Subtotal      float64                `json:"subtotal"`
 	TaxAmount     float64                `json:"tax_amount"`
 	TotalAmount   float64                `json:"total_amount"`

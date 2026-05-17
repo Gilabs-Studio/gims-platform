@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { posKeys } from "@/features/pos/terminal/hooks/use-pos";
@@ -104,12 +104,23 @@ function nextDelay(attempt: number): number {
 export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions) {
   const queryClient = useQueryClient();
   const onEvent = options?.onEvent;
-  const suppressToastEvents = options?.suppressToastEvents ?? [];
+  const suppressToastEvents = useMemo(() => options?.suppressToastEvents ?? [], [options?.suppressToastEvents]);
   const addRealtimeNotification = useNotificationStore((state) => state.addRealtimeNotification);
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+  const lastToastAtRef = useRef<Record<string, number>>({});
+
+  const shouldShowToast = (key: string) => {
+    const now = Date.now();
+    const last = lastToastAtRef.current[key] ?? 0;
+    if (now - last < 2500) {
+      return false;
+    }
+    lastToastAtRef.current[key] = now;
+    return true;
+  };
 
   useEffect(() => {
     if (!outletId) return;
@@ -146,10 +157,10 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
 
         if (eventType === "pos.new_customer_order") {
           const tableLabel = msg.payload?.table_label ?? "Meja";
-          if (!suppressToastEvents.includes(eventType)) {
+          const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+          if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
             toast.info(`Pesanan baru dari ${tableLabel}!`, {
-              duration: 8000,
-              position: "top-center",
+              duration: 5000,
             });
           }
           queryClient.invalidateQueries({ queryKey: posKeys.orders() });
@@ -158,10 +169,10 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
 
         if (eventType === "pos.payment_confirmed") {
           const tableLabel = msg.payload?.table_label ?? "Meja";
-          if (!suppressToastEvents.includes(eventType)) {
+          const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+          if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
             toast.success(`Pembayaran terkonfirmasi untuk ${tableLabel}.`, {
-              duration: 8000,
-              position: "top-center",
+              duration: 5000,
             });
           }
           queryClient.invalidateQueries({ queryKey: posKeys.orders() });
@@ -171,10 +182,10 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
         if (eventType === "pos.order_status_changed") {
           if ((msg.payload?.status ?? "") === "PAID") {
             const tableLabel = msg.payload?.table_label ?? "Meja";
-            if (!suppressToastEvents.includes(eventType)) {
+            const toastKey = `${eventType}:${msg.payload?.order_id ?? tableLabel}`;
+            if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
               toast.success(`Status pembayaran ${tableLabel} sudah PAID.`, {
-                duration: 6000,
-                position: "top-center",
+                duration: 5000,
               });
             }
           }

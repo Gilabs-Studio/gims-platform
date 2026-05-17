@@ -111,6 +111,7 @@ type POSOrderResponse struct {
 	ServiceCharge     float64                `json:"service_charge"`
 	TotalAmount       float64                `json:"total_amount"`
 	Status            string                 `json:"status"`
+	VoidReason        *string                `json:"void_reason,omitempty"`
 	Notes             *string                `json:"notes"`
 	SalesOrderID      *string                `json:"sales_order_id"`
 	CustomerInvoiceID *string                `json:"customer_invoice_id"`
