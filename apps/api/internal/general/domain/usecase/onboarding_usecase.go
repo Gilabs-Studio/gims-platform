@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/general/data/repositories"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 )
@@ -15,11 +16,26 @@ type OnboardingUsecase interface {
 }
 
 type onboardingUsecase struct {
-	repo repositories.OnboardingRepository
+	repo      repositories.OnboardingRepository
+	publisher OnboardingPublisher
+}
+
+type OnboardingPublisher interface {
+	Publish(tenantID string, eventType string, payload map[string]interface{})
 }
 
 func NewOnboardingUsecase(repo repositories.OnboardingRepository) OnboardingUsecase {
 	return &onboardingUsecase{repo: repo}
+}
+
+// WithOnboardingPublisher attaches an optional realtime publisher for onboarding state updates.
+func WithOnboardingPublisher(uc OnboardingUsecase, publisher OnboardingPublisher) OnboardingUsecase {
+	impl, ok := uc.(*onboardingUsecase)
+	if !ok {
+		return uc
+	}
+	impl.publisher = publisher
+	return impl
 }
 
 // stepsFromRepo queries live data and converts it to the DTO shape.
@@ -29,15 +45,15 @@ func (u *onboardingUsecase) stepsFromRepo(ctx context.Context) *dto.OnboardingSt
 	if err != nil {
 		return nil
 	}
-	       return &dto.OnboardingStepsResponse{
-		       Company:     raw.Company,
-		       Outlet:      raw.Outlet,
-		       FloorLayout: raw.FloorLayout,
-		       Products:    raw.Products,
-		       Warehouse:   raw.Warehouse,
-		       Users:       raw.Users,
-		       FiscalYear:  raw.FiscalYear,
-	       }
+	return &dto.OnboardingStepsResponse{
+		Company:     raw.Company,
+		Outlet:      raw.Outlet,
+		FloorLayout: raw.FloorLayout,
+		Products:    raw.Products,
+		Warehouse:   raw.Warehouse,
+		Users:       raw.Users,
+		FiscalYear:  raw.FiscalYear,
+	}
 }
 
 func (u *onboardingUsecase) GetState(ctx context.Context) (*dto.OnboardingStateResponse, error) {
@@ -65,6 +81,8 @@ func (u *onboardingUsecase) SetBusinessType(ctx context.Context, businessType st
 		return nil, err
 	}
 
+	u.publishState(ctx, state.BusinessType, state.Completed)
+
 	return &dto.OnboardingStateResponse{
 		BusinessType: state.BusinessType,
 		Completed:    state.Completed,
@@ -84,9 +102,27 @@ func (u *onboardingUsecase) MarkComplete(ctx context.Context) (*dto.OnboardingSt
 		return nil, err
 	}
 
+	u.publishState(ctx, state.BusinessType, state.Completed)
+
 	return &dto.OnboardingStateResponse{
 		BusinessType: state.BusinessType,
 		Completed:    state.Completed,
 		Steps:        u.stepsFromRepo(ctx),
 	}, nil
+}
+
+func (u *onboardingUsecase) publishState(ctx context.Context, businessType string, completed bool) {
+	if u.publisher == nil {
+		return
+	}
+
+	tenantID := middleware.TenantFromContext(ctx)
+	if tenantID == "" {
+		return
+	}
+
+	u.publisher.Publish(tenantID, "general.onboarding.updated", map[string]interface{}{
+		"business_type": businessType,
+		"completed":     completed,
+	})
 }
