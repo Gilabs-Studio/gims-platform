@@ -45,3 +45,8 @@ build/
 tmp/
 
 uploads/
+
+
+# Database backups (production/local)
+backup/
+*.dump
