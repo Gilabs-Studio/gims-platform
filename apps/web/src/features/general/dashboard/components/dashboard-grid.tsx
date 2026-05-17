@@ -35,13 +35,18 @@ import {
 } from "../config/widget-registry";
 import { useOnboardingState } from "../hooks/use-onboarding";
 import type { WidgetType } from "../types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
+  const user = useAuthStore((state) => state.user);
+  const isTenantOwner = user?.role?.is_owner === true;
   const { data: permissionsData, isLoading: isPermissionsLoading } = useUserPermissions();
   const { data: layoutData } = useDashboardLayout();
-  const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState();
+  const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState({
+    enabled: isTenantOwner,
+  });
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
 
   const {
@@ -171,7 +176,10 @@ export function DashboardGrid() {
 
   // While onboarding is in progress or still loading, render the wizard as the full dashboard content.
   // Once onboarding is complete, render the grid.
-  if (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed)) {
+  if (
+    isTenantOwner &&
+    (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed))
+  ) {
     return <OnboardingWizard />;
   }
 

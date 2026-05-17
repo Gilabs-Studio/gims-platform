@@ -9,6 +9,7 @@ export type CurrentUserLike = {
   id: string;
   role?: {
     is_owner?: boolean;
+    code?: string;
   } | null;
 } | null | undefined;
 
@@ -16,8 +17,27 @@ export type TargetUserLike = {
   id: string;
   role?: {
     is_protected?: boolean;
+    code?: string;
   } | null;
 } | null | undefined;
+
+function isProtectedTargetRole(role?: { is_protected?: boolean; code?: string } | null): boolean {
+  if (!role) {
+    return false;
+  }
+
+  if (role.is_protected === true) {
+    return true;
+  }
+
+  const normalizedCode = role.code?.trim().toLowerCase() ?? "";
+  return (
+    normalizedCode === "tenant_owner" ||
+    normalizedCode === "owner" ||
+    normalizedCode.startsWith("tenant_owner_") ||
+    normalizedCode.endsWith("_owner")
+  );
+}
 
 export function canOwnerManageUser(
   currentUser: CurrentUserLike,
@@ -27,15 +47,11 @@ export function canOwnerManageUser(
     return false;
   }
 
-  if (!currentUser.role?.is_owner) {
-    return true;
-  }
-
   if (currentUser.id === targetUser.id) {
     return false;
   }
 
-  return !targetUser.role?.is_protected;
+  return !isProtectedTargetRole(targetUser.role);
 }
 
 interface AuthGuardProps {
