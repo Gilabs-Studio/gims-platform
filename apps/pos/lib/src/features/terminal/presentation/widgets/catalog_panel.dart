@@ -129,7 +129,7 @@ class _CatalogPanelState extends State<CatalogPanel> {
                                       : Image.network(
                                           imageUrl,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
+                                          errorBuilder: (context, error, stackTrace) =>
                                               Container(
                                             color: GimsColors.muted
                                                 .withValues(alpha: 0.18),

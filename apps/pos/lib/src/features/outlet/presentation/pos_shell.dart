@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 
@@ -33,9 +32,6 @@ class _PosShellState extends State<PosShell> {
   bool _outletLoading = true;
   PosFeature? _feature;
   StreamSubscription<Map<String, dynamic>>? _notificationTapSub;
-  final _baseUrlController = TextEditingController(
-    text: ApiClient.instance.baseUrl,
-  );
 
   @override
   void initState() {
@@ -48,7 +44,6 @@ class _PosShellState extends State<PosShell> {
   @override
   void dispose() {
     _notificationTapSub?.cancel();
-    _baseUrlController.dispose();
     super.dispose();
   }
 
@@ -197,37 +192,6 @@ class _PosShellState extends State<PosShell> {
         ],
       ),
       body: body,
-    );
-  }
-
-  void _showSettings() {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('API Settings'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _baseUrlController,
-              decoration: const InputDecoration(labelText: 'Base URL'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ApiClient.instance.setBaseUrl(_baseUrlController.text);
-              if (context.mounted) Navigator.pop(dialogContext);
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
     );
   }
 

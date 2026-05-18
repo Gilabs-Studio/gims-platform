@@ -1191,11 +1191,18 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 10),
               for (final reward in rewards)
                 Card(
-                  child: RadioListTile<LoyaltyReward>(
-                    value: reward,
-                    groupValue: _selectedReward,
-                    onChanged: (value) =>
-                        setState(() => _selectedReward = value),
+                  child: ListTile(
+                    selected: _selectedReward == reward,
+                    selectedTileColor: GimsColors.primary.withValues(alpha: 0.08),
+                    leading: Icon(
+                      _selectedReward == reward
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: _selectedReward == reward
+                          ? GimsColors.primary
+                          : GimsColors.mutedForeground,
+                    ),
+                    onTap: () => setState(() => _selectedReward = reward),
                     title: Text(reward.name),
                     subtitle: Text(
                       '${reward.type} - ${reward.pointsRequired.toStringAsFixed(0)} poin',
