@@ -1,13 +1,14 @@
 'use client';
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import type { FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -21,6 +22,14 @@ import {
 } from '@/components/ui/dialog';
 import { AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useUserPermission } from '@/hooks/use-user-permission';
 import { useFinanceAssetCategories } from '@/features/finance/asset-categories/hooks/use-finance-asset-categories';
 import { useFinanceAssetLocations } from '@/features/finance/asset-locations/hooks/use-finance-asset-locations';
@@ -135,6 +144,11 @@ const STEPS: StepperStep[] = [
     description: 'Cost, depreciation method, and useful life',
   },
   {
+    id: 'depreciation',
+    title: 'Depreciation Schedule',
+    description: 'Preview the monthly schedule before creating the asset',
+  },
+  {
     id: 'procurement',
     title: 'Procurement',
     description: 'Supplier information and invoice details',
@@ -150,9 +164,97 @@ const STEP_FIELDS: Array<Array<keyof FormData>> = [
   ["name", "description", "serialNumber", "assetTag", "barcodeOrQR", "notes"],
   ["assetType", "categoryId", "locationId", "departmentId", "custodianId"],
   ["acquisitionDate", "acquisitionCost", "salvageValue", "currencyCode", "depreciationMethod", "usefulLifeMonths"],
+  [],
   ["supplierName", "purchaseOrderNumber", "invoiceNumber", "invoiceDate", "invoiceAttachmentFile"],
   [],
 ];
+
+type DepreciationProjectionRow = {
+  period: string;
+  depreciation: number;
+  accumulated: number;
+  bookValue: number;
+};
+
+function formatMoney(value: number, currencyCode: string) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: currencyCode || 'IDR',
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+function calculateDepreciationProjection(data: Partial<AssetFormData>): DepreciationProjectionRow[] {
+  const method = data.depreciationMethod || 'SL';
+  const usefulLifeMonths = data.usefulLifeMonths || 0;
+  const acquisitionCost = data.acquisitionCost || 0;
+  const salvageValue = data.salvageValue || 0;
+  const acquisitionDate = data.acquisitionDate;
+
+  if (method === 'NONE' || usefulLifeMonths <= 0 || acquisitionCost <= 0 || !acquisitionDate) {
+    return [];
+  }
+
+  const projection: DepreciationProjectionRow[] = [];
+  const depreciableBase = acquisitionCost - salvageValue;
+  let accumulated = 0;
+  let currentBookValue = acquisitionCost;
+
+  for (let month = 1; month <= usefulLifeMonths; month += 1) {
+    let monthlyDepreciation = 0;
+
+    switch (method) {
+      case 'SL':
+        monthlyDepreciation = depreciableBase / usefulLifeMonths;
+        break;
+      case 'DB': {
+        const rate = 2 / usefulLifeMonths;
+        monthlyDepreciation = currentBookValue * (rate / 12);
+        break;
+      }
+      case 'SYD': {
+        const sumOfMonths = (usefulLifeMonths * (usefulLifeMonths + 1)) / 2;
+        const remainingMonths = usefulLifeMonths - month + 1;
+        monthlyDepreciation = (depreciableBase * remainingMonths) / sumOfMonths;
+        break;
+      }
+      case 'UOP':
+        monthlyDepreciation = depreciableBase / usefulLifeMonths;
+        break;
+      default:
+        monthlyDepreciation = 0;
+    }
+
+    const remainingToDepreciate = currentBookValue - salvageValue;
+    monthlyDepreciation = Math.min(monthlyDepreciation, remainingToDepreciate);
+
+    if (monthlyDepreciation <= 0) {
+      break;
+    }
+
+    accumulated += monthlyDepreciation;
+    currentBookValue -= monthlyDepreciation;
+
+    const periodDate = new Date(acquisitionDate);
+    periodDate.setMonth(periodDate.getMonth() + month - 1);
+
+    projection.push({
+      period: periodDate.toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      }),
+      depreciation: monthlyDepreciation,
+      accumulated,
+      bookValue: Math.max(currentBookValue, salvageValue),
+    });
+
+    if (currentBookValue <= salvageValue) {
+      break;
+    }
+  }
+
+  return projection;
+}
 
 export function AssetCreateStepper({
   open,
@@ -162,7 +264,7 @@ export function AssetCreateStepper({
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canCreateAsset = useUserPermission('asset.create');
+  const canCreateAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.CREATE);
 
   const { data: categoriesData } = useFinanceAssetCategories({
     page: 1,
@@ -190,6 +292,7 @@ export function AssetCreateStepper({
     shouldUnregister: false,
     mode: 'onChange',
   });
+  const watchedFormData = form.watch();
 
   const handleNext = async () => {
     // Validate current step fields
@@ -307,6 +410,7 @@ export function AssetCreateStepper({
               form={form}
               errors={form.formState.errors}
               assetType={form.watch('assetType')}
+              formData={watchedFormData}
               categoryOptions={categoryOptions}
               locationOptions={locationOptions}
             />
@@ -357,9 +461,10 @@ export function AssetCreateStepper({
 // Step Renderer Component
 interface AssetStepRendererProps {
   step: number;
-  form: any;
-  errors: any;
+  form: ReturnType<typeof useForm<AssetFormData>>;
+  errors: FieldErrors<AssetFormData>;
   assetType: string;
+  formData: FormData;
   categoryOptions: Array<{ id: string; name: string }>;
   locationOptions: Array<{ id: string; name: string }>;
 }
@@ -369,6 +474,7 @@ function AssetStepRenderer({
   form,
   errors,
   assetType,
+  formData,
   categoryOptions,
   locationOptions,
 }: AssetStepRendererProps) {
@@ -380,8 +486,10 @@ function AssetStepRenderer({
     case 2:
       return <AssetFinancialStep form={form} errors={errors} assetType={assetType} />;
     case 3:
-      return <AssetProcurementStep form={form} errors={errors} />;
+      return <AssetDepreciationScheduleStep formData={formData} />;
     case 4:
+      return <AssetProcurementStep form={form} errors={errors} />;
+    case 5:
       return <AssetReviewStep form={form} />;
     default:
       return null;
@@ -397,7 +505,15 @@ function FieldError({ message }: { message?: string }) {
 // ===== STEP COMPONENTS =====
 // (Import these from separate component files)
 
-function AssetBasicInfoStep({ form, errors }: any) {
+interface StepComponentProps {
+  form: ReturnType<typeof useForm<AssetFormData>>;
+  errors?: FieldErrors<AssetFormData>;
+  assetType?: string;
+  categoryOptions?: Array<{ id: string; name: string }>;
+  locationOptions?: Array<{ id: string; name: string }>;
+}
+
+function AssetBasicInfoStep({ form, errors }: StepComponentProps) {
   return (
     <div className="space-y-4">
       {/* Asset name input */}
@@ -415,7 +531,7 @@ function AssetBasicInfoStep({ form, errors }: any) {
   );
 }
 
-function AssetClassificationStep({ form, errors, categoryOptions, locationOptions }: any) {
+function AssetClassificationStep({ form, errors, categoryOptions = [], locationOptions = [] }: StepComponentProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -437,7 +553,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {categoryOptions.map((category: { id: string; name: string }) => (
+              {categoryOptions.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -454,7 +570,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              {locationOptions.map((location: { id: string; name: string }) => (
+              {locationOptions.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
                   {location.name}
                 </SelectItem>
@@ -468,7 +584,7 @@ function AssetClassificationStep({ form, errors, categoryOptions, locationOption
   );
 }
 
-function AssetFinancialStep({ form, errors, assetType }: any) {
+function AssetFinancialStep({ form, errors, assetType = '' }: StepComponentProps) {
   const isDepreciable = assetType === 'TANGIBLE';
 
   return (
@@ -527,7 +643,93 @@ function AssetFinancialStep({ form, errors, assetType }: any) {
   );
 }
 
-function AssetProcurementStep({ form, errors }: any) {
+function AssetDepreciationScheduleStep({ formData }: { formData: FormData }) {
+  const projection = useMemo(() => calculateDepreciationProjection(formData), [formData]);
+  const method = formData.depreciationMethod || 'SL';
+  const isDepreciable = formData.assetType === 'TANGIBLE' && method !== 'NONE';
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Depreciation Schedule Preview</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!isDepreciable ? (
+            <p className="text-sm text-muted-foreground">
+              This asset type will not generate a depreciation schedule.
+            </p>
+          ) : projection.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Fill acquisition date, acquisition cost, salvage value, and useful life to preview the schedule.
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Method</p>
+                  <p className="text-sm font-medium">{method}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Useful Life</p>
+                  <p className="text-sm font-medium">{formData.usefulLifeMonths} months</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Depreciable Base</p>
+                  <p className="text-sm font-medium">
+                    {formatMoney((formData.acquisitionCost || 0) - (formData.salvageValue || 0), formData.currencyCode)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Preview Rows</p>
+                  <p className="text-sm font-medium">{projection.length}</p>
+                </div>
+              </div>
+
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Period</TableHead>
+                      <TableHead className="text-right">Depreciation</TableHead>
+                      <TableHead className="text-right">Accumulated</TableHead>
+                      <TableHead className="text-right">Book Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projection.slice(0, 12).map((row) => (
+                      <TableRow key={row.period}>
+                        <TableCell>{row.period}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {formatMoney(row.depreciation, formData.currencyCode)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {formatMoney(row.accumulated, formData.currencyCode)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums font-medium">
+                          {formatMoney(row.bookValue, formData.currencyCode)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {projection.length > 12 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                          Showing the first 12 periods. The backend will generate the full schedule on submit.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AssetProcurementStep({ form, errors }: StepComponentProps) {
   return (
     <div className="space-y-4">
       {/* Supplier information */}
@@ -545,7 +747,7 @@ function AssetProcurementStep({ form, errors }: any) {
   );
 }
 
-function AssetReviewStep({ form }: any) {
+function AssetReviewStep({ form }: StepComponentProps) {
   const formData = form.getValues();
 
   return (
@@ -585,7 +787,10 @@ function AssetReviewStep({ form }: any) {
   );
 }
 
-function DepreciationPreviewCard({ formData }: any) {
+function DepreciationPreviewCard({ formData }: { formData: Partial<AssetFormData> }) {
+  const projection = calculateDepreciationProjection(formData as AssetFormData);
+  const firstRow = projection[0];
+
   return (
     <Card>
       <CardHeader>
@@ -596,13 +801,9 @@ function DepreciationPreviewCard({ formData }: any) {
           <div className="flex justify-between">
             <span>Monthly Depreciation:</span>
             <span className="font-semibold">
-              {new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: formData.currencyCode,
-              }).format(
-                (formData.acquisitionCost - (formData.salvageValue || 0)) /
-                  (formData.usefulLifeMonths || 1)
-              )}
+              {firstRow
+                ? formatMoney(firstRow.depreciation, formData.currencyCode || 'IDR')
+                : '-'}
             </span>
           </div>
           <div className="flex justify-between">

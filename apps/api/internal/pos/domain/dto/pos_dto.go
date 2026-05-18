@@ -96,6 +96,7 @@ type POSOrderItemResponse struct {
 // POSOrderResponse returned to client for order operations
 type POSOrderResponse struct {
 	ID                string                 `json:"id"`
+	TenantID          string                 `json:"tenant_id,omitempty"`
 	OrderNumber       string                 `json:"order_number"`
 	SessionID         *string                `json:"session_id,omitempty"`
 	OutletID          string                 `json:"outlet_id"`
@@ -111,6 +112,8 @@ type POSOrderResponse struct {
 	ServiceCharge     float64                `json:"service_charge"`
 	TotalAmount       float64                `json:"total_amount"`
 	Status            string                 `json:"status"`
+	OrderSource       string                 `json:"order_source,omitempty"`
+	VoidReason        *string                `json:"void_reason,omitempty"`
 	Notes             *string                `json:"notes"`
 	SalesOrderID      *string                `json:"sales_order_id"`
 	CustomerInvoiceID *string                `json:"customer_invoice_id"`

@@ -360,7 +360,6 @@ export function SupplierContactList({
                       }))}
                       placeholder={t("form.contactRolePlaceholder") || "Select a role"}
                       searchPlaceholder={t("searchPlaceholder") || "Search..."}
-                      createPermission="crm_contact_role.create"
                       createLabel={`${tCommon("create") || "Create"} "{query}"`}
                       onCreateClick={(query) => {
                         void handleCreateContactRole(query);

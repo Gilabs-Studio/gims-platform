@@ -24,6 +24,7 @@ import (
 	coreRouter "github.com/gilabs/gims/api/internal/core/infrastructure/router"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/ws"
+	posWs "github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -140,6 +141,7 @@ func initInfrastructure() {
 	// Start the Redis Pub/Sub bridge for cross-instance location broadcasting.
 	// This enables horizontal scaling — each pod fans out events to its local WS clients.
 	ws.InitLocationPubSub()
+	posWs.InitPosPubSub()
 	// Defer redis.Close() also needs to be in main
 
 	// Run migrations (optionally only once)
@@ -249,6 +251,7 @@ func main() {
 	defer database.Close()
 	defer redis.Close()
 	defer ws.StopLocationPubSub()
+	defer posWs.StopPosPubSub()
 
 	// 2. Setup JWT
 	jwtManager := setupJWT()
@@ -471,7 +474,11 @@ func main() {
 		})
 
 		// HRD module (Sprint 13 - Attendance)
-		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, &hrdPresentation.HRDFinanceDeps{
+			JournalUC:  financeDeps.JournalUC,
+			CoaUC:      financeDeps.CoaUC,
+			SettingsUC: financeDeps.SettingsUC,
+		})
 
 		// Start auto-absent worker (runs daily at startup + every 24 hours)
 		// Create a CompanyTimezoneProvider so the worker can iterate companies per-timezone.
@@ -505,7 +512,7 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// POS module (Floor Layout Designer)
-		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
+		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase, salesDeps.CustomerInvoiceUC, salesDeps.SalesPaymentUC)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
 		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC, financeDeps.CashBankTransactionUC)
@@ -541,7 +548,7 @@ func main() {
 			CashBankUC:        financeDeps.CashBankUC,
 			TaxInvoiceUC:      financeDeps.TaxInvoiceUC,
 			AssetUC:           financeDeps.AssetUC,
-			SalaryUC:          financeDeps.SalaryUC,
+			SalaryUC:          hrdDeps.SalaryUC,
 			BankAccountUC:     bankAccountUC,
 		})
 	}

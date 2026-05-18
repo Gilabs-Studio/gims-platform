@@ -23,9 +23,9 @@ export function useScheduleList() {
   const debouncedSearch = useDebounce(search, 300);
   const deleteMutation = useDeleteSchedule();
 
-  const canCreate = useUserPermission("crm_schedule.create");
-  const canUpdate = useUserPermission("crm_schedule.update");
-  const canDelete = useUserPermission("crm_schedule.delete");
+  const canCreate = useUserPermission("crm_task.create");
+  const canUpdate = useUserPermission("crm_task.update");
+  const canDelete = useUserPermission("crm_task.delete");
 
   const handleCreate = () => {
     setEditingItem(null);

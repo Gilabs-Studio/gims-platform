@@ -40,9 +40,13 @@ type AssetUsecase interface {
 	RunBatchDepreciation(ctx context.Context, req *dto.BatchDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
 	GetDepreciationSchedule(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.DepreciationScheduleResponse, error)
 	RunDepreciation(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
+	ApproveDepreciationRun(ctx context.Context, req *dto.RunDepreciationRequest) (*dto.BatchDepreciationRunResponse, error)
 	GetDepreciationHistory(ctx context.Context, period string) (*dto.DepreciationHistoryResponse, error)
 	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
+	ListTransfers(ctx context.Context, req *dto.ListTransfersRequest) ([]dto.AssetTransferResponse, error)
+	ApproveTransfer(ctx context.Context, transferID string) (*dto.AssetResponse, error)
+	RejectTransfer(ctx context.Context, transferID string, req *dto.RejectTransferRequest) (*dto.AssetResponse, error)
 	PreviewDisposal(ctx context.Context, id string, req *dto.PreviewDisposalRequest) (*dto.PreviewDisposalResponse, error)
 	Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error)
 	Sell(ctx context.Context, id string, req *dto.SellAssetRequest) (*dto.AssetResponse, error)
@@ -159,6 +163,14 @@ func currencyCodeFromContext(ctx context.Context) string {
 	}
 	ctxCurrencyCode, _ := ctx.Value("currency_code").(string)
 	return normalizeCurrencyCode(ctxCurrencyCode)
+}
+
+func getContextString(ctx context.Context, key string) string {
+	if ctx == nil {
+		return ""
+	}
+	v, _ := ctx.Value(key).(string)
+	return strings.TrimSpace(v)
 }
 
 func (uc *assetUsecase) resolveCompanyIDForDepreciation(
@@ -1718,8 +1730,12 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 	if actorID == "" {
 		return nil, errors.New("user not authenticated")
 	}
+	actorUUID, err := uuid.Parse(actorID)
+	if err != nil {
+		return nil, errors.New("invalid user identity")
+	}
 
-	transferDate, err := parseDate(req.TransferDate)
+	transferDate, err := parseDate(req.EffectiveDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1731,40 +1747,127 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 		}
 		return nil, err
 	}
+	if asset.Status != financeModels.AssetStatusActive {
+		return nil, errors.New("only active assets can be transferred")
+	}
 	if asset.Status == financeModels.AssetStatusDisposed {
 		return nil, ErrAssetDisposedImmutable
 	}
 
-	newLocationID := strings.TrimSpace(req.LocationID)
+	newLocationID := strings.TrimSpace(req.ToLocationID)
 	if newLocationID == "" {
-		return nil, errors.New("location_id is required")
+		return nil, errors.New("to_location_id is required")
 	}
 	if _, err := uc.locRepo.FindByID(ctx, newLocationID); err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(req.ToDepartmentID) == "" {
+		return nil, errors.New("to_department_id is required")
+	}
+	if err := uc.ensureDepartmentExists(ctx, req.ToDepartmentID); err != nil {
+		return nil, err
+	}
+	if req.CustodianUserID != nil && strings.TrimSpace(*req.CustodianUserID) != "" {
+		if _, err := uuid.Parse(strings.TrimSpace(*req.CustodianUserID)); err != nil {
+			return nil, errors.New("custodian_user_id must be a valid uuid")
+		}
+	}
+
+	fromLocation, err := uc.loadLocationWithCompany(ctx, asset.LocationID)
+	if err != nil {
+		return nil, err
+	}
+	toLocation, err := uc.loadLocationWithCompany(ctx, newLocationID)
+	if err != nil {
+		return nil, err
+	}
+	fromCompanyID := uuidPtrFromStringPtr(fromLocation.CompanyID)
+	toCompanyID := uuidPtrFromStringPtr(toLocation.CompanyID)
+	isIntercompany := req.IsIntercompany
+	if fromCompanyID != nil && toCompanyID != nil && fromCompanyID.String() != toCompanyID.String() {
+		isIntercompany = true
+	}
 	tenantID := tenantIDFromContext(ctx)
+	notes := strings.TrimSpace(req.Notes)
+	approvalRole := "department_head"
 
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := ensureNotClosed(ctx, tx, transferDate); err != nil {
+		txCtx := database.WithTx(ctx, tx)
+		if err := ensureNotClosed(txCtx, tx, transferDate); err != nil {
 			return err
 		}
 
-		desc := strings.TrimSpace(req.Description)
-		if desc == "" {
-			desc = "Asset transfer request"
+		lockedAsset, err := uc.repo.FindByID(txCtx, id, false)
+		if err != nil {
+			return err
 		}
-		tr := &financeModels.AssetTransaction{
-			TenantID:        tenantID,
-			AssetID:         asset.ID,
-			Type:            financeModels.AssetTransactionTypeTransfer,
-			TransactionDate: transferDate,
-			Description:     desc,
-			Status:          financeModels.AssetTransactionStatusPending,
-			ReferenceID:     &newLocationID, // Store target location ID in reference for approval
-			CreatedBy:       &actorID,
-			CreatedAt:       apptime.Now(),
+		if lockedAsset.Status != financeModels.AssetStatusActive {
+			return errors.New("only active assets can be transferred")
 		}
-		return tx.Create(tr).Error
+
+		var activeCount int64
+		if err := tx.Model(&financeModels.AssetTransfer{}).
+			Where("asset_id = ? AND status IN ?", lockedAsset.ID, []financeModels.TransferStatus{financeModels.TransferStatusRequested}).
+			Count(&activeCount).Error; err != nil {
+			return err
+		}
+		if activeCount > 0 {
+			return errors.New("asset already has an active transfer request")
+		}
+
+		toCustodian := uuidPtrFromStringPtr(req.CustodianUserID)
+		transfer := &financeModels.AssetTransfer{
+			ID:                  uuid.New(),
+			TenantID:            uuidPtrFromStringString(tenantID),
+			AssetID:             uuid.MustParse(lockedAsset.ID),
+			FromLocationID:       uuidPtrFromString(lockedAsset.LocationID),
+			ToLocationID:         uuidPtrFromString(newLocationID),
+			FromCompanyID:        fromCompanyID,
+			ToCompanyID:          toCompanyID,
+			FromDepartmentID:     uuidPtrFromStringPtr(lockedAsset.DepartmentID),
+			ToDepartmentID:       uuidPtrFromString(req.ToDepartmentID),
+			FromCustodianID:      uuidPtrFromStringPtr(lockedAsset.CustodianUserID),
+			ToCustodianID:        toCustodian,
+			FromEmployeeID:       uuidPtrFromStringPtr(lockedAsset.AssignedToEmployeeID),
+			ToEmployeeID:         nil,
+			TransferDate:         transferDate,
+			Reason:               stringPtr(notes),
+			Notes:                stringPtr(notes),
+			Status:               financeModels.TransferStatusRequested,
+			IsIntercompany:       isIntercompany,
+			CurrentApprovalRole:   approvalRole,
+			ApprovalStepIndex:     1,
+			ApprovalStepTotal:     1,
+			RequestedBy:           &actorUUID,
+			RequestedAt:           apptime.Now(),
+		}
+		if isIntercompany {
+			transfer.ApprovalStepTotal = 2
+		}
+		if err := tx.Create(transfer).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", lockedAsset.ID).Update("status", financeModels.AssetStatusTransferRequested).Error; err != nil {
+			return err
+		}
+
+		if uc.auditLogRepo != nil {
+			_ = uc.auditLogRepo.Create(txCtx, &financeModels.AssetAuditLog{
+				AssetID:     uuid.MustParse(lockedAsset.ID),
+				Action:      "transfer.requested",
+				PerformedBy: &actorUUID,
+				Metadata: financeModels.MapStringInterface{
+					"transfer_id":       transfer.ID.String(),
+					"is_intercompany":   isIntercompany,
+					"to_location_id":    newLocationID,
+					"to_department_id":  req.ToDepartmentID,
+					"current_step_role": approvalRole,
+				},
+			})
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -1776,6 +1879,451 @@ func (uc *assetUsecase) Transfer(ctx context.Context, id string, req *dto.Transf
 	}
 	res := uc.mapper.ToResponse(full, true)
 	return &res, nil
+}
+
+func (uc *assetUsecase) ListTransfers(ctx context.Context, req *dto.ListTransfersRequest) ([]dto.AssetTransferResponse, error) {
+	if req == nil {
+		req = &dto.ListTransfersRequest{}
+	}
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage <= 0 {
+		perPage = 50
+	}
+	offset := (page - 1) * perPage
+
+	query := database.GetDB(ctx, uc.db).
+		Model(&financeModels.AssetTransfer{}).
+		Preload("Asset").
+		Preload("RequestedByUser").
+		Preload("ToDepartment")
+	if s := strings.TrimSpace(req.AssetID); s != "" {
+		query = query.Where("asset_id = ?", s)
+	}
+	if s := strings.TrimSpace(req.Status); s != "" {
+		query = query.Where("status = ?", s)
+	}
+
+	var transfers []financeModels.AssetTransfer
+	if err := query.Order("created_at desc").Limit(perPage).Offset(offset).Find(&transfers).Error; err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.AssetTransferResponse, 0, len(transfers))
+	for i := range transfers {
+		items = append(items, transferToResponse(&transfers[i]))
+	}
+	return items, nil
+}
+
+func (uc *assetUsecase) ApproveTransfer(ctx context.Context, transferID string) (*dto.AssetResponse, error) {
+	transferID = strings.TrimSpace(transferID)
+	if transferID == "" {
+		return nil, errors.New("transfer_id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+	actorUUID, err := uuid.Parse(actorID)
+	if err != nil {
+		return nil, errors.New("invalid user identity")
+	}
+	userRole := strings.ToLower(strings.TrimSpace(getContextString(ctx, "user_role")))
+
+	var assetID string
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+		var transfer financeModels.AssetTransfer
+		if err := tx.WithContext(txCtx).Preload("Asset").First(&transfer, "id = ?", transferID).Error; err != nil {
+			return errors.New("transfer not found")
+		}
+		if transfer.Status == financeModels.TransferStatusApproved || transfer.Status == financeModels.TransferStatusRejected {
+			return errors.New("transfer already processed")
+		}
+		if transfer.CurrentApprovalRole == "" {
+			transfer.CurrentApprovalRole = "department_head"
+		}
+
+		switch transfer.CurrentApprovalRole {
+		case "department_head":
+			if userRole != "department_head" && userRole != "admin" && userRole != "system_admin" {
+				return errors.New("user is not authorized for department head approval")
+			}
+			now := apptime.Now()
+			transfer.DhApprovedBy = &actorUUID
+			transfer.DhApprovedAt = &now
+			transfer.ApprovalStepIndex = 1
+			if transfer.IsIntercompany {
+				transfer.CurrentApprovalRole = "finance_controller"
+				transfer.Status = financeModels.TransferStatusRequested
+				transfer.ApprovalStepIndex = 2
+			} else {
+				if err := uc.finalizeApprovedTransfer(txCtx, &transfer, &actorUUID); err != nil {
+					return err
+				}
+			}
+		case "finance_controller":
+			if userRole != "finance_controller" && userRole != "admin" && userRole != "system_admin" {
+				return errors.New("user is not authorized for finance controller approval")
+			}
+			now := apptime.Now()
+			transfer.FcApprovedBy = &actorUUID
+			transfer.FcApprovedAt = &now
+			if err := uc.finalizeApprovedTransfer(txCtx, &transfer, &actorUUID); err != nil {
+				return err
+			}
+		default:
+			return errors.New("invalid transfer approval step")
+		}
+
+		if err := tx.Model(&financeModels.AssetTransfer{}).Where("id = ?", transfer.ID).Updates(map[string]interface{}{
+			"dh_approved_by":      transfer.DhApprovedBy,
+			"dh_approved_at":      transfer.DhApprovedAt,
+			"fc_approved_by":      transfer.FcApprovedBy,
+			"fc_approved_at":      transfer.FcApprovedAt,
+			"status":              transfer.Status,
+			"current_approval_role": transfer.CurrentApprovalRole,
+			"approval_step_index": transfer.ApprovalStepIndex,
+			"approved_by":         transfer.ApprovedBy,
+			"approved_at":         transfer.ApprovedAt,
+		}).Error; err != nil {
+			return err
+		}
+
+		if transfer.AssetID != uuid.Nil {
+			if uc.auditLogRepo != nil {
+				_ = uc.auditLogRepo.Create(txCtx, &financeModels.AssetAuditLog{
+					AssetID:     transfer.AssetID,
+					Action:      "transfer.approved",
+					PerformedBy: &actorUUID,
+					Metadata: financeModels.MapStringInterface{
+						"transfer_id": transfer.ID.String(),
+						"step":        transfer.CurrentApprovalRole,
+					},
+				})
+			}
+		}
+		assetID = transfer.AssetID.String()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, assetID, true)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(asset, true)
+	return &res, nil
+}
+
+func (uc *assetUsecase) RejectTransfer(ctx context.Context, transferID string, req *dto.RejectTransferRequest) (*dto.AssetResponse, error) {
+	transferID = strings.TrimSpace(transferID)
+	if transferID == "" {
+		return nil, errors.New("transfer_id is required")
+	}
+	if req == nil || strings.TrimSpace(req.Reason) == "" {
+		return nil, errors.New("reason is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+	actorUUID, err := uuid.Parse(actorID)
+	if err != nil {
+		return nil, errors.New("invalid user identity")
+	}
+
+	var assetID string
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+		var transfer financeModels.AssetTransfer
+		if err := tx.WithContext(txCtx).Preload("Asset").First(&transfer, "id = ?", transferID).Error; err != nil {
+			return errors.New("transfer not found")
+		}
+		if transfer.Status == financeModels.TransferStatusApproved || transfer.Status == financeModels.TransferStatusRejected {
+			return errors.New("transfer already processed")
+		}
+		now := apptime.Now()
+		transfer.Status = financeModels.TransferStatusRejected
+		transfer.RejectedBy = &actorUUID
+		transfer.RejectedAt = &now
+		reason := strings.TrimSpace(req.Reason)
+		transfer.RejectionReason = &reason
+		transfer.CurrentApprovalRole = ""
+		if err := tx.Model(&financeModels.AssetTransfer{}).Where("id = ?", transfer.ID).Updates(map[string]interface{}{
+			"status":              transfer.Status,
+			"rejected_by":         transfer.RejectedBy,
+			"rejected_at":         transfer.RejectedAt,
+			"rejection_reason":    transfer.RejectionReason,
+			"current_approval_role": transfer.CurrentApprovalRole,
+		}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&financeModels.Asset{}).Where("id = ?", transfer.AssetID).Update("status", financeModels.AssetStatusActive).Error; err != nil {
+			return err
+		}
+		if uc.auditLogRepo != nil {
+			_ = uc.auditLogRepo.Create(txCtx, &financeModels.AssetAuditLog{
+				AssetID:     transfer.AssetID,
+				Action:      "transfer.rejected",
+				PerformedBy: &actorUUID,
+				Metadata: financeModels.MapStringInterface{
+					"transfer_id": transfer.ID.String(),
+					"reason":      reason,
+				},
+			})
+		}
+		assetID = transfer.AssetID.String()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, assetID, true)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(asset, true)
+	return &res, nil
+}
+
+func (uc *assetUsecase) finalizeApprovedTransfer(ctx context.Context, transfer *financeModels.AssetTransfer, actorUUID *uuid.UUID) error {
+	if transfer == nil {
+		return errors.New("transfer is required")
+	}
+	if transfer.Asset == nil {
+		return errors.New("asset is required")
+	}
+	asset := transfer.Asset
+	if err := database.GetDB(ctx, uc.db).Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
+		"location_id":            uuidToStringPtr(transfer.ToLocationID),
+		"department_id":          uuidToStringPtr(transfer.ToDepartmentID),
+		"custodian_user_id":      uuidToStringPtr(transfer.ToCustodianID),
+		"assigned_to_employee_id": uuidToStringPtr(transfer.ToEmployeeID),
+		"status":                 financeModels.AssetStatusActive,
+	}).Error; err != nil {
+		return err
+	}
+	transfer.Status = financeModels.TransferStatusApproved
+	transfer.ApprovedBy = actorUUID
+	now := apptime.Now()
+	transfer.ApprovedAt = &now
+	return uc.postIntercompanyJournals(ctx, transfer)
+}
+
+func (uc *assetUsecase) postIntercompanyJournals(ctx context.Context, transfer *financeModels.AssetTransfer) error {
+	if transfer == nil || !transfer.IsIntercompany {
+		return nil
+	}
+	if uc.journalUC == nil {
+		return errors.New("journal usecase is not configured")
+	}
+	if transfer.Asset == nil {
+		return errors.New("asset is required")
+	}
+	asset := transfer.Asset
+	cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
+	if err != nil {
+		return err
+	}
+	assetCOAID := strings.TrimSpace(cat.AssetAccountID)
+	if assetCOAID == "" {
+		return errors.New("asset account is not configured on asset category")
+	}
+	clearingCOAID, err := uc.resolveTransferClearingCOAID(ctx)
+	if err != nil {
+		return err
+	}
+	nbValue := round2(asset.BookValue)
+	if nbValue <= 0 {
+		nbValue = round2(asset.AcquisitionCost - asset.AccumulatedDepreciation)
+	}
+	if nbValue <= 0 {
+		nbValue = 0.01
+	}
+	refTypeSource := "asset_transfer_intercompany_source"
+	refTypeTarget := "asset_transfer_intercompany_target"
+	refIDSource := transfer.ID.String() + "-source"
+	refIDTarget := transfer.ID.String() + "-target"
+	description := fmt.Sprintf("Inter-company asset transfer %s", transfer.ID.String())
+	if transfer.FromCompanyID != nil {
+		_, _ = uc.journalUC.PostOrUpdateJournal(ctx, &finDTO.CreateJournalEntryRequest{
+			CompanyID:     transfer.FromCompanyID.String(),
+			EntryDate:     transfer.TransferDate.Format("2006-01-02"),
+			Reference:     transfer.ID.String(),
+			Description:   description + " (source)",
+			ReferenceType: &refTypeSource,
+			ReferenceID:   &refIDSource,
+			JournalType:   nil,
+			CurrencyCode:  "IDR",
+			Lines: []finDTO.JournalLineRequest{
+				{ChartOfAccountID: assetCOAID, Debit: 0, Credit: nbValue, Memo: "Transfer out asset"},
+				{ChartOfAccountID: clearingCOAID, Debit: nbValue, Credit: 0, Memo: "Intercompany clearing"},
+			},
+			IsSystemGenerated: true,
+		})
+	}
+	if transfer.ToCompanyID != nil {
+		_, _ = uc.journalUC.PostOrUpdateJournal(ctx, &finDTO.CreateJournalEntryRequest{
+			CompanyID:     transfer.ToCompanyID.String(),
+			EntryDate:     transfer.TransferDate.Format("2006-01-02"),
+			Reference:     transfer.ID.String(),
+			Description:   description + " (destination)",
+			ReferenceType: &refTypeTarget,
+			ReferenceID:   &refIDTarget,
+			JournalType:   nil,
+			CurrencyCode:  "IDR",
+			Lines: []finDTO.JournalLineRequest{
+				{ChartOfAccountID: assetCOAID, Debit: nbValue, Credit: 0, Memo: "Transfer in asset"},
+				{ChartOfAccountID: clearingCOAID, Debit: 0, Credit: nbValue, Memo: "Intercompany clearing"},
+			},
+			IsSystemGenerated: true,
+		})
+	}
+	return nil
+}
+
+func (uc *assetUsecase) resolveTransferClearingCOAID(ctx context.Context) (string, error) {
+	var mapping financeModels.SystemAccountMapping
+	query := database.GetDB(ctx, uc.db).Model(&financeModels.SystemAccountMapping{}).
+		Where("key = ?", financeModels.MappingKeyPurchaseGRIRClearing)
+	if err := query.Where("company_id IS NULL").First(&mapping).Error; err != nil {
+		if err2 := query.Order("company_id desc").First(&mapping).Error; err2 != nil {
+			return "", errors.New("intercompany clearing mapping is not configured")
+		}
+	}
+	if strings.TrimSpace(mapping.COACode) == "" {
+		return "", errors.New("intercompany clearing COA code is not configured")
+	}
+	var coa financeModels.ChartOfAccount
+	if err := database.GetDB(ctx, uc.db).First(&coa, "code = ?", strings.TrimSpace(mapping.COACode)).Error; err != nil {
+		return "", err
+	}
+	return coa.ID, nil
+}
+
+func (uc *assetUsecase) loadLocationWithCompany(ctx context.Context, id string) (*financeModels.AssetLocation, error) {
+	var loc financeModels.AssetLocation
+	if err := database.GetDB(ctx, uc.db).Preload("Company").First(&loc, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+		return nil, err
+	}
+	return &loc, nil
+}
+
+func (uc *assetUsecase) ensureDepartmentExists(ctx context.Context, id string) error {
+	var dept financeModels.Department
+	if err := database.GetDB(ctx, uc.db).First(&dept, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func transferToResponse(tr *financeModels.AssetTransfer) dto.AssetTransferResponse {
+	if tr == nil {
+		return dto.AssetTransferResponse{}
+	}
+	resp := dto.AssetTransferResponse{
+		ID:                tr.ID.String(),
+		AssetID:           tr.AssetID.String(),
+		TransferDate:      tr.TransferDate.Format("2006-01-02"),
+		Status:            string(tr.Status),
+		IsIntercompany:    tr.IsIntercompany,
+		ApprovalStepIndex: tr.ApprovalStepIndex,
+		ApprovalStepTotal: tr.ApprovalStepTotal,
+		CreatedAt:         tr.CreatedAt,
+		UpdatedAt:         tr.UpdatedAt,
+		RequestedAt:       tr.RequestedAt,
+		CurrentApprovalRole: tr.CurrentApprovalRole,
+	}
+	if tr.Asset.ID != "" {
+		resp.AssetCode = tr.Asset.Code
+		resp.AssetName = tr.Asset.Name
+	}
+	if tr.ToDepartment != nil {
+		resp.DivisionsName = tr.ToDepartment.Name
+		resp.DivisionsCode = tr.ToDepartment.Code
+	}
+	if tr.RequestedByUser != nil {
+		resp.RequestedByName = &tr.RequestedByUser.Name
+	}
+	resp.FromLocationID = uuidToString(tr.FromLocationID)
+	resp.ToLocationID = uuidToString(tr.ToLocationID)
+	resp.FromDepartmentID = uuidToString(tr.FromDepartmentID)
+	resp.ToDepartmentID = uuidToString(tr.ToDepartmentID)
+	resp.FromCustodianID = uuidToString(tr.FromCustodianID)
+	resp.ToCustodianID = uuidToString(tr.ToCustodianID)
+	resp.FromCompanyID = uuidToString(tr.FromCompanyID)
+	resp.ToCompanyID = uuidToString(tr.ToCompanyID)
+	resp.RequestedBy = uuidToString(tr.RequestedBy)
+	resp.DhApprovedBy = uuidToString(tr.DhApprovedBy)
+	resp.DhApprovedAt = tr.DhApprovedAt
+	resp.FcApprovedBy = uuidToString(tr.FcApprovedBy)
+	resp.FcApprovedAt = tr.FcApprovedAt
+	resp.RejectedBy = uuidToString(tr.RejectedBy)
+	resp.RejectedAt = tr.RejectedAt
+	resp.RejectionReason = tr.RejectionReason
+	resp.Notes = tr.Notes
+	return resp
+}
+
+func uuidToString(value *uuid.UUID) *string {
+	if value == nil {
+		return nil
+	}
+	result := value.String()
+	return &result
+}
+
+func uuidPtrFromString(value string) *uuid.UUID {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	parsed, err := uuid.Parse(value)
+	if err != nil {
+		return nil
+	}
+	return &parsed
+}
+
+func uuidPtrFromStringPtr(value *string) *uuid.UUID {
+	if value == nil {
+		return nil
+	}
+	return uuidPtrFromString(*value)
+}
+
+func uuidPtrFromStringString(value string) *uuid.UUID {
+	return uuidPtrFromString(value)
+}
+
+func uuidToStringPtr(value *uuid.UUID) *string {
+	if value == nil {
+		return nil
+	}
+	result := value.String()
+	return &result
+}
+
+func stringPtr(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (uc *assetUsecase) disposalGainLossAccount(cat *financeModels.AssetCategory, gainLossAmount float64) *string {

@@ -19,12 +19,12 @@ import {
 } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { PageMotion } from "@/components/motion/page-motion";
 import type { DateRange } from "react-day-picker";
 import { useDashboardLayout, useSaveLayout } from "../hooks/use-dashboard";
 import { useDashboardStore } from "../stores/useDashboardStore";
 import { SortableWidget } from "./sortable-widget";
 import { WidgetRenderer } from "./widget-renderer";
+import { LazyMount } from "./lazy-mount";
 import { WidgetPicker } from "./widget-picker";
 import { OnboardingWizard } from "./onboarding-wizard";
 import {
@@ -35,13 +35,18 @@ import {
 } from "../config/widget-registry";
 import { useOnboardingState } from "../hooks/use-onboarding";
 import type { WidgetType } from "../types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
+  const user = useAuthStore((state) => state.user);
+  const isTenantOwner = user?.role?.is_owner === true;
   const { data: permissionsData, isLoading: isPermissionsLoading } = useUserPermissions();
   const { data: layoutData } = useDashboardLayout();
-  const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState();
+  const { data: onboarding, isLoading: isOnboardingLoading } = useOnboardingState({
+    enabled: isTenantOwner,
+  });
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
 
   const {
@@ -171,13 +176,15 @@ export function DashboardGrid() {
 
   // While onboarding is in progress or still loading, render the wizard as the full dashboard content.
   // Once onboarding is complete, render the grid.
-  if (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed)) {
+  if (
+    isTenantOwner &&
+    (isOnboardingLoading || (onboarding !== undefined && !onboarding?.completed))
+  ) {
     return <OnboardingWizard />;
   }
 
   return (
-    <PageMotion>
-      <div className="space-y-4">
+    <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
@@ -251,7 +258,9 @@ export function DashboardGrid() {
                   onResizeCol={resizeWidgetCol}
                   onResizeRow={resizeWidgetRow}
                 >
-                  <WidgetRenderer widget={widget} />
+                  <LazyMount>
+                    <WidgetRenderer widget={widget} />
+                  </LazyMount>
                 </SortableWidget>
               ))}
             </div>
@@ -264,6 +273,5 @@ export function DashboardGrid() {
           </div>
         )}
       </div>
-    </PageMotion>
   );
 }

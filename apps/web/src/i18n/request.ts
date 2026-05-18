@@ -134,12 +134,14 @@ import { financeAssetsEn } from "@/features/finance/assets/i18n/en";
 import { financeAssetsId } from "@/features/finance/assets/i18n/id";
 import { financeClosingEn } from "@/features/finance/closing/i18n/en";
 import { financeClosingId } from "@/features/finance/closing/i18n/id";
+import { financeSettingsEn } from "@/features/finance/settings/i18n/en";
+import { financeSettingsId } from "@/features/finance/settings/i18n/id";
 import { financeTaxInvoicesEn } from "@/features/finance/tax-invoices/i18n/en";
 import { financeTaxInvoicesId } from "@/features/finance/tax-invoices/i18n/id";
 import { financeNonTradePayablesEn } from "@/features/finance/non-trade-payables/i18n/en";
 import { financeNonTradePayablesId } from "@/features/finance/non-trade-payables/i18n/id";
-import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
-import { financeSalaryId } from "@/features/finance/salary/i18n/id";
+import { financeSalaryEn as hrdSalaryEn } from "@/features/hrd/salary-structures/i18n/en";
+import { financeSalaryId as hrdSalaryId } from "@/features/hrd/salary-structures/i18n/id";
 import { financeFixedAssetsEn } from "@/features/finance/fixed-assets/i18n/en";
 import { financeFixedAssetsId } from "@/features/finance/fixed-assets/i18n/id";
 import { aiChatEn } from "@/features/ai-chat/i18n/en";
@@ -191,6 +193,8 @@ import { posTerminalEn } from "@/features/pos/terminal/i18n/en";
 import { posTerminalId } from "@/features/pos/terminal/i18n/id";
 import { feedbackEn } from "@/features/pos/feedback/i18n/en";
 import { feedbackId } from "@/features/pos/feedback/i18n/id";
+import { posSelflOrderEn } from "@/features/pos/self-order/i18n/en";
+import { posSelflOrderId } from "@/features/pos/self-order/i18n/id";
 import { loyaltyEn } from "@/features/loyalty/i18n/en";
 import { loyaltyId } from "@/features/loyalty/i18n/id";
 import { landingEn } from "@/features/landing/i18n/en";
@@ -265,9 +269,10 @@ const messages = {
     financeAssetLocations: financeAssetLocationsEn,
     financeAssets: financeAssetsEn,
     financeClosing: financeClosingEn,
+    financeSettings: financeSettingsEn,
     financeTaxInvoices: financeTaxInvoicesEn,
     financeNonTradePayables: financeNonTradePayablesEn,
-    financeSalary: financeSalaryEn,
+    hrdSalary: hrdSalaryEn,
     financeFixedAssets: financeFixedAssetsEn,
     ...aiChatEn,
     pipelineStage: pipelineStageEn,
@@ -293,6 +298,7 @@ const messages = {
     ...floorLayoutEn,
     ...posTerminalEn,
     ...feedbackEn,
+    ...posSelflOrderEn,
     ...loyaltyEn,
     ...landingEn,
     ...systemAdminEn,
@@ -362,9 +368,10 @@ const messages = {
     financeAssetLocations: financeAssetLocationsId,
     financeAssets: financeAssetsId,
     financeClosing: financeClosingId,
+    financeSettings: financeSettingsId,
     financeTaxInvoices: financeTaxInvoicesId,
     financeNonTradePayables: financeNonTradePayablesId,
-    financeSalary: financeSalaryId,
+    hrdSalary: hrdSalaryId,
     financeFixedAssets: financeFixedAssetsId,
     ...aiChatId,
     pipelineStage: pipelineStageId,
@@ -390,6 +397,7 @@ const messages = {
     ...floorLayoutId,
     ...posTerminalId,
     ...feedbackId,
+    ...posSelflOrderId,
     ...loyaltyId,
     ...landingId,
     ...systemAdminId,

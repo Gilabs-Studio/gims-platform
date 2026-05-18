@@ -58,11 +58,24 @@ class _GimsPosAppState extends State<GimsPosApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'GIMS POS',
+      title: 'Salesview Pos',
       theme: buildGimsTheme(),
       home: FutureBuilder<void>(
         future: _boot,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Failed to initialize: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            );
+          }
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),

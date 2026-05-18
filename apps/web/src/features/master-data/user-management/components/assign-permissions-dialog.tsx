@@ -121,27 +121,10 @@ const MODULE_LABELS: Record<string, string> = {
   core: "Master Data",
 };
 
-const ALWAYS_ALLOWED_PERMISSION_PREFIXES = [
-  "role.",
-  "permission.",
-  "company.",
-  // Finance Accounting module - never protected by entitlements
-  "coa.",
-  "journal.",
-  "sales_journal.",
-  "purchase_journal.",
-  "adjustment_journal.",
-  "financial_closing.",
-] as const;
 const SYSTEM_ADMIN_ONLY_PERMISSION_CODES = new Set(["currency.create", "currency.update", "currency.delete"]);
 
 function isSystemAdminOnlyPermission(permission: Permission): boolean {
   return SYSTEM_ADMIN_ONLY_PERMISSION_CODES.has(permission.code.trim().toLowerCase());
-}
-
-function isAlwaysSafePermissionCode(code: string): boolean {
-  const lower = code.trim().toLowerCase();
-  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }
 
 function matchesEntitledMenuPath(menuURL: string, entitledMenuURLSet: Set<string>): boolean {
@@ -171,14 +154,6 @@ function normalizeModuleSlug(module?: string): string {
     return "inventory";
   }
   return value;
-}
-
-function isAlwaysAllowedPermission(permissionCode: string): boolean {
-  const code = permissionCode.trim().toLowerCase();
-  if (!code) {
-    return true;
-  }
-  return ALWAYS_ALLOWED_PERMISSION_PREFIXES.some((prefix) => code.startsWith(prefix));
 }
 
 function normalizePath(path?: string): string {
@@ -745,21 +720,15 @@ const TreeResourceRow = memo(function TreeResourceRow({
         {perms.map((perm) => {
           const { action } = parsePermissionCode(perm.code);
           const isChecked = perm.id in selected;
-          const isProtected = isAlwaysSafePermissionCode(perm.code);
           
           return (
             <Tooltip key={perm.id}>
               <TooltipTrigger asChild>
-                <label className={cn(
-                  "inline-flex items-center gap-1 select-none",
-                  !isProtected && "cursor-pointer",
-                  isProtected && "cursor-not-allowed opacity-75"
-                )}>
+                <label className="inline-flex items-center gap-1 select-none cursor-pointer">
                   <Checkbox
                     checked={isChecked}
-                    onCheckedChange={() => !isProtected && onToggle(perm.id)}
-                    disabled={isProtected}
-                    className={cn("size-3.5", isProtected && "cursor-not-allowed")}
+                    onCheckedChange={() => onToggle(perm.id)}
+                    className="size-3.5"
                   />
                   <Badge
                     variant={getActionBadgeVariant(action ?? "")}
@@ -767,18 +736,8 @@ const TreeResourceRow = memo(function TreeResourceRow({
                   >
                     {action}
                   </Badge>
-                  {isProtected && (
-                    <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-4">
-                      {t("protected") || "Protected"}
-                    </Badge>
-                  )}
                 </label>
               </TooltipTrigger>
-              {isProtected && (
-                <TooltipContent side="top" className="text-xs">
-                  {t("protectedPermissionTooltip") || "This permission cannot be removed"}
-                </TooltipContent>
-              )}
             </Tooltip>
           );
         })}
@@ -1075,7 +1034,11 @@ function PermissionsSelector({
   const entitledModuleSet = useMemo(() => new Set(effectiveEntitledModules), [effectiveEntitledModules]);
   const hasGranularPolicy = entitledMenuURLSet.size > 0 || entitledPermissionCodeSet.size > 0;
   const hasModuleEntitlements = entitledModuleSet.size > 0;
-  const hasEntitlementRestriction = hasModuleEntitlements || hasGranularPolicy;
+  const roleCode = role.code.trim().toLowerCase();
+  const bypassEntitlementRestriction =
+    isSystemAdmin || roleCode === "system_admin" || roleCode === "admin";
+  const hasEntitlementRestriction =
+    !bypassEntitlementRestriction && (hasModuleEntitlements || hasGranularPolicy);
 
   const isPermissionAllowedByPlanPolicy = useCallback(
     (permission: Permission): boolean => {
@@ -1100,7 +1063,7 @@ function PermissionsSelector({
 
   const isPermissionAllowedByPlan = useCallback(
     (permission: Permission): boolean => {
-      if (isAlwaysAllowedPermission(permission.code)) {
+      if (bypassEntitlementRestriction) {
         return true;
       }
       if (!hasEntitlementRestriction) {
@@ -1115,7 +1078,13 @@ function PermissionsSelector({
       }
       return isPermissionAllowedByPlanPolicy(permission);
     },
-    [entitledModuleSet, hasEntitlementRestriction, hasModuleEntitlements, isPermissionAllowedByPlanPolicy],
+    [
+      bypassEntitlementRestriction,
+      entitledModuleSet,
+      hasEntitlementRestriction,
+      hasModuleEntitlements,
+      isPermissionAllowedByPlanPolicy,
+    ],
   );
 
   const getNodeLockMeta = useMemo(
@@ -1270,17 +1239,10 @@ function PermissionsSelector({
             if (!permission || !isPermissionAllowedByPlan(permission)) {
               continue;
             }
-            if (isAlwaysSafePermissionCode(permission.code)) {
-              continue;
-            }
             if (!(id in next)) next[id] = "ALL";
           }
         } else {
           for (const id of ids) {
-            const permission = permissionByID.get(id);
-            if (permission && isAlwaysSafePermissionCode(permission.code)) {
-              continue;
-            }
             delete next[id];
           }
         }
@@ -1351,13 +1313,6 @@ function PermissionsSelector({
   const handleSubmit = useCallback(async () => {
     try {
       const nextSelected = { ...selectedPermissions };
-      for (const existingPermission of role.permissions ?? []) {
-        if (isAlwaysAllowedPermission(existingPermission.code)) {
-          if (!(existingPermission.id in nextSelected)) {
-            nextSelected[existingPermission.id] = existingPermission.scope ?? "ALL";
-          }
-        }
-      }
 
       const nextAssignments = Object.entries(nextSelected).map(([permissionId, scope]) => ({
         permission_id: permissionId,
@@ -1394,19 +1349,8 @@ function PermissionsSelector({
         error instanceof Error 
           ? error.message 
           : t("saveFailed") || "Failed to save permissions";
-      
-      // Check if error mentions protected/mandatory permissions or role requirements
-      if (errorMessage.toLowerCase().includes("always safe") || 
-          errorMessage.toLowerCase().includes("mandatory") ||
-          errorMessage.toLowerCase().includes("protected") ||
-          errorMessage.toLowerCase().includes("requires")) {
-        toast.error(
-          t("protectedPermissionsError") || 
-          "Some permissions are protected and cannot be removed. Please keep them checked."
-        );
-      } else {
-        toast.error(errorMessage);
-      }
+
+      toast.error(errorMessage);
     }
   }, [selectedPermissions, role.permissions, assignPermissions, roleId, t, onClose]);
 

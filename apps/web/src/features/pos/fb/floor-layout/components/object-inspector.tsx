@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { QrCode } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,11 +14,15 @@ import { Separator } from "@/components/ui/separator";
 
 import type { LayoutObject, TableChairLayout, TableShape, ZoneType } from "../types";
 import type { useCanvasEditor } from "../hooks/use-canvas-editor";
+import { useTableQRTokens } from "../hooks/use-table-qr";
+import { TableQRPrintDialog } from "./table-qr-print-dialog";
 
 type CanvasEditorReturn = ReturnType<typeof useCanvasEditor>;
 
 interface ObjectInspectorProps {
   readonly editor: CanvasEditorReturn;
+  readonly floorPlanId?: string;
+  readonly outletName?: string;
 }
 
 const TABLE_SHAPES: { value: TableShape; labelKey: string }[] = [
@@ -53,9 +60,19 @@ function InspectorField({ label, children }: { readonly label: string; readonly 
   );
 }
 
-export function ObjectInspector({ editor }: ObjectInspectorProps) {
+export function ObjectInspector({ editor, floorPlanId, outletName = "" }: ObjectInspectorProps) {
   const t = useTranslations("floorLayout.editor");
+  const tQr = useTranslations("floorLayout.tableQr");
   const obj = editor.selectedObject;
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+
+  const { data: qrTokens } = useTableQRTokens(floorPlanId ?? "", {
+    enabled: !!floorPlanId && obj?.type === "table",
+  });
+
+  const activeToken = obj
+    ? (qrTokens?.find((t) => t.table_object_id === obj.id && t.is_active) ?? null)
+    : null;
 
   const handleUpdate = (updates: Partial<LayoutObject>) => {
     if (!obj) return;
@@ -281,6 +298,31 @@ export function ObjectInspector({ editor }: ObjectInspectorProps) {
           )}
 
           <Separator />
+
+          {/* QR Code – only for tables */}
+          {obj.type === "table" && floorPlanId && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => setQrDialogOpen(true)}
+              >
+                <QrCode className="mr-1.5 h-3.5 w-3.5" />
+                {activeToken ? tQr("openOrPrintQr") : tQr("generateQr")}
+              </Button>
+              <TableQRPrintDialog
+                open={qrDialogOpen}
+                onOpenChange={setQrDialogOpen}
+                floorPlanId={floorPlanId}
+                tableObjectId={obj.id}
+                tableLabel={obj.label ?? ""}
+                outletName={outletName}
+                token={activeToken}
+              />
+              <Separator />
+            </>
+          )}
 
           {/* Locked toggle */}
           <div className="flex items-center justify-between">

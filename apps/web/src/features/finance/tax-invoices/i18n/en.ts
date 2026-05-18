@@ -12,6 +12,8 @@ export const financeTaxInvoicesEn = {
     linkedInvoice: "Link to Supplier Invoice",
     invoiceValue: "Invoice Value",
     discrepancy: "VAT Discrepancy Found!",
+    none: "None",
+    syncing: "Syncing values from Purchase record...",
   },
   actions: {
     create: "Create",

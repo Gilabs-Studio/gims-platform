@@ -3,11 +3,19 @@
 import React, { useState, memo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
-import { Activity, Menu as MenuIcon, Search, Settings } from "lucide-react";
+import {
+  Activity,
+  Laptop,
+  Menu as MenuIcon,
+  Search,
+  Settings,
+  Smartphone,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+// Dropdown primitives are not used anymore; keep imports removed.
 import {
   Popover,
   PopoverContent,
@@ -15,6 +23,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggleButton as ThemeToggle } from "@/components/ui/theme-toggle";
+// Tooltip primitives removed; downloads moved to popover.
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
 import { HeaderAttendanceButton } from "@/features/hrd/attendance-records/components/header-attendance-button";
 import { useLogout } from "@/features/auth/hooks/use-logout";
@@ -36,6 +45,57 @@ interface DashboardHeaderProps {
     tab: AttendanceDrawerTab,
     openCreateLeave?: boolean,
   ) => void;
+}
+
+type POSDownloadPlatform = "windows" | "android" | "macos" | "linux";
+
+interface POSDownloadLink {
+  platform: POSDownloadPlatform;
+  label: string;
+  url: string;
+  icon: typeof Laptop;
+}
+
+function isSafeExternalUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function getPOSDownloadUrlMap(): Partial<Record<POSDownloadPlatform, string>> {
+  const fromJson = process.env.NEXT_PUBLIC_POS_DOWNLOAD_LINKS;
+  if (fromJson) {
+    try {
+      const parsed = JSON.parse(fromJson) as Partial<Record<POSDownloadPlatform, unknown>>;
+      return {
+        windows:
+          typeof parsed.windows === "string" ? parsed.windows : undefined,
+        android:
+          typeof parsed.android === "string" ? parsed.android : undefined,
+        macos: typeof parsed.macos === "string" ? parsed.macos : undefined,
+        linux: typeof parsed.linux === "string" ? parsed.linux : undefined,
+      };
+    } catch {
+      // Ignore invalid JSON and fallback to per-platform environment variables.
+    }
+  }
+
+  return {
+    windows: process.env.NEXT_PUBLIC_POS_DOWNLOAD_WINDOWS_URL,
+    android: process.env.NEXT_PUBLIC_POS_DOWNLOAD_ANDROID_URL,
+    macos: process.env.NEXT_PUBLIC_POS_DOWNLOAD_MACOS_URL,
+    linux: process.env.NEXT_PUBLIC_POS_DOWNLOAD_LINUX_URL,
+  };
 }
 
 export const DashboardHeader = memo(function DashboardHeader({
@@ -60,6 +120,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
+  const [posDownloadOpen, setPosDownloadOpen] = useState(false);
   const currentSrc = avatarLoadFailed
     ? fallbackAvatarUrl
     : (normalizedAvatarUrl ?? fallbackAvatarUrl);
@@ -70,6 +131,35 @@ export const DashboardHeader = memo(function DashboardHeader({
   const canViewActivityPerm = useHasPermission("crm_activity.read");
   const canViewPipelinePerm = useHasPermission("crm_deal.read");
   const canViewActivities = canViewActivityPerm || canViewPipelinePerm;
+  const posDownloadUrls = getPOSDownloadUrlMap();
+  const posDownloadLinksRaw: POSDownloadLink[] = [
+    {
+      platform: "windows",
+      label: t("posDownloadWindows"),
+      url: isSafeExternalUrl(posDownloadUrls.windows) ?? "",
+      icon: Laptop,
+    },
+    {
+      platform: "android",
+      label: t("posDownloadAndroid"),
+      url: isSafeExternalUrl(posDownloadUrls.android) ?? "",
+      icon: Smartphone,
+    },
+    {
+      platform: "macos",
+      label: t("posDownloadMacos"),
+      url: isSafeExternalUrl(posDownloadUrls.macos) ?? "",
+      icon: Laptop,
+    },
+    {
+      platform: "linux",
+      label: t("posDownloadLinux"),
+      url: isSafeExternalUrl(posDownloadUrls.linux) ?? "",
+      icon: Laptop,
+    },
+  ];
+  const posDownloadLinks = posDownloadLinksRaw.filter((item) => item.url !== "");
+  const hasPOSDownloadLinks = posDownloadLinks.length > 0;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background px-4 md:rounded-tl-3xl">
@@ -123,6 +213,9 @@ export const DashboardHeader = memo(function DashboardHeader({
 
       <div className="ml-auto flex items-center gap-1 overflow-visible">
         <HeaderAttendanceButton onOpenDrawer={onOpenAttendanceDrawer} />
+
+        {/* POS download moved into user popover (see below) */}
+
         <NotificationBadge />
         <ThemeToggle />
 
@@ -218,6 +311,43 @@ export const DashboardHeader = memo(function DashboardHeader({
                 <Activity className="h-4 w-4" />
                 {t("myActivities")}
               </button>
+              {hasPOSDownloadLinks && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPosDownloadOpen(!posDownloadOpen)}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    {t("posDownloadLabel")}
+                  </button>
+                  {posDownloadOpen && (
+                    <div className="ml-4 flex flex-col gap-1 border-l border-muted pl-2">
+                      <div className="px-2 py-1 text-xs text-muted-foreground">
+                        {t("posDownloadTooltip")}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {posDownloadLinks.map((item) => {
+                          const PlatformIcon = item.icon;
+                          return (
+                            <a
+                              key={item.platform}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setUserPopoverOpen(false)}
+                              className="flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-accent"
+                            >
+                              <PlatformIcon className="h-3 w-3" />
+                              {item.label}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               <Link
                 href="/profile"
                 locale={locale}
@@ -227,6 +357,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                 <Settings className="h-4 w-4" />
                 {t("settings")}
               </Link>
+              
               <button
                 type="button"
                 onClick={() => {

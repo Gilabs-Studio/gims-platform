@@ -131,6 +131,46 @@ export function OrderList() {
     setViewingOrder(order);
   };
 
+  const getCodeNumericSuffix = (code: string | undefined): number => {
+    if (!code) return 0;
+    const match = code.match(/\d+$/); // extract last sequence of digits
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  const getLatestDeliveryOrder = (order: SalesOrder) => {
+    const deliveryOrders = [...(order.delivery_orders ?? [])].sort((a, b) => {
+      const dateA = new Date(a.delivery_date ?? "").getTime();
+      const dateB = new Date(b.delivery_date ?? "").getTime();
+
+      // Primary: sort by delivery_date (newest first)
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      // Secondary: if dates are equal, sort by code numeric suffix descending (e.g., 0006 > 0005)
+      return getCodeNumericSuffix(b.code) - getCodeNumericSuffix(a.code);
+    });
+
+    return deliveryOrders[0] ?? null;
+  };
+
+  const getLatestInvoice = (order: SalesOrder) => {
+    const invoices = [...(order.customer_invoices ?? [])].sort((a, b) => {
+      const dateA = new Date(a.invoice_date ?? "").getTime();
+      const dateB = new Date(b.invoice_date ?? "").getTime();
+
+      // Primary: sort by invoice_date (newest first)
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      // Secondary: if dates are equal, sort by code numeric suffix descending (e.g., 0006 > 0005)
+      return getCodeNumericSuffix(b.code) - getCodeNumericSuffix(a.code);
+    });
+
+    return invoices[0] ?? null;
+  };
+
   const handleDelete = async () => {
     if (deletingId) {
       try {
@@ -423,7 +463,7 @@ export function OrderList() {
                         title={`${order.delivery_orders.length} Delivery Order(s)`}
                       >
                         <span className="flex items-center gap-1">
-                          <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          <DOStatusBadge status={getLatestDeliveryOrder(order)?.status ?? order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
                           {order.delivery_orders.length > 1 && (
                             <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
                           )}
@@ -444,7 +484,7 @@ export function OrderList() {
                         title={`${order.customer_invoices.length} Invoice(s)`}
                       >
                         <span className="flex items-center gap-1">
-                          <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                          <InvoiceStatusBadge status={getLatestInvoice(order)?.status ?? order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
                           {order.customer_invoices.length > 1 && (
                             <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
                           )}

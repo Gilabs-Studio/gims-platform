@@ -29,27 +29,28 @@ func EnsureTenantSystemAccountMappings(db *gorm.DB, tenantID string) error {
 		// Sales core mappings
 		// ---------------------------------------------------------------------
 		{Key: "purchase.inventory_asset", COACode: "11310", Label: "Purchase Inventory Asset"},
-		{Key: "purchase.gr_ir_clearing", COACode: "11440", Label: "Purchase GR/IR Clearing"},
-		{Key: "purchase.tax_input", COACode: "11420", Label: "Purchase Tax Input"},
+		{Key: "purchase.gr_ir_clearing", COACode: "91100", Label: "Purchase GR/IR Clearing"},
+		{Key: "purchase.tax_input", COACode: "21200", Label: "Purchase Tax Input"},
 		{Key: "purchase.accounts_payable", COACode: "21100", Label: "Purchase Accounts Payable"},
 		{Key: "purchase.advance", COACode: "11410", Label: "Purchase Advance"},
+		{Key: "purchase.purchase_advance", COACode: "21220", Label: "Supplier Advance"},
 		{Key: "purchase.purchase_return", COACode: "51000", Label: "Purchase Return"},
 		{Key: "purchase.expense", COACode: "61300", Label: "Purchase Expense"},
 
 		{Key: "sales.accounts_receivable", COACode: "11210", Label: "Sales Accounts Receivable"},
 		{Key: "sales.advance", COACode: "21400", Label: "Sales Advance"},
 		{Key: "sales.revenue", COACode: "41100", Label: "Sales Revenue"},
-		{Key: "sales.tax_output", COACode: "21210", Label: "Sales Tax Output"},
+		{Key: "sales.tax_output", COACode: "41200", Label: "Sales Tax Output"},
 		{Key: "sales.cogs", COACode: "51000", Label: "Sales Cost of Goods Sold"},
 		{Key: "sales.inventory_asset", COACode: "11310", Label: "Sales Inventory Asset"},
-		{Key: "sales.sales_return", COACode: "41200", Label: "Sales Return"},
+		{Key: "sales.sales_return", COACode: "41210", Label: "Sales Return"},
 
 		// ---------------------------------------------------------------------
 		// Inventory / stock core mappings
 		// ---------------------------------------------------------------------
 		{Key: "inventory.inventory_asset", COACode: "11310", Label: "Inventory Asset"},
-		{Key: "inventory.adjustment_gain", COACode: "71300", Label: "Inventory Adjustment Gain"},
-		{Key: "inventory.adjustment_loss", COACode: "52100", Label: "Inventory Adjustment Loss"},
+		{Key: "inventory.adjustment_gain", COACode: "41900", Label: "Inventory Adjustment Gain"},
+		{Key: "inventory.adjustment_loss", COACode: "51900", Label: "Inventory Adjustment Loss"},
 		{Key: "inventory.revaluation_reserve", COACode: "32000", Label: "Inventory Revaluation Reserve"},
 
 		// ---------------------------------------------------------------------
@@ -58,26 +59,29 @@ func EnsureTenantSystemAccountMappings(db *gorm.DB, tenantID string) error {
 		{Key: "coa.sales_receivable", COACode: "11210", Label: "Sales Receivable"},
 		{Key: "coa.sales_advance", COACode: "21400", Label: "Sales Advance"},
 		{Key: "coa.sales_revenue", COACode: "41100", Label: "Sales Revenue"},
-		{Key: "coa.sales_vat_out", COACode: "21210", Label: "Sales VAT Out"},
+		{Key: "coa.sales_vat_out", COACode: "41200", Label: "Sales VAT Out"},
 		{Key: "coa.sales_cogs", COACode: "51000", Label: "Sales COGS"},
 		{Key: "coa.sales_inventory", COACode: "11310", Label: "Sales Inventory"},
-		{Key: "coa.sales_return", COACode: "41200", Label: "Sales Return"},
+		{Key: "coa.sales_return", COACode: "41210", Label: "Sales Return"},
 		{Key: "coa.purchase_payable", COACode: "21100", Label: "Purchase Payable"},
 		{Key: "coa.accounts_payable", COACode: "21100", Label: "Accounts Payable"},
 		{Key: "coa.purchase_advance", COACode: "11410", Label: "Purchase Advance"},
 		{Key: "coa.purchase_advances", COACode: "11410", Label: "Purchase Advances"},
-		{Key: "coa.gr_ir", COACode: "11440", Label: "GR/IR"},
-		{Key: "coa.purchase_gr_ir", COACode: "11440", Label: "Purchase GR/IR"},
-		{Key: "coa.purchase_vat_in", COACode: "11420", Label: "Purchase VAT In"},
+		{Key: "coa.gr_ir", COACode: "91100", Label: "GR/IR"},
+		{Key: "coa.purchase_gr_ir", COACode: "91100", Label: "Purchase GR/IR"},
+		{Key: "coa.purchase_vat_in", COACode: "21200", Label: "Purchase VAT In"},
+		{Key: "coa.purchase_price_diff", COACode: "51300", Label: "Purchase Price Difference"},
 		{Key: "coa.vat_in", COACode: "11420", Label: "COA VAT In"},
 		{Key: "coa.purchase_expense", COACode: "61300", Label: "Purchase Expense"},
 		{Key: "coa.purchase_return", COACode: "51000", Label: "Purchase Return"},
 		{Key: "coa.inventory", COACode: "11310", Label: "Inventory"},
 		{Key: "coa.inventory_asset", COACode: "11310", Label: "Inventory Asset"},
-		{Key: "coa.inventory_gain", COACode: "71300", Label: "Inventory Gain"},
-		{Key: "coa.inventory_loss", COACode: "52100", Label: "Inventory Loss"},
+		{Key: "coa.inventory_gain", COACode: "41900", Label: "Inventory Gain"},
+		{Key: "coa.inventory_loss", COACode: "51900", Label: "Inventory Loss"},
 		{Key: "coa.inventory_revaluation_reserve", COACode: "32000", Label: "Inventory Revaluation Reserve"},
 		{Key: "coa.cogs", COACode: "51000", Label: "COGS"},
+		{Key: "coa.sales_receivable_dp", COACode: "11220", Label: "Customer Advance (DP Pelanggan)"},
+		{Key: "coa.purchase_payable_dp", COACode: "21220", Label: "Supplier Advance (DP Supplier)"},
 
 		// ---------------------------------------------------------------------
 		// Finance / shared defaults
@@ -90,7 +94,7 @@ func EnsureTenantSystemAccountMappings(db *gorm.DB, tenantID string) error {
 		{Key: "payroll.salary_expense", COACode: "62100", Label: "Payroll Salary Expense"},
 		{Key: "payroll.allowance_expense", COACode: "62110", Label: "Payroll Allowance Expense"},
 		{Key: "payroll.payable_salary", COACode: "21300", Label: "Payroll Salary Payable"},
-		{Key: "payroll.tax_pph21", COACode: "21220", Label: "Payroll Tax PPh21"},
+		{Key: "payroll.tax_pph21", COACode: "21221", Label: "Payroll Tax PPh21"},
 	}
 
 	for _, m := range mappings {

@@ -70,6 +70,7 @@ export const hrdEn = {
       today: "Today",
       todayAttendance: "Today's Attendance",
       notClockedIn: "Not clocked in yet",
+      checkInAvailableAt: "Check-in available at {time}",
       permissionsRequired: "Permission required",
       permissionsUnavailableTitle: "HR Features Unavailable",
       permissionsUnavailableDescription:

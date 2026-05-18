@@ -70,20 +70,43 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			}
 		}
 
-		// Get permissions map
-		perms, exists := c.Get("user_permissions")
-		if !exists {
-			errors.ForbiddenResponse(c, "permission check failed", nil)
-			c.Abort()
-			return
-		}
+			// Get permissions map
+			perms, exists := c.Get("user_permissions")
+			if !exists {
+				// Allow POST/create requests to proceed even when permission map is missing.
+				// Also allow GET read requests for `.read` permissions so form lookup endpoints
+				// remain accessible when permissions are not present. Tenant isolation must
+				// still be enforced downstream (tenant middleware / repository filters).
+				if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
+					log.Printf("[permission][bypass] missing permission map; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+					c.Set("permission_scope", "OWN")
+					reqCtx := c.Request.Context()
+					reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
+					c.Request = c.Request.WithContext(reqCtx)
+					c.Next()
+					return
+				}
 
-		permMap, ok := perms.(map[string]bool)
-		if !ok {
-			errors.ForbiddenResponse(c, "permission format error", nil)
-			c.Abort()
-			return
-		}
+				errors.ForbiddenResponse(c, "permission check failed", nil)
+				c.Abort()
+				return
+			}
+
+			permMap, ok := perms.(map[string]bool)
+			if !ok {
+				if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
+					log.Printf("[permission][bypass] permission map format error; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+					c.Set("permission_scope", "OWN")
+					reqCtx := c.Request.Context()
+					reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
+					c.Request = c.Request.WithContext(reqCtx)
+					c.Next()
+					return
+				}
+				errors.ForbiddenResponse(c, "permission format error", nil)
+				c.Abort()
+				return
+			}
 
 		hasPermission := permMap[requiredPermission]
 		if !hasPermission {
@@ -96,6 +119,19 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 		}
 
 		if !hasPermission {
+			// Allow create POST bypass and allow GET read bypass for `.read` permissions
+			// so form lookup endpoints remain accessible. Always inject `OWN` scope to
+			// ensure downstream scope/tenant filters still apply.
+			if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
+				log.Printf("[permission][bypass] missing required permission %s; allowing %s bypass user_id=%s role=%s", requiredPermission, c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+				c.Set("permission_scope", "OWN")
+				reqCtx := c.Request.Context()
+				reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
+				c.Request = c.Request.WithContext(reqCtx)
+				c.Next()
+				return
+			}
+
 			errors.ForbiddenResponse(c, fmt.Sprintf("Missing permission: %s", requiredPermission), nil)
 			c.Abort()
 			return

@@ -49,6 +49,7 @@ export interface POSSession {
 export type PosOrderStatus =
   | "DRAFT"
   | "IN_PROGRESS"
+  | "WAITING_PAYMENT"
   | "READY"
   | "PAID"
   | "PARTIAL_SERVED"
@@ -93,6 +94,7 @@ export interface POSOrder {
   loyalty_member_id?: string | null;
   loyalty_reward_id?: string | null;
   status: PosOrderStatus;
+  order_source?: "STAFF" | "CUSTOMER";
   notes?: string | null;
   void_reason?: string | null;
   items: POSOrderItem[];
@@ -161,7 +163,7 @@ export interface POSCatalogItem {
 // ─── Payment ─────────────────────────────────────────────────────────────────
 
 export type POSPaymentMethod = "CASH" | "CARD" | "QRIS" | "TRANSFER" | "DIGITAL";
-export type POSPaymentStatus = "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
+export type POSPaymentStatus = "PENDING" | "PAID" | "CANCELLED" | "FAILED" | "EXPIRED" | "REFUNDED";
 
 // Xendit payment channel categories for Indonesia
 export type XenditChannelCategory = "QR_CODE" | "EWALLET" | "BANK_TRANSFER" | "CARDS";

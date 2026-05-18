@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -68,6 +69,7 @@ import { AssetForm } from "./asset-form";
 import { AssetAcquisitionTab } from "./asset-tabs/asset-acquisition-tab";
 import { AssetDepreciationConfigTab } from "./asset-tabs/asset-depreciation-config-tab";
 import { AssetComponentsTab } from "./asset-tabs/asset-components-tab";
+import { TransfersList } from "./transfers-list";
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -201,8 +203,8 @@ interface AssetDetailPageProps {
 export function AssetDetailPage({ id }: AssetDetailPageProps) {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
-  const canUpdate = useUserPermission("asset.update");
-  const canDepreciate = useUserPermission("asset.depreciate");
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
+  const canDepreciate = useUserPermission(FINANCE_PERMISSIONS.ASSET.DEPRECIATE);
 
   const { data, isLoading } = useFinanceAsset(id, { enabled: !!id });
   const asset = data?.data;
@@ -407,6 +409,9 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
                 {attachments.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="transfers" className="flex-shrink-0">
+            {t("detail.tabs.transfers")}
           </TabsTrigger>
           <TabsTrigger value="assignment-history" className="flex-shrink-0">
             {t("detail.tabs.assignmentHistory")}
@@ -774,6 +779,18 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
           </Card>
         </TabsContent>
 
+        <TabsContent value="transfers" className="space-y-6 py-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("detail.sections.transfers")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Lazy load transfers for this asset */}
+              <TransfersList assetId={id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ============ Depreciations Tab ============ */}
         <TabsContent value="depreciations" className="space-y-6 py-4">
           {!asset.depreciations || asset.depreciations.length === 0 ? (
@@ -902,7 +919,7 @@ export function AssetDetailPage({ id }: AssetDetailPageProps) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {uploadMutation.isPending ? "Uploading..." : t("detail.attachments.upload")}
+                {uploadMutation.isPending ? t("detail.attachments.uploading") : t("detail.attachments.upload")}
               </Button>
             </div>
           )}

@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -30,7 +31,7 @@ function toApiDate(d: Date): string {
 export function BalanceSheetView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
-  const canExport = useUserPermission("balance_sheet_report.export");
+  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.BALANCE_SHEET_EXPORT);
 
   const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
@@ -111,9 +112,9 @@ export function BalanceSheetView() {
   };
 
   const metrics = [
-    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp, desc: "Kekayaan dan harta perusahaan" },
-    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2, desc: "Kewajiban tagihan dan hutang" },
-    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale, desc: "Modal pemilik / Laba ditahan" },
+    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp, desc: t("total_assets_desc") },
+    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2, desc: t("total_liabilities_desc") },
+    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale, desc: t("total_equity_desc") },
   ];
 
   return (

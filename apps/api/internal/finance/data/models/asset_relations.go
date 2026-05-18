@@ -30,12 +30,13 @@ func (BusinessUnit) TableName() string {
 // Department represents a department (from organization module)
 type Department struct {
 	ID   string `gorm:"type:uuid;primary_key" json:"id"`
+	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	Name string `gorm:"type:varchar(200)" json:"name"`
 	Code string `gorm:"type:varchar(50)" json:"code,omitempty"`
 }
 
 func (Department) TableName() string {
-	return "departments"
+	return "divisions"
 }
 
 // Employee represents an employee (from organization module)

@@ -13,6 +13,7 @@ import (
 type ContactRoleRepository interface {
 	Create(ctx context.Context, role *models.ContactRole) error
 	FindByID(ctx context.Context, id string) (*models.ContactRole, error)
+	ExistsByName(ctx context.Context, name string, excludeID string) (bool, error)
 	List(ctx context.Context, params ListParams) ([]models.ContactRole, int64, error)
 	Update(ctx context.Context, role *models.ContactRole) error
 	Delete(ctx context.Context, id string) error
@@ -38,6 +39,20 @@ func (r *contactRoleRepository) FindByID(ctx context.Context, id string) (*model
 		return nil, err
 	}
 	return &role, nil
+}
+
+func (r *contactRoleRepository) ExistsByName(ctx context.Context, name string, excludeID string) (bool, error) {
+	var count int64
+	q := database.GetDB(ctx, r.db).Model(&models.ContactRole{}).Where("LOWER(name) = LOWER(?)", name)
+	if excludeID != "" {
+		q = q.Where("id <> ?", excludeID)
+	}
+
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (r *contactRoleRepository) List(ctx context.Context, params ListParams) ([]models.ContactRole, int64, error) {

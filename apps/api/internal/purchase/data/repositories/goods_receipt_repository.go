@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -120,7 +121,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 
 func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*models.GoodsReceipt, error) {
 	var gr models.GoodsReceipt
-	err := r.getDB(ctx).
+	q := r.getDB(ctx).
 		Model(&models.GoodsReceipt{}).
 		Preload("Supplier").
 		Preload("Warehouse").
@@ -128,9 +129,16 @@ func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*model
 		Preload("PurchaseOrder.Supplier").
 		Preload("PurchaseOrder.Items.Product").
 		Preload("Items.Product").
-		Preload("Items.PurchaseOrderItem.Product").
-		First(&gr, "id = ?", id).Error
-	if err != nil {
+		Preload("Items.PurchaseOrderItem.Product")
+
+	// Accept either a UUID (primary key) or a code/reference number.
+	if _, err := uuid.Parse(id); err == nil {
+		q = q.Where("goods_receipts.id = ?", id)
+	} else {
+		q = q.Where("goods_receipts.code = ?", id)
+	}
+
+	if err := q.First(&gr).Error; err != nil {
 		return nil, err
 	}
 	return &gr, nil

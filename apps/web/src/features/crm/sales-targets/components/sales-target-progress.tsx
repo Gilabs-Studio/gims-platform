@@ -89,16 +89,13 @@ function HalfCircleArc({
 
 function MonthBar({
   month,
-  monthName,
-  targetAmount,
-  actualAmount,
   achievementPercent,
   isCurrentMonth,
 }: {
   month: number;
-  monthName: string;
-  targetAmount: number;
-  actualAmount: number;
+  monthName?: string;
+  targetAmount?: number;
+  actualAmount?: number;
   achievementPercent: number;
   isCurrentMonth: boolean;
 }) {

@@ -34,6 +34,8 @@ func RegisterLegacyFinanceRouteBridges(rg *gin.RouterGroup) {
 	rg.Any("/cash-bank", deprecatedRoute("Legacy cash-bank endpoint is deprecated. Use canonical Cash & Bank routes.", "/finance/cash-bank/accounts"))
 	rg.Any("/cash-bank/*path", deprecatedRoute("Legacy cash-bank endpoint is deprecated. Use canonical Cash & Bank routes.", "/finance/cash-bank/accounts"))
 
-	rg.Any("/salary-structures", deprecatedRoute("Salary structures endpoint is deprecated from Finance module.", "/hrd"))
-	rg.Any("/salary-structures/*path", deprecatedRoute("Salary structures endpoint is deprecated from Finance module.", "/hrd"))
+	rg.Any("/salary", deprecatedRoute("Salary endpoint has moved from Finance module.", "/hrd/salary"))
+	rg.Any("/salary/*path", deprecatedRoute("Salary endpoint has moved from Finance module.", "/hrd/salary"))
+	rg.Any("/salary-structures", deprecatedRoute("Salary structures endpoint has moved from Finance module.", "/hrd/salary"))
+	rg.Any("/salary-structures/*path", deprecatedRoute("Salary structures endpoint has moved from Finance module.", "/hrd/salary"))
 }

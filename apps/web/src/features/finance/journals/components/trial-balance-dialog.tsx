@@ -66,7 +66,7 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
                 <SelectValue placeholder={t("fields.company")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="cursor-pointer">All Company</SelectItem>
+                <SelectItem value="all" className="cursor-pointer">{tCommon("allCompanies")}</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id} className="cursor-pointer">
                     {company.name}

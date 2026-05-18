@@ -55,5 +55,6 @@ export const stockLedgerEn = {
     GI: "Goods Issue",
     OPNAME: "Stock Opname",
     TRANSFER: "Transfer",
+    SO: "Sales Order",
   },
 };

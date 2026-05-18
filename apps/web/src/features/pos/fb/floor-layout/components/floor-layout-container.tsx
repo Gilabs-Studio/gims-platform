@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeftIcon, Store, ShieldOff } from "lucide-react";
 
+import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
@@ -156,7 +157,7 @@ export function FloorLayoutContainer() {
       <PageMotion>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center space-y-3">
-            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <LoadingSpinner className="mx-auto h-8 w-8 text-primary" strokeWidth={2} />
             <p className="text-sm text-muted-foreground">Loading floor layout…</p>
           </div>
         </div>

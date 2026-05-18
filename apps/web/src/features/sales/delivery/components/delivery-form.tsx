@@ -116,6 +116,7 @@ export function DeliveryForm({
 		employeesCombobox,
 		courierAgenciesCombobox,
 		warehousesCombobox,
+		insert,
 	} = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
 	const watchedItems = useWatch({ control: form.control, name: "items" });
@@ -553,26 +554,41 @@ export function DeliveryForm({
 												// We can just use a lookup since we have access to SO data if needed,
 												// but simpler to assume it's pre-populated since we don't have a products list here
 												const items = getValues("items") as Array<
-													DeliveryOrderItemFormData & { product_name?: string }
+													DeliveryOrderItemFormData & {
+														product_name?: string;
+														row_type?: "primary" | "allocation";
+														allocation_parent_index?: number;
+													}
 												>;
 												const currentItem = items && items[index];
-												const productName =
-													currentItem?.product_name ||
-													`Product ID: ${currentItem?.product_id}`;
+												const productName = currentItem?.product_name || "Selected product";
+												const isAllocation = currentItem?.row_type === "allocation";
+												const allocationLabel = isAllocation
+													? `Allocation #${(currentItem?.allocation_parent_index ?? 0) + 1}`
+													: "Main item";
 
 												return (
 													<div
 														key={field.id}
-														className="relative border rounded-lg p-4 space-y-3 bg-card shadow-sm hover:shadow-md transition-shadow"
+														className={cn(
+															"relative rounded-xl p-4 space-y-3 transition-all duration-200",
+															isAllocation
+																? "ml-8 border border-primary/20 bg-primary/5 shadow-sm"
+																: "border bg-card shadow-sm hover:shadow-md hover:-translate-y-[1px]",
+														)}
 													>
-														<div className="absolute top-2 right-2 flex items-center gap-2">
-															<span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-muted rounded">
+															<div className="absolute top-3 right-3 flex items-center gap-2">
+																<span className="text-[11px] text-muted-foreground font-medium px-2 py-1 bg-muted rounded-full">
 																#{index + 1}
 															</span>
-															{/* Remove delete button if derived from Sales Order? 
-                                Maybe allow deleting if partial delivery of LINES. 
-                                Let's keep it but maybe warn? For now keep it consistent with request "automatically from SO".
-                            */}
+																<span className={cn(
+																	"text-[11px] font-medium px-2 py-1 rounded-full",
+																	isAllocation
+																		? "bg-primary/10 text-primary"
+																		: "bg-muted text-muted-foreground",
+																)}>
+																	{allocationLabel}
+																</span>
 																{!currentItem?.sales_order_item_id && (
 															<Button
 																type="button"
@@ -586,13 +602,13 @@ export function DeliveryForm({
 															)}
 														</div>
 
-														<div className="grid grid-cols-2 gap-3 mt-6">
+														<div className={cn("grid grid-cols-2 gap-3 mt-6", isAllocation && "pt-2") }>
 															<Field
 																orientation="vertical"
 																className="col-span-2"
 															>
 																<FieldLabel>{t("item.product")}</FieldLabel>
-																<div className="p-2 bg-muted rounded-md text-sm font-medium">
+																<div className={cn("p-2 rounded-md text-sm font-medium", isAllocation ? "bg-primary/10 text-primary" : "bg-muted") }>
 																	{productName}
 																</div>
 															</Field>
@@ -651,6 +667,40 @@ export function DeliveryForm({
 																t={t}
 															/>
 														</div>
+
+														{/* Allocation controls: show Add Warehouse on non-allocation rows */}
+														{!isAllocation && (
+															<div className="flex justify-end mt-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() => {
+																		// insert a new allocation row after current index
+																		// use the insert function returned from the hook via props
+																		// build a shallow clone of current item with reset batch/warehouse/qty
+																		const itemClone = {
+																			product_id: currentItem?.product_id || "",
+																			product_name: currentItem?.product_name || "Selected product",
+																			warehouse_id: "",
+																			sales_order_item_id: currentItem?.sales_order_item_id || "",
+																			inventory_batch_id: "",
+																			quantity: 1,
+																			price: currentItem?.price || 0,
+																			installation_status: "",
+																			function_test_status: "",
+																			row_type: "allocation" as const,
+																			allocation_parent_index: index,
+																		};
+																		// call insert from hook return
+																		insert(index + 1, itemClone as DeliveryOrderItemFormData);
+																	}}
+																>
+																	<Plus className="h-4 w-4 mr-2" />
+																	Add warehouse
+																</Button>
+															</div>
+														)}
 													</div>
 												);
 											})}

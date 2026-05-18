@@ -25,6 +25,7 @@ type SalesDeps struct {
 	OrderUC           usecase.SalesOrderUsecase
 	DeliveryOrderUC   usecase.DeliveryOrderUsecase
 	CustomerInvoiceUC usecase.CustomerInvoiceUsecase
+	SalesPaymentUC    usecase.SalesPaymentUsecase
 	SalesTargetUC     usecase.SalesTargetUsecase
 }
 
@@ -121,6 +122,7 @@ func RegisterRoutes(
 		OrderUC:           orderUC,
 		DeliveryOrderUC:   deliveryUC,
 		CustomerInvoiceUC: invoiceUC,
+		SalesPaymentUC:    salesPaymentUC,
 		SalesTargetUC:     salesTargetUC,
 	}
 }

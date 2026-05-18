@@ -88,6 +88,7 @@ func isPublicAuthEndpoint(path string) bool {
 	// without an established browser session. Client-side CSRF isn't applicable until
 	// after successful login when browser cookies are set.
 	publicAuthPaths := []string{
+		"/api/v1/auth/login",
 		"/api/v1/auth/csrf",
 		"/api/v1/auth/refresh-token",
 		"/api/v1/auth/plans",
@@ -105,6 +106,12 @@ func isPublicAuthEndpoint(path string) bool {
 	return false
 }
 
+func isPublicPOSSelfOrderEndpoint(path string) bool {
+	// Public POS self-order routes are authenticated by a one-time table token in the URL,
+	// not by a browser session cookie, so CSRF validation does not add protection here.
+	return strings.HasPrefix(path, "/api/v1/public/pos/tables/")
+}
+
 func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
 	if isCRMLeadUpsertWebhookRequest(c.Request.Method, path) {
 		return true
@@ -118,6 +125,10 @@ func shouldSkipCSRFMiddleware(c *gin.Context, path string) bool {
 	// Public auth endpoints (registration, plans, csrf token fetch) bypass CSRF
 	// since they're accessed before a session is established.
 	if isPublicAuthEndpoint(path) {
+		return true
+	}
+
+	if isPublicPOSSelfOrderEndpoint(path) {
 		return true
 	}
 

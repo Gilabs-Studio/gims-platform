@@ -23,7 +23,6 @@ import {
 	useUser,
 	useDeleteUser,
 	useUpdateUser,
-	useRole,
 } from "../hooks/use-users";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { toast } from "sonner";
@@ -55,7 +54,6 @@ export function UserDetailModal({
 	const canManageTargetUser = canOwnerManageUser(currentUser, user);
 	// Fetch the full role (with permissions) separately — the user-detail endpoint
 	// does not always embed role.permissions in its response.
-	const { data: roleData } = useRole(user?.role_id ?? "");
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const t = useTranslations("userManagement.detailModal");

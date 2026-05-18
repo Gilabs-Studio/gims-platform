@@ -145,6 +145,8 @@ export const userManagementId: UserManagementTranslations = {
     statusLabel: "Status",
     statusActive: "Aktif",
     statusInactive: "Tidak aktif",
+    showPassword: "Tampilkan password",
+    hidePassword: "Sembunyikan password",
     cancel: "Batal",
     submitCreate: "Buat",
     submitUpdate: "Perbarui",

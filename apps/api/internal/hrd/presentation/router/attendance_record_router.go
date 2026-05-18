@@ -7,10 +7,11 @@ import (
 )
 
 // RegisterAttendanceRecordRoutes registers attendance record routes
-func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRecordHandler) {
+func RegisterAttendanceRecordRoutes(rg *gin.RouterGroup, h *handler.AttendanceRecordHandler, wsH *handler.AttendanceWSHandler) {
 	g := rg.Group("/attendance")
 
 	// Employee self-service routes (no special permission needed beyond auth)
+	g.GET("/ws/today", wsH.SubscribeToday)
 	g.GET("/today", h.GetTodayAttendance)
 	g.POST("/clock-in", h.ClockIn)
 	g.POST("/clock-out", h.ClockOut)

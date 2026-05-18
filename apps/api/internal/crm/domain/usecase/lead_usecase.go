@@ -162,6 +162,9 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		timeExpected = &t
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	lead := &models.Lead{
 		ID:                   uuid.New().String(),
 		FirstName:            req.FirstName,
@@ -202,6 +205,7 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		PaymentTermsID:       req.PaymentTermsID,
 		CreatedBy:            &createdBy,
 	}
+	lead.TenantID = tenantID
 
 	// Calculate lead score after setting all fields
 	// Need to preload status for score calculation

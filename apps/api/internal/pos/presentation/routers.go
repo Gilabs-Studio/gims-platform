@@ -19,9 +19,12 @@ import (
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
+	"github.com/gilabs/gims/api/internal/pos/domain/provider"
+	"github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/pos/presentation/handler"
 	"github.com/gilabs/gims/api/internal/pos/presentation/router"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	salesUsecase "github.com/gilabs/gims/api/internal/sales/domain/usecase"
 )
 
 // RegisterRoutes registers all POS domain routes under /api/v1/pos.
@@ -29,7 +32,7 @@ import (
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase) {
+}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase, customerInvoiceUC salesUsecase.CustomerInvoiceUsecase, salesPaymentUC salesUsecase.SalesPaymentUsecase) {
 	credentialCipher, err := securityInfra.NewCredentialCipher(config.AppConfig.Security.XenditCredentialEncryptionKey)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Xendit credential cipher: %v", err))
@@ -45,6 +48,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	xenditRepo := repositories.NewXenditConfigRepository(db)
 	bankAccountRepo := coreRepos.NewBankAccountRepository(db)
 	sessionRepo := repositories.NewPosSessionRepository(db)
+	qrTokenRepo := repositories.NewTableQRTokenRepository(db)
+	deviceTokenRepo := repositories.NewPOSDeviceTokenRepository(db)
 
 	outletRepo := orgRepo.NewOutletRepository(db)
 	salesOrderRepo := salesRepos.NewSalesOrderRepository(db)
@@ -53,15 +58,19 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	invRepo := invDataRepos.NewInventoryRepository(db)
 	recipeService := invUsecase.NewRecipeConsumptionService(db, invRepo)
+	posHub := ws.DefaultPosHub()
 
 	// ─── Usecases ────────────────────────────────────────────────────────────
 
-	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
+	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo, qrTokenRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo, credentialCipher)
+	orderUC = orderUC.WithPOSHub(posHub)
+	paymentUC := usecase.NewPOSPaymentUsecase(db, paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, customerInvoiceUC, salesPaymentUC, salesPaymentRepo, bankAccountRepo, credentialCipher)
+	paymentUC = paymentUC.WithPOSHub(posHub)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 	sessionUC := usecase.NewPOSSessionUsecase(sessionRepo, outletRepo)
+	deviceTokenUC := usecase.NewPOSDeviceTokenUsecase(deviceTokenRepo, outletRepo)
 
 	// ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -86,6 +95,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)
 	sessionH := handler.NewPOSSessionHandler(sessionUC)
+	deviceTokenH := handler.NewPOSDeviceTokenHandler(deviceTokenUC)
+
+	// ─── Public self-order handler ────────────────────────────────────────────
+
+	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub, deviceTokenRepo, provider.NewMultiPlatformPushNotifier())
+	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
+	posWSH := handler.NewPOSWSHandler(posHub, outletRepo)
 
 	// ─── Route group ─────────────────────────────────────────────────────────
 
@@ -99,6 +115,13 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPOSConfigRoutes(group, configH)
 	router.RegisterXenditConfigRoutes(group, xenditH)
 	router.RegisterPOSSessionRoutes(group, sessionH)
+	group.POST("/device-token", middleware.RequirePermission("pos.order.read"), deviceTokenH.Register)
+
+	// Staff WebSocket — requires auth (already applied by group.Use above)
+	group.GET("/ws", middleware.RequirePermission("pos.order.read"), posWSH.Subscribe)
+
+	// Public self-order routes — unauthenticated, rate-limited
+	router.RegisterPublicPOSRoutes(r, publicPOSH)
 
 	// Xendit webhook is unauthenticated (token verified inside the handler by Xendit signature)
 	r.POST("/api/v1/pos/payments/xendit/webhook", paymentH.XenditWebhook)

@@ -60,101 +60,13 @@ export default function MarketingLayout({
         ]
       },
       {
-        "@type": "SoftwareApplication",
-        "@id": "https://salesview.id/#product",
-        "name": "SalesView - ERP, CRM, HRIS, POS & Finance",
-        "applicationCategory": "BusinessApplication",
-        "operatingSystem": "Web, Windows, macOS, Linux",
+        "@type": "WebSite",
+        "@id": "https://salesview.id/#website",
         "url": "https://salesview.id",
-        "offers": {
-          "@type": "AggregateOffer",
-          "priceCurrency": "IDR",
-          "lowPrice": "0",
-          "offerCount": "3"
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.9",
-          "reviewCount": "154",
-          "bestRating": "5",
-          "worstRating": "1"
-        },
-        "review": [
-          {
-            "@type": "Review",
-            "author": { "@type": "Person", "name": "Budi Santoso" },
-            "datePublished": "2025-02-10",
-            "reviewBody": "SalesView sangat membantu tim sales kami. Laporan penjualan real-time dan integrasi stok membuat operasional jauh lebih efisien.",
-            "reviewRating": {
-              "@type": "Rating",
-              "ratingValue": "5",
-              "bestRating": "5",
-              "worstRating": "1"
-            }
-          },
-          {
-            "@type": "Review",
-            "author": { "@type": "Person", "name": "Sari Dewi" },
-            "datePublished": "2025-03-15",
-            "reviewBody": "Platform ERP terlengkap yang pernah kami pakai. Modul HRD, Finance, dan CRM terintegrasi sempurna. Tim support responsif.",
-            "reviewRating": {
-              "@type": "Rating",
-              "ratingValue": "5",
-              "bestRating": "5",
-              "worstRating": "1"
-            }
-          },
-          {
-            "@type": "Review",
-            "author": { "@type": "Person", "name": "Ahmad Fauzi" },
-            "datePublished": "2025-04-01",
-            "reviewBody": "Sistem kasir POS-nya cepat dan stabil. Sinkronisasi stok otomatis sangat membantu bisnis retail multi-cabang kami.",
-            "reviewRating": {
-              "@type": "Rating",
-              "ratingValue": "5",
-              "bestRating": "5",
-              "worstRating": "1"
-            }
-          }
-        ]
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://salesview.id/#faq",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Apa itu SalesView?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "SalesView adalah platform bisnis all-in-one yang mencakup ERP, CRM, HRIS, POS, dan Finance. Dirancang untuk bisnis Indonesia yang ingin mengelola penjualan, stok, SDM, dan keuangan dalam satu sistem terintegrasi."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Apakah SalesView cocok untuk bisnis kecil dan menengah?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Ya, SalesView tersedia dalam beberapa paket harga mulai dari gratis hingga enterprise, sehingga cocok untuk UMKM maupun perusahaan skala besar di Indonesia."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Apakah SalesView memiliki fitur Point of Sale (POS) atau kasir?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Ya, SalesView memiliki sistem kasir POS lengkap yang mendukung multi-cabang, inventory real-time, loyalty pelanggan, dan integrasi pembayaran. Cocok untuk retail, kafe, restoran, dan F&B."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Bagaimana cara mulai menggunakan SalesView?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Anda dapat mendaftar gratis di salesview.id dan langsung menggunakan seluruh fitur. Tidak perlu kartu kredit untuk memulai."
-            }
-          }
-        ]
+        "name": "SalesView",
+        "publisher": {
+          "@id": "https://salesview.id/#organization"
+        }
       }
     ]
   };

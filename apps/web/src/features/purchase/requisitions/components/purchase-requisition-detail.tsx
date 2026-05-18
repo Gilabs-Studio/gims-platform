@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";

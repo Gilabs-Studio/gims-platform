@@ -38,7 +38,7 @@ var entityLinkRules = map[string]entityLinkRule{
 	"financial_closing":    {basePath: "/finance/closing", queryKey: "open_financial_closing"},
 	"asset_maintenance":    {basePath: "/finance/asset-maintenance", queryKey: "open_asset_maintenance"},
 	"travel_plan":          {basePath: "/travel/travel-planner", queryKey: "open_trip"},
-	"salary":               {basePath: "/finance/salary", queryKey: "open_salary"},
+	"salary":               {basePath: "/hrd/salary-structures", queryKey: "open_salary"},
 	"leave_request":        {basePath: "/hrd/leave-requests", queryKey: "open_leave_request"},
 	"overtime":             {basePath: "/hrd/overtime", queryKey: "open_overtime"},
 	"recruitment":          {basePath: "/hrd/recruitment", queryKey: "open_recruitment"},

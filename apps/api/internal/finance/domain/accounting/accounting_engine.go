@@ -35,12 +35,13 @@ type TransactionData struct {
 	Description string
 
 	// TotalAmount is the primary amount for the transaction
-	TotalAmount  float64
-	SubTotal     float64
-	TaxTotal     float64
-	COGSTotal    float64
-	DepositTotal float64
-	OtherTotal   float64
+	TotalAmount       float64
+	SubTotal          float64
+	TaxTotal          float64
+	COGSTotal         float64
+	DepositTotal      float64
+	OtherTotal        float64
+	GRIRVarianceTotal float64
 
 	// TransactionCOAID is the COA selected by the user on the transaction (e.g. NTP expense account)
 	TransactionCOAID string
@@ -108,6 +109,22 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 	// VALIDATION: Ensure all required COA settings are configured
 	if err := e.validateProfileCOAs(ctx, profile); err != nil {
 		return nil, fmt.Errorf("accounting engine validation failed: %w", err)
+	}
+
+	if strings.TrimSpace(data.TransactionCOAID) != "" {
+		coa, err := e.coaRepo.FindByID(ctx, strings.TrimSpace(data.TransactionCOAID))
+		if err != nil {
+			return nil, fmt.Errorf("TransactionCOAID %s not found: %w", strings.TrimSpace(data.TransactionCOAID), err)
+		}
+		if !coa.IsActive {
+			return nil, fmt.Errorf("COA %s (%s) is not active", strings.TrimSpace(coa.Code), strings.TrimSpace(coa.Name))
+		}
+		if !coa.IsPostable {
+			return nil, fmt.Errorf("COA %s (%s) is not postable", strings.TrimSpace(coa.Code), strings.TrimSpace(coa.Name))
+		}
+		if coa.Type != financeModels.AccountTypeAsset && coa.Type != financeModels.AccountTypeCashBank {
+			return nil, fmt.Errorf("COA %s (%s) for payment must be ASSET/CASH_BANK type, got %s", strings.TrimSpace(coa.Code), strings.TrimSpace(coa.Name), coa.Type)
+		}
 	}
 
 	var lines []dto.JournalLineRequest
@@ -192,6 +209,8 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 		}
 	}
 
+	journalTypeValue := strings.TrimSpace(string(profile.JournalType))
+
 	refType := data.ReferenceType
 	req := &dto.CreateJournalEntryRequest{
 		CompanyID:         strings.TrimSpace(data.CompanyID),
@@ -200,6 +219,7 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 		Description:       desc,
 		ReferenceType:     &refType,
 		ReferenceID:       &data.ReferenceID,
+		JournalType:       &journalTypeValue,
 		Lines:             lines,
 		IsSystemGenerated: true,
 	}
@@ -429,6 +449,8 @@ func (e *accountingEngine) resolveAmount(rule PostingRule, data TransactionData)
 		return data.TotalAmount - data.DepositTotal
 	case "other_total":
 		return data.OtherTotal
+	case "gr_ir_variance":
+		return data.GRIRVarianceTotal
 	case "calculated":
 		// For dynamic calculations (e.g. period closing), the amount is in TotalAmount
 		return data.TotalAmount

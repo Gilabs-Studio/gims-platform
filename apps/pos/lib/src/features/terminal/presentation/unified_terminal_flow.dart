@@ -6,6 +6,7 @@ import '../domain/models/table_selection.dart';
 import '../../floor_layout/presentation/live_table_screen.dart';
 import '../../outlet/domain/models/outlet.dart';
 import 'terminal_screen.dart';
+import 'widgets/new_order_notification_banner.dart';
 
 /// Decides between LiveTable picker and Terminal based on published floor layout.
 class UnifiedTerminalFlow extends StatefulWidget {
@@ -67,24 +68,32 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    Widget screen;
+    var wrapWithOrderBanner = true;
+
     if (!_hasPublishedLayout) {
-      return TerminalScreen(outlet: widget.outlet);
+      screen = TerminalScreen(outlet: widget.outlet);
+    } else {
+      final selectedTable = _selectedTable;
+      if (selectedTable == null) {
+        screen = LiveTableScreen(
+          outlet: widget.outlet,
+          onSelectTable: (table) {
+            setState(() => _selectedTable = table);
+          },
+        );
+        wrapWithOrderBanner = false;
+      } else {
+        screen = TerminalScreen(
+          outlet: widget.outlet,
+          selectedTable: selectedTable,
+          onBackToLiveTable: () => setState(() => _selectedTable = null),
+        );
+      }
     }
 
-    final selectedTable = _selectedTable;
-    if (selectedTable == null) {
-      return LiveTableScreen(
-        outlet: widget.outlet,
-        onSelectTable: (table) {
-          setState(() => _selectedTable = table);
-        },
-      );
-    }
+    if (!wrapWithOrderBanner) return screen;
 
-    return TerminalScreen(
-      outlet: widget.outlet,
-      selectedTable: selectedTable,
-      onBackToLiveTable: () => setState(() => _selectedTable = null),
-    );
+    return NewOrderNotificationBanner(outletId: widget.outlet.id, child: screen);
   }
 }

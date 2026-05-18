@@ -32,6 +32,7 @@ func ToPOSOrderResponse(order *models.PosOrder) *dto.POSOrderResponse {
 
 	return &dto.POSOrderResponse{
 		ID:                order.ID,
+		TenantID:          order.TenantID,
 		OrderNumber:       order.OrderNumber,
 		SessionID:         order.SessionID,
 		OutletID:          order.OutletID,
@@ -47,6 +48,8 @@ func ToPOSOrderResponse(order *models.PosOrder) *dto.POSOrderResponse {
 		ServiceCharge:     order.ServiceCharge,
 		TotalAmount:       order.TotalAmount,
 		Status:            string(order.Status),
+		OrderSource:       order.OrderSource,
+		VoidReason:        order.VoidReason,
 		Notes:             order.Notes,
 		SalesOrderID:      order.SalesOrderID,
 		CustomerInvoiceID: order.CustomerInvoiceID,

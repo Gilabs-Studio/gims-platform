@@ -29,6 +29,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import type { Budget } from "../types";
 import { useApproveFinanceBudget, useDeleteFinanceBudget, useFinanceBudget, useFinanceBudgets } from "../hooks/use-finance-budget";
@@ -107,10 +108,10 @@ export function BudgetsList() {
   const t = useTranslations("financeBudget");
   const tCommon = useTranslations("common");
 
-  const canCreate = useUserPermission("budget.create");
-  const canUpdate = useUserPermission("budget.update");
-  const canDelete = useUserPermission("budget.delete");
-  const canApprove = useUserPermission("budget.approve");
+  const canCreate = useUserPermission(FINANCE_PERMISSIONS.BUDGET.CREATE);
+  const canUpdate = useUserPermission(FINANCE_PERMISSIONS.BUDGET.UPDATE);
+  const canDelete = useUserPermission(FINANCE_PERMISSIONS.BUDGET.DELETE);
+  const canApprove = useUserPermission(FINANCE_PERMISSIONS.BUDGET.APPROVE);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);

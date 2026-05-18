@@ -50,6 +50,7 @@ func (r *deliveryOrderRepository) FindByID(ctx context.Context, id string) (*mod
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
+		Preload("Items.Warehouse").
 		Preload("Items.SalesOrderItem").
 		Preload("Items.InventoryBatch").
 		Where("id = ?", id).
@@ -68,6 +69,7 @@ func (r *deliveryOrderRepository) FindByCode(ctx context.Context, code string) (
 		Preload("DeliveredBy").
 		Preload("CourierAgency").
 		Preload("Items.Product").
+		Preload("Items.Warehouse").
 		Preload("Items.SalesOrderItem").
 		Preload("Items.InventoryBatch").
 		Where("code = ?", code).

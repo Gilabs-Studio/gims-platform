@@ -214,9 +214,9 @@ func (_m *RoleRepository) GetPermissions(ctx context.Context, roleID string) ([]
 	return r0, r1
 }
 
-// List provides a mock function with given fields: ctx, page, limit
-func (_m *RoleRepository) List(ctx context.Context, page int, limit int) ([]models.Role, int64, error) {
-	ret := _m.Called(ctx, page, limit)
+// List provides a mock function with given fields: ctx, page, limit, search
+func (_m *RoleRepository) List(ctx context.Context, page int, limit int, search string) ([]models.Role, int64, error) {
+	ret := _m.Called(ctx, page, limit, search)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -225,25 +225,25 @@ func (_m *RoleRepository) List(ctx context.Context, page int, limit int) ([]mode
 	var r0 []models.Role
 	var r1 int64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) ([]models.Role, int64, error)); ok {
-		return rf(ctx, page, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) ([]models.Role, int64, error)); ok {
+		return rf(ctx, page, limit, search)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) []models.Role); ok {
-		r0 = rf(ctx, page, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) []models.Role); ok {
+		r0 = rf(ctx, page, limit, search)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]models.Role)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, int) int64); ok {
-		r1 = rf(ctx, page, limit)
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, string) int64); ok {
+		r1 = rf(ctx, page, limit, search)
 	} else {
 		r1 = ret.Get(1).(int64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, int, int) error); ok {
-		r2 = rf(ctx, page, limit)
+	if rf, ok := ret.Get(2).(func(context.Context, int, int, string) error); ok {
+		r2 = rf(ctx, page, limit, search)
 	} else {
 		r2 = ret.Error(2)
 	}

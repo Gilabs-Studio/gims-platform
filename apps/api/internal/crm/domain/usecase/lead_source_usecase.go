@@ -37,10 +37,13 @@ func (u *leadSourceUsecase) Create(ctx context.Context, req dto.CreateLeadSource
 		return dto.LeadSourceResponse{}, err
 	}
 
+	// Extract tenant_id from context
+	tenantID, _ := ctx.Value("tenant_id").(string)
 	sourceID := uuid.New().String()
 
 	source := &models.LeadSource{
 		ID:          sourceID,
+		TenantID:    tenantID,
 		Name:        req.Name,
 		Code:        generateLeadSourceCode(req.Name, sourceID),
 		Description: req.Description,

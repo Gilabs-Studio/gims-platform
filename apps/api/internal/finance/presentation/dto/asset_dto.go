@@ -136,12 +136,16 @@ type DisposeAssetRequest struct {
 // ===== TRANSFER ASSET REQUEST =====
 
 type TransferAssetRequest struct {
-	ToLocationID    *string    `json:"to_location_id" binding:"omitempty,uuid"`
-	ToDepartmentID  *string    `json:"to_department_id" binding:"omitempty,uuid"`
-	ToCustodianID   *string    `json:"to_custodian_id" binding:"omitempty,uuid"`
-	TransferDate    time.Time  `json:"transfer_date" binding:"required"`
-	Reason          *string    `json:"reason"`
-	RequiresApproval bool `json:"requires_approval" binding:"omitempty"`
+	ToLocationID   string  `json:"to_location_id" binding:"required,uuid"`
+	ToDepartmentID string  `json:"to_department_id" binding:"required,uuid"`
+	CustodianUserID *string `json:"custodian_user_id" binding:"omitempty,uuid"`
+	IsIntercompany bool    `json:"is_intercompany"`
+	EffectiveDate  string  `json:"effective_date" binding:"required"`
+	Notes          string  `json:"notes"`
+}
+
+type RejectTransferRequest struct {
+	Reason string `json:"reason" binding:"required"`
 }
 
 // ===== MAINTENANCE LOG REQUEST =====

@@ -48,7 +48,7 @@ type AIDeps struct {
 	CashBankUC        financeUsecase.CashBankJournalUsecase
 	TaxInvoiceUC      financeUsecase.TaxInvoiceUsecase
 	AssetUC           financeUsecase.AssetUsecase
-	SalaryUC          financeUsecase.SalaryStructureUsecase
+	SalaryUC          hrdUsecase.SalaryStructureUsecase
 	BankAccountUC     coreUsecase.BankAccountUsecase
 }
 

@@ -18,6 +18,26 @@ import type {
   DeliveryOrderListResponse,
 } from "../types";
 
+function getDeliveryQuantity(delivery: DeliveryOrder | undefined): number {
+  if (!delivery?.items?.length) return 0;
+
+  return delivery.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+}
+
+function getDeliveryFulfillmentBucket(status?: string | null): "pending" | "delivered" | "inactive" {
+  const normalizedStatus = (status ?? "").toLowerCase();
+
+  if (normalizedStatus === "delivered") {
+    return "delivered";
+  }
+
+  if (normalizedStatus === "rejected" || normalizedStatus === "cancelled") {
+    return "inactive";
+  }
+
+  return "pending";
+}
+
 function upsertDeliverySummaryAtFront(
   deliveries: DeliveryOrderSummary[],
   next: DeliveryOrderSummary,
@@ -53,9 +73,32 @@ function applyDeliveryToSalesOrderLists(
             is_partial_delivery: delivery.is_partial_delivery ?? found?.is_partial_delivery ?? false,
           };
 
+          const previousBucket = getDeliveryFulfillmentBucket(found?.status);
+          const nextBucket = getDeliveryFulfillmentBucket(nextEntry.status);
+          const quantity = getDeliveryQuantity(delivery);
+          const currentFulfillment = order.fulfillment;
+
+          let nextFulfillment = currentFulfillment;
+          if (currentFulfillment) {
+            const deltaDelivered = (nextBucket === "delivered" ? quantity : 0) - (previousBucket === "delivered" ? quantity : 0);
+            const deltaPending = (nextBucket === "pending" ? quantity : 0) - (previousBucket === "pending" ? quantity : 0);
+
+            const totalDelivered = Math.max(0, (currentFulfillment.total_delivered ?? 0) + deltaDelivered);
+            const totalPending = Math.max(0, (currentFulfillment.total_pending ?? 0) + deltaPending);
+            const totalOrdered = currentFulfillment.total_ordered ?? 0;
+
+            nextFulfillment = {
+              total_ordered: totalOrdered,
+              total_delivered: totalDelivered,
+              total_pending: totalPending,
+              total_remaining: Math.max(0, totalOrdered - totalDelivered - totalPending),
+            };
+          }
+
           return {
             ...order,
             delivery_orders: upsertDeliverySummaryAtFront(existing, nextEntry),
+            fulfillment: nextFulfillment,
           };
         }),
       } as SalesOrderListResponse;
@@ -197,6 +240,7 @@ export function useUpdateDeliveryOrderStatus() {
         queryKey: deliveryKeys.detail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: deliveryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       applyDeliveryToSalesOrderLists(queryClient, res?.data);
     },
     onError: (error) => {

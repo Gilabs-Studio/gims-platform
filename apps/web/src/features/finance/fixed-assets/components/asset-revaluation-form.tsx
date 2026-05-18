@@ -1,4 +1,5 @@
 "use client";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +23,7 @@ interface AssetRevaluationFormProps {
 export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
   const t = useTranslations("financeFixedAssets.revaluation");
   const { assets, submit } = useAssetRevaluation();
-  const canRevalueAsset = useUserPermission("asset.revalue");
+  const canRevalueAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.REVALUE);
   const form = useForm<AssetRevaluationValues>({
     resolver: zodResolver(assetRevaluationSchema),
     defaultValues: {

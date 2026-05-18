@@ -82,8 +82,8 @@ export function CreatableCombobox({
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
 
-  const hasCreatePermission = useUserPermission(createPermission ?? "");
-  const canCreate = !!createPermission && hasCreatePermission && !!onCreateClick;
+    const hasCreatePermission = useUserPermission(createPermission ?? "");
+    const canCreate = !!onCreateClick && (!createPermission || hasCreatePermission);
 
   const derivedSelectedLabel = React.useMemo(
     () => options.find((o) => o.value === value)?.label ?? "",

@@ -6,10 +6,10 @@ import { orderService } from "@/features/sales/order/services/order-service";
 
 export function useApprovedSalesOrders(options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ["sales-orders", "confirmed"],
+    queryKey: ["sales-orders", "approved"],
     queryFn: () =>
       orderService.list({
-        status: "confirmed",
+        status: "approved,confirmed",
         per_page: 20,
         sort_by: "created_at",
         sort_dir: "desc",

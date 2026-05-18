@@ -242,12 +242,13 @@ export function useDeliveryForm({
 					items:
 						delivery.items?.map((item) => ({
 							product_id: item.product_id,
-							warehouse_id: delivery.warehouse_id ?? "",
+							warehouse_id: item.warehouse_id ?? delivery.warehouse_id ?? "",
 							sales_order_item_id: item.sales_order_item_id ?? "",
 							inventory_batch_id: item.inventory_batch_id ?? "",
 							quantity: item.quantity,
 							installation_status: item.installation_status ?? "",
 							function_test_status: item.function_test_status ?? "",
+								row_type: "primary",
 						})) ?? [],
 				}
 			: {
@@ -267,7 +268,7 @@ export function useDeliveryForm({
 		formState: { errors },
 	} = form;
 
-	const { fields, append, remove } = useFieldArray({
+	const { fields, append, remove, insert } = useFieldArray({
 		control,
 		name: "items",
 	});
@@ -417,6 +418,7 @@ export function useDeliveryForm({
 						installation_status: item.installation_status ?? "",
 						function_test_status: item.function_test_status ?? "",
 						product_name: `${item.product?.code} - ${item.product?.name}`,
+							row_type: "primary",
 					})) ?? [],
 			});
 			return;
@@ -511,28 +513,11 @@ export function useDeliveryForm({
 				return;
 			}
 
-			const uniqueWarehouses = new Set(
-				filteredItems.map((i) => i.warehouse_id).filter(Boolean),
-			);
-
-			if (uniqueWarehouses.size === 0) {
-				toast.error(t("validation.required") + ": " + t("warehouse"));
-				return;
-			}
-
-			if (uniqueWarehouses.size > 1) {
-				toast.error(
-					"All items must be from the same warehouse for a single Delivery Order.",
-				);
-				return;
-			}
-
-			const warehouseId = Array.from(uniqueWarehouses)[0] as string;
-
 			const itemsPayload = filteredItems.map((item) => ({
 				product_id: item.product_id,
 				sales_order_item_id: item.sales_order_item_id || undefined,
 				inventory_batch_id: item.inventory_batch_id || undefined,
+				warehouse_id: item.warehouse_id || undefined,
 				quantity: item.quantity,
 				price: item.price || 0,
 				installation_status: item.installation_status || undefined,
@@ -542,7 +527,7 @@ export function useDeliveryForm({
 			if (isEdit && delivery) {
 				const updatePayload: UpdateDeliveryOrderData = {
 					delivery_date: (data as UpdateDeliveryOrderFormData).delivery_date,
-					warehouse_id: warehouseId,
+					warehouse_id: (data as UpdateDeliveryOrderFormData).warehouse_id,
 					delivered_by_id: toOptionalString(
 						(data as UpdateDeliveryOrderFormData).delivered_by_id,
 					),
@@ -573,7 +558,10 @@ export function useDeliveryForm({
 			} else {
 				const createPayload: CreateDeliveryOrderData = {
 					delivery_date: (data as CreateDeliveryOrderFormData).delivery_date!,
-					warehouse_id: warehouseId,
+					warehouse_id:
+						(data as CreateDeliveryOrderFormData).warehouse_id ||
+						filteredItems[0]?.warehouse_id ||
+						"",
 					sales_order_id:
 						toOptionalString(
 							(data as CreateDeliveryOrderFormData).sales_order_id,
@@ -638,6 +626,7 @@ export function useDeliveryForm({
 			price: 0,
 			installation_status: "",
 			function_test_status: "",
+			row_type: "primary",
 		});
 	};
 
@@ -694,6 +683,8 @@ export function useDeliveryForm({
 		isFormLoading,
 		fields,
 		remove,
+		append,
+		insert,
 		salesOrders,
 		employees,
 		courierAgencies,

@@ -29,7 +29,6 @@ export function BatchDepreciationPage() {
     isLoadingPreview,
     isRunning,
     clearErrors,
-    clearPreview,
     clearResults,
   } = useBatchDepreciation();
 

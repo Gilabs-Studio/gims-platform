@@ -72,7 +72,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent size="5xl" className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("actions.view")}</DialogTitle>
         </DialogHeader>
@@ -134,7 +134,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.referenceType")}</div>
                 <div className="text-sm font-medium">{journal.reference_type ?? "-"}</div>
@@ -142,10 +142,6 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">Reference Code</div>
                 <div className="text-sm font-medium font-mono">{journal.reference_code ?? "-"}</div>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">Reference ID</div>
-                <div className="text-sm font-medium font-mono break-all">{journal.reference_id ?? "-"}</div>
               </div>
             </div>
 

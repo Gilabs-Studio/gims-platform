@@ -1,34 +1,43 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import { PageMotion } from "@/components/motion/page-motion";
 import { setRequestLocale } from "next-intl/server";
 // ArrowRight not used — removed
 import { Link } from "@/i18n/routing";
+import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
+import { LANDING_THEME_IMAGES_BY_FEATURE } from "@/lib/landing-theme-images";
 import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
   const title = locale === 'id' 
-    ? `Aplikasi CRM Terbaik | SalesView` 
-    : `Best CRM Software | SalesView`;
+    ? `Software CRM untuk Pipeline & Follow-up Sales | SalesView` 
+    : `CRM Software for Pipeline & Sales Follow-ups | SalesView`;
     
   const desc = locale === 'id'
-    ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
-    : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`;
+    ? `Kelola pipeline, aktivitas tim sales, dan follow-up prospek dalam satu CRM yang terhubung dengan penawaran dan sales order.`
+    : `Manage pipeline, sales activities, and lead follow-ups in one CRM connected to quotations and sales orders.`;
 
   return buildLandingMetadata({
     locale,
     path: "/crm",
     title,
     description: desc,
-    keywords: [
-      `Aplikasi CRM Terbaik`, 
-      `Sistem CRM Indonesia`, 
-      `Software CRM Perusahaan`,
-      `Aplikasi Sales dan Marketing`,
-      `CRM B2B`
-    ],
+    keywords: locale === "id"
+      ? [
+          "software crm",
+          "crm pipeline sales",
+          "follow up prospek",
+          "crm b2b indonesia",
+          "salesview crm",
+        ]
+      : [
+          "crm software",
+          "sales pipeline crm",
+          "lead follow up",
+          "b2b crm platform",
+          "salesview crm",
+        ],
     imageAlt: "SalesView CRM overview",
   });
 }
@@ -79,7 +88,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             {isId ? `Customer Relationship` : `Customer Relationship`}
             <br />
             <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Magic.` : `Magic.`}
+              {isId ? `Magic` : `Magic`}
             </span>
           </h1>
           <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">
@@ -113,8 +122,9 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
           <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-border/40 bg-card">
             {/* Using abstract Apple-like minimalist representation or screenshot if available */}
             <div className="absolute inset-0 bg-linear-to-tr from-background to-secondary/30" />
-            <Image 
-              src="/screenshot/pipeline.webp" 
+            <ThemeAwareImage
+              lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmHero.light}
+              darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmHero.dark}
               alt="CRM Interface" 
               fill 
               className="object-cover object-top"
@@ -152,16 +162,14 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                    <div className="w-full h-full flex gap-4">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="flex-1 bg-secondary/50 rounded-lg p-2 space-y-3">
-                          <div className="w-full h-2 bg-muted rounded" />
-                          <div className="w-full h-20 bg-card rounded shadow-sm border border-border/50" />
-                          {i !== 3 && <div className="w-full h-20 bg-card rounded shadow-sm border border-border/50 opacity-60" />}
-                        </div>
-                      ))}
-                    </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmKanbanPipeline.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmKanbanPipeline.dark}
+                      alt={isId ? "CRM kanban pipeline" : "CRM kanban pipeline"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
@@ -187,23 +195,14 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                    <div className="w-full max-w-xs space-y-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 shrink-0" />
-                        <div className="flex-1 bg-secondary rounded-2xl rounded-tl-none p-3 shadow-sm border border-border/50">
-                          <div className="w-3/4 h-2 bg-muted rounded mb-2" />
-                          <div className="w-1/2 h-2 bg-muted rounded" />
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-4 flex-row-reverse">
-                        <div className="w-8 h-8 rounded-full bg-blue-500/20 shrink-0" />
-                        <div className="flex-1 bg-primary text-primary-foreground rounded-2xl rounded-tr-none p-3 shadow-sm">
-                          <div className="w-full h-2 bg-white/40 rounded mb-2" />
-                          <div className="w-2/3 h-2 bg-white/40 rounded" />
-                        </div>
-                      </div>
-                    </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmActivityFollowup.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmActivityFollowup.dark}
+                      alt={isId ? "CRM aktivitas dan follow-up" : "CRM activities and follow-up"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
@@ -212,37 +211,54 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
               <div className="flex flex-col gap-12 lg:gap-24 items-center lg:flex-row">
                 <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
                   <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-                    {isId ? "Penawaran menarik dalam dua klik" : "Attractive quotes in two clicks"}
+                    {isId ? "Pemetaan area untuk prioritas lapangan" : "Area mapping for field priority"}
                   </h3>
                   <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                     {isId 
-                      ? `Buat penawaran yang tampak profesional dalam sekejap dengan antarmuka yang ramah pengguna dari alat sales kami. Cukup pilih produk dari katalog, dan SalesView yang akan menangani sisanya.`
-                      : `Create professional-looking quotations in an instant with our user-friendly sales interface. Simply pick products from your catalog, and let SalesView handle the rest.`
+                      ? `Visualkan lead, deal, dan aktivitas di peta area agar tim sales tahu wilayah mana yang paling aktif dan mana yang perlu ditingkatkan.`
+                      : `Visualize leads, deals, and activities on a location map so sales teams can prioritize active regions and improve underperforming areas.`
                     }
                   </p>
                 </div>
                 
                 <div className="lg:w-1/2 w-full">
-                  <div className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-8">
-                     <div className="w-full h-full border border-border/50 rounded-xl bg-card shadow-sm flex flex-col overflow-hidden relative">
-                        <div className="h-10 bg-secondary border-b border-border/50 flex items-center px-4" />
-                        <div className="flex-1 p-6 space-y-4">
-                           <div className="w-1/3 h-4 bg-muted rounded" />
-                           <div className="w-full h-px bg-border my-4" />
-                           <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
-                             <div className="w-1/4 h-2 bg-muted rounded" />
-                             <div className="w-1/4 h-2 bg-muted rounded" />
-                           </div>
-                           <div className="w-full h-8 bg-secondary/50 rounded flex items-center justify-between px-4">
-                             <div className="w-1/3 h-2 bg-muted rounded" />
-                             <div className="w-1/5 h-2 bg-muted rounded" />
-                           </div>
-                        </div>
-                     </div>
+                  <div className="relative aspect-video rounded-3xl overflow-hidden bg-background border border-border shadow-sm flex items-center justify-center p-6 md:p-8">
+                    <ThemeAwareImage
+                      lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmAreaMapping.light}
+                      darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.crmAreaMapping.dark}
+                      alt={isId ? "CRM area mapping" : "CRM area mapping"}
+                      fill
+                      className="object-cover object-top"
+                    />
                   </div>
                 </div>
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        <section className="px-6 py-16 md:py-20">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border/50 bg-card p-8 md:p-10 text-center">
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-4">SalesView Apps</p>
+            <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+              {isId ? "Jelajahi Modul Terkait" : "Explore Related Modules"}
+            </h3>
+            <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+              {isId
+                ? "Perkuat alur revenue dengan modul sales lain yang terintegrasi langsung dengan CRM."
+                : "Strengthen your revenue workflow with sales modules directly integrated with CRM."}
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/quotations" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Quotations" : "Quotations"}
+              </Link>
+              <Link href="/sales" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Sales Orders" : "Sales Orders"}
+              </Link>
+              <Link href="/invoicing" className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                {isId ? "Invoicing" : "Invoicing"}
+              </Link>
             </div>
           </div>
         </section>
@@ -271,6 +287,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             </Link>
           </div>
         </section>
+
       </PageMotion>
     </>
   );

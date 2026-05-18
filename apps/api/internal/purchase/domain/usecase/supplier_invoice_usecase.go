@@ -946,6 +946,16 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 		}
 	}
 
+	var poItems []models.PurchaseOrderItem
+	if err := tx.Where("purchase_order_id = ?", si.PurchaseOrderID).Find(&poItems).Error; err != nil {
+		return err
+	}
+	poPriceByProduct := make(map[string]float64, len(poItems))
+	for _, it := range poItems {
+		poPriceByProduct[it.ProductID] = poNetUnitPrice(it)
+	}
+	si.GRIRVarianceTotal = calculateGRIRVarianceFromInvoiceItems(si.Items, poPriceByProduct)
+
 	// --- Budget Guard ---
 	extraCost := si.DeliveryCost + si.OtherCost
 	if extraCost > 0 {
@@ -954,13 +964,9 @@ func (uc *supplierInvoiceUsecase) transitionSupplierInvoiceToPayable(ctx context
 		if uc.engine != nil {
 			if mappedCOAID, resolveErr := uc.engine.ResolveCOAID(ctx, "coa.purchase_expense"); resolveErr == nil {
 				expenseCOAID = strings.TrimSpace(mappedCOAID)
-			}
-		}
-
-		// Backward compatibility: keep previous fallback when mapping is unavailable.
-		if expenseCOAID == "" && uc.coaUC != nil {
-			if expAcct, lookupErr := uc.coaUC.GetByCode(ctx, "61000"); lookupErr == nil && expAcct != nil {
-				expenseCOAID = strings.TrimSpace(expAcct.ID)
+			} else {
+				// Fail loudly if mapping not configured: budget guard requires explicit COA mapping
+				return fmt.Errorf("purchase_expense COA mapping not configured: %w. please configure coa.purchase_expense in system account mappings", resolveErr)
 			}
 		}
 
@@ -1192,18 +1198,19 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 	}
 
 	data := accounting.TransactionData{
-		ReferenceType:   reference.RefTypeSupplierInvoice,
-		ReferenceID:     si.ID,
-		CompanyID:       companyID,
-		FiscalYearID:    fiscalYearID,
-		EntryDate:       si.InvoiceDate.Format("2006-01-02"),
-		Description:     fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
-		TotalAmount:     si.Amount,
-		SubTotal:        si.SubTotal,
-		TaxTotal:        si.TaxAmount,
-		DepositTotal:    si.DownPaymentAmount,
-		OtherTotal:      si.DeliveryCost + si.OtherCost,
-		DescriptionArgs: []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
+		ReferenceType:     reference.RefTypeSupplierInvoice,
+		ReferenceID:       si.ID,
+		CompanyID:         companyID,
+		FiscalYearID:      fiscalYearID,
+		EntryDate:         si.InvoiceDate.Format("2006-01-02"),
+		Description:       fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
+		TotalAmount:       si.Amount,
+		SubTotal:          si.SubTotal,
+		TaxTotal:          si.TaxAmount,
+		DepositTotal:      si.DownPaymentAmount,
+		OtherTotal:        si.DeliveryCost + si.OtherCost,
+		GRIRVarianceTotal: si.GRIRVarianceTotal,
+		DescriptionArgs:   []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
 	}
 
 	if uc.purchaseJournalSvc != nil {
@@ -1408,7 +1415,7 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 		poPriceByProduct := make(map[string]float64, len(poItems))
 		for _, it := range poItems {
 			poQtyByProduct[it.ProductID] = it.Quantity
-			poPriceByProduct[it.ProductID] = it.Price
+			poPriceByProduct[it.ProductID] = poNetUnitPrice(it)
 		}
 
 		type qtySum struct {
@@ -1478,6 +1485,8 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 			requestQtyByProduct[item.ProductID] += item.Quantity
 		}
 
+		grirVarianceTotal := calculateGRIRVarianceFromCreateItems(req.Items, poPriceByProduct)
+
 		matching := make([]dto.SupplierInvoiceThreeWayMatchingLine, 0, len(requestQtyByProduct))
 		for productID, qtyBill := range requestQtyByProduct {
 			grItem := grItemByProduct[productID]
@@ -1527,18 +1536,19 @@ func (uc *supplierInvoiceUsecase) PreviewJournal(ctx context.Context, req *dto.C
 		}
 
 		journalReq, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, accounting.TransactionData{
-			ReferenceType:   reference.RefTypeSupplierInvoice,
-			ReferenceID:     "preview",
-			CompanyID:       companyID,
-			FiscalYearID:    fiscalYearID,
-			EntryDate:       req.InvoiceDate,
-			Description:     fmt.Sprintf("Supplier Invoice Preview %s", req.InvoiceNumber),
-			TotalAmount:     totalAmount,
-			SubTotal:        subtotal,
-			TaxTotal:        taxAmount,
-			DepositTotal:    dpAmount,
-			OtherTotal:      math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost),
-			DescriptionArgs: []interface{}{req.InvoiceNumber, gr.SupplierNameSnapshot},
+			ReferenceType:     reference.RefTypeSupplierInvoice,
+			ReferenceID:       "preview",
+			CompanyID:         companyID,
+			FiscalYearID:      fiscalYearID,
+			EntryDate:         req.InvoiceDate,
+			Description:       fmt.Sprintf("Supplier Invoice Preview %s", req.InvoiceNumber),
+			TotalAmount:       totalAmount,
+			SubTotal:          subtotal,
+			TaxTotal:          taxAmount,
+			DepositTotal:      dpAmount,
+			OtherTotal:        math.Max(0, req.DeliveryCost) + math.Max(0, req.OtherCost),
+			GRIRVarianceTotal: grirVarianceTotal,
+			DescriptionArgs:   []interface{}{req.InvoiceNumber, gr.SupplierNameSnapshot},
 		})
 		if err != nil {
 			return err
@@ -1589,6 +1599,53 @@ func isSupplierInvoicePreviewBalanced(req *finDto.CreateJournalEntryRequest) boo
 	}
 
 	return math.Abs(debitTotal-creditTotal) <= 0.001
+}
+
+func calculateGRIRVarianceFromCreateItems(items []dto.CreateSupplierInvoiceItemRequest, poPriceByProduct map[string]float64) float64 {
+	if len(items) == 0 || len(poPriceByProduct) == 0 {
+		return 0
+	}
+
+	variance := 0.0
+	for _, item := range items {
+		poPrice, ok := poPriceByProduct[item.ProductID]
+		if !ok || poPrice <= 0 {
+			continue
+		}
+		discount := math.Max(0, math.Min(100, item.Discount))
+		invoiceLineTotal := round2dp(item.Quantity * item.Price * (1 - discount/100))
+		expectedLineTotal := round2dp(item.Quantity * poPrice)
+		variance += invoiceLineTotal - expectedLineTotal
+	}
+
+	return round2dp(variance)
+}
+
+func calculateGRIRVarianceFromInvoiceItems(items []models.SupplierInvoiceItem, poPriceByProduct map[string]float64) float64 {
+	if len(items) == 0 || len(poPriceByProduct) == 0 {
+		return 0
+	}
+
+	variance := 0.0
+	for _, item := range items {
+		poPrice, ok := poPriceByProduct[item.ProductID]
+		if !ok || poPrice <= 0 {
+			continue
+		}
+		discount := math.Max(0, math.Min(100, item.Discount))
+		invoiceLineTotal := round2dp(item.Quantity * item.Price * (1 - discount/100))
+		expectedLineTotal := round2dp(item.Quantity * poPrice)
+		variance += invoiceLineTotal - expectedLineTotal
+	}
+
+	return round2dp(variance)
+}
+
+func poNetUnitPrice(item models.PurchaseOrderItem) float64 {
+	if item.Quantity <= 0 {
+		return round2dp(item.Price)
+	}
+	return round2dp(item.Subtotal / item.Quantity)
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

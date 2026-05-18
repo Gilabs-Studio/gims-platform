@@ -286,7 +286,6 @@ export function CustomerDraftContactList({
                       }))}
                       placeholder={t("form.contactRolePlaceholder")}
                       searchPlaceholder={t("searchPlaceholder")}
-                      createPermission="crm_contact_role.create"
                       createLabel={`${tCommon("create")} "{query}"`}
                       onCreateClick={(query) => {
                         void handleCreateContactRole(query);

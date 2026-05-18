@@ -53,13 +53,16 @@ pnpm-debug.log*
 apps/erp-api/
 apps/erp-front-end/
 
+#AI Agents
 CLAUDE.md
 .CLAUDE/
-.playwright-mcp/
-.sisyphus/
-
 .pi*/
 .leann
 
 # Generated profiler output
 k6/reports/profiler-test.json
+
+
+# Database backups (production/local)
+backup/
+*.dump

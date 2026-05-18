@@ -5,6 +5,7 @@ enum PosOrderStatus {
   draft('DRAFT'),
   inProgress('IN_PROGRESS'),
   ready('READY'),
+  waitingPayment('WAITING_PAYMENT'),
   paid('PAID'),
   partialServed('PARTIAL_SERVED'),
   served('SERVED'),
@@ -94,6 +95,7 @@ class PosOrder {
     this.customerName,
     this.loyaltyMemberId,
     this.loyaltyRewardId,
+    this.orderSource,
     this.notes,
   });
 
@@ -115,6 +117,7 @@ class PosOrder {
   final String? customerName;
   final String? loyaltyMemberId;
   final String? loyaltyRewardId;
+  final String? orderSource;
   final String? notes;
 
   factory PosOrder.fromJson(Map<String, dynamic> json) {
@@ -143,6 +146,7 @@ class PosOrder {
       customerName: json['customer_name'] as String?,
       loyaltyMemberId: json['loyalty_member_id'] as String?,
       loyaltyRewardId: json['loyalty_reward_id'] as String?,
+      orderSource: json['order_source'] as String?,
       notes: json['notes'] as String?,
     );
   }
@@ -155,6 +159,8 @@ class PosPayment {
     required this.method,
     required this.status,
     required this.amount,
+    this.tenderAmount,
+    this.changeAmount,
     this.paymentUrl,
     this.qrCode,
     this.vaNumber,
@@ -166,6 +172,8 @@ class PosPayment {
   final String method;
   final String status;
   final double amount;
+  final double? tenderAmount;
+  final double? changeAmount;
   final String? paymentUrl;
   final String? qrCode;
   final String? vaNumber;
@@ -178,6 +186,12 @@ class PosPayment {
       method: json['method'] as String? ?? '',
       status: json['status'] as String? ?? '',
       amount: asDouble(json['amount']),
+        tenderAmount: json['tender_amount'] == null
+          ? null
+          : asDouble(json['tender_amount']),
+        changeAmount: json['change_amount'] == null
+          ? null
+          : asDouble(json['change_amount']),
       paymentUrl: json['payment_url'] as String?,
       qrCode: json['qr_code'] as String?,
       vaNumber: json['va_number'] as String?,

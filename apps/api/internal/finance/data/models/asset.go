@@ -21,6 +21,7 @@ const (
 	AssetStatusSold                  AssetStatus = "sold"
 	AssetStatusWrittenOff            AssetStatus = "written_off"
 	AssetStatusTransferred           AssetStatus = "transferred"
+	AssetStatusTransferRequested     AssetStatus = "transfer_requested"
 	AssetStatusInactive              AssetStatus = "inactive" // Deprecated, keep for compatibility
 )
 

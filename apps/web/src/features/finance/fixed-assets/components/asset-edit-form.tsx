@@ -1,7 +1,9 @@
 'use client';
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useState, useMemo, useEffect } from 'react';
-import { useForm, Control } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
+import type { Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -55,7 +57,7 @@ const editAssetSchema = z.object({
 
   // Group B - Accounting-sensitive fields
   salvageValue: z.number().min(0, 'Salvage value must be >= 0'),
-  usefulLifeMonths: z.number().min(1, 'Useful life must be >= 1 month').optional().or(z.literal('') as any),
+  usefulLifeMonths: z.union([z.number().min(1, 'Useful life must be >= 1 month'), z.literal('')]).optional(),
   deprecationMethod: z.enum(['SL', 'DB', 'SYD', 'UOP', 'NONE']).optional(),
   categoryId: z.string().uuid('Invalid category'),
   shippingCost: z.number().min(0).default(0),
@@ -72,10 +74,40 @@ const editAssetSchema = z.object({
 });
 
 type EditAssetFormData = z.infer<typeof editAssetSchema>;
+type EditAssetFormInput = z.input<typeof editAssetSchema>;
+type EditAssetFormOutput = z.output<typeof editAssetSchema>;
+
+/** Typed interface for accessing known asset fields from API responses (snake_case and camelCase variants). */
+interface AssetDataSource {
+  [key: string]: unknown;
+  name?: string; asset_name?: string;
+  description?: string;
+  status?: EditAssetFormData['status']; display_status?: EditAssetFormData['status'];
+  asset_tag?: string; assetTag?: string;
+  location_id?: string; locationId?: string;
+  department_id?: string; departmentId?: string;
+  assigned_to_employee_id?: string; assignedToEmployeeId?: string; employee_id?: string;
+  custodian_user_id?: string; custodianUserId?: string; custodian_id?: string;
+  serial_number?: string; serialNumber?: string;
+  barcode?: string;
+  salvage_value?: number;
+  useful_life_months?: number | null;
+  depreciation_method?: EditAssetFormData['deprecationMethod']; deprecationMethod?: EditAssetFormData['deprecationMethod'];
+  category_id?: string; categoryId?: string; asset_category_id?: string;
+  shipping_cost?: number;
+  installation_cost?: number;
+  tax_amount?: number;
+  other_costs?: number;
+  code?: string;
+  acquisition_date?: string; acquisitionDate?: string;
+  acquisition_cost?: number;
+  asset_type_id?: string; assetTypeId?: string;
+  is_parent?: boolean;
+}
 
 interface AssetEditFormProps {
   assetId: string;
-  initialData: any; // Replace with proper type from API
+  initialData: AssetDataSource;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -87,13 +119,13 @@ export function AssetEditForm({
   onCancel,
 }: AssetEditFormProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingSubmission, setPendingSubmission] = useState<any | null>(null);
+  const [pendingSubmission, setPendingSubmission] = useState<EditAssetFormInput | null>(null);
 
   // Get user and check if admin (allows editing immutable fields)
   const { user } = useAuthStore();
   const isAdminUser = user?.role?.code === 'admin';
 
-  const form = useForm<any>({
+  const form = useForm<EditAssetFormInput, unknown, EditAssetFormOutput>({
     resolver: zodResolver(editAssetSchema),
     defaultValues: {
       name: initialData?.name || '',
@@ -119,15 +151,16 @@ export function AssetEditForm({
       acquisitionCost: initialData?.acquisition_cost || 0,
       assetTypeId: initialData?.asset_type_id || '',
       cascadeToChildren: false,
-    },
+    } as EditAssetFormInput,
   });
+  const typedControl = form.control as unknown as Control<EditAssetFormInput, unknown, EditAssetFormOutput>;
 
 
   const { editAsset, isLoading } = useAssetEdit();
 
   // Ensure form resets when initialData changes (support multiple key name variations)
   useEffect(() => {
-    const mappedDefaults: any = {
+    const mappedDefaults = {
       name: initialData?.name || initialData?.asset_name || '',
       description: initialData?.description || '',
       status: initialData?.status || initialData?.display_status || 'active',
@@ -160,14 +193,14 @@ export function AssetEditForm({
       acquisitionCost: initialData?.acquisition_cost ?? 0,
       assetTypeId: initialData?.asset_type_id || initialData?.assetTypeId || '',
       cascadeToChildren: false,
-    };
+    } as EditAssetFormInput;
 
     form.reset(mappedDefaults);
   }, [initialData, form]);
 
   // Detect changed fields (as keys array)
   const dirtyKeys = useMemo(() => Object.keys(form.formState.dirtyFields || {}), [form.formState.dirtyFields]);
-  const canUpdateAsset = useUserPermission('asset.update');
+  const canUpdateAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.UPDATE);
   const shippingCost = form.watch('shippingCost');
   const installationCost = form.watch('installationCost');
   const taxAmount = form.watch('taxAmount');
@@ -206,7 +239,7 @@ export function AssetEditForm({
   const isActive = initialData?.status === 'active' || initialData?.status === 'in_use';
   const isParent = Boolean(initialData?.is_parent);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: EditAssetFormInput) => {
     // Check if Group C fields are changed and asset is active
     if (isActive && fieldGroups.C.length > 0) {
       alert(
@@ -226,9 +259,9 @@ export function AssetEditForm({
     await submitEdit(data);
   };
 
-  const submitEdit = async (data: any) => {
+  const submitEdit = async (data: EditAssetFormInput) => {
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         code: data.code || initialData?.code || '',
         name: data.name || initialData?.name || '',
         description: data.description ?? initialData?.description ?? '',
@@ -264,8 +297,8 @@ export function AssetEditForm({
       const resp = await editAsset(assetId, payload);
       // If server returned updated asset, reset form to reflect persisted values
       if (resp && resp.data) {
-        const d = resp.data;
-        const serverDefaults: any = {
+        const d = resp.data as AssetDataSource;
+        const serverDefaults = {
           name: d.name || '',
           description: d.description || '',
           status: d.status || d.display_status || 'active',
@@ -289,7 +322,7 @@ export function AssetEditForm({
           acquisitionCost: d.acquisition_cost ?? 0,
           assetTypeId: d.asset_type_id || '',
           cascadeToChildren: false,
-        };
+        } as EditAssetFormInput;
         form.reset(serverDefaults);
       }
       onSuccess?.();
@@ -302,7 +335,7 @@ export function AssetEditForm({
     <>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit, (errors) => {
+          onSubmit={form.handleSubmit(onSubmit, (errors: Record<string, unknown>) => {
             // surface validation issues in console so users/devs see why submit didn't run
             console.debug('AssetEditForm validation errors:', errors);
           })}
@@ -337,7 +370,7 @@ export function AssetEditForm({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="status"
                       render={({ field }) => (
                         <FormItem>
@@ -366,7 +399,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="cascadeToChildren"
                       render={({ field }) => (
                         <FormItem className="flex flex-row items-start gap-3 rounded-lg border p-4">
@@ -387,7 +420,7 @@ export function AssetEditForm({
                   {/* Group C - Immutable Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="code"
                       render={({ field }) => (
                         <FormItem>
@@ -412,7 +445,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="acquisitionDate"
                       render={({ field }) => (
                         <FormItem>
@@ -440,7 +473,7 @@ export function AssetEditForm({
 
                   {/* Group A - Non-accounting Fields */}
                   <FormField
-                    control={form.control as any}
+                    control={typedControl}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
@@ -454,7 +487,7 @@ export function AssetEditForm({
                   />
 
                   <FormField
-                    control={form.control as any}
+                    control={typedControl}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
@@ -469,7 +502,7 @@ export function AssetEditForm({
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="assetTag"
                       render={({ field }) => (
                         <FormItem>
@@ -483,7 +516,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="serialNumber"
                       render={({ field }) => (
                         <FormItem>
@@ -507,7 +540,7 @@ export function AssetEditForm({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="locationId"
                       render={({ field }) => (
                         <FormItem>
@@ -530,7 +563,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="departmentId"
                       render={({ field }) => (
                         <FormItem>
@@ -555,7 +588,7 @@ export function AssetEditForm({
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="assignedToEmployeeId"
                       render={({ field }) => (
                         <FormItem>
@@ -577,7 +610,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="custodianUserId"
                       render={({ field }) => (
                         <FormItem>
@@ -625,7 +658,7 @@ export function AssetEditForm({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="categoryId"
                       render={({ field }) => (
                         <FormItem>
@@ -653,7 +686,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="acquisitionCost"
                       render={({ field }) => (
                         <FormItem>
@@ -681,7 +714,7 @@ export function AssetEditForm({
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="usefulLifeMonths"
                       render={({ field }) => (
                         <FormItem>
@@ -711,7 +744,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="deprecationMethod"
                       render={({ field }) => (
                         <FormItem>
@@ -745,7 +778,7 @@ export function AssetEditForm({
                   </div>
 
                   <FormField
-                    control={form.control as any}
+                    control={typedControl}
                     name="salvageValue"
                     render={({ field }) => (
                       <FormItem>
@@ -777,7 +810,7 @@ export function AssetEditForm({
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="shippingCost"
                       render={({ field }) => (
                         <FormItem>
@@ -791,7 +824,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="installationCost"
                       render={({ field }) => (
                         <FormItem>
@@ -805,7 +838,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="taxAmount"
                       render={({ field }) => (
                         <FormItem>
@@ -819,7 +852,7 @@ export function AssetEditForm({
                     />
 
                     <FormField
-                      control={form.control as any}
+                      control={typedControl}
                       name="otherCosts"
                       render={({ field }) => (
                         <FormItem>
@@ -844,7 +877,7 @@ export function AssetEditForm({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
-                    control={form.control as any}
+                    control={typedControl}
                     name="barcode"
                     render={({ field }) => (
                       <FormItem>
@@ -936,7 +969,7 @@ export function AssetEditForm({
       <AssetEditConfirmModal
         isOpen={showConfirmModal}
         asset={initialData}
-        changes={pendingSubmission || {}}
+        changes={(pendingSubmission || {}) as EditAssetFormInput}
         changedFields={fieldGroups.B}
         isLoading={isLoading}
         onConfirm={async () => {

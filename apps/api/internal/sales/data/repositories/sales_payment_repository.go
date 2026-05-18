@@ -133,9 +133,26 @@ func (r *salesPaymentRepository) GetByID(ctx context.Context, id string) (*model
 }
 
 func (r *salesPaymentRepository) Create(ctx context.Context, p *models.SalesPayment) error {
-	return r.getDB(ctx).Create(p).Error
+	db := r.getDB(ctx)
+	if err := db.Create(p).Error; err != nil {
+		if isMissingSalesPaymentCOAColumnErr(err) {
+			return db.Omit("SnapshotCOAID", "ResolvedCOAID").Create(p).Error
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *salesPaymentRepository) Delete(ctx context.Context, id string) error {
 	return r.getDB(ctx).Delete(&models.SalesPayment{}, "id = ?", id).Error
+}
+
+func isMissingSalesPaymentCOAColumnErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	return (strings.Contains(msg, "snapshot_coa_id") || strings.Contains(msg, "resolved_coa_id")) &&
+		(strings.Contains(msg, "does not exist") || strings.Contains(msg, "undefined column") || strings.Contains(msg, "sqlstate 42703"))
 }

@@ -42,6 +42,23 @@ class LoyaltyMemberLookup {
   }
 }
 
+/// Minimal loyalty program model for POS UI.
+class LoyaltyProgram {
+  LoyaltyProgram({required this.id, required this.name, this.outletId});
+
+  final String id;
+  final String name;
+  final String? outletId;
+
+  factory LoyaltyProgram.fromJson(Map<String, dynamic> json) {
+    return LoyaltyProgram(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      outletId: json['outlet_id'] as String?,
+    );
+  }
+}
+
 /// A loyalty reward that can be redeemed.
 class LoyaltyReward {
   LoyaltyReward({
@@ -65,6 +82,63 @@ class LoyaltyReward {
       type: json['type'] as String? ?? '',
       value: asDouble(json['value']),
       pointsRequired: asDouble(json['points_required']),
+    );
+  }
+}
+
+/// Loyalty member used in lists with all fields from API.
+class LoyaltyMember {
+  LoyaltyMember({
+    required this.id,
+    required this.memberCode,
+    required this.customerId,
+    required this.customerName,
+    this.customerPhone,
+    this.programId,
+    this.currentTier,
+    this.tierBadgeColor,
+    this.pointBalance = 0,
+    this.lifetimePoints = 0,
+    this.totalTransactions = 0,
+    this.enrolledOutletId,
+    this.enrolledOutletName,
+    this.joinedAt,
+    this.lastTransactionAt,
+  });
+
+  final String id;
+  final String memberCode;
+  final String? customerId;
+  final String? customerName;
+  final String? customerPhone;
+  final String? programId;
+  final String? currentTier;
+  final String? tierBadgeColor;
+  final double pointBalance;
+  final double lifetimePoints;
+  final int totalTransactions;
+  final String? enrolledOutletId;
+  final String? enrolledOutletName;
+  final String? joinedAt;
+  final String? lastTransactionAt;
+
+  factory LoyaltyMember.fromJson(Map<String, dynamic> json) {
+    return LoyaltyMember(
+      id: json['id'] as String? ?? '',
+      memberCode: json['member_code'] as String? ?? '',
+      customerId: json['customer_id'] as String?,
+      customerName: json['customer_name'] as String?,
+      customerPhone: json['customer_phone'] as String?,
+      programId: json['program_id'] as String?,
+      currentTier: json['current_tier'] as String?,
+      tierBadgeColor: json['tier_badge_color'] as String?,
+      pointBalance: asDouble(json['point_balance']),
+      lifetimePoints: asDouble(json['lifetime_points']),
+      totalTransactions: (json['total_transactions'] as num?)?.toInt() ?? 0,
+      enrolledOutletId: json['enrolled_outlet_id'] as String?,
+      enrolledOutletName: json['enrolled_outlet_name'] as String?,
+      joinedAt: json['joined_at'] as String?,
+      lastTransactionAt: json['last_transaction_at'] as String?,
     );
   }
 }

@@ -575,7 +575,6 @@ export function VisitPlannerWorkspace() {
     )[0];
 
     if (!nextCheckpoint) {
-      setNavigationPolyline(null);
       lastNavTargetRef.current = "";
       return;
     }

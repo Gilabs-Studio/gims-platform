@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	hrdModels "github.com/gilabs/gims/api/internal/hrd/data/models"
 	"gorm.io/gorm/clause"
 )
 
@@ -41,7 +41,7 @@ func SeedSalaryStructures() error {
 		employeeID    string
 		basicSalary   float64
 		effectiveDate time.Time
-		status        financeModels.SalaryStructureStatus
+		status        hrdModels.SalaryStructureStatus
 		notes         string
 		createdBy     *string
 	}
@@ -52,7 +52,7 @@ func SeedSalaryStructures() error {
 			employeeID:    AdminEmployeeID,
 			basicSalary:   8000000,
 			effectiveDate: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusInactive,
+			status:        hrdModels.SalaryStructureStatusInactive,
 			notes:         "Initial salary",
 			createdBy:     &adminID,
 		},
@@ -61,7 +61,7 @@ func SeedSalaryStructures() error {
 			employeeID:    AdminEmployeeID,
 			basicSalary:   10000000,
 			effectiveDate: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusInactive,
+			status:        hrdModels.SalaryStructureStatusInactive,
 			notes:         "Annual increment",
 			createdBy:     &adminID,
 		},
@@ -70,7 +70,7 @@ func SeedSalaryStructures() error {
 			employeeID:    AdminEmployeeID,
 			basicSalary:   12500000,
 			effectiveDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusActive,
+			status:        hrdModels.SalaryStructureStatusActive,
 			notes:         "Promotion adjustment",
 			createdBy:     &adminID,
 		},
@@ -79,7 +79,7 @@ func SeedSalaryStructures() error {
 			employeeID:    ManagerEmployeeID,
 			basicSalary:   12000000,
 			effectiveDate: time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusInactive,
+			status:        hrdModels.SalaryStructureStatusInactive,
 			notes:         "Starting salary",
 			createdBy:     &managerID,
 		},
@@ -88,7 +88,7 @@ func SeedSalaryStructures() error {
 			employeeID:    ManagerEmployeeID,
 			basicSalary:   15000000,
 			effectiveDate: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusActive,
+			status:        hrdModels.SalaryStructureStatusActive,
 			notes:         "Performance review increase",
 			createdBy:     &managerID,
 		},
@@ -97,7 +97,7 @@ func SeedSalaryStructures() error {
 			employeeID:    StaffEmployeeID,
 			basicSalary:   6500000,
 			effectiveDate: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusDraft,
+			status:        hrdModels.SalaryStructureStatusDraft,
 			notes:         "Awaiting HR approval",
 			createdBy:     &adminID,
 		},
@@ -106,7 +106,7 @@ func SeedSalaryStructures() error {
 			employeeID:    SalesRep1EmployeeID,
 			basicSalary:   7000000,
 			effectiveDate: time.Date(2023, 3, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusInactive,
+			status:        hrdModels.SalaryStructureStatusInactive,
 			notes:         "Onboarding salary",
 			createdBy:     &adminID,
 		},
@@ -115,7 +115,7 @@ func SeedSalaryStructures() error {
 			employeeID:    SalesRep1EmployeeID,
 			basicSalary:   8500000,
 			effectiveDate: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusActive,
+			status:        hrdModels.SalaryStructureStatusActive,
 			notes:         "After probation ended",
 			createdBy:     &adminID,
 		},
@@ -124,7 +124,7 @@ func SeedSalaryStructures() error {
 			employeeID:    SalesRep2EmployeeID,
 			basicSalary:   7500000,
 			effectiveDate: time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusActive,
+			status:        hrdModels.SalaryStructureStatusActive,
 			notes:         "",
 			createdBy:     &adminID,
 		},
@@ -133,7 +133,7 @@ func SeedSalaryStructures() error {
 			employeeID:    FinanceStaffEmployeeID,
 			basicSalary:   9000000,
 			effectiveDate: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusActive,
+			status:        hrdModels.SalaryStructureStatusActive,
 			notes:         "Confirmed after review",
 			createdBy:     &adminID,
 		},
@@ -142,7 +142,7 @@ func SeedSalaryStructures() error {
 			employeeID:    FinanceStaffEmployeeID,
 			basicSalary:   11000000,
 			effectiveDate: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusDraft,
+			status:        hrdModels.SalaryStructureStatusDraft,
 			notes:         "Proposed raise pending approval",
 			createdBy:     &adminID,
 		},
@@ -151,14 +151,14 @@ func SeedSalaryStructures() error {
 			employeeID:    HRStaffEmployeeID,
 			basicSalary:   7200000,
 			effectiveDate: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
-			status:        financeModels.SalaryStructureStatusDraft,
+			status:        hrdModels.SalaryStructureStatusDraft,
 			notes:         "Initial proposal",
 			createdBy:     &adminID,
 		},
 	}
 
 	for _, record := range records {
-		item := financeModels.SalaryStructure{
+		item := hrdModels.SalaryStructure{
 			ID:            record.id,
 			EmployeeID:    record.employeeID,
 			EffectiveDate: record.effectiveDate,
