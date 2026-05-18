@@ -11,6 +11,7 @@ import {
   CreditCard,
   Package,
   UserCircle,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,11 @@ const sidebarLinks = [
     label: "Subscriptions",
     href: "/system/subscriptions",
     icon: CreditCard,
+  },
+  {
+    label: "Permissions",
+    href: "/system/permissions",
+    icon: KeyRound,
   },
   {
     label: "Profile",

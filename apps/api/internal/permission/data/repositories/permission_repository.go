@@ -12,6 +12,10 @@ type PermissionRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Permission, error)
 	FindByCode(ctx context.Context, code string) (*models.Permission, error)
 	List(ctx context.Context) ([]models.Permission, error)
+	ListPaginated(ctx context.Context, page, limit int, search string) ([]models.Permission, int64, error)
+	Create(ctx context.Context, p *models.Permission) error
+	Update(ctx context.Context, p *models.Permission) error
+	Delete(ctx context.Context, id string) error
 	GetByMenuID(ctx context.Context, menuID string) ([]models.Permission, error)
 	GetByRoleID(ctx context.Context, roleID string) ([]models.Permission, error)
 	GetUserPermissions(ctx context.Context, userID string) (*dto.GetUserPermissionsResponse, error)
@@ -201,6 +205,42 @@ func (r *permissionRepository) buildMenuWithActions(menu models.Menu, permission
 	}
 
 	return menuResp
+}
+
+func (r *permissionRepository) ListPaginated(ctx context.Context, page, limit int, search string) ([]models.Permission, int64, error) {
+	var permissions []models.Permission
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Permission{})
+	if search != "" {
+		like := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR code ILIKE ? OR resource ILIKE ?", like, like, like)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	err := query.
+		Preload("Menu").
+		Preload(preloadMenuParent).
+		Order("updated_at DESC").
+		Offset(offset).Limit(limit).
+		Find(&permissions).Error
+	return permissions, total, err
+}
+
+func (r *permissionRepository) Create(ctx context.Context, p *models.Permission) error {
+	return r.db.WithContext(ctx).Create(p).Error
+}
+
+func (r *permissionRepository) Update(ctx context.Context, p *models.Permission) error {
+	return r.db.WithContext(ctx).Save(p).Error
+}
+
+func (r *permissionRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Where(whereID, id).Delete(&models.Permission{}).Error
 }
 
 func (r *permissionRepository) GetRootMenusWithChildren(ctx context.Context) ([]models.Menu, error) {
