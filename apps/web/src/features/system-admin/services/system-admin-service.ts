@@ -29,6 +29,11 @@ import type {
   PlanListResponse,
   PlanDetailResponse,
   UpsertPlanRequest,
+  PermissionListResponse,
+  PermissionDetailResponse,
+  PermissionListParams,
+  CreatePermissionRequest,
+  UpdatePermissionRequest,
 } from "../types";
 
 const API_BASE_URL =
@@ -318,6 +323,33 @@ export const systemAdminService = {
     const { data } = await sysAdminClient.put<PlanDetailResponse>(`/plans/${slug}/entitlements`, {
       menu_urls: menuURLs,
     });
+    return data;
+  },
+
+  // ── Permission management ─────────────────────────────────────────────────
+
+  async listPermissions(params?: PermissionListParams): Promise<PermissionListResponse> {
+    const { data } = await sysAdminClient.get<PermissionListResponse>("/permissions", { params });
+    return data;
+  },
+
+  async getPermission(id: string): Promise<PermissionDetailResponse> {
+    const { data } = await sysAdminClient.get<PermissionDetailResponse>(`/permissions/${id}`);
+    return data;
+  },
+
+  async createPermission(payload: CreatePermissionRequest): Promise<PermissionDetailResponse> {
+    const { data } = await sysAdminClient.post<PermissionDetailResponse>("/permissions", payload);
+    return data;
+  },
+
+  async updatePermission(id: string, payload: UpdatePermissionRequest): Promise<PermissionDetailResponse> {
+    const { data } = await sysAdminClient.put<PermissionDetailResponse>(`/permissions/${id}`, payload);
+    return data;
+  },
+
+  async deletePermission(id: string): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.delete<{ success: boolean }>(`/permissions/${id}`);
     return data;
   },
 };

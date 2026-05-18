@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
+	permissionModels "github.com/gilabs/gims/api/internal/permission/data/models"
+	permissionRepos "github.com/gilabs/gims/api/internal/permission/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	"github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	"github.com/gilabs/gims/api/internal/tenant/domain/usecase"
@@ -79,11 +82,12 @@ func clearSystemAdminAccessTokenCookies(c *gin.Context) {
 
 // SystemAdminHandler handles system admin HTTP requests.
 type SystemAdminHandler struct {
-	sysAdminUC usecase.SystemAdminUsecase
-	tenantUC   usecase.TenantUsecase
-	couponUC   usecase.CouponUsecase
-	subUC      usecase.SubscriptionUsecase
-	planUC     usecase.SubscriptionPlanUsecase
+	sysAdminUC     usecase.SystemAdminUsecase
+	tenantUC       usecase.TenantUsecase
+	couponUC       usecase.CouponUsecase
+	subUC          usecase.SubscriptionUsecase
+	planUC         usecase.SubscriptionPlanUsecase
+	permissionRepo permissionRepos.PermissionRepository
 }
 
 type dashboardBusinessHealth struct {
@@ -163,14 +167,174 @@ func NewSystemAdminHandler(
 	couponUC usecase.CouponUsecase,
 	subUC usecase.SubscriptionUsecase,
 	planUC usecase.SubscriptionPlanUsecase,
+	permissionRepo permissionRepos.PermissionRepository,
 ) *SystemAdminHandler {
 	return &SystemAdminHandler{
-		sysAdminUC: sysAdminUC,
-		tenantUC:   tenantUC,
-		couponUC:   couponUC,
-		subUC:      subUC,
-		planUC:     planUC,
+		sysAdminUC:     sysAdminUC,
+		tenantUC:       tenantUC,
+		couponUC:       couponUC,
+		subUC:          subUC,
+		planUC:         planUC,
+		permissionRepo: permissionRepo,
 	}
+}
+
+// ─── Permission Management ────────────────────────────────────────────────────
+
+type sysAdminPermissionRequest struct {
+	Name        string  `json:"name" binding:"required,min=2,max=255"`
+	Code        string  `json:"code" binding:"required"`
+	Action      string  `json:"action" binding:"required"`
+	Resource    string  `json:"resource"`
+	Description string  `json:"description"`
+	MenuID      *string `json:"menu_id"`
+}
+
+// ListPermissions returns a paginated list of all permissions.
+func (h *SystemAdminHandler) ListPermissions(c *gin.Context) {
+	page := 1
+	limit := 50
+	if v := c.Query("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			page = n
+		}
+	}
+	if v := c.Query("per_page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	search := strings.TrimSpace(c.Query("search"))
+
+	perms, total, err := h.permissionRepo.ListPaginated(c.Request.Context(), page, limit, search)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: response.NewPaginationMeta(page, limit, int(total)),
+	}
+
+	response.SuccessResponse(c, perms, meta)
+}
+
+// GetPermission returns a single permission by ID.
+func (h *SystemAdminHandler) GetPermission(c *gin.Context) {
+	id := c.Param("id")
+	p, err := h.permissionRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			errors.NotFoundResponse(c, "permission", id)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, p, nil)
+}
+
+// CreatePermission creates a new permission record.
+func (h *SystemAdminHandler) CreatePermission(c *gin.Context) {
+	var req sysAdminPermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	// Prevent duplicate codes.
+	if existing, _ := h.permissionRepo.FindByCode(c.Request.Context(), req.Code); existing != nil {
+		errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{"field": "code", "message": "permission code already exists"}, nil)
+		return
+	}
+
+	p := &permissionModels.Permission{
+		Name:        req.Name,
+		Code:        req.Code,
+		Action:      req.Action,
+		Resource:    req.Resource,
+		Description: req.Description,
+		MenuID:      req.MenuID,
+	}
+
+	if err := h.permissionRepo.Create(c.Request.Context(), p); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseCreated(c, p, nil)
+}
+
+// UpdatePermission modifies an existing permission.
+func (h *SystemAdminHandler) UpdatePermission(c *gin.Context) {
+	id := c.Param("id")
+
+	p, err := h.permissionRepo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			errors.NotFoundResponse(c, "permission", id)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	var req sysAdminPermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, ve)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	// Guard code uniqueness when code is changed.
+	if req.Code != p.Code {
+		if existing, _ := h.permissionRepo.FindByCode(c.Request.Context(), req.Code); existing != nil {
+			errors.ErrorResponse(c, "RESOURCE_ALREADY_EXISTS", map[string]interface{}{"field": "code", "message": "permission code already exists"}, nil)
+			return
+		}
+	}
+
+	p.Name = req.Name
+	p.Code = req.Code
+	p.Action = req.Action
+	p.Resource = req.Resource
+	p.Description = req.Description
+	p.MenuID = req.MenuID
+
+	if err := h.permissionRepo.Update(c.Request.Context(), p); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, p, nil)
+}
+
+// DeletePermission soft-deletes a permission by ID.
+func (h *SystemAdminHandler) DeletePermission(c *gin.Context) {
+	id := c.Param("id")
+
+	if _, err := h.permissionRepo.FindByID(c.Request.Context(), id); err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			errors.NotFoundResponse(c, "permission", id)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	if err := h.permissionRepo.Delete(c.Request.Context(), id); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponseDeleted(c, "permission", id, nil)
 }
 
 // Login handles system admin login via /internal/sys-login

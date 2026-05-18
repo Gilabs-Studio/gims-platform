@@ -270,17 +270,6 @@ export function clearCSRFTokenMemory(): void {
   memoryCsrfToken = null;
 }
 
-function isCSRFInvalidError(error: unknown): boolean {
-  const axiosError = error as {
-    response?: { status?: number; data?: { error?: { code?: string } } };
-  };
-
-  return (
-    axiosError?.response?.status === 403 &&
-    axiosError?.response?.data?.error?.code === "CSRF_INVALID"
-  );
-}
-
 /**
  * Ensure CSRF token exists before unsafe requests.
  *
@@ -702,54 +691,14 @@ apiClient.interceptors.response.use(
       if (!isRefreshing) {
         isRefreshing = true;
 
-        // Create separate axios instance for refresh to avoid circular dependency
-        const refreshClient = axios.create({
-          baseURL: `${API_BASE_URL}/api/v1`,
-          headers: { "Content-Type": "application/json" },
-          timeout: 10000,
-          withCredentials: true,
-        });
-
-        // Add CSRF token for refresh request
-        const csrfToken = await ensureCSRFToken();
-        const headers: Record<string, string> = {};
-        if (csrfToken) {
-          headers["X-CSRF-Token"] = csrfToken;
-        }
-
-        return refreshClient
-          .post<{
-            success: boolean;
-            data?: {
-              user: {
-                id: string;
-                email: string;
-                name: string;
-                avatar_url: string;
-                role: {
-                  code: string;
-                  name: string;
-                  data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
-                  is_owner?: boolean;
-                };
-                permissions: Record<string, string>;
-                subscription_access?: ServerSubscriptionAccess;
-              };
-            };
-          }>("/auth/refresh-token", {}, { headers })
+        return import("@/features/auth/services/auth-service")
+          .then(({ authService }) => authService.refreshToken())
           .then((refreshResponse) => {
-            // Read and cache CSRF token from headers even during refresh
-            const refreshCsrfHeader = extractCsrfFromHeaders(refreshResponse.headers);
-            if (refreshCsrfHeader) {
-              memoryCsrfToken = refreshCsrfHeader;
-            }
-
-            const response = refreshResponse.data;
-            if (response.success && response.data) {
+            if (refreshResponse.success && refreshResponse.data) {
               // Update auth store with new user data
               import("@/features/auth/stores/use-auth-store").then(
                 ({ useAuthStore }) => {
-                  const normalized = normalizeUserResponse(response.data?.user ?? null);
+                  const normalized = normalizeUserResponse(refreshResponse.data?.user ?? null);
                   useAuthStore.getState().setUser(normalized);
                   if (normalized) {
                     useAuthStore.setState({ isAuthenticated: true });
@@ -763,81 +712,11 @@ apiClient.interceptors.response.use(
 
               // Retry original request
               return apiClient(originalRequest);
-            } else {
-              throw new Error("Refresh token failed");
             }
+
+            throw new Error("Refresh token failed");
           })
-          .catch(async (refreshError) => {
-            if (isCSRFInvalidError(refreshError)) {
-              emitAuthTelemetry("csrf_invalid_retry", {
-                endpoint: "/auth/refresh-token",
-              });
-
-              const retryCsrfToken = await ensureCSRFToken({
-                forceRefresh: true,
-                reason: "csrf_invalid_refresh",
-              });
-
-              const retryHeaders: Record<string, string> = {};
-              if (retryCsrfToken) {
-                retryHeaders["X-CSRF-Token"] = retryCsrfToken;
-              }
-
-              try {
-                const retryResponse = await refreshClient.post<{
-                  success: boolean;
-                  data?: {
-                    user: {
-                      id: string;
-                      email: string;
-                      name: string;
-                      avatar_url: string;
-                      role: {
-                        code: string;
-                        name: string;
-                        data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
-                        is_owner?: boolean;
-                      };
-                      permissions: Record<string, string>;
-                      subscription_access?: ServerSubscriptionAccess;
-                    };
-                  };
-                }>("/auth/refresh-token", {}, { headers: retryHeaders });
-
-                const retryCsrfHeader = extractCsrfFromHeaders(retryResponse.headers);
-                if (retryCsrfHeader) {
-                  memoryCsrfToken = retryCsrfHeader;
-                }
-
-                const response = retryResponse.data;
-                if (response.success && response.data) {
-                  import("@/features/auth/stores/use-auth-store").then(
-                    ({ useAuthStore }) => {
-                      const normalized = normalizeUserResponse(response.data?.user ?? null);
-                      useAuthStore.getState().setUser(normalized);
-                      if (normalized) {
-                        useAuthStore.setState({ isAuthenticated: true });
-                      }
-                    },
-                  );
-
-                  originalRequest._retry = true;
-                  processQueue(null);
-                  isRefreshing = false;
-                  return apiClient(originalRequest);
-                }
-              } catch (retryError: unknown) {
-                emitAuthTelemetry("csrf_retry_failed", {
-                  endpoint: "/auth/refresh-token",
-                  message:
-                    retryError instanceof Error
-                      ? retryError.message
-                      : "retry_failed",
-                });
-                refreshError = retryError;
-              }
-            }
-
+          .catch((refreshError) => {
             isRefreshing = false;
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");

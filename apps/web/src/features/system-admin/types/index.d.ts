@@ -378,3 +378,55 @@ export interface PlanDetailResponse {
   success: boolean;
   data: SubscriptionPlanConfig;
 }
+
+// ── Permissions ────────────────────────────────────────────────────────────
+
+export interface PermissionMenu {
+  id: string;
+  name: string;
+  icon: string;
+  url: string;
+  access: boolean;
+  parent_id?: string | null;
+}
+
+export interface Permission {
+  id: string;
+  name: string;
+  code: string;
+  action: string;
+  resource: string;
+  description: string;
+  menu_id?: string | null;
+  menu?: PermissionMenu | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PermissionListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+}
+
+export interface PermissionListResponse {
+  success: boolean;
+  data: Permission[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface PermissionDetailResponse {
+  success: boolean;
+  data: Permission;
+}
+
+export interface CreatePermissionRequest {
+  name: string;
+  code: string;
+  action: string;
+  resource?: string;
+  description?: string;
+  menu_id?: string | null;
+}
+
+export type UpdatePermissionRequest = CreatePermissionRequest;
