@@ -60,3 +60,6 @@ CLAUDE.md
 
 .pi*/
 .leann
+
+# Generated profiler output
+k6/reports/profiler-test.json

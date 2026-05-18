@@ -1,33 +1,21 @@
 // k6/scenarios/apis/hrd.js
 // Reusable scenario: HRD module endpoints.
 
-import { check } from "k6";
 import { authGet } from "../../auth-helper.js";
-import { AUTH_ENDPOINTS, API_V1, checkSuccess } from "../../config.js";
+import { API_V1, checkSuccess } from "../../config.js";
+import { getTaggedParams } from "../../lib/endpoint-registry.js";
 
 export function listAttendance(auth, params = {}) {
-	const res = authGet(AUTH_ENDPOINTS.attendance, auth, {
-		tags: { name: "hrd:attendance:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+	const p = { ...getTaggedParams("hrd:attendance:list"), ...params };
+	return authGet(`${API_V1}/hrd/attendance`, auth, p);
 }
 
 export function listLeaveRequests(auth, params = {}) {
-	const res = authGet(AUTH_ENDPOINTS.leaves, auth, {
-		tags: { name: "hrd:leaves:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+	const p = { ...getTaggedParams("hrd:leaves:list"), ...params };
+	return authGet(`${API_V1}/hrd/leave-requests`, auth, p);
 }
 
 export function listEmployees(auth, params = {}) {
-	const res = authGet(`${API_V1}/organization/employees`, auth, {
-		tags: { name: "hrd:employees:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+	const p = { ...getTaggedParams("hrd:employees:list"), ...params };
+	return authGet(`${API_V1}/organization/employees`, auth, p);
 }

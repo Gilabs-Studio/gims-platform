@@ -1,42 +1,26 @@
 // k6/scenarios/apis/finance.js
-// Reusable scenario: finance module endpoints (read-heavy).
+// Reusable scenario: Finance module endpoints.
 
-import { check } from "k6";
-import { authGet } from "../../auth-helper.js";
-import { AUTH_ENDPOINTS, checkSuccess } from "../../config.js";
+import { authGet, authPost } from "../../auth-helper.js";
+import { API_V1, checkSuccess } from "../../config.js";
+import { getTaggedParams } from "../../lib/endpoint-registry.js";
 
 export function listChartOfAccounts(auth, params = {}) {
-	const res = authGet(AUTH_ENDPOINTS.coa, auth, {
-		tags: { name: "finance:coa:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+	const p = { ...getTaggedParams("finance:coa:list"), ...params };
+	return authGet(`${API_V1}/finance/chart-of-accounts`, auth, p);
 }
 
-export function listJournals(auth, params = {}) {
-	const res = authGet(AUTH_ENDPOINTS.journals, auth, {
-		tags: { name: "finance:journals:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+export function listJournalEntries(auth, params = {}) {
+	const p = { ...getTaggedParams("finance:journals:list"), ...params };
+	return authGet(`${API_V1}/finance/journal-entries`, auth, p);
+}
+
+export function createJournalEntry(auth, payload, params = {}) {
+	const p = { ...getTaggedParams("finance:journals:create"), ...params };
+	return authPost(`${API_V1}/finance/journal-entries`, payload, auth, p);
 }
 
 export function listBudgets(auth, params = {}) {
-	const res = authGet(AUTH_ENDPOINTS.budgets, auth, {
-		tags: { name: "finance:budgets:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
-}
-
-export function listBankAccounts(auth, params = {}) {
-	const res = authGet(`${AUTH_ENDPOINTS.coa}/bank-accounts`, auth, {
-		tags: { name: "finance:bank-accounts:list" },
-		...params,
-	});
-	checkSuccess(check, res);
-	return res;
+	const p = { ...getTaggedParams("finance:budget:list"), ...params };
+	return authGet(`${API_V1}/finance/budget`, auth, p);
 }

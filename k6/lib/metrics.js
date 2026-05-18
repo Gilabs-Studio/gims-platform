@@ -1,6 +1,5 @@
 // k6/lib/metrics.js
 // Custom business KPI metrics for GIMS ERP.
-// These metrics track business-level performance, not just HTTP latency.
 
 import { Trend, Counter, Rate } from "k6/metrics";
 
@@ -18,7 +17,7 @@ export const paymentSuccessRate = new Rate("gims_payment_success_rate");
 /** Sales order conversion rate (SQ → SO) */
 export const soConversionRate = new Rate("gims_so_conversion_rate");
 
-/** Delivery order fulfillment rate (DO created → delivered) */
+/** Delivery order fulfillment rate */
 export const doFulfillmentRate = new Rate("gims_do_fulfillment_rate");
 
 /** Per-module request latency */
@@ -31,26 +30,23 @@ export const conflictRate = new Rate("gims_conflict_rate");
 export const rateLimitHits = new Counter("gims_rate_limit_hits");
 
 /** Multi-tenant isolation violation counter */
-export const tenantIsolationViolations = new Counter(
-	"gims_tenant_isolation_violations",
-);
+export const tenantIsolationViolations = new Counter("gims_tenant_isolation_violations");
 
-// ── Metric Helpers ─────────────────────────────────────────────────────────
+// ── Profiler Metrics ────────────────────────────────────────────────────────
 
-/**
- * Record the duration of a business workflow.
- * @param {string} workflow - e.g. "sales-revenue-cycle"
- * @param {number} durationMs
- */
+/** Per-endpoint latency (tagged with {endpoint, module, tier}) */
+export const endpointLatency = new Trend("gims_endpoint_latency_ms");
+
+// ── Metric Helpers ──────────────────────────────────────────────────────────
+
 export function recordWorkflowDuration(workflow, durationMs) {
 	workflowLatency.add(durationMs, { workflow });
 }
 
-/**
- * Record per-module latency.
- * @param {string} module - e.g. "finance", "sales", "hrd"
- * @param {number} durationMs
- */
 export function recordModuleLatency(module, durationMs) {
 	moduleLatency.add(durationMs, { module });
+}
+
+export function recordEndpointLatency(endpoint, module, tier, durationMs) {
+	endpointLatency.add(durationMs, { endpoint, module, tier });
 }

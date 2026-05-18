@@ -4,10 +4,6 @@
 
 import { SharedArray } from "k6/data";
 
-/**
- * Product names for CREATE operations during load tests.
- * VUs randomly pick from this list to avoid name collisions.
- */
 export const productNames = new SharedArray("product-names", () => [
 	"Benchmark Widget Alpha",
 	"Benchmark Widget Beta",
@@ -24,7 +20,6 @@ export const productNames = new SharedArray("product-names", () => [
 
 /**
  * Generate a unique product code for CREATE operations.
- * @param {string} prefix - e.g. "K6", "SMOKE"
  */
 export function generateProductCode(prefix = "K6") {
 	return `${prefix}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -32,7 +27,6 @@ export function generateProductCode(prefix = "K6") {
 
 /**
  * Generate a unique product name for CREATE operations.
- * @param {number} index - optional index to ensure uniqueness
  */
 export function generateProductName(index = 0) {
 	const name = productNames[index % productNames.length];

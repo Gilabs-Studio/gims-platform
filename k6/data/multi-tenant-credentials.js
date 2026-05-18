@@ -4,13 +4,6 @@
 
 import { SharedArray } from "k6/data";
 
-/**
- * Test credentials for different tenant roles.
- * Used in multi-tenant load distribution tests (Phase 1.5).
- *
- * In GIMS, each credential represents a different company/tenant.
- * VUs are distributed round-robin across these credentials.
- */
 export const multiTenantCredentials = new SharedArray("tenant-credentials", () => [
 	{
 		email: "admin@gilabs.com",

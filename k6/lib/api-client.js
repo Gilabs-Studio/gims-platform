@@ -1,44 +1,63 @@
 // k6/lib/api-client.js
 // Object-oriented API client for GIMS ERP.
-// Encapsulates HTTP calls so API changes only require updates here.
+// Wraps auth-helper functions and auto-tags requests via endpoint registry.
 
 import http from "k6/http";
-import { authGet, authPost, authPatch } from "../auth-helper.js";
+import { authGet, authPost, authPatch, authDelete } from "../auth-helper.js";
+import { getTaggedParams, endpointURL } from "./endpoint-registry.js";
 
-/**
- * GIMS API client wrapper.
- * Automatically tags requests and provides domain-specific methods.
- */
 export class GIMSClient {
 	constructor(auth, baseTags = {}) {
 		this.auth = auth;
 		this.baseTags = baseTags;
 	}
 
-	get(url, params = {}) {
-		return authGet(url, this.auth, this._mergeParams(params));
-	}
-
-	post(url, body, params = {}) {
-		return authPost(url, body, this.auth, this._mergeParams(params));
-	}
-
-	patch(url, body, params = {}) {
-		return authPatch(url, body, this.auth, this._mergeParams(params));
-	}
-
-	_mergeParams(params) {
+	_getParams(endpointName, extra = {}) {
+		const tagged = getTaggedParams(endpointName);
 		return {
-			tags: { ...this.baseTags, ...(params.tags || {}) },
-			...params,
+			...tagged,
+			tags: { ...tagged.tags, ...this.baseTags, ...(extra.tags || {}) },
+			...extra,
 		};
+	}
+
+	get(endpointName, extra = {}) {
+		const url = endpointURL(endpointName);
+		const params = this._getParams(endpointName, extra);
+		return authGet(url, this.auth, params);
+	}
+
+	getURL(url, params = {}) {
+		return authGet(url, this.auth, params);
+	}
+
+	post(endpointName, body, extra = {}) {
+		const url = endpointURL(endpointName);
+		const params = this._getParams(endpointName, extra);
+		return authPost(url, body, this.auth, params);
+	}
+
+	postURL(url, body, params = {}) {
+		return authPost(url, body, this.auth, params);
+	}
+
+	patch(endpointName, body, extra = {}) {
+		const url = endpointURL(endpointName);
+		const params = this._getParams(endpointName, extra);
+		return authPatch(url, body, this.auth, params);
+	}
+
+	patchURL(url, body, params = {}) {
+		return authPatch(url, body, this.auth, params);
+	}
+
+	delete(endpointName, extra = {}) {
+		const url = endpointURL(endpointName);
+		const params = this._getParams(endpointName, extra);
+		return authDelete(url, this.auth, params);
 	}
 }
 
-/**
- * Generic API client for any REST API.
- * Lower-level than GIMSClient; useful for non-GIMS endpoints.
- */
 export class APIClient {
 	constructor(token, baseUrl) {
 		this.token = token;
@@ -54,57 +73,9 @@ export class APIClient {
 	}
 
 	create(type, data, options = {}) {
-		const res = http.post(`${this.baseUrl}/${type}`, JSON.stringify(data), {
+		return http.post(`${this.baseUrl}/${type}`, JSON.stringify(data), {
 			headers: this._getHeaders(options.headers),
 			...options,
 		});
-		return { data: safeJson(res), res };
-	}
-
-	find(type, id, options = {}) {
-		const res = http.get(`${this.baseUrl}/${type}/${id}`, {
-			headers: this._getHeaders(options.headers),
-			...options,
-		});
-		return { data: safeJson(res), res };
-	}
-
-	list(type, query = "", options = {}) {
-		const url = query
-			? `${this.baseUrl}/${type}?${query}`
-			: `${this.baseUrl}/${type}`;
-		const res = http.get(url, {
-			headers: this._getHeaders(options.headers),
-			...options,
-		});
-		return { data: safeJson(res), res };
-	}
-
-	update(type, id, data, options = {}) {
-		const res = http.patch(
-			`${this.baseUrl}/${type}/${id}`,
-			JSON.stringify(data),
-			{
-				headers: this._getHeaders(options.headers),
-				...options,
-			},
-		);
-		return { data: safeJson(res), res };
-	}
-
-	remove(type, id, options = {}) {
-		const res = http.del(`${this.baseUrl}/${type}/${id}`, null, {
-			headers: this._getHeaders(options.headers),
-			...options,
-		});
-		return { data: safeJson(res), res };
-	}
-}
-
-function safeJson(res) {
-	try {
-		return res.json();
-	} catch (_) {
-		return null;
 	}
 }
