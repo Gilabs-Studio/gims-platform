@@ -126,7 +126,7 @@ export function NotificationList() {
     if (!notification.is_read) {
       try {
         await markAsRead.mutateAsync(notification.id);
-      } catch (e) {
+      } catch {
         // Biarkan navigasi tetap jalan meski gagal mark as read
       }
     }
