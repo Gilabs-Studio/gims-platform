@@ -1,12 +1,14 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"context"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+
 	"github.com/gilabs/gims/api/internal/notification/data/models"
+	notificationWS "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
 	"gorm.io/gorm"
 )
 
@@ -143,7 +145,15 @@ func (r *notificationRepository) CreateBulk(ctx context.Context, notifications [
 	if isMissingNotificationsTableError(err) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	for _, notification := range notifications {
+		notificationWS.DefaultNotificationHub().PublishCreated(notification)
+	}
+
+	return nil
 }
 
 func isMissingNotificationsTableError(err error) bool {

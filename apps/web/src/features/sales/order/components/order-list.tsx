@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -320,7 +321,7 @@ export function OrderList() {
           className={cn(
             "inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
             sourceTypeFilter === "POS"
-              ? "border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-400"
+              ? "border-warning/30 bg-warning/10 text-warning"
               : "border-muted-foreground/30 text-muted-foreground hover:bg-muted",
           )}
         >
@@ -383,9 +384,9 @@ export function OrderList() {
                     <div className="flex items-center gap-1.5">
                       {order.code}
                       {order.source_type === "POS" && (
-                        <span className="inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
+                        <Badge variant="warning" className="rounded-full px-1.5 py-0.5 text-[10px] leading-none">
                           POS
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </TableCell>

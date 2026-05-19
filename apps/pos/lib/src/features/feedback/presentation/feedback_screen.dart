@@ -220,9 +220,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   )
                 : ListView.separated(
                     itemCount: responses.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final item = responses[i];
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = responses[index];
                       return Card(
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -491,8 +491,8 @@ class _FeedbackDetailDialog extends StatelessWidget {
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: item.answers.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
+                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
                     final entry = item.answers.entries.elementAt(index);
                     final questionLabel = item.getQuestionLabel(entry.key);
                     return Padding(

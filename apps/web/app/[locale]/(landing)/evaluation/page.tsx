@@ -67,20 +67,20 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Evaluation"
-        heroTitle={isId ? "Evaluasi Kinerja yang" : "Performance Evaluation that"}
-        heroAccent={isId ? "Terukur" : "Stays Measurable"}
+        heroTitle={isId ? "Ubah Penilaian Subjektif" : "Turn Subjective Appraisals"}
+        heroAccent={isId ? "Menjadi Pertumbuhan Terukur" : "Into Measurable Growth"}
         heroDescription={
           isId
-            ? "Buat group evaluasi dengan kriteria berbobot, jalankan penilaian SELF & MANAGER per periode, dan lihat skor tertimbang — semua dengan audit trail."
-            : "Create evaluation groups with weighted criteria, run SELF & MANAGER appraisals per period, and see weighted scores — all with audit trail."
+            ? "Hilangkan bias dalam evaluasi kinerja. Bangun kriteria berbobot, libatkan penilaian mandiri & atasan, dan dorong produktivitas dengan matriks yang jelas."
+            : "Eliminate bias in performance reviews. Build weighted criteria, involve self & manager appraisals, and drive productivity with clear metrics."
         }
         heroImageAlt={isId ? "Tampilan evaluasi SalesView" : "SalesView evaluation interface"}
         heroImageKey="evaluationHero"
-        introTitle={isId ? "Dari penilaian ke tindak lanjut" : "From evaluation to follow-up"}
+        introTitle={isId ? "Ubah ulasan kinerja menjadi pendorong semangat" : "Turn performance reviews into morale boosters"}
         introDescription={
           isId
-            ? "Evaluation menyediakan kerangka appraisal yang bisa disesuaikan — group, kriteria, bobot, sampai penilaian per karyawan — untuk diskusi performa yang lebih objektif."
-            : "Evaluation provides a customizable appraisal framework — groups, criteria, weights, per-employee scoring — for more objective performance discussions."
+            ? "Kerangka kerja evaluasi kami yang objektif mengubah diskusi tahunan yang ditakuti menjadi sesi perencanaan karier yang konstruktif dan berpusat pada data."
+            : "Our objective evaluation framework turns dreaded annual discussions into constructive, data-centric career planning sessions."
         }
         featureBlocks={[
           {
@@ -117,22 +117,22 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
             placeholder: "multiOutlet",
           },
         ]}
-        finalTitle={isId ? "Penilaian karyawan lebih objektif, proses lebih transparan" : "Employee appraisal more objective, process more transparent"}
+        finalTitle={isId ? "Buka potensi maksimal setiap karyawan Anda" : "Unlock the maximum potential of every employee"}
         finalPoints={[
           {
-            title: isId ? "Bobot kriteria" : "Weighted criteria",
+            title: isId ? "Metrik yang adil" : "Fair metrics",
             description: isId
-              ? "Setiap kriteria punya weight dan max_score sendiri."
-              : "Each criterion has its own weight and max_score.",
+              ? "Pastikan setiap karyawan dinilai secara objektif."
+              : "Ensure every employee is judged objectively.",
           },
           {
-            title: isId ? "Skor otomatis" : "Auto-calculated scores",
+            title: isId ? "Otomatisasi skor" : "Automated scoring",
             description: isId
-              ? "Weighted score dan overall score dihitung otomatis."
-              : "Weighted score and overall score calculated automatically.",
+              ? "Hemat waktu dengan perhitungan yang tidak pernah salah."
+              : "Save time with calculations that never miss.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Evaluasi" : "Start Evaluation"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

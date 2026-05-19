@@ -134,16 +134,16 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
             SalesView Point of Sale
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
-            {isId ? `Sistem Kasir yang` : `A Point of Sale that`}
+            {isId ? `Ubah Antrean Panjang Menjadi` : `Turn Long Queues Into`}
             <br />
             <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Menyenangkan` : `Delights`}
+              {isId ? `Layanan Kilat` : `Lightning Service`}
             </span>
           </h1>
           <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">
             {isId 
-              ? `Tingkatkan layanan pelanggan Anda. POS super cepat yang berfungsi di perangkat apa pun, walau koneksi terputus.`
-              : `Elevate your customer service. A blazing fast POS that works on any device, even when the connection drops.`
+              ? `Beri pelanggan Anda pengalaman transaksi bebas hambatan. POS cerdas kami menjaga kelancaran toko Anda bahkan tanpa koneksi internet.`
+              : `Give your customers a frictionless checkout experience. Our smart POS keeps your store running smoothly even when the internet drops.`
             }
           </p>
           
@@ -152,13 +152,13 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
               href="/register"
               className="rounded-full bg-primary px-8 py-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-105 shadow-sm"
             >
-              {isId ? "Mulai sekarang - Gratis" : "Start now - Free"}
+              {isId ? "Coba POS Gratis" : "Start My Free Trial"}
             </Link>
             <Link
               href="/login"
               className="rounded-full bg-secondary text-secondary-foreground px-8 py-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
             >
-              {isId ? "Ketahui lebih lanjut" : "Learn more"}
+              {isId ? "Lihat Cara Kerjanya" : "See How It Works"}
             </Link>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
@@ -186,12 +186,12 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
           <div className="max-w-5xl mx-auto px-6">
             <div className="text-center mb-14 md:mb-20 max-w-3xl mx-auto">
               <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-5">
-                {isId ? "Pantau operasional POS dalam satu genggaman!" : "Keep POS operations in one clear view"}
+                {isId ? "Berikan pengalaman checkout terbaik untuk pelanggan Anda" : "Deliver the best checkout experience for your customers"}
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground font-light leading-relaxed">
                 {isId
-                  ? "Fitur inti POS yang benar-benar dipakai tim kasir dan operasional setiap hari."
-                  : "Core POS features your cashier and operations team use every day."}
+                  ? "Tingkatkan efisiensi kasir dan biarkan tim Anda fokus pada hal terpenting: kepuasan pelanggan."
+                  : "Increase cashier efficiency and let your team focus on what matters most: customer satisfaction."}
               </p>
             </div>
 
@@ -315,7 +315,7 @@ export default async function PosLandingPage({ params }: { params: Promise<{ loc
 
         <section className="py-24 md:py-32 px-6 max-w-4xl mx-auto text-center space-y-8">
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
-            {isId ? "Semua fitur POS dirancang dengan tepat." : "Every POS feature is designed with precision."}
+            {isId ? "Siap melayani pelanggan Anda lebih cepat?" : "Ready to serve your customers faster?"}
           </h2>
           <div className="grid md:grid-cols-2 gap-8 text-left mt-16 max-w-3xl mx-auto">
             <div>

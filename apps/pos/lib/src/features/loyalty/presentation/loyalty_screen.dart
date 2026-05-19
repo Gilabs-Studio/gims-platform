@@ -22,7 +22,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
   final List<LoyaltyMember> _members = [];
   bool _loading = false;
   int _page = 1;
-  int _perPage = 20;
+  final int _perPage = 20;
   int _total = 0;
 
   // Enroll sheet state
@@ -118,38 +118,45 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
             setModalState(() => _enrollLoading = true);
             try {
               final lookup = await ServiceLocator.instance.loyaltyService.lookupMember(name: _lookupName.text.trim(), outletId: widget.outlet.id);
+              if (!ctx.mounted) return;
               if (lookup.found && lookup.memberId != null) {
                 await ServiceLocator.instance.loyaltyService.enrollMember(name: lookup.customerName ?? _lookupName.text.trim(), outletId: widget.outlet.id, programId: _selectedProgramId);
+                if (!ctx.mounted) return;
                 Navigator.of(ctx).pop();
                 // refresh
                 _fetchMembers(reset: true);
               } else {
                 // Not found: enroll new with that name
                 await ServiceLocator.instance.loyaltyService.enrollMember(name: _lookupName.text.trim(), outletId: widget.outlet.id, programId: _selectedProgramId);
+                if (!ctx.mounted) return;
                 Navigator.of(ctx).pop();
                 _fetchMembers(reset: true);
               }
             } catch (e) {
+              if (!ctx.mounted) return;
               showError(ctx, e);
             } finally {
-              setModalState(() => _enrollLoading = false);
+              if (ctx.mounted) setModalState(() => _enrollLoading = false);
             }
           }
 
           Future<void> enrollNew() async {
             if (_newName.text.trim().length < 2) {
+              if (!ctx.mounted) return;
               showError(ctx, ApiException('Nama minimal 2 karakter'));
               return;
             }
             setModalState(() => _enrollLoading = true);
             try {
               await ServiceLocator.instance.loyaltyService.enrollMember(name: _newName.text.trim(), phone: _newPhone.text.trim(), email: _newEmail.text.trim(), outletId: widget.outlet.id, programId: _selectedProgramId);
+              if (!ctx.mounted) return;
               Navigator.of(ctx).pop();
               _fetchMembers(reset: true);
             } catch (e) {
+              if (!ctx.mounted) return;
               showError(ctx, e);
             } finally {
-              setModalState(() => _enrollLoading = false);
+              if (ctx.mounted) setModalState(() => _enrollLoading = false);
             }
           }
 
@@ -251,9 +258,9 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       itemCount: _members.length + 1,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (ctx, i) {
-                        if (i >= _members.length) {
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        if (index >= _members.length) {
                           if (_members.length >= _total) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -265,7 +272,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                             ),
                           );
                         }
-                        final m = _members[i];
+                        final m = _members[index];
                         return ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           leading: CircleAvatar(child: Text(m.memberCode.isNotEmpty ? m.memberCode.substring(0,1) : '?')),

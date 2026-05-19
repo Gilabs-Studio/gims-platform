@@ -24,11 +24,12 @@ import (
 	coreRouter "github.com/gilabs/gims/api/internal/core/infrastructure/router"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/ws"
-	posWs "github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/core/storage"
+	notificationWs "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
+	posWs "github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/seeders"
 
 	authUsecase "github.com/gilabs/gims/api/internal/auth/domain/usecase"
@@ -142,6 +143,7 @@ func initInfrastructure() {
 	// This enables horizontal scaling — each pod fans out events to its local WS clients.
 	ws.InitLocationPubSub()
 	posWs.InitPosPubSub()
+	notificationWs.InitNotificationPubSub()
 	// Defer redis.Close() also needs to be in main
 
 	// Run migrations (optionally only once)
@@ -252,6 +254,7 @@ func main() {
 	defer redis.Close()
 	defer ws.StopLocationPubSub()
 	defer posWs.StopPosPubSub()
+	defer notificationWs.StopNotificationPubSub()
 
 	// 2. Setup JWT
 	jwtManager := setupJWT()
@@ -302,7 +305,7 @@ func main() {
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
 
 	// Payment transaction usecase
 	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)

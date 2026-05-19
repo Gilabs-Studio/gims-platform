@@ -5,6 +5,11 @@ import apiClient, {
 } from "@/lib/api-client";
 import type { LoginRequest, LoginResponse } from "../types";
 
+const REFRESH_SINGLE_FLIGHT_RESET_MS = 500;
+
+let inFlightRefreshPromise: Promise<LoginResponse> | null = null;
+let refreshPromiseResetTimer: ReturnType<typeof setTimeout> | null = null;
+
 export interface SubscriptionPlanConfig {
   id: string;
   slug: string;
@@ -43,6 +48,80 @@ function isCSRFInvalidError(error: unknown): boolean {
     axiosError?.response?.status === 403 &&
     axiosError?.response?.data?.error?.code === "CSRF_INVALID"
   );
+}
+
+function getAxiosStatus(error: unknown): number | null {
+  const axiosError = error as { response?: { status?: number } };
+  const status = axiosError?.response?.status;
+  return typeof status === "number" ? status : null;
+}
+
+function isTransientRefreshError(error: unknown): boolean {
+  const status = getAxiosStatus(error);
+  return status !== null && status >= 500;
+}
+
+async function executeRefreshRequest(): Promise<LoginResponse> {
+  try {
+    const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
+    return response.data;
+  } catch (error: unknown) {
+    if (isCSRFInvalidError(error)) {
+      emitAuthTelemetry("csrf_invalid_retry", {
+        endpoint: "/auth/refresh-token",
+        source: "authService.refreshToken",
+      });
+
+      clearCSRFTokenMemory();
+      const csrfToken = await authService.prefetchCSRFToken();
+
+      try {
+        const retryResponse = await apiClient.post<LoginResponse>(
+          "/auth/refresh-token",
+          {},
+          csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+        );
+        return retryResponse.data;
+      } catch (retryError: unknown) {
+        emitAuthTelemetry("csrf_retry_failed", {
+          endpoint: "/auth/refresh-token",
+          source: "authService.refreshToken",
+        });
+        throw retryError;
+      }
+    }
+
+    if (!isTransientRefreshError(error)) {
+      throw error;
+    }
+
+    // One retry for transient backend failures (e.g. brief rotation race).
+    const retryResponse = await apiClient.post<LoginResponse>("/auth/refresh-token");
+    return retryResponse.data;
+  }
+}
+
+function scheduleRefreshPromiseReset(): void {
+  if (refreshPromiseResetTimer) {
+    clearTimeout(refreshPromiseResetTimer);
+  }
+
+  refreshPromiseResetTimer = setTimeout(() => {
+    inFlightRefreshPromise = null;
+    refreshPromiseResetTimer = null;
+  }, REFRESH_SINGLE_FLIGHT_RESET_MS);
+}
+
+function refreshTokenOnce(): Promise<LoginResponse> {
+  if (inFlightRefreshPromise) {
+    return inFlightRefreshPromise;
+  }
+
+  inFlightRefreshPromise = executeRefreshRequest().finally(() => {
+    scheduleRefreshPromiseReset();
+  });
+
+  return inFlightRefreshPromise;
 }
 
 export const authService = {
@@ -123,37 +202,7 @@ export const authService = {
    * Returns user data for session verification.
    */
   async refreshToken(): Promise<LoginResponse> {
-    try {
-      const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
-      return response.data;
-    } catch (error: unknown) {
-      if (!isCSRFInvalidError(error)) {
-        throw error;
-      }
-
-      emitAuthTelemetry("csrf_invalid_retry", {
-        endpoint: "/auth/refresh-token",
-        source: "authService.refreshToken",
-      });
-
-      clearCSRFTokenMemory();
-      const csrfToken = await this.prefetchCSRFToken();
-
-      try {
-        const retryResponse = await apiClient.post<LoginResponse>(
-          "/auth/refresh-token",
-          {},
-          csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
-        );
-        return retryResponse.data;
-      } catch (retryError: unknown) {
-        emitAuthTelemetry("csrf_retry_failed", {
-          endpoint: "/auth/refresh-token",
-          source: "authService.refreshToken",
-        });
-        throw retryError;
-      }
-    }
+    return refreshTokenOnce();
   },
 
   /**

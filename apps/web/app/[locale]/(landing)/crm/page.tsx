@@ -85,16 +85,16 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
             SalesView CRM
           </p>
           <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] mb-6">
-            {isId ? `Customer Relationship` : `Customer Relationship`}
+            {isId ? `Ubah Lead Dingin Menjadi` : `Turn Cold Leads Into`}
             <br />
             <span className="text-primary font-accent font-medium italic text-[4.5rem] md:text-[6.5rem] leading-none inline-block mt-2">
-              {isId ? `Magic` : `Magic`}
+              {isId ? `Penjualan Nyata` : `Real Sales`}
             </span>
           </h1>
           <p className="text-xl md:text-2xl font-light text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed mb-10">
             {isId 
-              ? `CRM yang AI native untuk melacak lead, mendapatkan forecast yang akurat, dan close lebih banyak peluang.`
-              : `AI native CRM to track leads, secure accurate forecasts, and close more opportunities in real-time.`
+              ? `Berdayakan tim sales Anda dengan CRM berbasis AI untuk melacak setiap interaksi, memprediksi pendapatan, dan menutup transaksi lebih cepat.`
+              : `Empower your sales team with an AI-native CRM to track every interaction, forecast revenue accurately, and close deals faster.`
             }
           </p>
           
@@ -103,13 +103,13 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
               href="/register"
               className="rounded-full bg-primary px-8 py-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-105 shadow-sm"
             >
-              {isId ? "Mulai sekarang - Gratis" : "Start now - Free"}
+              {isId ? "Coba CRM Gratis" : "Start My Free Trial"}
             </Link>
             <Link 
               href="/login"
               className="rounded-full bg-secondary text-secondary-foreground px-8 py-4 text-sm font-medium hover:bg-secondary/80 transition-colors"
             >
-              {isId ? "Ketahui lebih lanjut" : "Learn more"}
+              {isId ? "Jadwalkan Demo" : "Book a Demo"}
             </Link>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
@@ -138,10 +138,10 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
           <div className="max-w-5xl mx-auto px-6">
             <div className="text-center mb-20 md:mb-32 max-w-3xl mx-auto">
               <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-6">
-                {isId ? "Pantau kesuksesan dalam satu genggaman!" : "Keep opportunities within view"}
+                {isId ? "Kuasai seluruh alur penjualan Anda tanpa repot" : "Master your entire sales pipeline effortlessly"}
               </h2>
               <p className="text-xl text-muted-foreground font-light">
-                {isId ? "Pipeline Anda dalam sekilas lirikan." : "Your pipeline at a single glance."}
+                {isId ? "Jangan biarkan ada prospek yang lolos. Kelola semua peluang Anda dalam satu tampilan visual yang mudah digunakan." : "Never let a prospect slip away. Manage all your opportunities in one easy-to-use visual interface."}
               </p>
             </div>
 
@@ -266,7 +266,7 @@ export default async function CrmLandingPage({ params }: { params: Promise<{ loc
         {/* BOTTOM CTA */}
         <section className="py-24 md:py-32 px-6 max-w-4xl mx-auto text-center space-y-8">
           <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
-            {isId ? "Semua fitur dirancang dengan tepat." : "Every feature crafted precisely."}
+            {isId ? "Siap untuk melipatgandakan tingkat konversi Anda?" : "Ready to double your conversion rate?"}
           </h2>
           <div className="grid md:grid-cols-2 gap-8 text-left mt-16 max-w-3xl mx-auto">
              <div>

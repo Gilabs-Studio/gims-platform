@@ -67,20 +67,20 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Inventory"
-        heroTitle={isId ? "Inventory yang" : "Inventory that"}
-        heroAccent={isId ? "Lebih Presisi" : "Stays Precise"}
+        heroTitle={isId ? "Ubah Stok Berantakan" : "Turn Messy Inventory"}
+        heroAccent={isId ? "Menjadi Akurasi Sempurna" : "Into Perfect Accuracy"}
         heroDescription={
           isId
-            ? "Kendalikan stok lintas gudang dengan visibilitas real-time, batch tracking, dan stock opname — semua tersambung dalam satu alur."
-            : "Control stock across warehouses with real-time visibility, batch tracking, and stock opname — all connected in one flow."
+            ? "Akhiri mimpi buruk kehabisan barang. Pantau stok multi-gudang Anda, lacak tanggal kedaluwarsa, dan lakukan opname tanpa pusing."
+            : "End stockout nightmares. Monitor your multi-warehouse inventory, track expiry dates, and perform stock opnames without the headache."
         }
         heroImageAlt={isId ? "Tampilan inventory SalesView" : "SalesView inventory interface"}
         heroImageKey="stockInventoryList"
-        introTitle={isId ? "Akurasi stok untuk operasional harian" : "Stock accuracy for daily operations"}
+        introTitle={isId ? "Amankan aset terbesar bisnis Anda" : "Secure your business's biggest asset"}
         introDescription={
           isId
-            ? "Inventory dirancang untuk membantu tim gudang bergerak lebih cepat dan akurat — dari pemantauan stok sampai stock opname."
-            : "Inventory is designed to help warehouse teams move faster with better accuracy — from stock monitoring through stock opname."
+            ? "Ubah gudang yang kacau menjadi pusat operasi yang rapi dengan pembaruan real-time, sehingga Anda selalu tahu apa yang Anda miliki."
+            : "Transform chaotic warehouses into streamlined hubs with real-time updates, so you always know exactly what you have."
         }
         featureBlocks={[
           {
@@ -114,22 +114,22 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Inventory yang siap scale" : "Inventory operations ready to scale"}
+        finalTitle={isId ? "Skalakan operasi gudang Anda dengan percaya diri" : "Scale your warehouse operations with confidence"}
         finalPoints={[
           {
-            title: isId ? "Multi gudang" : "Multi warehouse",
+            title: isId ? "Pertumbuhan tanpa batas" : "Limitless growth",
             description: isId
-              ? "Satu sistem untuk semua lokasi gudang."
-              : "One system for all warehouse locations.",
+              ? "Kelola satu atau seratus lokasi tanpa melambat."
+              : "Manage one or a hundred locations without slowing down.",
           },
           {
-            title: isId ? "Audit trail" : "Audit trail",
+            title: isId ? "Kepercayaan penuh" : "Full confidence",
             description: isId
-              ? "Setiap mutasi tercatat di ledger stok."
-              : "Every mutation recorded in the stock ledger.",
+              ? "Audit trail otomatis menjaga bisnis Anda tetap aman."
+              : "Automated audit trails keep your business secure.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Inventory" : "Start Inventory"}
+        finalCtaLabel={isId ? "Coba Inventory Gratis" : "Start My Free Trial"}
       />
     </>
   );

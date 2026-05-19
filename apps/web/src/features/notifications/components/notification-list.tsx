@@ -122,8 +122,13 @@ export function NotificationList() {
   };
 
   const handleOpenNotification = async (notification: Notification) => {
+    // Auto mark as read jika belum dibaca
     if (!notification.is_read) {
-      await markAsRead.mutateAsync(notification.id);
+      try {
+        await markAsRead.mutateAsync(notification.id);
+      } catch (e) {
+        // Biarkan navigasi tetap jalan meski gagal mark as read
+      }
     }
 
     if (notification.entity_type === "password_reset_request") {

@@ -48,12 +48,12 @@ export default async function TemplatesPage({
       <main className="mx-auto max-w-6xl px-6 py-16">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">SalesView Resources</p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
-          {isId ? "Template Siap Pakai" : "Ready-to-Use Templates"}
+          {isId ? "Mulai Cepat dengan Template Premium" : "Jumpstart Your Work with Premium Templates"}
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
           {isId
-            ? "Gunakan template praktis untuk mempercepat implementasi SOP tim dan pelaporan bisnis harian."
-            : "Use practical templates to speed up team SOP implementation and daily business reporting."}
+            ? "Akses perpustakaan format standar industri kami. Hemat ratusan jam dalam penyiapan operasional, pelaporan, dan standar proses."
+            : "Access our library of industry-standard formats. Save hundreds of hours in operational setup, reporting, and process standardization."}
         </p>
 
         <section className="mt-12 grid gap-6 md:grid-cols-2">
@@ -64,13 +64,13 @@ export default async function TemplatesPage({
               </span>
               <h2 className="mt-4 text-xl font-semibold text-foreground">
                 {isId
-                  ? `Template ${item.badge} untuk Tim ${item.badge}`
-                  : `${item.badge} Template for Operational Teams`}
+                  ? `Template Kelas Enterprise untuk ${item.badge}`
+                  : `Enterprise-Grade Templates for ${item.badge}`}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {isId
-                  ? "Format terstruktur yang mudah diadaptasi sesuai alur bisnis perusahaan Anda."
-                  : "Structured formats that are easy to adapt to your company workflows."}
+                  ? "Standarisasi operasional Anda seketika dengan format teruji yang dirancang untuk skalabilitas."
+                  : "Instantly standardize your operations with battle-tested formats designed for scalability."}
               </p>
             </article>
           ))}
@@ -81,7 +81,7 @@ export default async function TemplatesPage({
             href="/register"
             className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            {isId ? "Gunakan di SalesView" : "Use in SalesView"}
+            {isId ? "Akses Semua Template Sekarang" : "Access All Templates Now"}
           </Link>
         </div>
       </main>

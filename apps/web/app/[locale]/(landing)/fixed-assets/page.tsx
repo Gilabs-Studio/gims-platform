@@ -44,20 +44,20 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Fixed Assets"
-        heroTitle={isId ? "Aset Tetap yang" : "Fixed Assets that"}
-        heroAccent={isId ? "Lebih Teratur" : "Stay Structured"}
+        heroTitle={isId ? "Ubah Pelacakan Manual" : "Turn Manual Tracking"}
+        heroAccent={isId ? "Menjadi Kendali Aset Penuh" : "Into Total Asset Control"}
         heroDescription={
           isId
-            ? "Catat aset, nilai, dan status pemakaian agar keputusan investasi lebih berbasis data."
-            : "Track assets, values, and usage status so investment decisions stay data-driven."
+            ? "Tinggalkan kerumitan mendata aset Anda. Lacak kepemilikan, nilai, dan penyusutan aset secara real-time untuk keputusan investasi yang lebih cerdas."
+            : "Leave the hassle of tracking your assets behind. Track ownership, value, and depreciation in real-time for smarter investment decisions."
         }
         heroImageAlt={isId ? "Tampilan aset tetap SalesView" : "SalesView fixed assets interface"}
         heroImageKey="fixedAssetsHero"
-        introTitle={isId ? "Kendalikan aset dalam satu sistem" : "Control assets in one system"}
+        introTitle={isId ? "Kuasai data aset Anda dalam satu dasbor" : "Master your asset data in one dashboard"}
         introDescription={
           isId
-            ? "Aset tetap tidak lagi tersebar di file manual yang sulit ditelusuri."
-            : "Fixed assets no longer stay scattered across hard-to-track manual files."
+            ? "Selamat tinggal pada file pencatatan aset yang tercecer. Sekarang, Anda dapat menelusuri riwayat aset Anda semudah membalik telapak tangan."
+            : "Say goodbye to scattered asset files. Now, you can trace your entire asset history effortlessly."
         }
         featureBlocks={[
           {
@@ -85,8 +85,8 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Aset tetap lebih mudah dikendalikan" : "Fixed assets become easier to control"}
-        finalCtaLabel={isId ? "Mulai Kelola Aset" : "Start Managing Assets"}
+        finalTitle={isId ? "Amankan masa depan aset berharga Anda" : "Secure the future of your valuable assets"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

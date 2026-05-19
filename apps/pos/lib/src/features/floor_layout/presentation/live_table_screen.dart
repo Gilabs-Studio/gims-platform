@@ -160,7 +160,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           });
           break;
       }
-    } catch (e, st) {
+    } catch (_) {
       // Keep stream alive when one malformed payload is received.
     }
   }
@@ -173,8 +173,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       try {
         final order = PosOrder.fromJson(rawOrder);
         return order;
-      } catch (e) {
-      }
+      } catch (_) {}
     }
 
     // Strategy 2: Dynamic Map (cast all keys to String)
@@ -184,8 +183,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           rawOrder.map((key, value) => MapEntry('$key', value)),
         );
         return order;
-      } catch (e) {
-      }
+      } catch (_) {}
     }
 
     // Strategy 3: String JSON (decode and retry)
@@ -202,8 +200,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           );
           return order;
         }
-      } catch (e) {
-      }
+      } catch (_) {}
     }
 
     // Strategy 4: Fallback - use root data as order (event.data['id'] or event.data['order_id'])
@@ -213,8 +210,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
         data['id'] = data['id'] ?? data['order_id'];
         final order = PosOrder.fromJson(data);
         return order;
-      } catch (e) {
-      }
+      } catch (_) {}
     }
 
     return null;
@@ -255,52 +251,148 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       }
     }
 
-    final activeOrders = <String, PosOrder>{};
-    for (final order in _orders) {
-      if (order.tableLabel == null) continue;
-      if (!_isLiveTableActive(order.status)) {
-        continue;
-      }
-
-      final existing = activeOrders[order.tableLabel!];
-      if (existing == null || order.createdAt.isAfter(existing.createdAt)) {
-        activeOrders[order.tableLabel!] = order;
-      }
-    }
+    final activeOrders = _orders
+        .where((order) => _isLiveTableActive(order.status))
+        .toList(growable: false);
 
     return plan.objects.where((object) => object.isTable).map((table) {
       final label = table.label ?? table.tableNumber?.toString() ?? table.id;
-      final order = activeOrders[label];
-      final duration = order == null
-          ? Duration.zero
-          : _now.difference(order.createdAt);
+      final normalizedLabel = _normalizeLabel(label);
+      final matchedOrders = activeOrders.where((order) {
+        final sameTableId = order.tableId != null && order.tableId == table.id;
+        final sameTableLabel = _normalizeLabel(order.tableLabel) == normalizedLabel;
+        return sameTableId || sameTableLabel;
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      String status = 'AVAILABLE';
-      if (order != null) {
-        if (order.status == PosOrderStatus.partialServed) {
-          status = 'PARTIAL_SERVED';
-        } else if (order.status == PosOrderStatus.served) {
-          status = 'SERVED';
-        } else if ({
-          PosOrderStatus.draft,
-          PosOrderStatus.inProgress,
-          PosOrderStatus.ready,
-          PosOrderStatus.waitingPayment,
-        }.contains(order.status)) {
-          status = 'WAITING_PAYMENT';
-        } else {
-          status = duration.inMinutes > 30 ? 'WARN_LONG' : 'SEATED';
-        }
-      }
+      final unpaidOrders = matchedOrders
+          .where((order) => _isWaitingPaymentStatus(order.status))
+          .toList(growable: false);
+
+      final serviceFlowOrders = matchedOrders
+          .where((order) => _isServiceFlowStatus(order.status))
+          .toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      final serviceOrders = serviceFlowOrders
+          .where(
+            (order) =>
+                order.status == PosOrderStatus.paid ||
+                order.status == PosOrderStatus.partialServed,
+          )
+          .toList(growable: false);
+      final servedOrders = serviceFlowOrders
+          .where((order) => order.status == PosOrderStatus.served)
+          .toList(growable: false);
+
+      final unpaidOrder = unpaidOrders.isEmpty ? null : unpaidOrders.first;
+      final serviceOrder = serviceOrders.isEmpty ? null : serviceOrders.first;
+      final order = unpaidOrder ??
+          serviceOrder ??
+          (servedOrders.isEmpty ? null : servedOrders.first) ??
+          (matchedOrders.isEmpty ? null : matchedOrders.first);
+      final duration =
+          order == null ? Duration.zero : _now.difference(order.createdAt);
+
+      final needsPaymentCount = unpaidOrders.fold<int>(
+        0,
+        (total, queuedOrder) => total + _paymentItemCount(queuedOrder),
+      );
+      final needsServeCount = serviceOrders.fold<int>(
+        0,
+        (total, queuedOrder) {
+          final pending = _pendingServeItemCount(queuedOrder);
+          return total + (pending > 0 ? pending : 1);
+        },
+      );
+      final doneCount = servedOrders.length;
+
+      final status = _deriveTableStatus(
+        unpaidOrder: unpaidOrder,
+        serviceOrder: serviceOrder,
+        servedOrders: servedOrders,
+        duration: duration,
+      );
 
       return LiveTableData(
         table: table,
         seatCount: seatCounts[table.id] ?? table.capacity ?? 0,
         status: status,
         duration: duration,
+        orders: matchedOrders,
+        unpaidOrder: unpaidOrder,
+        unpaidOrders: unpaidOrders,
+        serviceOrder: serviceOrder,
+        serviceOrders: serviceOrders,
+        servedOrders: servedOrders,
+        needsPaymentCount: needsPaymentCount,
+        needsServeCount: needsServeCount,
+        doneCount: doneCount,
+        isOverThreshold: duration.inSeconds > (30 * 60),
         order: order,
       );
     }).toList();
+  }
+
+  String _normalizeLabel(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  bool _isWaitingPaymentStatus(PosOrderStatus status) {
+    return {
+      PosOrderStatus.draft,
+      PosOrderStatus.inProgress,
+      PosOrderStatus.ready,
+      PosOrderStatus.waitingPayment,
+    }.contains(status);
+  }
+
+  bool _isServiceFlowStatus(PosOrderStatus status) {
+    return {
+      PosOrderStatus.paid,
+      PosOrderStatus.partialServed,
+      PosOrderStatus.served,
+    }.contains(status);
+  }
+
+  int _paymentItemCount(PosOrder order) {
+    if (order.items.isEmpty) return 1;
+    return order.items.fold<int>(
+      0,
+      (total, item) => total + item.quantity.toInt().clamp(0, 100000),
+    );
+  }
+
+  int _pendingServeItemCount(PosOrder order) {
+    if (order.items.isEmpty) return 0;
+    return order.items.fold<int>(0, (total, item) {
+      if (item.status == 'SERVED' || item.status == 'CANCELLED') {
+        return total;
+      }
+      return total + item.quantity.toInt().clamp(0, 100000);
+    });
+  }
+
+  String _deriveTableStatus({
+    required PosOrder? unpaidOrder,
+    required PosOrder? serviceOrder,
+    required List<PosOrder> servedOrders,
+    required Duration duration,
+  }) {
+    if (unpaidOrder != null) return 'WAITING_PAYMENT';
+    if (serviceOrder == null) {
+      return servedOrders.isNotEmpty ? 'SERVED' : 'AVAILABLE';
+    }
+    if (serviceOrder.status == PosOrderStatus.paid) {
+      return duration.inSeconds > (30 * 60) ? 'WARN_LONG' : 'SEATED';
+    }
+    if (serviceOrder.status == PosOrderStatus.partialServed) {
+      return 'PARTIAL_SERVED';
+    }
+    if (serviceOrder.status == PosOrderStatus.served) {
+      return 'SERVED';
+    }
+    return 'AVAILABLE';
   }
 
   bool _canServeAll(String status) {
@@ -320,15 +412,17 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   Future<void> _serveOrder(LiveTableData info) async {
-    final order = info.order;
-    if (order == null) return;
+    if (info.serviceOrders.isEmpty) return;
 
-    setState(() => _servingOrderId = order.id);
+    setState(() => _servingOrderId = info.table.id);
     try {
-      final updated = await ServiceLocator.instance.terminalService.serveOrder(
-        order.id,
-      );
-      setState(() => _upsertOrder(updated));
+      for (final order in info.serviceOrders) {
+        final updated = await ServiceLocator.instance.terminalService.serveOrder(
+          order.id,
+        );
+        if (!mounted) return;
+        setState(() => _upsertOrder(updated));
+      }
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
@@ -337,20 +431,22 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   Future<void> _completeOrder(LiveTableData info) async {
-    final order = info.order;
-    if (order == null) return;
+    if (info.servedOrders.isEmpty) return;
 
-    setState(() => _completingOrderId = order.id);
+    setState(() => _completingOrderId = info.table.id);
     try {
-      final updated = await ServiceLocator.instance.terminalService
-          .completeOrder(order.id);
-      setState(() {
-        if (_isTerminalCleared(updated.status)) {
-          _orders = _orders.where((item) => item.id != updated.id).toList();
-        } else {
-          _upsertOrder(updated);
-        }
-      });
+      for (final order in info.servedOrders) {
+        final updated = await ServiceLocator.instance.terminalService
+            .completeOrder(order.id);
+        if (!mounted) return;
+        setState(() {
+          if (_isTerminalCleared(updated.status)) {
+            _orders = _orders.where((item) => item.id != updated.id).toList();
+          } else {
+            _upsertOrder(updated);
+          }
+        });
+      }
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
@@ -375,9 +471,22 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   }
 
   Future<void> _payOrder(LiveTableData info) async {
-    final order = info.order;
+    final order = info.unpaidOrder ?? info.order;
     if (order == null) return;
-    final result = await showDialog<CheckoutResult>(
+    if (order.orderSource == 'CUSTOMER') {
+      final proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => _SelfOrderPayPreviewDialog(
+          order: order,
+          tableLabel: _tableLabel(info),
+        ),
+      );
+      if (proceed != true) return;
+    }
+    if (!mounted) return;
+
+    await showDialog<CheckoutResult>(
       context: context,
       barrierDismissible: true,
       builder: (context) => CheckoutFlowSheet(
@@ -392,15 +501,10 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
         outletName: widget.outlet.name,
       ),
     );
-    if (result != null) {
-      setState(() {
-        _orders = _orders.where((item) => item.id != order.id).toList();
-      });
-    }
   }
 
   Future<void> _cancelOrder(LiveTableData info) async {
-    final order = info.order;
+    final order = info.unpaidOrder ?? info.order;
     if (order == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -433,15 +537,12 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     }
   }
 
-  Future<void> _serveItem(LiveTableData info, PosOrderItem item) async {
-    final order = info.order;
-    if (order == null) return;
-
-    final key = '${order.id}-${item.id}';
+  Future<void> _serveItem(String orderId, PosOrderItem item) async {
+    final key = '$orderId-${item.id}';
     setState(() => _servingItemKey = key);
     try {
       final updated = await ServiceLocator.instance.terminalService.serveItem(
-        order.id,
+        orderId,
         item.id,
       );
       setState(() => _upsertOrder(updated));
@@ -661,8 +762,7 @@ class _ActiveTableSidebar extends StatelessWidget {
   final String? servingItemKey;
   final Future<void> Function(LiveTableData info) onServeAll;
   final Future<void> Function(LiveTableData info) onComplete;
-  final Future<void> Function(LiveTableData info, PosOrderItem item)
-  onServeItem;
+  final Future<void> Function(String orderId, PosOrderItem item) onServeItem;
   final Future<void> Function(LiveTableData info) onPay;
   final Future<void> Function(LiveTableData info) onCancel;
   final void Function(String orderId) onOpenReceipt;
@@ -718,6 +818,13 @@ class _ActiveTableSidebar extends StatelessWidget {
                         return const SizedBox.shrink();
                       }
 
+                      final paymentOrder = info.unpaidOrder;
+                      final serviceOrder = info.serviceOrder;
+                      final pendingPaymentOrders = info.unpaidOrders;
+                      final pendingServeOrders = info.serviceOrders;
+                      final doneOrders = info.servedOrders;
+                      final paymentConfirmed = paymentOrder == null && serviceOrder != null;
+
                       final tableLabel =
                           info.table.label ??
                           info.table.tableNumber?.toString() ??
@@ -726,10 +833,10 @@ class _ActiveTableSidebar extends StatelessWidget {
                           info.status == 'SEATED' ||
                           info.status == 'WARN_LONG' ||
                           info.status == 'PARTIAL_SERVED';
-                      final canServeItems =
-                          canServeAll || info.status == 'PARTIAL_SERVED';
-                      final canComplete = info.status == 'SERVED';
-                      final canPay = info.status == 'WAITING_PAYMENT';
+                      final canServeItems = pendingServeOrders.any(
+                        (queuedOrder) => queuedOrder.items.isNotEmpty,
+                      );
+                      final canComplete = doneOrders.isNotEmpty;
 
                       return Container(
                         decoration: BoxDecoration(
@@ -755,6 +862,30 @@ class _ActiveTableSidebar extends StatelessWidget {
                                 _StatusChip(status: info.status),
                               ],
                             ),
+                            if (order.orderSource == 'CUSTOMER') ...[
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(999),
+                                    color: const Color(0xffd97706),
+                                  ),
+                                  child: const Text(
+                                    'Guest',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 6),
                             Text(
                               'Timer ${formatDuration(info.duration)} · ${order.orderNumber}',
@@ -771,6 +902,38 @@ class _ActiveTableSidebar extends StatelessWidget {
                                 color: GimsColors.mutedForeground,
                               ),
                             ),
+                            if (info.needsPaymentCount > 0 ||
+                                info.needsServeCount > 0 ||
+                                info.doneCount > 0) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  if (info.needsPaymentCount > 0)
+                                    _MiniBadge(
+                                      label: 'Pay ${info.needsPaymentCount}',
+                                      textColor: const Color(0xff92400e),
+                                      bgColor: const Color(0xfffff7ed),
+                                      borderColor: const Color(0xfffbbf24),
+                                    ),
+                                  if (info.needsServeCount > 0)
+                                    _MiniBadge(
+                                      label: 'Serve ${info.needsServeCount}',
+                                      textColor: const Color(0xff1d4ed8),
+                                      bgColor: const Color(0xffeff6ff),
+                                      borderColor: const Color(0xff93c5fd),
+                                    ),
+                                  if (info.doneCount > 0)
+                                    _MiniBadge(
+                                      label: 'Done ${info.doneCount}',
+                                      textColor: const Color(0xff047857),
+                                      bgColor: const Color(0xffecfdf5),
+                                      borderColor: const Color(0xff6ee7b7),
+                                    ),
+                                ],
+                              ),
+                            ],
                             if (order.customerName != null &&
                                 order.customerName!.isNotEmpty) ...[
                               const SizedBox(height: 2),
@@ -782,10 +945,114 @@ class _ActiveTableSidebar extends StatelessWidget {
                                 ),
                               ),
                             ],
-                            if (canServeItems && order.items.isNotEmpty) ...[
+                            if (paymentOrder != null) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: GimsColors.border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Text(
+                                      'PAYMENT QUEUE',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: GimsColors.mutedForeground,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: FilledButton(
+                                            onPressed: () => onPay(info),
+                                            style: FilledButton.styleFrom(
+                                              minimumSize: const Size(0, 30),
+                                            ),
+                                            child: const Text(
+                                              'Pay Now',
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () => onCancel(info),
+                                            style: OutlinedButton.styleFrom(
+                                              minimumSize: const Size(0, 30),
+                                            ),
+                                            child: const Icon(
+                                              Icons.block,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    for (final queueOrder
+                                        in pendingPaymentOrders.take(2))
+                                      Text(
+                                        '#${queueOrder.orderNumber} · '
+                                        '${queueOrder.items.isEmpty ? 0 : queueOrder.items.first.quantity.toInt()}x '
+                                        '${queueOrder.items.isEmpty ? 'Item' : queueOrder.items.first.productName}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: GimsColors.mutedForeground,
+                                        ),
+                                      ),
+                                    if (pendingPaymentOrders.length > 2)
+                                      Text(
+                                        '+${pendingPaymentOrders.length - 2} more orders',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: GimsColors.mutedForeground,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (paymentOrder == null && paymentConfirmed) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: GimsColors.border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Expanded(
+                                      child: Text(
+                                        'PAYMENT CONFIRMED',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xff047857),
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => onOpenReceipt(order.id),
+                                      child: const Text('View'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (canServeItems) ...[
                               const SizedBox(height: 8),
                               const Text(
-                                'Items',
+                                'ITEMS QUEUE',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -793,103 +1060,111 @@ class _ActiveTableSidebar extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              for (final item in order.items)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '${item.quantity.toStringAsFixed(0)}x ${item.productName}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      if (item.status != 'SERVED')
-                                        OutlinedButton(
-                                          onPressed:
-                                              servingItemKey ==
-                                                  '${order.id}-${item.id}'
-                                              ? null
-                                              : () => onServeItem(info, item),
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(0, 26),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
+                              for (final queueOrder in pendingServeOrders)
+                                for (final item in queueOrder.items)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(right: 6),
+                                          child: Icon(
+                                            Icons.circle,
+                                            size: 8,
+                                            color: Color(0xfff59e0b),
                                           ),
+                                        ),
+                                        Expanded(
                                           child: Text(
-                                            servingItemKey ==
-                                                    '${order.id}-${item.id}'
-                                                ? '...'
-                                                : 'Sajikan',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                            ),
+                                            '${item.quantity.toInt()}x ${item.productName}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 12),
                                           ),
-                                        )
-                                      else
-                                        const Icon(
-                                          Icons.check_circle,
-                                          color: Colors.green,
-                                          size: 16,
                                         ),
-                                    ],
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '#${queueOrder.orderNumber}',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: GimsColors.mutedForeground,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (item.status != 'SERVED')
+                                          OutlinedButton(
+                                            onPressed:
+                                                servingItemKey ==
+                                                    '${queueOrder.id}-${item.id}'
+                                                ? null
+                                                : () => onServeItem(
+                                                      queueOrder.id,
+                                                      item,
+                                                    ),
+                                            style: OutlinedButton.styleFrom(
+                                              minimumSize: const Size(0, 26),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              servingItemKey ==
+                                                      '${queueOrder.id}-${item.id}'
+                                                  ? '...'
+                                                  : 'Serve',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          const Icon(
+                                            Icons.check_circle,
+                                            color: Colors.green,
+                                            size: 16,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                            ],
+                            if (doneOrders.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xff6ee7b7),
+                                  ),
+                                  color: const Color(0xffecfdf5),
+                                ),
+                                child: Text(
+                                  '${doneOrders.length} served order waiting customer left',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xff047857),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                              ),
                             ],
                             const SizedBox(height: 8),
-                            if (canPay) ...[
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: FilledButton(
-                                      onPressed: () => onPay(info),
-                                      style: FilledButton.styleFrom(
-                                        minimumSize: const Size(0, 32),
-                                      ),
-                                      child: const Text(
-                                        'Pay Now',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => onCancel(info),
-                                      style: OutlinedButton.styleFrom(
-                                        minimumSize: const Size(0, 32),
-                                      ),
-                                      child: const Icon(
-                                        Icons.cancel_outlined,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                            ],
                             Row(
                               children: [
                                 Expanded(
                                   child: FilledButton.tonal(
                                     onPressed:
                                         canServeAll &&
-                                            servingOrderId != order.id
+                                            servingOrderId != info.table.id
                                         ? () => onServeAll(info)
                                         : null,
                                     style: FilledButton.styleFrom(
                                       minimumSize: const Size(0, 32),
                                     ),
                                     child: Text(
-                                      servingOrderId == order.id
+                                      servingOrderId == info.table.id
                                           ? 'Menyajikan...'
-                                          : 'Sajikan',
+                                          : 'All Served',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -899,7 +1174,7 @@ class _ActiveTableSidebar extends StatelessWidget {
                                   child: FilledButton(
                                     onPressed:
                                         canComplete &&
-                                            completingOrderId != order.id
+                                            completingOrderId != info.table.id
                                         ? () => onComplete(info)
                                         : null,
                                     style: FilledButton.styleFrom(
@@ -907,9 +1182,9 @@ class _ActiveTableSidebar extends StatelessWidget {
                                       backgroundColor: Colors.orange,
                                     ),
                                     child: Text(
-                                      completingOrderId == order.id
+                                      completingOrderId == info.table.id
                                           ? 'Proses...'
-                                          : 'Selesai',
+                                          : 'Customer Left',
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -954,6 +1229,262 @@ class _ActiveTableSidebar extends StatelessWidget {
       default:
         return Colors.white;
     }
+  }
+}
+
+class _MiniBadge extends StatelessWidget {
+  const _MiniBadge({
+    required this.label,
+    required this.textColor,
+    required this.bgColor,
+    required this.borderColor,
+  });
+
+  final String label;
+  final Color textColor;
+  final Color bgColor;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+        color: bgColor,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _SelfOrderPayPreviewDialog extends StatelessWidget {
+  const _SelfOrderPayPreviewDialog({
+    required this.order,
+    required this.tableLabel,
+  });
+
+  final PosOrder order;
+  final String tableLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final amountDue =
+        order.subtotal + order.taxAmount + order.serviceCharge - order.discountAmount;
+
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Pay Now - $tableLabel',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: GimsColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'ORDER',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: GimsColors.mutedForeground,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '#${order.orderNumber}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Customer: ${order.customerName?.isNotEmpty == true ? order.customerName : 'Walk-in'}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: GimsColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'AMOUNT DUE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: GimsColors.mutedForeground,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatMoney(amountDue, 'IDR'),
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'PURCHASED ITEMS',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: GimsColors.mutedForeground,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 140),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (final item in order.items)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${item.quantity.toInt()}x ${item.productName}',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              Text(
+                                formatMoney(item.subtotal, 'IDR'),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: GimsColors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              _AmountRow(
+                label: 'Subtotal',
+                value: formatMoney(order.subtotal, 'IDR'),
+              ),
+              _AmountRow(
+                label: 'Tax',
+                value: formatMoney(order.taxAmount, 'IDR'),
+              ),
+              _AmountRow(
+                label: 'Service',
+                value: formatMoney(order.serviceCharge, 'IDR'),
+              ),
+              const SizedBox(height: 4),
+              _AmountRow(
+                label: 'Total',
+                value: formatMoney(amountDue, 'IDR'),
+                isTotal: true,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Continue to Payment'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AmountRow extends StatelessWidget {
+  const _AmountRow({
+    required this.label,
+    required this.value,
+    this.isTotal = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isTotal;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: isTotal ? 22 : 14,
+      fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
+      color: isTotal ? GimsColors.foreground : GimsColors.mutedForeground,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(value, style: style),
+        ],
+      ),
+    );
   }
 }
 

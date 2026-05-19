@@ -46,20 +46,20 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Invoicing"
-        heroTitle={isId ? "Invoicing yang" : "Invoicing that"}
-        heroAccent={isId ? "Lebih Ringkas" : "Stays Focused"}
+        heroTitle={isId ? "Ubah Penagihan Lambat" : "Turn Slow Billing"}
+        heroAccent={isId ? "Menjadi Arus Kas Lancar" : "Into Instant Cash Flow"}
         heroDescription={
           isId
-            ? "Buat faktur, pantau pembayaran, dan lakukan follow-up tanpa lompat antar sistem."
-            : "Create invoices, track payments, and run follow-ups without jumping between systems."
+            ? "Buat faktur profesional, lacak status pembayaran Anda, dan jalankan penagihan otomatis agar Anda dibayar lebih cepat."
+            : "Create professional invoices, track your payment status, and run automated follow-ups so you get paid faster."
         }
         heroImageAlt={isId ? "Tampilan invoicing SalesView" : "SalesView invoicing interface"}
         heroImageKey="invoicingHero"
-        introTitle={isId ? "Percepat siklus penagihan" : "Accelerate your billing cycle"}
+        introTitle={isId ? "Percepat siklus pendapatan Anda" : "Accelerate your revenue cycle"}
         introDescription={
           isId
-            ? "Invoicing dibuat untuk membantu cashflow tetap sehat dengan alur yang mudah dipantau."
-            : "Invoicing is built to keep cashflow healthier with a flow that is easy to monitor."
+            ? "Hilangkan gesekan dalam penagihan dan nikmati sistem yang dirancang agar bisnis Anda selalu memiliki kas yang sehat."
+            : "Eliminate billing friction and enjoy a system designed to ensure your business always maintains healthy cash flow."
         }
         featureBlocks={[
           {
@@ -87,8 +87,8 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Tagihan rapi, arus kas lebih sehat" : "Clean billing, healthier cashflow"}
-        finalCtaLabel={isId ? "Mulai Invoicing" : "Start Invoicing"}
+        finalTitle={isId ? "Penagihan profesional, uang masuk lebih cepat" : "Professional billing, faster payouts"}
+        finalCtaLabel={isId ? "Coba Gratis Sekarang" : "Start My Free Trial"}
       />
     </>
   );
