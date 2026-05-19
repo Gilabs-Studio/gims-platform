@@ -198,8 +198,9 @@ function getNodeLockMetaForPlan(
     if (perms.length === 0) {
       return { locked: false, moduleLabel };
     }
-    const allowedCount = perms.filter((permission) => options.isPermissionAllowedByPlan(permission)).length;
-    return { locked: allowedCount === 0, moduleLabel };
+    // Do not lock resource nodes just because none of the permissions are allowed by plan.
+    // Prevents deleting a single permission from making the whole resource appear protected.
+    return { locked: false, moduleLabel };
   }
 
   if (!options.hasEntitlementRestriction) {

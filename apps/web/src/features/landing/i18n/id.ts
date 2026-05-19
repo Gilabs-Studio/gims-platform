@@ -9,54 +9,54 @@ export const landingId = {
       getStarted: "Mulai Sekarang",
     },
     hero: {
-      badge: "All-in-One ERP · CRM · POS · Finance · HR",
-      title1: "Satu ekosistem untuk",
-      title2: "seluruh operasional bisnis",
+      badge: "Mesin Bisnis End-to-End Anda",
+      title1: "Jangan biarkan sistem yang terpisah",
+      title2: "menghambat pertumbuhan Anda",
       subtitle:
-        "Tinggalkan sistem yang terpecah. Kelola rantai pasok, pelanggan, kasir, hingga keuangan dalam satu platform terpusat yang ditenagai oleh kecerdasan buatan.",
-      cta: "Masuk",
+        "Hentikan kebocoran profit akibat silo data. Satukan penjualan, inventaris, SDM, dan keuangan dalam satu platform bertenaga AI yang dirancang untuk skala enterprise.",
+      cta: "Mulai Uji Coba Gratis",
       trackPlaceholder: "Masukkan ID pesanan untuk melacak status",
     },
     benefits: {
-      eyebrow: "Kelebihan utama SalesView",
-      title: "Fitur yang terasa di operasional harian",
+      eyebrow: "Mengapa Memilih SalesView",
+      title: "Satu Platform. Kendali Mutlak.",
       subtitle:
-        "SalesView dirancang agar data sekali input bisa dipakai lintas modul. Tim sales, gudang, finance, HRD, dan manajemen melihat informasi yang sama tanpa rekap manual.",
+        "Sistem terpecah membunuh produktivitas. SalesView memberikan Anda satu 'sumber kebenaran'—sehingga setiap tim, dari gudang hingga direksi, selalu sejalan tanpa rekap manual.",
       items: {
         singleSource: {
-          title: "Satu sumber data",
+          title: "Hilangkan Silo Data",
           description:
-            "Dashboard, master data, sales, purchase, stock, finance, HRD, CRM, dan reports terhubung dalam satu alur.",
+            "Semua modul (CRM, Sales, HRD, Finance) saling berbicara real-time. Tidak ada lagi input manual yang berulang.",
         },
         operationalControl: {
-          title: "Kontrol operasional lebih rapi",
+          title: "Operasional Tanpa Bocor",
           description:
-            "Stok, delivery, purchase order, goods receipt, dan stock opname tercatat dengan jejak yang jelas.",
+            "Lacak setiap pergerakan barang dari PO hingga Goods Receipt. Transparansi total, nol selisih stok.",
         },
         financeAudit: {
-          title: "Keuangan lebih siap audit",
+          title: "Keuangan Siap Audit",
           description:
-            "Chart of accounts, jurnal, bank, piutang, hutang, budget, dan laporan keuangan tersedia dalam format yang konsisten.",
+            "Jurnal otomatis, rekonsiliasi instan. Tutup buku harian tanpa rasa cemas dan selalu siap hadapi auditor.",
         },
         hrdDiscipline: {
-          title: "Proses HRD lebih disiplin",
+          title: "SDM Berjalan Sendiri",
           description:
-            "Attendance, leave request, evaluation, recruitment, work schedule, dan holidays berjalan dalam satu struktur.",
+            "Otomatisasi absensi, cuti, hingga rekrutmen. Biarkan sistem mengurus administrasi, Anda fokus membangun tim.",
         },
         insightFast: {
-          title: "Insight lebih cepat terbaca",
+          title: "Keputusan Berbasis Fakta",
           description:
-            "Sales overview, geo performance, customer research, dan supplier research membantu tim mengambil keputusan.",
+            "Akses wawasan bisnis dalam hitungan detik. Dari performa sales area hingga tren pembelian pelanggan.",
         },
         automation: {
-          title: "Bisa dipakai untuk automation",
+          title: "AI sebagai Co-Pilot",
           description:
-            "AI assistant, workflow, dan notifikasi membantu mempercepat pekerjaan sehari-hari.",
+            "Bukan sekadar mencatat, tapi memandu. Alur kerja cerdas dan notifikasi proaktif mencegah masalah sebelum terjadi.",
         },
       },
     },
     screenshots: {
-      title: "Antarmuka Bersih & Fungsional",
+      title: "Dirancang Untuk Kecepatan & Kejernihan",
       items: {
         pipeline: {
           title: "CRM Pipeline",
@@ -93,19 +93,19 @@ export const landingId = {
       },
     },
     turningPoint: {
-      title1: "Satu sistem yang mencatat,",
-      title2: "menghubungkan, dan melaporkan",
-      title3: "secara otomatis",
+      title1: "Berhenti Merekap Data.",
+      title2: "Mulai Mengarahkan",
+      title3: "Bisnis Anda.",
       subtitle:
-        "SalesView dirancang agar data yang masuk di satu bagian langsung tersedia di seluruh sistem — tanpa impor manual, tanpa salinan ganda.",
+        "SalesView mengakhiri era spreadsheet manual. Transaksi yang dimasukkan staf gudang otomatis memperbarui laporan laba rugi di meja direktur—seketika itu juga.",
     },
     map: {
-      title1: "Lihat seluruh jaringan",
-      title2: "distribusi Anda sekaligus",
+      title1: "Visibilitas Distribusi",
+      title2: "Secara Presisi",
       subtitle:
-        "Peta interaktif menampilkan lokasi pelanggan, stok aktif di setiap gudang, dan sebaran tim lapangan — dari tingkat provinsi hingga kecamatan di seluruh Indonesia.",
+        "Pantau kesehatan supply chain Anda dari Sabang sampai Merauke dalam satu layar interaktif.",
       detail:
-        "Ketika cabang Surabaya kehabisan stok, manajer pusat bisa langsung melihatnya — bukan dua hari kemudian lewat laporan.",
+        "Ketahui secara pasti di mana stok menipis dan di mana titik distribusi Anda paling menguntungkan.",
       legend: {
         mainWarehouse: "Gudang utama",
         distributionPoint: "Titik distribusi",
@@ -113,12 +113,12 @@ export const landingId = {
       badge: "13 hub aktif — Indonesia",
     },
     ai: {
-      title1: "Tanya data Anda",
-      title2: "dalam bahasa sehari-hari",
+      title1: "Punya Pertanyaan Bisnis?",
+      title2: "Tanyakan pada AI Kami.",
       subtitle:
-        "Asisten SalesView memahami perintah dalam Bahasa Indonesia. Cek stok, buat purchase order, atau tarik laporan penjualan — cukup dengan mengetik kalimat biasa.",
+        "Dapatkan jawaban instan tanpa harus menguasai rumus Excel yang rumit. Tanyakan stok, tren penjualan, atau buat PO dengan bahasa sehari-hari.",
       detail:
-        "Tidak ada lagi bolak-balik menu atau menunggu tim IT untuk membuat laporan ad-hoc.",
+        "SalesView AI bukan sekadar chatbot; ia adalah asisten eksekutif pribadi Anda yang tahu segalanya tentang bisnis Anda.",
       chat: {
         user1: "Berapa stok SKU-201 di gudang Bandung?",
         ai1: "Stok SKU-201 di Gudang Bandung: {count} unit. Terakhir diperbarui 14 menit lalu. Reorder point: 200 unit.",
@@ -129,11 +129,11 @@ export const landingId = {
       },
     },
     pricing: {
-      eyebrow: "Harga transparan",
-      title1: "Pilih paket Anda",
-      title2: "dan scale dengan percaya diri",
+      eyebrow: "Investasi Terukur",
+      title1: "Harga Transparan Tanpa",
+      title2: "Biaya Tersembunyi",
       subtitle:
-        "Paket bundle paling cocok untuk operasional lintas tim. Paket modular tersedia saat Anda ingin mulai dari satu modul inti.",
+        "Bayar hanya untuk nilai yang Anda dapatkan. Pilih paket Bundle untuk transformasi total, atau Modular untuk memecahkan masalah spesifik terlebih dahulu.",
       tabs: {
         bundle: "Bundle",
         modular: "Modular",
@@ -233,12 +233,12 @@ export const landingId = {
       },
     },
     cta: {
-      title1: "Siap dibawa ke",
-      title2: "implementasi yang jelas",
+      title1: "Berhenti Membuang Waktu.",
+      title2: "Mulai Transformasi Anda.",
       subtitle:
-        "Mulai dari fitur inti yang paling relevan, lalu scale ke modul lain saat bisnis tumbuh.",
-      seeFeatures: "Lihat fitur",
-      signIn: "Masuk",
+        "Bergabunglah dengan ratusan perusahaan yang telah mengotomatisasi operasional mereka. Setup dalam hitungan hari, bukan bulan.",
+      seeFeatures: "Mulai Uji Coba Gratis",
+      signIn: "Pelajari Lebih Lanjut",
     },
     footer: {
       tagline: "All-in-One ERP · CRM · POS · Finance · HR",

@@ -20,6 +20,7 @@ func setupApprovalNotificationTestDB(t *testing.T) *gorm.DB {
 	schemaSQL := []string{
 		`CREATE TABLE notifications (
 			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+			tenant_id TEXT,
 			user_id TEXT NOT NULL,
 			type TEXT NOT NULL,
 			title TEXT NOT NULL,

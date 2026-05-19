@@ -93,7 +93,7 @@ class CartItemRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(children: [
-            ClipRRect(borderRadius: BorderRadius.circular(10), child: Container(width: 52, height: 52, color: GimsColors.muted.withValues(alpha: 0.2), child: imageUrl == null ? Icon(fallback, color: GimsColors.mutedForeground) : Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(fallback, color: GimsColors.mutedForeground)))),
+            ClipRRect(borderRadius: BorderRadius.circular(10), child: Container(width: 52, height: 52, color: GimsColors.muted.withValues(alpha: 0.2), child: imageUrl == null ? Icon(fallback, color: GimsColors.mutedForeground) : Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Icon(fallback, color: GimsColors.mutedForeground)))),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(line.product.productName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)), const SizedBox(height: 4), Text(formatMoney(line.product.price, currency), style: const TextStyle(color: GimsColors.mutedForeground))])),
             const SizedBox(width: 8),

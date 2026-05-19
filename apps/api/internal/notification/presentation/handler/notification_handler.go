@@ -5,21 +5,64 @@ import (
 	"strconv"
 	"strings"
 
+	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/notification/domain/usecase"
+	notificationWS "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
 
 const authRequiredMessage = "Authentication required"
 
 type NotificationHandler struct {
-	usecase usecase.NotificationUsecase
+	usecase  usecase.NotificationUsecase
+	hub      *notificationWS.NotificationHub
+	upgrader websocket.Upgrader
 }
 
-func NewNotificationHandler(usecase usecase.NotificationUsecase) *NotificationHandler {
-	return &NotificationHandler{usecase: usecase}
+func NewNotificationHandler(usecase usecase.NotificationUsecase, hub *notificationWS.NotificationHub) *NotificationHandler {
+	return &NotificationHandler{
+		usecase: usecase,
+		hub:     hub,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}
+}
+
+func (h *NotificationHandler) SubscribeWS(c *gin.Context) {
+	userID, ok := getValidatedUserID(c)
+	if !ok {
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", authRequiredMessage, nil, nil)
+		return
+	}
+
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" && !middleware.IsSystemAdmin(c.Request.Context()) {
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "tenant session required", nil, nil)
+		return
+	}
+
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, "")
+		return
+	}
+
+	clientID := h.hub.Register(conn, tenantID, userID)
+	defer h.hub.Unregister(clientID)
+
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			break
+		}
+	}
 }
 
 func (h *NotificationHandler) List(c *gin.Context) {

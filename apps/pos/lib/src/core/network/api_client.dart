@@ -21,6 +21,7 @@ class ApiClient {
 
   final Dio _dio = Dio();
   final Map<String, String> _cookies = {};
+  final Map<String, String> _perRequestHeaders = {};
   late SharedPreferences _prefs;
   String _baseUrl = defaultBaseUrl;
   String? _csrfToken;
@@ -30,6 +31,9 @@ class ApiClient {
   String get apiOrigin => _baseUrl.replaceAll(RegExp(r'/+$'), '');
   String get apiV1 => '$apiOrigin/api/v1';
   bool get hasSession => _cookies.containsKey('gims_access_token');
+  String? get cookieHeader => _cookies.isEmpty
+      ? null
+      : _cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
 
   Future<void> init() async {
     if (_isReady) return;
@@ -65,6 +69,12 @@ class ApiClient {
     await _prefs.remove(_csrfKey);
   }
 
+  /// Sets a header to be injected into the next outgoing request only.
+  /// Primarily used by SyncEngine to attach X-Idempotency-Key on replayed jobs.
+  void setNextRequestHeader(String key, String value) {
+    _perRequestHeaders[key] = value;
+  }
+
   void _configureDio() {
     configureDioAdapter(_dio);
     _dio.options = BaseOptions(
@@ -82,6 +92,13 @@ class ApiClient {
             options.headers['Cookie'] = _cookies.entries
                 .map((entry) => '${entry.key}=${entry.value}')
                 .join('; ');
+          }
+
+          // Inject per-request headers (e.g., X-Idempotency-Key) then clear them
+          // so they only apply to the current request.
+          if (_perRequestHeaders.isNotEmpty) {
+            options.headers.addAll(Map<String, String>.from(_perRequestHeaders));
+            _perRequestHeaders.clear();
           }
 
           final method = options.method.toUpperCase();

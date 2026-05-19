@@ -153,6 +153,11 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   @override
   void initState() {
     super.initState();
+    final initialName = (widget.order.customerName ?? '').trim();
+    if (initialName.isNotEmpty) {
+      _customerName.text = initialName;
+      _lookupMemberByName(initialName);
+    }
     _initReceiptPreview();
     _loadXenditStatus();
     _loadCustomers();
@@ -305,6 +310,51 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         _selectedCustomer = customer;
       });
       await _loadCustomers();
+    } catch (error) {
+      if (!mounted) return;
+      showError(context, error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _lookupMemberByName(String name) async {
+    final query = name.trim();
+    if (query.length < 2) return;
+    try {
+      final lookup = await ServiceLocator.instance.loyaltyService.lookupMember(
+        name: query,
+        outletId: widget.outletId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _memberLookup = lookup.found ? lookup : null;
+      });
+    } catch (_) {
+      // Keep member section silent for lookup failures.
+    }
+  }
+
+  Future<void> _convertToMember() async {
+    final name = _resolvedCustomerName.trim();
+    if (name.isEmpty) {
+      showError(context, ApiException('Nama customer wajib diisi'));
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final lookup = await ServiceLocator.instance.loyaltyService.enrollMember(
+        name: name,
+        outletId: widget.outletId,
+        phone: _resolvedCustomerPhone,
+        email: _resolvedCustomerEmail,
+        orderId: widget.order.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _memberLookup = lookup;
+      });
     } catch (error) {
       if (!mounted) return;
       showError(context, error);
@@ -670,6 +720,8 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildDialogHeader(),
+              const SizedBox(height: 12),
               _buildStepIndicator(),
               const SizedBox(height: 12),
               _buildSummaryCard(),
@@ -682,6 +734,38 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDialogHeader() {
+    final tableLabel = widget.selectedTable?.label;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tableLabel == null ? 'Pay Now' : 'Pay Now - $tableLabel',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.order.orderNumber,
+                style: const TextStyle(color: GimsColors.mutedForeground),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Close',
+          onPressed: _loading ? null : _confirmCancelCheckout,
+          icon: const Icon(Icons.close),
+        ),
+      ],
     );
   }
 
@@ -735,43 +819,174 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.receipt_long, color: GimsColors.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Checkout ${widget.order.orderNumber}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ORDER',
+                        style: TextStyle(
+                          color: GimsColors.mutedForeground,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '#${widget.order.orderNumber}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Customer: ${_resolvedCustomerName.isEmpty ? '-' : _resolvedCustomerName}',
+                        style: const TextStyle(
+                          color: GimsColors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.selectedTable == null
-                        ? 'Take away'
-                        : 'Meja ${widget.selectedTable!.label}',
-                    style: const TextStyle(color: GimsColors.mutedForeground),
-                  ),
-                ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'STATUS',
+                      style: TextStyle(
+                        color: GimsColors.mutedForeground,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _step.name.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'PURCHASED ITEMS',
+              style: TextStyle(
+                color: GimsColors.mutedForeground,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            const SizedBox(height: 8),
+            for (final item in widget.order.items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.quantity.toStringAsFixed(0)}x  ${item.productName}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      formatMoney(
+                        item.subtotal,
+                        widget.config?.currency ?? 'IDR',
+                      ),
+                      style: const TextStyle(color: GimsColors.mutedForeground),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (_selectedRewardDiscount > 0)
+                const Text(
+                  'Subtotal',
+                  style: TextStyle(color: GimsColors.mutedForeground),
+                ),
+                Text(
+                  formatMoney(
+                    widget.order.subtotal,
+                    widget.config?.currency ?? 'IDR',
+                  ),
+                  style: const TextStyle(color: GimsColors.mutedForeground),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tax',
+                  style: TextStyle(color: GimsColors.mutedForeground),
+                ),
+                Text(
+                  formatMoney(
+                    widget.order.taxAmount,
+                    widget.config?.currency ?? 'IDR',
+                  ),
+                  style: const TextStyle(color: GimsColors.mutedForeground),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Service',
+                  style: TextStyle(color: GimsColors.mutedForeground),
+                ),
+                Text(
+                  formatMoney(
+                    widget.order.serviceCharge,
+                    widget.config?.currency ?? 'IDR',
+                  ),
+                  style: const TextStyle(color: GimsColors.mutedForeground),
+                ),
+              ],
+            ),
+            if (_selectedRewardDiscount > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Discount', style: TextStyle(color: Colors.green)),
                   Text(
                     '-${formatMoney(_selectedRewardDiscount, widget.config?.currency ?? 'IDR')}',
                     style: const TextStyle(
-                      fontSize: 12,
                       color: Colors.green,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                ),
                 Text(
                   formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -782,6 +997,20 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   }
 
   List<Widget> _buildCustomerStep() {
+    final dedupedCustomers = <String, PosCustomer>{};
+    for (final customer in _customers) {
+      if (customer.id.isEmpty) continue;
+      dedupedCustomers[customer.id] = customer;
+    }
+    final customerOptions = dedupedCustomers.values.toList();
+    final selectedCustomerId = _selectedCustomer?.id;
+    final dropdownValue =
+        selectedCustomerId != null &&
+            dedupedCustomers.containsKey(selectedCustomerId)
+        ? selectedCustomerId
+        : null;
+
+    final hasMember = _memberLookup?.found == true;
     return [
       Card(
         child: Padding(
@@ -789,35 +1018,87 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SegmentedButton<_CustomerMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: _CustomerMode.newCustomer,
-                    label: Text('New Customer'),
-                    icon: Icon(Icons.person_add_alt_1_outlined),
+              if (hasMember)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.verified_outlined),
+                    title: Text(_memberLookup?.customerName ?? 'Member'),
+                    subtitle: Text(
+                      '${_memberLookup?.currentTier ?? '-'} - ${_memberLookup?.pointBalance.toStringAsFixed(0) ?? '0'} poin',
+                    ),
                   ),
-                  ButtonSegment(
-                    value: _CustomerMode.existing,
-                    label: Text('Existing Customer'),
-                    icon: Icon(Icons.badge_outlined),
+                )
+              else ...[
+                const Text(
+                  'Customer is not a member yet',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _customerName,
+                  decoration: const InputDecoration(
+                    labelText: 'Customer name',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
-                ],
-                selected: {_customerMode},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _customerMode = selection.first;
-                    _selectedCustomer = null;
-                    _memberLookup = null;
-                    _selectedReward = null;
-                  });
-                },
+                  onSubmitted: _lookupMemberByName,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _customerPhone,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _customerEmail,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.mail_outline),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: _loading ? null : _convertToMember,
+                  child: const Text('Convert to Member'),
+                ),
+              ],
+              const SizedBox(height: 14),
+              TextButton.icon(
+                onPressed: _loading
+                    ? null
+                    : () {
+                        setState(() {
+                          _customerMode =
+                              _customerMode == _CustomerMode.existing
+                              ? _CustomerMode.newCustomer
+                              : _CustomerMode.existing;
+                        });
+                      },
+                icon: const Icon(Icons.badge_outlined),
+                label: Text(
+                  _customerMode == _CustomerMode.existing
+                      ? 'Use quick customer form'
+                      : 'Use existing customer master',
+                ),
               ),
-              const SizedBox(height: 12),
               if (_customerMode == _CustomerMode.existing) ...[
+                const SizedBox(height: 10),
                 TextField(
                   controller: _customerSearch,
                   decoration: InputDecoration(
-                    labelText: 'Search customer',
+                    labelText: 'Search customer master',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: IconButton(
                       onPressed: _loading ? null : _loadCustomers,
@@ -828,12 +1109,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _selectedCustomer?.id,
+                  initialValue: dropdownValue,
                   decoration: const InputDecoration(
                     labelText: 'Customer master',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  items: _customers
+                  items: customerOptions
                       .map(
                         (customer) => DropdownMenuItem(
                           value: customer.id,
@@ -842,67 +1123,17 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                       )
                       .toList(),
                   onChanged: (value) {
-                    if (value == null) return;
-                    final selected = _customers.firstWhere(
-                      (customer) => customer.id == value,
-                      orElse: () => _customers.first,
-                    );
+                    if (value == null || customerOptions.isEmpty) return;
+                    final selected = dedupedCustomers[value];
+                    if (selected == null) return;
                     setState(() {
                       _selectedCustomer = selected;
+                      _customerName.text = selected.name;
                       _customerPhone.text = selected.contactPerson ?? '';
                       _customerEmail.text = selected.email ?? '';
                     });
                     _loadMembershipByCustomer(selected);
                   },
-                ),
-              ] else ...[
-                TextField(
-                  controller: _customerName,
-                  decoration: const InputDecoration(
-                    labelText: 'Customer name',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _customerPhone,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone number (optional)',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _customerEmail,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email (optional)',
-                    prefixIcon: Icon(Icons.mail_outline),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _loading ? null : _createCustomer,
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Create Customer Master'),
-                ),
-              ],
-              if (_customerMode == _CustomerMode.existing &&
-                  _memberLookup != null) ...[
-                const SizedBox(height: 14),
-                Card(
-                  child: ListTile(
-                    leading: Icon(
-                      _memberLookup!.found
-                          ? Icons.verified_outlined
-                          : Icons.info_outline,
-                    ),
-                    title: Text(_memberLookup!.customerName ?? 'Member'),
-                    subtitle: Text(
-                      '${_memberLookup!.currentTier ?? '-'} - ${_memberLookup!.pointBalance.toStringAsFixed(0)} poin',
-                    ),
-                  ),
                 ),
               ],
             ],
@@ -910,15 +1141,31 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         ),
       ),
       const SizedBox(height: 12),
-      FilledButton(
-        onPressed: _loading ? null : _continueFromCustomer,
-        child: Text(
-          (_memberLookup?.availableRewards ?? const <LoyaltyReward>[])
-                  .isNotEmpty
-              ? 'Continue to Redeem Code'
-              : 'Continue to Payment',
-        ),
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _loading ? null : _confirmCancelCheckout,
+              child: const Text('Cancel'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton(
+              onPressed: _loading ? null : _continueFromCustomer,
+              child: const Text('Continue to Payment'),
+            ),
+          ),
+        ],
       ),
+      if (_customerMode == _CustomerMode.newCustomer) ...[
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _createCustomer,
+          icon: const Icon(Icons.save_outlined),
+          label: const Text('Save as Customer Master'),
+        ),
+      ],
     ];
   }
 
@@ -944,11 +1191,18 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 10),
               for (final reward in rewards)
                 Card(
-                  child: RadioListTile<LoyaltyReward>(
-                    value: reward,
-                    groupValue: _selectedReward,
-                    onChanged: (value) =>
-                        setState(() => _selectedReward = value),
+                  child: ListTile(
+                    selected: _selectedReward == reward,
+                    selectedTileColor: GimsColors.primary.withValues(alpha: 0.08),
+                    leading: Icon(
+                      _selectedReward == reward
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: _selectedReward == reward
+                          ? GimsColors.primary
+                          : GimsColors.mutedForeground,
+                    ),
+                    onTap: () => setState(() => _selectedReward = reward),
                     title: Text(reward.name),
                     subtitle: Text(
                       '${reward.type} - ${reward.pointsRequired.toStringAsFixed(0)} poin',

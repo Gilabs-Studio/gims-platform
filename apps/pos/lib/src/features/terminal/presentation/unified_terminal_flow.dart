@@ -69,6 +69,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     }
 
     Widget screen;
+    var wrapWithOrderBanner = true;
 
     if (!_hasPublishedLayout) {
       screen = TerminalScreen(outlet: widget.outlet);
@@ -81,6 +82,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
             setState(() => _selectedTable = table);
           },
         );
+        wrapWithOrderBanner = false;
       } else {
         screen = TerminalScreen(
           outlet: widget.outlet,
@@ -90,9 +92,8 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
       }
     }
 
-    return NewOrderNotificationBanner(
-      outletId: widget.outlet.id,
-      child: screen,
-    );
+    if (!wrapWithOrderBanner) return screen;
+
+    return NewOrderNotificationBanner(outletId: widget.outlet.id, child: screen);
   }
 }

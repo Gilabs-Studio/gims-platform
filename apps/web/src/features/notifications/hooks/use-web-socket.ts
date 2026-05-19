@@ -5,6 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { notificationQueryKeys } from "./use-notifications";
+import { useNotificationStore } from "../stores/use-notification-store";
+import { playNotificationSound } from "@/lib/notification-sound";
 import type { ListUsersResponse, User } from "@/features/master-data/user-management/types";
 import type { WebSocketMessage, Notification } from "../types";
 
@@ -20,10 +22,12 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const processedNotificationIdsRef = useRef<Set<string>>(new Set());
   const isConnectingRef = useRef(false);
   const queryClient = useQueryClient();
   const queryClientRef = useRef(queryClient);
   const { isAuthenticated, user } = useAuthStore();
+  const addRealtimeNotification = useNotificationStore((state) => state.addRealtimeNotification);
   const isAuthenticatedRef = useRef(isAuthenticated);
 
   // Update refs when values change
@@ -80,18 +84,29 @@ export function useWebSocket() {
     const messageHandler = (event: MessageEvent) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
+        const eventType = message.type ?? message.event;
 
-        switch (message.type) {
+        switch (eventType) {
           case "notification.created": {
             const notification = message.data as Notification;
-            
-            // Invalidate queries to refresh data
-            queryClientRef.current.invalidateQueries({
-              predicate: (query) =>
-                query.queryKey[0] === "notifications" && query.queryKey[1] !== "unread-count",
-            });
+
+            // Keep page-1 merged view reactive without forcing list refetch.
+            addRealtimeNotification(notification);
+
+            const processedIds = processedNotificationIdsRef.current;
+            const isFirstProcessing = !processedIds.has(notification.id);
+            if (isFirstProcessing) {
+              processedIds.add(notification.id);
+              if (processedIds.size > 500) {
+                const oldest = processedIds.values().next().value;
+                if (oldest) {
+                  processedIds.delete(oldest);
+                }
+              }
+            }
+
             queryClientRef.current.setQueryData<number>(notificationQueryKeys.unreadCount, (current) =>
-              Math.max(0, (current ?? 0) + 1)
+              Math.max(0, (current ?? 0) + (notification.is_read ? 0 : 1))
             );
 
             // Keep user-management table in sync when password reset requests are created.
@@ -121,11 +136,16 @@ export function useWebSocket() {
               queryClientRef.current.invalidateQueries({ queryKey: ["users"] });
             }
 
-            // Show toast notification
-            toast.info(notification.title, {
-              description: notification.message,
-              duration: 5000,
-            });
+            if (isFirstProcessing) {
+              toast.info(notification.title, {
+                description: notification.message,
+                duration: 5000,
+              });
+
+              if (!notification.is_read) {
+                playNotificationSound();
+              }
+            }
             break;
           }
 

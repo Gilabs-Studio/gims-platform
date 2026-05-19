@@ -5,6 +5,7 @@ enum PosOrderStatus {
   draft('DRAFT'),
   inProgress('IN_PROGRESS'),
   ready('READY'),
+  waitingPayment('WAITING_PAYMENT'),
   paid('PAID'),
   partialServed('PARTIAL_SERVED'),
   served('SERVED'),
@@ -94,6 +95,7 @@ class PosOrder {
     this.customerName,
     this.loyaltyMemberId,
     this.loyaltyRewardId,
+    this.orderSource,
     this.notes,
   });
 
@@ -115,6 +117,7 @@ class PosOrder {
   final String? customerName;
   final String? loyaltyMemberId;
   final String? loyaltyRewardId;
+  final String? orderSource;
   final String? notes;
 
   factory PosOrder.fromJson(Map<String, dynamic> json) {
@@ -143,6 +146,7 @@ class PosOrder {
       customerName: json['customer_name'] as String?,
       loyaltyMemberId: json['loyalty_member_id'] as String?,
       loyaltyRewardId: json['loyalty_reward_id'] as String?,
+      orderSource: json['order_source'] as String?,
       notes: json['notes'] as String?,
     );
   }

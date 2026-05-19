@@ -19,7 +19,7 @@ import type { NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Check for the actual HttpOnly cookie set by the backend
-  const accessToken = request.cookies.get("salesview_access_token")?.value;
+  const accessToken = request.cookies.get("gims_access_token")?.value;
 
   // Extract locale from pathname
   const pathSegments = pathname.split("/").filter(Boolean);

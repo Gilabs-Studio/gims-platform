@@ -46,6 +46,14 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			protected.PUT("/plans", h.UpsertPlan)
 			protected.PATCH("/plans/:slug/status", h.SetPlanActive)
 			protected.PUT("/plans/:slug/entitlements", h.SyncPlanEntitlements)
+
+			// Permission management
+			protected.GET("/permissions", h.ListPermissions)
+			protected.GET("/permissions/menus", h.ListPermissionMenus)
+			protected.GET("/permissions/:id", h.GetPermission)
+			protected.POST("/permissions", h.CreatePermission)
+			protected.PUT("/permissions/:id", h.UpdatePermission)
+			protected.DELETE("/permissions/:id", h.DeletePermission)
 		}
 	}
 }

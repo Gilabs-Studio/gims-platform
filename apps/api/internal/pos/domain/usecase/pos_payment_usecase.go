@@ -684,15 +684,10 @@ func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, p
 		if order.TableLabel != nil {
 			tableLabel = *order.TableLabel
 		}
-		u.hub.Publish(order.OutletID, "pos.order_status_changed", map[string]interface{}{
-			"order_id":       order.ID,
-			"order_number":   order.OrderNumber,
-			"status":         string(order.Status),
-			"table_label":    tableLabel,
-			"payment_status": "CANCELLED",
-			"cancel_reason":  cancelReason,
-			"cancelled_by":   normalizedActorID(actorID),
-		})
+		payload := posOrderRealtimePayload(mapper.ToPOSOrderResponse(order), "CANCELLED", cancelReason)
+		payload["table_label"] = tableLabel
+		payload["cancelled_by"] = normalizedActorID(actorID)
+		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return nil
@@ -734,19 +729,9 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	}
 
 	if u.hub != nil {
-		tableLabel := ""
-		if order.TableLabel != nil {
-			tableLabel = *order.TableLabel
-		}
-		payload := map[string]interface{}{
-			"order_id":       order.ID,
-			"order_number":   order.OrderNumber,
-			"status":         string(order.Status),
-			"table_label":    tableLabel,
-			"payment_status": "PAID",
-		}
-		u.hub.Publish(order.OutletID, "pos.order_status_changed", payload)
-		u.hub.Publish(order.OutletID, "pos.payment_confirmed", payload)
+		payload := posOrderRealtimePayload(mapper.ToPOSOrderResponse(order), "PAID", "")
+		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.order_status_changed", payload)
+		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.payment_confirmed", payload)
 	}
 
 	// Best-effort ERP sync in a separate transaction. If this fails, POS payment stays valid
