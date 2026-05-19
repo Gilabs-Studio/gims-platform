@@ -46,20 +46,20 @@ export default async function AccountingLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Accounting"
-        heroTitle={isId ? "Accounting yang" : "Accounting that"}
-        heroAccent={isId ? "Terkoneksi" : "Stays Connected"}
+        heroTitle={isId ? "Ubah Pembukuan Rumit Menjadi" : "Turn Complex Bookkeeping Into"}
+        heroAccent={isId ? "Kejelasan Finansial" : "Financial Clarity"}
         heroDescription={
           isId
-            ? "Satukan jurnal, buku besar, dan posting transaksi dari modul lain dalam satu alur yang konsisten."
-            : "Unify journal entries, ledgers, and cross-module transaction posting in one consistent flow."
+            ? "Otomatiskan entri jurnal, buku besar, dan pelaporan sehingga Anda bisa fokus mengembangkan bisnis, bukan membereskan spreadsheet."
+            : "Automate your journal entries, ledgers, and reporting so you can focus on growing your business instead of fighting spreadsheets."
         }
         heroImageAlt={isId ? "Tampilan accounting SalesView" : "SalesView accounting interface"}
         heroImageKey="accountingHero"
-        introTitle={isId ? "Bangun fondasi keuangan yang rapi" : "Build a cleaner financial foundation"}
+        introTitle={isId ? "Dapatkan kontrol penuh atas keuangan Anda" : "Take full control of your finances"}
         introDescription={
           isId
-            ? "Accounting dirancang untuk operasional harian, bukan hanya laporan akhir bulan."
-            : "Accounting is designed for daily execution, not just month-end reporting."
+            ? "Sistem akuntansi kami dirancang agar Anda bisa mengambil keputusan bisnis harian yang lebih percaya diri dengan data real-time."
+            : "Our accounting system is designed so you can make more confident daily business decisions with real-time data."
         }
         featureBlocks={[
           {
@@ -87,22 +87,22 @@ export default async function AccountingLandingPage({ params }: { params: Promis
             placeholder: "invoiceFlow",
           },
         ]}
-        finalTitle={isId ? "Accounting siap dipakai lintas tim" : "Accounting ready for cross-team execution"}
+        finalTitle={isId ? "Akuntansi siap pakai untuk pertumbuhan Anda" : "Accounting ready for your growth"}
         finalPoints={[
           {
-            title: isId ? "Kontrol data" : "Data control",
+            title: isId ? "Kendali penuh atas data Anda" : "Full control over your data",
             description: isId
-              ? "Jaga konsistensi transaksi dari hulu ke hilir."
-              : "Keep transaction consistency from source to report.",
+              ? "Jaga konsistensi setiap transaksi bisnis Anda dari awal hingga akhir."
+              : "Maintain the consistency of every business transaction from start to finish.",
           },
           {
-            title: isId ? "Akses cepat" : "Fast access",
+            title: isId ? "Akses data instan" : "Instant data access",
             description: isId
-              ? "Laporan inti bisa dipantau kapan saja."
-              : "Key reports remain accessible anytime.",
+              ? "Dapatkan visibilitas langsung ke laporan inti yang paling Anda butuhkan."
+              : "Get immediate visibility into the core reports you need most.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Accounting" : "Start Accounting"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

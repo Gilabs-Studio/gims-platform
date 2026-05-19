@@ -67,20 +67,20 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
       <FeatureLandingPage
         locale={locale}
         label="SalesView Goods Receipt"
-        heroTitle={isId ? "Penerimaan Barang yang" : "Goods Receipt that"}
-        heroAccent={isId ? "Lebih Akurat" : "Stays Accurate"}
+        heroTitle={isId ? "Ubah Penerimaan Kacau Menjadi" : "Turn Chaotic Receiving Into"}
+        heroAccent={isId ? "Pencatatan Presisi" : "Precise Records"}
         heroDescription={
           isId
-            ? "Catat barang masuk per purchase order, validasi kuantitas, dan teruskan ke faktur supplier — semua dalam satu alur yang siap diaudit."
-            : "Record inbound goods per purchase order, validate quantities, and pass to supplier invoice — all in one audit-ready workflow."
+            ? "Jangan biarkan barang hilang saat kedatangan. Validasi kuantitas secara akurat dan cocokkan dengan purchase order secara instan untuk mencegah kebocoran."
+            : "Never let items slip through the cracks upon arrival. Validate quantities accurately and match them to purchase orders instantly to prevent leakage."
         }
         heroImageAlt={isId ? "Tampilan penerimaan barang SalesView" : "SalesView goods receipt interface"}
         heroImageKey="goodsReceiptHero"
-        introTitle={isId ? "Kurangi kesalahan stok masuk" : "Reduce inbound stock mistakes"}
+        introTitle={isId ? "Kunci akurasi stok Anda sejak pintu depan" : "Lock in your stock accuracy from the front door"}
         introDescription={
           isId
-            ? "Goods receipt dirancang agar tim gudang mencatat barang masuk dengan langkah yang konsisten dan jejak data yang lengkap."
-            : "Goods receipt is designed so warehouse teams record inbound items with consistent steps and a complete data trail."
+            ? "Beri tim gudang Anda alat yang tepat untuk memproses penerimaan barang tanpa kesalahan, mempercepat pembayaran ke pemasok yang benar."
+            : "Give your warehouse team the right tools to process inbound goods flawlessly, speeding up correct payments to suppliers."
         }
         featureBlocks={[
           {
@@ -111,22 +111,22 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
             placeholder: "invoiceFlow",
           },
         ]}
-        finalTitle={isId ? "Gudang bekerja dengan data yang lebih presisi" : "Warehouses operate with more precise data"}
+        finalTitle={isId ? "Tingkatkan standar penerimaan gudang Anda" : "Raise the standard of your warehouse receiving"}
         finalPoints={[
           {
-            title: isId ? "Terhubung PO" : "PO-linked",
+            title: isId ? "Akurasi instan" : "Instant accuracy",
             description: isId
-              ? "Setiap penerimaan merujuk ke purchase order yang sah."
-              : "Every receipt references a valid purchase order.",
+              ? "Cegah kesalahan sebelum barang masuk ke sistem Anda."
+              : "Prevent errors before items even enter your system.",
           },
           {
-            title: isId ? "Siap audit" : "Audit-ready",
+            title: isId ? "Ketelusuran total" : "Total traceability",
             description: isId
-              ? "Audit trail lengkap dari draft sampai closed."
-              : "Full audit trail from draft to closed.",
+              ? "Siap diaudit dengan jejak data yang tak terbantahkan."
+              : "Audit-ready with an undeniable trail of evidence.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Goods Receipt" : "Start Goods Receipt"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

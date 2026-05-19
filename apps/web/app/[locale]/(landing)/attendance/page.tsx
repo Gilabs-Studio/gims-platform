@@ -67,20 +67,20 @@ export default async function AttendanceLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Attendance"
-        heroTitle={isId ? "Attendance yang" : "Attendance that"}
-        heroAccent={isId ? "Terkendali" : "Stays Controlled"}
+        heroTitle={isId ? "Ubah Absensi Kuno Menjadi" : "Turn Outdated Attendance Into"}
+        heroAccent={isId ? "Kedisiplinan Presisi" : "Precise Discipline"}
         heroDescription={
           isId
-            ? "Clock-in/out dengan GPS dan foto, pantau kalender kehadiran, dan lihat statistik bulanan — semua dalam satu sistem absensi yang terhubung ke data karyawan."
-            : "Clock-in/out with GPS and photo, monitor the attendance calendar, and view monthly stats — all in one attendance system connected to employee data."
+            ? "Selamat tinggal kecurangan absen. Lacak kehadiran dengan GPS, verifikasi foto, dan otomatisasi statistik bulanan yang terhubung langsung ke evaluasi."
+            : "Say goodbye to attendance fraud. Track clock-ins with GPS, photo verification, and automated monthly stats linked directly to performance evaluations."
         }
         heroImageAlt={isId ? "Tampilan attendance SalesView" : "SalesView attendance interface"}
         heroImageKey="attendanceHero"
-        introTitle={isId ? "Visibilitas kehadiran dalam satu layar" : "Attendance visibility in one screen"}
+        introTitle={isId ? "Pantau kehadiran tim Anda dari mana saja" : "Monitor your team's attendance from anywhere"}
         introDescription={
           isId
-            ? "Dari clock-in harian sampai statistik bulanan — data absensi tersusun agar memudahkan review tim dan evaluasi performa."
-            : "From daily clock-in to monthly stats — attendance data stays organized for team reviews and performance evaluation."
+            ? "Baik di kantor, WFH, atau di lapangan, pastikan tim Anda tetap akuntabel dengan pelacakan lokasi dan waktu yang tak terbantahkan."
+            : "Whether in the office, WFH, or in the field, keep your team accountable with undeniable time and location tracking."
         }
         featureBlocks={[
           {
@@ -111,22 +111,22 @@ export default async function AttendanceLandingPage({ params }: { params: Promis
             placeholder: "multiOutlet",
           },
         ]}
-        finalTitle={isId ? "Absensi lebih jelas, koordinasi lebih cepat" : "Clearer attendance, faster coordination"}
+        finalTitle={isId ? "Tingkatkan kedisiplinan dan produktivitas tim Anda" : "Elevate your team's discipline and productivity"}
         finalPoints={[
           {
-            title: isId ? "GPS + foto" : "GPS + photo",
+            title: isId ? "Akuntabilitas tinggi" : "High accountability",
             description: isId
-              ? "Clock-in dengan lokasi dan foto selfie."
-              : "Clock-in with location and selfie photo.",
+              ? "Hilangkan celah kecurangan dengan verifikasi ganda."
+              : "Close loopholes with dual verification.",
           },
           {
-            title: isId ? "Statistik bulanan" : "Monthly stats",
+            title: isId ? "Analisis instan" : "Instant analysis",
             description: isId
-              ? "Present, late, absent, overtime — siap evaluasi."
-              : "Present, late, absent, overtime — evaluation ready.",
+              ? "Pahami tren kehadiran untuk evaluasi akurat."
+              : "Understand attendance trends for accurate reviews.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Attendance" : "Start Attendance"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

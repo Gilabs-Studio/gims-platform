@@ -44,20 +44,20 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
       <FeatureLandingPage
         locale={locale}
         label="SalesView Financial Reports"
-        heroTitle={isId ? "Laporan Keuangan yang" : "Financial Reports that"}
-        heroAccent={isId ? "Lebih Cepat" : "Move Faster"}
+        heroTitle={isId ? "Ubah Tebakan Buta Menjadi" : "Turn Blind Guessing Into"}
+        heroAccent={isId ? "Strategi Berbasis Data" : "Data-Driven Strategy"}
         heroDescription={
           isId
-            ? "Pantau performa keuangan tanpa menunggu kompilasi manual yang memakan waktu."
-            : "Monitor financial performance without waiting for time-consuming manual compilation."
+            ? "Lupakan kompilasi manual yang melelahkan. Dapatkan laporan keuangan real-time agar Anda selalu tahu persis ke mana arah bisnis Anda."
+            : "Forget exhausting manual compilations. Get real-time financial reports so you always know exactly where your business is heading."
         }
         heroImageAlt={isId ? "Tampilan laporan keuangan SalesView" : "SalesView financial reports interface"}
         heroImageKey="financialReportsHero"
-        introTitle={isId ? "Dari data operasional ke insight" : "From operational data to insight"}
+        introTitle={isId ? "Temukan wawasan berharga dari data harian Anda" : "Uncover valuable insights from your daily data"}
         introDescription={
           isId
-            ? "Laporan dirancang agar mudah dipahami oleh tim finance maupun manajemen."
-            : "Reports are designed to be readable by finance teams and management alike."
+            ? "Laporan Anda disajikan dengan visual yang jernih, memberdayakan tim Anda untuk mengambil tindakan tepat di saat yang tepat."
+            : "Your reports are presented with crystal-clear visuals, empowering your team to take the right action at the exact right moment."
         }
         featureBlocks={[
           {
@@ -85,8 +85,8 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Laporan yang membantu aksi" : "Reports that drive action"}
-        finalCtaLabel={isId ? "Lihat Laporan Keuangan" : "See Financial Reports"}
+        finalTitle={isId ? "Jelajahi potensi keuntungan bisnis Anda sekarang" : "Discover your business profit potential now"}
+        finalCtaLabel={isId ? "Mulai Analisis Gratis" : "Start My Free Trial"}
       />
     </>
   );

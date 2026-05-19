@@ -67,20 +67,20 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
       <FeatureLandingPage
         locale={locale}
         label="SalesView Purchase"
-        heroTitle={isId ? "Pengadaan Barang yang" : "Procurement that"}
-        heroAccent={isId ? "Terkoordinasi" : "Stays Coordinated"}
+        heroTitle={isId ? "Ubah Pengadaan Rumit Menjadi" : "Turn Complex Procurement Into"}
+        heroAccent={isId ? "Kendali Otomatis" : "Automated Control"}
         heroDescription={
           isId
-            ? "Satukan permintaan pembelian, purchase order, penerimaan barang, dan kontrol hutang supplier dalam satu alur kerja yang stabil."
-            : "Unify purchase requisitions, purchase orders, goods receipt, and supplier payable control in one stable workflow."
+            ? "Tinggalkan proses pengadaan manual. Hubungkan permintaan, pesanan, dan tagihan supplier dalam satu sistem mulus yang mengamankan margin Anda."
+            : "Leave manual procurement behind. Connect requests, orders, and supplier invoices in one seamless system that protects your margins."
         }
         heroImageAlt={isId ? "Tampilan procurement SalesView" : "SalesView procurement interface"}
         heroImageKey="purchaseHero"
-        introTitle={isId ? "Procurement yang siap dipakai harian" : "Procurement ready for daily execution"}
+        introTitle={isId ? "Sederhanakan pembelian bisnis Anda hari ini" : "Simplify your business purchasing today"}
         introDescription={
           isId
-            ? "Alur procurement di bawah ini dirancang berdasarkan kebutuhan operasional nyata — dari permintaan internal sampai kontrol hutang."
-            : "The procurement flow below is designed around real operational needs — from internal requests through payable control."
+            ? "Nikmati alur kerja yang dirancang untuk mencegah pengeluaran berlebih, memastikan persetujuan cepat, dan mempererat hubungan dengan pemasok."
+            : "Enjoy workflows designed to prevent overspending, ensure fast approvals, and strengthen relationships with your suppliers."
         }
         featureBlocks={[
           {
@@ -111,8 +111,8 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Procurement yang sinkron dengan operasional" : "Procurement synced with operations"}
-        finalCtaLabel={isId ? "Lihat fitur purchasing" : "See purchasing features"}
+        finalTitle={isId ? "Mulai kendalikan pengeluaran bisnis Anda sekarang" : "Start controlling your business spend now"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

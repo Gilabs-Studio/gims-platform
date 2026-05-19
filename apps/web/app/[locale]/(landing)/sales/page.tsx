@@ -46,20 +46,20 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Sales Orders"
-        heroTitle={isId ? "Sales Orders yang" : "Sales Orders that"}
-        heroAccent={isId ? "Siap Eksekusi" : "Are Execution-Ready"}
+        heroTitle={isId ? "Ubah Proses Order Menjadi" : "Turn Your Order Flow Into"}
+        heroAccent={isId ? "Eksekusi Tanpa Hambatan" : "Seamless Execution"}
         heroDescription={
           isId
-            ? "Ubah proses penjualan menjadi lebih terstruktur dari pencatatan order sampai koordinasi tim."
-            : "Make sales execution more structured from order capture to team coordination."
+            ? "Otomatiskan perjalanan pesanan Anda dari persetujuan hingga pemenuhan, pastikan setiap pelanggan mendapatkan apa yang mereka harapkan tepat waktu."
+            : "Automate your order journey from approval to fulfillment, ensuring every customer gets exactly what they expect on time."
         }
         heroImageAlt={isId ? "Tampilan sales orders SalesView" : "SalesView sales orders interface"}
         heroImageKey="salesOrderHero"
-        introTitle={isId ? "Penjualan bergerak lebih cepat" : "Move sales execution faster"}
+        introTitle={isId ? "Percepat pengiriman pesanan Anda ke pelanggan" : "Accelerate your order delivery to customers"}
         introDescription={
           isId
-            ? "Sales orders membantu tim menjaga ritme closing dan operasional tetap sinkron."
-            : "Sales orders help teams keep closing cadence and operations in sync."
+            ? "Hilangkan miskomunikasi antar tim. Sinkronkan proses penjualan dan operasi Anda agar pesanan mengalir lancar."
+            : "Eliminate cross-team miscommunication. Sync your sales and operations processes so orders flow smoothly."
         }
         featureBlocks={[
           {
@@ -87,8 +87,8 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Sales orders yang siap scale" : "Sales orders ready to scale"}
-        finalCtaLabel={isId ? "Mulai Sales Orders" : "Start Sales Orders"}
+        finalTitle={isId ? "Skalakan proses pemenuhan pesanan Anda hari ini" : "Scale your order fulfillment process today"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

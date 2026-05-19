@@ -43,12 +43,12 @@ export default async function AboutPage({
           SalesView
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-6xl">
-          {isId ? "Tentang Kami" : "About Us"}
+          {isId ? "Kisah di Balik Mesin Bisnis Anda" : "The Story Behind Your Business Engine"}
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
           {isId
-            ? "SalesView dibangun untuk menyatukan operasional bisnis ke dalam satu sistem: dari penjualan, pembelian, inventaris, SDM, hingga laporan keuangan."
-            : "SalesView is built to unify business operations in one system: from sales, procurement, and inventory to HR and finance reporting."}
+            ? "Kami tidak hanya membangun perangkat lunak; kami membangun fondasi agar bisnis Anda dapat berkembang tanpa batas. Kami percaya bahwa pertumbuhan tidak seharusnya dihambat oleh sistem yang rumit."
+            : "We don't just build software; we build the foundation for your business to scale limitlessly. We believe that growth shouldn't be bottlenecked by complex systems."}
         </p>
 
         <section className="mt-12 grid gap-6 md:grid-cols-3">
@@ -56,24 +56,24 @@ export default async function AboutPage({
             <h2 className="text-lg font-semibold text-foreground">{isId ? "Misi" : "Mission"}</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {isId
-                ? "Membantu tim bisnis bergerak lebih cepat dengan data yang akurat dan proses yang otomatis."
-                : "Help business teams move faster with accurate data and automated processes."}
+                ? "Menghapus kebingungan operasional dan memberikan Anda kendali penuh untuk mendorong keuntungan, bukan sekadar mengelola administrasi."
+                : "To eliminate operational chaos and give you absolute control to drive profits, rather than just managing administration."}
             </p>
           </article>
           <article className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold text-foreground">{isId ? "Fokus" : "Focus"}</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {isId
-                ? "Menyediakan pengalaman kerja yang konsisten untuk tim sales, finance, HR, dan operasional."
-                : "Provide a consistent workflow experience for sales, finance, HR, and operations teams."}
+                ? "Menciptakan satu ekosistem tanpa gesekan di mana setiap tim — penjualan, keuangan, SDM, dan operasional — bekerja dari sumber kebenaran yang sama."
+                : "Creating a frictionless ecosystem where every team — sales, finance, HR, and operations — works from a single source of truth."}
             </p>
           </article>
           <article className="rounded-2xl border border-border bg-card p-6">
             <h2 className="text-lg font-semibold text-foreground">{isId ? "Nilai" : "Value"}</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {isId
-                ? "Transparansi, kecepatan eksekusi, dan pertumbuhan berkelanjutan untuk setiap pelanggan."
-                : "Transparency, execution speed, and sustainable growth for every customer."}
+                ? "Kejernihan tanpa kompromi, inovasi yang memprioritaskan pengguna, dan komitmen mutlak untuk mengubah tantangan bisnis Anda menjadi peluang pertumbuhan."
+                : "Uncompromising clarity, user-first innovation, and an absolute commitment to turning your business challenges into growth opportunities."}
             </p>
           </article>
         </section>
@@ -83,7 +83,7 @@ export default async function AboutPage({
             href="/pricing"
             className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            {isId ? "Lihat Harga" : "View Pricing"}
+            {isId ? "Mulai Transformasi Bisnis Anda" : "Start Your Business Transformation"}
           </Link>
         </div>
       </main>

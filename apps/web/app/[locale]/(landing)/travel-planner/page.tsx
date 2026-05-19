@@ -67,20 +67,20 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
       <FeatureLandingPage
         locale={locale}
         label="SalesView Travel Planner"
-        heroTitle={isId ? "Travel Planner yang" : "Travel Planning that"}
-        heroAccent={isId ? "Lebih Terkontrol" : "Stays Organized"}
+        heroTitle={isId ? "Ubah Perjalanan Dinas Menjadi" : "Turn Business Travel Into"}
+        heroAccent={isId ? "Operasi Bebas Hambatan" : "Frictionless Operations"}
         heroDescription={
           isId
-            ? "Rencanakan perjalanan dinas multi-hari dengan itinerary, peta interaktif, dan pencatatan expense — semua dalam satu workspace."
-            : "Plan multi-day business trips with itinerary, interactive maps, and expense tracking — all in one workspace."
+            ? "Singkirkan spreadsheet perjalanan yang membingungkan. Rencanakan jadwal, optimalkan rute di peta interaktif, dan lacak pengeluaran secara real-time."
+            : "Ditch confusing travel spreadsheets. Plan itineraries, optimize routes on interactive maps, and track expenses in real-time."
         }
         heroImageAlt={isId ? "Tampilan travel planner SalesView" : "SalesView travel planner interface"}
         heroImageKey="travelHero"
-        introTitle={isId ? "Atur mobilitas tim dengan rapi" : "Organize team mobility cleanly"}
+        introTitle={isId ? "Kendalikan mobilitas tim Anda dengan presisi" : "Control your team's mobility with precision"}
         introDescription={
           isId
-            ? "Travel planner memberi tim HR dan operasional visibilitas penuh atas rencana perjalanan, rute, dan biaya — dari hari pertama sampai selesai."
-            : "Travel planner gives HR and operations full visibility into travel plans, routes, and costs — from day one to completion."
+            ? "Berikan tim lapangan Anda alat yang mereka butuhkan untuk sukses di jalan, sambil menjaga transparansi biaya penuh untuk manajemen."
+            : "Give your field team the tools they need to succeed on the road, while maintaining full cost transparency for management."
         }
         featureBlocks={[
           {
@@ -111,22 +111,22 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Perjalanan dinas lebih terencana, biaya lebih terkontrol" : "Business trips more planned, costs more controlled"}
+        finalTitle={isId ? "Ubah perjalanan bisnis menjadi investasi yang terukur" : "Turn business travel into a measurable investment"}
         finalPoints={[
           {
-            title: isId ? "Multi-hari" : "Multi-day",
+            title: isId ? "Efisiensi rute otomatis" : "Automated route efficiency",
             description: isId
-              ? "Itinerary harian dengan stop dan catatan."
-              : "Daily itinerary with stops and notes.",
+              ? "Sistem memandu perjalanan paling logis setiap saat."
+              : "The system guides the most logical travel path every time.",
           },
           {
-            title: isId ? "Peta + rute" : "Map + route",
+            title: isId ? "Kejernihan biaya" : "Expense clarity",
             description: isId
-              ? "Peta interaktif dengan optimasi rute otomatis."
-              : "Interactive map with auto route optimization.",
+              ? "Tidak ada lagi klaim pengeluaran yang dipertanyakan."
+              : "No more questionable or untraceable expense claims.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Travel Planner" : "Start Travel Planner"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

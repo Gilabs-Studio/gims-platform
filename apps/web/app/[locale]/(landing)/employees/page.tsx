@@ -67,20 +67,20 @@ export default async function EmployeesLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Employees"
-        heroTitle={isId ? "Data Karyawan yang" : "Employee Data that"}
-        heroAccent={isId ? "Tersentralisasi" : "Stay Centralized"}
+        heroTitle={isId ? "Ubah Tumpukan Dokumen Menjadi" : "Turn Piles of Documents Into"}
+        heroAccent={isId ? "Profil Digital Cerdas" : "Smart Digital Profiles"}
         heroDescription={
           isId
-            ? "Simpan profil, kontrak, riwayat pendidikan, sertifikasi, hingga aset karyawan dalam satu master data yang terhubung ke seluruh modul HR."
-            : "Store profiles, contracts, education history, certifications, and assets in one master record connected across all HR modules."
+            ? "Pusatkan seluruh data karyawan Anda. Kelola kontrak, riwayat pendidikan, aset, dan sertifikasi dalam satu sumber kebenaran yang aman dan mudah diakses."
+            : "Centralize all your employee data. Manage contracts, education history, assets, and certifications in one secure, easily accessible single source of truth."
         }
         heroImageAlt={isId ? "Tampilan data karyawan SalesView" : "SalesView employee data interface"}
         heroImageKey="employeeHero"
-        introTitle={isId ? "Fondasi HR dimulai dari data" : "HR foundation starts from data"}
+        introTitle={isId ? "Bangun fondasi HR yang kuat dan bebas repot" : "Build a strong, hassle-free HR foundation"}
         introDescription={
           isId
-            ? "Data karyawan yang rapi dan terstruktur membantu proses administrasi, evaluasi, dan operasional HR berjalan lebih cepat."
-            : "Clean, structured employee records help administration, evaluation, and HR operations run faster."
+            ? "Data karyawan yang terstruktur sempurna menghilangkan kebingungan administratif, sehingga Anda bisa fokus mengembangkan talenta terbaik Anda."
+            : "Perfectly structured employee data eliminates administrative confusion, so you can focus on developing your best talent."
         }
         featureBlocks={[
           {
@@ -111,22 +111,22 @@ export default async function EmployeesLandingPage({ params }: { params: Promise
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Kelola tim dengan fondasi data yang benar" : "Manage teams on a reliable data foundation"}
+        finalTitle={isId ? "Kelola tim Anda dengan kepastian data yang absolut" : "Manage your team with absolute data certainty"}
         finalPoints={[
           {
-            title: isId ? "Multi-tab profil" : "Multi-tab profile",
+            title: isId ? "Satu sumber kebenaran" : "Single source of truth",
             description: isId
-              ? "Overview, kontrak, education, certs, aset — semua dalam satu tempat."
-              : "Overview, contracts, education, certs, assets — all in one place.",
+              ? "Semua data dari kontrak hingga aset di tempat yang sama."
+              : "All data from contracts to assets in one place.",
           },
           {
-            title: isId ? "Kontrak fleksibel" : "Flexible contracts",
+            title: isId ? "Otomatisasi tanpa batas" : "Limitless automation",
             description: isId
-              ? "PKWTT, PKWT, Intern — renew, terminate, correct."
-              : "PKWTT, PKWT, Intern — renew, terminate, correct.",
+              ? "Kelola pembaruan dengan cepat dan tanpa stres."
+              : "Handle renewals quickly and without the stress.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Kelola Employees" : "Start Managing Employees"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );
