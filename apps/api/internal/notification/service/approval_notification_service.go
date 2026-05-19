@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/notification/data/models"
+	notificationWS "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
 	"gorm.io/gorm"
 )
 
@@ -137,7 +138,15 @@ func CreateApprovalNotification(ctx context.Context, db *gorm.DB, params Approva
 		log.Printf("[approval_notification] create notifications: permission=%s entityType=%s entityID=%s actor=%s recipients=%d scoped=%d final=%d fallback=%t", permissionCode, entityType, entityID, actorUserID, len(recipients), scopedRecipientCount, len(notifications), fallbackUsed)
 	}
 
-	return db.WithContext(ctx).Create(&notifications).Error
+	if err := db.WithContext(ctx).Create(&notifications).Error; err != nil {
+		return err
+	}
+
+	for _, notification := range notifications {
+		notificationWS.DefaultNotificationHub().PublishCreated(notification)
+	}
+
+	return nil
 }
 
 func isApprovalNotificationTraceEnabled() bool {

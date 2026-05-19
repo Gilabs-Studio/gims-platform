@@ -6,6 +6,8 @@ import (
 )
 
 func RegisterNotificationRoutes(r *gin.RouterGroup, h *handler.NotificationHandler) {
+	r.GET("/ws/notifications", h.SubscribeWS)
+
 	n := r.Group("/notifications")
 	n.GET("", h.List)
 	n.GET("/unread-count", h.GetUnreadCount)

@@ -88,6 +88,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		"Accept",
 		"X-Requested-With",
 		"X-Request-ID",
+		"X-Idempotency-Key",
 	}
 	config.AllowCredentials = true
 	config.ExposeHeaders = []string{

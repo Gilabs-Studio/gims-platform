@@ -28,6 +28,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/core/storage"
+	notificationWs "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
 	posWs "github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/seeders"
 
@@ -142,6 +143,7 @@ func initInfrastructure() {
 	// This enables horizontal scaling — each pod fans out events to its local WS clients.
 	ws.InitLocationPubSub()
 	posWs.InitPosPubSub()
+	notificationWs.InitNotificationPubSub()
 	// Defer redis.Close() also needs to be in main
 
 	// Run migrations (optionally only once)
@@ -252,6 +254,7 @@ func main() {
 	defer redis.Close()
 	defer ws.StopLocationPubSub()
 	defer posWs.StopPosPubSub()
+	defer notificationWs.StopNotificationPubSub()
 
 	// 2. Setup JWT
 	jwtManager := setupJWT()
