@@ -104,12 +104,22 @@ func resolveSubscriptionAccessSnapshot(ctx context.Context, tenantID string) sub
 	snapshot.GracePeriodDays = currentGracePeriodDays()
 
 	var tenantRow tenantDeletionRow
-	if err := database.DB.WithContext(ctx).
+	err := database.DB.WithContext(ctx).
 		Table("tenants").
 		Select("status, deletion_scheduled_at").
 		Where("id = ? AND deleted_at IS NULL", tenantID).
 		Limit(1).
-		Scan(&tenantRow).Error; err == nil {
+		Scan(&tenantRow).Error
+	if err != nil && isMissingTenantDeletionScheduledAtColumnError(err) {
+		// Backward compatibility for databases that haven't added deletion_scheduled_at yet.
+		_ = database.DB.WithContext(ctx).
+			Table("tenants").
+			Select("status").
+			Where("id = ? AND deleted_at IS NULL", tenantID).
+			Limit(1).
+			Scan(&tenantRow).Error
+	}
+	if err == nil || tenantRow.Status != "" {
 		snapshot.TenantStatus = strings.ToLower(strings.TrimSpace(tenantRow.Status))
 	}
 
@@ -129,7 +139,7 @@ func resolveSubscriptionAccessSnapshot(ctx context.Context, tenantID string) sub
 	}
 
 	var row tenantSubscriptionRow
-	err := database.DB.WithContext(ctx).
+	err = database.DB.WithContext(ctx).
 		Table("tenant_subscriptions").
 		Select("status, next_billing_at, expires_at").
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
@@ -258,6 +268,15 @@ func getSubscriptionAccessCache(tenantID string, now time.Time) (subscriptionAcc
 		return subscriptionAccessSnapshot{}, false
 	}
 	return entry.Snapshot, true
+}
+
+func isMissingTenantDeletionScheduledAtColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return (strings.Contains(errMsg, "sqlstate 42703") && strings.Contains(errMsg, "deletion_scheduled_at")) ||
+		strings.Contains(errMsg, "column \"deletion_scheduled_at\" does not exist")
 }
 
 func setSubscriptionAccessCache(tenantID string, snapshot subscriptionAccessSnapshot, now time.Time) {

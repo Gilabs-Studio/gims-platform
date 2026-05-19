@@ -25,6 +25,7 @@ var (
 	ErrFloorPlanAlreadyExists    = errors.New("floor plan already exists for this outlet")
 	ErrFloorPlanAlreadyPublished = errors.New("floor plan is already in published state")
 	ErrVersionNotFound           = errors.New("layout version not found")
+	ErrTableTokenStorageNotReady = errors.New("table token storage is not ready")
 )
 
 // FloorPlanUsecase defines business operations
@@ -459,6 +460,9 @@ func (u *floorPlanUsecase) GenerateTableToken(ctx context.Context, floorPlanID, 
 
 	created, err := u.qrTokenRepo.GenerateForTable(ctx, token)
 	if err != nil {
+		if errors.Is(err, repositories.ErrTableQRTokenTableNotReady) {
+			return nil, ErrTableTokenStorageNotReady
+		}
 		return nil, fmt.Errorf("failed to generate table token: %w", err)
 	}
 	return toTableQRTokenResponse(created), nil

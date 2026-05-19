@@ -107,6 +107,14 @@ func handleFloorPlanError(c *gin.Context, err error) {
 		coreErrors.ForbiddenResponse(c, "pos.layout", nil)
 	case usecase.ErrVersionNotFound:
 		coreErrors.NotFoundResponse(c, "layout_version", "")
+	case usecase.ErrTableTokenStorageNotReady:
+		coreErrors.ErrorResponse(c, "SERVICE_UNAVAILABLE", map[string]interface{}{
+			"resource":    "pos_table_qr_tokens",
+			"reason":      "database schema is not migrated",
+			"action":      "run migrations",
+			"retryable":   true,
+			"tenant_scope": true,
+		}, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}
