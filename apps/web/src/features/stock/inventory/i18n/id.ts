@@ -46,6 +46,25 @@ export const inventoryId = {
       previous: "Sebelumnya",
       next: "Selanjutnya",
       noWarehouse: "Tanpa Gudang"
+    },
+    metrics: {
+      totalSku: "Total SKU",
+      totalOnHand: "Total Fisik",
+      healthyStock: "Stok Sehat",
+      expiring30d: "Akan Kedaluwarsa (30h)",
+      expiredBatches: "Batch Kedaluwarsa"
+    },
+    labels: {
+      filtered: "Tersaring:"
+    },
+    view: {
+      tree: "Pohon",
+      list: "Daftar"
+    },
+    negativeStock: {
+      summary: "{count} produk",
+      detail: "memiliki stok minus di halaman ini - kemungkinan dari transaksi offline yang belum direkonsiliasi.",
+      tooltip: "Stok minus - kemungkinan dari transaksi offline yang belum direkonsiliasi"
     }
   },
   stock_movement: {

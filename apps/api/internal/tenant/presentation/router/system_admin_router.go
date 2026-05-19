@@ -49,6 +49,7 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 
 			// Permission management
 			protected.GET("/permissions", h.ListPermissions)
+			protected.GET("/permissions/menus", h.ListPermissionMenus)
 			protected.GET("/permissions/:id", h.GetPermission)
 			protected.POST("/permissions", h.CreatePermission)
 			protected.PUT("/permissions/:id", h.UpdatePermission)

@@ -31,6 +31,7 @@ import type {
   UpsertPlanRequest,
   PermissionListResponse,
   PermissionDetailResponse,
+  PermissionMenuOptionResponse,
   PermissionListParams,
   CreatePermissionRequest,
   UpdatePermissionRequest,
@@ -335,6 +336,11 @@ export const systemAdminService = {
 
   async getPermission(id: string): Promise<PermissionDetailResponse> {
     const { data } = await sysAdminClient.get<PermissionDetailResponse>(`/permissions/${id}`);
+    return data;
+  },
+
+  async listPermissionMenus(): Promise<PermissionMenuOptionResponse> {
+    const { data } = await sysAdminClient.get<PermissionMenuOptionResponse>("/permissions/menus");
     return data;
   },
 

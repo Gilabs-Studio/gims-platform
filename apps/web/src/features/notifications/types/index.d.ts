@@ -78,6 +78,7 @@ export interface ApiEnvelope<T> {
 }
 
 export interface WebSocketMessage {
+  event?: "notification.created" | "notification.updated" | "notification.deleted";
   type: "notification.created" | "notification.updated" | "notification.deleted";
   data: Notification | { user_id: string; notification_id: string };
 }

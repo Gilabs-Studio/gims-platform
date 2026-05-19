@@ -403,6 +403,15 @@ export interface Permission {
   updated_at: string;
 }
 
+export interface PermissionMenuOption {
+  id: string;
+  name: string;
+  url: string;
+  parent_id?: string | null;
+  depth: number;
+  label: string;
+}
+
 export interface PermissionListParams {
   page?: number;
   per_page?: number;
@@ -418,6 +427,11 @@ export interface PermissionListResponse {
 export interface PermissionDetailResponse {
   success: boolean;
   data: Permission;
+}
+
+export interface PermissionMenuOptionResponse {
+  success: boolean;
+  data: PermissionMenuOption[];
 }
 
 export interface CreatePermissionRequest {
