@@ -7,6 +7,13 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/network/api_client.dart';
 import 'pos_ws_channel.dart';
 
+enum PosWsConnectionState {
+  disconnected,
+  connecting,
+  connected,
+  reconnecting,
+}
+
 /// POS WebSocket event from the server.
 class PosWsEvent {
   final String event;
@@ -48,12 +55,17 @@ class PosWsService {
   final void Function(Object error)? onAuthRejected;
 
   final _controller = StreamController<PosWsEvent>.broadcast();
+  final _stateController = StreamController<PosWsConnectionState>.broadcast();
   Stream<PosWsEvent> get events => _controller.stream;
+  Stream<PosWsConnectionState> get connectionState$ => _stateController.stream;
 
   WebSocketChannel? _channel;
   Timer? _reconnectTimer;
   int _attempt = 0;
   bool _disposed = false;
+  PosWsConnectionState _connectionState = PosWsConnectionState.disconnected;
+
+  PosWsConnectionState get connectionState => _connectionState;
 
   /// Builds the WebSocket URL from the API origin (http→ws).
   String get _wsUrl {
@@ -68,6 +80,11 @@ class PosWsService {
   Future<void> connect() async {
     if (_disposed) return;
     try {
+      _emitConnectionState(
+        _attempt == 0
+            ? PosWsConnectionState.connecting
+            : PosWsConnectionState.reconnecting,
+      );
       _reconnectTimer?.cancel();
       _channel?.sink.close();
       final cookie = ApiClient.instance.cookieHeader;
@@ -77,6 +94,7 @@ class PosWsService {
       );
       await _channel!.ready;
       _attempt = 0;
+      _emitConnectionState(PosWsConnectionState.connected);
 
       _channel!.stream.listen(
         (data) {
@@ -103,6 +121,7 @@ class PosWsService {
     } catch (error) {
       final text = error.toString();
       if (text.contains('401') || text.contains('403')) {
+        _emitConnectionState(PosWsConnectionState.disconnected);
         onAuthRejected?.call(error);
         dispose();
         return;
@@ -113,6 +132,7 @@ class PosWsService {
 
   void _scheduleReconnect() {
     if (_disposed) return;
+    _emitConnectionState(PosWsConnectionState.reconnecting);
     _reconnectTimer?.cancel();
     final delay = Duration(
       milliseconds: (_attempt < 6)
@@ -126,9 +146,19 @@ class PosWsService {
   /// Closes the connection and cancels reconnect timers.
   void dispose() {
     _disposed = true;
+    _emitConnectionState(PosWsConnectionState.disconnected);
     _reconnectTimer?.cancel();
     _channel?.sink.close();
     _controller.close();
+    _stateController.close();
+  }
+
+  void _emitConnectionState(PosWsConnectionState state) {
+    if (_connectionState == state) return;
+    _connectionState = state;
+    if (!_stateController.isClosed) {
+      _stateController.add(state);
+    }
   }
 }
 

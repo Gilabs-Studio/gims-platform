@@ -17,10 +17,10 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, rec
 	orders.Use(middleware.RequirePermission("pos.order.create"))
 
 	// Static routes before parameterized
-	orders.POST("", h.Create)
+	orders.POST("", middleware.IdempotentRequest(), h.Create)
 	orders.GET("", middleware.RequirePermission("pos.order.read"), h.List)
 	orders.GET("/:id", h.GetByID)
-	orders.POST("/:id/confirm", h.Confirm)
+	orders.POST("/:id/confirm", middleware.IdempotentRequest(), h.Confirm)
 	orders.POST("/:id/void", h.Void)
 	orders.POST("/:id/assign-table", h.AssignTable)
 	orders.POST("/:id/serve", h.Serve)
@@ -30,7 +30,7 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, rec
 	orders.GET("/:id/receipt", middleware.RequirePermission("pos.order.read"), receiptH.GetReceipt)
 
 	// Order item management
-	orders.POST("/:id/items", h.AddItem)
+	orders.POST("/:id/items", middleware.IdempotentRequest(), h.AddItem)
 	orders.PUT("/:id/items/:itemID", h.UpdateItem)
 	orders.DELETE("/:id/items/:itemID", h.RemoveItem)
 	// Per-item serve — place before the generic item routes to avoid routing ambiguity

@@ -15,7 +15,7 @@ func RegisterPOSPaymentRoutes(rg *gin.RouterGroup, h *handler.POSPaymentHandler)
 	payments.Use(middleware.RequirePermission("pos.order.create"))
 
 	payments.GET("", h.GetByOrder)
-	payments.POST("/cash", h.ProcessCash)
+	payments.POST("/cash", middleware.IdempotentRequest(), h.ProcessCash)
 	payments.POST("/digital", h.InitiateDigitalPayment)
 	payments.POST("/:paymentID/cancel", h.CancelPendingPayment)
 
