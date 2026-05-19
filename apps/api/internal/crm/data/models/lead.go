@@ -118,20 +118,35 @@ func (l *Lead) BeforeCreate(tx *gorm.DB) error {
 		l.ID = uuid.New().String()
 	}
 	if l.Code == "" {
-		l.Code = generateLeadCode(tx)
+		code, err := generateLeadCode(tx, l.TenantID)
+		if err != nil {
+			return err
+		}
+		l.Code = code
 	}
 	return nil
 }
 
 // generateLeadCode creates auto-generated code: LEAD-YYYYMM-XXXXX
-func generateLeadCode(tx *gorm.DB) string {
+func generateLeadCode(tx *gorm.DB, tenantID string) (string, error) {
 	now := apptime.Now()
 	prefix := fmt.Sprintf("LEAD-%s", now.Format("200601"))
+	lockKey := fmt.Sprintf("crm_lead_code:%s:%s", tenantID, prefix)
 
-	var count int64
-	tx.Model(&Lead{}).Where("code LIKE ?", prefix+"%").Count(&count)
+	if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+		return "", err
+	}
 
-	return fmt.Sprintf("%s-%05d", prefix, count+1)
+	var maxSeq int64
+	query := tx.Unscoped().Model(&Lead{}).Where("code LIKE ?", prefix+"%")
+	if tenantID != "" {
+		query = query.Where("tenant_id = ?", tenantID)
+	}
+	if err := query.Select("COALESCE(MAX(CAST(substring(code from '[0-9]+$') AS integer)), 0)").Scan(&maxSeq).Error; err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s-%05d", prefix, maxSeq+1), nil
 }
 
 // CalculateLeadScore computes score from BANT fields + status score

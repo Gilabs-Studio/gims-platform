@@ -190,6 +190,15 @@ type sysAdminPermissionRequest struct {
 	MenuID      *string `json:"menu_id"`
 }
 
+type sysAdminPermissionMenuOption struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	URL      string  `json:"url"`
+	ParentID *string `json:"parent_id,omitempty"`
+	Depth    int     `json:"depth"`
+	Label    string  `json:"label"`
+}
+
 // ListPermissions returns a paginated list of all permissions.
 func (h *SystemAdminHandler) ListPermissions(c *gin.Context) {
 	page := 1
@@ -217,6 +226,39 @@ func (h *SystemAdminHandler) ListPermissions(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, perms, meta)
+}
+
+// ListPermissionMenus returns flattened menu options for permission assignment.
+func (h *SystemAdminHandler) ListPermissionMenus(c *gin.Context) {
+	menus, err := h.permissionRepo.GetRootMenusWithChildren(c.Request.Context())
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	options := make([]sysAdminPermissionMenuOption, 0, len(menus))
+
+	var flatten func(items []permissionModels.Menu, depth int, parents []string)
+	flatten = func(items []permissionModels.Menu, depth int, parents []string) {
+		for _, menu := range items {
+			path := append(parents, menu.Name)
+			options = append(options, sysAdminPermissionMenuOption{
+				ID:       menu.ID,
+				Name:     menu.Name,
+				URL:      menu.URL,
+				ParentID: menu.ParentID,
+				Depth:    depth,
+				Label:    strings.Join(path, " / "),
+			})
+
+			if len(menu.Children) > 0 {
+				flatten(menu.Children, depth+1, path)
+			}
+		}
+	}
+
+	flatten(menus, 0, nil)
+	response.SuccessResponse(c, options, nil)
 }
 
 // GetPermission returns a single permission by ID.

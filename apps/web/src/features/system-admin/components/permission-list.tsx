@@ -35,8 +35,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Permission, CreatePermissionRequest } from "../types";
+import type { Permission, CreatePermissionRequest, PermissionMenuOption } from "../types";
 
 type PermissionFormState = CreatePermissionRequest;
 
@@ -82,6 +83,11 @@ export function PermissionList() {
     queryFn: () => systemAdminService.listPermissions({ page, per_page: perPage, search: search || undefined }),
   });
 
+  const { data: menuOptionsData } = useQuery({
+    queryKey: ["sys-admin-permission-menu-options"],
+    queryFn: () => systemAdminService.listPermissionMenus(),
+  });
+
   const createMutation = useMutation({
     mutationFn: (payload: CreatePermissionRequest) => systemAdminService.createPermission(payload),
     onSuccess: () => {
@@ -117,6 +123,7 @@ export function PermissionList() {
 
   const pagination = data?.meta?.pagination;
   const permissions = data?.data ?? [];
+  const menuOptions: PermissionMenuOption[] = menuOptionsData?.data ?? [];
 
   function openCreate() {
     setEditingPermission(null);
@@ -362,15 +369,25 @@ export function PermissionList() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="perm-menu-id">Menu ID</Label>
-              <Input
-                id="perm-menu-id"
-                value={form.menu_id ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, menu_id: e.target.value || null }))
+              <Label htmlFor="perm-menu-id">Menu</Label>
+              <Select
+                value={form.menu_id ?? "__none__"}
+                onValueChange={(value) =>
+                  setForm((f) => ({ ...f, menu_id: value === "__none__" ? null : value }))
                 }
-                placeholder="UUID of associated menu (optional)"
-              />
+              >
+                <SelectTrigger id="perm-menu-id">
+                  <SelectValue placeholder="Select associated menu (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No menu association</SelectItem>
+                  {menuOptions.map((menu) => (
+                    <SelectItem key={menu.id} value={menu.id}>
+                      {menu.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

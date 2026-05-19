@@ -142,10 +142,6 @@ export function useNotifications(params?: ListNotificationsParams) {
 }
 
 export function useNotificationCount() {
-  const unreadRealtimeCount = useNotificationStore(
-    (state) => state.realtimeNotifications.filter((item) => !item.is_read).length
-  );
-
   const query = useQuery({
     queryKey: notificationQueryKeys.unreadCount,
     queryFn: () => notificationService.getUnreadCount(),
@@ -158,7 +154,7 @@ export function useNotificationCount() {
 
   return {
     ...query,
-    data: (query.data ?? 0) + unreadRealtimeCount,
+    data: query.data ?? 0,
   };
 }
 
@@ -202,6 +198,8 @@ export function useMarkAsRead() {
       return notificationService.markAsRead(id);
     },
     onSuccess: (response, id) => {
+      markRealtimeAsRead(id);
+
       if (isRealtimeNotificationId(id)) {
         return;
       }

@@ -89,6 +89,35 @@ class _TerminalScreenState extends State<TerminalScreen> {
         existing.quantity += 1;
       }
     });
+
+    // Warn cashier when total cart quantity exceeds cached stock level.
+    // This is a non-blocking advisory — the cashier may override.
+    final totalInCart = _cart
+        .where((l) => l.product.productId == product.productId)
+        .fold<double>(0, (sum, l) => sum + l.quantity);
+    if (product.stock >= 0 && totalInCart > product.stock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Peringatan: stok tersedia ${product.stock.toStringAsFixed(0)} unit. '
+                  'Melanjutkan bisa menyebabkan konflik saat sinkronisasi.',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Future<void> _openOrder() async {

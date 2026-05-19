@@ -9,54 +9,54 @@ export const landingEn = {
       getStarted: "Get Started",
     },
     hero: {
-      badge: "All-in-One ERP · CRM · POS · Finance · HR",
-      title1: "One ecosystem for",
-      title2: "your entire business",
+      badge: "Your End-to-End Business Engine",
+      title1: "Don't let disconnected systems",
+      title2: "bottleneck your growth",
       subtitle:
-        "Leave behind fragmented systems. Manage supply chain, customers, POS, and finance in a single AI-powered platform.",
-      cta: "Sign In",
+        "Stop profit leaks caused by data silos. Unify your sales, inventory, HR, and finance into one AI-powered platform designed for enterprise scale.",
+      cta: "Start Free Trial",
       trackPlaceholder: "Enter order ID to track status",
     },
     benefits: {
-      eyebrow: "Core advantages",
-      title: "Features you'll feel in daily operations",
+      eyebrow: "Why Choose SalesView",
+      title: "One Platform. Absolute Control.",
       subtitle:
-        "SalesView is built so that data entered once is available across all modules. Sales, warehouse, finance, HRD, and management see the same information without manual reconciliation.",
+        "Fragmented systems kill productivity. SalesView gives you a single 'source of truth'—so every team, from the warehouse to the boardroom, is always aligned without manual reconciliation.",
       items: {
         singleSource: {
-          title: "Single source of truth",
+          title: "Eliminate Data Silos",
           description:
-            "Dashboard, master data, sales, purchase, stock, finance, HRD, CRM, and reports are all connected in one flow.",
+            "All modules (CRM, Sales, HRD, Finance) talk to each other in real-time. No more redundant manual input.",
         },
         operationalControl: {
-          title: "Cleaner operational control",
+          title: "Leak-Proof Operations",
           description:
-            "Stock, delivery, purchase orders, goods receipts, and stock opname are recorded with a clear audit trail.",
+            "Track every item movement from PO to Goods Receipt. Total transparency, zero stock discrepancies.",
         },
         financeAudit: {
-          title: "Finance ready for audit",
+          title: "Audit-Ready Finance",
           description:
-            "Chart of accounts, journals, bank, receivables, payables, budgets, and financial statements in a consistent format.",
+            "Automated journals, instant reconciliation. Close your daily books stress-free and always be ready for auditors.",
         },
         hrdDiscipline: {
-          title: "Disciplined HRD processes",
+          title: "Self-Driving HR",
           description:
-            "Attendance, leave requests, evaluations, recruitment, work schedules, and holidays run in one structured flow.",
+            "Automate attendance, leave, and recruitment. Let the system handle administration while you focus on building your team.",
         },
         insightFast: {
-          title: "Faster insight readout",
+          title: "Fact-Based Decisions",
           description:
-            "Sales overview, geo performance, customer research, and supplier research help teams make faster decisions.",
+            "Access business insights in seconds. From area sales performance to customer purchasing trends.",
         },
         automation: {
-          title: "Ready for automation",
+          title: "AI as Your Co-Pilot",
           description:
-            "AI assistant, workflows, and notifications help speed up day-to-day tasks.",
+            "Not just recording, but guiding. Smart workflows and proactive notifications prevent issues before they happen.",
         },
       },
     },
     screenshots: {
-      title: "Clean & Functional Interface",
+      title: "Designed For Speed & Clarity",
       items: {
         pipeline: {
           title: "CRM Pipeline",
@@ -93,19 +93,19 @@ export const landingEn = {
       },
     },
     turningPoint: {
-      title1: "One system that records,",
-      title2: "connects, and reports",
-      title3: "automatically",
+      title1: "Stop Reconciling Data.",
+      title2: "Start Steering",
+      title3: "Your Business.",
       subtitle:
-        "SalesView is designed so that data entered in one area is immediately available across the entire system — no manual imports, no duplicate copies.",
+        "SalesView ends the era of manual spreadsheets. A transaction entered by warehouse staff automatically updates the P&L on the director's desk—instantly.",
     },
     map: {
-      title1: "See your entire",
-      title2: "distribution network at once",
+      title1: "Distribution Visibility",
+      title2: "With Precision",
       subtitle:
-        "The interactive map shows customer locations, active stock at each warehouse, and field team distribution — from province to sub-district level across Indonesia.",
+        "Monitor the health of your supply chain from coast to coast on a single interactive screen.",
       detail:
-        "When the Surabaya branch runs out of stock, the central manager can see it immediately — not two days later through a report.",
+        "Know exactly where stock is running low and where your distribution points are most profitable.",
       legend: {
         mainWarehouse: "Main warehouse",
         distributionPoint: "Distribution point",
@@ -113,12 +113,12 @@ export const landingEn = {
       badge: "13 active hubs — Indonesia",
     },
     ai: {
-      title1: "Ask your data",
-      title2: "in everyday language",
+      title1: "Have a Business Question?",
+      title2: "Ask Our AI.",
       subtitle:
-        "SalesView Assistant understands commands in Bahasa Indonesia. Check stock, create a purchase order, or pull a sales report — just type a regular sentence.",
+        "Get instant answers without mastering complex Excel formulas. Ask about stock, sales trends, or create a PO using everyday language.",
       detail:
-        "No more navigating menus back and forth or waiting for IT to create an ad-hoc report.",
+        "SalesView AI isn't just a chatbot; it's your personal executive assistant that knows everything about your business.",
       chat: {
         user1: "How much stock is SKU-201 at the Bandung warehouse?",
         ai1: "SKU-201 stock at Bandung Warehouse: {count} units. Last updated 14 minutes ago. Reorder point: 200 units.",
@@ -129,11 +129,11 @@ export const landingEn = {
       },
     },
     pricing: {
-      eyebrow: "Transparent pricing",
-      title1: "Choose your plan",
-      title2: "and scale with confidence",
+      eyebrow: "Measurable Investment",
+      title1: "Transparent Pricing With",
+      title2: "No Hidden Fees",
       subtitle:
-        "Bundle plans are best for cross-team operations. Modular plans are available when you need one focused module first.",
+        "Pay only for the value you receive. Choose a Bundle for total transformation, or Modular to solve specific bottlenecks first.",
       tabs: {
         bundle: "Bundle",
         modular: "Modular",
@@ -233,12 +233,12 @@ export const landingEn = {
       },
     },
     cta: {
-      title1: "Ready to move to",
-      title2: "a clear implementation",
+      title1: "Stop Wasting Time.",
+      title2: "Start Your Transformation.",
       subtitle:
-        "Start with the most relevant core features, then scale to other modules as your business grows.",
-      seeFeatures: "See features",
-      signIn: "Sign In",
+        "Join hundreds of companies that have automated their operations. Setup in days, not months.",
+      seeFeatures: "Start Free Trial",
+      signIn: "Learn More",
     },
     footer: {
       tagline: "All-in-One ERP · CRM · POS · Finance · HR",

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
@@ -28,12 +29,12 @@ import { InventoryStockItem } from "../types";
 type MetricFilterKey = "ok" | "low_stock" | "out_of_stock" | "overstock" | "has_expiring" | "has_expired";
 
 const METRIC_FILTER_LABELS: Record<MetricFilterKey, string> = {
-  ok: "Healthy Stock",
-  low_stock: "Low Stock",
-  out_of_stock: "Out of Stock",
-  overstock: "Overstock",
-  has_expiring: "Expiring within 30 days",
-  has_expired: "Expired Batches (with remaining qty)",
+  ok: "status.ok",
+  low_stock: "status.lowStock",
+  out_of_stock: "status.outOfStock",
+  overstock: "status.overstock",
+  has_expiring: "metrics.expiring30d",
+  has_expired: "metrics.expiredBatches",
 };
 
 function MetricCard({
@@ -161,6 +162,10 @@ export function InventoryList() {
   const inventory = data?.data?.data ?? [];
   const pagination = data?.data?.meta;
 
+  // Count items on the current page with negative available quantity — these
+  // may result from offline transactions that haven't been reconciled yet.
+  const negativeStockCount = inventory.filter((item) => item.available < 0).length;
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ok":
@@ -239,21 +244,21 @@ export function InventoryList() {
         <>
         <div className="flex flex-wrap gap-3">
         <MetricCard
-          label="Total SKU"
+          label={t("metrics.totalSku")}
           value={metrics?.total_items ?? 0}
           icon={Package}
           colorClass="bg-primary"
           isLoading={metricsLoading}
         />
         <MetricCard
-          label="Total On Hand"
+          label={t("metrics.totalOnHand")}
           value={metrics?.total_on_hand?.toLocaleString() ?? 0}
           icon={Layers}
           colorClass="bg-primary"
           isLoading={metricsLoading}
         />
         <MetricCard
-          label="Healthy Stock"
+          label={t("metrics.healthyStock")}
           value={metrics?.ok_count ?? 0}
           icon={CheckCircle2}
           colorClass="bg-success"
@@ -263,7 +268,7 @@ export function InventoryList() {
           onFilterChange={handleMetricFilter}
         />
         <MetricCard
-          label="Low Stock"
+          label={t("status.lowStock")}
           value={metrics?.low_stock_count ?? 0}
           icon={TrendingDown}
           colorClass="bg-warning"
@@ -273,7 +278,7 @@ export function InventoryList() {
           onFilterChange={handleMetricFilter}
         />
         <MetricCard
-          label="Out of Stock"
+          label={t("status.outOfStock")}
           value={metrics?.out_of_stock_count ?? 0}
           icon={XCircle}
           colorClass="bg-destructive"
@@ -283,7 +288,7 @@ export function InventoryList() {
           onFilterChange={handleMetricFilter}
         />
         <MetricCard
-          label="Expiring (30d)"
+          label={t("metrics.expiring30d")}
           value={metrics?.expiring_batches_30_day ?? 0}
           icon={Clock}
           colorClass="bg-warning"
@@ -293,7 +298,7 @@ export function InventoryList() {
           onFilterChange={handleMetricFilter}
         />
         <MetricCard
-          label="Expired Batches"
+          label={t("metrics.expiredBatches")}
           value={metrics?.expired_batches ?? 0}
           icon={CalendarX}
           colorClass="bg-rose"
@@ -308,8 +313,8 @@ export function InventoryList() {
       {activeMetricFilter && (
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-2 py-1 px-3 text-sm font-normal">
-            <span className="text-muted-foreground">Filtered:</span>
-            <span className="font-medium">{METRIC_FILTER_LABELS[activeMetricFilter]}</span>
+            <span className="text-muted-foreground">{t("labels.filtered")}</span>
+            <span className="font-medium">{t(METRIC_FILTER_LABELS[activeMetricFilter])}</span>
             <button
               onClick={() => handleMetricFilter(null)}
               className="ml-1 rounded-full hover:bg-muted p-0.5 transition-colors cursor-pointer"
@@ -320,6 +325,17 @@ export function InventoryList() {
         </div>
       )}
         </>
+      )}
+
+      {/* Negative stock warning — shown only in list view when current page has negative-available items */}
+      {currentView === "list" && negativeStockCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+          <span>
+            <span className="font-semibold text-destructive">{t("negativeStock.summary", { count: negativeStockCount })}</span>
+            <span className="text-muted-foreground"> {t("negativeStock.detail")}</span>
+          </span>
+        </div>
       )}
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -373,7 +389,7 @@ export function InventoryList() {
                     }}
                 >
                     <GanttChart className="h-4 w-4 mr-2" />
-                    Tree
+                    {t("view.tree")}
                 </Button>
                 <Button
                     variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -382,7 +398,7 @@ export function InventoryList() {
                     onClick={() => setViewMode("list")}
                 >
                     <LayoutList className="h-4 w-4 mr-2" />
-                    List
+                    {t("view.list")}
                 </Button>
              </div>
            )}
@@ -476,7 +492,23 @@ export function InventoryList() {
                             {item.reserved.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right tabular-nums font-bold text-primary">
-                            {item.available.toLocaleString()}
+                            {item.available < 0 ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center justify-end gap-1 text-destructive">
+                                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                                      {item.available.toLocaleString()}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs text-center">
+                                    {t("negativeStock.tooltip")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              item.available.toLocaleString()
+                            )}
                         </TableCell>
                         <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
                             {item.min_stock.toLocaleString()} - {item.max_stock.toLocaleString()}

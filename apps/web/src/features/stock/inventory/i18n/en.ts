@@ -46,6 +46,25 @@ export const inventoryEn = {
       previous: "Previous",
       next: "Next",
       noWarehouse: "No Warehouse"
+    },
+    metrics: {
+      totalSku: "Total SKU",
+      totalOnHand: "Total On Hand",
+      healthyStock: "Healthy Stock",
+      expiring30d: "Expiring (30d)",
+      expiredBatches: "Expired Batches"
+    },
+    labels: {
+      filtered: "Filtered:"
+    },
+    view: {
+      tree: "Tree",
+      list: "List"
+    },
+    negativeStock: {
+      summary: "{count} products",
+      detail: "have negative stock on this page - likely from offline transactions that have not been reconciled yet.",
+      tooltip: "Negative stock - likely from offline transactions that have not been reconciled yet"
     }
   },
   stock_movement: {

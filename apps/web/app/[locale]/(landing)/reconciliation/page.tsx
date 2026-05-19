@@ -44,20 +44,20 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
       <FeatureLandingPage
         locale={locale}
         label="SalesView Reconciliation"
-        heroTitle={isId ? "Rekonsiliasi yang" : "Reconciliation that"}
-        heroAccent={isId ? "Lebih Terkontrol" : "Stays Controlled"}
+        heroTitle={isId ? "Ubah Selisih Transaksi" : "Turn Transaction Discrepancies"}
+        heroAccent={isId ? "Menjadi Kepastian Finansial" : "Into Financial Certainty"}
         heroDescription={
           isId
-            ? "Bandingkan mutasi dan transaksi internal dengan alur yang jelas untuk mempercepat closing."
-            : "Compare bank movements and internal transactions through a clear flow to accelerate closing."
+            ? "Cocokkan mutasi bank Anda dengan transaksi internal secara otomatis untuk menutup buku lebih cepat tanpa stres."
+            : "Match your bank movements with internal transactions automatically to close your books faster without the stress."
         }
         heroImageAlt={isId ? "Tampilan rekonsiliasi SalesView" : "SalesView reconciliation interface"}
         heroImageKey="reconciliationHero"
-        introTitle={isId ? "Kurangi friksi saat closing" : "Reduce friction during closing"}
+        introTitle={isId ? "Tingkatkan akurasi dan hilangkan keraguan" : "Boost accuracy and eliminate doubt"}
         introDescription={
           isId
-            ? "Rekonsiliasi membantu tim finance memvalidasi data lebih cepat dan presisi."
-            : "Reconciliation helps finance teams validate data faster and with better precision."
+            ? "Nikmati proses rekonsiliasi bebas stres yang memungkinkan tim Anda mendeteksi anomali lebih awal dan percaya penuh pada data Anda."
+            : "Enjoy a stress-free reconciliation process that allows your team to detect anomalies early and fully trust your data."
         }
         featureBlocks={[
           {
@@ -85,8 +85,8 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Closing period lebih terprediksi" : "More predictable period closing"}
-        finalCtaLabel={isId ? "Mulai Rekonsiliasi" : "Start Reconciliation"}
+        finalTitle={isId ? "Ambil kendali penuh atas pencocokan transaksi Anda" : "Take full control of your transaction matching"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

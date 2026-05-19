@@ -67,20 +67,20 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Recruitment"
-        heroTitle={isId ? "Recruitment yang" : "Recruitment that"}
-        heroAccent={isId ? "Lebih Terarah" : "Stays Focused"}
+        heroTitle={isId ? "Ubah Rekrutmen Lambat" : "Turn Slow Recruiting"}
+        heroAccent={isId ? "Menjadi Mesin Akuisisi Bakat" : "Into Talent Acquisition Machines"}
         heroDescription={
           isId
-            ? "Buat recruitment request, lihat kandidat dalam kanban board, pindahkan antar tahapan, dan convert applicant yang diterima langsung ke data karyawan."
-            : "Create recruitment requests, view candidates in a kanban board, move between stages, and convert accepted applicants directly to employee records."
+            ? "Jangan biarkan kandidat terbaik lari ke kompetitor. Kelola permintaan, visualisasikan pelamar di papan Kanban, dan otomatisasi onboarding dengan sekali klik."
+            : "Don't let top candidates run to competitors. Manage requests, visualize applicants on a Kanban board, and automate onboarding with a single click."
         }
         heroImageAlt={isId ? "Tampilan recruitment SalesView" : "SalesView recruitment interface"}
         heroImageKey="recruitmentHero"
-        introTitle={isId ? "Sederhanakan proses hiring" : "Simplify your hiring process"}
+        introTitle={isId ? "Dapatkan talenta terbaik lebih cepat dari sebelumnya" : "Secure top talent faster than ever before"}
         introDescription={
           isId
-            ? "Recruitment membantu tim HR dari request pembukaan posisi, seleksi kandidat di kanban, sampai onboarding ke data karyawan."
-            : "Recruitment supports HR teams from position requests and candidate selection in kanban through onboarding to employee records."
+            ? "Sistem rekrutmen kami yang ramping memangkas birokrasi, sehingga Anda bisa fokus menemukan, mengevaluasi, dan merekrut orang yang tepat."
+            : "Our streamlined recruitment system cuts the red tape, so you can focus on finding, evaluating, and hiring the right people."
         }
         featureBlocks={[
           {
@@ -114,22 +114,22 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Rekrutmen lebih cepat, data karyawan otomatis" : "Faster recruitment, automatic employee records"}
+        finalTitle={isId ? "Bangun tim impian Anda tanpa hambatan administratif" : "Build your dream team without the administrative roadblocks"}
         finalPoints={[
           {
-            title: isId ? "Kanban kandidat" : "Candidate kanban",
+            title: isId ? "Hiring visual" : "Visual hiring",
             description: isId
-              ? "Pindahkan kandidat antar tahapan seleksi."
-              : "Move candidates between selection stages.",
+              ? "Lihat seluruh pipeline rekrutmen dalam satu lirikan."
+              : "See your entire recruitment pipeline at a glance.",
           },
           {
-            title: isId ? "Convert otomatis" : "Auto-convert",
+            title: isId ? "Transisi instan" : "Instant transition",
             description: isId
-              ? "Applicant diterima langsung jadi data karyawan."
-              : "Accepted applicants become employee records instantly.",
+              ? "Ubah kandidat menjadi karyawan tanpa ketik ulang data."
+              : "Turn candidates into employees without retyping data.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Recruitment" : "Start Recruitment"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

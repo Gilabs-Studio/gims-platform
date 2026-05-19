@@ -44,20 +44,20 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Quotations"
-        heroTitle={isId ? "Penawaran Harga yang" : "Quotations that"}
-        heroAccent={isId ? "Meyakinkan" : "Win Confidence"}
+        heroTitle={isId ? "Ubah Proses Penawaran" : "Turn Proposal Processes"}
+        heroAccent={isId ? "Menjadi Mesin Closing" : "Into Closing Machines"}
         heroDescription={
           isId
-            ? "Siapkan quotation profesional untuk mempercepat approval pelanggan dan proses closing."
-            : "Prepare professional quotations to speed up customer approval and deal closing."
+            ? "Berhenti membuang waktu dengan dokumen manual. Buat quotation profesional yang memukau klien Anda dan percepat persetujuan sebelum pesanan dibuat."
+            : "Stop wasting time with manual documents. Create professional quotations that wow your clients and accelerate approvals before orders are placed."
         }
         heroImageAlt={isId ? "Tampilan quotation SalesView" : "SalesView quotation interface"}
         heroImageKey="quotationsHero"
-        introTitle={isId ? "Quotations siap kirim lebih cepat" : "Quotations ready to send faster"}
+        introTitle={isId ? "Menangkan lebih banyak deal dengan lebih sedikit usaha" : "Win more deals with less effort"}
         introDescription={
           isId
-            ? "Semua elemen penawaran disusun agar tim sales bergerak lebih efisien."
-            : "Every quotation element is organized so sales teams can move more efficiently."
+            ? "Semua elemen penawaran disusun secara cerdas agar tim penjualan Anda dapat merespons klien lebih cepat dan meningkatkan rasio konversi."
+            : "Every quotation element is smartly organized so your sales team can respond to clients faster and boost conversion rates."
         }
         featureBlocks={[
           {
@@ -85,8 +85,8 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
             placeholder: "terminalFlow",
           },
         ]}
-        finalTitle={isId ? "Penawaran yang mendorong closing" : "Quotations that push deals forward"}
-        finalCtaLabel={isId ? "Mulai Buat Quotation" : "Start Creating Quotations"}
+        finalTitle={isId ? "Kirim penawaran yang tidak bisa ditolak klien Anda" : "Send proposals your clients can't refuse"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

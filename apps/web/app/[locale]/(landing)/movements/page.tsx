@@ -67,20 +67,20 @@ export default async function MovementsLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Movements"
-        heroTitle={isId ? "Pergerakan Stok yang" : "Stock Movements that"}
-        heroAccent={isId ? "Terdokumentasi" : "Stay Documented"}
+        heroTitle={isId ? "Ubah Mutasi Misterius" : "Turn Mysterious Mutations"}
+        heroAccent={isId ? "Menjadi Jejak Transparan" : "Into Transparent Trails"}
         heroDescription={
           isId
-            ? "Catat empat jenis mutasi — IN, OUT, ADJUST, TRANSFER — dengan filter lengkap dan jejak referensi ke dokumen asal."
-            : "Record four movement types — IN, OUT, ADJUST, TRANSFER — with full filters and reference links back to source documents."
+            ? "Ketahui persis ke mana barang Anda pergi. Lacak setiap perpindahan, penyesuaian, dan transfer antar gudang dengan visibilitas tak tertandingi."
+            : "Know exactly where your inventory goes. Track every movement, adjustment, and inter-warehouse transfer with unmatched visibility."
         }
         heroImageAlt={isId ? "Tampilan pergerakan stok SalesView" : "SalesView stock movements interface"}
         heroImageKey="movementHero"
-        introTitle={isId ? "Lacak barang lintas lokasi" : "Track inventory across locations"}
+        introTitle={isId ? "Dapatkan visibilitas penuh atas perjalanan stok Anda" : "Get full visibility over your stock's journey"}
         introDescription={
           isId
-            ? "Pergerakan stok tercatat rapi — dari barang masuk, keluar, adjustment, hingga transfer antar gudang — dengan histori yang siap diaudit."
-            : "Stock movements are recorded cleanly — from inbound, outbound, adjustment, to inter-warehouse transfer — with audit-ready history."
+            ? "Setiap pergerakan barang Anda kini memiliki cerita yang jelas. Cegah kehilangan dan lacak kembali setiap mutasi ke dokumen aslinya dengan satu klik."
+            : "Every item movement now tells a clear story. Prevent losses and trace any mutation back to its original document in just one click."
         }
         featureBlocks={[
           {
@@ -111,22 +111,22 @@ export default async function MovementsLandingPage({ params }: { params: Promise
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Perpindahan barang lebih mudah dipantau" : "Item transfers become easier to monitor"}
+        finalTitle={isId ? "Amankan pergerakan barang Anda sekarang juga" : "Secure your stock movements right now"}
         finalPoints={[
           {
-            title: isId ? "4 tipe mutasi" : "4 types",
+            title: isId ? "Kendali penuh" : "Full control",
             description: isId
-              ? "IN, OUT, ADJUST, TRANSFER — tercakup semua."
-              : "IN, OUT, ADJUST, TRANSFER — all covered.",
+              ? "Pantau barang keluar masuk tanpa tebak-tebakan."
+              : "Monitor items moving in and out without the guesswork.",
           },
           {
-            title: isId ? "Terhubung dokumen" : "Doc-linked",
+            title: isId ? "Transparansi" : "Transparency",
             description: isId
-              ? "Tautan ke DO, GR, opname, dan journal."
-              : "Links to DO, GR, opname, and journal.",
+              ? "Buktikan setiap perubahan stok dengan mudah."
+              : "Easily justify every single stock adjustment.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Tracking Movement" : "Start Tracking Movements"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
       />
     </>
   );

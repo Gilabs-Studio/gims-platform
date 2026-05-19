@@ -94,13 +94,13 @@ export function LandingHeader() {
               size="sm"
               className="cursor-pointer rounded-full px-5 text-sm font-medium"
             >
-              Login
+              {locale === "id" ? "Masuk" : "Login"}
             </Button>
           </Link>
           <Link href="/register" prefetch={false}>
             <Button
               size="sm"
-              className="cursor-pointer rounded-full px-5 text-sm shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground font-accent font-medium tracking-wide"
+              className="cursor-pointer rounded-full px-5 text-sm shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
               {locale === "id" ? "Uji coba gratis" : "Free trial"}
             </Button>
@@ -143,7 +143,7 @@ export function LandingHeader() {
             className="absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg"
           >
             <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-8">
                 {marketingApps.map((topMenu) => (
                   <div key={topMenu.category.en} className="flex flex-col gap-3">
                     <h3 className="text-sm font-semibold tracking-wider text-primary uppercase border-b border-primary/20 pb-2 mb-2">
@@ -212,12 +212,12 @@ export function LandingHeader() {
             
             <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/login" prefetch={false}>
-                <Button variant="outline" className="w-full cursor-pointer rounded-full">
-                  Login
+                <Button variant="outline" className="w-full cursor-pointer rounded-full text-sm font-medium">
+                  {locale === "id" ? "Masuk" : "Login"}
                 </Button>
               </Link>
               <Link href="/register" prefetch={false}>
-                <Button className="w-full cursor-pointer rounded-full bg-primary text-primary-foreground font-medium">
+                <Button className="w-full cursor-pointer rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium">
                   {locale === "id" ? "Uji coba gratis" : "Free trial"}
                 </Button>
               </Link>
