@@ -18,6 +18,8 @@ k6/
 │   ├── WORKFLOWS.md                   # E2E workflow docs
 │   ├── CONFIGURATION.md              # Config reference
 │   ├── REPORTING.md                   # Report analyzer docs
+│   ├── CAPACITY_PLANNING.md           # Sweet spot analysis, VPS sizing
+│   ├── OPTIMIZATION_SOLUTIONS.md      # Performance fix recommendations
 │   ├── implementation journey/     # Implementation history
 │   │   ├── K6_COVERAGE_GAP.md            # Coverage checklist
 │   │   ├── K6_COVERAGE_PLAN.md           # Implementation plan

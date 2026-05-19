@@ -2,7 +2,7 @@
 
 > Analyzer, report format, and interpreting results
 
-[← Configuration](./CONFIGURATION.md) | [Coverage Gap →](./implementation%20journey/K6_COVERAGE_GAP.md)
+[← Configuration](./CONFIGURATION.md) | [Capacity Planning →](./CAPACITY_PLANNING.md)
 
 ---
 

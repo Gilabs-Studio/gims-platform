@@ -12,6 +12,9 @@
 | [Workflows](./WORKFLOWS.md) | E2E business workflow documentation |
 | [Configuration](./CONFIGURATION.md) | Config, credentials, environment variables |
 | [Reporting](./REPORTING.md) | Analyzer, report format, interpreting results |
+| [Capacity Planning](./CAPACITY_PLANNING.md) | Sweet spot analysis, VPS sizing workflow |
+| [System Requirements](./SYSTEM_REQUIREMENTS.md) | Infrastructure specs, cost, scaling triggers |
+| [Optimization Solutions](./OPTIMIZATION_SOLUTIONS.md) | Performance fixes for slow endpoints |
 | [Coverage Gap](./implementation%20journey/K6_COVERAGE_GAP.md) | Module-by-module coverage checklist |
 | [Coverage Plan](./implementation%20journey/K6_COVERAGE_PLAN.md) | Implementation plan and performance results |
 | [PRD](./implementation%20journey/K6_ENDPOINT_PROFILER_PRD.md) | Original product requirements document |
