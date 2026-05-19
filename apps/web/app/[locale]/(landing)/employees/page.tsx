@@ -67,8 +67,8 @@ export default async function EmployeesLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Employees"
-        heroTitle={isId ? "Ubah Tumpukan Dokumen Menjadi" : "Turn Piles of Documents Into"}
-        heroAccent={isId ? "Profil Digital Cerdas" : "Smart Digital Profiles"}
+        heroTitle={isId ? "Ubah Tumpukan Dokumen" : "Turn Piles of Documents"}
+        heroAccent={isId ? "Menjadi Profil Digital Cerdas" : "Into Smart Digital Profiles"}
         heroDescription={
           isId
             ? "Pusatkan seluruh data karyawan Anda. Kelola kontrak, riwayat pendidikan, aset, dan sertifikasi dalam satu sumber kebenaran yang aman dan mudah diakses."

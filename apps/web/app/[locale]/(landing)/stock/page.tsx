@@ -67,8 +67,8 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Inventory"
-        heroTitle={isId ? "Ubah Stok Berantakan Menjadi" : "Turn Messy Inventory Into"}
-        heroAccent={isId ? "Akurasi Sempurna" : "Perfect Accuracy"}
+        heroTitle={isId ? "Ubah Stok Berantakan" : "Turn Messy Inventory"}
+        heroAccent={isId ? "Menjadi Akurasi Sempurna" : "Into Perfect Accuracy"}
         heroDescription={
           isId
             ? "Akhiri mimpi buruk kehabisan barang. Pantau stok multi-gudang Anda, lacak tanggal kedaluwarsa, dan lakukan opname tanpa pusing."

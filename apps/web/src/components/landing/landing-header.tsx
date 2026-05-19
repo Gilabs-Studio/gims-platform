@@ -143,7 +143,7 @@ export function LandingHeader() {
             className="absolute top-full left-0 right-0 bg-background border-b border-border shadow-lg"
           >
             <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-8">
                 {marketingApps.map((topMenu) => (
                   <div key={topMenu.category.en} className="flex flex-col gap-3">
                     <h3 className="text-sm font-semibold tracking-wider text-primary uppercase border-b border-primary/20 pb-2 mb-2">

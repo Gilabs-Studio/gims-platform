@@ -46,8 +46,8 @@ export default async function AccountingLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Accounting"
-        heroTitle={isId ? "Ubah Pembukuan Rumit Menjadi" : "Turn Complex Bookkeeping Into"}
-        heroAccent={isId ? "Kejelasan Finansial" : "Financial Clarity"}
+        heroTitle={isId ? "Ubah Pembukuan Rumit" : "Turn Complex Bookkeeping"}
+        heroAccent={isId ? "Menjadi Kejelasan Finansial" : "Into Financial Clarity"}
         heroDescription={
           isId
             ? "Otomatiskan entri jurnal, buku besar, dan pelaporan sehingga Anda bisa fokus mengembangkan bisnis, bukan membereskan spreadsheet."

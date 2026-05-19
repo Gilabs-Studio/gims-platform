@@ -44,8 +44,8 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Fixed Assets"
-        heroTitle={isId ? "Ubah Pelacakan Manual Menjadi" : "Turn Manual Tracking Into"}
-        heroAccent={isId ? "Kendali Aset Penuh" : "Total Asset Control"}
+        heroTitle={isId ? "Ubah Pelacakan Manual" : "Turn Manual Tracking"}
+        heroAccent={isId ? "Menjadi Kendali Aset Penuh" : "Into Total Asset Control"}
         heroDescription={
           isId
             ? "Tinggalkan kerumitan mendata aset Anda. Lacak kepemilikan, nilai, dan penyusutan aset secara real-time untuk keputusan investasi yang lebih cerdas."

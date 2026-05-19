@@ -67,8 +67,8 @@ export default async function AttendanceLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Attendance"
-        heroTitle={isId ? "Ubah Absensi Kuno Menjadi" : "Turn Outdated Attendance Into"}
-        heroAccent={isId ? "Kedisiplinan Presisi" : "Precise Discipline"}
+        heroTitle={isId ? "Ubah Absensi Kuno" : "Turn Outdated Attendance"}
+        heroAccent={isId ? "Menjadi Kedisiplinan Presisi" : "Into Precise Discipline"}
         heroDescription={
           isId
             ? "Selamat tinggal kecurangan absen. Lacak kehadiran dengan GPS, verifikasi foto, dan otomatisasi statistik bulanan yang terhubung langsung ke evaluasi."

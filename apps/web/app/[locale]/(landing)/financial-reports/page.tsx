@@ -44,8 +44,8 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
       <FeatureLandingPage
         locale={locale}
         label="SalesView Financial Reports"
-        heroTitle={isId ? "Ubah Tebakan Buta Menjadi" : "Turn Blind Guessing Into"}
-        heroAccent={isId ? "Strategi Berbasis Data" : "Data-Driven Strategy"}
+        heroTitle={isId ? "Ubah Tebakan Buta" : "Turn Blind Guessing"}
+        heroAccent={isId ? "Menjadi Strategi Berbasis Data" : "Into Data-Driven Strategy"}
         heroDescription={
           isId
             ? "Lupakan kompilasi manual yang melelahkan. Dapatkan laporan keuangan real-time agar Anda selalu tahu persis ke mana arah bisnis Anda."

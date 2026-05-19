@@ -67,8 +67,8 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Recruitment"
-        heroTitle={isId ? "Ubah Rekrutmen Lambat Menjadi" : "Turn Slow Recruiting Into"}
-        heroAccent={isId ? "Mesin Akuisisi Bakat" : "Talent Acquisition Machines"}
+        heroTitle={isId ? "Ubah Rekrutmen Lambat" : "Turn Slow Recruiting"}
+        heroAccent={isId ? "Menjadi Mesin Akuisisi Bakat" : "Into Talent Acquisition Machines"}
         heroDescription={
           isId
             ? "Jangan biarkan kandidat terbaik lari ke kompetitor. Kelola permintaan, visualisasikan pelamar di papan Kanban, dan otomatisasi onboarding dengan sekali klik."

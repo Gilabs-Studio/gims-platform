@@ -44,8 +44,8 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Quotations"
-        heroTitle={isId ? "Ubah Proses Penawaran Menjadi" : "Turn Proposal Processes Into"}
-        heroAccent={isId ? "Mesin Closing" : "Closing Machines"}
+        heroTitle={isId ? "Ubah Proses Penawaran" : "Turn Proposal Processes"}
+        heroAccent={isId ? "Menjadi Mesin Closing" : "Into Closing Machines"}
         heroDescription={
           isId
             ? "Berhenti membuang waktu dengan dokumen manual. Buat quotation profesional yang memukau klien Anda dan percepat persetujuan sebelum pesanan dibuat."

@@ -46,8 +46,8 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Sales Orders"
-        heroTitle={isId ? "Ubah Proses Order Menjadi" : "Turn Your Order Flow Into"}
-        heroAccent={isId ? "Eksekusi Tanpa Hambatan" : "Seamless Execution"}
+        heroTitle={isId ? "Ubah Proses Order" : "Turn Your Order Flow"}
+        heroAccent={isId ? "Menjadi Eksekusi Tanpa Hambatan" : "Into Seamless Execution"}
         heroDescription={
           isId
             ? "Otomatiskan perjalanan pesanan Anda dari persetujuan hingga pemenuhan, pastikan setiap pelanggan mendapatkan apa yang mereka harapkan tepat waktu."

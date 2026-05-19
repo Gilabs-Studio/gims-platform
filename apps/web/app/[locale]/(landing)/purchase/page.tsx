@@ -67,8 +67,8 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
       <FeatureLandingPage
         locale={locale}
         label="SalesView Purchase"
-        heroTitle={isId ? "Ubah Pengadaan Rumit Menjadi" : "Turn Complex Procurement Into"}
-        heroAccent={isId ? "Kendali Otomatis" : "Automated Control"}
+        heroTitle={isId ? "Ubah Pengadaan Rumit" : "Turn Complex Procurement"}
+        heroAccent={isId ? "Menjadi Kendali Otomatis" : "Into Automated Control"}
         heroDescription={
           isId
             ? "Tinggalkan proses pengadaan manual. Hubungkan permintaan, pesanan, dan tagihan supplier dalam satu sistem mulus yang mengamankan margin Anda."

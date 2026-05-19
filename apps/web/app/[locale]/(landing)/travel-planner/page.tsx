@@ -67,8 +67,8 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
       <FeatureLandingPage
         locale={locale}
         label="SalesView Travel Planner"
-        heroTitle={isId ? "Ubah Perjalanan Dinas Menjadi" : "Turn Business Travel Into"}
-        heroAccent={isId ? "Operasi Bebas Hambatan" : "Frictionless Operations"}
+        heroTitle={isId ? "Ubah Perjalanan Dinas" : "Turn Business Travel"}
+        heroAccent={isId ? "Menjadi Operasi Bebas Hambatan" : "Into Frictionless Operations"}
         heroDescription={
           isId
             ? "Singkirkan spreadsheet perjalanan yang membingungkan. Rencanakan jadwal, optimalkan rute di peta interaktif, dan lacak pengeluaran secara real-time."

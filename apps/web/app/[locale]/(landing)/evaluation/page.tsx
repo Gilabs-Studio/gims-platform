@@ -67,8 +67,8 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Evaluation"
-        heroTitle={isId ? "Ubah Penilaian Subjektif Menjadi" : "Turn Subjective Appraisals Into"}
-        heroAccent={isId ? "Pertumbuhan Terukur" : "Measurable Growth"}
+        heroTitle={isId ? "Ubah Penilaian Subjektif" : "Turn Subjective Appraisals"}
+        heroAccent={isId ? "Menjadi Pertumbuhan Terukur" : "Into Measurable Growth"}
         heroDescription={
           isId
             ? "Hilangkan bias dalam evaluasi kinerja. Bangun kriteria berbobot, libatkan penilaian mandiri & atasan, dan dorong produktivitas dengan matriks yang jelas."

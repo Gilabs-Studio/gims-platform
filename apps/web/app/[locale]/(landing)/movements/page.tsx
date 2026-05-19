@@ -67,8 +67,8 @@ export default async function MovementsLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Movements"
-        heroTitle={isId ? "Ubah Mutasi Misterius Menjadi" : "Turn Mysterious Mutations Into"}
-        heroAccent={isId ? "Jejak Transparan" : "Transparent Trails"}
+        heroTitle={isId ? "Ubah Mutasi Misterius" : "Turn Mysterious Mutations"}
+        heroAccent={isId ? "Menjadi Jejak Transparan" : "Into Transparent Trails"}
         heroDescription={
           isId
             ? "Ketahui persis ke mana barang Anda pergi. Lacak setiap perpindahan, penyesuaian, dan transfer antar gudang dengan visibilitas tak tertandingi."

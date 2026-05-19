@@ -44,8 +44,8 @@ export default async function ReconciliationLandingPage({ params }: { params: Pr
       <FeatureLandingPage
         locale={locale}
         label="SalesView Reconciliation"
-        heroTitle={isId ? "Ubah Selisih Transaksi Menjadi" : "Turn Transaction Discrepancies Into"}
-        heroAccent={isId ? "Kepastian Finansial" : "Financial Certainty"}
+        heroTitle={isId ? "Ubah Selisih Transaksi" : "Turn Transaction Discrepancies"}
+        heroAccent={isId ? "Menjadi Kepastian Finansial" : "Into Financial Certainty"}
         heroDescription={
           isId
             ? "Cocokkan mutasi bank Anda dengan transaksi internal secara otomatis untuk menutup buku lebih cepat tanpa stres."

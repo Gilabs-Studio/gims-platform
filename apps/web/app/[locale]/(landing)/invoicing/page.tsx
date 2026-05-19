@@ -46,8 +46,8 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Invoicing"
-        heroTitle={isId ? "Ubah Penagihan Lambat Menjadi" : "Turn Slow Billing Into"}
-        heroAccent={isId ? "Arus Kas Lancar" : "Instant Cash Flow"}
+        heroTitle={isId ? "Ubah Penagihan Lambat" : "Turn Slow Billing"}
+        heroAccent={isId ? "Menjadi Arus Kas Lancar" : "Into Instant Cash Flow"}
         heroDescription={
           isId
             ? "Buat faktur profesional, lacak status pembayaran Anda, dan jalankan penagihan otomatis agar Anda dibayar lebih cepat."

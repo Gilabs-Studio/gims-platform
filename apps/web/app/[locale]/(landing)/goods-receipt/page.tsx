@@ -67,8 +67,8 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
       <FeatureLandingPage
         locale={locale}
         label="SalesView Goods Receipt"
-        heroTitle={isId ? "Ubah Penerimaan Kacau Menjadi" : "Turn Chaotic Receiving Into"}
-        heroAccent={isId ? "Pencatatan Presisi" : "Precise Records"}
+        heroTitle={isId ? "Ubah Penerimaan Kacau" : "Turn Chaotic Receiving"}
+        heroAccent={isId ? "Menjadi Pencatatan Presisi" : "Into Precise Records"}
         heroDescription={
           isId
             ? "Jangan biarkan barang hilang saat kedatangan. Validasi kuantitas secara akurat dan cocokkan dengan purchase order secara instan untuk mencegah kebocoran."
