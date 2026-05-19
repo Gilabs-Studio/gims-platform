@@ -54,10 +54,20 @@ export function purchaseCycle(auth, data) {
 
 	// STEP 4: Create Goods Receipt
 	if (poSubmit.status < 300 && poApprove.status < 300) {
+		// Fetch PO details to get item IDs
+		const poDetailRes = authGet(`${API_V1}/purchase/purchase-orders/${poId}`, auth, {
+			tags: { name: "purchase:orders:detail", ...WORKFLOW_TAGS },
+			responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
+		});
+		const poDetail = parseBody(poDetailRes);
+		const poItems = poDetail?.data?.items || [];
+		const poItemId = poItems[0]?.id;
+
 		const grPayload = {
 			purchase_order_id: poId,
 			receipt_date: orderDate,
-			items: [{ product_id: data.productId, quantity: 10, batch_id: data.batchId }],
+			warehouse_id: data.warehouseId,
+			items: [{ purchase_order_item_id: poItemId, product_id: data.productId, quantity: 10 }],
 		};
 		const grRes = authPost(`${API_V1}/purchase/goods-receipt`, grPayload, auth, {
 			tags: { name: "purchase:goods-receipt:create", ...WORKFLOW_TAGS },

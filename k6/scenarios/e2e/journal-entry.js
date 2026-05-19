@@ -42,21 +42,12 @@ export function journalEntryCycle(auth, data) {
 	});
 	if (!jeId) return null;
 
-	// STEP 2: Submit JE
-	const jeSubmit = authPost(`${API_V1}/finance/journal-entries/${jeId}/submit`, {}, auth, {
-		tags: { name: "finance:journals:submit", ...WORKFLOW_TAGS },
+	// STEP 2: Post JE (journals go directly to posted state, no approve needed)
+	const jeSubmit = authPost(`${API_V1}/finance/journal-entries/${jeId}/post`, {}, auth, {
+		tags: { name: "finance:journals:post", ...WORKFLOW_TAGS },
 		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
 	});
 	check(jeSubmit, { "JE submitted": (r) => r.status >= 200 && r.status < 300 });
-
-	// STEP 3: Approve JE
-	if (jeSubmit.status < 300) {
-		const jeApprove = authPost(`${API_V1}/finance/journal-entries/${jeId}/approve`, {}, auth, {
-			tags: { name: "finance:journals:approve", ...WORKFLOW_TAGS },
-			responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
-		});
-		check(jeApprove, { "JE approved": (r) => r.status >= 200 && r.status < 300 });
-	}
 
 	return { jeId };
 }

@@ -146,6 +146,21 @@ export const AUTH_ENDPOINTS = {
   purchaseOrders: `${API_V1}/purchase/purchase-orders`,
   dashboard: `${API_V1}/general/dashboard/overview`,
   billing: `${API_V1}/billing/subscription`,
+  // Core
+  paymentTerms: `${API_V1}/master-data/payment-terms`,
+  bankAccounts: `${API_V1}/finance/bank-accounts`,
+  leaveTypes: `${API_V1}/master-data/leave-types`,
+  courierAgencies: `${API_V1}/master-data/courier-agencies`,
+  soSources: `${API_V1}/master-data/so-sources`,
+  // Organization
+  companies: `${API_V1}/organization/companies`,
+  businessUnits: `${API_V1}/organization/business-units`,
+  divisions: `${API_V1}/organization/divisions`,
+  outlets: `${API_V1}/organization/outlets`,
+  areas: `${API_V1}/organization/areas`,
+  orgEmployees: `${API_V1}/organization/employees`,
+  jobPositions: `${API_V1}/organization/job-positions`,
+  businessTypes: `${API_V1}/organization/business-types`,
 };
 
 // ── Response Helpers ────────────────────────────────────────────────────────

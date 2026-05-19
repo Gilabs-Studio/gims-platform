@@ -6,32 +6,32 @@ import { SharedArray } from "k6/data";
 
 export const multiTenantCredentials = new SharedArray("tenant-credentials", () => [
 	{
-		email: "admin@gilabs.com",
-		password: __ENV.TEST_PASSWORD || "admin123",
+		email: __ENV.SEED_DEFAULT_EMAIL || "admin@example.com",
+		password: __ENV.SEED_DEFAULT_PASSWORD || "admin123",
 		role: "admin",
 		tenant: "Gilabs HQ",
 		description: "Full admin access — all modules",
 	},
 	{
-		email: "finance@gilabs.com",
-		password: __ENV.TEST_PASSWORD || "admin123",
-		role: "finance_officer",
+		email: "manager@example.com",
+		password: __ENV.SEED_DEFAULT_PASSWORD || "admin123",
+		role: "manager",
 		tenant: "Gilabs HQ",
-		description: "Finance module focus — journals, COA, invoices",
+		description: "Manager access — approvals, reports",
 	},
 	{
-		email: "sales@gilabs.com",
-		password: __ENV.TEST_PASSWORD || "admin123",
-		role: "sales_rep",
+		email: "staff@example.com",
+		password: __ENV.SEED_DEFAULT_PASSWORD || "admin123",
+		role: "staff",
 		tenant: "Gilabs HQ",
-		description: "Sales module focus — quotations, orders, deliveries",
+		description: "Staff access — day-to-day operations",
 	},
 	{
-		email: "warehouse@gilabs.com",
-		password: __ENV.TEST_PASSWORD || "admin123",
-		role: "warehouse_manager",
+		email: "viewer@example.com",
+		password: __ENV.SEED_DEFAULT_PASSWORD || "admin123",
+		role: "viewer",
 		tenant: "Gilabs HQ",
-		description: "Inventory module focus — stock, opnames",
+		description: "Read-only access — dashboards, reports",
 	},
 ]);
 

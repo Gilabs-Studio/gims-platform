@@ -16,12 +16,22 @@ import { ErrorHandler } from "../lib/error-handler.js";
 import { recordEndpointLatency } from "../lib/metrics.js";
 
 // ── API scenario imports ──────────────────────────────────────────────────────
-import { listQuotations, createQuotation, listOrders, listDeliveryOrders, listInvoices, listPayments } from "../scenarios/apis/sales.js";
-import { listPurchaseOrders, listGoodsReceipts } from "../scenarios/apis/purchase.js";
-import { listChartOfAccounts, listJournalEntries, listBudgets } from "../scenarios/apis/finance.js";
-import { listAttendance, listLeaveRequests, listEmployees } from "../scenarios/apis/hrd.js";
+import { listQuotations, createQuotation, listOrders, listDeliveryOrders, listInvoices, listPayments, listSalesReturns, listSalesTargets, listSalesVisits, listInvoiceDownPayments, listReceivablesRecap } from "../scenarios/apis/sales.js";
+import { listPurchaseOrders, listGoodsReceipts, listPurchaseRequisitions, listPurchaseReturns, listPurchasePayments, listSupplierInvoices, listSupplierInvoiceDownPayments, listPayableRecap } from "../scenarios/apis/purchase.js";
+import { listChartOfAccounts, listJournalEntries, listBudgets, listAssets, listAssetCategories, listAssetLocations, listBankReconciliations, listBankTransfers, listCashBankJournals, listCashBankTransactions, listFinanceReports, getFinanceSettings, listFinancialClosings, listFiscalYears, getInventorySettings, listJournalLines, listNonTradePayables, listOpeningBalances, listFinancePayments, listSystemAccountMappings, listTaxConfigurations, listTaxInvoices, listUpCountryCosts, listARAPReconciliations, listDepreciation } from "../scenarios/apis/finance.js";
+import { listAttendance, listLeaveRequests, listEmployees, listWorkSchedules, listHolidays, listOvertimeRequests, listEmployeeEvaluations, listEvaluationCriteria, listEvaluationGroups, listRecruitmentRequests, listRecruitmentApplicants, listSalaryStructures } from "../scenarios/apis/hrd.js";
 import { listStock, getStockMetrics, listMovements } from "../scenarios/apis/inventory.js";
 import { listUsers, listRoles, listProducts, createProduct, listCustomers, listSuppliers, listWarehouses, listCurrencies } from "../scenarios/apis/master-data.js";
+import { listProductCategories, listProductBrands, listProductSegments, listProductTypes, listUnitsOfMeasure, listPackaging, listProcurementTypes } from "../scenarios/apis/product.js";
+import { listLeads, listDeals, listContacts, listActivities, listActivityTypes, listTasks, listSchedules, listVisitReports, listPipelineStages, listAreaMappings, listLeadSources, listLeadStatuses, listContactRoles, listLeadAutomations, listAreaCaptures } from "../scenarios/apis/crm.js";
+import { listPOSOrders, listPOSSessions, listFloorPlans, getPOSConfig } from "../scenarios/apis/pos.js";
+import { listCountries, listProvinces, listCities, listDistricts, listVillages, getMapData } from "../scenarios/apis/geographic.js";
+import { getSalesOverview, getProductAnalysis, getGeoPerformance, getCustomerResearch, getSupplierResearch } from "../scenarios/apis/report.js";
+import { listStockOpnames } from "../scenarios/apis/stock-opname.js";
+import { listNotifications, listLoyaltyPrograms, listLoyaltyMembers, getOnboardingStatus, listSupplierTypes, listSupplierBanks } from "../scenarios/apis/supporting.js";
+import { listAISessions, listAIAdminActions, listAIAdminIntents, listTravelPlans, listFeedbackForms } from "../scenarios/apis/misc.js";
+import { listPaymentTerms, listBankAccounts, listLeaveTypes, listCourierAgencies, listSOSources } from "../scenarios/apis/core.js";
+import { listCompanies, listBusinessUnits, listDivisions, listOutlets, listAreas, listOrgEmployees, listJobPositions, listBusinessTypes } from "../scenarios/apis/organization.js";
 import { healthCheck, pingCheck, apiVersion } from "../scenarios/apis/public-endpoints.js";
 
 // ── E2E workflow imports ─────────────────────────────────────────────────────
@@ -94,14 +104,20 @@ export function setup() {
 			supplierId = items[0]?.id;
 		}
 
-		// Chart of accounts (for journal entries)
+		// Chart of accounts (for journal entries — pick EXPENSE/REVENUE accounts, skip trade control)
 		const coaRes = listChartOfAccounts(auth);
 		const coaData = parseBody(coaRes);
 		if (coaData?.data) {
 			const items = Array.isArray(coaData.data) ? coaData.data : coaData.data.items || [];
-			if (items.length >= 2) {
-				coaDebitId = items[0]?.id;
-				coaCreditId = items[1]?.id;
+			// Only use EXPENSE or REVENUE accounts — safe for manual journals
+			const safeAccounts = items.filter(a => {
+				const type = (a.type || "").toUpperCase();
+				return (type === "EXPENSE" || type === "REVENUE" || type === "EQUITY") && a.is_postable !== false;
+			});
+			const usable = safeAccounts.length >= 2 ? safeAccounts : items;
+			if (usable.length >= 2) {
+				coaDebitId = usable[0]?.id;
+				coaCreditId = usable[1]?.id;
 			}
 		}
 
@@ -113,6 +129,30 @@ export function setup() {
 			employeeId = items[0]?.id;
 		}
 
+		// Payment Terms (critical for SQ/PO creation)
+		const ptRes = listPaymentTerms(auth);
+		const ptData = parseBody(ptRes);
+		if (ptData?.data) {
+			const items = Array.isArray(ptData.data) ? ptData.data : ptData.data.items || [];
+			paymentTermsId = items[0]?.id;
+		}
+
+		// Bank Accounts (critical for payment creation)
+		const baRes = listBankAccounts(auth);
+		const baData = parseBody(baRes);
+		if (baData?.data) {
+			const items = Array.isArray(baData.data) ? baData.data : baData.data.items || [];
+			bankAccountId = items[0]?.id;
+		}
+
+		// Leave Types (for leave request workflow)
+		const ltRes = listLeaveTypes(auth);
+		const ltData = parseBody(ltRes);
+		if (ltData?.data) {
+			const items = Array.isArray(ltData.data) ? ltData.data : ltData.data.items || [];
+			leaveTypeId = items[0]?.id;
+		}
+
 		// Parse first user for company/business unit IDs
 		const meRes = authGet(`${API_V1}/users/me`, auth, { tags: { name: "auth:me", endpoint: "auth:me", module: "auth", tier: "crud" } });
 		const meData = parseBody(meRes);
@@ -121,6 +161,31 @@ export function setup() {
 			businessUnitId = meData.data.business_unit_id || meData.data.businessUnitId;
 			salesRepId = meData.data.employee_id || meData.data.id;
 		}
+
+		// Fallback: fetch companyId from Organization if /users/me didn't provide it
+		if (!companyId) {
+			const compRes = listCompanies(auth);
+			const compData = parseBody(compRes);
+			if (compData?.data) {
+				const items = Array.isArray(compData.data) ? compData.data : compData.data.items || [];
+				companyId = items[0]?.id;
+			}
+		}
+
+		// Fallback: fetch businessUnitId from Organization if /users/me didn't provide it
+		if (!businessUnitId) {
+			const buRes = listBusinessUnits(auth);
+			const buData = parseBody(buRes);
+			if (buData?.data) {
+				const items = Array.isArray(buData.data) ? buData.data : buData.data.items || [];
+				businessUnitId = items[0]?.id;
+			}
+		}
+
+		// Fallback: use first employee as salesRepId if /users/me didn't provide it
+		if (!salesRepId && employeeId) {
+			salesRepId = employeeId;
+		}
 	} catch (e) {
 		console.error(`Profiler setup error (continuing): ${e.message}`);
 	}
@@ -128,6 +193,26 @@ export function setup() {
 	// Use sensible defaults for IDs that weren't found in setup
 	if (batchableProducts.length === 0 && productId) {
 		batchableProducts = [{ productId }];
+	}
+
+	// Fetch outlet coordinates for GPS-based clock-in
+	let officeLatitude = -6.2088;
+	let officeLongitude = 106.8456;
+	let outletId = null;
+	try {
+		const outletRes = listOutlets(auth);
+		const outletData = parseBody(outletRes);
+		if (outletData?.data) {
+			const items = Array.isArray(outletData.data) ? outletData.data : outletData.data.items || [];
+			outletId = items[0]?.id;
+			const outletWithCoords = items.find(o => o.latitude && o.longitude);
+			if (outletWithCoords) {
+				officeLatitude = outletWithCoords.latitude;
+				officeLongitude = outletWithCoords.longitude;
+			}
+		}
+	} catch (e) {
+		// Use defaults
 	}
 
 	return {
@@ -147,6 +232,9 @@ export function setup() {
 		leaveTypeId: leaveTypeId || null,
 		batchId: batchId || "SETUP_MISSING",
 		batchableProducts,
+		officeLatitude,
+		officeLongitude,
+		outletId: outletId || "SETUP_MISSING",
 	};
 }
 
@@ -180,33 +268,157 @@ export default function (data) {
 	listWarehouses(auth);
 	listCurrencies(auth);
 
-	// ── Module 3: Sales ────────────────────────────────────────────────────
+	// ── Module 3: Core ────────────────────────────────────────────────────
+	listPaymentTerms(auth);
+	listBankAccounts(auth);
+	listLeaveTypes(auth);
+	listCourierAgencies(auth);
+	listSOSources(auth);
+
+	// ── Module 4: Organization ────────────────────────────────────────────
+	listCompanies(auth);
+	listBusinessUnits(auth);
+	listDivisions(auth);
+	listOutlets(auth);
+	listAreas(auth);
+	listOrgEmployees(auth);
+	listJobPositions(auth);
+	listBusinessTypes(auth);
+
+	// ── Module 5: Sales ────────────────────────────────────────────────────
 	listQuotations(auth);
 	listOrders(auth);
 	listDeliveryOrders(auth);
 	listInvoices(auth);
 	listPayments(auth);
+	listSalesReturns(auth);
+	listSalesTargets(auth);
+	listSalesVisits(auth);
+	listInvoiceDownPayments(auth);
+	listReceivablesRecap(auth);
 
-	// ── Module 4: Purchase ────────────────────────────────────────────────
+	// ── Module 6: Purchase ────────────────────────────────────────────────
 	listPurchaseOrders(auth);
 	listGoodsReceipts(auth);
+	listPurchaseRequisitions(auth);
+	listPurchaseReturns(auth);
+	listPurchasePayments(auth);
+	listSupplierInvoices(auth);
+	listSupplierInvoiceDownPayments(auth);
+	listPayableRecap(auth);
 
-	// ── Module 5: Finance ──────────────────────────────────────────────────
+	// ── Module 7: Finance ──────────────────────────────────────────────────
 	listChartOfAccounts(auth);
 	listJournalEntries(auth);
 	listBudgets(auth);
+	listAssets(auth);
+	listAssetCategories(auth);
+	listAssetLocations(auth);
+	listBankReconciliations(auth);
+	listBankTransfers(auth);
+	listCashBankJournals(auth);
+	listCashBankTransactions(auth);
+	listFinanceReports(auth);
+	getFinanceSettings(auth);
+	listFinancialClosings(auth);
+	listFiscalYears(auth);
+	getInventorySettings(auth);
+	listJournalLines(auth);
+	listNonTradePayables(auth);
+	listOpeningBalances(auth);
+	listFinancePayments(auth);
+	listSystemAccountMappings(auth);
+	listTaxConfigurations(auth);
+	listTaxInvoices(auth);
+	listUpCountryCosts(auth);
+	listARAPReconciliations(auth);
+	listDepreciation(auth);
 
-	// ── Module 6: HRD ──────────────────────────────────────────────────────
+	// ── Module 8: HRD ──────────────────────────────────────────────────────
 	listAttendance(auth);
 	listLeaveRequests(auth);
 	listEmployees(auth);
+	listWorkSchedules(auth);
+	listHolidays(auth);
+	listOvertimeRequests(auth);
+	listEmployeeEvaluations(auth);
+	listEvaluationCriteria(auth);
+	listEvaluationGroups(auth);
+	listRecruitmentRequests(auth);
+	listRecruitmentApplicants(auth);
+	listSalaryStructures(auth);
 
-	// ── Module 7: Inventory ────────────────────────────────────────────────
+	// ── Module 9: Inventory ────────────────────────────────────────────────
 	listStock(auth);
 	getStockMetrics(auth);
 	listMovements(auth);
 
-	// ── Module 8: Dashboard ────────────────────────────────────────────────
+	// ── Module 10: Product ─────────────────────────────────────────────────
+	listProductCategories(auth);
+	listProductBrands(auth);
+	listProductSegments(auth);
+	listProductTypes(auth);
+	listUnitsOfMeasure(auth);
+	listPackaging(auth);
+	listProcurementTypes(auth);
+
+	// ── Module 11: CRM ────────────────────────────────────────────────────────
+	listLeads(auth);
+	listDeals(auth);
+	listContacts(auth);
+	listActivities(auth);
+	listActivityTypes(auth);
+	listTasks(auth);
+	listSchedules(auth);
+	listVisitReports(auth);
+	listPipelineStages(auth);
+	listAreaMappings(auth);
+	listLeadSources(auth);
+	listLeadStatuses(auth);
+	listContactRoles(auth);
+	listLeadAutomations(auth);
+	listAreaCaptures(auth);
+
+	// ── Module 12: POS ────────────────────────────────────────────────────────
+	listPOSOrders(auth);
+	listPOSSessions(auth);
+	listFloorPlans(auth);
+	getPOSConfig(auth, data.outletId);
+
+	// ── Module 13: Geographic ──────────────────────────────────────────────────
+	listCountries(auth);
+	listProvinces(auth);
+	listCities(auth);
+	listDistricts(auth);
+	listVillages(auth);
+	getMapData(auth);
+
+	// ── Module 14: Report ──────────────────────────────────────────────────────
+	getSalesOverview(auth);
+	getProductAnalysis(auth);
+	getGeoPerformance(auth);
+	getCustomerResearch(auth);
+	getSupplierResearch(auth);
+
+	// ── Module 15: Stock Opname ────────────────────────────────────────────────
+	listStockOpnames(auth);
+
+	// ── Module 16: Supporting (Notification, Loyalty, General, Supplier) ────────
+	listNotifications(auth);
+	listLoyaltyPrograms(auth);
+	listLoyaltyMembers(auth);
+	getOnboardingStatus(auth);
+	listSupplierTypes(auth);
+	listSupplierBanks(auth);
+
+	// ── Module 17: Misc (AI, Travel, Feedback) ─────────────────────────────────
+	listAISessions(auth);
+	listAIAdminActions(auth);
+	listAIAdminIntents(auth);
+	listTravelPlans(auth);
+	listFeedbackForms(auth);
+
+	// ── Module 18: Dashboard ────────────────────────────────────────────────
 	dashboardOverview(auth);
 
 	// ── E2E Workflows (every 5th iteration) ────────────────────────────────

@@ -47,23 +47,15 @@ export function revenueCycle(auth, data, options = {}) {
 	check(sqRes, { "SQ created": (r) => r.status >= 200 && r.status < 300 && !!sqId });
 	if (!sqId) return null;
 
-	// STEP 2: Submit SQ
-	const sqSubmit = authPost(`${API_V1}/sales/sales-quotations/${sqId}/submit`, {}, auth, {
-		tags: { name: "sales:quotations:submit", ...WORKFLOW_TAGS },
-		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
-	});
-	check(sqSubmit, { "SQ submitted": (r) => r.status >= 200 && r.status < 300 });
-
-	// STEP 3: Approve SQ
-	const sqApprove = authPost(`${API_V1}/sales/sales-quotations/${sqId}/approve`, {}, auth, {
+	// STEP 2: Approve SQ (direct status transition — submit step not required)
+	const sqApprove = authPatch(`${API_V1}/sales/sales-quotations/${sqId}/status`, { status: "approved" }, auth, {
 		tags: { name: "sales:quotations:approve", ...WORKFLOW_TAGS },
 		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
 	});
 	check(sqApprove, { "SQ approved": (r) => r.status >= 200 && r.status < 300 });
 
-	// STEP 4: Convert SQ → SO
-	const soPayload = { ...sqPayload, quotation_id: sqId };
-	const soRes = authPost(`${API_V1}/sales/sales-orders`, soPayload, auth, {
+	// STEP 3: Convert SQ → SO
+	const soRes = authPost(`${API_V1}/sales/sales-orders/convert-from-quotation`, { quotation_id: sqId }, auth, {
 		tags: { name: "sales:orders:create", ...WORKFLOW_TAGS },
 		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
 	});
@@ -71,35 +63,37 @@ export function revenueCycle(auth, data, options = {}) {
 	check(soRes, { "SO created": (r) => r.status >= 200 && r.status < 300 && !!soId });
 	if (!soId) return { sqId };
 
-	// STEP 5: Submit SO
-	const soSubmit = authPost(`${API_V1}/sales/sales-orders/${soId}/submit`, {}, auth, {
+	// STEP 4: Submit SO then Approve
+	const soSend = authPatch(`${API_V1}/sales/sales-orders/${soId}/status`, { status: "submitted" }, auth, {
 		tags: { name: "sales:orders:submit", ...WORKFLOW_TAGS },
 		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
 	});
-	check(soSubmit, { "SO submitted": (r) => r.status >= 200 && r.status < 300 });
+	check(soSend, { "SO sent": (r) => r.status >= 200 && r.status < 300 });
 
-	// STEP 6: Approve SO
 	const soApprove = authPost(`${API_V1}/sales/sales-orders/${soId}/approve`, {}, auth, {
 		tags: { name: "sales:orders:approve", ...WORKFLOW_TAGS },
 		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
 	});
 	check(soApprove, { "SO approved": (r) => r.status >= 200 && r.status < 300 });
 
-	// STEP 7: Create Delivery Order
-	const doPayload = {
-		sales_order_id: soId,
-		delivery_date: quotationDate,
-		warehouse_id: data.warehouseId,
-		items: [{ product_id: target.productId, quantity: 1 }],
-	};
-	const doRes = authPost(`${API_V1}/sales/delivery-orders`, doPayload, auth, {
-		tags: { name: "sales:delivery-orders:create", ...WORKFLOW_TAGS },
-		responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
-	});
-	const doId = parseBody(doRes)?.data?.id;
-	check(doRes, { "DO created": (r) => r.status >= 200 && r.status < 300 && !!doId });
+	// STEP 5: Create Delivery Order (requires inventory batch — skip if no stock data)
+	let doId = null;
+	if (data.batchId && data.batchId !== "SETUP_MISSING") {
+		const doPayload = {
+			sales_order_id: soId,
+			delivery_date: quotationDate,
+			warehouse_id: data.warehouseId,
+			items: [{ product_id: target.productId, quantity: 1, inventory_batch_id: data.batchId }],
+		};
+		const doRes = authPost(`${API_V1}/sales/delivery-orders`, doPayload, auth, {
+			tags: { name: "sales:delivery-orders:create", ...WORKFLOW_TAGS },
+			responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
+		});
+		doId = parseBody(doRes)?.data?.id;
+		check(doRes, { "DO created": (r) => r.status >= 200 && r.status < 300 && !!doId });
+	}
 
-	// STEP 8: Create Invoice
+	// STEP 6: Create Invoice
 	const invPayload = {
 		sales_order_id: soId,
 		invoice_date: quotationDate,
@@ -113,6 +107,15 @@ export function revenueCycle(auth, data, options = {}) {
 	const invId = parseBody(invRes)?.data?.id;
 	check(invRes, { "Invoice created": (r) => r.status >= 200 && r.status < 300 && !!invId });
 
+	// STEP 7: Approve Invoice (required before payment)
+	if (invId) {
+		const invApprove = authPost(`${API_V1}/sales/customer-invoices/${invId}/approve`, {}, auth, {
+			tags: { name: "sales:invoices:approve", ...WORKFLOW_TAGS },
+			responseCallback: http.expectedStatuses({ min: 200, max: 599 }),
+		});
+		check(invApprove, { "Invoice approved": (r) => r.status >= 200 && r.status < 300 });
+	}
+
 	// STEP 9: Create Payment
 	if (invId) {
 		const payPayload = {
@@ -120,6 +123,7 @@ export function revenueCycle(auth, data, options = {}) {
 			amount: 55000,
 			payment_date: quotationDate,
 			bank_account_id: data.bankAccountId,
+			method: "bank_transfer",
 		};
 		const payRes = authPost(`${API_V1}/sales/payments`, payPayload, auth, {
 			tags: { name: "sales:payments:create", ...WORKFLOW_TAGS },

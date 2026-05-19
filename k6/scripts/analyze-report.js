@@ -19,7 +19,7 @@ const DEFAULT_THRESHOLDS = {
 
 // ── CLI Argument Parsing ──────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const jsonFile = args.find((a) => !a.startsWith("--"));
+let jsonFile = args.find((a) => !a.startsWith("--"));
 const thresholdsArg = args.find((a) => a.startsWith("--thresholds="));
 
 let thresholds = { ...DEFAULT_THRESHOLDS };
@@ -33,8 +33,24 @@ if (thresholdsArg) {
 	}
 }
 
+// Auto-detect latest profiler report if no file argument provided
 if (!jsonFile) {
-	console.error("Usage: node analyze-report.js <path-to-k6-json-output> [--thresholds crud=300,list=800]");
+	const reportsDir = path.join(__dirname, "..", "reports");
+	if (fs.existsSync(reportsDir)) {
+		const reports = fs.readdirSync(reportsDir)
+			.filter((f) => /^profiler-\d{8}-\d{6}\.json$/.test(f))
+			.sort()
+			.reverse();
+		if (reports.length > 0) {
+			jsonFile = path.join(reportsDir, reports[0]);
+			console.log(`Auto-detected latest report: ${jsonFile}`);
+		}
+	}
+}
+
+if (!jsonFile) {
+	console.error("Usage: node analyze-report.js [path-to-k6-json-output] [--thresholds crud=300,list=800]");
+	console.error("       If no file is provided, the latest report in k6/reports/ is used.");
 	process.exit(1);
 }
 

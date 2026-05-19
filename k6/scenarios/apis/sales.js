@@ -42,3 +42,28 @@ export function listPayments(auth, params = {}) {
 		...params,
 	});
 }
+
+export function listSalesReturns(auth, params = {}) {
+	const p = { ...getTaggedParams("sales:returns:list"), ...params };
+	return authGet(`${API_V1}/sales/returns`, auth, p);
+}
+
+export function listSalesTargets(auth, params = {}) {
+	const p = { ...getTaggedParams("sales:targets:list"), ...params };
+	return authGet(`${API_V1}/sales/sales-targets`, auth, p);
+}
+
+export function listSalesVisits(auth, params = {}) {
+	const p = { ...getTaggedParams("sales:visits:list"), ...params };
+	return authGet(`${API_V1}/sales/sales-visits`, auth, p);
+}
+
+export function listInvoiceDownPayments(auth, params = {}) {
+	const p = { ...getTaggedParams("sales:invoice-dp:list"), ...params };
+	return authGet(`${API_V1}/sales/customer-invoice-down-payments`, auth, p);
+}
+
+export function listReceivablesRecap(auth, params = {}) {
+	const p = { ...getTaggedParams("sales:receivables-recap:list"), ...params };
+	return authGet(`${API_V1}/sales/receivables-recap`, auth, p);
+}
