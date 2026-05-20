@@ -11,7 +11,7 @@ export const landingEn = {
     hero: {
       badge: "Your End-to-End Business Engine",
       title1: "Scale Your Business",
-      title2: "Without the Complexity.",
+      title2: "Without the Complexity",
       subtitle:
         "Replace fragmented systems with one intelligent platform. Manage your entire operation from sales and finance to HR and inventory with real-time AI insights.",
       cta: "Start Free Trial",

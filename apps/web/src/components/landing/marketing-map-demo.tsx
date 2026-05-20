@@ -76,7 +76,7 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
       className="h-full w-full rounded-2xl"
       ref={mapRef}
     >
-      <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
+      <TileLayer url={TILE_URL} attribution={TILE_ATTR} detectRetina={false} />
 
       {geojson && !unauthorized ? (
         <GeoJSON

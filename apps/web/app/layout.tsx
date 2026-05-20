@@ -140,9 +140,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <head>
-        <link rel="dns-prefetch" href="https://api.dicebear.com" />
-      </head>
+      <head />
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} ${accentFont.variable} antialiased`}
       >
