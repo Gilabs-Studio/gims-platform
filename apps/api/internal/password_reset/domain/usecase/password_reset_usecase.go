@@ -204,6 +204,7 @@ func (u *passwordResetUsecase) notifyAdminPasswordResetRequest(ctx context.Conte
 	for _, admin := range adminUsers {
 		notifications = append(notifications, notificationModels.Notification{
 			UserID:     admin.ID,
+			TenantID:   user.TenantID,
 			Type:       notificationModels.NotificationTypeInfo,
 			Title:      fmt.Sprintf("Password Reset Request - %s", user.Name),
 			Message:    fmt.Sprintf("User %s (%s) has requested a password reset. Token: %s (expires in 24 hours)", user.Name, user.Email, token),

@@ -45,6 +45,50 @@ import {
   getPasswordResetTokenPrefill,
 } from "@/lib/password-reset-token-prefill";
 
+type ApiLikeError = {
+  response?: {
+    data?: {
+      error?: {
+        code?: string;
+        message?: string;
+      };
+    };
+  };
+};
+
+function getApiErrorInfo(error: unknown): { code?: string; message?: string } {
+  const apiError = (error as ApiLikeError)?.response?.data?.error;
+  return {
+    code: apiError?.code,
+    message: apiError?.message,
+  };
+}
+
+function normalizeResetTokenInput(rawToken: string): string {
+  const trimmed = rawToken.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
+  if (!trimmed) return "";
+
+  // Support pasting full notification text, e.g. "Token: abc..." or URL query "?token=abc...".
+  const namedMatch = trimmed.match(/(?:token\s*[:=]\s*|token=)([A-Za-z0-9._-]+)/i);
+  if (namedMatch?.[1]) {
+    return namedMatch[1];
+  }
+
+  // Fallback: choose first token-like segment (32+ chars) to tolerate extra prose around token.
+  const longSegment = trimmed.match(/[A-Za-z0-9._-]{32,}/);
+  if (longSegment?.[0]) {
+    return longSegment[0];
+  }
+
+  return trimmed;
+}
+
+function getTokenPreview(token: string): string {
+  if (!token) return "";
+  if (token.length <= 12) return token;
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
 function getInitialOpenUserFromURL(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -218,7 +262,11 @@ export function UserList() {
       return;
     }
 
-    if (!resetToken.trim()) {
+    const normalizedToken = normalizeResetTokenInput(resetToken);
+
+    
+
+    if (!normalizedToken) {
       toast.error(t("resetPasswordTokenRequired"));
       return;
     }
@@ -233,20 +281,24 @@ export function UserList() {
       return;
     }
 
-    const cacheEntries = queryClient.getQueriesData<ListUsersResponse>({
-      queryKey: ["users"],
-    });
-    const previousDataMap = new Map();
-
     try {
       setIsSubmittingReset(true);
+
+      // Fail fast on invalid/expired/used token to avoid optimistic cache churn.
+      await passwordResetService.validateToken(normalizedToken);
+      
+
+      const cacheEntries = queryClient.getQueriesData<ListUsersResponse>({
+        queryKey: ["users"],
+      });
+      const previousDataMap = new Map();
 
       await queryClient.cancelQueries({ queryKey: ["users"] });
 
       // Optimistic update: remove password_reset_pending from all cache variants
       // Update semua cache entries
       cacheEntries.forEach(([key, cachedData]) => {
-        if (cachedData) {
+        if (cachedData && Array.isArray(cachedData.data)) {
           previousDataMap.set(key, cachedData);
 
           const updatedData: ListUsersResponse = {
@@ -263,16 +315,17 @@ export function UserList() {
       });
 
       await passwordResetService.resetPassword({
-        token: resetToken.trim(),
+        token: normalizedToken,
         new_password: newPassword,
         confirm_password: confirmPassword,
       });
+      
 
       // Keep cache in sync after success before background refetch.
       queryClient.setQueriesData<ListUsersResponse>(
         { queryKey: ["users"] },
         (current) => {
-          if (!current) {
+          if (!current || !Array.isArray(current.data)) {
             return current;
           }
 
@@ -292,15 +345,16 @@ export function UserList() {
       
       toast.success(t("resetPasswordSuccessWithName", { name: resetPasswordTarget.name }));
       closeResetPasswordDialog();
-    } catch {
-      cacheEntries.forEach(([key]) => {
-        const previousData = previousDataMap.get(key);
-        if (previousData) {
-          queryClient.setQueryData(key, previousData);
-        }
-      });
+    } catch (error: unknown) {
+      const { code, message } = getApiErrorInfo(error);
+      
 
-      toast.error(t("resetPasswordFailed"));
+      if (code === "INVALID_RESET_TOKEN" || code === "RESET_TOKEN_EXPIRED" || code === "RESET_TOKEN_ALREADY_USED") {
+        toast.error(message || t("resetPasswordFailed"));
+        return;
+      }
+
+      toast.error(message || t("resetPasswordFailed"));
       // Refetch to restore cache if API call failed
       await queryClient.invalidateQueries({ queryKey: ["users"] });
     } finally {
