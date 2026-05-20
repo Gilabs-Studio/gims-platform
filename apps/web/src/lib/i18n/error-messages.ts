@@ -3,6 +3,8 @@
  * This works outside React context (e.g., in axios interceptors)
  */
 
+import { getLocalePreferenceFromBrowser } from "@/lib/locale-preference";
+
 type Locale = "en" | "id";
 
 interface ErrorMessages {
@@ -47,9 +49,8 @@ function getCurrentLocale(): Locale {
     return localeMatch[1] as Locale;
   }
 
-  // Try to get from localStorage (if saved)
-  const savedLocale = localStorage.getItem("locale");
-  if (savedLocale === "en" || savedLocale === "id") {
+  const savedLocale = getLocalePreferenceFromBrowser();
+  if (savedLocale) {
     return savedLocale;
   }
 

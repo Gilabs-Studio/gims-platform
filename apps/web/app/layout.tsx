@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Sora, Newsreader } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { getLanguageAlternates } from "@/lib/seo";
 import type { Locale } from "@/types/locale";
 
 const geistSans = Geist({
@@ -27,79 +28,93 @@ const accentFont = Newsreader({
   style: ["italic", "normal"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://salesview.id"),
-  title: {
-    template: "%s | SalesView",
-    default: "SalesView - ERP, CRM, HRIS, POS & Finance",
-  },
-  description:
-    "SalesView adalah software all-in-one ERP, CRM, HRIS, POS, dan Finance untuk bisnis Indonesia. Satu platform untuk operasional, penjualan, stok, HR, dan laporan keuangan.",
-  keywords: [
-    "ERP Indonesia",
-    "Aplikasi CRM",
-    "Sistem HRIS",
-    "Aplikasi Kasir POS",
-    "Software Finance",
-    "SalesView",
-    "Manajemen Bisnis Terintegrasi",
-    "All-in-one Software",
-    "Vendor ERP",
-    "Custom ERP",
-    "Custom ERP Indonesia",
-    "ERP Indonesia Murah",
-    "point of sales",
-    "pos kasir",
-    "software hrd",
-    "inventory software",
-    "sales erp",
-    "aplikasi pencatatan penjualan",
-    "sales management software",
-    "software manajemen penjualan",
-  ],
-  authors: [{ name: "SalesView" }],
-  creator: "SalesView",
-  publisher: "SalesView",
-  openGraph: {
-    type: "website",
-    locale: "id_ID",
-    url: "https://salesview.id",
-    title: "SalesView - ERP, CRM, HRIS, POS & Finance",
+export async function generateMetadata(): Promise<Metadata> {
+  let locale: Locale;
+
+  try {
+    const localeValue = await getLocale();
+    locale = routing.locales.includes(localeValue as Locale)
+      ? (localeValue as Locale)
+      : routing.defaultLocale;
+  } catch {
+    locale = routing.defaultLocale;
+  }
+
+  return {
+    metadataBase: new URL("https://salesview.id"),
+    title: {
+      template: "%s | SalesView",
+      default: "SalesView - ERP, CRM, HRIS, POS & Finance",
+    },
     description:
-      "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
-    siteName: "SalesView",
-    images: [
-      {
-        url: "/screenshot/dashboard.webp",
-        width: 1920,
-        height: 1080,
-        alt: "SalesView dashboard preview",
-      },
+      "SalesView adalah software all-in-one ERP, CRM, HRIS, POS, dan Finance untuk bisnis Indonesia. Satu platform untuk operasional, penjualan, stok, HR, dan laporan keuangan.",
+    keywords: [
+      "ERP Indonesia",
+      "Aplikasi CRM",
+      "Sistem HRIS",
+      "Aplikasi Kasir POS",
+      "Software Finance",
+      "SalesView",
+      "Manajemen Bisnis Terintegrasi",
+      "All-in-one Software",
+      "Vendor ERP",
+      "Custom ERP",
+      "Custom ERP Indonesia",
+      "ERP Indonesia Murah",
+      "point of sales",
+      "pos kasir",
+      "software hrd",
+      "inventory software",
+      "sales erp",
+      "aplikasi pencatatan penjualan",
+      "sales management software",
+      "software manajemen penjualan",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "SalesView - ERP, CRM, HRIS, POS & Finance",
-    description:
-      "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
-    creator: "@salesview",
-    images: ["/screenshot/dashboard.webp"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: "SalesView" }],
+    creator: "SalesView",
+    publisher: "SalesView",
+    openGraph: {
+      type: "website",
+      locale: locale === "id" ? "id_ID" : "en_US",
+      url: "https://salesview.id",
+      title: "SalesView - ERP, CRM, HRIS, POS & Finance",
+      description:
+        "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
+      siteName: "SalesView",
+      images: [
+        {
+          url: "/screenshot/dashboard.webp",
+          width: 1920,
+          height: 1080,
+          alt: "SalesView dashboard preview",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "SalesView - ERP, CRM, HRIS, POS & Finance",
+      description:
+        "SalesView adalah platform bisnis all-in-one untuk ERP, CRM, HRIS, POS, dan Finance di Indonesia.",
+      creator: "@salesview",
+      images: ["/screenshot/dashboard.webp"],
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  alternates: {
-    canonical: "https://salesview.id",
-  },
-};
+    alternates: {
+      canonical: "https://salesview.id",
+      languages: getLanguageAlternates("/"),
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

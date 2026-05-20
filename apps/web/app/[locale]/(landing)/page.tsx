@@ -208,11 +208,14 @@ export default function LandingPage() {
               initial="hidden"
               animate="visible"
               custom={0.1}
-              className="mx-auto max-w-4xl text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
+              style={{ opacity: 1, transform: "none" }}
+              className="mx-auto max-w-5xl text-center text-balance text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
             >
               {t("hero.title1")}
               <br />
-              <span className="text-primary font-accent font-medium italic text-[3.5rem] sm:text-[4.5rem] lg:text-[5.5rem] leading-[1.1] inline-block tracking-normal">{t("hero.title2")}</span>
+              <span className="inline-block text-[3.5rem] font-medium leading-[1.1] tracking-normal text-primary italic font-accent sm:text-[4.5rem] lg:text-[5.5rem]">
+                {t("hero.title2")}
+              </span>
             </motion.h1>
 
             <motion.p
