@@ -35,6 +35,12 @@ func (r *inventoryRepository) GetProductLedgers(ctx context.Context, productID s
 		return nil, 0, err
 	}
 
+	// Enforce maximum limit to prevent excessive memory allocation (DoS mitigation)
+	const MaxLimit = 1000
+	if req.Limit > MaxLimit {
+		req.Limit = MaxLimit
+	}
+
 	// Get transaction IDs for current page ordered by latest created_at
 	offset := (req.Page - 1) * req.Limit
 	pageRows := make([]transactionPageRow, 0, req.Limit)
