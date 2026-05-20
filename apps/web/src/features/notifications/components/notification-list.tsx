@@ -113,6 +113,8 @@ export function NotificationList() {
         return `/hrd/salary-structures?open_salary=${notification.entity_id}`;
       case "password_reset_request":
         return `/master-data/users?open_user=${notification.entity_id}`;
+      case "pos_self_order":
+        return `/pos/fb/live-table?outlet_id=${notification.entity_id}`;
       case "pos_order":
       case "pos_payment":
         return `/pos/fb/live-table`;

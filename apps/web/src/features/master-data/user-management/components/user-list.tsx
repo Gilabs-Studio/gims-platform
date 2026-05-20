@@ -83,12 +83,6 @@ function normalizeResetTokenInput(rawToken: string): string {
   return trimmed;
 }
 
-function getTokenPreview(token: string): string {
-  if (!token) return "";
-  if (token.length <= 12) return token;
-  return `${token.slice(0, 6)}...${token.slice(-4)}`;
-}
-
 function getInitialOpenUserFromURL(): string | null {
   if (typeof window === "undefined") {
     return null;
