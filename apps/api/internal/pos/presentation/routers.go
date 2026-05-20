@@ -18,8 +18,8 @@ import (
 	loyaltyUsecasePkg "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
-	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	"github.com/gilabs/gims/api/internal/pos/domain/provider"
+	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	"github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/pos/presentation/handler"
 	"github.com/gilabs/gims/api/internal/pos/presentation/router"
@@ -99,7 +99,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// ─── Public self-order handler ────────────────────────────────────────────
 
-	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub, deviceTokenRepo, provider.NewMultiPlatformPushNotifier())
+	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub, deviceTokenRepo, provider.NewMultiPlatformPushNotifier(), db)
 	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
 	posWSH := handler.NewPOSWSHandler(posHub, outletRepo)
 

@@ -2,12 +2,16 @@ package repositories
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+var ErrTableQRTokenTableNotReady = errors.New("pos_table_qr_tokens table is not ready")
 
 // TableQRTokenRepository defines data access for table QR tokens.
 type TableQRTokenRepository interface {
@@ -58,6 +62,9 @@ func (r *tableQRTokenRepository) GenerateForTable(ctx context.Context, token *mo
 		return tx.Create(token).Error
 	})
 	if err != nil {
+		if isMissingTableQRTokenTableError(err) {
+			return nil, ErrTableQRTokenTableNotReady
+		}
 		return nil, err
 	}
 	return token, nil
@@ -70,6 +77,9 @@ func (r *tableQRTokenRepository) FindByToken(ctx context.Context, token string) 
 	err := r.db.
 		Where("token = ? AND is_active = true AND deleted_at IS NULL", token).
 		First(&record).Error
+	if isMissingTableQRTokenTableError(err) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +93,9 @@ func (r *tableQRTokenRepository) FindByFloorPlan(ctx context.Context, floorPlanI
 		Where("floor_plan_id = ? AND is_active = true AND deleted_at IS NULL", floorPlanID).
 		Order("table_label ASC").
 		Find(&records).Error
+	if isMissingTableQRTokenTableError(err) {
+		return []models.PosTableQRToken{}, nil
+	}
 	return records, err
 }
 
@@ -93,6 +106,9 @@ func (r *tableQRTokenRepository) FindByTableObject(ctx context.Context, floorPla
 		Where("floor_plan_id = ? AND table_object_id = ? AND is_active = true AND deleted_at IS NULL",
 			floorPlanID, tableObjectID).
 		First(&record).Error
+	if isMissingTableQRTokenTableError(err) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +117,22 @@ func (r *tableQRTokenRepository) FindByTableObject(ctx context.Context, floorPla
 
 // Revoke deactivates and soft-deletes the active token for a table object.
 func (r *tableQRTokenRepository) Revoke(ctx context.Context, floorPlanID, tableObjectID string) error {
-	return r.getDB(ctx).
+	err := r.getDB(ctx).
 		Where("floor_plan_id = ? AND table_object_id = ? AND deleted_at IS NULL",
 			floorPlanID, tableObjectID).
 		Delete(&models.PosTableQRToken{}).Error
+	if isMissingTableQRTokenTableError(err) {
+		return nil
+	}
+	return err
+}
+
+func isMissingTableQRTokenTableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "relation \"pos_table_qr_tokens\" does not exist") ||
+		strings.Contains(errMsg, "sqlstate 42p01") ||
+		strings.Contains(errMsg, "no such table: pos_table_qr_tokens")
 }

@@ -43,6 +43,7 @@ var entityLinkRules = map[string]entityLinkRule{
 	"overtime":             {basePath: "/hrd/overtime", queryKey: "open_overtime"},
 	"recruitment":          {basePath: "/hrd/recruitment", queryKey: "open_recruitment"},
 	"crm_visit":            {basePath: "/crm/visits", queryKey: "open_crm_visit"},
+	"pos_self_order":       {basePath: "/pos/fb/live-table", queryKey: "outlet_id"},
 }
 
 type NotificationUsecase interface {

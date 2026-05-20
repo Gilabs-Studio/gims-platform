@@ -226,5 +226,5 @@ export function useWebSocket() {
         reconnectTimeoutRef.current = null;
       }
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, addRealtimeNotification]);
 }

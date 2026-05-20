@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -35,8 +35,6 @@ export function POSTerminalPageClient() {
   const outletIdFromQuery = searchParams.get("outlet_id");
   const tableIdFromQuery = searchParams.get("table_id") ?? undefined;
   const tableLabelFromQuery = searchParams.get("table_label") ?? undefined;
-  const floorPlanIdFromQuery = searchParams.get("floor_plan_id") ?? undefined;
-  const outletNameFromQuery = searchParams.get("outlet_name") ?? undefined;
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
   const hasAutoNavigated = useRef(false);
 
@@ -56,8 +54,6 @@ export function POSTerminalPageClient() {
     { status: "published", per_page: 100 },
     { enabled: outlets.length > 0 }
   );
-  const floorPlans = useMemo(() => floorLayoutData?.data ?? [], [floorLayoutData?.data]);
-
   const outletWithLayouts = useMemo(() => {
     const ids = new Set<string>();
     for (const plan of floorLayoutData?.data ?? []) {
@@ -73,32 +69,10 @@ export function POSTerminalPageClient() {
     }));
   }, [outletWithLayouts, outlets]);
 
-  const resolveFloorPlanForOutlet = useCallback((outlet: OutletWithMode) => {
-    const byOutlet = floorPlans.filter((plan) => plan.outlet_id === outlet.id);
-    if (byOutlet.length === 0) return null;
-
-    const outletName = outlet.name.toLowerCase();
-    const outletCode = outlet.code.toLowerCase();
-
-    const exactName = byOutlet.find((p) => p.name.toLowerCase() === outletName);
-    if (exactName) return exactName;
-
-    const nameContainsOutlet = byOutlet.find((p) => p.name.toLowerCase().includes(outletName));
-    if (nameContainsOutlet) return nameContainsOutlet;
-
-    const nameContainsCode = byOutlet.find((p) => p.name.toLowerCase().includes(outletCode));
-    if (nameContainsCode) return nameContainsCode;
-
-    return byOutlet[0] ?? null;
-  }, [floorPlans]);
-
   const handleOutletSelect = (outlet: OutletWithMode) => {
     if (outlet.pos_mode === "LIVE_TABLE") {
-      const targetPlan = resolveFloorPlanForOutlet(outlet);
       const query = new URLSearchParams();
       query.set("outlet_id", outlet.id);
-      query.set("outlet_name", outlet.name);
-      if (targetPlan?.id) query.set("floor_plan_id", targetPlan.id);
       router.push(`/pos/fb/live-table?${query.toString()}`);
       return;
     }
@@ -136,13 +110,10 @@ export function POSTerminalPageClient() {
     if (singleOutlet.pos_mode !== "LIVE_TABLE") return;
 
     hasAutoNavigated.current = true;
-    const targetPlan = resolveFloorPlanForOutlet(singleOutlet);
     const query = new URLSearchParams();
     query.set("outlet_id", singleOutlet.id);
-    query.set("outlet_name", singleOutlet.name);
-    if (targetPlan?.id) query.set("floor_plan_id", targetPlan.id);
     router.push(`/pos/fb/live-table?${query.toString()}`);
-  }, [floorLayoutLoading, outletIdFromQuery, outletsLoading, resolveFloorPlanForOutlet, router, singleOutlet]);
+  }, [floorLayoutLoading, outletIdFromQuery, outletsLoading, router, singleOutlet]);
 
   if (outletsLoading || (floorLayoutLoading && outlets.length > 0)) {
     return (
@@ -299,8 +270,6 @@ export function POSTerminalPageClient() {
     if (!targetOutlet || targetOutlet.pos_mode !== "LIVE_TABLE") return undefined;
     const q = new URLSearchParams();
     q.set("outlet_id", outletIdFromQuery);
-    if (outletNameFromQuery) q.set("outlet_name", outletNameFromQuery);
-    if (floorPlanIdFromQuery) q.set("floor_plan_id", floorPlanIdFromQuery);
     return `/pos/fb/live-table?${q.toString()}`;
   })();
 

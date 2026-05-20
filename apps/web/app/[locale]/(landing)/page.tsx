@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -26,7 +26,7 @@ import {
   Sparkles,
   UserCheck,
 } from "lucide-react";
-import { PricingSection } from "@/components/landing/pricing-section";
+import { LazyMount } from "@/features/general/dashboard/components/lazy-mount";
 
 // WebGL background — single instance, fixed behind entire page
 import type { LightRaysProps } from "@/components/landing/light-rays";
@@ -42,6 +42,14 @@ const MarketingMapDemo = dynamic(
       (m) => m.MarketingMapDemo
     ),
   { ssr: false }
+);
+
+const PricingSection = dynamic(
+  () => import("@/components/landing/pricing-section").then((m) => m.PricingSection),
+  {
+    ssr: false,
+    loading: () => <div className="min-h-[600px] w-full" aria-hidden="true" />,
+  }
 );
 
 const PRIMARY_HEX = "#FFFFFF";
@@ -129,8 +137,31 @@ function FaqItem({
 
 export default function LandingPage() {
   const [activeScreenshot, setActiveScreenshot] = useState(0);
+  const [showBackgroundFx, setShowBackgroundFx] = useState(false);
+  const [followBeamPointer, setFollowBeamPointer] = useState(false);
 
   const t = useTranslations("landing");
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setShowBackgroundFx(true);
+    }, 600);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(pointer: fine) and (min-width: 1024px)");
+
+    const updatePointerBehavior = () => {
+      setFollowBeamPointer(mediaQuery.matches);
+    };
+
+    updatePointerBehavior();
+    mediaQuery.addEventListener("change", updatePointerBehavior);
+
+    return () => mediaQuery.removeEventListener("change", updatePointerBehavior);
+  }, []);
 
   const MODULE_KEYS = [
     "dashboard",
@@ -172,21 +203,23 @@ export default function LandingPage() {
     <>
       {/* ── Single global WebGL background (fixed, below everything) ── */}
       <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
-        <LightRays
-          raysOrigin="top-center"
-          raysColor={PRIMARY_HEX}
-          raysSpeed={0.35}
-          lightSpread={2.0}
-          rayLength={2.8}
-          fadeDistance={0.92}
-          saturation={0.5}
-          pulsating
-          followMouse
-          mouseInfluence={0.07}
-        />
+        {showBackgroundFx ? (
+          <LightRays
+            raysOrigin="top-center"
+            raysColor={PRIMARY_HEX}
+            raysSpeed={0.35}
+            lightSpread={2.0}
+            rayLength={2.8}
+            fadeDistance={0.92}
+            saturation={0.5}
+            pulsating
+            followMouse={followBeamPointer}
+            mouseInfluence={0.07}
+          />
+        ) : null}
       </div>
 
-      <div className="relative z-10 overflow-x-hidden">
+      <main className="relative z-10 overflow-x-hidden" id="main-content">
 
         {/* ════════════════════════════════════════════════════════
             1. HERO — with dashboard screenshot below
@@ -195,7 +228,7 @@ export default function LandingPage() {
           <div className={W}>
             <motion.p
               variants={fadeUp}
-              initial="hidden"
+              initial={false}
               animate="visible"
               custom={0}
               className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary"
@@ -205,19 +238,22 @@ export default function LandingPage() {
 
             <motion.h1
               variants={fadeUp}
-              initial="hidden"
+              initial={false}
               animate="visible"
               custom={0.1}
-              className="mx-auto max-w-4xl text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
+              style={{ opacity: 1, transform: "none" }}
+              className="mx-auto max-w-5xl text-center text-balance text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
             >
               {t("hero.title1")}
               <br />
-              <span className="text-primary font-accent font-medium italic text-[3.5rem] sm:text-[4.5rem] lg:text-[5.5rem] leading-[1.1] inline-block tracking-normal">{t("hero.title2")}</span>
+              <span className="inline-block text-[3.5rem] font-medium leading-[1.1] tracking-normal text-primary italic font-accent sm:text-[4.5rem] lg:text-[5.5rem]">
+                {t("hero.title2")}
+              </span>
             </motion.h1>
 
             <motion.p
               variants={fadeUp}
-              initial="hidden"
+              initial={false}
               animate="visible"
               custom={0.2}
               className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg"
@@ -237,7 +273,7 @@ export default function LandingPage() {
             {/* Clean screenshot — simplified frame for minimalist aesthetic */}
             <motion.div
               variants={fadeUp}
-              initial="hidden"
+              initial={false}
               animate="visible"
               custom={0.45}
               className="relative mt-12 w-full overflow-hidden rounded-2xl bg-card/60 shadow-lg"
@@ -370,7 +406,7 @@ export default function LandingPage() {
                   fill
                   className="object-contain p-2 sm:p-4"
                   sizes="(max-width: 1200px) 100vw, 1200px"
-                  priority
+                  loading="lazy"
                 />
               </div>
             </motion.div>
@@ -431,7 +467,9 @@ export default function LandingPage() {
                 className="relative h-80 lg:h-[420px] overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur-sm shadow-sm"
               >
                 {/* useRemote=false: never call protected APIs from the public landing page */}
-                <MarketingMapDemo useRemote={false} />
+                <LazyMount rootMargin="280px">
+                  <MarketingMapDemo useRemote={false} />
+                </LazyMount>
 
                 {/* Legend overlay */}
                 <div className="pointer-events-none absolute top-3 right-3 z-500 flex flex-col gap-1.5 rounded-xl border border-border bg-card/90 px-3 py-2.5 backdrop-blur-sm">
@@ -522,7 +560,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <PricingSection />
+        <LazyMount rootMargin="320px">
+          <PricingSection />
+        </LazyMount>
 
         {/* ════════════════════════════════════════════════════════
             7. MODULES
@@ -661,7 +701,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-      </div>
+      </main>
     </>
   );
 }
