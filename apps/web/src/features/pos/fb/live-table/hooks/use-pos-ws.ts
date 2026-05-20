@@ -53,38 +53,6 @@ function buildPosRealtimeNotification(
     };
   }
 
-  if (eventType === "pos.payment_confirmed") {
-    return {
-      id: buildRealtimeNotificationId(`${eventType}:${orderId || tableLabel}:${Date.now()}`),
-      user_id: "realtime",
-      title: "Pembayaran terkonfirmasi",
-      message: `Pembayaran untuk ${tableLabel} telah diterima${payload?.order_number ? ` (#${payload.order_number})` : ""}.`,
-      type: "info",
-      entity_type: "pos_payment",
-      entity_id: orderId,
-      entity_link: `/pos/fb/live-table?outlet_id=${encodeURIComponent(outletId)}`,
-      is_read: false,
-      read_at: null,
-      created_at: createdAt,
-    };
-  }
-
-  if (eventType === "pos.order_status_changed") {
-    return {
-      id: buildRealtimeNotificationId(`${eventType}:${orderId || tableLabel}:${Date.now()}`),
-      user_id: "realtime",
-      title: "Status order berubah",
-      message: `${tableLabel} berubah ke status ${payload?.status ?? "UNKNOWN"}${payload?.order_number ? ` (#${payload.order_number})` : ""}.`,
-      type: "info",
-      entity_type: "pos_order",
-      entity_id: orderId,
-      entity_link: `/pos/fb/live-table?outlet_id=${encodeURIComponent(outletId)}`,
-      is_read: false,
-      read_at: null,
-      created_at: createdAt,
-    };
-  }
-
   return null;
 }
 
@@ -205,29 +173,6 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
             });
           }
           return;
-        }
-
-        if (eventType === "pos.payment_confirmed") {
-          const tableLabel = payload?.table_label ?? "Meja";
-          const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
-          if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
-            toast.success(`Pembayaran terkonfirmasi untuk ${tableLabel}.`, {
-              duration: 5000,
-            });
-          }
-          return;
-        }
-
-        if (eventType === "pos.order_status_changed") {
-          if ((payload?.status ?? "") === "PAID") {
-            const tableLabel = payload?.table_label ?? "Meja";
-            const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
-            if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
-              toast.success(`Status pembayaran ${tableLabel} sudah PAID.`, {
-                duration: 5000,
-              });
-            }
-          }
         }
       };
 

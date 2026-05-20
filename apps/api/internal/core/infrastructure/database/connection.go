@@ -22,9 +22,21 @@ func Connect() error {
 		logLevel = logger.Warn
 	}
 
+	// Slow query logging: logs any query taking > 100ms
+	slowThreshold := 100 * time.Millisecond
+	gormLogger := logger.New(
+		log.New(log.Writer(), "\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             slowThreshold,
+			LogLevel:                  logLevel,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+
 	var err error
 	gormCfg := &gorm.Config{
-		Logger:                                   logger.Default.LogMode(logLevel),
+		Logger:                                   gormLogger,
 		PrepareStmt:                              config.AppConfig != nil && config.AppConfig.Database.PrepareStmt,
 		SkipDefaultTransaction:                   config.AppConfig != nil && config.AppConfig.Database.SkipDefaultTransaction,
 		DisableForeignKeyConstraintWhenMigrating: true,

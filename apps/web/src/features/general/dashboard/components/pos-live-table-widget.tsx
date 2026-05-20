@@ -61,13 +61,7 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
   const hasMore = filteredOutlets.length > displayedOutlets.length;
 
   const openLiveTable = (outlet: POSOutletItem) => {
-    const query = new URLSearchParams();
-    query.set("outlet_id", outlet.outlet_id);
-    query.set("outlet_name", outlet.outlet_name);
-    if (outlet.floor_plan_id) {
-      query.set("floor_plan_id", outlet.floor_plan_id);
-    }
-    router.push(`/pos/fb/live-table?${query.toString()}`);
+    router.push(`/pos/fb/live-table?outlet_id=${encodeURIComponent(outlet.outlet_id)}`);
   };
 
   const totalTables = filteredOutlets.reduce((sum, o) => sum + o.tables_total, 0);

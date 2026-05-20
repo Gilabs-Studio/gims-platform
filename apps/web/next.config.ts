@@ -22,6 +22,22 @@ const apiProxyDestination = apiBaseUrl
     })()
   : null;
 
+// Check if API URL is localhost (for development/testing builds)
+const isApiLocalhost =
+  apiBaseUrl &&
+  (() => {
+    try {
+      const parsed = new URL(apiBaseUrl);
+      return (
+        parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname.startsWith("127.")
+      );
+    } catch {
+      return false;
+    }
+  })();
+
 const remoteImagePatterns: RemotePattern[] = [
   {
     protocol: "http",
@@ -133,7 +149,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              isDevelopment
+              isDevelopment || isApiLocalhost
                 ? "img-src 'self' https: data: blob: http://localhost:* http://127.0.0.1:*"
                 : "img-src 'self' https: data: blob:",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -141,8 +157,8 @@ const nextConfig: NextConfig = {
               "worker-src 'self' blob:",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
-              // Allow localhost connections in development for API calls
-              isDevelopment
+              // Allow localhost connections in development or when API URL is localhost
+              isDevelopment || isApiLocalhost
                 ? "connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*"
                 : "connect-src 'self' https: wss: ws:",
               // Allow map iframe sources used by Travel Planner and other map integrations

@@ -175,12 +175,10 @@ Shared TypeScript configuration untuk semua apps.
 
 ## Documentation
 
-- [API Response Standards](./docs/api-standart/api-response-standards.md)
-- [API Error Codes](./docs/api-standart/api-error-codes.md)
-- [Modules Documentation](./docs/modules/01-modules.md)
-- [Sprint Planning](./docs/SPRINT_PLANNING.md)
-- [PRD](./docs/PRD.md)
 
+## Agent Skills
+
+- **k6 Skill**: User-level skill for implementing, documenting, and maintaining k6 transaction workflow tests, with Gill Me inquiry and clean architecture documentation. See `.agents/skills/k6/` and `k6/README_SKILL.md` for details.
 ## Development Guidelines
 
 ### Backend (Go)

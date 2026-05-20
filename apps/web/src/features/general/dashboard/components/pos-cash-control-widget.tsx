@@ -61,13 +61,7 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
   const totalActiveTables = filteredOutlets.reduce((sum, outlet) => sum + (outlet.active_table_count ?? 0), 0);
 
   const openLiveTable = (outlet: POSOutletItem) => {
-    const query = new URLSearchParams();
-    query.set("outlet_id", outlet.outlet_id);
-    query.set("outlet_name", outlet.outlet_name);
-    if (outlet.floor_plan_id) {
-      query.set("floor_plan_id", outlet.floor_plan_id);
-    }
-    router.push(`/pos/fb/live-table?${query.toString()}`);
+    router.push(`/pos/fb/live-table?outlet_id=${encodeURIComponent(outlet.outlet_id)}`);
   };
 
   if (!canView) {

@@ -10,10 +10,10 @@ export const landingId = {
     },
     hero: {
       badge: "Mesin Bisnis End-to-End Anda",
-      title1: "Jangan biarkan sistem yang terpisah",
-      title2: "menghambat pertumbuhan Anda",
+      title1: "Skalakan Bisnis Anda",
+      title2: "Tanpa Kompleksitas",
       subtitle:
-        "Hentikan kebocoran profit akibat silo data. Satukan penjualan, inventaris, SDM, dan keuangan dalam satu platform bertenaga AI yang dirancang untuk skala enterprise.",
+        "Gantikan sistem yang terfragmentasi dengan satu platform cerdas. Kelola seluruh operasional Anda dari penjualan dan keuangan hingga SDM dan inventaris dengan insight AI real-time.",
       cta: "Mulai Uji Coba Gratis",
       trackPlaceholder: "Masukkan ID pesanan untuk melacak status",
     },

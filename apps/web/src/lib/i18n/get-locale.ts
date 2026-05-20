@@ -1,5 +1,9 @@
 import { routing } from "@/i18n/routing";
 import type { Locale } from "@/types/locale";
+import {
+  getLocalePreferenceFromBrowser,
+  getLocalePreferenceFromBrowserPath,
+} from "@/lib/locale-preference";
 
 /**
  * Extract locale from pathname or return default locale
@@ -9,18 +13,14 @@ import type { Locale } from "@/types/locale";
  * @returns The locale string ("en" or "id")
  */
 export function getLocaleFromPathname(pathname: string): Locale {
-  // Try to match locale from pathname (e.g., /en/..., /id/...)
-  const localeMatch = pathname.match(/^\/(en|id)(\/|$)/);
-  if (localeMatch && routing.locales.includes(localeMatch[1] as Locale)) {
-    return localeMatch[1] as Locale;
+  const pathLocale = getLocalePreferenceFromBrowserPath(pathname);
+  if (pathLocale && routing.locales.includes(pathLocale)) {
+    return pathLocale;
   }
 
-  // If no locale in pathname, try to get from localStorage
-  if (typeof window !== "undefined") {
-    const savedLocale = localStorage.getItem("locale");
-    if (savedLocale === "en" || savedLocale === "id") {
-      return savedLocale;
-    }
+  const savedLocale = getLocalePreferenceFromBrowser();
+  if (savedLocale) {
+    return savedLocale;
   }
 
   // Default to configured default locale

@@ -515,6 +515,112 @@ func normalizeScope(scope string) string {
 	return s
 }
 
+// POSOrderNotificationParams holds the data needed to fan-out a self-order notification.
+type POSOrderNotificationParams struct {
+	TenantID   string
+	OutletID   string
+	OutletName string
+	TableLabel string
+	OrderID    string
+}
+
+// CreatePOSOrderNotification creates in-app notifications for all staff who have
+// pos.order.read permission scoped to the given outlet.  It mirrors the
+// CreateApprovalNotification fan-out pattern but filters recipients by
+// outlet-scope assignment instead of entity-level scope.
+//
+// Recipients are selected by one of two criteria:
+//   - Their role_permission scope is ALL (unrestricted), or
+//   - They are explicitly assigned to the outlet via employee_outlets.
+//
+// The function uses the raw db handle (not database.GetDB) because the shared
+// permissions table may have NULL tenant_id.
+func CreatePOSOrderNotification(ctx context.Context, db *gorm.DB, params POSOrderNotificationParams) error {
+	if db == nil {
+		return nil
+	}
+
+	tenantID := strings.TrimSpace(params.TenantID)
+	outletID := strings.TrimSpace(params.OutletID)
+	if tenantID == "" || outletID == "" {
+		return nil
+	}
+
+	tableLabel := strings.TrimSpace(params.TableLabel)
+	if tableLabel == "" {
+		tableLabel = "Meja"
+	}
+
+	outletName := strings.TrimSpace(params.OutletName)
+	if outletName == "" {
+		outletName = "Outlet"
+	}
+
+	title := "Order Baru"
+	message := tableLabel + " — " + outletName
+
+	type recipientRow struct {
+		UserID string
+	}
+
+	var rows []recipientRow
+
+	// Query users with pos.order.read permission for this tenant+outlet.
+	// We LEFT JOIN employee_outlets so that scope=ALL users are included
+	// unconditionally, while scope=OUTLET users are filtered to this outlet.
+	err := db.WithContext(ctx).
+		Table("users u").
+		Select("DISTINCT u.id AS user_id").
+		Joins("JOIN role_permissions rp ON rp.role_id = u.role_id").
+		Joins("JOIN permissions p ON p.id = rp.permission_id").
+		Joins("LEFT JOIN employees e ON e.user_id = u.id AND e.deleted_at IS NULL").
+		Joins("LEFT JOIN employee_outlets eo ON eo.employee_id = e.id").
+		Where("u.deleted_at IS NULL").
+		Where("u.status = ?", "active").
+		Where("u.tenant_id = ?", tenantID).
+		Where("p.code = ?", "pos.order.read").
+		Where("COALESCE(NULLIF(rp.scope, ''), 'ALL') = 'ALL' OR eo.outlet_id = ?", outletID).
+		Scan(&rows).Error
+	if err != nil {
+		return err
+	}
+
+	if len(rows) == 0 {
+		return nil
+	}
+
+	notifications := make([]models.Notification, 0, len(rows))
+	for _, row := range rows {
+		if strings.TrimSpace(row.UserID) == "" {
+			continue
+		}
+		notifications = append(notifications, models.Notification{
+			TenantID:   tenantID,
+			UserID:     row.UserID,
+			Type:       models.NotificationTypeInfo,
+			Title:      title,
+			Message:    message,
+			EntityType: "pos_self_order",
+			EntityID:   outletID,
+			IsRead:     false,
+		})
+	}
+
+	if len(notifications) == 0 {
+		return nil
+	}
+
+	if err := db.WithContext(ctx).Create(&notifications).Error; err != nil {
+		return err
+	}
+
+	for _, n := range notifications {
+		notificationWS.DefaultNotificationHub().PublishCreated(n)
+	}
+
+	return nil
+}
+
 func isRecipientAllowedByScope(recipient approvalRecipient, target targetScopeContext) bool {
 	if target.EntityID == "" {
 		return false
