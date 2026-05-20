@@ -10,10 +10,10 @@ export const landingEn = {
     },
     hero: {
       badge: "Your End-to-End Business Engine",
-      title1: "Don't let disconnected systems",
-      title2: "bottleneck your growth",
+      title1: "Scale Your Business",
+      title2: "Without the Complexity.",
       subtitle:
-        "Stop profit leaks caused by data silos. Unify your sales, inventory, HR, and finance into one AI-powered platform designed for enterprise scale.",
+        "Replace fragmented systems with one intelligent platform. Manage your entire operation from sales and finance to HR and inventory with real-time AI insights.",
       cta: "Start Free Trial",
       trackPlaceholder: "Enter order ID to track status",
     },
