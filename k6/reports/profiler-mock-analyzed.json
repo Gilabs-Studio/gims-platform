@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "runDate": "2026-05-18T01:00:00.000Z",
+    "duration": "9s",
+    "totalEndpoints": 6,
+    "thresholds": {
+      "crud": {
+        "p95": 200,
+        "p99": 500
+      },
+      "list": {
+        "p95": 500,
+        "p99": 1000
+      },
+      "workflow": {
+        "p95": 1000,
+        "p99": 2000
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "e2e:revenue-cycle",
+      "module": "sales",
+      "tier": "workflow",
+      "p50": 2401,
+      "p95": 2401,
+      "p99": 2401,
+      "errorRate": "0.00",
+      "reqPerSec": "0.1",
+      "total": 1,
+      "flag": "red",
+      "threshold": 1000
+    },
+    {
+      "endpoint": "hrd:attendance:clock-in",
+      "module": "hrd",
+      "tier": "crud",
+      "p50": 980,
+      "p95": 1050,
+      "p99": 1050,
+      "errorRate": "50.00",
+      "reqPerSec": "0.2",
+      "total": 2,
+      "flag": "red",
+      "threshold": 200
+    },
+    {
+      "endpoint": "finance:journals:list",
+      "module": "finance",
+      "tier": "list",
+      "p50": 350,
+      "p95": 380,
+      "p99": 380,
+      "errorRate": "0.00",
+      "reqPerSec": "0.2",
+      "total": 2,
+      "flag": "green",
+      "threshold": 500
+    },
+    {
+      "endpoint": "sales:quotations:list",
+      "module": "sales",
+      "tier": "list",
+      "p50": 121,
+      "p95": 131,
+      "p99": 131,
+      "errorRate": "0.00",
+      "reqPerSec": "0.2",
+      "total": 2,
+      "flag": "green",
+      "threshold": 500
+    },
+    {
+      "endpoint": "master:products:list",
+      "module": "master-data",
+      "tier": "list",
+      "p50": 45,
+      "p95": 55,
+      "p99": 55,
+      "errorRate": "0.00",
+      "reqPerSec": "0.2",
+      "total": 2,
+      "flag": "green",
+      "threshold": 500
+    },
+    {
+      "endpoint": "auth:login",
+      "module": "auth",
+      "tier": "crud",
+      "p50": 50,
+      "p95": 50,
+      "p99": 50,
+      "errorRate": "0.00",
+      "reqPerSec": "0.1",
+      "total": 1,
+      "flag": "green",
+      "threshold": 200
+    }
+  ],
+  "moduleSummary": {
+    "sales": {
+      "endpoints": 2,
+      "totalP95": 2532,
+      "totalErrors": 0,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 1
+      },
+      "avgP95": 1266
+    },
+    "hrd": {
+      "endpoints": 1,
+      "totalP95": 1050,
+      "totalErrors": 50,
+      "flags": {
+        "green": 0,
+        "yellow": 0,
+        "red": 1
+      },
+      "avgP95": 1050
+    },
+    "finance": {
+      "endpoints": 1,
+      "totalP95": 380,
+      "totalErrors": 0,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 0
+      },
+      "avgP95": 380
+    },
+    "master-data": {
+      "endpoints": 1,
+      "totalP95": 55,
+      "totalErrors": 0,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 0
+      },
+      "avgP95": 55
+    },
+    "auth": {
+      "endpoints": 1,
+      "totalP95": 50,
+      "totalErrors": 0,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 0
+      },
+      "avgP95": 50
+    }
+  }
+}

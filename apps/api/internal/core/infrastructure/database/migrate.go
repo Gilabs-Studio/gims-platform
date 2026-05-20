@@ -493,6 +493,11 @@ func AutoMigrate() error {
 		log.Printf("Warning: failed to relax area location columns: %v", err)
 	}
 
+	// Performance indexes for slow list endpoints (identified by k6 profiler)
+	if err := migrations.AddPerformanceIndexesMigration(DB); err != nil {
+		log.Printf("Warning: failed to add performance indexes: %v", err)
+	}
+
 	// NEW: Normalize journal data (casing/consistent naming)
 	if err := normalizeJournalData(); err != nil {
 		log.Printf("Warning: Failed to normalize journal data: %v", err)

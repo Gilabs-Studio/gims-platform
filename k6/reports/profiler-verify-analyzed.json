@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "runDate": "2026-05-17T20:35:04.738Z",
+    "duration": "5s",
+    "totalEndpoints": 2,
+    "thresholds": {
+      "crud": {
+        "p95": 200,
+        "p99": 500
+      },
+      "list": {
+        "p95": 500,
+        "p99": 1000
+      },
+      "workflow": {
+        "p95": 1000,
+        "p99": 2000
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "unknown",
+      "module": "unknown",
+      "tier": "crud",
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "errorRate": "100.00",
+      "reqPerSec": "1.2",
+      "total": 6,
+      "flag": "green",
+      "threshold": 200
+    },
+    {
+      "endpoint": "auth:login",
+      "module": "auth",
+      "tier": "crud",
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "errorRate": "100.00",
+      "reqPerSec": "1.2",
+      "total": 6,
+      "flag": "green",
+      "threshold": 200
+    }
+  ],
+  "moduleSummary": {
+    "unknown": {
+      "endpoints": 1,
+      "totalP95": 0,
+      "totalErrors": 100,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 0
+      },
+      "avgP95": 0
+    },
+    "auth": {
+      "endpoints": 1,
+      "totalP95": 0,
+      "totalErrors": 100,
+      "flags": {
+        "green": 1,
+        "yellow": 0,
+        "red": 0
+      },
+      "avgP95": 0
+    }
+  }
+}

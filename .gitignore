@@ -57,6 +57,10 @@ apps/erp-front-end/
 CLAUDE.md
 .CLAUDE/
 .pi*/
+.leann
+
+# Generated profiler output
+k6/reports/*.json
 
 
 # Database backups (production/local)
