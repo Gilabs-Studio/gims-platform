@@ -35,6 +35,7 @@ import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
 import { useLiveTableData } from "../hooks/use-live-table";
+import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
 import { usePosWs } from "../hooks/use-pos-ws";
 import {
   useServeOrder,
@@ -1216,8 +1217,9 @@ export function LiveTablePageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const outletId = searchParams.get("outlet_id") ?? undefined;
-  const outletName = searchParams.get("outlet_name") ?? undefined;
-  const floorPlanId = searchParams.get("floor_plan_id") ?? undefined;
+
+  const { data: outletsData } = usePOSOutlets();
+  const outletName = outletsData?.data?.find((o: { id: string; name: string }) => o.id === outletId)?.name;
 
   const t = useTranslations("posTerminal.liveTable");
   const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
@@ -1254,8 +1256,6 @@ export function LiveTablePageClient() {
 
   const { plan, liveTableInfos, layoutObjects, isLoading } = useLiveTableData({
     outletId,
-    floorPlanId,
-    outletName,
     now,
   });
 

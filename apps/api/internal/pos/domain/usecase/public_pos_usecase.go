@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/provider"
+	"gorm.io/gorm"
 )
 
 // ErrPublicTokenInvalid is returned when the scanned QR token does not match any active record.
@@ -42,15 +44,16 @@ type POSHubPublisher interface {
 }
 
 type publicPOSUsecase struct {
-	qrTokenRepo repositories.TableQRTokenRepository
-	orderUC     POSOrderUsecase
-	paymentUC   POSPaymentUsecase
-	configRepo  repositories.POSConfigRepository
-	outletRepo  orgRepos.OutletRepository
-	productRepo repositories.POSProductRepository
-	hub         POSHubPublisher
+	qrTokenRepo     repositories.TableQRTokenRepository
+	orderUC         POSOrderUsecase
+	paymentUC       POSPaymentUsecase
+	configRepo      repositories.POSConfigRepository
+	outletRepo      orgRepos.OutletRepository
+	productRepo     repositories.POSProductRepository
+	hub             POSHubPublisher
 	deviceTokenRepo repositories.POSDeviceTokenRepository
-	pushNotifier provider.PushNotifier
+	pushNotifier    provider.PushNotifier
+	db              *gorm.DB
 }
 
 // NewPublicPOSUsecase creates a PublicPOSUsecase.
@@ -65,17 +68,19 @@ func NewPublicPOSUsecase(
 	hub POSHubPublisher,
 	deviceTokenRepo repositories.POSDeviceTokenRepository,
 	pushNotifier provider.PushNotifier,
+	db *gorm.DB,
 ) PublicPOSUsecase {
 	return &publicPOSUsecase{
-		qrTokenRepo: qrTokenRepo,
-		orderUC:     orderUC,
-		paymentUC:   paymentUC,
-		configRepo:  configRepo,
-		outletRepo:  outletRepo,
-		productRepo: productRepo,
-		hub:         hub,
+		qrTokenRepo:     qrTokenRepo,
+		orderUC:         orderUC,
+		paymentUC:       paymentUC,
+		configRepo:      configRepo,
+		outletRepo:      outletRepo,
+		productRepo:     productRepo,
+		hub:             hub,
 		deviceTokenRepo: deviceTokenRepo,
-		pushNotifier: pushNotifier,
+		pushNotifier:    pushNotifier,
+		db:              db,
 	}
 }
 
@@ -186,6 +191,24 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 		u.hub.Publish(tenantID, qr.OutletID, "pos.new_customer_order", posOrderRealtimePayload(updated, "WAITING_CASHIER", ""))
 	}
 	u.pushNewOrderNotification(ctx, tenantID, qr.OutletID, updated)
+
+	// Fan-out in-app notification to all staff with pos.order.read access for this outlet.
+	if u.db != nil {
+		outletName := ""
+		if outlet, err := u.outletRepo.GetByID(ctx, qr.OutletID); err == nil && outlet != nil {
+			outletName = outlet.Name
+		}
+		notifParams := notificationService.POSOrderNotificationParams{
+			TenantID:   tenantID,
+			OutletID:   qr.OutletID,
+			OutletName: outletName,
+			TableLabel: tableLabel,
+			OrderID:    updated.ID,
+		}
+		go func() {
+			_ = notificationService.CreatePOSOrderNotification(context.Background(), u.db, notifParams)
+		}()
+	}
 
 	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
 }
