@@ -23,10 +23,11 @@ const ERP_WIDGETS: WidgetConfig[] = [
 const CRM_WIDGETS: WidgetConfig[] = [
   { id: "t-1", type: "crm_total_contacts",    title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
   { id: "t-2", type: "crm_active_leads",      title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "crm_deals_overview",    title: "", size: "md", colSpan: 2, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "crm_activity_summary",  title: "", size: "md", colSpan: 2, rowSpan: 1, order: 3, visible: true },
-  { id: "t-5", type: "total_customers",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
-  { id: "t-6", type: "travel_planner_overview", title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 5, visible: true },
+  { id: "t-3", type: "crm_leads_list",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 2, visible: true },
+  { id: "t-4", type: "crm_pipeline_summary",   title: "", size: "md", colSpan: 2, rowSpan: 2, order: 3, visible: true },
+  { id: "t-5", type: "crm_activity_summary",   title: "", size: "md", colSpan: 2, rowSpan: 1, order: 4, visible: true },
+  { id: "t-6", type: "total_customers",        title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 5, visible: true },
+  { id: "t-7", type: "travel_planner_overview", title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 6, visible: true },
 ];
 
 const POS_WIDGETS: WidgetConfig[] = [
