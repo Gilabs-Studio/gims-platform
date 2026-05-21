@@ -31,6 +31,8 @@ class SyncEngine {
 
   Stream<SyncStatusDetail> get status$ => _statusController.stream;
 
+  ConnectivityService get connectivity => _connectivity;
+
   void start() {
     _connectivitySub = _connectivity.isOnline$.listen((online) {
       if (online) processQueue();
@@ -249,6 +251,14 @@ class SyncEngine {
         final orderId = payload['orderId'] as String;
         final res =
             await api.post('/pos/orders/$orderId/payments/cash', data: payload);
+        return (res.statusCode ?? 200, res.data);
+      case 'terminal.voidOrder':
+        final orderId = payload['orderId'] as String;
+        final reason = payload['reason'] as String? ?? 'Canceled offline';
+        final res = await api.post(
+          '/pos/orders/$orderId/void',
+          data: {'reason': reason},
+        );
         return (res.statusCode ?? 200, res.data);
       case 'floor.saveLayout':
         final planId = payload['planId'] as String;

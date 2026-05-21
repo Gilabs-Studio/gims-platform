@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart';
 
 import 'src/app/app.dart';
 import 'src/core/database/isar_provider.dart';
@@ -11,9 +12,11 @@ Future<void> main() async {
   await PushNotificationService.instance.ensureInitialized();
 
   final overrides = <Override>[];
+  Isar? initialIsar;
   if (!kIsWeb) {
     try {
       final isar = await openIsar();
+      initialIsar = isar;
       overrides.add(isarProvider.overrideWithValue(isar));
     } catch (error, stackTrace) {
       debugPrint('Failed to initialize Isar: $error');
@@ -24,7 +27,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: overrides,
-      child: const GimsPosApp(),
+      child: GimsPosApp(initialIsar: initialIsar, webUnsupported: kIsWeb),
     ),
   );
 }

@@ -168,6 +168,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       _receiptPreviewError = true;
       return;
     }
+    // Local orders (created offline) do not have a server-side receipt yet.
+    // Skip loading to avoid a failed network request on the WebView.
+    if (widget.order.id.startsWith('local-')) {
+      _receiptPreviewError = true;
+      return;
+    }
     if (_receiptPreviewController != null) return;
     final url = ServiceLocator.instance.terminalService.receiptUrl(
       widget.order.id,
@@ -282,6 +288,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       setState(() => _customers = list);
     } catch (error) {
       if (!mounted) return;
+      // Silently degrade when offline — customer list is non-critical and
+      // cashier can still enter a name manually without selecting from list.
+      if (error is ApiException && error.isOffline) return;
       showError(context, error);
     }
   }
@@ -617,6 +626,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   }
 
   Future<void> _openReceipt() async {
+    if (widget.order.id.startsWith('local-')) {
+      showError(context, ApiException('Nota belum tersedia — pembayaran masih dalam antrian sync.'));
+      return;
+    }
     final url = ServiceLocator.instance.terminalService.receiptUrl(
       widget.order.id,
     );
@@ -1581,7 +1594,68 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   List<Widget> _buildReceiptStep() {
     final payment = _finalPayment;
+    final isPendingSync = payment?.status == 'pending_sync';
     final hasPhone = (_resolvedCustomerPhone ?? '').isNotEmpty;
+
+    // Offline cash payment: show a confirmation card instead of a server receipt.
+    if (isPendingSync) {
+      return [
+        Card(
+          color: const Color(0xFFFFF8E1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GimsRadius.medium),
+            side: const BorderSide(color: Color(0xFFFFD54F)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Pembayaran Disimpan Offline',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Data order, pembayaran, dan invoice akan otomatis dikirim ke server saat koneksi internet pulih.',
+                  style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
+                ),
+                const Divider(height: 24, color: Color(0xFFFFD54F)),
+                _receiptRow('Order', widget.order.orderNumber),
+                _receiptRow('Metode', 'CASH'),
+                _receiptRow(
+                  'Total',
+                  formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                ),
+                if (_resolvedCustomerName.isNotEmpty)
+                  _receiptRow('Customer', _resolvedCustomerName),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: _finishCheckout,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          child: const Text(
+            'Selesai',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ];
+    }
 
     return [
       Card(
@@ -1691,6 +1765,37 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         ],
       ),
     ];
+  }
+
+  Widget _receiptRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF92400E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF78350F),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

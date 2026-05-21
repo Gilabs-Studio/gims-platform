@@ -6,6 +6,11 @@ class ApiException implements Exception {
   final String? code;
   final int? statusCode;
 
+  /// True when the request never reached the server (network unreachable,
+  /// connection timeout, etc.). Callers can use this to silently degrade
+  /// instead of surfacing a technical error to the user.
+  bool get isOffline => statusCode == null;
+
   @override
   String toString() => message;
 }
