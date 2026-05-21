@@ -6,6 +6,11 @@ import '../theme/app_theme.dart';
 /// Show a red error SnackBar with the error message.
 void showError(BuildContext context, Object error) {
   final message = error is ApiException ? error.message : error.toString();
+  final lower = message.toLowerCase();
+  if (lower.contains('websocketchannelexception') &&
+      lower.contains('connection refused')) {
+    return;
+  }
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(message), backgroundColor: GimsColors.destructive),
   );
