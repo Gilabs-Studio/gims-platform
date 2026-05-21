@@ -9,6 +9,7 @@ type ThemeAwareImageProps = Omit<ImageProps, "src"> & {
   lightSrc: string;
   darkSrc: string;
   fallback?: React.ReactNode;
+  fetchPriority?: "high" | "low" | "auto";
 };
 
 export function ThemeAwareImage({
@@ -16,6 +17,7 @@ export function ThemeAwareImage({
   darkSrc,
   alt,
   fallback,
+  fetchPriority,
   ...props
 }: ThemeAwareImageProps) {
   const { resolvedTheme } = useTheme();
@@ -32,6 +34,7 @@ export function ThemeAwareImage({
       src={src}
       alt={alt}
       suppressHydrationWarning
+      fetchPriority={fetchPriority}
       onError={() => setError(true)}
     />
   );
