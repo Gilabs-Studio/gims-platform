@@ -73,6 +73,14 @@ func setOnboardingCache(ctx context.Context, key string, value interface{}, ttl 
 	_ = client.Set(ctx, key, data, ttl).Err()
 }
 
+func deleteOnboardingCache(ctx context.Context, key string) {
+	client := redisInfra.GetClient()
+	if client == nil {
+		return
+	}
+	_ = client.Del(ctx, key).Err()
+}
+
 // SetBusinessType sets the business type for the active tenant's onboarding.
 func (h *OnboardingHandler) SetBusinessType(c *gin.Context) {
 	var req dto.SetBusinessTypeRequest
@@ -90,6 +98,12 @@ func (h *OnboardingHandler) SetBusinessType(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
+
+	tenantID, _ := c.Get("tenant_id")
+	cacheKey := fmt.Sprintf("onboarding:state:%v", tenantID)
+	deleteOnboardingCache(c.Request.Context(), cacheKey)
+	setOnboardingCache(c.Request.Context(), cacheKey, state, 5*time.Minute)
+
 	response.SuccessResponse(c, state, nil)
 }
 
@@ -100,5 +114,11 @@ func (h *OnboardingHandler) MarkComplete(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
+
+	tenantID, _ := c.Get("tenant_id")
+	cacheKey := fmt.Sprintf("onboarding:state:%v", tenantID)
+	deleteOnboardingCache(c.Request.Context(), cacheKey)
+	setOnboardingCache(c.Request.Context(), cacheKey, state, 5*time.Minute)
+
 	response.SuccessResponse(c, state, nil)
 }
