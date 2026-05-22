@@ -10,6 +10,53 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func collectCookieValues(c *gin.Context, name string) []string {
+	values := make([]string, 0)
+	seen := map[string]struct{}{}
+
+	for _, cookie := range c.Request.Cookies() {
+		if cookie.Name != name || cookie.Value == "" {
+			continue
+		}
+		if _, ok := seen[cookie.Value]; ok {
+			continue
+		}
+		seen[cookie.Value] = struct{}{}
+		values = append(values, cookie.Value)
+	}
+
+	return values
+}
+
+func isNewerTokenClaims(candidate *jwt.Claims, current *jwt.Claims) bool {
+	if current == nil {
+		return true
+	}
+
+	candidateIat := int64(0)
+	currentIat := int64(0)
+	if candidate.IssuedAt != nil {
+		candidateIat = candidate.IssuedAt.Time.Unix()
+	}
+	if current.IssuedAt != nil {
+		currentIat = current.IssuedAt.Time.Unix()
+	}
+	if candidateIat != currentIat {
+		return candidateIat > currentIat
+	}
+
+	candidateExp := int64(0)
+	currentExp := int64(0)
+	if candidate.ExpiresAt != nil {
+		candidateExp = candidate.ExpiresAt.Time.Unix()
+	}
+	if current.ExpiresAt != nil {
+		currentExp = current.ExpiresAt.Time.Unix()
+	}
+
+	return candidateExp > currentExp
+}
+
 // AuthMiddleware validates JWT token and sets user info in context
 func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
@@ -58,6 +105,7 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		}
 
 		var tokenString string
+		var claims *jwt.Claims
 
 		// 1. Check Authorization Header (Bearer)
 		authHeader := c.GetHeader("Authorization")
@@ -70,9 +118,33 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 
 		// 2. Check Cookie (HttpOnly)
 		if tokenString == "" {
-			cookie, err := c.Cookie("gims_access_token")
-			if err == nil && cookie != "" {
-				tokenString = cookie
+			candidates := collectCookieValues(c, "gims_access_token")
+			if len(candidates) > 0 {
+				sawExpired := false
+				for _, candidate := range candidates {
+					candidateClaims, validateErr := jwtManager.ValidateToken(candidate)
+					if validateErr != nil {
+						if validateErr == jwt.ErrExpiredToken {
+							sawExpired = true
+						}
+						continue
+					}
+
+					if isNewerTokenClaims(candidateClaims, claims) {
+						claims = candidateClaims
+						tokenString = candidate
+					}
+				}
+
+				if claims == nil {
+					if sawExpired {
+						errors.ErrorResponse(c, "TOKEN_EXPIRED", nil, nil)
+					} else {
+						errors.ErrorResponse(c, "TOKEN_INVALID", nil, nil)
+					}
+					c.Abort()
+					return
+				}
 			}
 		}
 
@@ -82,16 +154,19 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			return
 		}
 
-		// Validate token
-		claims, err := jwtManager.ValidateToken(tokenString)
-		if err != nil {
-			if err == jwt.ErrExpiredToken {
-				errors.ErrorResponse(c, "TOKEN_EXPIRED", nil, nil)
-			} else {
-				errors.ErrorResponse(c, "TOKEN_INVALID", nil, nil)
+		// Validate bearer token if claims were not already selected from cookies.
+		if claims == nil {
+			validatedClaims, err := jwtManager.ValidateToken(tokenString)
+			if err != nil {
+				if err == jwt.ErrExpiredToken {
+					errors.ErrorResponse(c, "TOKEN_EXPIRED", nil, nil)
+				} else {
+					errors.ErrorResponse(c, "TOKEN_INVALID", nil, nil)
+				}
+				c.Abort()
+				return
 			}
-			c.Abort()
-			return
+			claims = validatedClaims
 		}
 
 		// Validate claims are not empty
@@ -134,6 +209,7 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		log.Printf("[AuthMiddleware] method=%s path=%s user_id=%s role=%s tenant_id=%s", c.Request.Method, c.Request.URL.Path, claims.UserID, claims.Role, claims.TenantID)
 
 		// Load permissions with strict tenant boundary when available.
+		var err error
 		permScopeMap := map[string]string{}
 		tenantAwareSvc, isTenantAware := permService.(tenantAwarePermissionService)
 		if isTenantAware && claims.TenantID != "" {

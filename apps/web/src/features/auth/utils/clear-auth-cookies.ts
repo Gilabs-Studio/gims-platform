@@ -25,7 +25,7 @@ export function clearAuthCookies(): void {
 
   cookiesToClear.forEach((cookieName) => {
     // Clear with various path combinations to ensure removal
-    const paths = ["/", "", "/api"];
+    const paths = ["/", "", "/api", "/api/v1"];
     paths.forEach((path) => {
       document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
       document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; SameSite=Strict`;
@@ -33,6 +33,8 @@ export function clearAuthCookies(): void {
     });
   });
 }
+
+let fullCleanupPromise: Promise<void> | null = null;
 
 /**
  * Attempt to logout via API to clear HttpOnly cookies server-side.
@@ -52,8 +54,18 @@ export async function clearAuthCookiesViaApi(): Promise<void> {
  * Full cleanup: clear local cookies AND call API to clear HttpOnly cookies.
  */
 export async function fullAuthCleanup(): Promise<void> {
+  if (fullCleanupPromise) {
+    return fullCleanupPromise;
+  }
+
   // Clear what we can locally first
-  clearAuthCookies();
-  // Then try to clear HttpOnly cookies via API
-  await clearAuthCookiesViaApi();
+  fullCleanupPromise = (async () => {
+    clearAuthCookies();
+    // Then try to clear HttpOnly cookies via API
+    await clearAuthCookiesViaApi();
+  })().finally(() => {
+    fullCleanupPromise = null;
+  });
+
+  return fullCleanupPromise;
 }
