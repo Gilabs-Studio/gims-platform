@@ -80,30 +80,52 @@ func (h *AuthHandler) CheckAvailability(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
-// isHTTPS returns true when the current request arrived over TLS, either
-// directly or via a trusted proxy that sets X-Forwarded-Proto.
 func isHTTPS(c *gin.Context) bool {
-	if config.AppConfig == nil || config.AppConfig.Server.Env != "production" {
-		return false
-	}
 	if c.Request.TLS != nil {
 		return true
 	}
-	if config.AppConfig.Security.ProxyHeadersEnabled {
-		xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
-		return xfp == "https"
+	xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if xfp == "https" {
+		return true
 	}
 	return false
 }
 
-func authCookieDomain() string {
+func isCookieDomainValid(requestHost, cookieDomain string) bool {
+	if cookieDomain == "" {
+		return true
+	}
+
+	// Remove leading dot for comparison
+	cleanDomain := strings.TrimPrefix(cookieDomain, ".")
+	cleanHost := requestHost
+	// Remove port from host if present
+	if idx := strings.Index(requestHost, ":"); idx != -1 {
+		cleanHost = requestHost[:idx]
+	}
+
+	if cleanHost == cleanDomain {
+		return true
+	}
+
+	// Check if it's a subdomain
+	return strings.HasSuffix(cleanHost, "."+cleanDomain)
+}
+
+func authCookieDomain(c *gin.Context) string {
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		rootDomain := config.AppConfig.Server.RootDomain
+		if isCookieDomainValid(c.Request.Host, rootDomain) {
+			return rootDomain
+		}
+	}
 	return ""
 }
 
 func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 	isSec := isHTTPS(c)
 	sameSite := http.SameSiteLaxMode
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
 		isSec = true
 		sameSite = http.SameSiteNoneMode
 	}
@@ -129,32 +151,39 @@ func clearAuthCookies(c *gin.Context) {
 		domains = append(domains, config.AppConfig.Server.RootDomain)
 	}
 
-	// Clear with both Lax and None SameSite modes to ensure that legacy cookies
-	// (which were written with SameSite=None) are successfully deleted.
-	sameSites := []http.SameSite{http.SameSiteLaxMode, http.SameSiteNoneMode}
+	// Determine the correct SameSite and Secure settings based on environment.
+	// In production, cross-origin/cross-site cookies are required (SameSite=None, Secure=true).
+	// In development, same-site cookies are typical (SameSite=Lax).
+	var sameSite http.SameSite
+	var secure bool
+	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	} else {
+		sameSite = http.SameSiteLaxMode
+		secure = isHTTPS(c)
+	}
+
+	requestHost := c.Request.Host
 
 	for _, name := range []string{"gims_access_token", "gims_refresh_token", "gims_csrf_token"} {
 		for _, domain := range domains {
+			// Skip domain if it's invalid for the current request host to avoid browser rejection
+			if !isCookieDomainValid(requestHost, domain) {
+				continue
+			}
+
 			for _, p := range paths {
-				for _, ss := range sameSites {
-					secure := true
-					if ss == http.SameSiteLaxMode {
-						secure = isHTTPS(c)
-						if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-							secure = true
-						}
-					}
-					http.SetCookie(c.Writer, &http.Cookie{
-						Name:     name,
-						Value:    "",
-						Path:     p,
-						MaxAge:   -1,
-						Domain:   domain,
-						Secure:   secure,
-						HttpOnly: name != "gims_csrf_token",
-						SameSite: ss,
-					})
-				}
+				http.SetCookie(c.Writer, &http.Cookie{
+					Name:     name,
+					Value:    "",
+					Path:     p,
+					MaxAge:   -1,
+					Domain:   domain,
+					Secure:   secure,
+					HttpOnly: name != "gims_csrf_token",
+					SameSite: sameSite,
+				})
 			}
 		}
 	}
@@ -164,7 +193,7 @@ func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int
 	// KISS: Set the cookie ONCE on the configured domain.
 	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
 	// with the same name, which leads to conflicts and stale token evaluation.
-	domain := authCookieDomain()
+	domain := authCookieDomain(c)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     name,
 		Value:    value,

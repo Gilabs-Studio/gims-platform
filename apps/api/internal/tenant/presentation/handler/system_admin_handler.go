@@ -28,21 +28,29 @@ import (
 	"gorm.io/gorm"
 )
 
-func resolveSystemAdminCookieOptions() (string, http.SameSite, bool) {
-	if config.AppConfig == nil {
-		return "", http.SameSiteLaxMode, true
+func isHTTPS(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if xfp == "https" {
+		return true
+	}
+	return false
+}
+
+func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite, bool) {
+	isSecure := isHTTPS(c)
+	sameSite := http.SameSiteLaxMode
+	if isSecure {
+		sameSite = http.SameSiteNoneMode
 	}
 
-	env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
-	if env == "production" || env == "prod" {
-		return "", http.SameSiteNoneMode, true
-	}
-
-	return "", http.SameSiteLaxMode, true
+	return "", sameSite, isSecure
 }
 
 func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
-	domain, sameSite, secure := resolveSystemAdminCookieOptions()
+	domain, sameSite, secure := resolveSystemAdminCookieOptions(c)
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_sys_access_token",
@@ -57,7 +65,7 @@ func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
 }
 
 func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain string) {
-	_, sameSite, secure := resolveSystemAdminCookieOptions()
+	_, sameSite, secure := resolveSystemAdminCookieOptions(c)
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_sys_access_token",
@@ -73,7 +81,7 @@ func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain stri
 }
 
 func clearSystemAdminAccessTokenCookies(c *gin.Context) {
-	domain, _, _ := resolveSystemAdminCookieOptions()
+	domain, _, _ := resolveSystemAdminCookieOptions(c)
 	paths := []string{"/internal", "/"}
 	domains := []string{"", domain}
 
