@@ -125,10 +125,23 @@ func authCookieDomain(c *gin.Context) string {
 func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 	isSec := isHTTPS(c)
 	sameSite := http.SameSiteLaxMode
-	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
+
+	env := "development"
+	if config.AppConfig != nil {
+		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+	}
+
+	// Always use SameSite=None in production, or if the connection is secure 
+	// (which is required for cross-domain auth in dev/staging).
+	if env == "production" {
+		isSec = true
+		sameSite = http.SameSiteNoneMode
+	} else if isSec || c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://") {
+		// If origin is https, we must use secure cookies
 		isSec = true
 		sameSite = http.SameSiteNoneMode
 	}
+	
 	return isSec, sameSite
 }
 
@@ -151,17 +164,27 @@ func clearAuthCookies(c *gin.Context) {
 		domains = append(domains, config.AppConfig.Server.RootDomain)
 	}
 
-	// Determine the correct SameSite and Secure settings based on environment.
+	// Determine the correct SameSite and Secure settings.
 	// In production, cross-origin/cross-site cookies are required (SameSite=None, Secure=true).
-	// In development, same-site cookies are typical (SameSite=Lax).
+	// In development, we use SameSite=None if HTTPS is detected or Origin is HTTPS.
 	var sameSite http.SameSite
 	var secure bool
-	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
+	
+	env := "development"
+	if config.AppConfig != nil {
+		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+	}
+
+	if env == "production" {
 		sameSite = http.SameSiteNoneMode
 		secure = true
 	} else {
-		sameSite = http.SameSiteLaxMode
-		secure = isHTTPS(c)
+		secure = isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
+		if secure {
+			sameSite = http.SameSiteNoneMode
+		} else {
+			sameSite = http.SameSiteLaxMode
+		}
 	}
 
 	requestHost := c.Request.Host

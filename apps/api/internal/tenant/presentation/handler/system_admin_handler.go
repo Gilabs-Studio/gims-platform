@@ -40,7 +40,7 @@ func isHTTPS(c *gin.Context) bool {
 }
 
 func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite, bool) {
-	isSecure := isHTTPS(c)
+	isSecure := isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
 	sameSite := http.SameSiteLaxMode
 	if isSecure {
 		sameSite = http.SameSiteNoneMode

@@ -193,7 +193,7 @@ func isHTTPS(c *gin.Context) bool {
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
 	domain := getCookieDomain(c)
-	isSecure := isHTTPS(c)
+	isSecure := isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
 	sameSite := http.SameSiteLaxMode
 	if isSecure {
 		sameSite = http.SameSiteNoneMode
