@@ -35,6 +35,11 @@ import type {
   PermissionListParams,
   CreatePermissionRequest,
   UpdatePermissionRequest,
+  TenantOwnerPasswordResetQueueParams,
+  TenantOwnerPasswordResetQueueResponse,
+  TenantOwnerPasswordResetPendingCountResponse,
+  SystemAdminResetTenantOwnerPasswordRequest,
+  SystemAdminResetTenantOwnerPasswordResponse,
 } from "../types";
 
 const API_BASE_URL =
@@ -356,6 +361,35 @@ export const systemAdminService = {
 
   async deletePermission(id: string): Promise<{ success: boolean }> {
     const { data } = await sysAdminClient.delete<{ success: boolean }>(`/permissions/${id}`);
+    return data;
+  },
+
+  // ── Tenant owner password reset queue ────────────────────────────────────
+
+  async getTenantOwnerPasswordResetQueue(
+    params?: TenantOwnerPasswordResetQueueParams,
+  ): Promise<TenantOwnerPasswordResetQueueResponse> {
+    const { data } = await sysAdminClient.get<TenantOwnerPasswordResetQueueResponse>(
+      "/system/tenants/owner-password-reset-requests",
+      { params },
+    );
+    return data;
+  },
+
+  async getTenantOwnerPasswordResetPendingCount(): Promise<TenantOwnerPasswordResetPendingCountResponse> {
+    const { data } = await sysAdminClient.get<TenantOwnerPasswordResetPendingCountResponse>(
+      "/system/tenants/owner-password-reset-requests/pending-count",
+    );
+    return data;
+  },
+
+  async resetTenantOwnerPassword(
+    payload: SystemAdminResetTenantOwnerPasswordRequest,
+  ): Promise<SystemAdminResetTenantOwnerPasswordResponse> {
+    const { data } = await sysAdminClient.post<SystemAdminResetTenantOwnerPasswordResponse>(
+      "/system/tenants/owner-password-reset-requests/reset",
+      payload,
+    );
     return data;
   },
 };
