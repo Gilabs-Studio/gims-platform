@@ -125,25 +125,37 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 }
 
 func clearAuthCookies(c *gin.Context) {
-	secure, sameSite := getCookieSecureAndSameSite(c)
 	// Clear current and legacy cookie paths and domains used by older deployments
 	// to prevent stale/duplicate cookies from causing auth failures.
 	paths := []string{"/", "/api", "/api/v1"}
 	domains := []string{"", authCookieDomain()}
 
-	for _, name := range []string{"gims_access_token", "gims_refresh_token"} {
+	// Clear with both Lax and None SameSite modes to ensure that legacy cookies
+	// (which were written with SameSite=None) are successfully deleted.
+	sameSites := []http.SameSite{http.SameSiteLaxMode, http.SameSiteNoneMode}
+
+	for _, name := range []string{"gims_access_token", "gims_refresh_token", "gims_csrf_token"} {
 		for _, domain := range domains {
 			for _, p := range paths {
-				http.SetCookie(c.Writer, &http.Cookie{
-					Name:     name,
-					Value:    "",
-					Path:     p,
-					MaxAge:   -1,
-					Domain:   domain,
-					Secure:   secure,
-					HttpOnly: true,
-					SameSite: sameSite,
-				})
+				for _, ss := range sameSites {
+					secure := true
+					if ss == http.SameSiteLaxMode {
+						secure = isHTTPS(c)
+						if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+							secure = true
+						}
+					}
+					http.SetCookie(c.Writer, &http.Cookie{
+						Name:     name,
+						Value:    "",
+						Path:     p,
+						MaxAge:   -1,
+						Domain:   domain,
+						Secure:   secure,
+						HttpOnly: name != "gims_csrf_token",
+						SameSite: ss,
+					})
+				}
 			}
 		}
 	}
@@ -377,25 +389,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// ALWAYS Clear Cookies on Logout
 	clearAuthCookies(c)
-	// Also clear CSRF token cookie across domains to avoid stale CSRF cookies
-	secure, sameSite := getCookieSecureAndSameSite(c)
-	domains := []string{"", authCookieDomain()}
-	for _, domain := range domains {
-		for _, p := range []string{"/", "/api", "/api/v1"} {
-			http.SetCookie(c.Writer, &http.Cookie{
-				Name:     "gims_csrf_token",
-				Value:    "",
-				Path:     p,
-				MaxAge:   -1,
-				Domain:   domain,
-				Secure:   secure,
-				HttpOnly: false,
-				SameSite: sameSite,
-			})
-		}
-	}
 
-	response.SuccessResponseNoContent(c)
+	response.SuccessResponse(c, gin.H{"message": "logged out"}, nil)
 }
 
 // GetCSRFToken ensures the client has a CSRF cookie (middleware handles setting it)
