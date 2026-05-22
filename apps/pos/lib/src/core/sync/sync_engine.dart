@@ -91,8 +91,29 @@ class SyncEngine {
         return a.createdAt.compareTo(b.createdAt);
       });
 
+      // Track order IDs whose payment failed this batch so that downstream
+      // jobs (serveItem, serveOrder, completeOrder) are skipped in the same run.
+      final failedPaymentOrderIds = <String>{};
+
       for (final job in jobs) {
+        // Skip dependent terminal jobs when their order's payment failed this batch.
+        if (job.feature == 'terminal' &&
+            const {'serveItem', 'serveOrder', 'completeOrder'}.contains(job.action)) {
+          final oid = _orderIdFromPayload(job.payload);
+          if (oid != null && failedPaymentOrderIds.contains(oid)) {
+            continue;
+          }
+        }
+
         await _processJob(job);
+
+        // After processing, record payment failures to skip downstream jobs.
+        if (job.feature == 'terminal' &&
+            job.action == 'processCash' &&
+            job.status == SyncJobStatus.failedConflict) {
+          final oid = _orderIdFromPayload(job.payload);
+          if (oid != null) failedPaymentOrderIds.add(oid);
+        }
       }
     } finally {
       _processing = false;
@@ -141,6 +162,18 @@ class SyncEngine {
             }
             // Propagate resolved orderId to downstream jobs.
             await _resolveDownstreamJobs(job.clientId, orderId);
+          }
+        }
+
+        // For confirmOrder: update any pending processCash amount to the
+        // server-confirmed total, preventing offline tax-rate mismatch rejections.
+        if (job.feature == 'terminal' && job.action == 'confirmOrder') {
+          final confirmedTotal = _extractTotalAmount(body);
+          final confirmedOrderId = payload['orderId'] as String?;
+          if (confirmedTotal != null &&
+              confirmedOrderId != null &&
+              confirmedOrderId.isNotEmpty) {
+            await _updatePendingCashPaymentAmount(confirmedOrderId, confirmedTotal);
           }
         }
 
@@ -267,6 +300,26 @@ class SyncEngine {
       }
       await _isar.syncJobs.put(job);
     });
+
+    // Cascade-fail dependent downstream jobs when a cash payment definitively fails,
+    // so serveItem/serveOrder/completeOrder are not dispatched against an unpaid order.
+    if (conflictCode != null &&
+        job.feature == 'terminal' &&
+        job.action == 'processCash') {
+      try {
+        final p = jsonDecode(job.payload) as Map<String, dynamic>;
+        final orderId = p['orderId'] as String?;
+        if (orderId != null && orderId.isNotEmpty) {
+          await _cascadeFailDependentJobs(
+            orderId,
+            'Upstream payment failed — dependent serve/complete jobs cancelled',
+          );
+        }
+      } catch (_) {
+        // Payload parse failure must not block status emission.
+      }
+    }
+
     _emitStatus();
   }
 
@@ -642,6 +695,100 @@ class SyncEngine {
       await _isar.syncJobs.delete(jobId);
     });
     _emitStatus();
+  }
+
+  /// Extracts the `orderId` from a JSON-encoded job payload string.
+  String? _orderIdFromPayload(String payloadJson) {
+    try {
+      final p = jsonDecode(payloadJson) as Map<String, dynamic>;
+      return p['orderId'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Extracts `total_amount` from a server response envelope `{data: {total_amount: ...}}`.
+  double? _extractTotalAmount(dynamic body) {
+    if (body is Map<String, dynamic>) {
+      final data = body['data'];
+      if (data is Map<String, dynamic>) {
+        final v = data['total_amount'];
+        if (v is num) return v.toDouble();
+      }
+    }
+    return null;
+  }
+
+  /// Updates the `amount` field of all pending `processCash` jobs for [orderId]
+  /// to match [serverTotal], correcting offline tax-rate discrepancies before sync.
+  Future<void> _updatePendingCashPaymentAmount(
+      String orderId, double serverTotal) async {
+    final jobs = await _isar.syncJobs
+        .filter()
+        .statusEqualTo(SyncJobStatus.pending)
+        .findAll();
+
+    final toUpdate = <SyncJob>[];
+    for (final j in jobs) {
+      if (j.feature != 'terminal' || j.action != 'processCash') continue;
+      try {
+        final p = jsonDecode(j.payload) as Map<String, dynamic>;
+        if (p['orderId'] != orderId) continue;
+        final currentAmount = (p['amount'] as num?)?.toDouble();
+        if (currentAmount != null && currentAmount >= serverTotal) continue;
+        // Offline amount is less than server total; align to server-confirmed total.
+        p['amount'] = serverTotal;
+        j.payload = jsonEncode(p);
+        toUpdate.add(j);
+      } catch (_) {
+        continue;
+      }
+    }
+
+    if (toUpdate.isNotEmpty) {
+      await _isar.writeTxn(() async {
+        await _isar.syncJobs.putAll(toUpdate);
+      });
+    }
+  }
+
+  /// Marks all pending/failed `serveItem`, `serveOrder`, and `completeOrder` jobs
+  /// for [orderId] as `failedConflict`, blocking them from dispatching against
+  /// an order that cannot transition because payment failed.
+  Future<void> _cascadeFailDependentJobs(
+      String orderId, String reason) async {
+    const downstream = {'serveItem', 'serveOrder', 'completeOrder'};
+
+    final jobs = await _isar.syncJobs
+        .filter()
+        .statusEqualTo(SyncJobStatus.pending)
+        .or()
+        .statusEqualTo(SyncJobStatus.failed)
+        .findAll();
+
+    final toUpdate = <SyncJob>[];
+    for (final j in jobs) {
+      if (j.feature != 'terminal') continue;
+      if (!downstream.contains(j.action)) continue;
+      try {
+        final p = jsonDecode(j.payload) as Map<String, dynamic>;
+        if (p['orderId'] != orderId) continue;
+      } catch (_) {
+        continue;
+      }
+      j
+        ..status = SyncJobStatus.failedConflict
+        ..errorCode = 'PAYMENT_FAILED_UPSTREAM'
+        ..errorMessage = reason
+        ..attemptCount = j.attemptCount + 1;
+      toUpdate.add(j);
+    }
+
+    if (toUpdate.isNotEmpty) {
+      await _isar.writeTxn(() async {
+        await _isar.syncJobs.putAll(toUpdate);
+      });
+    }
   }
 }
 
