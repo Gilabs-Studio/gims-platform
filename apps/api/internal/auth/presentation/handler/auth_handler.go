@@ -127,7 +127,7 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 func clearAuthCookies(c *gin.Context) {
 	// Clear current and legacy cookie paths and domains used by older deployments
 	// to prevent stale/duplicate cookies from causing auth failures.
-	paths := []string{"/", "/api", "/api/v1"}
+	paths := []string{"/"}
 	domains := []string{"", authCookieDomain()}
 
 	// Clear with both Lax and None SameSite modes to ensure that legacy cookies

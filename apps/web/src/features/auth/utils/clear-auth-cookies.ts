@@ -23,7 +23,7 @@ export function clearAuthCookies(): void {
     "gims_refresh_token",
   ];
 
-  const paths = ["/", "", "/api", "/api/v1"];
+  const paths = ["/", ""];
   const domains = [""];
 
   // Add the registrable root domain (e.g. .gilabs.id) to clear domain-scoped cookies
