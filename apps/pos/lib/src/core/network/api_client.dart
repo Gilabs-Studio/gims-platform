@@ -187,8 +187,26 @@ class ApiClient {
   ApiException _toApiException(DioException error) {
     final response = error.response;
     final body = response?.data;
-    String message = error.message ?? 'Request failed';
     String? code;
+
+    // Translate platform-level connection failures to a user-friendly message
+    // instead of exposing raw strings like "XMLHttpRequest error." or
+    // "SocketException: Failed host lookup".
+    if (response == null) {
+      final isConnectivityError = error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.unknown;
+      if (isConnectivityError) {
+        return ApiException(
+          'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+          statusCode: null,
+        );
+      }
+    }
+
+    String message = error.message ?? 'Request failed';
 
     if (body is Map<String, dynamic>) {
       final err = body['error'];

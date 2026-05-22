@@ -2,11 +2,14 @@
 
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/database/models/cached_order.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/sync/sync_engine.dart';
+import '../../../core/sync/sync_job.dart';
 import '../domain/models/cart_line.dart';
 import '../domain/models/catalog_item.dart';
 import '../domain/models/pos_customer.dart';
@@ -15,223 +18,76 @@ import '../domain/models/pos_order.dart';
 
 /// Terminal service — catalog, config, orders, payments.
 class TerminalService {
-  TerminalService(this._api);
+  TerminalService(this._api, this._syncEngine, this._isar);
 
   final ApiClient _api;
+  final SyncEngine _syncEngine;
+  final Isar _isar;
   static const _uuid = Uuid();
-  static const _pendingActionsKey = 'gims_pos_pending_actions_v1';
-  static const _orderIdMapKey = 'gims_pos_order_id_map_v1';
   static final Map<String, List<CatalogItem>> _catalogByOutlet = {};
   static final Map<String, PosConfig> _configByOutlet = {};
   static final Map<String, List<PosOrder>> _ordersByOutlet = {};
   static final Map<String, PosOrder> _orderById = {};
-
-  Future<void> _tryFlushPendingActions() async {
-    try {
-      await _flushPendingActions();
-    } catch (_) {
-      // Best effort only; never block active user action.
-    }
-  }
+  static List<PosCustomer> _customerCache = [];
 
   bool _isOfflineError(Object error) {
-    return error is ApiException && error.statusCode == null;
+    return error is ApiException && error.isOffline;
   }
 
-  Future<List<Map<String, dynamic>>> _loadPendingActions() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_pendingActionsKey);
-    if (raw == null || raw.isEmpty) return <Map<String, dynamic>>[];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        return decoded
-            .whereType<Map>()
-            .map((e) => e.map((k, v) => MapEntry('$k', v)))
-            .toList();
-      }
-    } catch (_) {
-      return <Map<String, dynamic>>[];
-    }
-    return <Map<String, dynamic>>[];
+  /// Creates a local order ID that encodes the clientId so it can be
+  /// extracted later for SyncEngine job payloads.
+  String _newLocalOrderId(String clientId) => 'local-$clientId';
+
+  /// Extracts the original clientId from a local order ID, or returns null
+  /// if the order ID belongs to a server-confirmed order.
+  String? _extractClientId(String orderId) {
+    if (orderId.startsWith('local-')) return orderId.substring(6);
+    return null;
   }
 
-  Future<void> _savePendingActions(List<Map<String, dynamic>> actions) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingActionsKey, jsonEncode(actions));
-  }
-
-  Future<void> _enqueuePendingAction(
-    String action,
-    Map<String, dynamic> payload,
+  /// Creates a CachedOrder record in Isar so SyncEngine can resolve
+  /// the server-assigned orderId for downstream jobs after createOrder syncs.
+  Future<void> _cacheLocalOrder(
+    String clientId,
+    String outletId,
+    double totalAmount,
   ) async {
-    final actions = await _loadPendingActions();
-    actions.add({
-      'id': _uuid.v4(),
-      'action': action,
-      'payload': payload,
-      'created_at': DateTime.now().toIso8601String(),
+    final entry = CachedOrder()
+      ..clientId = clientId
+      ..orderId = null
+      ..outletId = outletId
+      ..status = 'draft'
+      ..itemsJson = '[]'
+      ..totalAmount = totalAmount
+      ..syncStatus = CachedOrderSyncStatus.local
+      ..cachedAt = DateTime.now();
+    await _isar.writeTxn(() async {
+      await _isar.cachedOrders.put(entry);
     });
-    await _savePendingActions(actions);
   }
 
-  Future<Map<String, String>> _loadOrderIdMap() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_orderIdMapKey);
-    if (raw == null || raw.isEmpty) return <String, String>{};
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) {
-        return decoded.map((k, v) => MapEntry(k, '$v'));
-      }
-      if (decoded is Map) {
-        return decoded.map((k, v) => MapEntry('$k', '$v'));
-      }
-    } catch (_) {
-      return <String, String>{};
-    }
-    return <String, String>{};
+  /// Enqueues a [SyncJob] to SyncEngine for background processing.
+  ///
+  /// For [createOrder] jobs [clientId] becomes the job's own clientId so that
+  /// [SyncEngine._resolveDownstreamJobs] can propagate the server orderId.
+  /// For downstream jobs (addItem, confirmOrder, processCash, voidOrder) the
+  /// [clientId] in [payload] must equal the parent order's clientId.
+  Future<void> _enqueueJob({
+    required String jobClientId,
+    required String action,
+    required Map<String, dynamic> payload,
+  }) async {
+    final job = SyncJob()
+      ..clientId = jobClientId
+      ..feature = 'terminal'
+      ..action = action
+      ..payload = jsonEncode(payload)
+      ..status = SyncJobStatus.pending
+      ..createdAt = DateTime.now();
+    await _syncEngine.enqueue(job);
   }
 
-  Future<void> _saveOrderIdMap(Map<String, String> map) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_orderIdMapKey, jsonEncode(map));
-  }
 
-  Future<void> _flushPendingActions() async {
-    final actions = await _loadPendingActions();
-    if (actions.isEmpty) return;
-
-    final orderIdMap = await _loadOrderIdMap();
-    final remaining = <Map<String, dynamic>>[];
-
-    bool stopProcessing = false;
-    final stageOrder = <String>[
-      'create_order',
-      'add_item',
-      'confirm_order',
-      'process_cash',
-      'void_order',
-    ];
-
-    for (final stage in stageOrder) {
-      for (final action in actions) {
-        final type = action['action'] as String?;
-        if (type != stage) continue;
-
-        final payloadAny = action['payload'];
-        final payload = payloadAny is Map
-            ? payloadAny.map((k, v) => MapEntry('$k', v))
-            : <String, dynamic>{};
-        if (payload.isEmpty) {
-          continue;
-        }
-
-        if (stopProcessing) {
-          remaining.add(action);
-          continue;
-        }
-
-        try {
-          switch (stage) {
-            case 'create_order':
-              final localOrderId = payload['local_order_id'] as String?;
-              final clientId = payload['client_id'] as String?;
-              final request = Map<String, dynamic>.from(payload)
-                ..remove('local_order_id');
-              if (clientId != null && clientId.isNotEmpty) {
-                _api.setNextRequestHeader('X-Idempotency-Key', clientId);
-              }
-              final response = await _api.post<Map<String, dynamic>>(
-                '/pos/orders',
-                data: request,
-              );
-              final created = PosOrder.fromJson(_dataMap(response.data));
-              if (localOrderId != null && localOrderId.isNotEmpty) {
-                orderIdMap[localOrderId] = created.id;
-                _reconcileLocalOrderId(localOrderId, created);
-              } else {
-                _upsertOrderCache(created);
-              }
-              break;
-
-            case 'add_item':
-            case 'confirm_order':
-            case 'process_cash':
-            case 'void_order':
-              final queuedOrderId = payload['order_id'] as String?;
-              final resolvedOrderId = queuedOrderId == null
-                  ? null
-                  : (orderIdMap[queuedOrderId] ?? queuedOrderId);
-              if (resolvedOrderId == null || resolvedOrderId.isEmpty) {
-                remaining.add(action);
-                continue;
-              }
-
-              final clientId = payload['client_id'] as String?;
-              if (clientId != null && clientId.isNotEmpty) {
-                _api.setNextRequestHeader('X-Idempotency-Key', clientId);
-              }
-
-              if (stage == 'add_item') {
-                final request = Map<String, dynamic>.from(payload)
-                  ..remove('order_id');
-                final response = await _api.post<Map<String, dynamic>>(
-                  '/pos/orders/$resolvedOrderId/items',
-                  data: request,
-                );
-                final updated = PosOrder.fromJson(_dataMap(response.data));
-                _upsertOrderCache(updated);
-              } else if (stage == 'confirm_order') {
-                final response = await _api.post<Map<String, dynamic>>(
-                  '/pos/orders/$resolvedOrderId/confirm',
-                  data: <String, dynamic>{},
-                );
-                final updated = PosOrder.fromJson(_dataMap(response.data));
-                _upsertOrderCache(updated);
-              } else if (stage == 'process_cash') {
-                final request = Map<String, dynamic>.from(payload)
-                  ..remove('order_id');
-                await _api.post<Map<String, dynamic>>(
-                  '/pos/orders/$resolvedOrderId/payments/cash',
-                  data: request,
-                );
-              } else if (stage == 'void_order') {
-                final reason = payload['reason'] as String? ?? 'Order canceled';
-                final response = await _api.post<Map<String, dynamic>>(
-                  '/pos/orders/$resolvedOrderId/void',
-                  data: {'reason': reason},
-                );
-                final updated = PosOrder.fromJson(_dataMap(response.data));
-                _upsertOrderCache(updated);
-              }
-              break;
-
-            default:
-              remaining.add(action);
-          }
-        } catch (error) {
-          remaining.add(action);
-          if (_isOfflineError(error)) {
-            stopProcessing = true;
-          }
-        }
-      }
-    }
-
-    for (final action in actions) {
-      final type = action['action'] as String?;
-      final isKnownStage = stageOrder.contains(type);
-      if (!isKnownStage) {
-        remaining.add(action);
-      }
-    }
-
-    await _savePendingActions(remaining);
-    await _saveOrderIdMap(orderIdMap);
-  }
-
-  String _newLocalOrderId() => 'local-${_uuid.v4()}';
 
   void _upsertOrderCache(PosOrder order) {
     _orderById[order.id] = order;
@@ -269,6 +125,215 @@ class TerminalService {
       if (idx >= 0) return orders[idx];
     }
     return null;
+  }
+
+  bool _isLocallyActiveStatus(PosOrderStatus status) {
+    return {
+      PosOrderStatus.draft,
+      PosOrderStatus.inProgress,
+      PosOrderStatus.ready,
+      PosOrderStatus.waitingPayment,
+      PosOrderStatus.paid,
+      PosOrderStatus.partialServed,
+      PosOrderStatus.served,
+    }.contains(status);
+  }
+
+  int _orderStatusRank(PosOrderStatus status) {
+    switch (status) {
+      case PosOrderStatus.draft:
+        return 1;
+      case PosOrderStatus.inProgress:
+        return 2;
+      case PosOrderStatus.ready:
+      case PosOrderStatus.waitingPayment:
+        return 3;
+      case PosOrderStatus.paid:
+        return 4;
+      case PosOrderStatus.partialServed:
+        return 5;
+      case PosOrderStatus.served:
+        return 6;
+      case PosOrderStatus.completed:
+        return 7;
+      case PosOrderStatus.voided:
+        return 0;
+    }
+  }
+
+  PosOrder _preferFurthestProgress(PosOrder server, PosOrder local) {
+    if (_orderStatusRank(local.status) <= _orderStatusRank(server.status)) {
+      return server;
+    }
+
+    return PosOrder(
+      id: server.id,
+      orderNumber: server.orderNumber,
+      outletId: server.outletId,
+      status: local.status,
+      guestCount: local.guestCount,
+      subtotal: local.subtotal,
+      taxAmount: local.taxAmount,
+      serviceCharge: local.serviceCharge,
+      discountAmount: local.discountAmount,
+      totalAmount: local.totalAmount,
+      items: local.items,
+      createdAt: server.createdAt,
+      tableId: server.tableId ?? local.tableId,
+      tableLabel: server.tableLabel ?? local.tableLabel,
+      customerId: local.customerId ?? server.customerId,
+      customerName: local.customerName ?? server.customerName,
+      loyaltyMemberId: local.loyaltyMemberId ?? server.loyaltyMemberId,
+      loyaltyRewardId: local.loyaltyRewardId ?? server.loyaltyRewardId,
+      orderSource: server.orderSource ?? local.orderSource,
+      notes: local.notes ?? server.notes,
+    );
+  }
+
+  Future<String?> _resolvedServerOrderIdForLocal(String orderId) async {
+    final clientId = _extractClientId(orderId);
+    if (clientId == null) return null;
+    final cached = await _isar.cachedOrders
+        .filter()
+        .clientIdEqualTo(clientId)
+        .findFirst();
+    return cached?.orderId;
+  }
+
+  Future<bool> _isUnresolvedLocalOrder(String orderId) async {
+    final clientId = _extractClientId(orderId);
+    if (clientId == null) return false;
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    return resolvedOrderId == null || resolvedOrderId.isEmpty;
+  }
+
+  ApiException _pendingSyncOrderException() {
+    return ApiException(
+      'Order masih dalam sinkronisasi. Coba lagi beberapa saat.',
+      statusCode: null,
+    );
+  }
+
+  PosOrder _markOrderServedLocally(PosOrder source) {
+    final servedItems = source.items
+        .map(
+          (item) => PosOrderItem(
+            id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            productCode: item.productCode,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            status: 'SERVED',
+            notes: item.notes,
+          ),
+        )
+        .toList(growable: false);
+
+    return PosOrder(
+      id: source.id,
+      orderNumber: source.orderNumber,
+      outletId: source.outletId,
+      status: PosOrderStatus.served,
+      guestCount: source.guestCount,
+      subtotal: source.subtotal,
+      taxAmount: source.taxAmount,
+      serviceCharge: source.serviceCharge,
+      discountAmount: source.discountAmount,
+      totalAmount: source.totalAmount,
+      items: servedItems,
+      createdAt: source.createdAt,
+      tableId: source.tableId,
+      tableLabel: source.tableLabel,
+      customerId: source.customerId,
+      customerName: source.customerName,
+      loyaltyMemberId: source.loyaltyMemberId,
+      loyaltyRewardId: source.loyaltyRewardId,
+      orderSource: source.orderSource,
+      notes: source.notes,
+    );
+  }
+
+  PosOrder _markOrderCompletedLocally(PosOrder source) {
+    return PosOrder(
+      id: source.id,
+      orderNumber: source.orderNumber,
+      outletId: source.outletId,
+      status: PosOrderStatus.completed,
+      guestCount: source.guestCount,
+      subtotal: source.subtotal,
+      taxAmount: source.taxAmount,
+      serviceCharge: source.serviceCharge,
+      discountAmount: source.discountAmount,
+      totalAmount: source.totalAmount,
+      items: source.items,
+      createdAt: source.createdAt,
+      tableId: source.tableId,
+      tableLabel: source.tableLabel,
+      customerId: source.customerId,
+      customerName: source.customerName,
+      loyaltyMemberId: source.loyaltyMemberId,
+      loyaltyRewardId: source.loyaltyRewardId,
+      orderSource: source.orderSource,
+      notes: source.notes,
+    );
+  }
+
+  PosOrder _markOrderItemServedLocally(PosOrder source, String itemId) {
+    var foundItem = false;
+    final nextItems = source.items
+        .map((item) {
+          if (item.id != itemId) return item;
+          foundItem = true;
+          return PosOrderItem(
+            id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            productCode: item.productCode,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            status: 'SERVED',
+            notes: item.notes,
+          );
+        })
+        .toList(growable: false);
+
+    if (!foundItem) {
+      return source;
+    }
+
+    final allServed = nextItems.every(
+      (item) => item.status == 'SERVED' || item.status == 'CANCELLED',
+    );
+
+    final nextStatus = allServed
+        ? PosOrderStatus.served
+        : PosOrderStatus.partialServed;
+
+    return PosOrder(
+      id: source.id,
+      orderNumber: source.orderNumber,
+      outletId: source.outletId,
+      status: nextStatus,
+      guestCount: source.guestCount,
+      subtotal: source.subtotal,
+      taxAmount: source.taxAmount,
+      serviceCharge: source.serviceCharge,
+      discountAmount: source.discountAmount,
+      totalAmount: source.totalAmount,
+      items: nextItems,
+      createdAt: source.createdAt,
+      tableId: source.tableId,
+      tableLabel: source.tableLabel,
+      customerId: source.customerId,
+      customerName: source.customerName,
+      loyaltyMemberId: source.loyaltyMemberId,
+      loyaltyRewardId: source.loyaltyRewardId,
+      orderSource: source.orderSource,
+      notes: source.notes,
+    );
   }
 
   PosOrder _applyItemLocally(PosOrder source, CartLine line) {
@@ -331,11 +396,54 @@ class TerminalService {
     );
   }
 
+  void _markOrderPaidLocally({
+    required String orderId,
+    String? customerId,
+    String? customerName,
+    String? loyaltyMemberId,
+    String? loyaltyRewardId,
+  }) {
+    final baseOrder = _findCachedOrder(orderId);
+    if (baseOrder == null) return;
+
+    final nextStatus = {
+      PosOrderStatus.draft,
+      PosOrderStatus.inProgress,
+      PosOrderStatus.ready,
+      PosOrderStatus.waitingPayment,
+    }.contains(baseOrder.status)
+        ? PosOrderStatus.paid
+        : baseOrder.status;
+
+    final updated = PosOrder(
+      id: baseOrder.id,
+      orderNumber: baseOrder.orderNumber,
+      outletId: baseOrder.outletId,
+      status: nextStatus,
+      guestCount: baseOrder.guestCount,
+      subtotal: baseOrder.subtotal,
+      taxAmount: baseOrder.taxAmount,
+      serviceCharge: baseOrder.serviceCharge,
+      discountAmount: baseOrder.discountAmount,
+      totalAmount: baseOrder.totalAmount,
+      items: baseOrder.items,
+      createdAt: baseOrder.createdAt,
+      tableId: baseOrder.tableId,
+      tableLabel: baseOrder.tableLabel,
+      customerId: customerId ?? baseOrder.customerId,
+      customerName: customerName ?? baseOrder.customerName,
+      loyaltyMemberId: loyaltyMemberId ?? baseOrder.loyaltyMemberId,
+      loyaltyRewardId: loyaltyRewardId ?? baseOrder.loyaltyRewardId,
+      orderSource: baseOrder.orderSource,
+      notes: baseOrder.notes,
+    );
+    _upsertOrderCache(updated);
+  }
+
   String receiptUrl(String orderId) =>
       '${_api.apiV1}/pos/orders/$orderId/receipt';
 
   Future<List<CatalogItem>> getCatalog(String outletId) async {
-    await _tryFlushPendingActions();
     try {
       final response = await _api.get<Map<String, dynamic>>(
         '/pos/catalog/outlet/$outletId',
@@ -357,7 +465,6 @@ class TerminalService {
   }
 
   Future<PosConfig?> getConfig(String outletId) async {
-    await _tryFlushPendingActions();
     try {
       final response = await _api.get<Map<String, dynamic>>(
         '/pos/config/outlet/$outletId',
@@ -380,7 +487,6 @@ class TerminalService {
     String? customerName,
     int guestCount = 1,
   }) async {
-    await _tryFlushPendingActions();
     final clientId = _uuid.v4();
     final data = <String, dynamic>{
       'outlet_id': outletId,
@@ -405,7 +511,7 @@ class TerminalService {
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
       final localOrder = PosOrder(
-        id: _newLocalOrderId(),
+        id: _newLocalOrderId(clientId),
         orderNumber: 'LOCAL-${clientId.substring(0, 8).toUpperCase()}',
         outletId: outletId,
         status: PosOrderStatus.draft,
@@ -422,28 +528,35 @@ class TerminalService {
         customerName: customerName,
       );
       _upsertOrderCache(localOrder);
-      await _enqueuePendingAction('create_order', {
-        ...data,
-        'local_order_id': localOrder.id,
-        'client_id': clientId,
-      });
+      // Persist an Isar CachedOrder so SyncEngine can resolve the server orderId
+      // for downstream jobs (addItem, confirmOrder, processCash) via CachedOrder lookup.
+      await _cacheLocalOrder(clientId, outletId, 0);
+      await _enqueueJob(
+        jobClientId: clientId,
+        action: 'createOrder',
+        payload: data,
+      );
       return localOrder;
     }
   }
 
   Future<PosOrder> addItem(String orderId, CartLine line) async {
-    await _tryFlushPendingActions();
-    final clientId = _uuid.v4();
+    final jobClientId = _uuid.v4();
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
     final payload = {
       'product_id': line.product.productId,
       'quantity': line.quantity,
       if (line.notes != null && line.notes!.isNotEmpty) 'notes': line.notes,
-      'client_id': clientId,
     };
     try {
-      _api.setNextRequestHeader('X-Idempotency-Key', clientId);
+      if (bypassServer) {
+        throw _pendingSyncOrderException();
+      }
+      final resolvedOrderId =
+          await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+      _api.setNextRequestHeader('X-Idempotency-Key', jobClientId);
       final response = await _api.post<Map<String, dynamic>>(
-        '/pos/orders/$orderId/items',
+        '/pos/orders/$resolvedOrderId/items',
         data: payload,
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
@@ -457,35 +570,61 @@ class TerminalService {
       }
       final updated = _applyItemLocally(baseOrder, line);
       _upsertOrderCache(updated);
-      await _enqueuePendingAction('add_item', {
-        ...payload,
-        'order_id': orderId,
-      });
+      // For local orders (id = 'local-{parentClientId}'), use the parent clientId
+      // so SyncEngine can propagate the resolved server orderId after createOrder syncs.
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: jobClientId,
+        action: 'addItem',
+        payload: {
+          ...payload,
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? orderId : null,
+        },
+      );
       return updated;
     }
   }
 
   Future<PosOrder> getOrderById(String orderId) async {
-    await _tryFlushPendingActions();
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    if (orderId.startsWith('local-') && resolvedOrderId == null) {
+      final cached = _orderById[orderId];
+      if (cached != null) return cached;
+      throw _pendingSyncOrderException();
+    }
+    final targetOrderId = resolvedOrderId ?? orderId;
     try {
-      final response = await _api.get<Map<String, dynamic>>('/pos/orders/$orderId');
+      final response = await _api.get<Map<String, dynamic>>('/pos/orders/$targetOrderId');
       final order = PosOrder.fromJson(_dataMap(response.data));
       _orderById[order.id] = order;
+      if (resolvedOrderId != null && orderId != targetOrderId) {
+        _reconcileLocalOrderId(orderId, order);
+      }
       return order;
     } catch (_) {
       final cached = _orderById[orderId];
       if (cached != null) return cached;
+      if (resolvedOrderId != null) {
+        final resolvedCached = _orderById[resolvedOrderId];
+        if (resolvedCached != null) return resolvedCached;
+      }
       rethrow;
     }
   }
 
   Future<PosOrder> confirmOrder(String orderId) async {
-    await _tryFlushPendingActions();
-    final clientId = _uuid.v4();
+    final jobClientId = _uuid.v4();
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
     try {
-      _api.setNextRequestHeader('X-Idempotency-Key', clientId);
+      if (bypassServer) {
+        throw _pendingSyncOrderException();
+      }
+      final resolvedOrderId =
+          await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+      _api.setNextRequestHeader('X-Idempotency-Key', jobClientId);
       final response = await _api.post<Map<String, dynamic>>(
-        '/pos/orders/$orderId/confirm',
+        '/pos/orders/$resolvedOrderId/confirm',
         data: <String, dynamic>{},
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
@@ -520,21 +659,31 @@ class TerminalService {
         notes: baseOrder.notes,
       );
       _upsertOrderCache(updated);
-      await _enqueuePendingAction('confirm_order', {
-        'order_id': orderId,
-        'client_id': clientId,
-      });
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: jobClientId,
+        action: 'confirmOrder',
+        payload: {
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? orderId : null,
+        },
+      );
       return updated;
     }
   }
 
   Future<PosOrder> voidOrder(String orderId, String reason) async {
-    await _tryFlushPendingActions();
-    final clientId = _uuid.v4();
+    final jobClientId = _uuid.v4();
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
     try {
-      _api.setNextRequestHeader('X-Idempotency-Key', clientId);
+      if (bypassServer) {
+        throw _pendingSyncOrderException();
+      }
+      final resolvedOrderId =
+          await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+      _api.setNextRequestHeader('X-Idempotency-Key', jobClientId);
       final response = await _api.post<Map<String, dynamic>>(
-        '/pos/orders/$orderId/void',
+        '/pos/orders/$resolvedOrderId/void',
         data: {'reason': reason},
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
@@ -569,34 +718,136 @@ class TerminalService {
         notes: baseOrder.notes,
       );
       _upsertOrderCache(updated);
-      await _enqueuePendingAction('void_order', {
-        'order_id': orderId,
-        'reason': reason,
-        'client_id': clientId,
-      });
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: jobClientId,
+        action: 'voidOrder',
+        payload: {
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? orderId : null,
+          'reason': reason,
+        },
+      );
       return updated;
     }
   }
 
   Future<PosOrder> serveOrder(String orderId) async {
-    final response = await _api.post<Map<String, dynamic>>(
-      '/pos/orders/$orderId/serve',
-    );
-    return PosOrder.fromJson(_dataMap(response.data));
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    final targetOrderId = resolvedOrderId ?? orderId;
+    try {
+      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+        throw _pendingSyncOrderException();
+      }
+      final response = await _api.post<Map<String, dynamic>>(
+        '/pos/orders/$targetOrderId/serve',
+      );
+      final updated = PosOrder.fromJson(_dataMap(response.data));
+      _upsertOrderCache(updated);
+      return updated;
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final baseOrder = _findCachedOrder(orderId);
+      if (baseOrder == null) {
+        throw ApiException('Order tidak ditemukan di cache offline');
+      }
+
+      final updated = _markOrderServedLocally(baseOrder);
+      _upsertOrderCache(updated);
+
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: _uuid.v4(),
+        action: 'serveOrder',
+        payload: {
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? targetOrderId : null,
+        },
+      );
+      return updated;
+    }
   }
 
   Future<PosOrder> completeOrder(String orderId) async {
-    final response = await _api.post<Map<String, dynamic>>(
-      '/pos/orders/$orderId/complete',
-    );
-    return PosOrder.fromJson(_dataMap(response.data));
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    final targetOrderId = resolvedOrderId ?? orderId;
+    try {
+      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+        throw _pendingSyncOrderException();
+      }
+      final response = await _api.post<Map<String, dynamic>>(
+        '/pos/orders/$targetOrderId/complete',
+      );
+      final updated = PosOrder.fromJson(_dataMap(response.data));
+      _upsertOrderCache(updated);
+      return updated;
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final baseOrder = _findCachedOrder(orderId);
+      if (baseOrder == null) {
+        throw ApiException('Order tidak ditemukan di cache offline');
+      }
+
+      final updated = _markOrderCompletedLocally(baseOrder);
+      _upsertOrderCache(updated);
+
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: _uuid.v4(),
+        action: 'completeOrder',
+        payload: {
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? targetOrderId : null,
+        },
+      );
+      return updated;
+    }
   }
 
   Future<PosOrder> serveItem(String orderId, String itemId) async {
-    final response = await _api.post<Map<String, dynamic>>(
-      '/pos/orders/$orderId/items/$itemId/serve',
-    );
-    return PosOrder.fromJson(_dataMap(response.data));
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    final targetOrderId = resolvedOrderId ?? orderId;
+    try {
+      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+        throw _pendingSyncOrderException();
+      }
+      final response = await _api.post<Map<String, dynamic>>(
+        '/pos/orders/$targetOrderId/items/$itemId/serve',
+      );
+      final updated = PosOrder.fromJson(_dataMap(response.data));
+      _upsertOrderCache(updated);
+      return updated;
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final baseOrder = _findCachedOrder(orderId);
+      if (baseOrder == null) {
+        throw ApiException('Order tidak ditemukan di cache offline');
+      }
+
+      final updated = _markOrderItemServedLocally(baseOrder, itemId);
+      _upsertOrderCache(updated);
+
+      String? productId;
+      for (final item in baseOrder.items) {
+        if (item.id == itemId) {
+          productId = item.productId;
+          break;
+        }
+      }
+
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: _uuid.v4(),
+        action: 'serveItem',
+        payload: {
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? targetOrderId : null,
+          'itemId': itemId,
+          if (productId != null && productId.isNotEmpty) 'productId': productId,
+        },
+      );
+      return updated;
+    }
   }
 
   Future<List<PosOrder>> listOrders({
@@ -604,7 +855,6 @@ class TerminalService {
     String? status,
     int perPage = 100,
   }) async {
-    await _tryFlushPendingActions();
     try {
       final response = await _api.get<Map<String, dynamic>>(
         '/pos/orders',
@@ -616,15 +866,57 @@ class TerminalService {
       );
       final raw = response.data?['data'];
       if (raw is List) {
-        final orders = raw
+        final serverOrders = raw
             .whereType<Map<String, dynamic>>()
             .map(PosOrder.fromJson)
             .toList();
-        _ordersByOutlet[outletId] = orders;
-        for (final order in orders) {
+
+        final mergedOrders = List<PosOrder>.from(serverOrders);
+        final previousOrders = _ordersByOutlet[outletId] ?? const <PosOrder>[];
+
+        // Keep progressed local state on already-reconciled server IDs
+        // so transient backend lag does not regress the UI back to WAITING_PAYMENT.
+        final previousById = <String, PosOrder>{
+          for (final order in previousOrders) order.id: order,
+        };
+        for (var i = 0; i < mergedOrders.length; i++) {
+          final previous = previousById[mergedOrders[i].id];
+          if (previous == null) continue;
+          mergedOrders[i] = _preferFurthestProgress(mergedOrders[i], previous);
+        }
+
+        for (final cachedOrder in previousOrders) {
+          if (!cachedOrder.id.startsWith('local-')) continue;
+          if (!_isLocallyActiveStatus(cachedOrder.status)) continue;
+
+          final resolvedServerId = await _resolvedServerOrderIdForLocal(
+            cachedOrder.id,
+          );
+          if (resolvedServerId != null) {
+            final serverIdx = mergedOrders.indexWhere(
+              (order) => order.id == resolvedServerId,
+            );
+            if (serverIdx >= 0) {
+              final merged = _preferFurthestProgress(
+                mergedOrders[serverIdx],
+                cachedOrder,
+              );
+              mergedOrders[serverIdx] = merged;
+              _reconcileLocalOrderId(cachedOrder.id, merged);
+              continue;
+            }
+          }
+
+          if (!mergedOrders.any((order) => order.id == cachedOrder.id)) {
+            mergedOrders.insert(0, cachedOrder);
+          }
+        }
+
+        _ordersByOutlet[outletId] = mergedOrders;
+        for (final order in mergedOrders) {
           _orderById[order.id] = order;
         }
-        return orders;
+        return mergedOrders;
       }
     } catch (_) {
       final cached = _ordersByOutlet[outletId];
@@ -646,12 +938,11 @@ class TerminalService {
     String? loyaltyMemberId,
     String? loyaltyRewardId,
   }) async {
-    await _tryFlushPendingActions();
     final clientId = _uuid.v4();
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
     final data = <String, dynamic>{
       'method': PosPaymentMethod.cash.value,
       'amount': amount,
-      'client_id': clientId,
     };
     if (customerId != null && customerId.isNotEmpty) {
       data['customer_id'] = customerId;
@@ -668,19 +959,43 @@ class TerminalService {
     if (loyaltyMemberId != null) data['loyalty_member_id'] = loyaltyMemberId;
     if (loyaltyRewardId != null) data['loyalty_reward_id'] = loyaltyRewardId;
     try {
+      if (bypassServer) {
+        throw _pendingSyncOrderException();
+      }
+      final resolvedOrderId =
+          await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
       _api.setNextRequestHeader('X-Idempotency-Key', clientId);
       final response = await _api.post<Map<String, dynamic>>(
-        '/pos/orders/$orderId/payments/cash',
+        '/pos/orders/$resolvedOrderId/payments/cash',
         data: data,
+      );
+      _markOrderPaidLocally(
+        orderId: orderId,
+        customerId: customerId,
+        customerName: customerName,
+        loyaltyMemberId: loyaltyMemberId,
+        loyaltyRewardId: loyaltyRewardId,
       );
       return PosPayment.fromJson(_dataMap(response.data));
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      await _enqueuePendingAction('process_cash', {
-        ...data,
-        'order_id': orderId,
-        'client_id': clientId,
-      });
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: clientId,
+        action: 'processCash',
+        payload: {
+          ...data,
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? orderId : null,
+        },
+      );
+      _markOrderPaidLocally(
+        orderId: orderId,
+        customerId: customerId,
+        customerName: customerName,
+        loyaltyMemberId: loyaltyMemberId,
+        loyaltyRewardId: loyaltyRewardId,
+      );
       return PosPayment(
         id: clientId,
         method: PosPaymentMethod.cash.value,
@@ -750,21 +1065,38 @@ class TerminalService {
     String? search,
     int perPage = 10,
   }) async {
-    final response = await _api.get<Map<String, dynamic>>(
-      '/customer/customers',
-      queryParameters: {
-        'per_page': perPage,
-        'search': search,
-      },
-    );
-    final raw = response.data?['data'];
-    if (raw is List) {
-      return raw
-          .whereType<Map<String, dynamic>>()
-          .map(PosCustomer.fromJson)
-          .toList();
+    try {
+      final response = await _api.get<Map<String, dynamic>>(
+        '/customer/customers',
+        queryParameters: {
+          'per_page': perPage,
+          'search': search,
+        },
+      );
+      final raw = response.data?['data'];
+      if (raw is List) {
+        final customers = raw
+            .whereType<Map<String, dynamic>>()
+            .map(PosCustomer.fromJson)
+            .toList();
+        // Update in-memory cache when fetched online.
+        if (search == null || search.isEmpty) {
+          _customerCache = customers;
+        }
+        return customers;
+      }
+      return const [];
+    } catch (error) {
+      if (error is ApiException && error.isOffline) {
+        // Return cached customers so checkout can still look up regulars.
+        if (search == null || search.isEmpty) return _customerCache;
+        final q = search.toLowerCase();
+        return _customerCache
+            .where((c) => c.name.toLowerCase().contains(q))
+            .toList();
+      }
+      rethrow;
     }
-    return const [];
   }
 
   Future<PosCustomer> createCustomer({

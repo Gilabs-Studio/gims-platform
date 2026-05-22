@@ -417,7 +417,8 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     // ---- CRM widgets ----
     case "crm_total_contacts":
     case "crm_active_leads":
-    case "crm_deals_overview":
+    case "crm_leads_list":
+    case "crm_pipeline_summary":
     case "crm_activity_summary":
       return <CrmKpiWidget widget={widget} />;
 

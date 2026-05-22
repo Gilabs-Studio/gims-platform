@@ -132,6 +132,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   final _tender = TextEditingController();
 
   _CheckoutStep _step = _CheckoutStep.customer;
+  _CheckoutStep _maxStepReached = _CheckoutStep.customer;
   _CustomerMode _customerMode = _CustomerMode.newCustomer;
   _PaymentTab _paymentTab = _PaymentTab.cash;
 
@@ -149,6 +150,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   Timer? _paymentPollTimer;
   WebViewController? _receiptPreviewController;
   bool _receiptPreviewError = false;
+  bool _summaryExpanded = true;
 
   @override
   void initState() {
@@ -165,6 +167,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   void _initReceiptPreview() {
     if (kIsWeb) {
+      _receiptPreviewError = true;
+      return;
+    }
+    // Local orders (created offline) do not have a server-side receipt yet.
+    // Skip loading to avoid a failed network request on the WebView.
+    if (widget.order.id.startsWith('local-')) {
       _receiptPreviewError = true;
       return;
     }
@@ -282,6 +290,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       setState(() => _customers = list);
     } catch (error) {
       if (!mounted) return;
+      // Silently degrade when offline — customer list is non-critical and
+      // cashier can still enter a name manually without selecting from list.
+      if (error is ApiException && error.isOffline) return;
       showError(context, error);
     }
   }
@@ -421,7 +432,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     final hasRewardOptions =
         (_memberLookup?.availableRewards ?? const <LoyaltyReward>[]).isNotEmpty;
     setState(() {
-      _step = hasRewardOptions ? _CheckoutStep.reward : _CheckoutStep.payment;
+      final nextStep = hasRewardOptions ? _CheckoutStep.reward : _CheckoutStep.payment;
+      _step = nextStep;
+      if (nextStep.index > _maxStepReached.index) _maxStepReached = nextStep;
+      if (nextStep == _CheckoutStep.payment) {
+        _summaryExpanded = false;
+      }
     });
   }
 
@@ -448,6 +464,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       setState(() {
         _finalPayment = payment;
         _step = _CheckoutStep.receipt;
+        _maxStepReached = _CheckoutStep.receipt;
       });
     } catch (error) {
       if (!mounted) return;
@@ -492,6 +509,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         setState(() {
           _finalPayment = payment;
           _step = _CheckoutStep.receipt;
+          _maxStepReached = _CheckoutStep.receipt;
         });
         return;
       }
@@ -524,6 +542,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             _finalPayment = latest;
             _digitalPayment = latest;
             _step = _CheckoutStep.receipt;
+            _maxStepReached = _CheckoutStep.receipt;
           });
         } else if (latest.status == 'FAILED' || latest.status == 'EXPIRED') {
           _paymentPollTimer?.cancel();
@@ -617,6 +636,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   }
 
   Future<void> _openReceipt() async {
+    if (widget.order.id.startsWith('local-')) {
+      showError(context, ApiException('Nota belum tersedia — pembayaran masih dalam antrian sync.'));
+      return;
+    }
     final url = ServiceLocator.instance.terminalService.receiptUrl(
       widget.order.id,
     );
@@ -706,10 +729,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F2F7), // Apple's grouped background color
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: GimsColors.border),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: SizedBox(
         width: dialogWidth,
@@ -724,8 +746,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 12),
               _buildStepIndicator(),
               const SizedBox(height: 12),
-              _buildSummaryCard(),
-              const SizedBox(height: 12),
+              if (_step != _CheckoutStep.receipt) ...[
+                _buildSummaryCard(),
+                const SizedBox(height: 12),
+              ],
               if (_step == _CheckoutStep.customer) ..._buildCustomerStep(),
               if (_step == _CheckoutStep.reward) ..._buildRewardStep(),
               if (_step == _CheckoutStep.payment) ..._buildPaymentStep(),
@@ -794,6 +818,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     ];
 
     return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Row(
@@ -802,10 +829,20 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _StepChip(
-                    label: step.label,
-                    icon: step.icon,
-                    active: step.step == _step,
+                  child: GestureDetector(
+                    onTap: _loading || _finalPayment != null || step.step.index > _maxStepReached.index
+                        ? null
+                        : () => setState(() {
+                              _step = step.step;
+                              if (step.step == _CheckoutStep.payment) {
+                                _summaryExpanded = false;
+                              }
+                            }),
+                    child: _StepChip(
+                      label: step.label,
+                      icon: step.icon,
+                      active: step.step == _step,
+                    ),
                   ),
                 ),
               ),
@@ -817,180 +854,123 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   Widget _buildSummaryCard() {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ORDER',
-                        style: TextStyle(
-                          color: GimsColors.mutedForeground,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E5EA)),
+      ),
+      child: InkWell(
+        onTap: () => setState(() => _summaryExpanded = !_summaryExpanded),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          'Order #${widget.order.orderNumber}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '#${widget.order.orderNumber}',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Customer: ${_resolvedCustomerName.isEmpty ? '-' : _resolvedCustomerName}',
-                        style: const TextStyle(
+                        const SizedBox(width: 8),
+                        Icon(
+                          _summaryExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          size: 18,
                           color: GimsColors.mutedForeground,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  Text(
+                    formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              if (_summaryExpanded) ...[
+                const Divider(height: 14),
+                Text(
+                  'Customer: ${_resolvedCustomerName.isEmpty ? '-' : _resolvedCustomerName}',
+                  style: const TextStyle(color: GimsColors.mutedForeground),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'STATUS',
-                      style: TextStyle(
-                        color: GimsColors.mutedForeground,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      'Subtotal',
+                      style: TextStyle(color: GimsColors.mutedForeground),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _step.name.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'PURCHASED ITEMS',
-              style: TextStyle(
-                color: GimsColors.mutedForeground,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            for (final item in widget.order.items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${item.quantity.toStringAsFixed(0)}x  ${item.productName}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Text(
                       formatMoney(
-                        item.subtotal,
+                        widget.order.subtotal,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
                     ),
                   ],
                 ),
-              ),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Subtotal',
-                  style: TextStyle(color: GimsColors.mutedForeground),
-                ),
-                Text(
-                  formatMoney(
-                    widget.order.subtotal,
-                    widget.config?.currency ?? 'IDR',
-                  ),
-                  style: const TextStyle(color: GimsColors.mutedForeground),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Tax',
-                  style: TextStyle(color: GimsColors.mutedForeground),
-                ),
-                Text(
-                  formatMoney(
-                    widget.order.taxAmount,
-                    widget.config?.currency ?? 'IDR',
-                  ),
-                  style: const TextStyle(color: GimsColors.mutedForeground),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Service',
-                  style: TextStyle(color: GimsColors.mutedForeground),
-                ),
-                Text(
-                  formatMoney(
-                    widget.order.serviceCharge,
-                    widget.config?.currency ?? 'IDR',
-                  ),
-                  style: const TextStyle(color: GimsColors.mutedForeground),
-                ),
-              ],
-            ),
-            if (_selectedRewardDiscount > 0) ...[
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Discount', style: TextStyle(color: Colors.green)),
-                  Text(
-                    '-${formatMoney(_selectedRewardDiscount, widget.config?.currency ?? 'IDR')}',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Tax',
+                      style: TextStyle(color: GimsColors.mutedForeground),
                     ),
+                    Text(
+                      formatMoney(
+                        widget.order.taxAmount,
+                        widget.config?.currency ?? 'IDR',
+                      ),
+                      style: const TextStyle(color: GimsColors.mutedForeground),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Service',
+                      style: TextStyle(color: GimsColors.mutedForeground),
+                    ),
+                    Text(
+                      formatMoney(
+                        widget.order.serviceCharge,
+                        widget.config?.currency ?? 'IDR',
+                      ),
+                      style: const TextStyle(color: GimsColors.mutedForeground),
+                    ),
+                  ],
+                ),
+                if (_selectedRewardDiscount > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Discount', style: TextStyle(color: Colors.green)),
+                      Text(
+                        '-${formatMoney(_selectedRewardDiscount, widget.config?.currency ?? 'IDR')}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1013,6 +993,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     final hasMember = _memberLookup?.found == true;
     return [
       Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1020,6 +1003,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             children: [
               if (hasMember)
                 Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
                   child: ListTile(
                     leading: const Icon(Icons.verified_outlined),
                     title: Text(_memberLookup?.customerName ?? 'Member'),
@@ -1141,31 +1127,32 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         ),
       ),
       const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _loading ? null : _confirmCancelCheckout,
-              child: const Text('Cancel'),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: FilledButton(
-              onPressed: _loading ? null : _continueFromCustomer,
-              child: const Text('Continue to Payment'),
-            ),
-          ),
-        ],
-      ),
-      if (_customerMode == _CustomerMode.newCustomer) ...[
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: _loading ? null : _createCustomer,
-          icon: const Icon(Icons.save_outlined),
-          label: const Text('Save as Customer Master'),
+      const SizedBox(height: 12),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(GimsRadius.medium),
+          border: Border.all(color: GimsColors.border),
         ),
-      ],
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _loading ? null : _confirmCancelCheckout,
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: _loading ? null : _continueFromCustomer,
+                child: const Text('Continue to Payment'),
+              ),
+            ),
+          ],
+        ),
+      ),
     ];
   }
 
@@ -1174,6 +1161,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
     return [
       Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1191,6 +1181,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 10),
               for (final reward in rewards)
                 Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
                   child: ListTile(
                     selected: _selectedReward == reward,
                     selectedTileColor: GimsColors.primary.withValues(alpha: 0.08),
@@ -1214,26 +1207,41 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         ),
       ),
       const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _loading
-                  ? null
-                  : () => setState(() => _step = _CheckoutStep.customer),
-              child: const Text('Back'),
+      const SizedBox(height: 12),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(GimsRadius.medium),
+          border: Border.all(color: GimsColors.border),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _loading
+                    ? null
+                    : () => setState(() => _step = _CheckoutStep.customer),
+                child: const Text('Back'),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: FilledButton(
-              onPressed: _loading
-                  ? null
-                  : () => setState(() => _step = _CheckoutStep.payment),
-              child: const Text('Continue to Payment'),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: _loading
+                    ? null
+                    : () => setState(() {
+                          _step = _CheckoutStep.payment;
+                          if (_CheckoutStep.payment.index > _maxStepReached.index) {
+                            _maxStepReached = _CheckoutStep.payment;
+                          }
+                          _summaryExpanded = false;
+                        }),
+                child: const Text('Continue to Payment'),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ];
   }
@@ -1268,101 +1276,140 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               ),
               const SizedBox(height: 12),
               if (_paymentTab == _PaymentTab.cash) ...[
-                GridView.builder(
-                  itemCount: 4,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: 50,
-                  ),
-                  itemBuilder: (context, index) {
-                    const amounts = [10000, 20000, 50000, 100000];
-                    return _quickAmountButton(amounts[index]);
-                  },
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(
-                          () => _tender.text = _totalAmount.toStringAsFixed(0),
-                        ),
-                        child: const Text('Exact'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _tender.clear()),
-                        child: const Text('Reset'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
                 Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(GimsRadius.medium),
-                    border: Border.all(color: GimsColors.border),
-                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFFF2F2F7),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Row(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.payments_outlined,
-                            color: GimsColors.mutedForeground,
+                          const Text(
+                            'Amount Due',
+                            style: TextStyle(
+                              color: GimsColors.mutedForeground,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          SizedBox(width: 8),
                           Text(
-                            'Tender Amount',
-                            style: TextStyle(color: GimsColors.mutedForeground),
+                            formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                            style: const TextStyle(
+                              color: GimsColors.foreground,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
-                      Text(
-                        _tenderAmount <= 0
-                            ? '0'
-                            : formatMoney(
-                                _tenderAmount.toDouble(),
-                                widget.config?.currency ?? 'IDR',
-                              ),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          const Text(
+                            'Tendered',
+                            style: TextStyle(
+                              color: GimsColors.mutedForeground,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _tenderAmount <= 0
+                                ? '0'
+                                : formatMoney(
+                                    _tenderAmount.toDouble(),
+                                    widget.config?.currency ?? 'IDR',
+                                  ),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: GimsColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
+                      if (_tenderAmount > 0) ...[
+                        const Divider(height: 24, color: Color(0xFFE5E5EA)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _tenderAmount >= _totalAmount ? 'Change' : 'Remaining Due',
+                              style: TextStyle(
+                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _tenderAmount >= _totalAmount
+                                  ? formatMoney((_tenderAmount - _totalAmount).toDouble(), widget.config?.currency ?? 'IDR')
+                                  : formatMoney((_totalAmount - _tenderAmount).toDouble(), widget.config?.currency ?? 'IDR'),
+                              style: TextStyle(
+                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Amount due: ${formatMoney(_totalAmount, widget.config?.currency ?? 'IDR')}',
-                  style: const TextStyle(
-                    color: GimsColors.mutedForeground,
-                    fontSize: 12,
+                const SizedBox(height: 16),
+                GridView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    mainAxisExtent: 56,
                   ),
+                  children: [
+                    _quickAmountButton(10000),
+                    _quickAmountButton(20000),
+                    _quickAmountButton(50000),
+                    _quickAmountButton(100000),
+                    OutlinedButton(
+                      onPressed: () => setState(
+                        () => _tender.text = _totalAmount.toStringAsFixed(0),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
+                      ),
+                      child: const Text('Exact', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => setState(() => _tender.clear()),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: GimsColors.destructive,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
+                      ),
+                      child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 GridView.builder(
                   itemCount: _numpadKeys.length,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    mainAxisExtent: 44,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    mainAxisExtent: 64,
                   ),
                   itemBuilder: (context, index) {
                     final key = _numpadKeys[index];
@@ -1373,48 +1420,43 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         foregroundColor: isDelete
                             ? GimsColors.destructive
                             : GimsColors.foreground,
-                        side: BorderSide(
-                          color: isDelete
-                              ? GimsColors.destructive
-                              : GimsColors.border,
+                        backgroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        side: const BorderSide(
+                          color: Color(0xFFE5E5EA),
                         ),
                       ),
                       child: Text(
                         key,
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    _tenderAmount >= _totalAmount
-                        ? 'Change: ${formatMoney((_tenderAmount - _totalAmount).toDouble(), widget.config?.currency ?? 'IDR')}'
-                        : 'Short: ${formatMoney((_totalAmount - _tenderAmount).toDouble(), widget.config?.currency ?? 'IDR')}',
-                    style: TextStyle(
-                      color: _tenderAmount >= _totalAmount
-                          ? Colors.green
-                          : GimsColors.destructive,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: _loading ? null : _payCash,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(60),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   icon: _loading
                       ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.check_circle_outline),
-                  label: const Text('Confirm Cash Payment'),
+                  label: const Text(
+                    'Confirm Cash Payment',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ] else ...[
                 if (!xenditConnected)
@@ -1519,6 +1561,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             return haystack.contains(query);
           }))
             Card(
+              elevation: 0,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
               child: ListTile(
                 leading: _ChannelLogo(code: channel.code),
                 title: Text(channel.name),
@@ -1536,6 +1581,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   Widget _buildDigitalStatusCard() {
     final payment = _digitalPayment!;
     return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -1581,30 +1629,82 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   List<Widget> _buildReceiptStep() {
     final payment = _finalPayment;
+    final isPendingSync = payment?.status == 'pending_sync';
     final hasPhone = (_resolvedCustomerPhone ?? '').isNotEmpty;
+
+    // Offline cash payment: show a confirmation card instead of a server receipt.
+    if (isPendingSync) {
+      return [
+        Card(
+          elevation: 0,
+          color: const Color(0xFFFFF8E1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFFFD54F)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Pembayaran Disimpan Offline',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Data order, pembayaran, dan invoice akan otomatis dikirim ke server saat koneksi internet pulih.',
+                  style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
+                ),
+                const Divider(height: 24, color: Color(0xFFFFD54F)),
+                _receiptRow('Order', widget.order.orderNumber),
+                _receiptRow('Metode', 'CASH'),
+                _receiptRow(
+                  'Total',
+                  formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                ),
+                if (_resolvedCustomerName.isNotEmpty)
+                  _receiptRow('Customer', _resolvedCustomerName),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: _finishCheckout,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          child: const Text(
+            'Selesai',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ];
+    }
 
     return [
       Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Receipt',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Text('Order: ${widget.order.orderNumber}'),
-              Text(
-                'Payment: ${payment?.method ?? '-'} (${payment?.status ?? '-'})',
-              ),
-              Text(
-                'Total: ${formatMoney(_totalAmount, widget.config?.currency ?? 'IDR')}',
-              ),
-              const SizedBox(height: 12),
               Container(
-                height: 420,
+                height: 480,
                 decoration: BoxDecoration(
                   border: Border.all(color: GimsColors.border),
                   borderRadius: BorderRadius.circular(GimsRadius.medium),
@@ -1658,6 +1758,20 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Row(
         children: [
           Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _openReceipt,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(64),
+              ),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text(
+                'Print',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: FilledButton.icon(
               onPressed: hasPhone ? _sendWhatsApp : null,
               style: FilledButton.styleFrom(
@@ -1691,6 +1805,37 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         ],
       ),
     ];
+  }
+
+  Widget _receiptRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF92400E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF78350F),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1752,13 +1897,13 @@ class _StepChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(GimsRadius.medium),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: active ? GimsColors.primary : GimsColors.border,
+          color: active ? GimsColors.primary : const Color(0xFFE5E5EA),
         ),
         color: active
             ? GimsColors.primary.withValues(alpha: 0.08)
-            : Colors.white,
+            : Colors.transparent,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(

@@ -331,4 +331,26 @@ type CRMSummaryData struct {
 	DealsInProgress  int `json:"deals_in_progress"`
 	DealsWonThisMonth int `json:"deals_won_this_month"`
 	ActivitiesToday  int `json:"activities_today"`
+	RecentLeads      []CRMLeadSummary `json:"recent_leads"`
+	PipelineStages   []CRMPipelineStageSummary `json:"pipeline_stages"`
+}
+
+// CRMLeadSummary represents a compact lead item for the dashboard widget.
+type CRMLeadSummary struct {
+	ID            string `json:"id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	CompanyName   string `json:"company_name"`
+	LeadStatus    string `json:"lead_status"`
+	LeadStatusColor string `json:"lead_status_color"`
+	AssignedTo    string `json:"assigned_to"`
+	CreatedAt     string `json:"created_at"`
+}
+
+// CRMPipelineStageSummary represents open deal counts grouped by pipeline stage.
+type CRMPipelineStageSummary struct {
+	StageID     string `json:"stage_id"`
+	StageName   string `json:"stage_name"`
+	StageOrder  int    `json:"stage_order"`
+	ItemCount   int    `json:"item_count"`
 }

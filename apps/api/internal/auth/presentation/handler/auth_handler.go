@@ -103,55 +103,97 @@ func authCookieDomain() string {
 	return ""
 }
 
+func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
+	isSec := isHTTPS(c)
+	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+		isSec = true
+	}
+	// Use SameSite=Lax instead of SameSite=None to prevent cookies from being blocked
+	// as third-party cookies in incognito mode and Safari. Lax works perfectly for
+	// subdomains sharing the same registrable domain.
+	return isSec, http.SameSiteLaxMode
+}
+
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
-	domain := authCookieDomain()
+	// Remove legacy cookie variants first so browser will not send stale tokens
+	// with the same cookie name but different path/domain.
+	clearAuthCookies(c)
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    accessToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    refreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	secure, sameSite := getCookieSecureAndSameSite(c)
+	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, secure, sameSite)
+	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, secure, sameSite)
 }
 
 func clearAuthCookies(c *gin.Context) {
-	domain := authCookieDomain()
+	// Clear current and legacy cookie paths and domains used by older deployments
+	// to prevent stale/duplicate cookies from causing auth failures.
+	paths := []string{"/"}
+	domains := []string{"", authCookieDomain()}
 
+	// Clear with both Lax and None SameSite modes to ensure that legacy cookies
+	// (which were written with SameSite=None) are successfully deleted.
+	sameSites := []http.SameSite{http.SameSiteLaxMode, http.SameSiteNoneMode}
+
+	for _, name := range []string{"gims_access_token", "gims_refresh_token", "gims_csrf_token"} {
+		for _, domain := range domains {
+			for _, p := range paths {
+				for _, ss := range sameSites {
+					secure := true
+					if ss == http.SameSiteLaxMode {
+						secure = isHTTPS(c)
+						if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+							secure = true
+						}
+					}
+					http.SetCookie(c.Writer, &http.Cookie{
+						Name:     name,
+						Value:    "",
+						Path:     p,
+						MaxAge:   -1,
+						Domain:   domain,
+						Secure:   secure,
+						HttpOnly: name != "gims_csrf_token",
+						SameSite: ss,
+					})
+				}
+			}
+		}
+	}
+}
+
+func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly, secure bool, sameSite http.SameSite) {
+	// KISS: Set the cookie ONCE on the configured domain.
+	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
+	// with the same name, which leads to conflicts and stale token evaluation.
+	domain := authCookieDomain()
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		MaxAge:   maxAge,
 		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+		SameSite: sameSite,
 	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Domain:   domain,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+}
+
+func getCookieValues(c *gin.Context, name string) []string {
+	values := make([]string, 0)
+	seen := map[string]struct{}{}
+
+	for _, cookie := range c.Request.Cookies() {
+		if cookie.Name != name || cookie.Value == "" {
+			continue
+		}
+		if _, ok := seen[cookie.Value]; ok {
+			continue
+		}
+		seen[cookie.Value] = struct{}{}
+		values = append(values, cookie.Value)
+	}
+
+	return values
 }
 
 // Login handles login request
@@ -221,75 +263,96 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // RefreshToken handles refresh token request
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	// 1. Try to get refresh token from Cookie first (Strict/Browser)
-	refreshToken, err := c.Cookie("gims_refresh_token")
-	if err != nil || refreshToken == "" {
-		// 2. Fallback to JSON body (Mobile/CLI)
-		var req struct {
-			RefreshToken string `json:"refresh_token"`
+	// Gather all cookie candidates first. Browsers may send duplicate cookie names
+	// (e.g. legacy path/domain variants), and c.Cookie() may return a stale one.
+	candidates := getCookieValues(c, "gims_refresh_token")
+
+	// Fallback for mobile/CLI clients sending refresh token in request body.
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if errBind := c.ShouldBindJSON(&req); errBind == nil && req.RefreshToken != "" {
+		exists := false
+		for _, v := range candidates {
+			if v == req.RefreshToken {
+				exists = true
+				break
+			}
 		}
-		if errBind := c.ShouldBindJSON(&req); errBind == nil && req.RefreshToken != "" {
-			refreshToken = req.RefreshToken
+		if !exists {
+			candidates = append(candidates, req.RefreshToken)
 		}
 	}
 
-	if refreshToken == "" {
+	if len(candidates) == 0 {
 		errors.ErrorResponse(c, "REFRESH_TOKEN_REQUIRED", nil, nil)
 		return
 	}
 
-	loginResponse, err := h.authUC.RefreshToken(c.Request.Context(), refreshToken)
-	if err != nil {
-		if err == usecase.ErrSubscriptionSuspended {
-			errors.ErrorResponse(c, "ACCOUNT_SUSPENDED", map[string]interface{}{
-				"reason": "Subscription is suspended. Contact owner/admin to restore access.",
-			}, nil)
-			return
-		}
-		if err == usecase.ErrUserNotFound {
-			errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
-			return
-		}
-		if err == usecase.ErrRefreshTokenInvalid || err == usecase.ErrRefreshTokenRevoked || err == usecase.ErrRefreshTokenExpired {
+	var lastInvalidErr error
+	for _, refreshToken := range candidates {
+		loginResponse, err := h.authUC.RefreshToken(c.Request.Context(), refreshToken)
+		if err != nil {
+			if err == usecase.ErrSubscriptionSuspended {
+				errors.ErrorResponse(c, "ACCOUNT_SUSPENDED", map[string]interface{}{
+					"reason": "Subscription is suspended. Contact owner/admin to restore access.",
+				}, nil)
+				return
+			}
+			if err == usecase.ErrUserNotFound {
+				errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
+				return
+			}
+			if err == usecase.ErrRefreshTokenInvalid || err == usecase.ErrRefreshTokenRevoked || err == usecase.ErrRefreshTokenExpired {
+				lastInvalidErr = err
+				continue
+			}
+
+			// Unknown refresh errors are treated as invalid to avoid leaking details.
 			clearAuthCookies(c)
 			errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 			return
 		}
-		// Clear cookies if refresh fails
-		clearAuthCookies(c)
 
+		// Security: Set New HttpOnly Cookies
+		setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
+
+		// Map to Presentation DTO
+		resp := authDTO.LoginResponseDTO{
+			User: authDTO.UserDTO{
+				ID:         loginResponse.User.ID,
+				Name:       loginResponse.User.Name,
+				Email:      loginResponse.User.Email,
+				AvatarURL:  loginResponse.User.AvatarURL,
+				EmployeeID: loginResponse.User.EmployeeID,
+				Role: authDTO.RoleDTO{
+					Code:      loginResponse.User.Role,
+					Name:      loginResponse.User.RoleName,
+					DataScope: loginResponse.User.RoleDataScope,
+					IsOwner:   loginResponse.User.IsOwner,
+				},
+				Permissions:        loginResponse.User.Permissions,
+				TenantID:           loginResponse.User.TenantID,
+				TenantName:         loginResponse.User.TenantName,
+				SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
+				SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
+			},
+			AccessToken:  "",
+			RefreshToken: "",
+		}
+
+		response.SuccessResponse(c, resp, nil)
+		return
+	}
+
+	if lastInvalidErr != nil {
+		clearAuthCookies(c)
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
 	}
 
-	// Security: Set New HttpOnly Cookies
-	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
-
-	// Map to Presentation DTO
-	resp := authDTO.LoginResponseDTO{
-		User: authDTO.UserDTO{
-			ID:         loginResponse.User.ID,
-			Name:       loginResponse.User.Name,
-			Email:      loginResponse.User.Email,
-			AvatarURL:  loginResponse.User.AvatarURL,
-			EmployeeID: loginResponse.User.EmployeeID,
-			Role: authDTO.RoleDTO{
-				Code:      loginResponse.User.Role,
-				Name:      loginResponse.User.RoleName,
-				DataScope: loginResponse.User.RoleDataScope,
-				IsOwner:   loginResponse.User.IsOwner,
-			},
-			Permissions:        loginResponse.User.Permissions,
-			TenantID:           loginResponse.User.TenantID,
-			TenantName:         loginResponse.User.TenantName,
-			SubscriptionPlan:   loginResponse.User.SubscriptionPlan,
-			SubscriptionAccess: mapSubscriptionAccess(loginResponse.User.SubscriptionAccess),
-		},
-		AccessToken:  "",
-		RefreshToken: "",
-	}
-
-	response.SuccessResponse(c, resp, nil)
+	clearAuthCookies(c)
+	errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 }
 
 // Logout handles logout request
@@ -301,35 +364,33 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// but the service had a Logout method taking a token.
 	// Let's see if we can get the token from header or body.
 
-	// 1. Try Cookie
-	refreshToken, err := c.Cookie("gims_refresh_token")
-	if err != nil || refreshToken == "" {
-		// 2. Try JSON
-		var req struct {
-			RefreshToken string `json:"refresh_token"`
+	refreshTokens := getCookieValues(c, "gims_refresh_token")
+
+	// 2. Try JSON fallback and merge
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
+		exists := false
+		for _, token := range refreshTokens {
+			if token == req.RefreshToken {
+				exists = true
+				break
+			}
 		}
-		_ = c.ShouldBindJSON(&req)
-		refreshToken = req.RefreshToken
+		if !exists {
+			refreshTokens = append(refreshTokens, req.RefreshToken)
+		}
 	}
 
-	if refreshToken != "" {
-		_ = h.authUC.Logout(c.Request.Context(), refreshToken)
+	for _, token := range refreshTokens {
+		_ = h.authUC.Logout(c.Request.Context(), token)
 	}
 
 	// ALWAYS Clear Cookies on Logout
 	clearAuthCookies(c)
-	// Also clear CSRF token cookie
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_csrf_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
-		SameSite: http.SameSiteNoneMode,
-	})
 
-	response.SuccessResponseNoContent(c)
+	response.SuccessResponse(c, gin.H{"message": "logged out"}, nil)
 }
 
 // GetCSRFToken ensures the client has a CSRF cookie (middleware handles setting it)
@@ -448,24 +509,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	loginResponse := result.LoginResponse
 
 	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{
@@ -523,24 +567,7 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 		return
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{

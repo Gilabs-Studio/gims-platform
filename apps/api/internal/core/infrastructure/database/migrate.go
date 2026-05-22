@@ -87,6 +87,8 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_previous_status varchar(20)`)
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
+	_ = DB.Exec(`ALTER TABLE pos_orders ADD COLUMN IF NOT EXISTS order_source varchar(20) NOT NULL DEFAULT 'STAFF'`)
+	_ = DB.Exec(`UPDATE pos_orders SET order_source = 'STAFF' WHERE order_source IS NULL OR trim(order_source) = ''`)
 
 	// PRE-MIGRATION: Replace is_pos_available boolean with pos_scope enum.
 	// Add column first, then migrate data, so existing products are not lost.

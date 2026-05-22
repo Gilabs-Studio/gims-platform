@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app.dart';
+import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../domain/models/catalog_item.dart';
@@ -37,11 +40,23 @@ class _TerminalScreenState extends State<TerminalScreen> {
   PosOrder? _order;
   PosConfig? _config;
   bool _loading = true;
+  bool _isOnline = true;
+  SyncStatusDetail _syncDetail = SyncStatusDetail.idle;
+  StreamSubscription<bool>? _connectivitySub;
+  StreamSubscription<SyncStatusDetail>? _syncStatusSub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final syncEngine = ServiceLocator.instance.syncEngine;
+    _isOnline = syncEngine.connectivity.isOnline;
+    _connectivitySub = syncEngine.connectivity.isOnline$.listen((online) {
+      if (mounted) setState(() => _isOnline = online);
+    });
+    _syncStatusSub = syncEngine.status$.listen((detail) {
+      if (mounted) setState(() => _syncDetail = detail);
+    });
   }
 
   @override
@@ -52,6 +67,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
+    _syncStatusSub?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -257,6 +274,52 @@ class _TerminalScreenState extends State<TerminalScreen> {
           padding: const EdgeInsets.all(14),
           child: Column(
             children: [
+              if (!_isOnline)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(GimsRadius.medium),
+                    border: Border.all(color: const Color(0xFFFFBF00)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.wifi_off_outlined,
+                        size: 18,
+                        color: Color(0xFF856404),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _syncDetail.status == SyncStatus.syncing
+                              ? 'Menyinkronkan data... (${_syncDetail.pendingCount > 0 ? '${_syncDetail.pendingCount} tersisa' : 'selesai'})'
+                              : _syncDetail.pendingCount > 0
+                              ? 'Mode Offline \u2014 ${_syncDetail.pendingCount} transaksi menunggu sinkronisasi'
+                              : 'Mode Offline \u2014 pembayaran cash tersedia',
+                          style: const TextStyle(
+                            color: Color(0xFF856404),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (_syncDetail.status == SyncStatus.syncing)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF856404),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if (selectedTable != null)
                 Card(
                   child: ListTile(

@@ -61,7 +61,8 @@ const OVERVIEW_WIDGET_SCOPES: Partial<Record<WidgetType, DashboardOverviewScope>
   // CRM widgets
   crm_total_contacts: "crm",
   crm_active_leads: "crm",
-  crm_deals_overview: "crm",
+  crm_leads_list: "crm",
+  crm_pipeline_summary: "crm",
   crm_activity_summary: "crm",
 };
 

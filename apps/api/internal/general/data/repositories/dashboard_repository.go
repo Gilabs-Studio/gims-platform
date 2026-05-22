@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	crmModels "github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 	"gorm.io/gorm"
 )
@@ -979,6 +981,23 @@ func hasFullPOSAccess(ctx context.Context) bool {
 	return false
 }
 
+func withPermissionScope(ctx context.Context, permissionCode string) context.Context {
+	if ctx == nil {
+		return nil
+	}
+
+	scope := permissionScopeFromContext(ctx, permissionCode)
+	if scope == "" {
+		scope = currentRequestScope(ctx)
+	}
+
+	if scope == "" {
+		return ctx
+	}
+
+	return context.WithValue(ctx, "permission_scope", scope)
+}
+
 // buildScopeWhereClause builds a WHERE clause for dashboard queries based on the user's permission scope.
 // Returns a WHERE condition string and list of parameters to bind.
 // If the user has full access (admin role or ALL scope permissions), returns empty strings.
@@ -1609,59 +1628,153 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 
 // GetCRMSummary returns aggregated CRM metrics.
 func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummaryData, error) {
-	contactsDB := r.scoped(ctx, "crm_contacts")
-
 	result := &dto.CRMSummaryData{}
+	leadScopeCtx := withPermissionScope(ctx, "crm_lead.read")
+	dealScopeCtx := withPermissionScope(ctx, "crm_deal.read")
+	taskScopeCtx := withPermissionScope(ctx, "crm_task.read")
+
+	contactsDB := security.ApplyScopeFilter(
+		r.scoped(leadScopeCtx, "crm_contacts").Model(&crmModels.Contact{}),
+		leadScopeCtx,
+		security.DefaultScopeQueryOptions(),
+	)
+	leadsDB := security.ApplyScopeFilter(
+		r.scoped(leadScopeCtx, "crm_leads").Model(&crmModels.Lead{}),
+		leadScopeCtx,
+		security.MixedOwnershipScopeQueryOptions("assigned_to"),
+	)
+	dealsDB := security.ApplyScopeFilter(
+		r.scoped(dealScopeCtx, "crm_deals").Model(&crmModels.Deal{}),
+		dealScopeCtx,
+		security.MixedOwnershipScopeQueryOptions("assigned_to"),
+	)
+	schedulesDB := security.ApplyScopeFilter(
+		r.scoped(taskScopeCtx, "crm_schedules").Model(&crmModels.Schedule{}),
+		taskScopeCtx,
+		security.MixedOwnershipScopeQueryOptions("employee_id"),
+	)
 
 	var totalContacts int64
-	if err := contactsDB.Table("crm_contacts").Where("deleted_at IS NULL").Count(&totalContacts).Error; err != nil {
+	if err := contactsDB.Where("deleted_at IS NULL").Count(&totalContacts).Error; err != nil {
 		return nil, err
 	}
 	result.TotalContacts = int(totalContacts)
+
 	var activeLeads int64
-	if err := r.scoped(ctx, "crm_leads").
-		Table("crm_leads").
-		Where("deleted_at IS NULL AND status = ?", "active").
+	if err := leadsDB.
+		Where("deleted_at IS NULL AND converted_at IS NULL").
 		Count(&activeLeads).Error; err != nil {
 		return nil, err
 	}
 	result.ActiveLeads = int(activeLeads)
 
 	var leadsThisMonth int64
-	if err := r.scoped(ctx, "crm_leads").
-		Table("crm_leads").
+	if err := leadsDB.
 		Where("deleted_at IS NULL AND created_at >= date_trunc('month', CURRENT_DATE)").
 		Count(&leadsThisMonth).Error; err != nil {
 		return nil, err
 	}
 	result.LeadsThisMonth = int(leadsThisMonth)
 
+	var recentLeadRows []crmModels.Lead
+	if err := leadsDB.
+		Preload("LeadStatus").
+		Preload("AssignedEmployee").
+		Preload("Deal.PipelineStage").
+		Where("deleted_at IS NULL").
+		Order("created_at DESC").
+		Limit(5).
+		Find(&recentLeadRows).Error; err != nil {
+		return nil, err
+	}
+
+	result.RecentLeads = make([]dto.CRMLeadSummary, 0, len(recentLeadRows))
+	for _, lead := range recentLeadRows {
+		leadName := strings.TrimSpace(strings.Join([]string{lead.FirstName, lead.LastName}, " "))
+		if leadName == "" {
+			leadName = lead.CompanyName
+		}
+		statusName := ""
+		statusColor := ""
+		if lead.LeadStatus != nil {
+			statusName = lead.LeadStatus.Name
+			statusColor = lead.LeadStatus.Color
+		}
+		assignedTo := ""
+		if lead.AssignedEmployee != nil {
+			assignedTo = lead.AssignedEmployee.Name
+		}
+		result.RecentLeads = append(result.RecentLeads, dto.CRMLeadSummary{
+			ID:              lead.ID,
+			Code:            lead.Code,
+			Name:            leadName,
+			CompanyName:     lead.CompanyName,
+			LeadStatus:      statusName,
+			LeadStatusColor: statusColor,
+			AssignedTo:      assignedTo,
+			CreatedAt:       lead.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		})
+	}
+
 	var dealsInProgress int64
-	if err := r.scoped(ctx, "crm_deals").
-		Table("crm_deals").
-		Where("deleted_at IS NULL AND status = ?", "in_progress").
+	if err := dealsDB.
+		Where("deleted_at IS NULL AND status = ?", "open").
 		Count(&dealsInProgress).Error; err != nil {
 		return nil, err
 	}
 	result.DealsInProgress = int(dealsInProgress)
 
 	var dealsWonThisMonth int64
-	if err := r.scoped(ctx, "crm_deals").
-		Table("crm_deals").
-		Where("deleted_at IS NULL AND status = ? AND closed_at >= date_trunc('month', CURRENT_DATE)", "won").
+	if err := dealsDB.
+		Where("deleted_at IS NULL AND status = ?", "won").
+		Where("COALESCE(actual_close_date::timestamp, updated_at) >= date_trunc('month', CURRENT_DATE)").
 		Count(&dealsWonThisMonth).Error; err != nil {
 		return nil, err
 	}
 	result.DealsWonThisMonth = int(dealsWonThisMonth)
 
 	var activitiesToday int64
-	if err := r.scoped(ctx, "crm_activities").
-		Table("crm_activities").
-		Where("deleted_at IS NULL AND scheduled_at::date = CURRENT_DATE").
+	if err := schedulesDB.
+		Where("deleted_at IS NULL AND status <> ? AND scheduled_at::date = CURRENT_DATE", "cancelled").
 		Count(&activitiesToday).Error; err != nil {
 		return nil, err
 	}
 	result.ActivitiesToday = int(activitiesToday)
+
+	type pipelineStageAggregate struct {
+		StageID    string
+		StageName  string
+		StageOrder int
+		ItemCount  int
+	}
+
+	var stageRows []pipelineStageAggregate
+	if err := dealsDB.
+		Table("crm_deals").
+		Select(`
+			crm_pipeline_stages.id AS stage_id,
+			crm_pipeline_stages.name AS stage_name,
+			crm_pipeline_stages."order" AS stage_order,
+			COUNT(crm_deals.id) AS item_count
+		`).
+		Joins("JOIN crm_pipeline_stages ON crm_pipeline_stages.id = crm_deals.pipeline_stage_id AND crm_pipeline_stages.deleted_at IS NULL").
+		Where("crm_deals.deleted_at IS NULL AND crm_deals.status = ?", "open").
+		Group("crm_pipeline_stages.id, crm_pipeline_stages.name, crm_pipeline_stages.\"order\"").
+		Order("crm_pipeline_stages.\"order\" ASC").
+		Limit(5).
+		Scan(&stageRows).Error; err != nil {
+		return nil, err
+	}
+
+	result.PipelineStages = make([]dto.CRMPipelineStageSummary, 0, len(stageRows))
+	for _, row := range stageRows {
+		result.PipelineStages = append(result.PipelineStages, dto.CRMPipelineStageSummary{
+			StageID:    row.StageID,
+			StageName:  row.StageName,
+			StageOrder: row.StageOrder,
+			ItemCount:  row.ItemCount,
+		})
+	}
 
 	return result, nil
 }

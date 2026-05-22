@@ -176,7 +176,8 @@ export function getWidgetMenuUrl(type: WidgetType): string | null {
     // CRM widgets → /crm
     crm_total_contacts: "/crm",
     crm_active_leads: "/crm",
-    crm_deals_overview: "/crm",
+    crm_leads_list: "/crm",
+    crm_pipeline_summary: "/crm",
     crm_activity_summary: "/crm",
 
     // Travel Planner widgets → /travel
@@ -736,14 +737,25 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     icon: "UserPlus",
     permission: "crm_lead.read",
   },
-  crm_deals_overview: {
-    type: "crm_deals_overview",
+  crm_leads_list: {
+    type: "crm_leads_list",
     category: "crm",
     defaultSize: "md",
     defaultColSpan: 2,
-    defaultRowSpan: 1,
-    titleKey: "widgets.crm_deals_overview.title",
-    descriptionKey: "widgets.crm_deals_overview.description",
+    defaultRowSpan: 2,
+    titleKey: "widgets.crm_leads_list.title",
+    descriptionKey: "widgets.crm_leads_list.description",
+    icon: "ContactRound",
+    permission: "crm_lead.read",
+  },
+  crm_pipeline_summary: {
+    type: "crm_pipeline_summary",
+    category: "crm",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    titleKey: "widgets.crm_pipeline_summary.title",
+    descriptionKey: "widgets.crm_pipeline_summary.description",
     icon: "Handshake",
     permission: "crm_deal.read",
   },
@@ -756,7 +768,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "widgets.crm_activity_summary.title",
     descriptionKey: "widgets.crm_activity_summary.description",
     icon: "CalendarCheck",
-    permission: "crm_activity.read",
+    permission: "crm_task.read",
   },
 
   // ════════════════════════════════════════════════════════════════════════

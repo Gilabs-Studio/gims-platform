@@ -13,6 +13,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../outlet/domain/models/outlet.dart';
 import '../../terminal/data/notification_sound_service.dart';
 import '../../terminal/data/pos_ws_service.dart';
+import '../../../core/sync/sync_status.dart';
 import '../../terminal/domain/models/pos_order.dart';
 import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
@@ -34,8 +35,11 @@ class LiveTableScreen extends StatefulWidget {
 
 class _LiveTableScreenState extends State<LiveTableScreen> {
   Timer? _clockTimer;
+  Timer? _syncReloadDebounce;
   PosWsService? _wsService;
   StreamSubscription<PosWsEvent>? _wsSub;
+  StreamSubscription<bool>? _connectivitySub;
+  StreamSubscription<SyncStatusDetail>? _syncStatusSub;
   FloorPlan? _plan;
   List<PosOrder> _orders = const [];
   PosConfig? _config;
@@ -43,6 +47,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   bool _loading = true;
   // Throttle fallback HTTP sync: only reload if last WS-triggered sync was >10s ago.
   DateTime? _lastWsSyncAt;
+  DateTime? _lastSyncReloadAt;
+  bool? _lastOnlineState;
+  SyncStatus? _lastSyncStatus;
 
   String? _servingOrderId;
   String? _completingOrderId;
@@ -53,6 +60,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     super.initState();
     _load();
     _connectWs();
+    _bindRealtimeSyncSignals();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
@@ -71,9 +79,52 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
   @override
   void dispose() {
     _wsSub?.cancel();
+    _connectivitySub?.cancel();
+    _syncStatusSub?.cancel();
     _wsService?.dispose();
+    _syncReloadDebounce?.cancel();
     _clockTimer?.cancel();
     super.dispose();
+  }
+
+  void _bindRealtimeSyncSignals() {
+    final engine = ServiceLocator.instance.syncEngine;
+    _lastOnlineState = engine.connectivity.isOnline;
+    _connectivitySub = engine.connectivity.isOnline$.listen((online) {
+      final previous = _lastOnlineState;
+      _lastOnlineState = online;
+      if (online && previous != true) {
+        _scheduleSilentReload();
+      }
+    });
+
+    _syncStatusSub = engine.status$.listen((detail) {
+      final previous = _lastSyncStatus;
+      _lastSyncStatus = detail.status;
+      final syncJustFinished =
+          previous == SyncStatus.syncing && detail.status == SyncStatus.idle;
+      final queueJustDrained =
+          previous == SyncStatus.offlineQueued && detail.pendingCount == 0;
+
+      if (syncJustFinished || queueJustDrained) {
+        _scheduleSilentReload();
+      }
+    });
+  }
+
+  void _scheduleSilentReload() {
+    final now = DateTime.now();
+    if (_lastSyncReloadAt != null &&
+        now.difference(_lastSyncReloadAt!).inMilliseconds < 1200) {
+      return;
+    }
+    _lastSyncReloadAt = now;
+
+    _syncReloadDebounce?.cancel();
+    _syncReloadDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _load(silent: true);
+    });
   }
 
   void _connectWs() {
@@ -486,7 +537,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     }
     if (!mounted) return;
 
-    await showDialog<CheckoutResult>(
+    final checkout = await showDialog<CheckoutResult>(
       context: context,
       barrierDismissible: true,
       builder: (context) => CheckoutFlowSheet(
@@ -501,6 +552,19 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
         outletName: widget.outlet.name,
       ),
     );
+
+    if (!mounted || checkout == null) return;
+
+    try {
+      final refreshed = await ServiceLocator.instance.terminalService.getOrderById(
+        order.id,
+      );
+      if (!mounted) return;
+      setState(() => _upsertOrder(refreshed));
+    } catch (_) {
+      if (!mounted) return;
+      _load(silent: true);
+    }
   }
 
   Future<void> _cancelOrder(LiveTableData info) async {

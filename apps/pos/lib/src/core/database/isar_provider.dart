@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,13 @@ final isarProvider = Provider<Isar>((ref) {
 });
 
 Future<Isar> openIsar() async {
+  if (kIsWeb) {
+    throw UnsupportedError(
+      'Isar 3.x does not support Flutter web in this project. '
+      'Use a non-web target to enable offline storage.',
+    );
+  }
+
   final dir = await getApplicationDocumentsDirectory();
   return Isar.open(
     [
@@ -27,6 +35,7 @@ Future<Isar> openIsar() async {
       CachedOrderSchema,
       SyncJobSchema,
     ],
+    name: 'gims_pos',
     directory: dir.path,
   );
 }

@@ -15,7 +15,7 @@ extension GetCachedOutletCollection on Isar {
 
 const CachedOutletSchema = CollectionSchema(
   name: r'CachedOutlet',
-  id: 4,
+  id: 2636340672105231904,
   properties: {
     r'address': PropertySchema(
       id: 0,
@@ -50,7 +50,7 @@ const CachedOutletSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'outletId': IndexSchema(
-      id: 41,
+      id: -1197630030247531768,
       name: r'outletId',
       unique: true,
       replace: false,

@@ -23,16 +23,32 @@ export function clearAuthCookies(): void {
     "gims_refresh_token",
   ];
 
+  const paths = ["/", ""];
+  const domains = [""];
+
+  // Add the registrable root domain (e.g. .gilabs.id) to clear domain-scoped cookies
+  const hostname = window.location.hostname;
+  const parts = hostname.split(".");
+  if (parts.length >= 2) {
+    const registrableDomain = parts.slice(-2).join(".");
+    domains.push(`.${registrableDomain}`);
+    domains.push(registrableDomain);
+  }
+
   cookiesToClear.forEach((cookieName) => {
-    // Clear with various path combinations to ensure removal
-    const paths = ["/", "", "/api"];
-    paths.forEach((path) => {
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; SameSite=Strict`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}; SameSite=Lax`;
+    domains.forEach((domain) => {
+      paths.forEach((path) => {
+        const domainAttr = domain ? `; domain=${domain}` : "";
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}${domainAttr}`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}${domainAttr}; SameSite=Strict`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}${domainAttr}; SameSite=Lax`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}${domainAttr}; SameSite=None; Secure`;
+      });
     });
   });
 }
+
+let fullCleanupPromise: Promise<void> | null = null;
 
 /**
  * Attempt to logout via API to clear HttpOnly cookies server-side.
@@ -52,8 +68,18 @@ export async function clearAuthCookiesViaApi(): Promise<void> {
  * Full cleanup: clear local cookies AND call API to clear HttpOnly cookies.
  */
 export async function fullAuthCleanup(): Promise<void> {
+  if (fullCleanupPromise) {
+    return fullCleanupPromise;
+  }
+
   // Clear what we can locally first
-  clearAuthCookies();
-  // Then try to clear HttpOnly cookies via API
-  await clearAuthCookiesViaApi();
+  fullCleanupPromise = (async () => {
+    clearAuthCookies();
+    // Then try to clear HttpOnly cookies via API
+    await clearAuthCookiesViaApi();
+  })().finally(() => {
+    fullCleanupPromise = null;
+  });
+
+  return fullCleanupPromise;
 }

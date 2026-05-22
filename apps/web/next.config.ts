@@ -142,6 +142,18 @@ const nextConfig: NextConfig = {
                 },
               ]),
 
+          // Resource hints for critical resources
+          {
+            key: "Link",
+            value: [
+              // Preconnect to Google Fonts
+              '<https://fonts.googleapis.com>; rel=preconnect',
+              '<https://fonts.gstatic.com>; rel=preconnect; crossorigin',
+              // DNS prefetch for R2 (image CDN)
+              '<https://pub-d746125bb1b6423491682404faec8132.r2.dev>; rel=dns-prefetch',
+            ].join(", "),
+          },
+
           // CSP (optimized for Next.js and React)
           // Note: 'unsafe-inline' and 'unsafe-eval' are required for Next.js hydration
           // and development mode. In production, consider using nonce-based CSP.
@@ -226,11 +238,27 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+
+      // HTML pages — short-term cache with revalidation (stale-while-revalidate)
+      {
+        source: "/:path((?!_next).*)?",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        ],
+      },
     ];
   },
 
   images: {
     remotePatterns: remoteImagePatterns,
+    // Optimize image format and quality for better performance
+    formats: ["image/avif", "image/webp"],
+    // Reduce image quality slightly for better performance
+    // while maintaining visual quality on landing page
+    minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year for hashed images
   },
 
   poweredByHeader: false,

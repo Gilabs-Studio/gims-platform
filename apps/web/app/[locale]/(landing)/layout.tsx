@@ -78,6 +78,13 @@ export default function MarketingLayout({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }}
       />
+      {/* Preload LCP image for faster perception of page load */}
+      <link
+        rel="preload"
+        as="image"
+        href="/screenshot/dashboard.webp"
+        type="image/webp"
+      />
       <LandingHeader />
       {children}
     </>

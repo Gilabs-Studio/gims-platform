@@ -95,42 +95,28 @@ class _CatalogPanelState extends State<CatalogPanel> {
                       itemBuilder: (context, index) {
                         final item = filteredProducts[index];
                         final imageUrl = resolveImageUrl(item.imageUrl);
+                        final isOutOfStock = item.productKind == 'STOCK' && item.stock <= 0;
                         return InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: item.isAvailable
+                          onTap: (item.isAvailable && !isOutOfStock)
                               ? () => widget.onTap(item)
                               : null,
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              color: item.isAvailable
-                                  ? Colors.white
-                                  : GimsColors.muted,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: GimsColors.border),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: imageUrl == null
-                                      ? Container(
-                                          color: GimsColors.muted
-                                              .withValues(alpha: 0.18),
-                                          child: Icon(
-                                            item.productKind == 'RECIPE'
-                                                ? Icons.restaurant_menu
-                                                : Icons.inventory_2_outlined,
-                                            size: 34,
-                                            color: item.isAvailable
-                                                ? GimsColors.primary
-                                                : GimsColors.mutedForeground,
-                                          ),
-                                        )
-                                      : Image.network(
-                                          imageUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) =>
-                                              Container(
+                          child: Opacity(
+                            opacity: isOutOfStock ? 0.5 : 1.0,
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                color: item.isAvailable
+                                    ? Colors.white
+                                    : GimsColors.muted,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: GimsColors.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: imageUrl == null
+                                        ? Container(
                                             color: GimsColors.muted
                                                 .withValues(alpha: 0.18),
                                             child: Icon(
@@ -142,53 +128,71 @@ class _CatalogPanelState extends State<CatalogPanel> {
                                                   ? GimsColors.primary
                                                   : GimsColors.mutedForeground,
                                             ),
-                                          ),
-                                        ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(10),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if ((item.category ?? '').isNotEmpty)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 5),
-                                          child: Text(
-                                            item.category!,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color:
-                                                  GimsColors.mutedForeground,
-                                              fontWeight: FontWeight.w600,
+                                          )
+                                        : Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                Container(
+                                              color: GimsColors.muted
+                                                  .withValues(alpha: 0.18),
+                                              child: Icon(
+                                                item.productKind == 'RECIPE'
+                                                    ? Icons.restaurant_menu
+                                                    : Icons.inventory_2_outlined,
+                                                size: 34,
+                                                color: item.isAvailable
+                                                    ? GimsColors.primary
+                                                    : GimsColors.mutedForeground,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      Text(
-                                        item.productName,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(formatMoney(item.price, 'IDR')),
-                                      Text(
-                                        item.productKind == 'STOCK'
-                                            ? 'Stok ${item.stock.toStringAsFixed(0)}'
-                                            : item.productKind,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: GimsColors.mutedForeground,
-                                        ),
-                                      ),
-                                    ],
                                   ),
-                                ),
-                              ],
+                                  Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if ((item.category ?? '').isNotEmpty)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(bottom: 5),
+                                            child: Text(
+                                              item.category!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color:
+                                                    GimsColors.mutedForeground,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        Text(
+                                          item.productName,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(formatMoney(item.price, 'IDR')),
+                                        Text(
+                                          item.productKind == 'STOCK'
+                                              ? 'Stok ${item.stock.toStringAsFixed(0)}'
+                                              : item.productKind,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: GimsColors.mutedForeground,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

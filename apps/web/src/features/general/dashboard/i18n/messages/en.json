@@ -349,11 +349,15 @@
         "description": "Active leads in the pipeline",
         "thisMonth": "new this month"
       },
-      "crm_deals_overview": {
-        "title": "Deals Overview",
-        "description": "Deals in progress and won this month",
-        "inProgress": "In Progress",
-        "wonThisMonth": "Won This Month"
+      "crm_leads_list": {
+        "title": "Recent Leads",
+        "description": "Latest leads visible in the current scope",
+        "noLeads": "No leads available in scope"
+      },
+      "crm_pipeline_summary": {
+        "title": "Pipeline Summary",
+        "description": "Open deals by stage, limited to the current scope",
+        "noPipelineData": "No pipeline items in scope"
       },
       "crm_activity_summary": {
         "title": "Activity Summary",
