@@ -35,7 +35,7 @@ func resolveSystemAdminCookieOptions() (string, http.SameSite, bool) {
 
 	env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
 	if env == "production" || env == "prod" {
-		return config.AppConfig.Server.RootDomain, http.SameSiteNoneMode, true
+		return "", http.SameSiteNoneMode, true
 	}
 
 	return "", http.SameSiteLaxMode, true

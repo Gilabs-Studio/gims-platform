@@ -97,21 +97,17 @@ func isHTTPS(c *gin.Context) bool {
 }
 
 func authCookieDomain() string {
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		return config.AppConfig.Server.RootDomain
-	}
 	return ""
 }
 
 func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 	isSec := isHTTPS(c)
+	sameSite := http.SameSiteLaxMode
 	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
 		isSec = true
+		sameSite = http.SameSiteNoneMode
 	}
-	// Use SameSite=Lax instead of SameSite=None to prevent cookies from being blocked
-	// as third-party cookies in incognito mode and Safari. Lax works perfectly for
-	// subdomains sharing the same registrable domain.
-	return isSec, http.SameSiteLaxMode
+	return isSec, sameSite
 }
 
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
@@ -128,7 +124,10 @@ func clearAuthCookies(c *gin.Context) {
 	// Clear current and legacy cookie paths and domains used by older deployments
 	// to prevent stale/duplicate cookies from causing auth failures.
 	paths := []string{"/"}
-	domains := []string{"", authCookieDomain()}
+	domains := []string{""}
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		domains = append(domains, config.AppConfig.Server.RootDomain)
+	}
 
 	// Clear with both Lax and None SameSite modes to ensure that legacy cookies
 	// (which were written with SameSite=None) are successfully deleted.

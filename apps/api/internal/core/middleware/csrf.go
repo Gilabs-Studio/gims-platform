@@ -198,15 +198,10 @@ func setCSRFCookie(c *gin.Context, token string) {
 	sameSite := http.SameSiteLaxMode
 	domain := ""
 
-	// In production/staging setups sharing same registrable domain (e.g. .gilabs.id),
-	// use config's RootDomain so cookie is shared across subdomains.
-	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
-		domain = config.AppConfig.Server.RootDomain
-	}
-
 	isSecure := isHTTPS(c)
 	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
 		isSecure = true
+		sameSite = http.SameSiteNoneMode
 	}
 
 	c.SetSameSite(sameSite)
