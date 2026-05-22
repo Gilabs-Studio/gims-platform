@@ -663,6 +663,12 @@ apiClient.interceptors.response.use(
       if (originalRequest?._retry) {
         // Refresh failed, logout user
         if (typeof window !== "undefined") {
+          const msg = formatError("backend", "unauthorized");
+          showGlobalErrorToast(msg.title, {
+            description: msg.description,
+            dedupeKey: "backend-unauthorized",
+          });
+
           // Clear all auth state and cookies
           import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
             useAuthStore.getState().logout();
@@ -713,6 +719,12 @@ apiClient.interceptors.response.use(
           .catch((refreshError) => {
             isRefreshing = false;
             if (typeof window !== "undefined") {
+              const msg = formatError("backend", "unauthorized");
+              showGlobalErrorToast(msg.title, {
+                description: msg.description,
+                dedupeKey: "backend-unauthorized",
+              });
+
               // Clear all auth state and cookies
               import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
                 useAuthStore.getState().logout();

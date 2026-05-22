@@ -3,9 +3,7 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
@@ -21,37 +19,7 @@ func generateToken() string {
 	return hex.EncodeToString(bytes)
 }
 
-func shouldUseCrossSiteCSRFCookie(c *gin.Context) bool {
-	if config.AppConfig != nil {
-		env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
-		if env == "production" || env == "prod" {
-			return true
-		}
-	}
 
-	origin := strings.TrimSpace(c.GetHeader("Origin"))
-	if origin == "" {
-		return false
-	}
-
-	originURL, err := url.Parse(origin)
-	if err != nil || originURL.Host == "" {
-		return false
-	}
-
-	requestHost := c.Request.Host
-	if host, _, err := net.SplitHostPort(requestHost); err == nil {
-		requestHost = host
-	}
-
-	originHost := originURL.Hostname()
-	requestHostname := requestHost
-	if requestHostname == "" {
-		requestHostname = c.Request.URL.Hostname()
-	}
-
-	return !strings.EqualFold(originHost, requestHostname)
-}
 
 func abortCSRFFailedToGenerate(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
@@ -230,20 +198,14 @@ func setCSRFCookie(c *gin.Context, token string) {
 	sameSite := http.SameSiteLaxMode
 	domain := ""
 
-	if shouldUseCrossSiteCSRFCookie(c) {
-		sameSite = http.SameSiteNoneMode
-		// In production, set root domain so cookies work across all subdomains (e.g., .gilabs.id, .salesview.id)
-		// This allows sharing cookies between salesview.id, gims.gilabs.id, api.gilabs.id, etc.
-		if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
-			domain = config.AppConfig.Server.RootDomain
-		}
+	// In production/staging setups sharing same registrable domain (e.g. .gilabs.id),
+	// use config's RootDomain so cookie is shared across subdomains.
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		domain = config.AppConfig.Server.RootDomain
 	}
 
 	isSecure := isHTTPS(c)
 	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
-		isSecure = true
-	}
-	if sameSite == http.SameSiteNoneMode {
 		isSecure = true
 	}
 

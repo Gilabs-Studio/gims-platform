@@ -108,10 +108,10 @@ func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
 		isSec = true
 	}
-	if isSec {
-		return true, http.SameSiteNoneMode
-	}
-	return false, http.SameSiteLaxMode
+	// Use SameSite=Lax instead of SameSite=None to prevent cookies from being blocked
+	// as third-party cookies in incognito mode and Safari. Lax works perfectly for
+	// subdomains sharing the same registrable domain.
+	return isSec, http.SameSiteLaxMode
 }
 
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
@@ -126,35 +126,44 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 
 func clearAuthCookies(c *gin.Context) {
 	secure, sameSite := getCookieSecureAndSameSite(c)
-	// Clear current and legacy cookie paths used by older deployments.
+	// Clear current and legacy cookie paths and domains used by older deployments
+	// to prevent stale/duplicate cookies from causing auth failures.
 	paths := []string{"/", "/api", "/api/v1"}
-	for _, p := range paths {
-		setCookieAcrossDomains(c, "gims_access_token", "", p, -1, true, secure, sameSite)
-		setCookieAcrossDomains(c, "gims_refresh_token", "", p, -1, true, secure, sameSite)
+	domains := []string{"", authCookieDomain()}
+
+	for _, name := range []string{"gims_access_token", "gims_refresh_token"} {
+		for _, domain := range domains {
+			for _, p := range paths {
+				http.SetCookie(c.Writer, &http.Cookie{
+					Name:     name,
+					Value:    "",
+					Path:     p,
+					MaxAge:   -1,
+					Domain:   domain,
+					Secure:   secure,
+					HttpOnly: true,
+					SameSite: sameSite,
+				})
+			}
+		}
 	}
 }
 
 func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly, secure bool, sameSite http.SameSite) {
-	seen := map[string]struct{}{}
-	domains := []string{"", authCookieDomain()}
-
-	for _, domain := range domains {
-		if _, ok := seen[domain]; ok {
-			continue
-		}
-		seen[domain] = struct{}{}
-
-		http.SetCookie(c.Writer, &http.Cookie{
-			Name:     name,
-			Value:    value,
-			Path:     path,
-			MaxAge:   maxAge,
-			Domain:   domain,
-			Secure:   secure,
-			HttpOnly: httpOnly,
-			SameSite: sameSite,
-		})
-	}
+	// KISS: Set the cookie ONCE on the configured domain.
+	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
+	// with the same name, which leads to conflicts and stale token evaluation.
+	domain := authCookieDomain()
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		MaxAge:   maxAge,
+		Domain:   domain,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+		SameSite: sameSite,
+	})
 }
 
 func getCookieValues(c *gin.Context, name string) []string {
@@ -368,10 +377,22 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// ALWAYS Clear Cookies on Logout
 	clearAuthCookies(c)
-	// Also clear CSRF token cookie
+	// Also clear CSRF token cookie across domains to avoid stale CSRF cookies
 	secure, sameSite := getCookieSecureAndSameSite(c)
-	for _, p := range []string{"/", "/api", "/api/v1"} {
-		setCookieAcrossDomains(c, "gims_csrf_token", "", p, -1, false, secure, sameSite)
+	domains := []string{"", authCookieDomain()}
+	for _, domain := range domains {
+		for _, p := range []string{"/", "/api", "/api/v1"} {
+			http.SetCookie(c.Writer, &http.Cookie{
+				Name:     "gims_csrf_token",
+				Value:    "",
+				Path:     p,
+				MaxAge:   -1,
+				Domain:   domain,
+				Secure:   secure,
+				HttpOnly: false,
+				SameSite: sameSite,
+			})
+		}
 	}
 
 	response.SuccessResponseNoContent(c)
