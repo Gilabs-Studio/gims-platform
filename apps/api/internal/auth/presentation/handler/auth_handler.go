@@ -115,56 +115,46 @@ func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 }
 
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
-	domain := authCookieDomain()
+	// Remove legacy cookie variants first so browser will not send stale tokens
+	// with the same cookie name but different path/domain.
+	clearAuthCookies(c)
+
 	secure, sameSite := getCookieSecureAndSameSite(c)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    accessToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Domain:   domain,
-		Secure:   secure,
-		HttpOnly: true,
-		SameSite: sameSite,
-	})
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    refreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Domain:   domain,
-		Secure:   secure,
-		HttpOnly: true,
-		SameSite: sameSite,
-	})
+	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, secure, sameSite)
+	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, secure, sameSite)
 }
 
 func clearAuthCookies(c *gin.Context) {
-	domain := authCookieDomain()
 	secure, sameSite := getCookieSecureAndSameSite(c)
+	// Clear current and legacy cookie paths used by older deployments.
+	paths := []string{"/", "/api", "/api/v1"}
+	for _, p := range paths {
+		setCookieAcrossDomains(c, "gims_access_token", "", p, -1, true, secure, sameSite)
+		setCookieAcrossDomains(c, "gims_refresh_token", "", p, -1, true, secure, sameSite)
+	}
+}
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Domain:   domain,
-		Secure:   secure,
-		HttpOnly: true,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Domain:   domain,
-		Secure:   secure,
-		HttpOnly: true,
-		SameSite: sameSite,
-	})
+func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly, secure bool, sameSite http.SameSite) {
+	seen := map[string]struct{}{}
+	domains := []string{"", authCookieDomain()}
+
+	for _, domain := range domains {
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		seen[domain] = struct{}{}
+
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     name,
+			Value:    value,
+			Path:     path,
+			MaxAge:   maxAge,
+			Domain:   domain,
+			Secure:   secure,
+			HttpOnly: httpOnly,
+			SameSite: sameSite,
+		})
+	}
 }
 
 // Login handles login request
@@ -333,15 +323,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	clearAuthCookies(c)
 	// Also clear CSRF token cookie
 	secure, sameSite := getCookieSecureAndSameSite(c)
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_csrf_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   secure,
-		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
-		SameSite: sameSite,
-	})
+	for _, p := range []string{"/", "/api", "/api/v1"} {
+		setCookieAcrossDomains(c, "gims_csrf_token", "", p, -1, false, secure, sameSite)
+	}
 
 	response.SuccessResponseNoContent(c)
 }
