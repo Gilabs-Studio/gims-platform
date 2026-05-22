@@ -103,8 +103,20 @@ func authCookieDomain() string {
 	return ""
 }
 
+func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
+	isSec := isHTTPS(c)
+	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
+		isSec = true
+	}
+	if isSec {
+		return true, http.SameSiteNoneMode
+	}
+	return false, http.SameSiteLaxMode
+}
+
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 	domain := authCookieDomain()
+	secure, sameSite := getCookieSecureAndSameSite(c)
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
@@ -112,9 +124,9 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
 		Domain:   domain,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sameSite,
 	})
 
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -123,14 +135,15 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
 		Domain:   domain,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sameSite,
 	})
 }
 
 func clearAuthCookies(c *gin.Context) {
 	domain := authCookieDomain()
+	secure, sameSite := getCookieSecureAndSameSite(c)
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_access_token",
@@ -138,9 +151,9 @@ func clearAuthCookies(c *gin.Context) {
 		Path:     "/",
 		MaxAge:   -1,
 		Domain:   domain,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sameSite,
 	})
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_refresh_token",
@@ -148,9 +161,9 @@ func clearAuthCookies(c *gin.Context) {
 		Path:     "/",
 		MaxAge:   -1,
 		Domain:   domain,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sameSite,
 	})
 }
 
@@ -319,14 +332,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// ALWAYS Clear Cookies on Logout
 	clearAuthCookies(c)
 	// Also clear CSRF token cookie
+	secure, sameSite := getCookieSecureAndSameSite(c)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_csrf_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   true,
+		Secure:   secure,
 		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sameSite,
 	})
 
 	response.SuccessResponseNoContent(c)
@@ -448,24 +462,7 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	loginResponse := result.LoginResponse
 
 	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{
@@ -523,24 +520,7 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 		return
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_access_token",
-		Value:    loginResponse.Token,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "gims_refresh_token",
-		Value:    loginResponse.RefreshToken,
-		Path:     "/",
-		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
+	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
 	resp := authDTO.LoginResponseDTO{
 		User: authDTO.UserDTO{
