@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
+import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -38,7 +39,14 @@ export function LandingHeader() {
         {/* Logo */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 select-none">
-            <span className="text-2xl font-bold tracking-tight text-primary">SalesView</span>
+            <ThemeAwareImage
+              lightSrc="/salesview%20logo%20light.png"
+              darkSrc="/salesview%20logo%20dark.png"
+              alt="SalesView logo"
+              width={180}
+              height={48}
+              className="h-12 w-auto"
+            />
           </Link>
 
           {/* Desktop nav */}
