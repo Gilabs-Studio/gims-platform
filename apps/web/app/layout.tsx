@@ -19,6 +19,7 @@ const headingFont = Sora({
   variable: "--font-heading",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
+  display: "swap",
 });
 
 const accentFont = Newsreader({
@@ -26,6 +27,7 @@ const accentFont = Newsreader({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   style: ["italic", "normal"],
+  display: "swap",
 });
 
 export async function generateMetadata(): Promise<Metadata> {

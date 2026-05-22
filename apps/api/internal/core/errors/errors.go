@@ -100,6 +100,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Token is required",
 	},
+	"REFRESH_TOKEN_REQUIRED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Refresh token is required",
+	},
 	"REFRESH_TOKEN_INVALID": {
 		HTTPStatus: http.StatusUnauthorized,
 		Message:    "Invalid refresh token",

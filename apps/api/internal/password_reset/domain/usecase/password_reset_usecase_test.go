@@ -13,8 +13,10 @@ import (
 	notificationModels "github.com/gilabs/gims/api/internal/notification/data/models"
 	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
 	passwordResetModels "github.com/gilabs/gims/api/internal/password_reset/data/models"
+	passwordResetRepo "github.com/gilabs/gims/api/internal/password_reset/data/repositories"
 	resetDto "github.com/gilabs/gims/api/internal/password_reset/domain/dto"
 	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userDto "github.com/gilabs/gims/api/internal/user/domain/dto"
 )
@@ -38,6 +40,14 @@ func (f *fakePasswordResetRepo) FindByUserID(ctx context.Context, userID string)
 
 func (f *fakePasswordResetRepo) FindPendingByUserID(ctx context.Context, userID string) (*passwordResetModels.PasswordResetRequest, error) {
 	return nil, gorm.ErrRecordNotFound
+}
+
+func (f *fakePasswordResetRepo) ListPendingTenantOwner(ctx context.Context, search string, page, perPage int) ([]passwordResetRepo.TenantOwnerPendingRequest, int64, error) {
+	return nil, 0, nil
+}
+
+func (f *fakePasswordResetRepo) CountPendingTenantOwner(ctx context.Context) (int64, error) {
+	return 0, nil
 }
 
 func (f *fakePasswordResetRepo) Update(ctx context.Context, req *passwordResetModels.PasswordResetRequest) error {
@@ -179,17 +189,40 @@ func (f *fakeNotificationRepo) CreateBulk(ctx context.Context, notifications []n
 	return nil
 }
 
+type fakeTenantRepo struct {
+	tenant *tenantModels.Tenant
+}
+
+func (f *fakeTenantRepo) FindByID(ctx context.Context, id string) (*tenantModels.Tenant, error) {
+	if f.tenant == nil || f.tenant.ID != id {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return f.tenant, nil
+}
+
+type fakeSystemAdminRepo struct {
+	admins []tenantModels.SystemAdmin
+}
+
+func (f *fakeSystemAdminRepo) ListActive(ctx context.Context) ([]tenantModels.SystemAdmin, error) {
+	return f.admins, nil
+}
+
 type noopAuditService struct{}
 
-func (noopAuditService) Log(ctx context.Context, action string, targetID string, metadata map[string]interface{}) {}
-func (noopAuditService) LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}) {}
-func (noopAuditService) LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{}) {}
-func (noopAuditService) LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{}) {}
+func (noopAuditService) Log(ctx context.Context, action string, targetID string, metadata map[string]interface{}) {
+}
+func (noopAuditService) LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}) {
+}
+func (noopAuditService) LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{}) {
+}
+func (noopAuditService) LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{}) {
+}
 
 type noopEventPublisher struct{}
 
 func (noopEventPublisher) Publish(ctx context.Context, event infraEvents.Event) error { return nil }
-func (noopEventPublisher) PublishAsync(ctx context.Context, event infraEvents.Event) {}
+func (noopEventPublisher) PublishAsync(ctx context.Context, event infraEvents.Event)  {}
 
 func TestForgotPasswordSetsTenantIDOnNotifications(t *testing.T) {
 	ctx := context.Background()
@@ -212,11 +245,18 @@ func TestForgotPasswordSetsTenantIDOnNotifications(t *testing.T) {
 	userRepo := &fakeUserRepo{user: requestingUser, users: []userModels.User{adminUser}}
 	roleRepo := &fakeRoleRepo{role: adminRole}
 	notificationRepo := &fakeNotificationRepo{}
+	tenantRepo := &fakeTenantRepo{tenant: &tenantModels.Tenant{ID: requestingUser.TenantID, OwnerUserID: func() *string {
+		notOwner := uuid.NewString()
+		return &notOwner
+	}()}}
+	systemAdminRepo := &fakeSystemAdminRepo{}
 
 	uc := NewPasswordResetUsecase(
 		passwordResetRepo,
 		userRepo,
 		roleRepo,
+		tenantRepo,
+		systemAdminRepo,
 		notificationRepo,
 		noopAuditService{},
 		noopEventPublisher{},
@@ -251,5 +291,69 @@ func TestForgotPasswordSetsTenantIDOnNotifications(t *testing.T) {
 	}
 	if len(passwordResetRepo.created) != 1 {
 		t.Fatalf("expected 1 password reset record, got %d", len(passwordResetRepo.created))
+	}
+}
+
+func TestForgotPasswordTenantOwnerNotifiesSystemAdmins(t *testing.T) {
+	ctx := context.Background()
+	tenantID := uuid.NewString()
+	requestingUser := &userModels.User{
+		ID:       uuid.NewString(),
+		TenantID: tenantID,
+		Email:    "owner@example.com",
+		Name:     "Tenant Owner",
+		RoleID:   uuid.NewString(),
+	}
+	adminRole := &roleModels.Role{ID: uuid.NewString(), Code: "admin"}
+	tenantAdmin := userModels.User{
+		ID:     uuid.NewString(),
+		Email:  "tenant-admin@example.com",
+		Name:   "Tenant Admin Recipient",
+		RoleID: adminRole.ID,
+	}
+	sysAdminOne := tenantModels.SystemAdmin{ID: uuid.NewString(), Name: "System Admin 1", Status: "active"}
+	sysAdminTwo := tenantModels.SystemAdmin{ID: uuid.NewString(), Name: "System Admin 2", Status: "active"}
+
+	passwordResetRepo := &fakePasswordResetRepo{}
+	userRepo := &fakeUserRepo{user: requestingUser, users: []userModels.User{tenantAdmin}}
+	roleRepo := &fakeRoleRepo{role: adminRole}
+	notificationRepo := &fakeNotificationRepo{}
+	tenantRepo := &fakeTenantRepo{tenant: &tenantModels.Tenant{ID: tenantID, OwnerUserID: &requestingUser.ID}}
+	systemAdminRepo := &fakeSystemAdminRepo{admins: []tenantModels.SystemAdmin{sysAdminOne, sysAdminTwo}}
+
+	uc := NewPasswordResetUsecase(
+		passwordResetRepo,
+		userRepo,
+		roleRepo,
+		tenantRepo,
+		systemAdminRepo,
+		notificationRepo,
+		noopAuditService{},
+		noopEventPublisher{},
+		(*redis.Client)(nil),
+	)
+
+	_, err := uc.ForgotPassword(ctx, &resetDto.ForgotPasswordRequest{Email: requestingUser.Email})
+	if err != nil {
+		t.Fatalf("ForgotPassword returned error: %v", err)
+	}
+
+	if len(notificationRepo.created) != 2 {
+		t.Fatalf("expected 2 notifications for system admins, got %d", len(notificationRepo.created))
+	}
+
+	recipients := map[string]bool{}
+	for _, n := range notificationRepo.created {
+		recipients[n.UserID] = true
+		if n.TenantID != tenantID {
+			t.Fatalf("expected tenant_id %s, got %s", tenantID, n.TenantID)
+		}
+	}
+
+	if !recipients[sysAdminOne.ID] || !recipients[sysAdminTwo.ID] {
+		t.Fatalf("expected recipients to include system admins %s and %s", sysAdminOne.ID, sysAdminTwo.ID)
+	}
+	if recipients[tenantAdmin.ID] {
+		t.Fatalf("did not expect tenant admin recipient %s for tenant-owner request", tenantAdmin.ID)
 	}
 }

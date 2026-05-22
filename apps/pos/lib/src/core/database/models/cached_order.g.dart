@@ -15,7 +15,7 @@ extension GetCachedOrderCollection on Isar {
 
 const CachedOrderSchema = CollectionSchema(
   name: r'CachedOrder',
-  id: 3,
+  id: -6052269157851733141,
   properties: {
     r'cachedAt': PropertySchema(
       id: 0,
@@ -65,7 +65,7 @@ const CachedOrderSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'clientId': IndexSchema(
-      id: 31,
+      id: 2639372232964765565,
       name: r'clientId',
       unique: true,
       replace: false,
@@ -78,7 +78,7 @@ const CachedOrderSchema = CollectionSchema(
       ],
     ),
     r'orderId': IndexSchema(
-      id: 32,
+      id: -6176610178429382285,
       name: r'orderId',
       unique: false,
       replace: false,
@@ -91,7 +91,7 @@ const CachedOrderSchema = CollectionSchema(
       ],
     ),
     r'outletId': IndexSchema(
-      id: 33,
+      id: -1197630030247531768,
       name: r'outletId',
       unique: false,
       replace: false,
@@ -104,7 +104,7 @@ const CachedOrderSchema = CollectionSchema(
       ],
     ),
     r'syncStatus': IndexSchema(
-      id: 34,
+      id: 8239539375045684509,
       name: r'syncStatus',
       unique: false,
       replace: false,

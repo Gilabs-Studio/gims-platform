@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:isar/isar.dart';
 
+import '../core/database/isar_provider.dart';
 import '../core/network/api_client.dart';
+import '../core/offline/connectivity_service.dart';
+import '../core/sync/sync_engine.dart';
 import '../core/theme/app_theme.dart';
 import '../features/auth/data/auth_service.dart';
 import '../features/auth/presentation/auth_gate.dart';
@@ -22,11 +26,16 @@ class ServiceLocator {
   late final FloorService floorService;
   late final LoyaltyService loyaltyService;
   late final FeedbackService feedbackService;
+  late final SyncEngine syncEngine;
 
-  void init(ApiClient api) {
+  Future<void> init(ApiClient api, {Isar? isar}) async {
+    final resolvedIsar = isar ?? await openIsar();
+    final connectivity = ConnectivityService()..init();
+    syncEngine = SyncEngine(isar: resolvedIsar, connectivity: connectivity, apiClient: api);
+    syncEngine.start();
     authService = AuthService(api);
     outletService = OutletService(api);
-    terminalService = TerminalService(api);
+    terminalService = TerminalService(api, syncEngine, resolvedIsar);
     floorService = FloorService(api);
     loyaltyService = LoyaltyService(api);
     feedbackService = FeedbackService(api);
@@ -34,7 +43,10 @@ class ServiceLocator {
 }
 
 class GimsPosApp extends StatefulWidget {
-  const GimsPosApp({super.key});
+  const GimsPosApp({super.key, this.initialIsar, this.webUnsupported = false});
+
+  final Isar? initialIsar;
+  final bool webUnsupported;
 
   @override
   State<GimsPosApp> createState() => _GimsPosAppState();
@@ -46,16 +58,36 @@ class _GimsPosAppState extends State<GimsPosApp> {
   @override
   void initState() {
     super.initState();
-    _boot = _initialize();
+    _boot = widget.webUnsupported ? Future.value() : _initialize();
   }
 
   Future<void> _initialize() async {
     await ApiClient.instance.init();
-    ServiceLocator.instance.init(ApiClient.instance);
+    await ServiceLocator.instance.init(ApiClient.instance, isar: widget.initialIsar);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.webUnsupported) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Salesview Pos',
+        theme: buildGimsTheme(),
+        home: const Scaffold(
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Flutter web is not supported for POS offline mode with the current Isar version. '
+                'Run this app on Android, iOS, Windows, Linux, or macOS.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Salesview Pos',

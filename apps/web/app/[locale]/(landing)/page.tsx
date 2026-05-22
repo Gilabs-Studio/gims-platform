@@ -143,9 +143,11 @@ export default function LandingPage() {
   const t = useTranslations("landing");
 
   useEffect(() => {
+    // Defer WebGL background rendering to allow hero section to paint first
+    // This improves LCP by avoiding GPU initialization blocking main thread
     const timerId = window.setTimeout(() => {
       setShowBackgroundFx(true);
-    }, 600);
+    }, 1200);
 
     return () => window.clearTimeout(timerId);
   }, []);
@@ -287,6 +289,7 @@ export default function LandingPage() {
                   className="object-cover object-top"
                   sizes="(max-width: 1200px) 100vw, 1200px"
                   priority
+                  fetchPriority="high"
                 />
               </div>
             </motion.div>

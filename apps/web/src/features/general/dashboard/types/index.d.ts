@@ -87,7 +87,8 @@ export type WidgetType =
   // --- CRM ---
   | "crm_total_contacts"
   | "crm_active_leads"
-  | "crm_deals_overview"
+  | "crm_leads_list"
+  | "crm_pipeline_summary"
   | "crm_activity_summary"
   // --- POS ---
   | "pos_outlet_sales"
@@ -495,4 +496,24 @@ export interface CRMSummaryData {
   deals_in_progress: number;
   deals_won_this_month: number;
   activities_today: number;
+  recent_leads: CRMLeadSummary[];
+  pipeline_stages: CRMPipelineStageSummary[];
+}
+
+export interface CRMLeadSummary {
+  id: string;
+  code: string;
+  name: string;
+  company_name: string;
+  lead_status: string;
+  lead_status_color: string;
+  assigned_to: string;
+  created_at: string;
+}
+
+export interface CRMPipelineStageSummary {
+  stage_id: string;
+  stage_name: string;
+  stage_order: number;
+  item_count: number;
 }

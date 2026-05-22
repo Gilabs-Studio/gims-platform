@@ -15,7 +15,7 @@ extension GetCachedCatalogItemCollection on Isar {
 
 const CachedCatalogItemSchema = CollectionSchema(
   name: r'CachedCatalogItem',
-  id: 1,
+  id: 8719820129511323375,
   properties: {
     r'cachedAt': PropertySchema(
       id: 0,
@@ -80,7 +80,7 @@ const CachedCatalogItemSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'productId_outletId': IndexSchema(
-      id: 11,
+      id: -8327235885093916247,
       name: r'productId_outletId',
       unique: true,
       replace: false,
@@ -98,7 +98,7 @@ const CachedCatalogItemSchema = CollectionSchema(
       ],
     ),
     r'outletId': IndexSchema(
-      id: 12,
+      id: -1197630030247531768,
       name: r'outletId',
       unique: false,
       replace: false,

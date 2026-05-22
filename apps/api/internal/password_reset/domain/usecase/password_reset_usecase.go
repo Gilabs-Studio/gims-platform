@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -18,6 +19,7 @@ import (
 	resetDto "github.com/gilabs/gims/api/internal/password_reset/domain/dto"
 	"github.com/gilabs/gims/api/internal/password_reset/domain/mapper"
 	roleRepo "github.com/gilabs/gims/api/internal/role/data/repositories"
+	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	userDto "github.com/gilabs/gims/api/internal/user/domain/dto"
@@ -37,12 +39,24 @@ type PasswordResetUsecase interface {
 	ForgotPassword(ctx context.Context, req *resetDto.ForgotPasswordRequest) (*resetDto.ForgotPasswordResponse, error)
 	ResetPassword(ctx context.Context, req *resetDto.ResetPasswordRequest) (*resetDto.ResetPasswordResponse, error)
 	ValidateResetToken(ctx context.Context, token string) error
+	ListTenantOwnerRequests(ctx context.Context, page, perPage int, search string) ([]resetDto.TenantOwnerPasswordResetQueueItem, int64, error)
+	GetTenantOwnerPendingCount(ctx context.Context) (*resetDto.TenantOwnerPasswordResetPendingCountResponse, error)
+}
+
+type tenantLookupRepository interface {
+	FindByID(ctx context.Context, id string) (*tenantModels.Tenant, error)
+}
+
+type systemAdminLookupRepository interface {
+	ListActive(ctx context.Context) ([]tenantModels.SystemAdmin, error)
 }
 
 type passwordResetUsecase struct {
 	passwordResetRepo repositories.PasswordResetRequestRepository
 	userRepo          userRepo.UserRepository
 	roleRepo          roleRepo.RoleRepository
+	tenantRepo        tenantLookupRepository
+	systemAdminRepo   systemAdminLookupRepository
 	notificationRepo  notificationRepo.NotificationRepository
 	auditService      audit.AuditService
 	eventPublisher    infraEvents.EventPublisher
@@ -53,6 +67,8 @@ func NewPasswordResetUsecase(
 	passwordResetRepo repositories.PasswordResetRequestRepository,
 	userRepo userRepo.UserRepository,
 	roleRepo roleRepo.RoleRepository,
+	tenantRepo tenantLookupRepository,
+	systemAdminRepo systemAdminLookupRepository,
 	notificationRepo notificationRepo.NotificationRepository,
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
@@ -62,6 +78,8 @@ func NewPasswordResetUsecase(
 		passwordResetRepo: passwordResetRepo,
 		userRepo:          userRepo,
 		roleRepo:          roleRepo,
+		tenantRepo:        tenantRepo,
+		systemAdminRepo:   systemAdminRepo,
 		notificationRepo:  notificationRepo,
 		auditService:      auditService,
 		eventPublisher:    eventPublisher,
@@ -102,10 +120,25 @@ func (u *passwordResetUsecase) ForgotPassword(ctx context.Context, req *resetDto
 	}
 	u.invalidateUserCaches(ctx, user.ID)
 
-	if err := u.notifyAdminPasswordResetRequest(ctx, user, token); err != nil {
+	isTenantOwner, ownerCheckErr := u.isTenantOwnerRequester(ctx, user)
+	if ownerCheckErr != nil {
+		u.auditService.Log(ctx, "password_reset.tenant_owner_check_failed", user.ID, map[string]interface{}{
+			"email": user.Email,
+			"error": ownerCheckErr.Error(),
+		})
+	}
+
+	var notifyErr error
+	if isTenantOwner {
+		notifyErr = u.notifySystemAdminPasswordResetRequest(ctx, user, token)
+	} else {
+		notifyErr = u.notifyAdminPasswordResetRequest(ctx, user, token)
+	}
+
+	if notifyErr != nil {
 		u.auditService.Log(ctx, "password_reset.notify_admin_failed", user.ID, map[string]interface{}{
 			"email": user.Email,
-			"error": err.Error(),
+			"error": notifyErr.Error(),
 		})
 	}
 
@@ -219,6 +252,84 @@ func (u *passwordResetUsecase) notifyAdminPasswordResetRequest(ctx context.Conte
 	}
 
 	return u.notificationRepo.CreateBulk(ctx, notifications)
+}
+
+func (u *passwordResetUsecase) notifySystemAdminPasswordResetRequest(ctx context.Context, user *userModels.User, token string) error {
+	admins, err := u.systemAdminRepo.ListActive(ctx)
+	if err != nil {
+		return err
+	}
+
+	notifications := make([]notificationModels.Notification, 0, len(admins))
+	for _, admin := range admins {
+		notifications = append(notifications, notificationModels.Notification{
+			UserID:     admin.ID,
+			TenantID:   user.TenantID,
+			Type:       notificationModels.NotificationTypeInfo,
+			Title:      fmt.Sprintf("Tenant Owner Password Reset Request - %s", user.Name),
+			Message:    fmt.Sprintf("Tenant owner %s (%s) requested password reset. Token: %s (expires in 24 hours)", user.Name, user.Email, token),
+			EntityType: "password_reset_request",
+			EntityID:   user.ID,
+			IsRead:     false,
+		})
+	}
+
+	if len(notifications) == 0 {
+		return nil
+	}
+
+	return u.notificationRepo.CreateBulk(ctx, notifications)
+}
+
+func (u *passwordResetUsecase) isTenantOwnerRequester(ctx context.Context, user *userModels.User) (bool, error) {
+	if user == nil || strings.TrimSpace(user.TenantID) == "" {
+		return false, nil
+	}
+
+	tenant, err := u.tenantRepo.FindByID(ctx, user.TenantID)
+	if err != nil {
+		return false, err
+	}
+
+	if tenant.OwnerUserID == nil {
+		return false, nil
+	}
+
+	return strings.TrimSpace(*tenant.OwnerUserID) == strings.TrimSpace(user.ID), nil
+}
+
+func (u *passwordResetUsecase) ListTenantOwnerRequests(ctx context.Context, page, perPage int, search string) ([]resetDto.TenantOwnerPasswordResetQueueItem, int64, error) {
+	rows, total, err := u.passwordResetRepo.ListPendingTenantOwner(ctx, strings.TrimSpace(search), page, perPage)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	items := make([]resetDto.TenantOwnerPasswordResetQueueItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, resetDto.TenantOwnerPasswordResetQueueItem{
+			RequestID:   row.RequestID,
+			Token:       row.Token,
+			UserID:      row.UserID,
+			UserName:    row.UserName,
+			UserEmail:   row.UserEmail,
+			TenantID:    row.TenantID,
+			TenantName:  row.TenantName,
+			Status:      row.Status,
+			RequestedAt: row.RequestedAt,
+			ExpiresAt:   row.ExpiresAt,
+		})
+	}
+
+	return items, total, nil
+}
+
+func (u *passwordResetUsecase) GetTenantOwnerPendingCount(ctx context.Context) (*resetDto.TenantOwnerPasswordResetPendingCountResponse, error) {
+	total, err := u.passwordResetRepo.CountPendingTenantOwner(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resetDto.TenantOwnerPasswordResetPendingCountResponse{PendingCount: total}, nil
 }
 
 func generateSecureToken(length int) (string, error) {

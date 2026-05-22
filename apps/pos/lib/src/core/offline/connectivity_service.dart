@@ -14,34 +14,40 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 });
 
 class ConnectivityService {
+  ConnectivityService._internal();
+
+  static final ConnectivityService instance = ConnectivityService._internal();
+
+  factory ConnectivityService() => instance;
+
   final Connectivity _connectivity = Connectivity();
   final StreamController<bool> _onlineController =
       StreamController<bool>.broadcast();
+  static const Duration _minProbeInterval = Duration(seconds: 2);
 
   bool _isOnline = true;
-  int _consecutiveProbeFailures = 0;
-  Timer? _pingTimer;
+  bool _initialized = false;
   StreamSubscription? _connectivitySubscription;
+  DateTime? _lastProbeAt;
 
   bool get isOnline => _isOnline;
 
   Stream<bool> get isOnline$ => _onlineController.stream;
 
   void init() {
+    if (_initialized) return;
+    _initialized = true;
+
     _connectivitySubscription = _connectivity.onConnectivityChanged
         .listen(_onConnectivityChanged);
 
     _connectivity.checkConnectivity().then(_onConnectivityChanged);
-
-    // Periodic ping every 30 s as a safety net when connectivity events are
-    // unreliable (e.g., captive portals).
-    _pingTimer =
-      Timer.periodic(const Duration(seconds: 30), (_) => _refreshStatusFromServer());
   }
 
   void dispose() {
-    _pingTimer?.cancel();
     _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+    _initialized = false;
     _onlineController.close();
   }
 
@@ -68,6 +74,12 @@ class ConnectivityService {
   }
 
   Future<void> _refreshStatusFromServer() async {
+    final now = DateTime.now();
+    if (_lastProbeAt != null && now.difference(_lastProbeAt!) < _minProbeInterval) {
+      return;
+    }
+    _lastProbeAt = now;
+
     final isReachable = await _probeApiReachability();
     _setOnline(isReachable);
   }
@@ -78,23 +90,13 @@ class ConnectivityService {
       // Any HTTP response means backend is reachable. `/auth/csrf` is public and
       // lightweight in this codebase.
       await ApiClient.instance.get<Map<String, dynamic>>('/auth/csrf');
-      _consecutiveProbeFailures = 0;
       return true;
     } on ApiException catch (e) {
       if (e.statusCode != null) {
-        _consecutiveProbeFailures = 0;
         return true;
-      }
-      _consecutiveProbeFailures += 1;
-      if (_consecutiveProbeFailures < 2) {
-        return _isOnline;
       }
       return false;
     } catch (_) {
-      _consecutiveProbeFailures += 1;
-      if (_consecutiveProbeFailures < 2) {
-        return _isOnline;
-      }
       return false;
     }
   }

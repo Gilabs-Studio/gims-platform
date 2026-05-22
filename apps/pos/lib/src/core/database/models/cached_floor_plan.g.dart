@@ -15,7 +15,7 @@ extension GetCachedFloorPlanCollection on Isar {
 
 const CachedFloorPlanSchema = CollectionSchema(
   name: r'CachedFloorPlan',
-  id: 2,
+  id: -842132297304951709,
   properties: {
     r'cachedAt': PropertySchema(
       id: 0,
@@ -55,7 +55,7 @@ const CachedFloorPlanSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'planId': IndexSchema(
-      id: 21,
+      id: 7282644713036731817,
       name: r'planId',
       unique: true,
       replace: false,
@@ -68,7 +68,7 @@ const CachedFloorPlanSchema = CollectionSchema(
       ],
     ),
     r'outletId': IndexSchema(
-      id: 22,
+      id: -1197630030247531768,
       name: r'outletId',
       unique: false,
       replace: false,

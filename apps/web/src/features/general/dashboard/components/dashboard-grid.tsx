@@ -34,9 +34,41 @@ import {
   WIDGET_REGISTRY,
 } from "../config/widget-registry";
 import { useOnboardingState } from "../hooks/use-onboarding";
-import type { WidgetType } from "../types";
+import type { WidgetType, WidgetConfig } from "../types";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
+
+function normalizeDashboardWidgets(widgets: WidgetConfig[]): WidgetConfig[] {
+  const normalized: WidgetConfig[] = [];
+
+  for (const widget of widgets) {
+    const widgetType = widget.type as string;
+    if (widgetType !== "crm_deals_overview") {
+      normalized.push(widget);
+      continue;
+    }
+
+    const baseOrder = normalized.length;
+    normalized.push({
+      ...widget,
+      id: `${widget.id}-leads`,
+      type: "crm_leads_list",
+      order: baseOrder,
+      colSpan: 2,
+      rowSpan: 2,
+    });
+    normalized.push({
+      ...widget,
+      id: `${widget.id}-pipeline`,
+      type: "crm_pipeline_summary",
+      order: baseOrder + 1,
+      colSpan: 2,
+      rowSpan: 2,
+    });
+  }
+
+  return normalized.map((widget, index) => ({ ...widget, order: index }));
+}
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
@@ -75,7 +107,7 @@ export function DashboardGrid() {
   // When a saved layout exists, hydrate it into the store.
   useEffect(() => {
     if (hasPersistedLayout && layoutData) {
-      setWidgets(layoutData);
+      setWidgets(normalizeDashboardWidgets(layoutData));
     }
   }, [hasPersistedLayout, layoutData, setWidgets]);
 

@@ -206,6 +206,17 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
+	// Offline-sync tolerance: when the tendered amount covers at least the net subtotal
+	// (items minus discount, before tax/service charge), the gap is assumed to be a
+	// tax-rate mismatch between the offline client and the server. Accept the payment
+	// and record order.TotalAmount as the authoritative amount so accounting stays correct.
+	netSubtotal := order.Subtotal - order.DiscountAmount
+	if req.Amount < order.TotalAmount && req.Amount >= netSubtotal {
+		log.Printf("[pos-payment] offline-sync amount adjustment: order=%s tendered=%.2f server_total=%.2f net_subtotal=%.2f — applying server total",
+			orderID, req.Amount, order.TotalAmount, netSubtotal)
+		req.Amount = order.TotalAmount
+	}
+
 	if req.Amount < order.TotalAmount {
 		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}

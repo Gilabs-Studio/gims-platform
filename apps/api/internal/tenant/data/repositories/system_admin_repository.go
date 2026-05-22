@@ -12,6 +12,7 @@ import (
 type SystemAdminRepository interface {
 	FindByID(ctx context.Context, id string) (*models.SystemAdmin, error)
 	FindByEmail(ctx context.Context, email string) (*models.SystemAdmin, error)
+	ListActive(ctx context.Context) ([]models.SystemAdmin, error)
 	Create(ctx context.Context, admin *models.SystemAdmin) error
 	Update(ctx context.Context, admin *models.SystemAdmin) error
 }
@@ -39,6 +40,19 @@ func (r *systemAdminRepository) FindByEmail(ctx context.Context, email string) (
 	var admin models.SystemAdmin
 	err := r.getDB(ctx).Where("email = ?", email).First(&admin).Error
 	return &admin, err
+}
+
+func (r *systemAdminRepository) ListActive(ctx context.Context) ([]models.SystemAdmin, error) {
+	rows := make([]models.SystemAdmin, 0)
+	err := r.getDB(ctx).
+		Where("status = ?", "active").
+		Order("created_at ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
 
 func (r *systemAdminRepository) Create(ctx context.Context, admin *models.SystemAdmin) error {

@@ -349,11 +349,15 @@
         "description": "Prospek aktif dalam pipeline",
         "thisMonth": "baru bulan ini"
       },
-      "crm_deals_overview": {
-        "title": "Ringkasan Kesepakatan",
-        "description": "Kesepakatan berlangsung dan berhasil bulan ini",
-        "inProgress": "Berlangsung",
-        "wonThisMonth": "Berhasil Bulan Ini"
+      "crm_leads_list": {
+        "title": "Lead Terbaru",
+        "description": "Lead terbaru yang terlihat di scope saat ini",
+        "noLeads": "Tidak ada lead dalam scope"
+      },
+      "crm_pipeline_summary": {
+        "title": "Ringkasan Pipeline",
+        "description": "Deal aktif per stage, dibatasi scope saat ini",
+        "noPipelineData": "Tidak ada item pipeline dalam scope"
       },
       "crm_activity_summary": {
         "title": "Ringkasan Aktivitas",

@@ -211,9 +211,22 @@ func CSRF() gin.HandlerFunc {
 	}
 }
 
+func isHTTPS(c *gin.Context) bool {
+	if config.AppConfig == nil || config.AppConfig.Server.Env != "production" {
+		return false
+	}
+	if c.Request.TLS != nil {
+		return true
+	}
+	if config.AppConfig.Security.ProxyHeadersEnabled {
+		xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+		return xfp == "https"
+	}
+	return false
+}
+
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
-	isSecure := true
 	sameSite := http.SameSiteLaxMode
 	domain := ""
 
@@ -224,6 +237,14 @@ func setCSRFCookie(c *gin.Context, token string) {
 		if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
 			domain = config.AppConfig.Server.RootDomain
 		}
+	}
+
+	isSecure := isHTTPS(c)
+	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
+		isSecure = true
+	}
+	if sameSite == http.SameSiteNoneMode {
+		isSecure = true
 	}
 
 	c.SetSameSite(sameSite)

@@ -292,7 +292,7 @@ func main() {
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
-	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, tenantRepository, sysAdminRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
@@ -305,7 +305,7 @@ func main() {
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, passwordResetUC, permissionRepository, notificationWs.DefaultNotificationHub())
 
 	// Payment transaction usecase
 	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)
