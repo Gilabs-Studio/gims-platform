@@ -67,6 +67,8 @@ type POSOrderUsecase interface {
 	MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error)
 	// MarkItemServed marks a single item as served; auto-transitions order to PARTIAL_SERVED or SERVED.
 	MarkItemServed(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error)
+	// Delete discards/deletes a draft POS order.
+	Delete(ctx context.Context, id string) error
 	// ListOutlets returns all outlets available for POS, filtered by current scope.
 	ListOutlets(ctx context.Context) ([]*orgDto.OutletResponse, error)
 }
@@ -861,6 +863,37 @@ func (u *posOrderUsecase) MarkCompleted(ctx context.Context, id string) (*dto.PO
 	resp := mapper.ToPOSOrderResponse(order)
 	u.publishOrderStatus(ctx, resp, "")
 	return resp, nil
+}
+
+func (u *posOrderUsecase) Delete(ctx context.Context, id string) error {
+	order, err := u.orderRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrPOSOrderNotFound
+		}
+		return err
+	}
+	// Only DRAFT orders can be completely deleted
+	if order.Status != posModels.PosOrderStatusDraft {
+		return ErrPOSOrderCannotModify
+	}
+
+	if err := u.orderRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	if u.hub != nil {
+		tenantID := order.TenantID
+		if tenantID == "" {
+			tenantID = scopeString(ctx, "tenant_id")
+		}
+		u.hub.Publish(tenantID, order.OutletID, "pos.order_deleted", map[string]interface{}{
+			"order_id":  id,
+			"outlet_id": order.OutletID,
+			"status":    "DELETED",
+		})
+	}
+	return nil
 }
 
 func (u *posOrderUsecase) publishOrderStatus(ctx context.Context, order *dto.POSOrderResponse, paymentStatus string) {

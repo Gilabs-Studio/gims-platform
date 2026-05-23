@@ -5,6 +5,7 @@ import '../../../core/utils/error_utils.dart';
 import '../domain/models/table_selection.dart';
 import '../../floor_layout/presentation/live_table_screen.dart';
 import '../../outlet/domain/models/outlet.dart';
+import '../domain/models/pos_order.dart';
 import 'terminal_screen.dart';
 import 'widgets/new_order_notification_banner.dart';
 
@@ -14,10 +15,14 @@ class UnifiedTerminalFlow extends StatefulWidget {
     super.key,
     required this.outlet,
     this.onAuthError,
+    this.resumeOrder,
+    this.onClearResumedOrder,
   });
 
   final Outlet outlet;
   final void Function(Object error)? onAuthError;
+  final PosOrder? resumeOrder;
+  final VoidCallback? onClearResumedOrder;
 
   @override
   State<UnifiedTerminalFlow> createState() => _UnifiedTerminalFlowState();
@@ -71,8 +76,19 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     Widget screen;
     var wrapWithOrderBanner = true;
 
-    if (!_hasPublishedLayout) {
-      screen = TerminalScreen(outlet: widget.outlet);
+    final resume = widget.resumeOrder;
+    if (resume != null) {
+      screen = TerminalScreen(
+        outlet: widget.outlet,
+        resumeOrder: resume,
+        onBackToLiveTable: widget.onClearResumedOrder,
+        hasFloorLayout: _hasPublishedLayout,
+      );
+    } else if (!_hasPublishedLayout) {
+      screen = TerminalScreen(
+        outlet: widget.outlet,
+        hasFloorLayout: _hasPublishedLayout,
+      );
     } else {
       final selectedTable = _selectedTable;
       if (selectedTable == null) {
@@ -88,6 +104,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
           outlet: widget.outlet,
           selectedTable: selectedTable,
           onBackToLiveTable: () => setState(() => _selectedTable = null),
+          hasFloorLayout: _hasPublishedLayout,
         );
       }
     }

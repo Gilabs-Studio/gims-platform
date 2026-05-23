@@ -57,6 +57,12 @@ export const posOrderService = {
       .then((r) => r.data);
   },
 
+  delete(id: string) {
+    return apiClient
+      .delete<ApiResponse<{ deleted: boolean }>>(`${BASE}/orders/${id}`)
+      .then((r) => r.data);
+  },
+
   list(params?: POSOrderListParams) {
     return apiClient
       .get<ApiResponse<POSOrder[]>>(`${BASE}/orders`, { params })

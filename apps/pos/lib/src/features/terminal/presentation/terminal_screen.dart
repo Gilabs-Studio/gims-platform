@@ -23,11 +23,15 @@ class TerminalScreen extends StatefulWidget {
     required this.outlet,
     this.selectedTable,
     this.onBackToLiveTable,
+    this.resumeOrder,
+    this.hasFloorLayout = false,
   });
 
   final Outlet outlet;
   final TableSelection? selectedTable;
   final VoidCallback? onBackToLiveTable;
+  final PosOrder? resumeOrder;
+  final bool hasFloorLayout;
 
   @override
   State<TerminalScreen> createState() => _TerminalScreenState();
@@ -37,6 +41,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   final _search = TextEditingController();
   List<CatalogItem> _catalog = const [];
   List<CartLine> _cart = [];
+  List<PosOrder> _drafts = [];
   PosOrder? _order;
   PosConfig? _config;
   bool _loading = true;
@@ -73,6 +78,22 @@ class _TerminalScreenState extends State<TerminalScreen> {
     super.dispose();
   }
 
+  Future<void> _loadDrafts() async {
+    if (widget.hasFloorLayout) return;
+    try {
+      final svc = ServiceLocator.instance.terminalService;
+      final orders = await svc.listOrders(
+        outletId: widget.outlet.id,
+        status: 'DRAFT',
+      );
+      if (mounted) {
+        setState(() {
+          _drafts = orders.where((o) => o.tableId == null && o.id != _order?.id).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _load() async {
     final svc = ServiceLocator.instance.terminalService;
     setState(() => _loading = true);
@@ -80,17 +101,156 @@ class _TerminalScreenState extends State<TerminalScreen> {
       final results = await Future.wait([
         svc.getCatalog(widget.outlet.id),
         svc.getConfig(widget.outlet.id),
+        if (!widget.hasFloorLayout)
+          svc.listOrders(outletId: widget.outlet.id, status: 'DRAFT')
+        else
+          Future.value(<PosOrder>[]),
       ]);
       setState(() {
         _catalog = results[0] as List<CatalogItem>;
         _config = results[1] as PosConfig?;
-        _cart = [];
-        _order = null;
+        final draftsList = results[2] as List<PosOrder>;
+        
+        final resume = widget.resumeOrder;
+        if (resume != null) {
+          _order = resume;
+          _cart = resume.items.map((item) {
+            final product = _catalog.firstWhere(
+              (p) => p.productId == item.productId,
+              orElse: () => CatalogItem(
+                productId: item.productId,
+                productCode: item.productCode,
+                productName: item.productName,
+                productKind: 'STOCK',
+                price: item.unitPrice,
+                stock: 9999,
+                isAvailable: true,
+              ),
+            );
+            return CartLine(
+              product: product,
+              quantity: item.quantity,
+              notes: item.notes,
+            );
+          }).toList();
+        } else {
+          _cart = [];
+          _order = null;
+        }
+
+        _drafts = draftsList.where((o) => o.tableId == null && o.id != _order?.id).toList();
       });
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (_cart.isEmpty) return;
+    final svc = ServiceLocator.instance.terminalService;
+    setState(() => _loading = true);
+    try {
+      var order = await svc.createOrder(
+        outletId: widget.outlet.id,
+        orderType: 'TAKE_AWAY',
+        guestCount: 1,
+      );
+      for (final line in _cart) {
+        order = await svc.addItem(order.id, line);
+      }
+      setState(() {
+        _cart = [];
+        _order = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaksi berhasil disimpan sebagai draft'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      await _loadDrafts();
+    } catch (error) {
+      if (mounted) showError(context, error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _applyDraft(PosOrder draft) async {
+    setState(() {
+      _order = draft;
+      _cart = draft.items.map((item) {
+        final product = _catalog.firstWhere(
+          (p) => p.productId == item.productId,
+          orElse: () => CatalogItem(
+            productId: item.productId,
+            productCode: item.productCode,
+            productName: item.productName,
+            productKind: 'STOCK',
+            price: item.unitPrice,
+            stock: 9999,
+            isAvailable: true,
+          ),
+        );
+        return CartLine(
+          product: product,
+          quantity: item.quantity,
+          notes: item.notes,
+        );
+      }).toList();
+      _drafts = _drafts.where((d) => d.id != draft.id).toList();
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Melanjutkan transaksi #${draft.orderNumber}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteDraft(PosOrder draft) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Transaksi'),
+        content: Text('Apakah Anda yakin ingin menghapus draft transaksi #${draft.orderNumber}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _loading = true);
+    try {
+      await ServiceLocator.instance.terminalService.deleteOrder(draft.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Draft #${draft.orderNumber} berhasil dihapus'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      await _loadDrafts();
+    } catch (error) {
+      if (mounted) showError(context, error);
+      setState(() => _loading = false);
     }
   }
 
@@ -152,6 +312,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
     setState(() => _loading = true);
     try {
       final selectedTable = widget.selectedTable;
+      
+      final oldOrderId = _order?.id;
+      if (oldOrderId != null) {
+        try {
+          await svc.deleteOrder(oldOrderId);
+        } catch (_) {}
+      }
+
       var order = await svc.createOrder(
         outletId: widget.outlet.id,
         orderType: selectedTable == null ? 'TAKE_AWAY' : 'DINE_IN',
@@ -199,6 +367,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _cart = [];
       _order = null;
     });
+    _loadDrafts();
     widget.onBackToLiveTable?.call();
   }
 
@@ -211,6 +380,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _order = null;
       _cart = cartSnapshot;
     });
+    _loadDrafts();
 
     try {
       await ServiceLocator.instance.terminalService.voidOrder(
@@ -268,6 +438,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
             () => _cart = _cart.where((item) => item != line).toList(),
           ),
           onOpenOrder: _openOrder,
+          onSaveDraft: widget.hasFloorLayout ? null : _saveDraft,
         );
 
         return Padding(
@@ -348,6 +519,98 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   ),
                 ),
               if (selectedTable != null) const SizedBox(height: 12),
+              if (!widget.hasFloorLayout && _drafts.isNotEmpty) ...[
+                Container(
+                  height: 60,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _drafts.length,
+                    itemBuilder: (context, index) {
+                      final draft = _drafts[index];
+                      return Container(
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: GimsColors.border.withValues(alpha: 0.5),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: InkWell(
+                          onTap: () => _applyDraft(draft),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '#${draft.orderNumber}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      draft.customerName != null && draft.customerName!.isNotEmpty
+                                          ? draft.customerName!
+                                          : 'Walk-in',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: GimsColors.border.withValues(alpha: 0.5),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Rp ${draft.totalAmount.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: GimsColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 14),
+                                  onPressed: () => _deleteDraft(draft),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  splashRadius: 16,
+                                  color: Colors.grey.shade400,
+                                  hoverColor: Colors.red.shade50,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               Expanded(
                 child: wide
                     ? Row(

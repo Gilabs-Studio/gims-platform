@@ -732,6 +732,29 @@ class TerminalService {
     }
   }
 
+  Future<void> deleteOrder(String orderId) async {
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
+    try {
+      if (!bypassServer) {
+        final resolvedOrderId =
+            await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+        await _api.delete('/pos/orders/$resolvedOrderId');
+      }
+      _orderById.remove(orderId);
+      for (final entry in _ordersByOutlet.entries) {
+        final idx = entry.value.indexWhere((order) => order.id == orderId);
+        if (idx >= 0) {
+          final next = List<PosOrder>.from(entry.value);
+          next.removeAt(idx);
+          _ordersByOutlet[entry.key] = next;
+          break;
+        }
+      }
+    } catch (_) {
+      rethrow;
+    }
+  }
+
   Future<PosOrder> serveOrder(String orderId) async {
     final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
     final targetOrderId = resolvedOrderId ?? orderId;

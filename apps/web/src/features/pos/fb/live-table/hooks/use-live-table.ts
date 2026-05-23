@@ -9,7 +9,7 @@ import type { LiveTableInfo, LiveTableStatus } from "../types";
 
 const WARN_THRESHOLD_SEC = 30 * 60; // 30 minutes
 
-const WAITING_PAYMENT_STATUSES = ["DRAFT", "IN_PROGRESS", "READY", "WAITING_PAYMENT"] as const;
+const WAITING_PAYMENT_STATUSES = ["IN_PROGRESS", "READY", "WAITING_PAYMENT"] as const;
 const SERVICE_FLOW_STATUSES = ["PAID", "PARTIAL_SERVED", "SERVED"] as const;
 
 function isPendingServeItem(status: POSOrder["items"][number]["status"]): boolean {
@@ -29,9 +29,18 @@ function getOrderPaymentCount(order: POSOrder): number {
   return order.items.reduce((total, item) => total + Math.max(item.quantity, 0), 0);
 }
 
-function deriveStatus(unpaidOrder: POSOrder | null, serviceOrder: POSOrder | null, servedOrders: POSOrder[], durationSec: number): LiveTableStatus {
+function deriveStatus(
+  unpaidOrder: POSOrder | null,
+  serviceOrder: POSOrder | null,
+  servedOrders: POSOrder[],
+  durationSec: number,
+  draftOrder: POSOrder | null
+): LiveTableStatus {
   if (unpaidOrder) {
     return "WAITING_PAYMENT";
+  }
+  if (draftOrder) {
+    return "SEATED";
   }
   const order = serviceOrder;
   if (!order) {
@@ -139,7 +148,8 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
   const activeOrders = useMemo(() => {
     return orders.filter((order) => {
       const isWaitingCustomerPayment =
-        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]);
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]) ||
+        order.status === "DRAFT";
       const isPostPaymentOccupied =
         SERVICE_FLOW_STATUSES.includes(order.status as (typeof SERVICE_FLOW_STATUSES)[number]);
       return isWaitingCustomerPayment || isPostPaymentOccupied;
@@ -180,6 +190,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
 
       const unpaidOrder = unpaidOrders[0] ?? null;
       const serviceOrder = serviceOrders[0] ?? null;
+      const draftOrder = matchedOrders.find((order) => order.status === "DRAFT") ?? null;
 
       const needsPaymentCount = unpaidOrders.reduce((total, order) => total + getOrderPaymentCount(order), 0);
       const needsServeCount = serviceOrders.reduce((total, order) => {
@@ -189,7 +200,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       }, 0);
       const doneCount = servedOrders.length;
 
-      const displayOrder = unpaidOrder ?? serviceOrder ?? servedOrders[0] ?? matchedOrders[0] ?? null;
+      const displayOrder = unpaidOrder ?? serviceOrder ?? draftOrder ?? servedOrders[0] ?? matchedOrders[0] ?? null;
       const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
       const durationSec =
         displayOrder && typeof nowProp === "number"
@@ -198,7 +209,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       return {
         tableObj: obj,
         seatCount,
-        status: deriveStatus(unpaidOrder, serviceOrder, servedOrders, durationSec),
+        status: deriveStatus(unpaidOrder, serviceOrder, servedOrders, durationSec, draftOrder),
         orders: matchedOrders,
         unpaidOrder,
         unpaidOrders,

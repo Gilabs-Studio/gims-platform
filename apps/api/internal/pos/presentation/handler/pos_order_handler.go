@@ -139,6 +139,16 @@ func (h *POSOrderHandler) Void(c *gin.Context) {
 	response.SuccessResponse(c, order, nil)
 }
 
+// Delete completely deletes/discards a draft order
+func (h *POSOrderHandler) Delete(c *gin.Context) {
+	err := h.uc.Delete(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		handlePOSOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, gin.H{"deleted": true}, nil)
+}
+
 // AddItem appends an item to the order
 func (h *POSOrderHandler) AddItem(c *gin.Context) {
 	var req dto.AddOrderItemRequest

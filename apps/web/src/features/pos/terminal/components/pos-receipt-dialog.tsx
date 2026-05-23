@@ -134,7 +134,7 @@ export function POSReceiptDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent size="sm">
         <div className="flex items-start justify-between gap-4">
           <DialogHeader className="text-left flex-1">
             <DialogTitle className="flex items-center gap-2">
