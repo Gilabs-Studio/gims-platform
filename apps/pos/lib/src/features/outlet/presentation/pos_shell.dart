@@ -19,6 +19,7 @@ import '../../terminal/data/push_notification_service.dart';
 import '../../floor_layout/presentation/floor_editor_screen.dart';
 import '../../loyalty/presentation/loyalty_screen.dart';
 import '../../feedback/presentation/feedback_screen.dart';
+import '../../terminal/domain/models/pos_order.dart';
 
 /// Main shell — outlet selector + feature navigation (no bottom nav).
 class PosShell extends ConsumerStatefulWidget {
@@ -41,6 +42,7 @@ class _PosShellState extends ConsumerState<PosShell> {
   StreamSubscription<PosWsEvent>? _wsEventSub;
   StreamSubscription<PosWsConnectionState>? _wsStateSub;
   PosWsConnectionState _wsConnectionState = PosWsConnectionState.disconnected;
+  PosOrder? _resumedOrder;
 
   @override
   void initState() {
@@ -171,6 +173,8 @@ class _PosShellState extends ConsumerState<PosShell> {
         body = UnifiedTerminalFlow(
           outlet: outlet,
           onAuthError: _handleAuthError,
+          resumeOrder: _resumedOrder,
+          onClearResumedOrder: () => setState(() => _resumedOrder = null),
         );
         break;
       case PosFeature.floor:
@@ -197,7 +201,10 @@ class _PosShellState extends ConsumerState<PosShell> {
             : IconButton(
                 tooltip: 'Kembali',
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _feature = null),
+                onPressed: () => setState(() {
+                  _feature = null;
+                  _resumedOrder = null;
+                }),
               ),
         title: Text(_feature?.title ?? outlet.name),
         actions: [

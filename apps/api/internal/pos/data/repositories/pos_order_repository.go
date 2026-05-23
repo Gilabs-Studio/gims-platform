@@ -43,6 +43,7 @@ type PosOrderRepository interface {
 	AddItem(ctx context.Context, item *models.PosOrderItem) error
 	UpdateItem(ctx context.Context, item *models.PosOrderItem) error
 	DeleteItem(ctx context.Context, itemID string) error
+	Delete(ctx context.Context, id string) error
 	GetItems(ctx context.Context, orderID string) ([]models.PosOrderItem, error)
 }
 
@@ -184,6 +185,15 @@ func (r *posOrderRepository) UpdateItem(ctx context.Context, item *models.PosOrd
 
 func (r *posOrderRepository) DeleteItem(ctx context.Context, itemID string) error {
 	return r.getDB(ctx).Delete(&models.PosOrderItem{}, "id = ?", itemID).Error
+}
+
+func (r *posOrderRepository) Delete(ctx context.Context, id string) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("pos_order_id = ?", id).Delete(&models.PosOrderItem{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.PosOrder{}, "id = ?", id).Error
+	})
 }
 
 func (r *posOrderRepository) GetItems(ctx context.Context, orderID string) ([]models.PosOrderItem, error) {

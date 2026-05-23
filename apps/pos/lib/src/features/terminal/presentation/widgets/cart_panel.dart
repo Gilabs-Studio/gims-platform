@@ -7,6 +7,15 @@ import '../../domain/models/cart_line.dart';
 import '../../domain/models/pos_order.dart';
 
 class CartPanel extends StatelessWidget {
+  final String currency;
+  final List<CartLine> cart;
+  final PosOrder? order;
+  final double total;
+  final void Function(CartLine line, double qty) onQtyChanged;
+  final ValueChanged<CartLine> onRemove;
+  final VoidCallback onOpenOrder;
+  final VoidCallback? onSaveDraft;
+
   const CartPanel({
     super.key,
     required this.currency,
@@ -16,15 +25,8 @@ class CartPanel extends StatelessWidget {
     required this.onQtyChanged,
     required this.onRemove,
     required this.onOpenOrder,
+    this.onSaveDraft,
   });
-
-  final String currency;
-  final List<CartLine> cart;
-  final PosOrder? order;
-  final double total;
-  final void Function(CartLine line, double qty) onQtyChanged;
-  final ValueChanged<CartLine> onRemove;
-  final VoidCallback onOpenOrder;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +59,43 @@ class CartPanel extends StatelessWidget {
             ]),
             const SizedBox(height: 10),
             if (order == null)
-              FilledButton.icon(onPressed: cart.isEmpty ? null : onOpenOrder, icon: const Icon(Icons.lock_outline), label: const Text('Confirm order'))
+              Row(
+                children: [
+                  if (onSaveDraft != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: cart.isEmpty ? null : onSaveDraft,
+                        icon: const Icon(Icons.archive_outlined, size: 16),
+                        label: const Text('Simpan Draft'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: GimsColors.primary,
+                          side: const BorderSide(color: GimsColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    flex: onSaveDraft != null ? 1 : 2,
+                    child: FilledButton.icon(
+                      onPressed: cart.isEmpty ? null : onOpenOrder,
+                      icon: const Icon(Icons.lock_outline, size: 16),
+                      label: const Text('Confirm order'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: GimsColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
             else
               const Text(
                 'Selesaikan pembayaran untuk lanjut ke receipt dan WhatsApp.',

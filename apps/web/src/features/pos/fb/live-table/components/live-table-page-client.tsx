@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -17,6 +18,8 @@ import {
   Users,
   RefreshCw,
   Utensils,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +34,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
@@ -44,6 +48,9 @@ import {
   useCancelPendingPOSPayment,
   usePOSPayments,
   useVoidOrder,
+  useDeleteOrder,
+  useAssignTable,
+  usePOSOrderList,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -144,25 +151,47 @@ function getPendingServeItemCount(order: POSOrder): number {
 interface TableCardProps {
   info: LiveTableInfo;
   onClick: () => void;
+  onDropDraft: (draftId: string, tableId: string, tableLabel: string) => void;
 }
 
-function TableCard({ info, onClick }: TableCardProps) {
+function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
   const cfg = STATUS_CONFIG[info.status];
   const Icon = cfg.icon;
-    const t = useTranslations("posTerminal.liveTable");
+  const t = useTranslations("posTerminal.liveTable");
   const label =
     info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+  const [isDragOver, setIsDragOver] = useState(false);
+  const isAvailable = info.status === "AVAILABLE";
 
   return (
     <button
       type="button"
       onClick={onClick}
+      onDragOver={(e) => {
+        if (isAvailable) {
+          e.preventDefault();
+          setIsDragOver(true);
+        }
+      }}
+      onDragLeave={() => {
+        setIsDragOver(false);
+      }}
+      onDrop={(e) => {
+        if (isAvailable) {
+          e.preventDefault();
+          setIsDragOver(false);
+          const draftId = e.dataTransfer.getData("text/plain");
+          if (draftId) {
+            onDropDraft(draftId, info.tableObj.id, label);
+          }
+        }
+      }}
       className={cn(
         "group relative flex flex-col rounded-2xl border p-4 text-left",
         "transition-all duration-200 focus-visible:outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring hover:-translate-y-0.5",
         "hover:shadow-md active:scale-[0.98] cursor-pointer",
-        cfg.card,
+        isDragOver ? "border-primary ring-2 ring-primary/20 bg-primary/5 scale-[1.02]" : cfg.card,
       )}
     >
       <span
@@ -232,9 +261,10 @@ function TableCard({ info, onClick }: TableCardProps) {
 interface TableGridProps {
   infos: LiveTableInfo[];
   onTableClick: (info: LiveTableInfo) => void;
+  onDropDraft: (draftId: string, tableId: string, tableLabel: string) => void;
 }
 
-function TableGrid({ infos, onTableClick }: TableGridProps) {
+function TableGrid({ infos, onTableClick, onDropDraft }: TableGridProps) {
   return (
     <div className="flex min-h-full flex-1 items-start justify-start p-5 sm:p-8">
       <div
@@ -251,6 +281,7 @@ function TableGrid({ infos, onTableClick }: TableGridProps) {
             key={info.tableObj.id}
             info={info}
             onClick={() => onTableClick(info)}
+            onDropDraft={onDropDraft}
           />
         ))}
       </div>
@@ -382,7 +413,7 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt }: OrderDetailDialogPr
 
   return (
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="default">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>{label}</span>
@@ -515,7 +546,7 @@ function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps
 
   return (
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="sm" className="max-w-sm">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>{t("cancelPaymentTitle")} · {tableLabel}</DialogTitle>
         </DialogHeader>
@@ -594,7 +625,6 @@ function StatsBar({ infos }: StatsBarProps) {
 }
 
 // ─── SVG fill colors for floor-layout view (raw CSS values, no Tailwind) ────
-
 const STATUS_SVG: Record<
   LiveTableStatus,
   { fill: string; stroke: string; text: string }
@@ -615,6 +645,7 @@ interface LiveFloorViewProps {
   layoutObjects: LayoutObject[];
   infos: LiveTableInfo[];
   onTableClick: (info: LiveTableInfo) => void;
+  onDropDraft: (draftId: string, tableId: string, tableLabel: string) => void;
 }
 
 function LiveFloorView({
@@ -623,6 +654,7 @@ function LiveFloorView({
   layoutObjects,
   infos,
   onTableClick,
+  onDropDraft,
 }: LiveFloorViewProps) {
   const infoByLabel = useMemo(() => {
     const map = new Map<string, LiveTableInfo>();
@@ -637,6 +669,7 @@ function LiveFloorView({
   }, [infos]);
 
   const [scale, setScale] = useState(1);
+  const [hoveredTableId, setHoveredTableId] = useState<string | null>(null);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
@@ -703,11 +736,34 @@ function LiveFloorView({
             const r = Math.min(obj.width, obj.height) / 2;
             const seatCountText = formatSeatCount(info?.seatCount ?? 0);
 
+            const isOver = hoveredTableId === obj.id;
+            const isAvailable = !info || info.status === "AVAILABLE";
+
             return (
               <g
                 key={obj.id}
                 transform={transform}
                 onClick={() => info && onTableClick(info)}
+                onDragOver={(e) => {
+                  if (isAvailable) {
+                    e.preventDefault();
+                    setHoveredTableId(obj.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  setHoveredTableId(null);
+                }}
+                onDrop={(e) => {
+                  if (isAvailable) {
+                    e.preventDefault();
+                    setHoveredTableId(null);
+                    const draftId = e.dataTransfer.getData("text/plain");
+                    const tId = info?.tableObj.id || obj.id;
+                    if (draftId && onDropDraft) {
+                      onDropDraft(draftId, tId, label);
+                    }
+                  }
+                }}
                 style={{ cursor: info ? "pointer" : "default" }}
               >
                 {isCircle ? (
@@ -715,9 +771,9 @@ function LiveFloorView({
                     cx={obj.width / 2}
                     cy={obj.height / 2}
                     r={r - 2}
-                    fill={colors.fill}
-                    stroke={colors.stroke}
-                    strokeWidth={2}
+                    fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
+                    stroke={isOver ? "var(--primary, #3b82f6)" : colors.stroke}
+                    strokeWidth={isOver ? 3 : 2}
                   />
                 ) : (
                   <rect
@@ -726,9 +782,9 @@ function LiveFloorView({
                     width={obj.width - 2}
                     height={obj.height - 2}
                     rx={6}
-                    fill={colors.fill}
-                    stroke={colors.stroke}
-                    strokeWidth={2}
+                    fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
+                    stroke={isOver ? "var(--primary, #3b82f6)" : colors.stroke}
+                    strokeWidth={isOver ? 3 : 2}
                   />
                 )}
                 <text
@@ -1222,6 +1278,7 @@ export function LiveTablePageClient() {
   const outletName = outletsData?.data?.find((o: { id: string; name: string }) => o.id === outletId)?.name;
 
   const t = useTranslations("posTerminal.liveTable");
+  const tTerminal = useTranslations("posTerminal");
   const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
 
   // Register as full-screen so DashboardLayout hides the outer header/breadcrumb.
@@ -1273,21 +1330,73 @@ export function LiveTablePageClient() {
   const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<string | undefined>();
   const [receiptTenderAmount, setReceiptTenderAmount] = useState<number | undefined>();
 
-  const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed"], []);
+  const queryClient = useQueryClient();
+
+  const { data: draftOrdersResponse } = usePOSOrderList(
+    {
+      outlet_id: outletId,
+      status: "DRAFT",
+    }
+  );
+
+  const drafts = useMemo(() => {
+    return (draftOrdersResponse?.data ?? []).filter((order) => !order.table_id);
+  }, [draftOrdersResponse]);
+
+  const deleteOrder = useDeleteOrder();
+  const assignTable = useAssignTable();
+  const [applyingDraft, setApplyingDraft] = useState<POSOrder | null>(null);
+
+  const handleDropDraftOnTable = useCallback(
+    async (draftId: string, tableId: string, tableLabel: string) => {
+      try {
+        await assignTable.mutateAsync({
+          orderId: draftId,
+          data: {
+            table_id: tableId,
+            table_label: tableLabel,
+          },
+        });
+        toast.success(`Draft applied to table ${tableLabel}`);
+        if (outletId) {
+          const query = new URLSearchParams();
+          query.set("outlet_id", outletId);
+          query.set("table_id", tableId);
+          query.set("table_label", tableLabel);
+          router.push(`/pos/fb/terminal?${query.toString()}`);
+        }
+      } catch {
+        toast.error("Failed to apply draft to table");
+      }
+    },
+    [assignTable, outletId, router]
+  );
+
+  const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed", "pos.order_deleted"], []);
 
   const handleWsEvent = useCallback((eventType: string, payload: {
     table_label?: string;
     order_id?: string;
     order_number?: string;
   } | undefined) => {
-    if (eventType !== "pos.payment_confirmed") return;
-    setPaymentNotice({
-      tableLabel: payload?.table_label ?? "Meja",
-      orderId: payload?.order_id,
-      orderNumber: payload?.order_number,
-      at: Date.now(),
-    });
-  }, []);
+    if (eventType === "pos.payment_confirmed") {
+      setPaymentNotice({
+        tableLabel: payload?.table_label ?? "Meja",
+        orderId: payload?.order_id,
+        orderNumber: payload?.order_number,
+        at: Date.now(),
+      });
+    }
+
+    if (
+      eventType === "pos.order_deleted" ||
+      eventType === "pos.order_created" ||
+      eventType === "pos.order_status_changed" ||
+      eventType === "pos.new_customer_order"
+    ) {
+      queryClient.invalidateQueries({ queryKey: ["pos", "orders"] });
+    }
+  }, [queryClient]);
 
   // Real-time staff notifications and payment confirmation state in Active Tables.
   usePosWs(outletId, { onEvent: handleWsEvent, suppressToastEvents: suppressedToastEvents });
@@ -1390,7 +1499,8 @@ export function LiveTablePageClient() {
 
   const handleTableClick = useCallback(
     (info: LiveTableInfo) => {
-      if (info.status === "AVAILABLE" && outletId) {
+      const hasDraft = info.orders.some((o) => o.status === "DRAFT");
+      if ((info.status === "AVAILABLE" || hasDraft) && outletId) {
         const tableLabel =
           info.tableObj.label ??
           `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
@@ -1463,6 +1573,100 @@ export function LiveTablePageClient() {
 
         <div className="flex items-center gap-2">
           <StatsBar infos={liveTableInfos} />
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "relative cursor-pointer gap-2 h-8 text-xs transition-all duration-200",
+                  drafts.length > 0
+                    ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:text-primary text-primary dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/25"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Archive className="h-4 w-4" />
+                <span className="hidden sm:inline">{tTerminal("savedTransactions.label")}</span>
+                {drafts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white shadow-sm">
+                    {drafts.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0 animate-in fade-in zoom-in-95 duration-150 shadow-lg border rounded-lg" align="end">
+              <div className="p-3 border-b bg-muted/40 rounded-t-lg">
+                <h4 className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                  <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                  {tTerminal("savedTransactions.title")}
+                </h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{tTerminal("savedTransactions.dragHint")}</p>
+              </div>
+              <ScrollArea className="max-h-80">
+                {drafts.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    {tTerminal("savedTransactions.empty")}
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {drafts.map((draft) => (
+                      <div
+                        key={draft.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", draft.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        className="p-3 hover:bg-muted/30 cursor-grab active:cursor-grabbing transition-colors flex flex-col gap-1 w-full text-left"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs font-semibold text-foreground">#{draft.order_number}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
+                            {draft.customer_name || tTerminal("savedTransactions.walkIn")}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs font-bold text-primary">
+                            Rp {draft.total_amount.toLocaleString("id-ID")}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {tTerminal("savedTransactions.itemsCount", { count: draft.items.length })}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2.5 gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 text-[10px] flex-1 cursor-pointer font-medium hover:bg-secondary/80"
+                            onClick={() => setApplyingDraft(draft)}
+                          >
+                            {tTerminal("savedTransactions.applyTable")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 cursor-pointer shrink-0"
+                            onClick={async () => {
+                              try {
+                                await deleteOrder.mutateAsync(draft.id);
+                                toast.success(tTerminal("savedTransactions.deleteSuccess"));
+                              } catch {
+                                toast.error(tTerminal("savedTransactions.deleteFailed"));
+                              }
+                            }}
+                            disabled={deleteOrder.isPending}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+
           {/* View toggle: card grid ↔ floor layout */}
           <Button
             variant="ghost"
@@ -1508,7 +1712,7 @@ export function LiveTablePageClient() {
               <p className="text-sm">No tables in this floor plan.</p>
             </div>
           ) : viewMode === "grid" ? (
-            <TableGrid infos={liveTableInfos} onTableClick={handleTableClick} />
+            <TableGrid infos={liveTableInfos} onTableClick={handleTableClick} onDropDraft={handleDropDraftOnTable} />
           ) : (
             <LiveFloorView
               planWidth={plan.width ?? 1200}
@@ -1516,6 +1720,7 @@ export function LiveTablePageClient() {
               layoutObjects={layoutObjects}
               infos={liveTableInfos}
               onTableClick={handleTableClick}
+              onDropDraft={handleDropDraftOnTable}
             />
           )}
         </ScrollArea>
@@ -1563,6 +1768,46 @@ export function LiveTablePageClient() {
         info={selectedCancelPaymentInfo}
         onClose={() => setSelectedCancelPaymentInfo(null)}
       />
+
+      <Dialog open={!!applyingDraft} onOpenChange={(open) => !open && setApplyingDraft(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>{tTerminal("savedTransactions.applyTable")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              {tTerminal("savedTransactions.applyTableSelect", { orderNumber: applyingDraft?.order_number ?? "" })}
+            </p>
+            <ScrollArea className="max-h-60 pr-2">
+              <div className="space-y-1">
+                {liveTableInfos
+                  .filter((info) => info.status === "AVAILABLE")
+                  .map((info) => {
+                    const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+                    return (
+                      <Button
+                        key={info.tableObj.id}
+                        variant="outline"
+                        className="w-full justify-start cursor-pointer h-9 text-xs"
+                        onClick={() => {
+                          if (applyingDraft) {
+                            handleDropDraftOnTable(applyingDraft.id, info.tableObj.id, label);
+                            setApplyingDraft(null);
+                          }
+                        }}
+                      >
+                        Table {label} ({info.seatCount} seats)
+                      </Button>
+                    );
+                  })}
+                {liveTableInfos.filter((info) => info.status === "AVAILABLE").length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground py-4">No empty tables available.</p>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {receiptOrder && (
         <POSReceiptDialog
