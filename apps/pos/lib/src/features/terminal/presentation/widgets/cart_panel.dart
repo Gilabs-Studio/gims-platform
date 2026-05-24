@@ -43,11 +43,11 @@ class CartPanel extends StatelessWidget {
             ]),
             const SizedBox(height: 10),
             Expanded(
-              child: cart.isEmpty && order == null
+              child: cart.isEmpty && (order == null || order!.status == PosOrderStatus.draft)
                   ? const Center(child: Text('Keranjang kosong'))
                   : ListView(children: [
                       for (final line in cart) CartItemRow(line: line, currency: currency, onQtyChanged: onQtyChanged, onRemove: onRemove),
-                      if (order != null)
+                      if (order != null && order!.status != PosOrderStatus.draft)
                         for (final item in order!.items)
                           ListTile(contentPadding: EdgeInsets.zero, title: Text(item.productName), subtitle: Text('${item.status} x ${item.quantity.toStringAsFixed(0)}'), trailing: Text(formatMoney(item.subtotal, currency))),
                     ]),
@@ -58,7 +58,7 @@ class CartPanel extends StatelessWidget {
               Text(formatMoney(order?.totalAmount ?? total, currency), style: const TextStyle(fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 10),
-            if (order == null)
+            if (order == null || order!.status == PosOrderStatus.draft)
               Row(
                 children: [
                   if (onSaveDraft != null) ...[

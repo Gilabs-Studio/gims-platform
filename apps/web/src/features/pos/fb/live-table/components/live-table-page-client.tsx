@@ -1579,7 +1579,7 @@ export function LiveTablePageClient() {
               <Button
                 variant="outline"
                 className={cn(
-                  "relative cursor-pointer gap-2 h-8 text-xs transition-all duration-200",
+                  "relative cursor-pointer gap-2 h-8 text-xs transition-all duration-200 overflow-visible",
                   drafts.length > 0
                     ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:text-primary text-primary dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/25"
                     : "text-muted-foreground"
