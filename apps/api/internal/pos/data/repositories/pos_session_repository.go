@@ -1,11 +1,12 @@
 package repositories
 
 import (
-	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"context"
 	"fmt"
-	"time"
+
+	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"gorm.io/gorm"
@@ -98,10 +99,11 @@ func (r *posSessionRepository) List(ctx context.Context, outletID string, page, 
 
 func (r *posSessionRepository) GetNextSessionCode(ctx context.Context) (string, error) {
 	var count int64
-	now := time.Now()
+	now := apptime.Now()
 	prefix := fmt.Sprintf("POS-%s-", now.Format("20060102"))
 
 	r.getDB(ctx).Model(&models.PosSession{}).
+		Unscoped().
 		Where("code LIKE ?", prefix+"%").
 		Count(&count)
 

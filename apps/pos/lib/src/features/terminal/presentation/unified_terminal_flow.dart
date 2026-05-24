@@ -32,6 +32,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
   bool _loading = true;
   bool _hasPublishedLayout = false;
   TableSelection? _selectedTable;
+  PosOrder? _resumedOrderFromLiveTable;
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.outlet.id != widget.outlet.id) {
       _selectedTable = null;
+      _resumedOrderFromLiveTable = null;
       _resolveOutletMode();
     }
   }
@@ -76,12 +78,17 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     Widget screen;
     var wrapWithOrderBanner = true;
 
-    final resume = widget.resumeOrder;
+    final resume = widget.resumeOrder ?? _resumedOrderFromLiveTable;
     if (resume != null) {
       screen = TerminalScreen(
         outlet: widget.outlet,
         resumeOrder: resume,
-        onBackToLiveTable: widget.onClearResumedOrder,
+        onBackToLiveTable: () {
+          if (_resumedOrderFromLiveTable != null) {
+            setState(() => _resumedOrderFromLiveTable = null);
+          }
+          widget.onClearResumedOrder?.call();
+        },
         hasFloorLayout: _hasPublishedLayout,
       );
     } else if (!_hasPublishedLayout) {
@@ -96,6 +103,9 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
           outlet: widget.outlet,
           onSelectTable: (table) {
             setState(() => _selectedTable = table);
+          },
+          onSelectDraft: (draft) {
+            setState(() => _resumedOrderFromLiveTable = draft);
           },
         );
         wrapWithOrderBanner = false;

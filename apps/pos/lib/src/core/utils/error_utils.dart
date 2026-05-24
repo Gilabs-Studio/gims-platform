@@ -3,16 +3,42 @@ import 'package:flutter/material.dart';
 import '../network/api_exception.dart';
 import '../theme/app_theme.dart';
 
-/// Show a red error SnackBar with the error message.
+/// Show a red error SnackBar at the top of the screen.
 void showError(BuildContext context, Object error) {
-  final message = error is ApiException ? error.message : error.toString();
-  final lower = message.toLowerCase();
+  final rawMessage = error is ApiException ? error.message : error.toString();
+  final lower = rawMessage.toLowerCase();
+
+  // Swallow known noise
   if (lower.contains('websocketchannelexception') &&
       lower.contains('connection refused')) {
     return;
   }
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message), backgroundColor: GimsColors.destructive),
+
+  // Build a more user-friendly message for generic server errors
+  String message = rawMessage;
+  if (error is ApiException) {
+    if ((error.code == 'INTERNAL_SERVER_ERROR' || error.statusCode == 500) &&
+        (rawMessage.contains('internal server error') ||
+            rawMessage.toLowerCase().contains('an internal server error'))) {
+      message = 'Server error — please try again in a moment.';
+    }
+  }
+
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(message, style: const TextStyle(color: Colors.white)),
+      backgroundColor: GimsColors.destructive,
+      behavior: SnackBarBehavior.floating,
+      // Push the floating snackbar to the top of the screen
+      margin: EdgeInsets.only(
+        bottom: MediaQuery.of(context).size.height - 130,
+        left: 16,
+        right: 16,
+      ),
+      duration: const Duration(seconds: 4),
+    ),
   );
 }
 

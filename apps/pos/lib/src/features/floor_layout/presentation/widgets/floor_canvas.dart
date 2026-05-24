@@ -1,10 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/floor_plan.dart';
 import '../../domain/live_table_data.dart';
 
-class FloorCanvas extends StatelessWidget {
+class FloorCanvas extends StatefulWidget {
   const FloorCanvas({
     super.key,
     required this.objects,
@@ -25,29 +27,102 @@ class FloorCanvas extends StatelessWidget {
   final void Function(LayoutObject object, Offset delta)? onMove;
 
   @override
+  State<FloorCanvas> createState() => _FloorCanvasState();
+}
+
+class _FloorCanvasState extends State<FloorCanvas> {
+  late TransformationController _transformationController;
+  bool _initializedScale = false;
+  double _lastParentWidth = 0;
+  double _lastParentHeight = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final liveMap = {for (final info in liveTables) info.table.id: info};
-    return InteractiveViewer(
-      minScale: 0.35,
-      maxScale: 2.4,
-      boundaryMargin: const EdgeInsets.all(180),
-      child: SizedBox(
-        width: width.toDouble(),
-        height: height.toDouble(),
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
-            for (final object in objects)
-              _CanvasObjectView(
-                object: object,
-                selected: selectedId == object.id,
-                liveInfo: liveMap[object.id],
-                onSelect: onSelect,
-                onMove: onMove,
-              ),
-          ],
-        ),
-      ),
+    final liveMap = {for (final info in widget.liveTables) info.table.id: info};
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double parentWidth = constraints.maxWidth;
+        final double parentHeight = constraints.maxHeight;
+
+        // Calculate size based on objects
+        const double padding = 40.0;
+        double contentWidth = widget.width.toDouble() + (padding * 2);
+        double contentHeight = widget.height.toDouble() + (padding * 2);
+        for (final object in widget.objects) {
+          final right = object.x + object.width + (padding * 2);
+          final bottom = object.y + object.height + (padding * 2);
+          if (right > contentWidth) contentWidth = right;
+          if (bottom > contentHeight) contentHeight = bottom;
+        }
+
+        // Dynamically expand canvas size to at least parent size
+        // so the background grid spans the whole screen when stretched
+        final double canvasWidth = math.max(contentWidth, parentWidth);
+        final double canvasHeight = math.max(contentHeight, parentHeight);
+
+        // Auto-scale to fit available size on load or window resize
+        if (!_initializedScale || parentWidth != _lastParentWidth || parentHeight != _lastParentHeight) {
+          _lastParentWidth = parentWidth;
+          _lastParentHeight = parentHeight;
+          _initializedScale = true;
+
+          final double scaleX = parentWidth / contentWidth;
+          final double scaleY = parentHeight / contentHeight;
+          final double fitScale = math.min(scaleX, scaleY).clamp(0.35, 1.0);
+
+          final double dx = (parentWidth - (contentWidth * fitScale)) / 2;
+          final double dy = (parentHeight - (contentHeight * fitScale)) / 2;
+
+          _transformationController.value = Matrix4.identity()
+            ..translate(dx, dy)
+            ..scale(fitScale);
+        }
+
+        final Color gridBgColor = Theme.of(context).cardColor;
+
+        return InteractiveViewer(
+          transformationController: _transformationController,
+          minScale: 0.35,
+          maxScale: 2.4,
+          boundaryMargin: const EdgeInsets.all(180),
+          child: SizedBox(
+            width: canvasWidth,
+            height: canvasHeight,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _GridPainter(backgroundColor: gridBgColor),
+                  ),
+                ),
+                for (final object in widget.objects)
+                  _CanvasObjectView(
+                    object: object,
+                    offsetX: padding,
+                    offsetY: padding,
+                    selected: widget.selectedId == object.id,
+                    liveInfo: liveMap[object.id],
+                    onSelect: widget.onSelect,
+                    onMove: widget.onMove,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -55,6 +130,8 @@ class FloorCanvas extends StatelessWidget {
 class _CanvasObjectView extends StatelessWidget {
   const _CanvasObjectView({
     required this.object,
+    required this.offsetX,
+    required this.offsetY,
     required this.selected,
     required this.liveInfo,
     required this.onSelect,
@@ -62,6 +139,8 @@ class _CanvasObjectView extends StatelessWidget {
   });
 
   final LayoutObject object;
+  final double offsetX;
+  final double offsetY;
   final bool selected;
   final LiveTableData? liveInfo;
   final ValueChanged<LayoutObject>? onSelect;
@@ -70,8 +149,8 @@ class _CanvasObjectView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: object.x,
-      top: object.y,
+      left: object.x + offsetX,
+      top: object.y + offsetY,
       width: object.width,
       height: object.height,
       child: GestureDetector(
@@ -95,9 +174,13 @@ class _CanvasObjectView extends StatelessWidget {
 }
 
 class _GridPainter extends CustomPainter {
+  _GridPainter({required this.backgroundColor});
+
+  final Color backgroundColor;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = Colors.white;
+    final bgPaint = Paint()..color = backgroundColor;
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     final gridPaint = Paint()
@@ -113,7 +196,8 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GridPainter oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor;
 }
 
 class _ObjectPainter extends CustomPainter {
@@ -197,18 +281,33 @@ class _ObjectPainter extends CustomPainter {
     }
 
     final label = object.label ?? object.tableNumber?.toString() ?? object.type;
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: GimsColors.foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
+    final isCircle = object.tableShape == 'circle';
+    final maxWidth = isCircle ? (size.width * 0.7) : (size.width - 8.0);
+
+    double fontSize = 12.0;
+    TextPainter textPainter;
+
+    while (true) {
+      textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: GimsColors.foreground,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout(maxWidth: size.width - 8);
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+
+      if (textPainter.width <= maxWidth || fontSize <= 6.0) {
+        break;
+      }
+      fontSize -= 0.5;
+    }
+
+    textPainter.layout(maxWidth: maxWidth);
     textPainter.paint(
       canvas,
       Offset(

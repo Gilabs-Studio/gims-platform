@@ -147,6 +147,18 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 			}
 		}
 
+		// Always hold a per-tenant order-number sequencing lock so that concurrent
+		// requests (e.g. simultaneous Save Draft calls across different outlets)
+		// cannot race on the same order number sequence and hit the unique index.
+		tenantID := strings.TrimSpace(scopeString(txCtx, "tenant_id"))
+		if tenantID == "" {
+			tenantID = "global"
+		}
+		seqLockKey := fmt.Sprintf("pos:order-number:%s", tenantID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", seqLockKey).Error; err != nil {
+			return fmt.Errorf("failed to acquire order-number seq lock: %w", err)
+		}
+
 		existing, findErr := u.findReusableTableOrder(txCtx, req)
 		if findErr != nil {
 			return findErr
