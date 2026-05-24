@@ -40,6 +40,7 @@ import type {
   TenantOwnerPasswordResetPendingCountResponse,
   SystemAdminResetTenantOwnerPasswordRequest,
   SystemAdminResetTenantOwnerPasswordResponse,
+  SupportFeedbackListResponse,
 } from "../types";
 
 const API_BASE_URL =
@@ -390,6 +391,18 @@ export const systemAdminService = {
       "/system/tenants/owner-password-reset-requests/reset",
       payload,
     );
+    return data;
+  },
+
+  // ── Support Feedback Management ──────────────────────────────────────────
+
+  async getFeedbacks(params?: { page?: number; per_page?: number }): Promise<SupportFeedbackListResponse> {
+    const { data } = await sysAdminClient.get<SupportFeedbackListResponse>("/support-feedbacks", { params });
+    return data;
+  },
+
+  async deleteFeedback(id: string): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.delete<{ success: boolean }>(`/support-feedbacks/${id}`);
     return data;
   },
 };

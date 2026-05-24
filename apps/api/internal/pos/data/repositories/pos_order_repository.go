@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
@@ -156,11 +156,12 @@ func (r *posOrderRepository) List(ctx context.Context, params PosOrderListParams
 
 func (r *posOrderRepository) GetNextOrderNumber(ctx context.Context, prefix string) (string, error) {
 	var sequence int
-	now := time.Now()
+	now := apptime.Now()
 	datePrefix := fmt.Sprintf("%s-%s-", prefix, now.Format("20060102"))
 
 	var last models.PosOrder
 	err := r.getDB(ctx).
+		Unscoped().
 		Where("order_number LIKE ?", datePrefix+"%").
 		Order("order_number DESC").
 		First(&last).Error

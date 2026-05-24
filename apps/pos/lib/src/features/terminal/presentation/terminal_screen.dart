@@ -6,6 +6,7 @@ import '../../../app/app.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/formatters.dart';
 import '../domain/models/catalog_item.dart';
 import '../domain/models/cart_line.dart';
 import '../domain/models/pos_order.dart';
@@ -101,15 +102,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
       final results = await Future.wait([
         svc.getCatalog(widget.outlet.id),
         svc.getConfig(widget.outlet.id),
-        if (!widget.hasFloorLayout)
-          svc.listOrders(outletId: widget.outlet.id, status: 'DRAFT')
-        else
-          Future.value(<PosOrder>[]),
+        svc.listOrders(outletId: widget.outlet.id),
       ]);
       setState(() {
         _catalog = results[0] as List<CatalogItem>;
         _config = results[1] as PosConfig?;
-        final draftsList = results[2] as List<PosOrder>;
+        final allOrders = results[2] as List<PosOrder>;
         
         final resume = widget.resumeOrder;
         if (resume != null) {
@@ -133,12 +131,46 @@ class _TerminalScreenState extends State<TerminalScreen> {
               notes: item.notes,
             );
           }).toList();
+        } else if (widget.selectedTable != null) {
+          final matches = allOrders.where((o) =>
+            o.tableId == widget.selectedTable!.id &&
+            (o.status == PosOrderStatus.draft ||
+             o.status == PosOrderStatus.inProgress ||
+             o.status == PosOrderStatus.ready ||
+             o.status == PosOrderStatus.waitingPayment)
+          ).toList();
+          final tableOrder = matches.isNotEmpty ? matches.first : null;
+          if (tableOrder != null) {
+            _order = tableOrder;
+            _cart = tableOrder.items.map((item) {
+              final product = _catalog.firstWhere(
+                (p) => p.productId == item.productId,
+                orElse: () => CatalogItem(
+                  productId: item.productId,
+                  productCode: item.productCode,
+                  productName: item.productName,
+                  productKind: 'STOCK',
+                  price: item.unitPrice,
+                  stock: 9999,
+                  isAvailable: true,
+                ),
+              );
+              return CartLine(
+                product: product,
+                quantity: item.quantity,
+                notes: item.notes,
+              );
+            }).toList();
+          } else {
+            _cart = [];
+            _order = null;
+          }
         } else {
           _cart = [];
           _order = null;
         }
 
-        _drafts = draftsList.where((o) => o.tableId == null && o.id != _order?.id).toList();
+        _drafts = allOrders.where((o) => o.status == PosOrderStatus.draft && o.tableId == null && o.id != _order?.id).toList();
       });
     } catch (error) {
       if (mounted) showError(context, error);
@@ -152,9 +184,27 @@ class _TerminalScreenState extends State<TerminalScreen> {
     final svc = ServiceLocator.instance.terminalService;
     setState(() => _loading = true);
     try {
+      final oldOrderId = _order?.id;
+      if (oldOrderId != null) {
+        try {
+          // DELETE only works on DRAFT orders. For any other mutable status
+          // (IN_PROGRESS, WAITING_PAYMENT, etc.) we must void the old order first.
+          final oldStatus = _order?.status;
+          if (oldStatus == null || oldStatus == PosOrderStatus.draft) {
+            await svc.deleteOrder(oldOrderId);
+          } else {
+            await svc.voidOrder(oldOrderId, 'Disimpan sebagai draft baru');
+          }
+        } catch (_) {
+          // Swallow — even if delete/void fails we still create the new draft
+        }
+      }
+
       var order = await svc.createOrder(
         outletId: widget.outlet.id,
-        orderType: 'TAKE_AWAY',
+        orderType: 'DINE_IN',
+        tableId: null,
+        tableLabel: null,
         guestCount: 1,
       );
       for (final line in _cart) {
@@ -172,7 +222,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
           ),
         );
       }
-      await _loadDrafts();
+      if (widget.hasFloorLayout && widget.onBackToLiveTable != null) {
+        widget.onBackToLiveTable!();
+      } else {
+        await _loadDrafts();
+      }
     } catch (error) {
       if (mounted) showError(context, error);
     } finally {
@@ -316,7 +370,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
       final oldOrderId = _order?.id;
       if (oldOrderId != null) {
         try {
-          await svc.deleteOrder(oldOrderId);
+          final oldStatus = _order?.status;
+          if (oldStatus == null || oldStatus == PosOrderStatus.draft) {
+            await svc.deleteOrder(oldOrderId);
+          } else {
+            await svc.voidOrder(oldOrderId, 'Diganti dengan transaksi checkout baru');
+          }
         } catch (_) {}
       }
 
@@ -438,7 +497,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
             () => _cart = _cart.where((item) => item != line).toList(),
           ),
           onOpenOrder: _openOrder,
-          onSaveDraft: widget.hasFloorLayout ? null : _saveDraft,
+          onSaveDraft: _saveDraft,
         );
 
         return Padding(
@@ -519,7 +578,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   ),
                 ),
               if (selectedTable != null) const SizedBox(height: 12),
-              if (!widget.hasFloorLayout && _drafts.isNotEmpty) ...[
+              if (_drafts.isNotEmpty) ...[
                 Container(
                   height: 60,
                   margin: const EdgeInsets.only(bottom: 12),
@@ -584,7 +643,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Rp ${draft.totalAmount.toStringAsFixed(0)}',
+                                  formatMoney(draft.totalAmount, 'IDR'),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,

@@ -1,10 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/floor_plan.dart';
 import '../../domain/live_table_data.dart';
 
-class FloorCanvas extends StatelessWidget {
+class FloorCanvas extends StatefulWidget {
   const FloorCanvas({
     super.key,
     required this.objects,
@@ -25,29 +27,143 @@ class FloorCanvas extends StatelessWidget {
   final void Function(LayoutObject object, Offset delta)? onMove;
 
   @override
+  State<FloorCanvas> createState() => _FloorCanvasState();
+}
+
+class _FloorCanvasState extends State<FloorCanvas> {
+  late TransformationController _transformationController;
+  bool _initializedScale = false;
+  double _lastParentWidth = 0;
+  double _lastParentHeight = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant FloorCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.width != widget.width ||
+        oldWidget.height != widget.height ||
+        oldWidget.objects.length != widget.objects.length ||
+        oldWidget.objects != widget.objects) {
+      _initializedScale = false;
+    }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _initializedScale = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final liveMap = {for (final info in liveTables) info.table.id: info};
-    return InteractiveViewer(
-      minScale: 0.35,
-      maxScale: 2.4,
-      boundaryMargin: const EdgeInsets.all(180),
-      child: SizedBox(
-        width: width.toDouble(),
-        height: height.toDouble(),
-        child: Stack(
-          children: [
-            Positioned.fill(child: CustomPaint(painter: _GridPainter())),
-            for (final object in objects)
-              _CanvasObjectView(
-                object: object,
-                selected: selectedId == object.id,
-                liveInfo: liveMap[object.id],
-                onSelect: onSelect,
-                onMove: onMove,
-              ),
-          ],
-        ),
-      ),
+    final liveMap = {for (final info in widget.liveTables) info.table.id: info};
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double parentWidth = constraints.maxWidth;
+        final double parentHeight = constraints.maxHeight;
+
+        // Calculate the actual bounding box of rotated and unrotated objects
+        double overallMinX = 0.0;
+        double overallMinY = 0.0;
+        double overallMaxX = widget.width.toDouble();
+        double overallMaxY = widget.height.toDouble();
+
+        for (final object in widget.objects) {
+          // Check unrotated bounds
+          if (object.x < overallMinX) overallMinX = object.x.toDouble();
+          if (object.y < overallMinY) overallMinY = object.y.toDouble();
+          if (object.x + object.width > overallMaxX) {
+            overallMaxX = (object.x + object.width).toDouble();
+          }
+          if (object.y + object.height > overallMaxY) {
+            overallMaxY = (object.y + object.height).toDouble();
+          }
+
+          // Check rotated bounds
+          final rect = RotatedRect.fromLayoutObject(object);
+          if (rect.minX < overallMinX) overallMinX = rect.minX;
+          if (rect.maxX > overallMaxX) overallMaxX = rect.maxX;
+          if (rect.minY < overallMinY) overallMinY = rect.minY;
+          if (rect.maxY > overallMaxY) overallMaxY = rect.maxY;
+        }
+
+        const double padding = 40.0;
+        // Shift offset to make sure no coordinates are negative
+        final double shiftX = -overallMinX;
+        final double shiftY = -overallMinY;
+
+        final double contentWidth = (overallMaxX - overallMinX) + (padding * 2);
+        final double contentHeight = (overallMaxY - overallMinY) + (padding * 2);
+
+        // Dynamically expand canvas size to at least parent size
+        // so the background grid spans the whole screen when stretched
+        final double canvasWidth = math.max(contentWidth, parentWidth);
+        final double canvasHeight = math.max(contentHeight, parentHeight);
+
+        // Auto-scale to fit available size on load or window resize
+        if (!_initializedScale || parentWidth != _lastParentWidth || parentHeight != _lastParentHeight) {
+          _lastParentWidth = parentWidth;
+          _lastParentHeight = parentHeight;
+          _initializedScale = true;
+
+          final double scaleX = parentWidth / contentWidth;
+          final double scaleY = parentHeight / contentHeight;
+          final double fitScale = math.min(scaleX, scaleY).clamp(0.35, 1.0);
+
+          final double dx = (parentWidth - (contentWidth * fitScale)) / 2;
+          final double dy = (parentHeight - (contentHeight * fitScale)) / 2;
+
+          _transformationController.value = Matrix4.identity()
+            ..translate(dx, dy)
+            ..scale(fitScale);
+        }
+
+        final Color gridBgColor = Theme.of(context).cardColor;
+
+        return InteractiveViewer(
+          transformationController: _transformationController,
+          minScale: 0.35,
+          maxScale: 2.4,
+          constrained: false,
+          boundaryMargin: const EdgeInsets.all(180),
+          child: SizedBox(
+            width: canvasWidth,
+            height: canvasHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _GridPainter(backgroundColor: gridBgColor),
+                  ),
+                ),
+                for (final object in widget.objects)
+                  _CanvasObjectView(
+                    object: object,
+                    offsetX: shiftX + padding,
+                    offsetY: shiftY + padding,
+                    selected: widget.selectedId == object.id,
+                    liveInfo: liveMap[object.id],
+                    onSelect: widget.onSelect,
+                    onMove: widget.onMove,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -55,6 +171,8 @@ class FloorCanvas extends StatelessWidget {
 class _CanvasObjectView extends StatelessWidget {
   const _CanvasObjectView({
     required this.object,
+    required this.offsetX,
+    required this.offsetY,
     required this.selected,
     required this.liveInfo,
     required this.onSelect,
@@ -62,6 +180,8 @@ class _CanvasObjectView extends StatelessWidget {
   });
 
   final LayoutObject object;
+  final double offsetX;
+  final double offsetY;
   final bool selected;
   final LiveTableData? liveInfo;
   final ValueChanged<LayoutObject>? onSelect;
@@ -70,8 +190,8 @@ class _CanvasObjectView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: object.x,
-      top: object.y,
+      left: object.x + offsetX,
+      top: object.y + offsetY,
       width: object.width,
       height: object.height,
       child: GestureDetector(
@@ -95,9 +215,13 @@ class _CanvasObjectView extends StatelessWidget {
 }
 
 class _GridPainter extends CustomPainter {
+  _GridPainter({required this.backgroundColor});
+
+  final Color backgroundColor;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = Colors.white;
+    final bgPaint = Paint()..color = backgroundColor;
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     final gridPaint = Paint()
@@ -113,7 +237,8 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GridPainter oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor;
 }
 
 class _ObjectPainter extends CustomPainter {
@@ -197,18 +322,33 @@ class _ObjectPainter extends CustomPainter {
     }
 
     final label = object.label ?? object.tableNumber?.toString() ?? object.type;
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: GimsColors.foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
+    final isCircle = object.tableShape == 'circle';
+    final maxWidth = isCircle ? (size.width * 0.7) : (size.width - 8.0);
+
+    double fontSize = 12.0;
+    TextPainter textPainter;
+
+    while (true) {
+      textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: GimsColors.foreground,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-    )..layout(maxWidth: size.width - 8);
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+
+      if (textPainter.width <= maxWidth || fontSize <= 6.0) {
+        break;
+      }
+      fontSize -= 0.5;
+    }
+
+    textPainter.layout(maxWidth: maxWidth);
     textPainter.paint(
       canvas,
       Offset(
@@ -247,5 +387,60 @@ class _ObjectPainter extends CustomPainter {
     return oldDelegate.object != object ||
         oldDelegate.selected != selected ||
         oldDelegate.liveInfo?.status != liveInfo?.status;
+  }
+}
+
+class RotatedRect {
+  final double minX;
+  final double maxX;
+  final double minY;
+  final double maxY;
+
+  RotatedRect({
+    required this.minX,
+    required this.maxX,
+    required this.minY,
+    required this.maxY,
+  });
+
+  factory RotatedRect.fromLayoutObject(LayoutObject object) {
+    final double cx = object.x + object.width / 2;
+    final double cy = object.y + object.height / 2;
+    final double halfW = object.width / 2;
+    final double halfH = object.height / 2;
+    final double rad = object.rotation * math.pi / 180;
+    final double cosA = math.cos(rad);
+    final double sinA = math.sin(rad);
+
+    final List<Offset> localCorners = [
+      Offset(-halfW, -halfH),
+      Offset(halfW, -halfH),
+      Offset(halfW, halfH),
+      Offset(-halfW, halfH),
+    ];
+
+    double minX = double.infinity;
+    double maxX = double.negativeInfinity;
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
+    for (final corner in localCorners) {
+      final double rx = corner.dx * cosA - corner.dy * sinA;
+      final double ry = corner.dx * sinA + corner.dy * cosA;
+      final double worldX = cx + rx;
+      final double worldY = cy + ry;
+
+      if (worldX < minX) minX = worldX;
+      if (worldX > maxX) maxX = worldX;
+      if (worldY < minY) minY = worldY;
+      if (worldY > maxY) maxY = worldY;
+    }
+
+    return RotatedRect(
+      minX: minX,
+      maxX: maxX,
+      minY: minY,
+      maxY: maxY,
+    );
   }
 }

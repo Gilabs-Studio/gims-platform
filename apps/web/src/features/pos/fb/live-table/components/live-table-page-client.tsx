@@ -20,6 +20,7 @@ import {
   Utensils,
   Archive,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -300,6 +301,7 @@ interface OrderDetailDialogProps {
     customerPhone?: string;
     tenderAmount?: number;
   }) => void;
+  onEditOrder?: (order: POSOrder) => void;
 }
 
 interface SessionOrderRowProps {
@@ -310,9 +312,10 @@ interface SessionOrderRowProps {
     customerPhone?: string;
     tenderAmount?: number;
   }) => void;
+  onEditOrder?: () => void;
 }
 
-  function SessionOrderRow({ order, onOpenReceipt }: SessionOrderRowProps) {
+  function SessionOrderRow({ order, onOpenReceipt, onEditOrder }: SessionOrderRowProps) {
     const t = useTranslations("posTerminal.liveTable");
   const { data: paymentsData } = usePOSPayments(order.id, {
     enabled: !!order.id,
@@ -392,7 +395,20 @@ interface SessionOrderRowProps {
                 {t("sidebar.viewReceipt")}
               </Button>
             ) : (
-              <span className="text-[10px] text-muted-foreground">No receipt</span>
+              <div className="flex flex-col gap-1 shrink-0">
+                {(order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") && onEditOrder && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 min-w-[86px] px-3 text-[11px] cursor-pointer flex items-center justify-center gap-1 bg-primary text-primary-foreground border-primary hover:bg-primary/90 hover:text-primary-foreground"
+                    onClick={onEditOrder}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit</span>
+                  </Button>
+                )}
+                <span className="text-[10px] text-muted-foreground text-center">No receipt</span>
+              </div>
             )}
           </div>
         </div>
@@ -400,7 +416,7 @@ interface SessionOrderRowProps {
   );
 }
 
-function OrderDetailDialog({ info, onClose, onOpenReceipt }: OrderDetailDialogProps) {
+function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderDetailDialogProps) {
   const t = useTranslations("posTerminal.liveTable");
 
   if (!info) return null;
@@ -486,6 +502,7 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt }: OrderDetailDialogPr
                       key={sessionOrder.id}
                       order={sessionOrder}
                       onOpenReceipt={onOpenReceipt}
+                      onEditOrder={onEditOrder ? () => onEditOrder(sessionOrder) : undefined}
                     />
                   ))}
                 </div>
@@ -931,6 +948,7 @@ interface TableSidebarProps {
   paymentNotice: PaymentNotice | null;
   onOpenPaymentNotice: () => void;
   onDismissPaymentNotice: () => void;
+  onEditOrder: (info: LiveTableInfo) => void;
   servingId?: string | null;
   completingId?: string | null;
   servingItemId?: string | null;
@@ -946,6 +964,7 @@ function TableSidebar({
   paymentNotice,
   onOpenPaymentNotice,
   onDismissPaymentNotice,
+  onEditOrder,
   servingId,
   completingId,
   servingItemId,
@@ -1114,14 +1133,22 @@ function TableSidebar({
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         {t("sidebar.payment")} Queue
                       </p>
-                      <div className="mt-1 grid grid-cols-4 gap-1.5">
+                      <div className="mt-1 grid grid-cols-4 gap-1">
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="col-span-3 h-6 w-full text-[10px] cursor-pointer"
+                          className="col-span-2 h-6 w-full text-[10px] cursor-pointer"
                           onClick={() => onOpenPaymentAction(info)}
                         >
                           {isWaitingPayment ? t("payNowAction") : t("confirmPayment")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="col-span-1 h-6 w-full px-0 cursor-pointer"
+                          onClick={() => onEditOrder(info)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
@@ -1372,6 +1399,21 @@ export function LiveTablePageClient() {
     [assignTable, outletId, router]
   );
 
+  const handleEditOrder = useCallback((info: LiveTableInfo) => {
+    const tableId = info.tableObj.id;
+    const tableLabel = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+    router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
+  }, [router, outletId]);
+
+  const handleEditOrderFromOrder = useCallback(
+    (order: POSOrder, tableObj: { id: string; label?: string; tableNumber?: string | number }) => {
+      const tableId = tableObj.id;
+      const tableLabel = tableObj.label ?? `T${tableObj.tableNumber ?? tableObj.id}`;
+      router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
+    },
+    [router, outletId]
+  );
+
   const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed", "pos.order_deleted"], []);
 
   const handleWsEvent = useCallback((eventType: string, payload: {
@@ -1576,23 +1618,25 @@ export function LiveTablePageClient() {
           
           <Popover>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "relative cursor-pointer gap-2 h-8 text-xs transition-all duration-200",
-                  drafts.length > 0
-                    ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:text-primary text-primary dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/25"
-                    : "text-muted-foreground"
-                )}
-              >
-                <Archive className="h-4 w-4" />
-                <span className="hidden sm:inline">{tTerminal("savedTransactions.label")}</span>
+              <span className="relative inline-block overflow-visible">
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "cursor-pointer gap-2 h-8 text-xs transition-all duration-200",
+                    drafts.length > 0
+                      ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:text-primary text-primary dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/25"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Archive className="h-4 w-4" />
+                  <span className="hidden sm:inline">{tTerminal("savedTransactions.label")}</span>
+                </Button>
                 {drafts.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white shadow-sm">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white shadow-sm pointer-events-none z-10">
                     {drafts.length}
                   </span>
                 )}
-              </Button>
+              </span>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0 animate-in fade-in zoom-in-95 duration-150 shadow-lg border rounded-lg" align="end">
               <div className="p-3 border-b bg-muted/40 rounded-t-lg">
@@ -1736,6 +1780,7 @@ export function LiveTablePageClient() {
           paymentNotice={paymentNotice}
           onOpenPaymentNotice={handleOpenPaymentNotice}
           onDismissPaymentNotice={handleDismissPaymentNotice}
+          onEditOrder={handleEditOrder}
           servingId={servingId}
           completingId={completingId}
           servingItemId={servingItemId}
@@ -1750,6 +1795,12 @@ export function LiveTablePageClient() {
           setReceiptCustomerName(customerName ?? order.customer_name ?? undefined);
           setReceiptCustomerPhone(customerPhone);
           setReceiptTenderAmount(tenderAmount);
+        }}
+        onEditOrder={(order) => {
+          if (selectedInfo) {
+            handleEditOrderFromOrder(order, selectedInfo.tableObj);
+            setSelectedInfo(null);
+          }
         }}
       />
       <ActiveTablePaymentDialog

@@ -36,11 +36,8 @@ function deriveStatus(
   durationSec: number,
   draftOrder: POSOrder | null
 ): LiveTableStatus {
-  if (unpaidOrder) {
+  if (unpaidOrder || draftOrder) {
     return "WAITING_PAYMENT";
-  }
-  if (draftOrder) {
-    return "SEATED";
   }
   const order = serviceOrder;
   if (!order) {

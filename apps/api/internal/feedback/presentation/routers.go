@@ -11,6 +11,8 @@ import (
 	feedbackHandler "github.com/gilabs/gims/api/internal/feedback/presentation/handler"
 	feedbackRouter "github.com/gilabs/gims/api/internal/feedback/presentation/router"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	tenantRepos "github.com/gilabs/gims/api/internal/tenant/data/repositories"
+	userRepos "github.com/gilabs/gims/api/internal/user/data/repositories"
 )
 
 // FeedbackDeps holds exported dependencies that other domains may reference.
@@ -35,11 +37,17 @@ func RegisterRoutes(
 	responseRepo := feedbackRepos.NewFeedbackResponseRepository(db)
 	outletRepo := orgRepo.NewOutletRepository(db)
 
+	supportRepo := feedbackRepos.NewSupportFeedbackRepository(db)
+	userRepo := userRepos.NewUserRepository(db)
+	tenantRepo := tenantRepos.NewTenantRepository(db)
+	sysAdminRepo := tenantRepos.NewSystemAdminRepository(db)
+
 	// ─── Usecase ─────────────────────────────────────────────────────────────
 	uc := feedbackUsecase.NewFeedbackUsecase(formRepo, tokenRepo, responseRepo, outletRepo)
+	supportUC := feedbackUsecase.NewSupportFeedbackUsecase(supportRepo, userRepo, tenantRepo)
 
 	// ─── Handler ──────────────────────────────────────────────────────────────
-	h := feedbackHandler.NewFeedbackHandler(uc)
+	h := feedbackHandler.NewFeedbackHandler(uc, supportUC)
 
 	// ─── Routes ───────────────────────────────────────────────────────────────
 
@@ -51,6 +59,14 @@ func RegisterRoutes(
 
 	// Public routes (no auth — customer feedback submission)
 	feedbackRouter.RegisterFeedbackPublicRoutes(api, h)
+
+	// System Admin Support Feedback routes (platform-scoped)
+	sysAdminGroup := r.Group("/internal/support-feedbacks")
+	sysAdminGroup.Use(middleware.SystemAdminAuthMiddleware(jwtManager, sysAdminRepo))
+	{
+		sysAdminGroup.GET("", h.ListSupportFeedbacks)
+		sysAdminGroup.DELETE("/:id", h.DeleteSupportFeedback)
+	}
 
 	return FeedbackDeps{Usecase: uc}
 }

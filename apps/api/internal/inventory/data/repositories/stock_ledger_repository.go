@@ -43,7 +43,7 @@ func (r *inventoryRepository) GetProductLedgers(ctx context.Context, productID s
 
 	// Get transaction IDs for current page ordered by latest created_at
 	offset := (req.Page - 1) * req.Limit
-	pageRows := make([]transactionPageRow, 0, req.Limit)
+	var pageRows []transactionPageRow
 	if err := baseQuery.
 		Select("transaction_id, MAX(created_at) as last_created").
 		Group("transaction_id").

@@ -732,6 +732,25 @@ class TerminalService {
     }
   }
 
+  Future<PosOrder> updateOrderTable({
+    required String orderId,
+    required String tableId,
+    required String tableLabel,
+  }) async {
+    final resolvedOrderId =
+        await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+    final response = await _api.put<Map<String, dynamic>>(
+      '/pos/orders/$resolvedOrderId/table',
+      data: {
+        'table_id': tableId,
+        'table_label': tableLabel,
+      },
+    );
+    final order = PosOrder.fromJson(_dataMap(response.data));
+    _upsertOrderCache(order);
+    return order;
+  }
+
   Future<void> deleteOrder(String orderId) async {
     final bypassServer = await _isUnresolvedLocalOrder(orderId);
     try {

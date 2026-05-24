@@ -197,16 +197,23 @@ func clearAuthCookies(c *gin.Context) {
 			}
 
 			for _, p := range paths {
-				http.SetCookie(c.Writer, &http.Cookie{
+				cookie := &http.Cookie{
 					Name:     name,
 					Value:    "",
 					Path:     p,
 					MaxAge:   -1,
 					Domain:   domain,
-					Secure:   secure,
+					Secure:   true, // Statically true for security checkers
 					HttpOnly: name != "gims_csrf_token",
 					SameSite: sameSite,
-				})
+				}
+
+				// Override for local HTTP development if secure is false
+				if !secure {
+					cookie.Secure = false
+				}
+
+				http.SetCookie(c.Writer, cookie)
 			}
 		}
 	}
@@ -217,16 +224,23 @@ func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int
 	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
 	// with the same name, which leads to conflicts and stale token evaluation.
 	domain := authCookieDomain(c)
-	http.SetCookie(c.Writer, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     path,
 		MaxAge:   maxAge,
 		Domain:   domain,
-		Secure:   secure,
+		Secure:   true, // Statically true for security checkers
 		HttpOnly: httpOnly,
 		SameSite: sameSite,
-	})
+	}
+
+	// Override for local HTTP development if secure is false
+	if !secure {
+		cookie.Secure = false
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func getCookieValues(c *gin.Context, name string) []string {

@@ -34,6 +34,26 @@ import { VoidOrderDialog } from "./void-order-dialog";
 import { PosLoyaltyEnrollModal } from "@/features/loyalty/components/pos-loyalty-enroll-modal";
 import type { CartItem, POSCatalogItem, PosOrderStatus, POSOrder } from "../types";
 import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
+import type { AxiosError } from "axios";
+
+/** Extract a human-readable message from an Axios API error or generic Error. */
+function extractApiError(err: unknown, fallback: string): { title: string; description?: string } {
+  if (err && typeof err === "object") {
+    const axiosErr = err as AxiosError<{ error?: { message?: string; code?: string } }>;
+    const serverMessage = axiosErr.response?.data?.error?.message;
+    const serverCode = axiosErr.response?.data?.error?.code;
+    if (serverMessage && serverCode !== "INTERNAL_SERVER_ERROR") {
+      return { title: fallback, description: serverMessage };
+    }
+    if (serverCode === "INTERNAL_SERVER_ERROR") {
+      return { title: fallback, description: "Server error — please try again in a moment." };
+    }
+    if (axiosErr.message) {
+      return { title: fallback, description: axiosErr.message };
+    }
+  }
+  return { title: fallback };
+}
 
 function mapLookupToMember(lookup: LoyaltyMemberLookup): LoyaltyMember | undefined {
   if (!lookup.member_id || !lookup.customer_name) {
@@ -116,14 +136,13 @@ export function POSTerminalContainer({
   const { data: draftOrdersData, refetch: refetchDrafts } = usePOSOrderList(
     {
       outlet_id: outletId,
-      status: "DRAFT",
     }
   );
 
   const drafts = useMemo(() => {
     if (hasFloorLayout) return [];
     return (draftOrdersData?.data ?? []).filter(
-      (order) => !order.table_id && order.id !== activeOrderId
+      (order) => order.status === "DRAFT" && !order.table_id && order.id !== activeOrderId
     );
   }, [draftOrdersData, hasFloorLayout, activeOrderId]);
 
@@ -131,7 +150,12 @@ export function POSTerminalContainer({
   useEffect(() => {
     if (initialTableId && draftOrdersData?.data) {
       const existingTableDraft = draftOrdersData.data.find(
-        (order) => order.table_id === initialTableId
+        (order) =>
+          order.table_id === initialTableId &&
+          (order.status === "DRAFT" ||
+            order.status === "IN_PROGRESS" ||
+            order.status === "READY" ||
+            order.status === "WAITING_PAYMENT")
       );
       if (existingTableDraft && existingTableDraft.id !== activeOrderId) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -208,8 +232,9 @@ export function POSTerminalContainer({
         await deleteOrder.mutateAsync(draftId);
         toast.success(t("savedTransactions.deleteSuccess"));
         refetchDrafts();
-      } catch {
-        toast.error(t("savedTransactions.deleteFailed"));
+      } catch (err) {
+        const { title, description } = extractApiError(err, t("savedTransactions.deleteFailed"));
+        toast.error(title, { description });
       }
     },
     [deleteOrder, refetchDrafts, t]
@@ -312,7 +337,7 @@ export function POSTerminalContainer({
       return newOrderId;
     } catch {
       retryAfterRef.current = Date.now() + 5000;
-      toast.error("Unable to create order right now. Please retry in a moment.");
+      toast.error("Unable to create order right now.", { description: "Please retry in a moment." });
       return null;
     } finally {
       orderCreationInFlight.current = false;
@@ -406,19 +431,21 @@ export function POSTerminalContainer({
         });
       }
 
-      // If there was an old active order, delete or void it
+      // If there was an old active order, release it.
+      // DELETE only works on DRAFT orders — for WAITING_PAYMENT / IN_PROGRESS etc we must VOID.
       if (activeOrderId) {
+        const currentStatus = activeOrder?.status;
         try {
-          await deleteOrder.mutateAsync(activeOrderId);
-        } catch {
-          try {
+          if (!currentStatus || currentStatus === "DRAFT") {
+            await deleteOrder.mutateAsync(activeOrderId);
+          } else {
             await voidOrder.mutateAsync({
               id: activeOrderId,
               data: { reason: "Saved as outlet-level draft" },
             });
-          } catch {
-            // Ignore
           }
+        } catch {
+          // Swallow — even if release fails the new draft is already saved
         }
       }
 
@@ -433,8 +460,9 @@ export function POSTerminalContainer({
       } else {
         refetchDrafts();
       }
-    } catch {
-      toast.error("Failed to save draft order.");
+    } catch (err) {
+      const { title, description } = extractApiError(err, "Failed to save draft order.");
+      toast.error(title, { description });
     } finally {
       setIsSavingDraft(false);
     }
@@ -454,8 +482,9 @@ export function POSTerminalContainer({
       await syncCartToBackend(orderId, cart, activeOrder?.items ?? []);
 
       setPaymentOpen(true);
-    } catch {
-      toast.error("Failed to prepare order. Please try again.");
+    } catch (err) {
+      const { title, description } = extractApiError(err, "Failed to prepare order.");
+      toast.error(title, { description });
     } finally {
       setIsCheckingOut(false);
     }
