@@ -956,11 +956,14 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     width: plan.width,
                     height: plan.height,
                     liveTables: liveTables,
-                    onSelect: (table) {
-                      final info = liveTables.firstWhere(
-                        (item) => item.table.id == table.id,
+                    onSelect: (object) {
+                      if (object.type != 'table') return;
+                      final matchingIndex = liveTables.indexWhere(
+                        (item) => item.table.id == object.id,
                       );
-                      _tapTable(info);
+                      if (matchingIndex != -1) {
+                        _tapTable(liveTables[matchingIndex]);
+                      }
                     },
                   ),
                 );

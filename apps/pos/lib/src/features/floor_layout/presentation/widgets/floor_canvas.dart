@@ -49,6 +49,23 @@ class _FloorCanvasState extends State<FloorCanvas> {
   }
 
   @override
+  void didUpdateWidget(covariant FloorCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.width != widget.width ||
+        oldWidget.height != widget.height ||
+        oldWidget.objects.length != widget.objects.length ||
+        oldWidget.objects != widget.objects) {
+      _initializedScale = false;
+    }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _initializedScale = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final liveMap = {for (final info in widget.liveTables) info.table.id: info};
 
@@ -57,16 +74,38 @@ class _FloorCanvasState extends State<FloorCanvas> {
         final double parentWidth = constraints.maxWidth;
         final double parentHeight = constraints.maxHeight;
 
-        // Calculate size based on objects
-        const double padding = 40.0;
-        double contentWidth = widget.width.toDouble() + (padding * 2);
-        double contentHeight = widget.height.toDouble() + (padding * 2);
+        // Calculate the actual bounding box of rotated and unrotated objects
+        double overallMinX = 0.0;
+        double overallMinY = 0.0;
+        double overallMaxX = widget.width.toDouble();
+        double overallMaxY = widget.height.toDouble();
+
         for (final object in widget.objects) {
-          final right = object.x + object.width + (padding * 2);
-          final bottom = object.y + object.height + (padding * 2);
-          if (right > contentWidth) contentWidth = right;
-          if (bottom > contentHeight) contentHeight = bottom;
+          // Check unrotated bounds
+          if (object.x < overallMinX) overallMinX = object.x.toDouble();
+          if (object.y < overallMinY) overallMinY = object.y.toDouble();
+          if (object.x + object.width > overallMaxX) {
+            overallMaxX = (object.x + object.width).toDouble();
+          }
+          if (object.y + object.height > overallMaxY) {
+            overallMaxY = (object.y + object.height).toDouble();
+          }
+
+          // Check rotated bounds
+          final rect = RotatedRect.fromLayoutObject(object);
+          if (rect.minX < overallMinX) overallMinX = rect.minX;
+          if (rect.maxX > overallMaxX) overallMaxX = rect.maxX;
+          if (rect.minY < overallMinY) overallMinY = rect.minY;
+          if (rect.maxY > overallMaxY) overallMaxY = rect.maxY;
         }
+
+        const double padding = 40.0;
+        // Shift offset to make sure no coordinates are negative
+        final double shiftX = -overallMinX;
+        final double shiftY = -overallMinY;
+
+        final double contentWidth = (overallMaxX - overallMinX) + (padding * 2);
+        final double contentHeight = (overallMaxY - overallMinY) + (padding * 2);
 
         // Dynamically expand canvas size to at least parent size
         // so the background grid spans the whole screen when stretched
@@ -97,11 +136,13 @@ class _FloorCanvasState extends State<FloorCanvas> {
           transformationController: _transformationController,
           minScale: 0.35,
           maxScale: 2.4,
+          constrained: false,
           boundaryMargin: const EdgeInsets.all(180),
           child: SizedBox(
             width: canvasWidth,
             height: canvasHeight,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
                   child: CustomPaint(
@@ -111,8 +152,8 @@ class _FloorCanvasState extends State<FloorCanvas> {
                 for (final object in widget.objects)
                   _CanvasObjectView(
                     object: object,
-                    offsetX: padding,
-                    offsetY: padding,
+                    offsetX: shiftX + padding,
+                    offsetY: shiftY + padding,
                     selected: widget.selectedId == object.id,
                     liveInfo: liveMap[object.id],
                     onSelect: widget.onSelect,
@@ -346,5 +387,60 @@ class _ObjectPainter extends CustomPainter {
     return oldDelegate.object != object ||
         oldDelegate.selected != selected ||
         oldDelegate.liveInfo?.status != liveInfo?.status;
+  }
+}
+
+class RotatedRect {
+  final double minX;
+  final double maxX;
+  final double minY;
+  final double maxY;
+
+  RotatedRect({
+    required this.minX,
+    required this.maxX,
+    required this.minY,
+    required this.maxY,
+  });
+
+  factory RotatedRect.fromLayoutObject(LayoutObject object) {
+    final double cx = object.x + object.width / 2;
+    final double cy = object.y + object.height / 2;
+    final double halfW = object.width / 2;
+    final double halfH = object.height / 2;
+    final double rad = object.rotation * math.pi / 180;
+    final double cosA = math.cos(rad);
+    final double sinA = math.sin(rad);
+
+    final List<Offset> localCorners = [
+      Offset(-halfW, -halfH),
+      Offset(halfW, -halfH),
+      Offset(halfW, halfH),
+      Offset(-halfW, halfH),
+    ];
+
+    double minX = double.infinity;
+    double maxX = double.negativeInfinity;
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
+    for (final corner in localCorners) {
+      final double rx = corner.dx * cosA - corner.dy * sinA;
+      final double ry = corner.dx * sinA + corner.dy * cosA;
+      final double worldX = cx + rx;
+      final double worldY = cy + ry;
+
+      if (worldX < minX) minX = worldX;
+      if (worldX > maxX) maxX = worldX;
+      if (worldY < minY) minY = worldY;
+      if (worldY > maxY) maxY = worldY;
+    }
+
+    return RotatedRect(
+      minX: minX,
+      maxX: maxX,
+      minY: minY,
+      maxY: maxY,
+    );
   }
 }
