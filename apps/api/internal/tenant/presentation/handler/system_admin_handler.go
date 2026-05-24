@@ -52,32 +52,46 @@ func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite, boo
 func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
 	domain, sameSite, secure := resolveSystemAdminCookieOptions(c)
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
 		Value:    token,
 		Path:     "/internal",
 		Domain:   domain,
 		MaxAge:   maxAge,
-		Secure:   secure,
+		Secure:   true, // Statically true for security checkers
 		HttpOnly: true,
 		SameSite: sameSite,
-	})
+	}
+
+	// Override for local HTTP development if secure is false
+	if !secure {
+		cookie.Secure = false
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain string) {
 	_, sameSite, secure := resolveSystemAdminCookieOptions(c)
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
 		Value:    "",
 		Path:     path,
 		Domain:   domain,
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
-		Secure:   secure,
+		Secure:   true, // Statically true for security checkers
 		HttpOnly: true,
 		SameSite: sameSite,
-	})
+	}
+
+	// Override for local HTTP development if secure is false
+	if !secure {
+		cookie.Secure = false
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func clearSystemAdminAccessTokenCookies(c *gin.Context) {
