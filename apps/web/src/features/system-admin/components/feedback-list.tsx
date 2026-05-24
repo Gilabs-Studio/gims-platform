@@ -272,6 +272,7 @@ export function FeedbackList() {
                     </span>
                     <div className="border rounded-md overflow-hidden max-w-md bg-muted/15 flex items-center justify-center p-1.5">
                       <a href={viewingFeedback.image_url} target="_blank" rel="noopener noreferrer" className="relative group block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={viewingFeedback.image_url}
                           alt="Screenshot Lampiran"

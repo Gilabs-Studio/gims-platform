@@ -40,7 +40,6 @@ import type {
   TenantOwnerPasswordResetPendingCountResponse,
   SystemAdminResetTenantOwnerPasswordRequest,
   SystemAdminResetTenantOwnerPasswordResponse,
-  SupportFeedback,
   SupportFeedbackListResponse,
 } from "../types";
 

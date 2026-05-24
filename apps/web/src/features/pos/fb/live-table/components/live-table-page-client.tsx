@@ -1405,11 +1405,14 @@ export function LiveTablePageClient() {
     router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
   }, [router, outletId]);
 
-  const handleEditOrderFromOrder = useCallback((order: POSOrder, tableObj: any) => {
-    const tableId = tableObj.id;
-    const tableLabel = tableObj.label ?? `T${tableObj.tableNumber ?? tableObj.id}`;
-    router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
-  }, [router, outletId]);
+  const handleEditOrderFromOrder = useCallback(
+    (order: POSOrder, tableObj: { id: string; label?: string; tableNumber?: string | number }) => {
+      const tableId = tableObj.id;
+      const tableLabel = tableObj.label ?? `T${tableObj.tableNumber ?? tableObj.id}`;
+      router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
+    },
+    [router, outletId]
+  );
 
   const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed", "pos.order_deleted"], []);
 

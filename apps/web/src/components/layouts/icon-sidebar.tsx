@@ -2,9 +2,9 @@
 
 import React, { memo } from "react";
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
-import { HelpCircle, Settings } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export const IconSidebar = memo(function IconSidebar({
 }: IconSidebarProps) {
   const pathname = usePathname();
   const locale = useLocale();
+  const t = useTranslations("feedback");
 
   const isItemActive = (item: IconSidebarItem) => {
     if (item.id === activeParentId) return true;
@@ -132,14 +133,14 @@ export const IconSidebar = memo(function IconSidebar({
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10 rounded-xl hover:bg-white/10 text-sidebar-dark-foreground"
-                aria-label="Hubungi Kami"
+                aria-label={t("title")}
               >
                 <HelpCircle className="h-5 w-5" />
               </Button>
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            Hubungi Kami
+            {t("title")}
           </TooltipContent>
         </Tooltip>
       </div>
