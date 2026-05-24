@@ -23,6 +23,9 @@ func RegisterFeedbackRoutes(group *gin.RouterGroup, h *handler.FeedbackHandler) 
 	// Token generation (called by POS internally — staff permission)
 	fb.POST("/tokens", middleware.RequirePermission("feedback.read"), h.GenerateToken)
 
+	// Dashboard user support feedback (auth required, no specific permission required)
+	fb.POST("/support", h.SubmitSupportFeedback)
+
 	// Responses (admin view)
 	responses := fb.Group("/responses")
 	responses.GET("", middleware.RequirePermission("feedback.read"), h.ListResponses)

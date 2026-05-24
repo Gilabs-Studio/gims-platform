@@ -363,6 +363,7 @@ func AutoMigrate() error {
 		&feedback.FeedbackForm{},
 		&feedback.FeedbackToken{},
 		&feedback.FeedbackResponse{},
+		&feedback.SupportFeedback{},
 		// Loyalty module
 		&loyalty.LoyaltyProgram{},
 		&loyalty.LoyaltyMember{},
@@ -2123,6 +2124,7 @@ func backfillTenantIDs() error {
 		"feedback_forms",
 		"feedback_tokens",
 		"feedback_responses",
+		"support_feedbacks",
 		"loyalty_programs",
 		"loyalty_members",
 		"loyalty_point_ledgers",

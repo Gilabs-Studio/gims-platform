@@ -494,3 +494,26 @@ export interface SystemAdminResetTenantOwnerPasswordResponse {
     message: string;
   };
 }
+
+// ── Support Feedback ───────────────────────────────────────────────────────
+
+export interface SupportFeedback {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  tenant_id: string;
+  tenant_name: string;
+  message: string;
+  image_url?: string;
+  created_at: string;
+}
+
+export interface SupportFeedbackListResponse {
+  success: boolean;
+  data: SupportFeedback[];
+  meta?: {
+    pagination?: PaginationMeta;
+  };
+}
+

@@ -14,12 +14,13 @@ import (
 
 // FeedbackHandler handles all feedback-related HTTP requests.
 type FeedbackHandler struct {
-	uc usecase.FeedbackUsecase
+	uc        usecase.FeedbackUsecase
+	supportUC usecase.SupportFeedbackUsecase
 }
 
 // NewFeedbackHandler creates a new FeedbackHandler.
-func NewFeedbackHandler(uc usecase.FeedbackUsecase) *FeedbackHandler {
-	return &FeedbackHandler{uc: uc}
+func NewFeedbackHandler(uc usecase.FeedbackUsecase, supportUC usecase.SupportFeedbackUsecase) *FeedbackHandler {
+	return &FeedbackHandler{uc: uc, supportUC: supportUC}
 }
 
 // ─── Form Management ──────────────────────────────────────────────────────────
@@ -276,4 +277,63 @@ func parseIntHelper(s string, n *int) (int, error) {
 		*n = *n*10 + int(ch-'0')
 	}
 	return *n, nil
+}
+
+// SubmitSupportFeedback submits feedback from a dashboard user.
+func (h *FeedbackHandler) SubmitSupportFeedback(c *gin.Context) {
+	var req dto.SubmitSupportFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationErrorResponse(c, nil)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	tenantID, _ := c.Get("tenant_id")
+	uID, _ := userID.(string)
+	tID, _ := tenantID.(string)
+
+	res, err := h.supportUC.SubmitFeedback(c.Request.Context(), uID, tID, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+// ListSupportFeedbacks lists support feedbacks for system admin.
+func (h *FeedbackHandler) ListSupportFeedbacks(c *gin.Context) {
+	page := 1
+	perPage := 20
+	if p := c.Query("page"); p != "" {
+		if v, err := parseInt(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if pp := c.Query("per_page"); pp != "" {
+		if v, err := parseInt(pp); err == nil && v > 0 && v <= 100 {
+			perPage = v
+		}
+	}
+
+	feedbacks, total, err := h.supportUC.ListFeedbacks(c.Request.Context(), page, perPage)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: response.NewPaginationMeta(page, perPage, int(total)),
+	}
+	response.SuccessResponse(c, feedbacks, meta)
+}
+
+// DeleteSupportFeedback deletes a support feedback by ID (system admin only).
+func (h *FeedbackHandler) DeleteSupportFeedback(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.supportUC.DeleteFeedback(c.Request.Context(), id); err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponseNoContent(c)
 }

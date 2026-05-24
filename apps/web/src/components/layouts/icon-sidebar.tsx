@@ -4,7 +4,7 @@ import React, { memo } from "react";
 import Image from "next/image";
 import { useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
-import { Plus, Settings } from "lucide-react";
+import { HelpCircle, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -127,35 +127,19 @@ export const IconSidebar = memo(function IconSidebar({
       <div className="flex flex-col items-center gap-2 py-3 px-2">
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-xl hover:bg-white/10 text-sidebar-dark-foreground"
-              aria-label="Add new"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={8}>
-            New Folder
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <Link href="/profile" locale={locale}>
+            <Link href="/feedback" locale={locale}>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-10 w-10 rounded-xl hover:bg-white/10 text-sidebar-dark-foreground"
-                aria-label="Settings"
+                aria-label="Hubungi Kami"
               >
-                <Settings className="h-5 w-5" />
+                <HelpCircle className="h-5 w-5" />
               </Button>
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            Settings
+            Hubungi Kami
           </TooltipContent>
         </Tooltip>
       </div>
