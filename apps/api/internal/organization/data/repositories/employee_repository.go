@@ -177,34 +177,34 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	if searchTerm := strings.TrimSpace(params.Search); searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
-			"name ILIKE ? OR employee_code ILIKE ? OR email ILIKE ?",
+			"employees.name ILIKE ? OR employees.employee_code ILIKE ? OR employees.email ILIKE ?",
 			searchPattern, searchPattern, searchPattern,
 		)
 	}
 
 	// Apply division filter
 	if params.DivisionID != "" {
-		query = query.Where("division_id = ?", params.DivisionID)
+		query = query.Where("employees.division_id = ?", params.DivisionID)
 	}
 
 	// Apply job position filter
 	if params.JobPositionID != "" {
-		query = query.Where("job_position_id = ?", params.JobPositionID)
+		query = query.Where("employees.job_position_id = ?", params.JobPositionID)
 	}
 
 	// Apply company filter
 	if params.CompanyID != "" {
-		query = query.Where("company_id = ?", params.CompanyID)
+		query = query.Where("employees.company_id = ?", params.CompanyID)
 	}
 
 	// Apply status filter
 	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
+		query = query.Where("employees.status = ?", params.Status)
 	}
 
 	// Apply is_active filter
 	if params.IsActive != nil {
-		query = query.Where("is_active = ?", *params.IsActive)
+		query = query.Where("employees.is_active = ?", *params.IsActive)
 	}
 
 	// Apply area filter (via join)
@@ -228,9 +228,9 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 		sortDir = "desc"
 	}
 
-	query = query.Order("is_active DESC").
+	query = query.Order("employees.is_active DESC").
 		Order(clause.OrderByColumn{
-			Column: clause.Column{Name: sortBy},
+			Column: clause.Column{Table: "employees", Name: sortBy},
 			Desc:   sortDir == "desc",
 		})
 
