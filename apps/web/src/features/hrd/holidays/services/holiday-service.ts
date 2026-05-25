@@ -16,6 +16,7 @@ export const holidayService = {
     per_page?: number;
     search?: string;
     year?: number;
+    month?: number;
     type?: string;
     is_active?: boolean;
     sort_by?: string;
@@ -35,9 +36,10 @@ export const holidayService = {
     return response.data;
   },
 
-  async getByYear(year: number): Promise<HolidayListResponse> {
+  async getByYear(year: number, month?: number): Promise<HolidayListResponse> {
     const response = await apiClient.get<HolidayListResponse>(
-      `/hrd/holidays/year/${year}`
+      `/hrd/holidays/year/${year}`,
+      { params: month !== undefined ? { month } : undefined }
     );
     return response.data;
   },

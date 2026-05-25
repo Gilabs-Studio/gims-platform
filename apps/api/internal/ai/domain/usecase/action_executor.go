@@ -470,7 +470,7 @@ func (e *ActionExecutor) executeCreateIndonesiaHolidayBatch(ctx context.Context,
 		return holidayCreateErrorResult(fmt.Sprintf("no Indonesia public holidays found for %d", year))
 	}
 
-	existing, err := e.deps.HolidayUsecase.GetByYear(ctx, year)
+	existing, err := e.deps.HolidayUsecase.GetByYear(ctx, year, 0)
 	if err != nil {
 		return holidayCreateErrorResult(fmt.Sprintf("failed to check existing holidays: %v", err))
 	}
