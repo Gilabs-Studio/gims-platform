@@ -288,7 +288,7 @@ func main() {
 	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
 	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
 	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository, permissionService)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)

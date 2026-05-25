@@ -77,6 +77,11 @@ func (m *mockTenantRepository) FindPaginatedWithCounts(ctx context.Context, sear
 func (m *mockTenantRepository) FindByIDWithCounts(ctx context.Context, id string) (*tenantRepos.TenantWithCounts, error) {
 	return nil, nil
 }
+func (m *mockTenantRepository) FindByIDWithOwner(ctx context.Context, id string) (*tenantRepos.TenantWithOwner, error) {
+	return &tenantRepos.TenantWithOwner{
+		Tenant: tenantModels.Tenant{ID: id, Name: "Test Tenant"},
+	}, nil
+}
 func (m *mockTenantRepository) CountActiveUsers(ctx context.Context, tenantID string) (int64, error) {
 	return 0, nil
 }

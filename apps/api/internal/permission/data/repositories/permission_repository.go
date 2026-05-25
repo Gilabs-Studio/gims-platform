@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/permission/data/models"
 	"github.com/gilabs/gims/api/internal/permission/domain/dto"
@@ -23,7 +25,12 @@ type PermissionRepository interface {
 }
 
 type permissionRepository struct {
-	db *gorm.DB
+	db                  *gorm.DB
+	cacheMutex          sync.RWMutex
+	cachedList          []models.Permission
+	cachedListExpiry    time.Time
+	cachedRawList       []models.Permission
+	cachedRawListExpiry time.Time
 }
 
 const (
@@ -34,7 +41,40 @@ const (
 
 func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	return &permissionRepository{db: db}
-} 
+}
+
+func (r *permissionRepository) clearCache() {
+	r.cacheMutex.Lock()
+	defer r.cacheMutex.Unlock()
+	r.cachedList = nil
+	r.cachedRawList = nil
+}
+
+func (r *permissionRepository) getAllRawPermissions(ctx context.Context) ([]models.Permission, error) {
+	r.cacheMutex.RLock()
+	if r.cachedRawList != nil && time.Now().Before(r.cachedRawListExpiry) {
+		defer r.cacheMutex.RUnlock()
+		return r.cachedRawList, nil
+	}
+	r.cacheMutex.RUnlock()
+
+	r.cacheMutex.Lock()
+	defer r.cacheMutex.Unlock()
+
+	if r.cachedRawList != nil && time.Now().Before(r.cachedRawListExpiry) {
+		return r.cachedRawList, nil
+	}
+
+	var permissions []models.Permission
+	if err := r.db.WithContext(ctx).Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+
+	r.cachedRawList = permissions
+	r.cachedRawListExpiry = time.Now().Add(5 * time.Minute)
+
+	return permissions, nil
+}
 
 func (r *permissionRepository) FindByID(ctx context.Context, id string) (*models.Permission, error) {
 	var p models.Permission
@@ -63,6 +103,20 @@ func (r *permissionRepository) FindByCode(ctx context.Context, code string) (*mo
 }
 
 func (r *permissionRepository) List(ctx context.Context) ([]models.Permission, error) {
+	r.cacheMutex.RLock()
+	if r.cachedList != nil && time.Now().Before(r.cachedListExpiry) {
+		defer r.cacheMutex.RUnlock()
+		return r.cachedList, nil
+	}
+	r.cacheMutex.RUnlock()
+
+	r.cacheMutex.Lock()
+	defer r.cacheMutex.Unlock()
+
+	if r.cachedList != nil && time.Now().Before(r.cachedListExpiry) {
+		return r.cachedList, nil
+	}
+
 	var permissions []models.Permission
 	err := r.db.WithContext(ctx).
 		Preload("Menu").
@@ -72,6 +126,10 @@ func (r *permissionRepository) List(ctx context.Context) ([]models.Permission, e
 	if err != nil {
 		return nil, err
 	}
+
+	r.cachedList = permissions
+	r.cachedListExpiry = time.Now().Add(5 * time.Minute)
+
 	return permissions, nil
 }
 
@@ -114,16 +172,19 @@ func (r *permissionRepository) GetUserPermissions(ctx context.Context, userID st
 	// Check if user is admin - admin has ALL permissions
 	isAdmin := roleCode == "admin"
 
+	// Fetch all permissions once from cache (or fresh from DB if expired)
+	allPermissions, err := r.getAllRawPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create a map of permission IDs for quick lookup
 	permissionMap := make(map[string]bool)
 
 	if isAdmin {
-		// Admin: Get ALL permissions and set them all to TRUE
-		var allPermissions []models.Permission
-		if err := r.db.WithContext(ctx).Find(&allPermissions).Error; err == nil {
-			for _, p := range allPermissions {
-				permissionMap[p.ID] = true
-			}
+		// Admin: Use the preloaded/cached allPermissions and set them all to TRUE
+		for _, p := range allPermissions {
+			permissionMap[p.ID] = true
 		}
 	} else {
 		// Non-admin: Get permissions for the role
@@ -154,23 +215,29 @@ func (r *permissionRepository) GetUserPermissions(ctx context.Context, userID st
 		return nil, err
 	}
 
+	permissionsByMenu := make(map[string][]models.Permission)
+	for _, p := range allPermissions {
+		if p.MenuID != nil {
+			permissionsByMenu[*p.MenuID] = append(permissionsByMenu[*p.MenuID], p)
+		}
+	}
+
 	// Build hierarchical response
 	result := &dto.GetUserPermissionsResponse{
 		Menus: make([]dto.MenuWithActionsResponse, 0),
 	}
 
 	for _, menu := range menus {
-		menuResp := r.buildMenuWithActions(menu, permissionMap, isAdmin)
+		menuResp := r.buildMenuWithActions(menu, permissionMap, isAdmin, permissionsByMenu)
 		result.Menus = append(result.Menus, *menuResp)
 	}
 
 	return result, nil
 }
 
-func (r *permissionRepository) buildMenuWithActions(menu models.Menu, permissionMap map[string]bool, isAdmin bool) *dto.MenuWithActionsResponse {
-	// Get permissions for this menu
-	var menuPermissions []models.Permission
-	r.db.Where("menu_id = ?", menu.ID).Find(&menuPermissions)
+func (r *permissionRepository) buildMenuWithActions(menu models.Menu, permissionMap map[string]bool, isAdmin bool, permissionsByMenu map[string][]models.Permission) *dto.MenuWithActionsResponse {
+	// Get permissions for this menu from memory map
+	menuPermissions := permissionsByMenu[menu.ID]
 
 	// Build actions
 	actions := make([]dto.ActionResponse, 0)
@@ -199,7 +266,7 @@ func (r *permissionRepository) buildMenuWithActions(menu models.Menu, permission
 	// Recursively build children
 	if len(menu.Children) > 0 {
 		for _, child := range menu.Children {
-			childResp := r.buildMenuWithActions(child, permissionMap, isAdmin)
+			childResp := r.buildMenuWithActions(child, permissionMap, isAdmin, permissionsByMenu)
 			menuResp.Children = append(menuResp.Children, *childResp)
 		}
 	}
@@ -232,15 +299,27 @@ func (r *permissionRepository) ListPaginated(ctx context.Context, page, limit in
 }
 
 func (r *permissionRepository) Create(ctx context.Context, p *models.Permission) error {
-	return r.db.WithContext(ctx).Create(p).Error
+	err := r.db.WithContext(ctx).Create(p).Error
+	if err == nil {
+		r.clearCache()
+	}
+	return err
 }
 
 func (r *permissionRepository) Update(ctx context.Context, p *models.Permission) error {
-	return r.db.WithContext(ctx).Save(p).Error
+	err := r.db.WithContext(ctx).Save(p).Error
+	if err == nil {
+		r.clearCache()
+	}
+	return err
 }
 
 func (r *permissionRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where(whereID, id).Delete(&models.Permission{}).Error
+	err := r.db.WithContext(ctx).Where(whereID, id).Delete(&models.Permission{}).Error
+	if err == nil {
+		r.clearCache()
+	}
+	return err
 }
 
 func (r *permissionRepository) GetRootMenusWithChildren(ctx context.Context) ([]models.Menu, error) {

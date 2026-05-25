@@ -2,22 +2,25 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	redisClient "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 // ScopeContext holds resolved user context for data-level authorization
 type ScopeContext struct {
-	UserID       string
-	EmployeeID   string
-	DivisionID   string
-	AreaIDs      []string
-	WarehouseIDs []string
-	OutletIDs    []string
+	UserID       string   `json:"user_id"`
+	EmployeeID   string   `json:"employee_id"`
+	DivisionID   string   `json:"division_id"`
+	AreaIDs      []string `json:"area_ids"`
+	WarehouseIDs []string `json:"warehouse_ids"`
+	OutletIDs    []string `json:"outlet_ids"`
 }
 
 // GetScopeContext extracts the ScopeContext from Gin context
@@ -47,12 +50,31 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Admin also gets their employee data resolved, but their scoping checks
-		// are bypassed downstream in permission.go. We just need their ID.
-
 		// Resolve employee data for the current user
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
+
+		cacheKey := fmt.Sprintf("scope:%s", userIDStr)
+		rdb := redisClient.GetClient()
+		if rdb != nil {
+			if val, err := rdb.Get(ctx, cacheKey).Result(); err == nil {
+				var sc ScopeContext
+				if err := json.Unmarshal([]byte(val), &sc); err == nil {
+					log.Printf("[scope] cache hit for user_id=%s", userIDStr)
+					c.Set("scope_context", &sc)
+					reqCtx := c.Request.Context()
+					reqCtx = context.WithValue(reqCtx, "scope_user_id", sc.UserID)
+					reqCtx = context.WithValue(reqCtx, "scope_employee_id", sc.EmployeeID)
+					reqCtx = context.WithValue(reqCtx, "scope_division_id", sc.DivisionID)
+					reqCtx = context.WithValue(reqCtx, "scope_outlet_ids", sc.OutletIDs)
+					reqCtx = context.WithValue(reqCtx, "scope_area_ids", sc.AreaIDs)
+					reqCtx = context.WithValue(reqCtx, "scope_warehouse_ids", sc.WarehouseIDs)
+					c.Request = c.Request.WithContext(reqCtx)
+					c.Next()
+					return
+				}
+			}
+		}
 
 		type employeeRow struct {
 			ID         string
@@ -103,7 +125,6 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 				sc.WarehouseIDs = warehouseIDs
 			}
 
-
 			log.Printf(
 				"[scope] resolved user_id=%s employee_id=%s division_id=%s area_ids=%d outlet_ids=%d warehouse_ids=%d",
 				userIDStr,
@@ -122,6 +143,13 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 		// If employee not found, user has no employee profile — scope stays minimal
 		if err == gorm.ErrRecordNotFound {
 			log.Printf("[scope] no-employee user_id=%s", userIDStr)
+		}
+
+		// Cache resolved scope context
+		if rdb != nil {
+			if val, err := json.Marshal(sc); err == nil {
+				_ = rdb.Set(ctx, cacheKey, val, 1*time.Minute).Err()
+			}
 		}
 
 		c.Set("scope_context", sc)

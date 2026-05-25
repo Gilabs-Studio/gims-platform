@@ -57,9 +57,9 @@ func (r *employeeRepository) Create(ctx context.Context, employee *models.Employ
 func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.Employee, error) {
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		Preload("Village.District.City.Province").
 		Preload("User").
 		Preload("ReplacementFor").
@@ -76,9 +76,9 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.Employee, error) {
 	var employees []models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		Where("id IN ?", ids).
 		Find(&employees).Error
 	if err != nil {
@@ -90,9 +90,9 @@ func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]mod
 func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*models.Employee, error) {
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		First(&employee, "employee_code = ?", code).Error
 	if err != nil {
 		return nil, err
@@ -103,9 +103,9 @@ func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*mode
 func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*models.Employee, error) {
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		First(&employee, "user_id = ?", userID).Error
 	if err != nil {
 		return nil, err
@@ -206,9 +206,9 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 
 	// Preload relations
 	err := query.
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		Preload("Areas.Area").
 		Find(&employees).Error
 	if err != nil {
