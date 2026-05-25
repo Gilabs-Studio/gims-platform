@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"gorm.io/gorm"
@@ -89,12 +90,57 @@ func setTenantOnCreate(tx *gorm.DB) {
 	tx.Statement.SetColumn("tenant_id", tenantID, true)
 }
 
+func hasTenantIDCondition(tx *gorm.DB) bool {
+	if tx.Statement == nil {
+		return false
+	}
+	whereClause, ok := tx.Statement.Clauses["WHERE"]
+	if !ok {
+		return false
+	}
+	w, ok := whereClause.Expression.(clause.Where)
+	if !ok {
+		return false
+	}
+
+	for _, expr := range w.Exprs {
+		switch e := expr.(type) {
+		case clause.Eq:
+			col, ok := e.Column.(clause.Column)
+			if ok && (col.Name == "tenant_id" || col.Name == "TenantID") {
+				return true
+			}
+			colStr, ok := e.Column.(string)
+			if ok && (colStr == "tenant_id" || colStr == "TenantID") {
+				return true
+			}
+		case clause.Expr:
+			if containsTenantID(e.SQL) {
+				return true
+			}
+		case clause.NamedExpr:
+			if containsTenantID(e.SQL) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func containsTenantID(sql string) bool {
+	lower := strings.ToLower(sql)
+	return strings.Contains(lower, "tenant_id")
+}
+
 func scopeTenantStatement(tx *gorm.DB) {
 	tenantID, ok := tenantFromStatement(tx)
 	if !ok {
 		return
 	}
 	if !statementHasTenantColumn(tx) {
+		return
+	}
+	if hasTenantIDCondition(tx) {
 		return
 	}
 

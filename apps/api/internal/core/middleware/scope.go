@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/errors"
 	redisClient "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +23,8 @@ type ScopeContext struct {
 	WarehouseIDs []string `json:"warehouse_ids"`
 	OutletIDs    []string `json:"outlet_ids"`
 }
+
+var scopeSingleFlightGroup singleflight.Group
 
 // GetScopeContext extracts the ScopeContext from Gin context
 func GetScopeContext(c *gin.Context) *ScopeContext {
@@ -50,14 +53,14 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Resolve employee data for the current user
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-		defer cancel()
-
+		// Try cache first
 		cacheKey := fmt.Sprintf("scope:%s", userIDStr)
 		rdb := redisClient.GetClient()
 		if rdb != nil {
-			if val, err := rdb.Get(ctx, cacheKey).Result(); err == nil {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+			val, err := rdb.Get(ctx, cacheKey).Result()
+			cancel()
+			if err == nil {
 				var sc ScopeContext
 				if err := json.Unmarshal([]byte(val), &sc); err == nil {
 					log.Printf("[scope] cache hit for user_id=%s", userIDStr)
@@ -76,82 +79,93 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		type employeeRow struct {
-			ID         string
-			DivisionID *string
-		}
-		var emp employeeRow
-		err := db.WithContext(ctx).
-			Table("employees").
-			Select("id, division_id").
-			Where("user_id = ? AND deleted_at IS NULL", userIDStr).
-			First(&emp).Error
+		// Cache miss: singleflight groups duplicate requests into one function call
+		scVal, err, _ := scopeSingleFlightGroup.Do(userIDStr, func() (interface{}, error) {
+			dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-		sc := &ScopeContext{
-			UserID: userIDStr,
-		}
+			type employeeRow struct {
+				ID         string
+				DivisionID *string
+			}
+			var emp employeeRow
+			err := db.WithContext(dbCtx).
+				Table("employees").
+				Select("id, division_id").
+				Where("user_id = ? AND deleted_at IS NULL", userIDStr).
+				First(&emp).Error
 
-		if err == nil {
-			sc.EmployeeID = emp.ID
-			if emp.DivisionID != nil {
-				sc.DivisionID = *emp.DivisionID
+			sc := &ScopeContext{
+				UserID: userIDStr,
 			}
 
-			// Resolve area IDs from employee_areas
-			var areaIDs []string
-			if err := db.WithContext(ctx).
-				Table("employee_areas").
-				Where("employee_id = ?", emp.ID).
-				Pluck("area_id", &areaIDs).Error; err == nil {
-				sc.AreaIDs = areaIDs
+			if err == nil {
+				sc.EmployeeID = emp.ID
+				if emp.DivisionID != nil {
+					sc.DivisionID = *emp.DivisionID
+				}
+
+				// Resolve area IDs from employee_areas
+				var areaIDs []string
+				if err := db.WithContext(dbCtx).
+					Table("employee_areas").
+					Where("employee_id = ?", emp.ID).
+					Pluck("area_id", &areaIDs).Error; err == nil {
+					sc.AreaIDs = areaIDs
+				}
+
+				// Resolve outlet IDs from employee_outlets
+				var outletIDs []string
+				if err := db.WithContext(dbCtx).
+					Table("employee_outlets").
+					Where("employee_id = ? AND deleted_at IS NULL", emp.ID).
+					Pluck("outlet_id", &outletIDs).Error; err == nil {
+					sc.OutletIDs = outletIDs
+				}
+
+				// Resolve warehouse IDs from employee_warehouses
+				var warehouseIDs []string
+				if err := db.WithContext(dbCtx).
+					Table("employee_warehouses").
+					Where("employee_id = ? AND deleted_at IS NULL", emp.ID).
+					Pluck("warehouse_id", &warehouseIDs).Error; err == nil {
+					sc.WarehouseIDs = warehouseIDs
+				}
+
+				log.Printf(
+					"[scope] resolved user_id=%s employee_id=%s division_id=%s area_ids=%d outlet_ids=%d warehouse_ids=%d",
+					userIDStr,
+					sc.EmployeeID,
+					sc.DivisionID,
+					len(sc.AreaIDs),
+					len(sc.OutletIDs),
+					len(sc.WarehouseIDs),
+				)
+			} else if err != gorm.ErrRecordNotFound {
+				return nil, err
 			}
 
-			// Resolve outlet IDs from employee_outlets (explicit employee->outlet assignments)
-			var outletIDs []string
-			if err := db.WithContext(ctx).
-				Table("employee_outlets").
-				Where("employee_id = ? AND deleted_at IS NULL", emp.ID).
-				Pluck("outlet_id", &outletIDs).Error; err == nil {
-				sc.OutletIDs = outletIDs
+			if err == gorm.ErrRecordNotFound {
+				log.Printf("[scope] no-employee user_id=%s", userIDStr)
 			}
 
-			// Resolve warehouse IDs from employee_warehouses so employee assignment
-			// drives POS/inventory scope consistently across the app.
-			var warehouseIDs []string
-			if err := db.WithContext(ctx).
-				Table("employee_warehouses").
-				Where("employee_id = ? AND deleted_at IS NULL", emp.ID).
-				Pluck("warehouse_id", &warehouseIDs).Error; err == nil {
-				sc.WarehouseIDs = warehouseIDs
+			// Cache resolved scope context
+			if rdb != nil {
+				if val, err := json.Marshal(sc); err == nil {
+					_ = rdb.Set(dbCtx, cacheKey, val, 1*time.Minute).Err()
+				}
 			}
 
-			log.Printf(
-				"[scope] resolved user_id=%s employee_id=%s division_id=%s area_ids=%d outlet_ids=%d warehouse_ids=%d",
-				userIDStr,
-				sc.EmployeeID,
-				sc.DivisionID,
-				len(sc.AreaIDs),
-				len(sc.OutletIDs),
-				len(sc.WarehouseIDs),
-			)
-		} else if err != gorm.ErrRecordNotFound {
-			// Non-404 errors should fail gracefully — log but don't die
+			return sc, nil
+		})
+
+		if err != nil {
 			errors.InternalServerErrorResponse(c, "failed to resolve user scope")
 			c.Abort()
 			return
 		}
-		// If employee not found, user has no employee profile — scope stays minimal
-		if err == gorm.ErrRecordNotFound {
-			log.Printf("[scope] no-employee user_id=%s", userIDStr)
-		}
 
-		// Cache resolved scope context
-		if rdb != nil {
-			if val, err := json.Marshal(sc); err == nil {
-				_ = rdb.Set(ctx, cacheKey, val, 1*time.Minute).Err()
-			}
-		}
-
+		sc := scVal.(*ScopeContext)
 		c.Set("scope_context", sc)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "scope_user_id", sc.UserID)

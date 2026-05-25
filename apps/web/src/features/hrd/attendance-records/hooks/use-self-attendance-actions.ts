@@ -58,10 +58,10 @@ function formatTime(value: string | null | undefined, date?: string): string {
   return formatAttendanceTime(value, date, getUserTimezone());
 }
 
-export function useSelfAttendanceActions() {
+export function useSelfAttendanceActions(options?: { enabled?: boolean }) {
   const t = useTranslations("hrd.attendance");
 
-  const { data: todayData, isLoading } = useTodayAttendance();
+  const { data: todayData, isLoading } = useTodayAttendance(options);
   const clockInMutation = useClockIn();
   const clockOutMutation = useClockOut();
   const { isDenied, isPrompt, requestPermission, requestPermissionOrFallback } =

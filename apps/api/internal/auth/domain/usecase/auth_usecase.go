@@ -290,7 +290,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		tenantID := user.TenantID
 		var tenantName string
 		if tenantID != "" {
-			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
+			u.db.Table("tenants").Select("name").Where("id = ? AND deleted_at IS NULL", tenantID).Row().Scan(&tenantName)
 		}
 
 		// Convert to auth response format

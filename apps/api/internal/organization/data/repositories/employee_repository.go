@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/requestcache"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -55,6 +56,18 @@ func (r *employeeRepository) Create(ctx context.Context, employee *models.Employ
 }
 
 func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.Employee, error) {
+	if cache := requestcache.Get(ctx); cache != nil {
+		cacheKey := "employee:id:" + id
+		if val, ok := cache.Get(cacheKey); ok {
+			if emp, ok := val.(*models.Employee); ok {
+				return emp, nil
+			}
+			if err, ok := val.(error); ok {
+				return nil, err
+			}
+		}
+	}
+
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
 		Joins("Division").
@@ -66,9 +79,16 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 		Preload("Areas.Area").
 		Preload("Outlets.Outlet").
 		Preload("Warehouses.Warehouse").
-		First(&employee, "id = ?", id).Error
+		First(&employee, "employees.id = ?", id).Error
 	if err != nil {
+		if cache := requestcache.Get(ctx); cache != nil {
+			cache.Set("employee:id:"+id, err)
+		}
 		return nil, err
+	}
+
+	if cache := requestcache.Get(ctx); cache != nil {
+		cache.Set("employee:id:"+id, &employee)
 	}
 	return &employee, nil
 }
@@ -79,7 +99,7 @@ func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]mod
 		Joins("Division").
 		Joins("JobPosition").
 		Joins("Company").
-		Where("id IN ?", ids).
+		Where("employees.id IN ?", ids).
 		Find(&employees).Error
 	if err != nil {
 		return nil, err
@@ -93,7 +113,7 @@ func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*mode
 		Joins("Division").
 		Joins("JobPosition").
 		Joins("Company").
-		First(&employee, "employee_code = ?", code).Error
+		First(&employee, "employees.employee_code = ?", code).Error
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +121,33 @@ func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*mode
 }
 
 func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*models.Employee, error) {
+	if cache := requestcache.Get(ctx); cache != nil {
+		cacheKey := "employee:user_id:" + userID
+		if val, ok := cache.Get(cacheKey); ok {
+			if emp, ok := val.(*models.Employee); ok {
+				return emp, nil
+			}
+			if err, ok := val.(error); ok {
+				return nil, err
+			}
+		}
+	}
+
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
 		Joins("Division").
 		Joins("JobPosition").
 		Joins("Company").
-		First(&employee, "user_id = ?", userID).Error
+		First(&employee, "employees.user_id = ?", userID).Error
 	if err != nil {
+		if cache := requestcache.Get(ctx); cache != nil {
+			cache.Set("employee:user_id:"+userID, err)
+		}
 		return nil, err
+	}
+
+	if cache := requestcache.Get(ctx); cache != nil {
+		cache.Set("employee:user_id:"+userID, &employee)
 	}
 	return &employee, nil
 }

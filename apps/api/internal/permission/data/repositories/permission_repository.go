@@ -31,6 +31,8 @@ type permissionRepository struct {
 	cachedListExpiry    time.Time
 	cachedRawList       []models.Permission
 	cachedRawListExpiry time.Time
+	cachedMenus         []models.Menu
+	cachedMenusExpiry   time.Time
 }
 
 const (
@@ -48,6 +50,7 @@ func (r *permissionRepository) clearCache() {
 	defer r.cacheMutex.Unlock()
 	r.cachedList = nil
 	r.cachedRawList = nil
+	r.cachedMenus = nil
 }
 
 func (r *permissionRepository) getAllRawPermissions(ctx context.Context) ([]models.Permission, error) {
@@ -70,10 +73,45 @@ func (r *permissionRepository) getAllRawPermissions(ctx context.Context) ([]mode
 		return nil, err
 	}
 
-	r.cachedRawList = permissions
-	r.cachedRawListExpiry = time.Now().Add(5 * time.Minute)
-
 	return permissions, nil
+}
+
+func (r *permissionRepository) getHierarchicalMenus(ctx context.Context) ([]models.Menu, error) {
+	r.cacheMutex.RLock()
+	if r.cachedMenus != nil && time.Now().Before(r.cachedMenusExpiry) {
+		defer r.cacheMutex.RUnlock()
+		return r.cachedMenus, nil
+	}
+	r.cacheMutex.RUnlock()
+
+	r.cacheMutex.Lock()
+	defer r.cacheMutex.Unlock()
+
+	if r.cachedMenus != nil && time.Now().Before(r.cachedMenusExpiry) {
+		return r.cachedMenus, nil
+	}
+
+	var menus []models.Menu
+	err := r.db.WithContext(ctx).Where("parent_id IS NULL").
+		Preload("Children", func(db *gorm.DB) *gorm.DB {
+			return db.Order(orderAsc)
+		}).
+		Preload("Children.Children", func(db *gorm.DB) *gorm.DB {
+			return db.Order(orderAsc)
+		}).
+		Preload("Children.Children.Children", func(db *gorm.DB) *gorm.DB {
+			return db.Order(orderAsc)
+		}).
+		Order(orderAsc).
+		Find(&menus).Error
+	if err != nil {
+		return nil, err
+	}
+
+	r.cachedMenus = menus
+	r.cachedMenusExpiry = time.Now().Add(5 * time.Minute)
+
+	return menus, nil
 }
 
 func (r *permissionRepository) FindByID(ctx context.Context, id string) (*models.Permission, error) {
@@ -197,20 +235,8 @@ func (r *permissionRepository) GetUserPermissions(ctx context.Context, userID st
 		}
 	}
 
-	// Get all menus with hierarchy (recursive preload)
-	var menus []models.Menu
-	err = r.db.WithContext(ctx).Where("parent_id IS NULL").
-		Preload("Children", func(db *gorm.DB) *gorm.DB {
-			return db.Order(orderAsc)
-		}).
-		Preload("Children.Children", func(db *gorm.DB) *gorm.DB {
-			return db.Order(orderAsc)
-		}).
-		Preload("Children.Children.Children", func(db *gorm.DB) *gorm.DB {
-			return db.Order(orderAsc)
-		}).
-		Order(orderAsc).
-		Find(&menus).Error
+	// Get all menus with hierarchy (recursive preload, cached)
+	menus, err := r.getHierarchicalMenus(ctx)
 	if err != nil {
 		return nil, err
 	}
