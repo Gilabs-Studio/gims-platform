@@ -166,9 +166,9 @@ func (h *FloorPlanHandler) List(c *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	if perPage > 100 {
-		perPage = 100
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if perPage > 10 {
+		perPage = 10
 	}
 	if page < 1 {
 		page = 1

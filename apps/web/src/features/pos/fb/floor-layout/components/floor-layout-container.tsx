@@ -25,7 +25,8 @@ export function FloorLayoutContainer() {
   // Fetch user's assigned outlets
   const { data: outletsData, isLoading: outletsLoading } = useOutlets({ 
     is_active: true, 
-    per_page: 50 
+    per_page: 50,
+    skip_preload: true
   });
   const assignedOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
   const companyId = useMemo(() => {
@@ -44,8 +45,8 @@ export function FloorLayoutContainer() {
   // For multiple companies or no company, fetch all layouts user can access
   const { data: layoutsData, isLoading: layoutsLoading, refetch: refetchLayouts } = useFloorLayouts(
     companyId 
-      ? { per_page: 100, company_id: companyId }
-      : { per_page: 100 },
+      ? { per_page: 10, company_id: companyId }
+      : { per_page: 10 },
     { 
       // Enable when outlets are loaded and (company is defined OR we have multiple outlets)
       enabled: assignedOutlets.length > 0 && (companyId !== undefined || assignedOutlets.length > 1)
@@ -169,7 +170,7 @@ export function FloorLayoutContainer() {
   return (
     <>
       <PageMotion>
-        <FloorLayoutList onOpenEditor={handleOpenEditor} companyId={companyId} />
+        <FloorLayoutList onOpenEditor={handleOpenEditor} companyId={companyId} outlets={assignedOutlets} />
       </PageMotion>
 
       {/* Create floor plan dialog for single outlet flow */}

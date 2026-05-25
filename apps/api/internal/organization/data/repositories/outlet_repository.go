@@ -41,6 +41,7 @@ type OutletListParams struct {
 	CompanyID   string
 	WarehouseID string // Optional: filter outlets belonging to a specific warehouse
 	UserID      string // Optional: if set, filter by user-warehouse permissions (RBAC)
+	SkipPreload bool   // Optional: skip preloading relations for efficiency
 }
 
 type outletRepository struct {
@@ -169,13 +170,15 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	}
 
 	// Preload relations
-	query = query.
-		Preload("Province").
-		Preload("City").
-		Preload("District").
-		Preload("Village.District.City.Province").
-		Preload("Manager").
-		Preload("Company")
+	if !params.SkipPreload {
+		query = query.
+			Preload("Province").
+			Preload("City").
+			Preload("District").
+			Preload("Village.District.City.Province").
+			Preload("Manager").
+			Preload("Company")
+	}
 
 	if err := query.Find(&outlets).Error; err != nil {
 		return nil, 0, err
