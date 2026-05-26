@@ -2,11 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter, usePathname } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
 const ROLE_VALIDATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -18,7 +17,6 @@ const ROLE_VALIDATION_CACHE_TTL_MS = 5 * 60 * 1000;
  */
 export function useValidateRole() {
   const router = useRouter();
-  const pathname = usePathname();
   const { user } = useAuthStore();
   const t = useTranslations("auth");
   const lastValidatedRef = useRef<boolean | null>(null); // null = not yet validated, true = was valid, false = was invalid
@@ -93,21 +91,14 @@ export function useValidateRole() {
         }
       );
 
-      const locale = getLocaleFromPathname(pathname);
-      const blockPath = `/${locale}/block`;
-
-      if (typeof window !== "undefined") {
-        window.location.href = blockPath;
-      } else {
-        router.replace(blockPath);
-      }
+      router.replace("/block");
       return;
     }
 
     if (permissionsData) {
       lastValidatedRef.current = true;
     }
-  }, [permissionsData, isAuthError, pathname, router, t, user?.role]);
+  }, [permissionsData, isAuthError, router, t, user?.role]);
 
   // Return isValid: false only if we have an explicit auth error
   const isValid = !isAuthError;

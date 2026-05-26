@@ -189,7 +189,12 @@ func clearAuthCookies(c *gin.Context) {
 
 	requestHost := c.Request.Host
 
-	for _, name := range []string{"gims_access_token", "gims_refresh_token", "gims_csrf_token"} {
+	// Only clear auth tokens (access + refresh). The CSRF cookie is managed by
+	// the CSRF middleware and must NOT be cleared during token rotation, otherwise
+	// the CSRF middleware regenerates a brand-new token on the very next request.
+	// The browser then sees a Set-Cookie mutation on every navigation, causing a
+	// hard page reload. CSRF cookie is only cleared on explicit logout via clearCSRFCookie.
+	for _, name := range []string{"gims_access_token", "gims_refresh_token"} {
 		for _, domain := range domains {
 			// Skip domain if it's invalid for the current request host to avoid browser rejection
 			if !isCookieDomainValid(requestHost, domain) {
@@ -204,7 +209,7 @@ func clearAuthCookies(c *gin.Context) {
 					MaxAge:   -1,
 					Domain:   domain,
 					Secure:   true, // Statically true for security checkers
-					HttpOnly: name != "gims_csrf_token",
+					HttpOnly: true,
 					SameSite: sameSite,
 				}
 
@@ -215,6 +220,39 @@ func clearAuthCookies(c *gin.Context) {
 
 				http.SetCookie(c.Writer, cookie)
 			}
+		}
+	}
+}
+
+// clearCSRFCookie clears the CSRF cookie. Should only be called on explicit logout,
+// NOT during token rotation, to avoid the CSRF middleware regenerating a new token
+// (which would cause the browser to observe a cookie mutation and trigger a page reload).
+func clearCSRFCookie(c *gin.Context) {
+	paths := []string{"/"}
+	domains := []string{""}
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		domains = append(domains, config.AppConfig.Server.RootDomain)
+	}
+
+	secure, sameSite := getCookieSecureAndSameSite(c)
+	requestHost := c.Request.Host
+
+	for _, domain := range domains {
+		if !isCookieDomainValid(requestHost, domain) {
+			continue
+		}
+		for _, p := range paths {
+			cookie := &http.Cookie{
+				Name:     "gims_csrf_token",
+				Value:    "",
+				Path:     p,
+				MaxAge:   -1,
+				Domain:   domain,
+				Secure:   secure,
+				HttpOnly: false,
+				SameSite: sameSite,
+			}
+			http.SetCookie(c.Writer, cookie)
 		}
 	}
 }
@@ -375,6 +413,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 			// Unknown refresh errors are treated as invalid to avoid leaking details.
 			clearAuthCookies(c)
+			clearCSRFCookie(c)
 			errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 			return
 		}
@@ -412,11 +451,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	if lastInvalidErr != nil {
 		clearAuthCookies(c)
+		clearCSRFCookie(c)
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
 	}
 
 	clearAuthCookies(c)
+	clearCSRFCookie(c)
 	errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 }
 
@@ -452,8 +493,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		_ = h.authUC.Logout(c.Request.Context(), token)
 	}
 
-	// ALWAYS Clear Cookies on Logout
+	// ALWAYS Clear Cookies on Logout — including the CSRF cookie since the session is terminated.
 	clearAuthCookies(c)
+	clearCSRFCookie(c)
 
 	response.SuccessResponse(c, gin.H{"message": "logged out"}, nil)
 }

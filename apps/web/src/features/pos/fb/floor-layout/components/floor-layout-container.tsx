@@ -7,7 +7,7 @@ import { ArrowLeftIcon, Store, ShieldOff } from "lucide-react";
 import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
-import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
 import { Link } from "@/i18n/routing";
 import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
@@ -23,11 +23,7 @@ export function FloorLayoutContainer() {
   const hasAutoNavigated = useRef(false);
 
   // Fetch user's assigned outlets
-  const { data: outletsData, isLoading: outletsLoading } = useOutlets({ 
-    is_active: true, 
-    per_page: 50,
-    skip_preload: true
-  });
+  const { data: outletsData, isLoading: outletsLoading } = usePOSOutlets();
   const assignedOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
   const companyId = useMemo(() => {
     const uniqueCompanyIDs = Array.from(
