@@ -326,10 +326,9 @@ func (u *posOrderUsecase) Confirm(ctx context.Context, id string, req *dto.Confi
 	if err != nil {
 		return nil, err
 	}
-	for _, item := range items {
-		if err := u.checkStockAvailability(ctx, item.ProductID, warehouseID, item.Quantity); err != nil {
-			return nil, err
-		}
+	// Use a single batched inventory query instead of one query per item.
+	if err := u.checkStockAvailabilityBatch(ctx, items, warehouseID); err != nil {
+		return nil, err
 	}
 
 	order.Status = posModels.PosOrderStatusInProgress
@@ -396,10 +395,11 @@ func (u *posOrderUsecase) AddItem(ctx context.Context, orderID string, req *dto.
 			if err := u.orderRepo.UpdateItem(ctx, existing); err != nil {
 				return nil, err
 			}
-			if err := u.recalculateAndSave(ctx, order); err != nil {
+			// Recalculate using already-loaded items (avoids re-fetch).
+			if err := u.recalculateAndSaveInMemory(ctx, order, order.Items); err != nil {
 				return nil, err
 			}
-			return u.fetchOrderResponse(ctx, orderID)
+			return mapper.ToPOSOrderResponse(order), nil
 		}
 	}
 
@@ -417,10 +417,12 @@ func (u *posOrderUsecase) AddItem(ctx context.Context, orderID string, req *dto.
 	if err := u.orderRepo.AddItem(ctx, item); err != nil {
 		return nil, err
 	}
-	if err := u.recalculateAndSave(ctx, order); err != nil {
+	// Append new item to in-memory slice for recalculation without re-fetching.
+	order.Items = append(order.Items, *item)
+	if err := u.recalculateAndSaveInMemory(ctx, order, order.Items); err != nil {
 		return nil, err
 	}
-	return u.fetchOrderResponse(ctx, orderID)
+	return mapper.ToPOSOrderResponse(order), nil
 }
 
 // ─── UpdateItem ──────────────────────────────────────────────────────────────
@@ -454,10 +456,11 @@ func (u *posOrderUsecase) UpdateItem(ctx context.Context, orderID, itemID string
 	if err := u.orderRepo.UpdateItem(ctx, target); err != nil {
 		return nil, err
 	}
-	if err := u.recalculateAndSave(ctx, order); err != nil {
+	// Recalculate in-memory (items already up-to-date via pointer mutation above).
+	if err := u.recalculateAndSaveInMemory(ctx, order, order.Items); err != nil {
 		return nil, err
 	}
-	return u.fetchOrderResponse(ctx, orderID)
+	return mapper.ToPOSOrderResponse(order), nil
 }
 
 // ─── RemoveItem ──────────────────────────────────────────────────────────────
@@ -476,10 +479,18 @@ func (u *posOrderUsecase) RemoveItem(ctx context.Context, orderID, itemID string
 	if err := u.orderRepo.DeleteItem(ctx, itemID); err != nil {
 		return nil, err
 	}
-	if err := u.recalculateAndSave(ctx, order); err != nil {
+	// Remove from in-memory slice to avoid re-fetch.
+	updatedItems := make([]posModels.PosOrderItem, 0, len(order.Items))
+	for _, it := range order.Items {
+		if it.ID != itemID {
+			updatedItems = append(updatedItems, it)
+		}
+	}
+	order.Items = updatedItems
+	if err := u.recalculateAndSaveInMemory(ctx, order, order.Items); err != nil {
 		return nil, err
 	}
-	return u.fetchOrderResponse(ctx, orderID)
+	return mapper.ToPOSOrderResponse(order), nil
 }
 
 // ─── GetCatalog ──────────────────────────────────────────────────────────────
@@ -595,11 +606,19 @@ func (u *posOrderUsecase) DeductStock(ctx context.Context, order *posModels.PosO
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
 
+// recalculateAndSave fetches items from DB then updates order totals.
+// Prefer recalculateAndSaveInMemory when items are already loaded.
 func (u *posOrderUsecase) recalculateAndSave(ctx context.Context, order *posModels.PosOrder) error {
 	items, err := u.orderRepo.GetItems(ctx, order.ID)
 	if err != nil {
 		return err
 	}
+	return u.recalculateAndSaveInMemory(ctx, order, items)
+}
+
+// recalculateAndSaveInMemory recomputes order totals from the provided item slice
+// (already in memory) and persists the order — avoiding an extra GetItems DB round-trip.
+func (u *posOrderUsecase) recalculateAndSaveInMemory(ctx context.Context, order *posModels.PosOrder, items []posModels.PosOrderItem) error {
 	var subtotal float64
 	for _, item := range items {
 		subtotal += item.Subtotal
@@ -684,6 +703,68 @@ func (u *posOrderUsecase) checkStockAvailability(ctx context.Context, productID,
 		Scan(&available)
 	if available < qty {
 		return ErrPOSInsufficientStock
+	}
+	return nil
+}
+
+// checkStockAvailabilityBatch validates stock for multiple items in a single aggregated query.
+// It skips SERVICE and RECIPE products (no inventory tracked).
+func (u *posOrderUsecase) checkStockAvailabilityBatch(ctx context.Context, items []posModels.PosOrderItem, warehouseID string) error {
+	if len(items) == 0 || warehouseID == "" {
+		return nil
+	}
+
+	// Collect product IDs that actually need stock check.
+	type stockItem struct {
+		productID string
+		qty       float64
+		kind      string
+	}
+	stockItems := make([]stockItem, 0, len(items))
+	productIDs := make([]string, 0, len(items))
+
+	for _, item := range items {
+		product, err := u.productRepo.FindByID(ctx, item.ProductID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSProductNotAvailable
+			}
+			return err
+		}
+		if product.ProductKind != productModels.ProductKindService &&
+			product.ProductKind != productModels.ProductKindRecipe {
+			stockItems = append(stockItems, stockItem{productID: item.ProductID, qty: item.Quantity, kind: string(product.ProductKind)})
+			productIDs = append(productIDs, item.ProductID)
+		}
+	}
+
+	if len(productIDs) == 0 {
+		return nil
+	}
+
+	// Single batched query for all product stock levels.
+	type stockRow struct {
+		ProductID string
+		Available float64
+	}
+	var rows []stockRow
+	u.db.WithContext(ctx).
+		Table("inventory_batches").
+		Select("product_id, COALESCE(SUM(current_quantity - reserved_quantity), 0) AS available").
+		Where("product_id IN ? AND warehouse_id = ? AND deleted_at IS NULL", productIDs, warehouseID).
+		Group("product_id").
+		Scan(&rows)
+
+	// Build a lookup map.
+	availMap := make(map[string]float64, len(rows))
+	for _, r := range rows {
+		availMap[r.ProductID] = r.Available
+	}
+
+	for _, si := range stockItems {
+		if availMap[si.productID] < si.qty {
+			return ErrPOSInsufficientStock
+		}
 	}
 	return nil
 }
@@ -828,13 +909,9 @@ func (u *posOrderUsecase) MarkItemServed(ctx context.Context, orderID, itemID st
 		return nil, err
 	}
 
-	// Re-fetch all items to compute new order status.
-	items, err := u.orderRepo.GetItems(ctx, orderID)
-	if err != nil {
-		return nil, err
-	}
+	// Determine new order status from in-memory slice (target already mutated via pointer).
 	allServed := true
-	for _, item := range items {
+	for _, item := range order.Items {
 		if item.Status != posModels.PosItemStatusServed {
 			allServed = false
 			break
@@ -848,11 +925,9 @@ func (u *posOrderUsecase) MarkItemServed(ctx context.Context, orderID, itemID st
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
-	resp, err := u.fetchOrderResponse(ctx, orderID)
-	if err == nil {
-		u.publishOrderStatus(ctx, resp, "")
-	}
-	return resp, err
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
 }
 
 // MarkCompleted transitions a SERVED order to COMPLETED after the session is fully closed.
