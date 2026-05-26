@@ -226,6 +226,98 @@ func (_m *PermissionRepository) List(ctx context.Context) ([]models.Permission, 
 	return r0, r1
 }
 
+// Create provides a mock function with given fields: ctx, p
+func (_m *PermissionRepository) Create(ctx context.Context, p *models.Permission) error {
+	ret := _m.Called(ctx, p)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Create")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.Permission) error); ok {
+		r0 = rf(ctx, p)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Update provides a mock function with given fields: ctx, p
+func (_m *PermissionRepository) Update(ctx context.Context, p *models.Permission) error {
+	ret := _m.Called(ctx, p)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.Permission) error); ok {
+		r0 = rf(ctx, p)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Delete provides a mock function with given fields: ctx, id
+func (_m *PermissionRepository) Delete(ctx context.Context, id string) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ListPaginated provides a mock function with given fields: ctx, page, limit, search
+func (_m *PermissionRepository) ListPaginated(ctx context.Context, page int, limit int, search string) ([]models.Permission, int64, error) {
+	ret := _m.Called(ctx, page, limit, search)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPaginated")
+	}
+
+	var r0 []models.Permission
+	var r1 int64
+	var r2 error
+
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) ([]models.Permission, int64, error)); ok {
+		return rf(ctx, page, limit, search)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) []models.Permission); ok {
+		r0 = rf(ctx, page, limit, search)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]models.Permission)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, string) int64); ok {
+		r1 = rf(ctx, page, limit, search)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, int, int, string) error); ok {
+		r2 = rf(ctx, page, limit, search)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // NewPermissionRepository creates a new instance of PermissionRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewPermissionRepository(t interface {

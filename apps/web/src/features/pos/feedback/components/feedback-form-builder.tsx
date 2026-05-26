@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
 
 import {
   useCopyFeedbackForm,
@@ -280,7 +280,7 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"visual" | "json">("visual");
 
-  const { data: outletsData } = useOutlets({ per_page: 100 });
+  const { data: outletsData } = usePOSOutlets();
   const outlets = outletsData?.data ?? [];
 
   const createMutation = useCreateFeedbackForm();
@@ -552,7 +552,7 @@ export function FeedbackFormBuilder() {
     page,
     per_page: 50,
   });
-  const { data: outletsData } = useOutlets({ per_page: 100 });
+  const { data: outletsData } = usePOSOutlets();
   const outlets = useMemo(() => outletsData?.data ?? [], [outletsData]);
 
   const deleteMutation = useDeleteFeedbackForm();

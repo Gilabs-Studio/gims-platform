@@ -22,7 +22,7 @@ var (
 type HolidayUsecase interface {
 	List(ctx context.Context, req *dto.ListHolidaysRequest) ([]dto.HolidayResponse, *utils.PaginationResult, error)
 	GetByID(ctx context.Context, id string) (*dto.HolidayResponse, error)
-	GetByYear(ctx context.Context, year int) ([]dto.HolidayResponse, error)
+	GetByYear(ctx context.Context, year int, month int) ([]dto.HolidayResponse, error)
 	GetCalendar(ctx context.Context, year int) (*dto.HolidayCalendarResponse, error)
 	Create(ctx context.Context, req *dto.CreateHolidayRequest) (*dto.HolidayResponse, error)
 	CreateBatch(ctx context.Context, holidays []dto.CreateHolidayRequest) ([]dto.HolidayResponse, error)
@@ -87,8 +87,8 @@ func (u *holidayUsecase) GetByID(ctx context.Context, id string) (*dto.HolidayRe
 	return u.mapper.ToResponse(h), nil
 }
 
-func (u *holidayUsecase) GetByYear(ctx context.Context, year int) ([]dto.HolidayResponse, error) {
-	holidays, err := u.repo.FindByYear(ctx, year)
+func (u *holidayUsecase) GetByYear(ctx context.Context, year int, month int) ([]dto.HolidayResponse, error) {
+	holidays, err := u.repo.FindByYear(ctx, year, month)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (u *holidayUsecase) GetByYear(ctx context.Context, year int) ([]dto.Holiday
 }
 
 func (u *holidayUsecase) GetCalendar(ctx context.Context, year int) (*dto.HolidayCalendarResponse, error) {
-	holidays, err := u.repo.FindByYear(ctx, year)
+	holidays, err := u.repo.FindByYear(ctx, year, 0)
 	if err != nil {
 		return nil, err
 	}

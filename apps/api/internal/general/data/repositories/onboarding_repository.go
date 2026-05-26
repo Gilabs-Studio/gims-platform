@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	generalModels "github.com/gilabs/gims/api/internal/general/data/models"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -71,9 +72,11 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 	tenantID := middleware.TenantFromContext(ctx)
 
 	var steps OnboardingStepsData
-	count := func(table string, where string, args ...interface{}) (int64, error) {
+	g, gCtx := errgroup.WithContext(ctx)
+
+	count := func(c context.Context, table string, where string, args ...interface{}) (int64, error) {
 		var total int64
-		query := database.GetDB(ctx, r.db).Table(table)
+		query := database.GetDB(c, r.db).Table(table)
 		if where != "" {
 			query = query.Where(where, args...)
 		}
@@ -83,70 +86,73 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 		return total, nil
 	}
 
-	// Company: registration always creates a row; it is "done" only when detail fields are filled.
-	companyCount, err := count("companies", "deleted_at IS NULL AND (address <> '' OR phone <> '' OR email <> '' OR npwp <> '')")
-	if err != nil {
-		return nil, err
-	}
-	steps.Company = companyCount > 0
+	var companyCount, outletCount, floorCount, productCount, warehouseCount, userCount, fiscalYearCount int64
 
-	// Outlet
-	outletCount, err := count("outlets", "deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	steps.Outlet = outletCount > 0
+	g.Go(func() error {
+		var err error
+		companyCount, err = count(gCtx, "companies", "deleted_at IS NULL AND (address <> '' OR phone <> '' OR email <> '' OR npwp <> '')")
+		return err
+	})
 
-	// POS Floor Plan (F&B-specific, but we check for all business types)
-	floorCount, err := count("pos_floor_plans", "deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	steps.FloorLayout = floorCount > 0
+	g.Go(func() error {
+		var err error
+		outletCount, err = count(gCtx, "outlets", "deleted_at IS NULL")
+		return err
+	})
 
-	// Products
-	productCount, err := count("products", "deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	steps.Products = productCount > 0
+	g.Go(func() error {
+		var err error
+		floorCount, err = count(gCtx, "pos_floor_plans", "deleted_at IS NULL")
+		return err
+	})
 
-	// Warehouse
-	warehouseCount, err := count("warehouses", "deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	steps.Warehouse = warehouseCount > 0
+	g.Go(func() error {
+		var err error
+		productCount, err = count(gCtx, "products", "deleted_at IS NULL")
+		return err
+	})
 
-	// Users: more than 1 means additional team members have been added
-	userCount, err := count("users", "deleted_at IS NULL")
-	if err != nil {
-		return nil, err
-	}
-	steps.Users = userCount > 1
+	g.Go(func() error {
+		var err error
+		warehouseCount, err = count(gCtx, "warehouses", "deleted_at IS NULL")
+		return err
+	})
 
-	// FiscalYear: at least one fiscal year exists for tenant-owned companies.
-	var fiscalYearCount int64
-	if tenantID != "" {
-		err := r.db.WithContext(ctx).
-			Table("fiscal_years fy").
-			Joins("JOIN companies c ON c.id = fy.company_id AND c.deleted_at IS NULL").
-			Where("fy.deleted_at IS NULL").
-			Where("(fy.tenant_id = ? OR c.tenant_id = ?)", tenantID, tenantID).
-			Count(&fiscalYearCount).Error
-		if err != nil {
-			// Fallback to tenant-scoped default query path.
-			fiscalYearCount, err = count("fiscal_years", "deleted_at IS NULL")
+	g.Go(func() error {
+		var err error
+		userCount, err = count(gCtx, "users", "deleted_at IS NULL")
+		return err
+	})
+
+	g.Go(func() error {
+		var err error
+		if tenantID != "" {
+			err = r.db.WithContext(gCtx).
+				Table("fiscal_years fy").
+				Joins("JOIN companies c ON c.id = fy.company_id AND c.deleted_at IS NULL").
+				Where("fy.deleted_at IS NULL").
+				Where("(fy.tenant_id = ? OR c.tenant_id = ?)", tenantID, tenantID).
+				Count(&fiscalYearCount).Error
 			if err != nil {
-				return nil, err
+				// Fallback to tenant-scoped default query path.
+				fiscalYearCount, err = count(gCtx, "fiscal_years", "deleted_at IS NULL")
 			}
+		} else {
+			fiscalYearCount, err = count(gCtx, "fiscal_years", "deleted_at IS NULL")
 		}
-	} else {
-		fiscalYearCount, err = count("fiscal_years", "deleted_at IS NULL")
-		if err != nil {
-			return nil, err
-		}
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
+
+	steps.Company = companyCount > 0
+	steps.Outlet = outletCount > 0
+	steps.FloorLayout = floorCount > 0
+	steps.Products = productCount > 0
+	steps.Warehouse = warehouseCount > 0
+	steps.Users = userCount > 1
 	steps.FiscalYear = fiscalYearCount > 0
 
 	return &steps, nil

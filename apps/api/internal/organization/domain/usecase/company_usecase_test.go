@@ -28,6 +28,10 @@ func (n *noopOutletRepository) GetByID(_ context.Context, _ string) (*models.Out
 	return nil, gorm.ErrRecordNotFound
 }
 
+func (n *noopOutletRepository) GetByIDLight(_ context.Context, _ string) (*models.Outlet, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
 func (n *noopOutletRepository) GetByCode(_ context.Context, _ string) (*models.Outlet, error) {
 	return nil, gorm.ErrRecordNotFound
 }

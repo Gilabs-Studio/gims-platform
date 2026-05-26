@@ -71,7 +71,16 @@ function getAttendanceVisual(
   today: TodayAttendance | undefined,
   isLoading: boolean,
   t: ReturnType<typeof useTranslations<"hrd.attendance">>,
+  isOpen?: boolean,
 ): AttendanceVisual {
+  if (!isOpen && !today) {
+    return {
+      icon: Clock,
+      label: t("title"),
+      iconClass: "text-muted-foreground",
+      pillClass: "border-border text-foreground bg-transparent",
+    };
+  }
   if (isLoading || !today) {
     return {
       icon: Loader2,
@@ -139,6 +148,7 @@ export function HeaderAttendanceButton({
     !canRequestLeave &&
     !canMyOvertime;
 
+  const [isOpen, setIsOpen] = useState(false);
   const {
     today,
     isLoading,
@@ -164,7 +174,7 @@ export function HeaderAttendanceButton({
     handleLateReasonConfirm,
     handleCameraConfirm,
     checkInTimeInfo,
-  } = useSelfAttendanceActions();
+  } = useSelfAttendanceActions({ enabled: isOpen });
   const [showLocationSettings, setShowLocationSettings] = useState(false);
 
   // Listen for overtime detected event to open overtime tab
@@ -179,12 +189,12 @@ export function HeaderAttendanceButton({
     };
   }, [onOpenDrawer]);
 
-  const visual = getAttendanceVisual(today, isLoading, t);
+  const visual = getAttendanceVisual(today, isLoading, t, isOpen);
   const Icon = visual.icon;
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"

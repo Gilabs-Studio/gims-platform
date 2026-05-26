@@ -19,6 +19,7 @@ import (
 	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	redisClient "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 )
 
 const maxEmployeeCodeGenerationAttempts = 5
@@ -376,6 +377,7 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 	latestEdu, _ := u.GetLatestEducation(ctx, employee.ID)
 	latestCert, _ := u.GetLatestCertification(ctx, employee.ID)
 
+	u.invalidateScopeCache(ctx, employee.ID)
 	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
@@ -661,10 +663,12 @@ func (u *employeeUsecase) Update(ctx context.Context, id string, req dto.UpdateE
 
 	latestEdu, _ := u.GetLatestEducation(ctx, id)
 	latestCert, _ := u.GetLatestCertification(ctx, id)
+	u.invalidateScopeCache(ctx, id)
 	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
 }
 
 func (u *employeeUsecase) Delete(ctx context.Context, id string) error {
+	u.invalidateScopeCache(ctx, id)
 	_, err := u.employeeRepo.FindByID(ctx, id)
 	if err != nil {
 		return ErrEmployeeNotFound
@@ -709,6 +713,7 @@ func (u *employeeUsecase) AssignAreas(ctx context.Context, id string, req dto.As
 		currentContract = contract
 	}
 
+	u.invalidateScopeCache(ctx, id)
 	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
@@ -737,6 +742,7 @@ func (u *employeeUsecase) AssignSupervisorAreas(ctx context.Context, id string, 
 		currentContract = contract
 	}
 
+	u.invalidateScopeCache(ctx, id)
 	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
@@ -771,6 +777,7 @@ func (u *employeeUsecase) BulkUpdateAreas(ctx context.Context, employeeID string
 		currentContract = contract
 	}
 
+	u.invalidateScopeCache(ctx, employeeID)
 	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
@@ -780,6 +787,7 @@ func (u *employeeUsecase) RemoveAreaAssignment(ctx context.Context, employeeID s
 		return ErrEmployeeNotFound
 	}
 
+	u.invalidateScopeCache(ctx, employeeID)
 	return u.employeeAreaRepo.RemoveFromArea(ctx, employeeID, areaID)
 }
 
@@ -2135,6 +2143,7 @@ func (u *employeeUsecase) AssignOutlets(ctx context.Context, id string, req dto.
 		currentContract = contract
 	}
 
+	u.invalidateScopeCache(ctx, id)
 	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
@@ -2177,6 +2186,7 @@ func (u *employeeUsecase) AssignWarehouses(ctx context.Context, id string, req d
 		currentContract = contract
 	}
 
+	u.invalidateScopeCache(ctx, id)
 	return mapper.ToEmployeeResponse(employee, currentContract, nil, nil), nil
 }
 
@@ -2212,4 +2222,16 @@ func (u *employeeUsecase) BulkUpdateWarehouses(ctx context.Context, employeeID s
 	return u.AssignWarehouses(ctx, employeeID, dto.AssignEmployeeWarehousesRequest{
 		WarehouseIDs: warehouseIDs,
 	})
+}
+
+func (u *employeeUsecase) invalidateScopeCache(ctx context.Context, employeeID string) {
+	emp, err := u.employeeRepo.FindByID(ctx, employeeID)
+	if err == nil && emp != nil && emp.UserID != nil && *emp.UserID != "" {
+		rdb := redisClient.GetClient()
+		if rdb != nil {
+			cacheKey := fmt.Sprintf("scope:%s", *emp.UserID)
+			_ = rdb.Del(ctx, cacheKey).Err()
+			log.Printf("[scope] invalidated cache for user_id=%s due to employee change", *emp.UserID)
+		}
+	}
 }

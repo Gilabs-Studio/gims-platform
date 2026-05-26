@@ -68,7 +68,7 @@ func (u *subscriptionUsecase) GetActiveByTenant(ctx context.Context, tenantID st
 		return nil, err
 	}
 	r := subModelToDTO(sub)
-	if tenant, tenantErr := u.tenantRepo.FindByIDWithCounts(ctx, tenantID); tenantErr == nil && tenant != nil {
+	if tenant, tenantErr := u.tenantRepo.FindByIDWithOwner(ctx, tenantID); tenantErr == nil && tenant != nil {
 		// Legacy tenants can still have seat_limit/user_count defaulted to 1 in tenant_subscriptions,
 		// so the repository normalizes MaxUsers from the active subscription seat_limit first and
 		// only falls back to tenants.max_users when subscription data is unavailable.
@@ -98,7 +98,7 @@ func (u *subscriptionUsecase) resolveTenantName(ctx context.Context, tenantID st
 	if tenantID == "" {
 		return ""
 	}
-	tenant, err := u.tenantRepo.FindByIDWithCounts(ctx, tenantID)
+	tenant, err := u.tenantRepo.FindByIDWithOwner(ctx, tenantID)
 	if err == nil && tenant != nil {
 		if tenant.OwnerEmail != "" {
 			return tenant.OwnerEmail

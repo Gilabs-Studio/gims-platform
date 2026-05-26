@@ -47,11 +47,12 @@ export const attendanceKeys = {
 } as const;
 
 // Self-service hooks
-export function useTodayAttendance() {
+export function useTodayAttendance(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: attendanceKeys.today(),
     queryFn: () => attendanceRecordService.getTodayAttendance(),
     staleTime: 1000 * 30,
+    ...options,
   });
 }
 

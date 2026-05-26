@@ -122,6 +122,7 @@ type ServerRole = {
   name: string;
   data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
   is_owner?: boolean;
+  is_protected?: boolean;
 };
 
 type ServerSubscriptionAccess = {
@@ -168,6 +169,7 @@ function normalizeUserResponse(rawUser: ServerUser): User | null {
       name: role.name,
       data_scope: dataScope,
       is_owner: role.is_owner ?? false,
+      is_protected: role.is_protected ?? false,
     },
     permissions: rawUser.permissions ?? {},
     tenant_id: rawUser.tenant_id ?? undefined,

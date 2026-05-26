@@ -10,6 +10,7 @@ export function usePermissions() {
   return useQuery({
     queryKey: ["permissions", tenantScope],
     queryFn: () => permissionService.list(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -20,6 +21,7 @@ export function usePermission(id: string) {
     queryKey: ["permission", tenantScope, id],
     queryFn: () => permissionService.getById(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 

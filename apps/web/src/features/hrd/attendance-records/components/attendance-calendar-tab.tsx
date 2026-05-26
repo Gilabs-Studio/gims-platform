@@ -76,9 +76,10 @@ export function AttendanceCalendarTab() {
     page: 1,
   });
 
-  // Fetch holidays for the current calendar year
+  // Fetch holidays for the current month/year
   const currentYear = month.getFullYear();
-  const { data: holidaysData } = useHolidaysByYear(currentYear);
+  const currentMonth = month.getMonth() + 1;
+  const { data: holidaysData } = useHolidaysByYear(currentYear, currentMonth);
 
   // Build a Map<dateKey, { name, type }> for quick holiday lookup
   const holidayMap = useMemo(() => {

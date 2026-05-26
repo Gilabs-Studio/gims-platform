@@ -22,7 +22,7 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import apiClient from "@/lib/api-client";
 
 export function FeedbackSubmitView() {
-  const t = useTranslations("feedback");
+  const t = useTranslations("userFeedback");
   const [message, setMessage] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);

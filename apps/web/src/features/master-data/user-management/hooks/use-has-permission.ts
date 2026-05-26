@@ -4,22 +4,6 @@ import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { hasPermissionCode, resolvePermissionScope } from "@/lib/permission-utils";
 
-function isPrivilegedRole(roleCode?: string): boolean {
-  const normalized = roleCode?.trim().toLowerCase();
-  return normalized === "admin" || normalized === "superadmin";
-}
-
-/**
- * Hook to check if the current user has a specific permission.
- * Uses the permissions map (code -> scope) from the user object in auth store.
- *
- * @param permissionCode - The permission code to check in format "module.action" (e.g., "user.read", "role.create")
- * @returns boolean indicating if user has the permission
- *
- * @example
- * const canCreateUser = useHasPermission("user.create");
- * const canReadRoles = useHasPermission("role.read");
- */
 export function useHasPermission(permissionCode: string): boolean {
   const { user } = useAuthStore();
 
@@ -28,10 +12,9 @@ export function useHasPermission(permissionCode: string): boolean {
       return false;
     }
 
-    if (isPrivilegedRole(user.role?.code)) {
+    if (user.role?.is_owner === true || user.role?.data_scope === "ALL") {
       return true;
     }
-
 
     const permissions = user.permissions ?? {};
     return hasPermissionCode(permissions, permissionCode);
@@ -50,10 +33,9 @@ export function usePermissionScope(permissionCode: string): string | null {
   return useMemo(() => {
     if (!user) return null;
 
-    if (isPrivilegedRole(user.role?.code)) {
+    if (user.role?.is_owner === true || user.role?.data_scope === "ALL") {
       return "ALL";
     }
-
 
     const permissions = user.permissions ?? {};
     return resolvePermissionScope(permissions, permissionCode);

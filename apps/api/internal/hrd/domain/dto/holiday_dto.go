@@ -34,6 +34,7 @@ type ListHolidaysRequest struct {
 	PerPage   int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search    string `form:"search"`
 	Year      int    `form:"year" binding:"omitempty,gte=2000,lte=2100"`
+	Month     int    `form:"month" binding:"omitempty,min=1,max=12"`
 	Type      string `form:"type" binding:"omitempty,oneof=NATIONAL COLLECTIVE COMPANY"`
 	DateFrom  string `form:"date_from"`
 	DateTo    string `form:"date_to"`

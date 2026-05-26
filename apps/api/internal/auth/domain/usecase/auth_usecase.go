@@ -30,6 +30,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 )
 
 var (
@@ -139,6 +140,7 @@ type authUsecase struct {
 	planRepo         planRepo.SubscriptionPlanRepository
 	redis            *redis.Client
 	xendit           *xenditClient.Client
+	permissionService security.PermissionService
 }
 
 func NewAuthUsecase(
@@ -150,6 +152,7 @@ func NewAuthUsecase(
 	couponUC couponUC.CouponUsecase,
 	redisClient *redis.Client,
 	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
+	permissionService security.PermissionService,
 ) AuthUsecase {
 	var xc *xenditClient.Client
 	if config.AppConfig != nil {
@@ -168,6 +171,7 @@ func NewAuthUsecase(
 		planRepo:         subscriptionPlanRepo,
 		redis:            redisClient,
 		xendit:           xc,
+		permissionService: permissionService,
 	}
 }
 
@@ -214,21 +218,27 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 				roleDataScope = "ALL"
 			}
 
-			// Prefer RolePermissions (scope-aware) over legacy Permissions
-			if len(user.Role.RolePermissions) > 0 {
-				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission != nil && rp.Permission.Code != "" {
-						scope := rp.Scope
-						if scope == "" {
-							scope = "ALL"
-						}
-						permissions[rp.Permission.Code] = scope
-					}
+			if u.permissionService != nil {
+				if cachedPerms, err := u.permissionService.GetPermissionsWithScopeForTenant(roleCode, user.TenantID); err == nil {
+					permissions = cachedPerms
 				}
-			} else if user.Role.Permissions != nil {
-				// Backward compatibility fallback
-				for _, p := range user.Role.Permissions {
-					permissions[p.Code] = "ALL"
+			} else {
+				// Prefer RolePermissions (scope-aware) over legacy Permissions
+				if len(user.Role.RolePermissions) > 0 {
+					for _, rp := range user.Role.RolePermissions {
+						if rp.Permission != nil && rp.Permission.Code != "" {
+							scope := rp.Scope
+							if scope == "" {
+								scope = "ALL"
+							}
+							permissions[rp.Permission.Code] = scope
+						}
+					}
+				} else if user.Role.Permissions != nil {
+					// Backward compatibility fallback
+					for _, p := range user.Role.Permissions {
+						permissions[p.Code] = "ALL"
+					}
 				}
 			}
 		}
@@ -280,7 +290,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		tenantID := user.TenantID
 		var tenantName string
 		if tenantID != "" {
-			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
+			u.db.Table("tenants").Select("name").Where("id = ? AND deleted_at IS NULL", tenantID).Row().Scan(&tenantName)
 		}
 
 		// Convert to auth response format
@@ -407,20 +417,26 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 				roleDataScope = "ALL"
 			}
 
-			// Prefer RolePermissions (scope-aware) over legacy Permissions
-			if len(user.Role.RolePermissions) > 0 {
-				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission != nil && rp.Permission.Code != "" {
-						scope := rp.Scope
-						if scope == "" {
-							scope = "ALL"
-						}
-						permissions[rp.Permission.Code] = scope
-					}
+			if u.permissionService != nil {
+				if cachedPerms, err := u.permissionService.GetPermissionsWithScopeForTenant(roleCode, user.TenantID); err == nil {
+					permissions = cachedPerms
 				}
-			} else if user.Role.Permissions != nil {
-				for _, p := range user.Role.Permissions {
-					permissions[p.Code] = "ALL"
+			} else {
+				// Prefer RolePermissions (scope-aware) over legacy Permissions
+				if len(user.Role.RolePermissions) > 0 {
+					for _, rp := range user.Role.RolePermissions {
+						if rp.Permission != nil && rp.Permission.Code != "" {
+							scope := rp.Scope
+							if scope == "" {
+								scope = "ALL"
+							}
+							permissions[rp.Permission.Code] = scope
+						}
+					}
+				} else if user.Role.Permissions != nil {
+					for _, p := range user.Role.Permissions {
+						permissions[p.Code] = "ALL"
+					}
 				}
 			}
 		}
