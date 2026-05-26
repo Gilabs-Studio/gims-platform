@@ -45,25 +45,70 @@ class TerminalService {
     return null;
   }
 
-  /// Creates a CachedOrder record in Isar so SyncEngine can resolve
-  /// the server-assigned orderId for downstream jobs after createOrder syncs.
-  Future<void> _cacheLocalOrder(
-    String clientId,
-    String outletId,
-    double totalAmount,
-  ) async {
-    final entry = CachedOrder()
-      ..clientId = clientId
-      ..orderId = null
-      ..outletId = outletId
-      ..status = 'draft'
-      ..itemsJson = '[]'
-      ..totalAmount = totalAmount
-      ..syncStatus = CachedOrderSyncStatus.local
-      ..cachedAt = DateTime.now();
+  Future<void> _saveCachedOrder(PosOrder order, String syncStatus) async {
+    final clientId = _extractClientId(order.id) ?? order.id;
+    final now = DateTime.now();
     await _isar.writeTxn(() async {
+      final existing = await _isar.cachedOrders
+          .filter()
+          .clientIdEqualTo(clientId)
+          .findFirst();
+      final entry = existing ?? CachedOrder();
+      entry
+        ..clientId = clientId
+        ..orderId = order.id.startsWith('local-') ? null : order.id
+        ..outletId = order.outletId
+        ..status = order.status.value
+        ..itemsJson = jsonEncode(order.items.map((item) => {
+          'id': item.id,
+          'product_id': item.productId,
+          'product_name': item.productName,
+          'product_code': item.productCode,
+          'quantity': item.quantity,
+          'unit_price': item.unitPrice,
+          'subtotal': item.subtotal,
+          'status': item.status,
+          if (item.notes != null) 'notes': item.notes,
+        }).toList())
+        ..totalAmount = order.totalAmount
+        ..syncStatus = syncStatus
+        ..cachedAt = order.createdAt
+        ..tableId = order.tableId
+        ..tableLabel = order.tableLabel
+        ..customerName = order.customerName;
       await _isar.cachedOrders.put(entry);
     });
+  }
+
+  PosOrder _cachedToOrder(CachedOrder cached) {
+    List<PosOrderItem> items = const [];
+    try {
+      final raw = jsonDecode(cached.itemsJson) as List<dynamic>;
+      items = raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosOrderItem.fromJson)
+          .toList();
+    } catch (_) {}
+
+    return PosOrder(
+      id: cached.orderId ?? _newLocalOrderId(cached.clientId),
+      orderNumber: cached.orderId != null
+          ? (cached.orderId!.length >= 8 ? cached.orderId!.substring(0, 8).toUpperCase() : cached.orderId!.toUpperCase())
+          : 'LOCAL-${cached.clientId.length >= 8 ? cached.clientId.substring(0, 8).toUpperCase() : cached.clientId.toUpperCase()}',
+      outletId: cached.outletId,
+      status: PosOrderStatus.fromValue(cached.status),
+      guestCount: 1,
+      subtotal: cached.totalAmount,
+      taxAmount: 0,
+      serviceCharge: 0,
+      discountAmount: 0,
+      totalAmount: cached.totalAmount,
+      items: items,
+      createdAt: cached.cachedAt,
+      tableId: cached.tableId,
+      tableLabel: cached.tableLabel,
+      customerName: cached.customerName,
+    );
   }
 
   /// Enqueues a [SyncJob] to SyncEngine for background processing.
@@ -117,12 +162,24 @@ class TerminalService {
     _upsertOrderCache(serverOrder);
   }
 
-  PosOrder? _findCachedOrder(String orderId) {
+  Future<PosOrder?> _findCachedOrder(String orderId) async {
     final byId = _orderById[orderId];
     if (byId != null) return byId;
     for (final orders in _ordersByOutlet.values) {
       final idx = orders.indexWhere((o) => o.id == orderId);
       if (idx >= 0) return orders[idx];
+    }
+    final clientId = _extractClientId(orderId) ?? orderId;
+    final cached = await _isar.cachedOrders
+        .filter()
+        .clientIdEqualTo(clientId)
+        .or()
+        .orderIdEqualTo(orderId)
+        .findFirst();
+    if (cached != null) {
+      final mapped = _cachedToOrder(cached);
+      _upsertOrderCache(mapped);
+      return mapped;
     }
     return null;
   }
@@ -396,14 +453,15 @@ class TerminalService {
     );
   }
 
-  void _markOrderPaidLocally({
+  Future<void> _markOrderPaidLocally({
     required String orderId,
     String? customerId,
     String? customerName,
     String? loyaltyMemberId,
     String? loyaltyRewardId,
-  }) {
-    final baseOrder = _findCachedOrder(orderId);
+    required String syncStatus,
+  }) async {
+    final baseOrder = await _findCachedOrder(orderId);
     if (baseOrder == null) return;
 
     final nextStatus = {
@@ -438,6 +496,7 @@ class TerminalService {
       notes: baseOrder.notes,
     );
     _upsertOrderCache(updated);
+    await _saveCachedOrder(updated, syncStatus);
   }
 
   String receiptUrl(String orderId) =>
@@ -507,6 +566,7 @@ class TerminalService {
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(order);
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
       return order;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
@@ -530,7 +590,7 @@ class TerminalService {
       _upsertOrderCache(localOrder);
       // Persist an Isar CachedOrder so SyncEngine can resolve the server orderId
       // for downstream jobs (addItem, confirmOrder, processCash) via CachedOrder lookup.
-      await _cacheLocalOrder(clientId, outletId, 0);
+      await _saveCachedOrder(localOrder, CachedOrderSyncStatus.local);
       await _enqueueJob(
         jobClientId: clientId,
         action: 'createOrder',
@@ -561,15 +621,17 @@ class TerminalService {
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(order);
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
       return order;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
       final updated = _applyItemLocally(baseOrder, line);
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
       // For local orders (id = 'local-{parentClientId}'), use the parent clientId
       // so SyncEngine can propagate the resolved server orderId after createOrder syncs.
       final parentClientId = _extractClientId(orderId);
@@ -598,17 +660,15 @@ class TerminalService {
       final response = await _api.get<Map<String, dynamic>>('/pos/orders/$targetOrderId');
       final order = PosOrder.fromJson(_dataMap(response.data));
       _orderById[order.id] = order;
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
       if (resolvedOrderId != null && orderId != targetOrderId) {
         _reconcileLocalOrderId(orderId, order);
       }
       return order;
-    } catch (_) {
-      final cached = _orderById[orderId];
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final cached = await _findCachedOrder(orderId);
       if (cached != null) return cached;
-      if (resolvedOrderId != null) {
-        final resolvedCached = _orderById[resolvedOrderId];
-        if (resolvedCached != null) return resolvedCached;
-      }
       rethrow;
     }
   }
@@ -629,10 +689,11 @@ class TerminalService {
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(order);
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
       return order;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
@@ -659,6 +720,7 @@ class TerminalService {
         notes: baseOrder.notes,
       );
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
       final parentClientId = _extractClientId(orderId);
       await _enqueueJob(
         jobClientId: jobClientId,
@@ -688,10 +750,11 @@ class TerminalService {
       );
       final order = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(order);
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
       return order;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
@@ -718,6 +781,7 @@ class TerminalService {
         notes: baseOrder.notes,
       );
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
       final parentClientId = _extractClientId(orderId);
       await _enqueueJob(
         jobClientId: jobClientId,
@@ -737,40 +801,128 @@ class TerminalService {
     required String tableId,
     required String tableLabel,
   }) async {
-    final resolvedOrderId =
-        await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
-    final response = await _api.put<Map<String, dynamic>>(
-      '/pos/orders/$resolvedOrderId/table',
-      data: {
-        'table_id': tableId,
-        'table_label': tableLabel,
-      },
-    );
-    final order = PosOrder.fromJson(_dataMap(response.data));
-    _upsertOrderCache(order);
-    return order;
+    final bypassServer = await _isUnresolvedLocalOrder(orderId);
+    final data = {
+      'table_id': tableId,
+      'table_label': tableLabel,
+    };
+    try {
+      if (bypassServer) {
+        throw _pendingSyncOrderException();
+      }
+      final resolvedOrderId =
+          await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+      final response = await _api.put<Map<String, dynamic>>(
+        '/pos/orders/$resolvedOrderId/table',
+        data: data,
+      );
+      final order = PosOrder.fromJson(_dataMap(response.data));
+      _upsertOrderCache(order);
+      await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
+      return order;
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final baseOrder = await _findCachedOrder(orderId);
+      if (baseOrder == null) {
+        throw ApiException('Order tidak ditemukan di cache offline');
+      }
+      final updated = PosOrder(
+        id: baseOrder.id,
+        orderNumber: baseOrder.orderNumber,
+        outletId: baseOrder.outletId,
+        status: baseOrder.status,
+        guestCount: baseOrder.guestCount,
+        subtotal: baseOrder.subtotal,
+        taxAmount: baseOrder.taxAmount,
+        serviceCharge: baseOrder.serviceCharge,
+        discountAmount: baseOrder.discountAmount,
+        totalAmount: baseOrder.totalAmount,
+        items: baseOrder.items,
+        createdAt: baseOrder.createdAt,
+        tableId: tableId,
+        tableLabel: tableLabel,
+        customerId: baseOrder.customerId,
+        customerName: baseOrder.customerName,
+        loyaltyMemberId: baseOrder.loyaltyMemberId,
+        loyaltyRewardId: baseOrder.loyaltyRewardId,
+        orderSource: baseOrder.orderSource,
+        notes: baseOrder.notes,
+      );
+      _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
+
+      final parentClientId = _extractClientId(orderId);
+      await _enqueueJob(
+        jobClientId: _uuid.v4(),
+        action: 'updateOrderTable',
+        payload: {
+          ...data,
+          if (parentClientId != null) 'clientId': parentClientId,
+          'orderId': parentClientId == null ? orderId : null,
+        },
+      );
+      return updated;
+    }
   }
 
   Future<void> deleteOrder(String orderId) async {
     final bypassServer = await _isUnresolvedLocalOrder(orderId);
+    final clientId = _extractClientId(orderId) ?? orderId;
+
+    _orderById.remove(orderId);
+    _orderById.remove(clientId);
+    for (final entry in _ordersByOutlet.entries) {
+      final idx = entry.value.indexWhere((order) => order.id == orderId || order.id == clientId);
+      if (idx >= 0) {
+        final next = List<PosOrder>.from(entry.value);
+        next.removeAt(idx);
+        _ordersByOutlet[entry.key] = next;
+      }
+    }
+
+    await _isar.writeTxn(() async {
+      final existing = await _isar.cachedOrders
+          .filter()
+          .clientIdEqualTo(clientId)
+          .or()
+          .orderIdEqualTo(orderId)
+          .findFirst();
+      if (existing != null) {
+        await _isar.cachedOrders.delete(existing.id);
+      }
+    });
+
     try {
       if (!bypassServer) {
         final resolvedOrderId =
             await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
         await _api.delete('/pos/orders/$resolvedOrderId');
+      } else {
+        final jobs = await _isar.syncJobs
+            .filter()
+            .clientIdEqualTo(clientId)
+            .or()
+            .resolvedOrderIdEqualTo(orderId)
+            .findAll();
+        await _isar.writeTxn(() async {
+          for (final job in jobs) {
+            await _isar.syncJobs.delete(job.id);
+          }
+        });
       }
-      _orderById.remove(orderId);
-      for (final entry in _ordersByOutlet.entries) {
-        final idx = entry.value.indexWhere((order) => order.id == orderId);
-        if (idx >= 0) {
-          final next = List<PosOrder>.from(entry.value);
-          next.removeAt(idx);
-          _ordersByOutlet[entry.key] = next;
-          break;
-        }
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      if (!bypassServer) {
+        final resolvedOrderId =
+            await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
+        await _enqueueJob(
+          jobClientId: _uuid.v4(),
+          action: 'deleteOrder',
+          payload: {
+            'orderId': resolvedOrderId,
+          },
+        );
       }
-    } catch (_) {
-      rethrow;
     }
   }
 
@@ -786,16 +938,18 @@ class TerminalService {
       );
       final updated = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.synced);
       return updated;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
 
       final updated = _markOrderServedLocally(baseOrder);
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
 
       final parentClientId = _extractClientId(orderId);
       await _enqueueJob(
@@ -822,16 +976,18 @@ class TerminalService {
       );
       final updated = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.synced);
       return updated;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
 
       final updated = _markOrderCompletedLocally(baseOrder);
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
 
       final parentClientId = _extractClientId(orderId);
       await _enqueueJob(
@@ -858,16 +1014,18 @@ class TerminalService {
       );
       final updated = PosOrder.fromJson(_dataMap(response.data));
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.synced);
       return updated;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
-      final baseOrder = _findCachedOrder(orderId);
+      final baseOrder = await _findCachedOrder(orderId);
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
 
       final updated = _markOrderItemServedLocally(baseOrder, itemId);
       _upsertOrderCache(updated);
+      await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
 
       String? productId;
       for (final item in baseOrder.items) {
@@ -913,11 +1071,50 @@ class TerminalService {
             .map(PosOrder.fromJson)
             .toList();
 
-        final mergedOrders = List<PosOrder>.from(serverOrders);
-        final previousOrders = _ordersByOutlet[outletId] ?? const <PosOrder>[];
+        await _isar.writeTxn(() async {
+          for (final order in serverOrders) {
+            final existing = await _isar.cachedOrders
+                .filter()
+                .orderIdEqualTo(order.id)
+                .or()
+                .clientIdEqualTo(order.id)
+                .findFirst();
+            final entry = existing ?? CachedOrder();
+            entry
+              ..clientId = existing?.clientId ?? order.id
+              ..orderId = order.id
+              ..outletId = outletId
+              ..status = order.status.value
+              ..itemsJson = jsonEncode(order.items.map((item) => {
+                'id': item.id,
+                'product_id': item.productId,
+                'product_name': item.productName,
+                'product_code': item.productCode,
+                'quantity': item.quantity,
+                'unit_price': item.unitPrice,
+                'subtotal': item.subtotal,
+                'status': item.status,
+                if (item.notes != null) 'notes': item.notes,
+              }).toList())
+              ..totalAmount = order.totalAmount
+              ..syncStatus = CachedOrderSyncStatus.synced
+              ..cachedAt = order.createdAt
+              ..tableId = order.tableId
+              ..tableLabel = order.tableLabel
+              ..customerName = order.customerName;
+            await _isar.cachedOrders.put(entry);
+          }
+        });
 
-        // Keep progressed local state on already-reconciled server IDs
-        // so transient backend lag does not regress the UI back to WAITING_PAYMENT.
+        final localCached = await _isar.cachedOrders
+            .filter()
+            .outletIdEqualTo(outletId)
+            .findAll();
+        final localOrders = localCached.map(_cachedToOrder).toList();
+
+        final mergedOrders = List<PosOrder>.from(serverOrders);
+        final previousOrders = localOrders;
+
         final previousById = <String, PosOrder>{
           for (final order in previousOrders) order.id: order,
         };
@@ -958,14 +1155,21 @@ class TerminalService {
         for (final order in mergedOrders) {
           _orderById[order.id] = order;
         }
-        return mergedOrders;
+        if (status == null || status.isEmpty) return mergedOrders;
+        return mergedOrders.where((order) => order.status.value == status).toList();
       }
     } catch (_) {
-      final cached = _ordersByOutlet[outletId];
-      if (cached != null) {
-        if (status == null || status.isEmpty) return cached;
-        return cached.where((order) => order.status.value == status).toList();
+      final localCached = await _isar.cachedOrders
+          .filter()
+          .outletIdEqualTo(outletId)
+          .findAll();
+      final mapped = localCached.map(_cachedToOrder).toList();
+      _ordersByOutlet[outletId] = mapped;
+      for (final order in mapped) {
+        _orderById[order.id] = order;
       }
+      if (status == null || status.isEmpty) return mapped;
+      return mapped.where((order) => order.status.value == status).toList();
     }
     return const [];
   }
@@ -1011,12 +1215,13 @@ class TerminalService {
         '/pos/orders/$resolvedOrderId/payments/cash',
         data: data,
       );
-      _markOrderPaidLocally(
+      await _markOrderPaidLocally(
         orderId: orderId,
         customerId: customerId,
         customerName: customerName,
         loyaltyMemberId: loyaltyMemberId,
         loyaltyRewardId: loyaltyRewardId,
+        syncStatus: CachedOrderSyncStatus.synced,
       );
       return PosPayment.fromJson(_dataMap(response.data));
     } catch (error) {
@@ -1031,12 +1236,13 @@ class TerminalService {
           'orderId': parentClientId == null ? orderId : null,
         },
       );
-      _markOrderPaidLocally(
+      await _markOrderPaidLocally(
         orderId: orderId,
         customerId: customerId,
         customerName: customerName,
         loyaltyMemberId: loyaltyMemberId,
         loyaltyRewardId: loyaltyRewardId,
+        syncStatus: CachedOrderSyncStatus.local,
       );
       return PosPayment(
         id: clientId,

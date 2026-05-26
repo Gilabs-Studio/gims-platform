@@ -35,4 +35,10 @@ class CachedOrder {
   late String syncStatus;
 
   late DateTime cachedAt;
+
+  String? tableId;
+
+  String? tableLabel;
+
+  String? customerName;
 }

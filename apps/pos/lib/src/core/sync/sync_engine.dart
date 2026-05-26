@@ -396,6 +396,20 @@ class SyncEngine {
           data: {'reason': reason},
         );
         return (res.statusCode ?? 200, res.data);
+      case 'terminal.updateOrderTable':
+        final orderId = payload['orderId'] as String;
+        final res = await api.put(
+          '/pos/orders/$orderId/table',
+          data: {
+            'table_id': payload['table_id'],
+            'table_label': payload['table_label'],
+          },
+        );
+        return (res.statusCode ?? 200, res.data);
+      case 'terminal.deleteOrder':
+        final orderId = payload['orderId'] as String;
+        final res = await api.delete('/pos/orders/$orderId');
+        return (res.statusCode ?? 200, res.data);
       case 'floor.saveLayout':
         final planId = payload['planId'] as String;
         final res =
@@ -413,7 +427,7 @@ class SyncEngine {
           null,
           statusCode: null,
         );
-    }
+      }
   }
 
   String? _extractOrderId(dynamic body) {
@@ -457,20 +471,24 @@ class SyncEngine {
     switch (job.action) {
       case 'createOrder':
         return 0;
-      case 'addItem':
+      case 'updateOrderTable':
         return 1;
-      case 'confirmOrder':
+      case 'addItem':
         return 2;
-      case 'processCash':
+      case 'confirmOrder':
         return 3;
-      case 'serveItem':
+      case 'processCash':
         return 4;
-      case 'serveOrder':
+      case 'serveItem':
         return 5;
-      case 'completeOrder':
+      case 'serveOrder':
         return 6;
-      case 'voidOrder':
+      case 'completeOrder':
         return 7;
+      case 'voidOrder':
+        return 8;
+      case 'deleteOrder':
+        return 9;
       default:
         return 100;
     }
@@ -483,7 +501,10 @@ class SyncEngine {
     Map<String, dynamic> payload,
   ) async {
     if (job.feature != 'terminal') return false;
-    if (!const {'serveOrder', 'serveItem', 'completeOrder', 'processCash'}
+    if (job.action == 'deleteOrder') {
+      return statusCode == 404;
+    }
+    if (!const {'serveOrder', 'serveItem', 'completeOrder', 'processCash', 'updateOrderTable'}
         .contains(job.action)) {
       return false;
     }
@@ -518,6 +539,11 @@ class SyncEngine {
       if (envelope == null) return false;
       final data = envelope['data'];
       if (data is! Map<String, dynamic>) return false;
+
+      if (action == 'updateOrderTable') {
+        final tableId = payload['table_id'] as String?;
+        return data['table_id'] == tableId;
+      }
 
       final orderStatus = (data['status'] as String? ?? '').toUpperCase();
 
