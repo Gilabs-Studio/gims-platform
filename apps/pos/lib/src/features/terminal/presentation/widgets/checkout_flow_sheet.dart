@@ -210,10 +210,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     super.dispose();
   }
 
-  double get _amountBeforeReward =>
-      widget.order.subtotal +
-      widget.order.taxAmount +
-      widget.order.serviceCharge;
+  // Use order.totalAmount as the payable base. For offline orders this is
+  // calculated locally with cached POS tax/service config.
+  double get _amountBeforeReward => widget.order.totalAmount;
 
   double get _selectedRewardDiscount =>
       _calculateRewardDiscount(_amountBeforeReward, _selectedReward);
@@ -432,7 +431,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     final hasRewardOptions =
         (_memberLookup?.availableRewards ?? const <LoyaltyReward>[]).isNotEmpty;
     setState(() {
-      final nextStep = hasRewardOptions ? _CheckoutStep.reward : _CheckoutStep.payment;
+      final nextStep = hasRewardOptions
+          ? _CheckoutStep.reward
+          : _CheckoutStep.payment;
       _step = nextStep;
       if (nextStep.index > _maxStepReached.index) _maxStepReached = nextStep;
       if (nextStep == _CheckoutStep.payment) {
@@ -447,11 +448,16 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       return;
     }
 
+    // When tender equals total (exact payment), send the precise double
+    // _totalAmount to avoid rounding mismatches with server-computed totals.
+    final isExact = (_tenderAmount.toDouble() - _totalAmount).abs() < 0.01;
+    final amount = isExact ? _totalAmount : _tenderAmount.toDouble();
+
     setState(() => _loading = true);
     try {
       final payment = await ServiceLocator.instance.terminalService.processCash(
         widget.order.id,
-        amount: _tenderAmount,
+        amount: amount,
         customerId: _resolvedCustomerId,
         customerName: _resolvedCustomerName,
         customerPhone: _resolvedCustomerPhone,
@@ -637,7 +643,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   Future<void> _openReceipt() async {
     if (widget.order.id.startsWith('local-')) {
-      showError(context, ApiException('Nota belum tersedia — pembayaran masih dalam antrian sync.'));
+      showError(
+        context,
+        ApiException(
+          'Nota belum tersedia — pembayaran masih dalam antrian sync.',
+        ),
+      );
       return;
     }
     final url = ServiceLocator.instance.terminalService.receiptUrl(
@@ -729,10 +740,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      backgroundColor: const Color(0xFFF2F2F7), // Apple's grouped background color
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      backgroundColor: const Color(
+        0xFFF2F2F7,
+      ), // Apple's grouped background color
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SizedBox(
         width: dialogWidth,
         height: dialogHeight,
@@ -820,7 +831,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     return Card(
       elevation: 0,
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E5EA)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Row(
@@ -830,14 +844,17 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: GestureDetector(
-                    onTap: _loading || _finalPayment != null || step.step.index > _maxStepReached.index
+                    onTap:
+                        _loading ||
+                            _finalPayment != null ||
+                            step.step.index > _maxStepReached.index
                         ? null
                         : () => setState(() {
-                              _step = step.step;
-                              if (step.step == _CheckoutStep.payment) {
-                                _summaryExpanded = false;
-                              }
-                            }),
+                            _step = step.step;
+                            if (step.step == _CheckoutStep.payment) {
+                              _summaryExpanded = false;
+                            }
+                          }),
                     child: _StepChip(
                       label: step.label,
                       icon: step.icon,
@@ -879,7 +896,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         ),
                         const SizedBox(width: 8),
                         Icon(
-                          _summaryExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _summaryExpanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           size: 18,
                           color: GimsColors.mutedForeground,
                         ),
@@ -957,7 +976,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Discount', style: TextStyle(color: Colors.green)),
+                      const Text(
+                        'Discount',
+                        style: TextStyle(color: Colors.green),
+                      ),
                       Text(
                         '-${formatMoney(_selectedRewardDiscount, widget.config?.currency ?? 'IDR')}',
                         style: const TextStyle(
@@ -995,7 +1017,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Card(
         elevation: 0,
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE5E5EA)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1005,7 +1030,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE5E5EA)),
+                  ),
                   child: ListTile(
                     leading: const Icon(Icons.verified_outlined),
                     title: Text(_memberLookup?.customerName ?? 'Member'),
@@ -1163,7 +1191,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Card(
         elevation: 0,
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE5E5EA)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1183,10 +1214,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE5E5EA)),
+                  ),
                   child: ListTile(
                     selected: _selectedReward == reward,
-                    selectedTileColor: GimsColors.primary.withValues(alpha: 0.08),
+                    selectedTileColor: GimsColors.primary.withValues(
+                      alpha: 0.08,
+                    ),
                     leading: Icon(
                       _selectedReward == reward
                           ? Icons.radio_button_checked
@@ -1231,12 +1267,13 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 onPressed: _loading
                     ? null
                     : () => setState(() {
-                          _step = _CheckoutStep.payment;
-                          if (_CheckoutStep.payment.index > _maxStepReached.index) {
-                            _maxStepReached = _CheckoutStep.payment;
-                          }
-                          _summaryExpanded = false;
-                        }),
+                        _step = _CheckoutStep.payment;
+                        if (_CheckoutStep.payment.index >
+                            _maxStepReached.index) {
+                          _maxStepReached = _CheckoutStep.payment;
+                        }
+                        _summaryExpanded = false;
+                      }),
                 child: const Text('Continue to Payment'),
               ),
             ),
@@ -1297,7 +1334,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                             ),
                           ),
                           Text(
-                            formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                            formatMoney(
+                              _totalAmount,
+                              widget.config?.currency ?? 'IDR',
+                            ),
                             style: const TextStyle(
                               color: GimsColors.foreground,
                               fontSize: 16,
@@ -1341,19 +1381,31 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _tenderAmount >= _totalAmount ? 'Change' : 'Remaining Due',
+                              _tenderAmount >= _totalAmount
+                                  ? 'Change'
+                                  : 'Remaining Due',
                               style: TextStyle(
-                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                color: _tenderAmount >= _totalAmount
+                                    ? Colors.green
+                                    : GimsColors.destructive,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               _tenderAmount >= _totalAmount
-                                  ? formatMoney((_tenderAmount - _totalAmount).toDouble(), widget.config?.currency ?? 'IDR')
-                                  : formatMoney((_totalAmount - _tenderAmount).toDouble(), widget.config?.currency ?? 'IDR'),
+                                  ? formatMoney(
+                                      (_tenderAmount - _totalAmount).toDouble(),
+                                      widget.config?.currency ?? 'IDR',
+                                    )
+                                  : formatMoney(
+                                      (_totalAmount - _tenderAmount).toDouble(),
+                                      widget.config?.currency ?? 'IDR',
+                                    ),
                               style: TextStyle(
-                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                color: _tenderAmount >= _totalAmount
+                                    ? Colors.green
+                                    : GimsColors.destructive,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1384,19 +1436,29 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         () => _tender.text = _totalAmount.toStringAsFixed(0),
                       ),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
-                      child: const Text('Exact', style: TextStyle(fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Exact',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     OutlinedButton(
                       onPressed: () => setState(() => _tender.clear()),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: GimsColors.destructive,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
-                      child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Reset',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
@@ -1425,9 +1487,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        side: const BorderSide(
-                          color: Color(0xFFE5E5EA),
-                        ),
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
                       child: Text(
                         key,
@@ -1444,13 +1504,18 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                   onPressed: _loading ? null : _payCash,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   icon: _loading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.check_circle_outline),
                   label: const Text(
@@ -1563,7 +1628,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             Card(
               elevation: 0,
               color: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE5E5EA)),
+              ),
               child: ListTile(
                 leading: _ChannelLogo(code: channel.code),
                 title: Text(channel.name),
@@ -1583,7 +1651,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     return Card(
       elevation: 0,
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E5EA)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -1649,7 +1720,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.cloud_upload_outlined, color: Color(0xFFF59E0B)),
+                    const Icon(
+                      Icons.cloud_upload_outlined,
+                      color: Color(0xFFF59E0B),
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -1697,7 +1771,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Card(
         elevation: 0,
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE5E5EA)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(

@@ -34,9 +34,9 @@ class ServiceLocator {
     syncEngine = SyncEngine(isar: resolvedIsar, connectivity: connectivity, apiClient: api);
     syncEngine.start();
     authService = AuthService(api);
-    outletService = OutletService(api);
+    outletService = OutletService(api, resolvedIsar);
     terminalService = TerminalService(api, syncEngine, resolvedIsar);
-    floorService = FloorService(api);
+    floorService = FloorService(api, resolvedIsar);
     loyaltyService = LoyaltyService(api);
     feedbackService = FeedbackService(api);
   }

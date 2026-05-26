@@ -7,12 +7,14 @@ import 'models/cached_catalog_item.dart';
 import 'models/cached_floor_plan.dart';
 import 'models/cached_order.dart';
 import 'models/cached_outlet.dart';
+import 'models/cached_pos_config.dart';
 import '../sync/sync_job.dart';
 
 export 'models/cached_catalog_item.dart';
 export 'models/cached_floor_plan.dart';
 export 'models/cached_order.dart';
 export 'models/cached_outlet.dart';
+export 'models/cached_pos_config.dart';
 
 final isarProvider = Provider<Isar>((ref) {
   throw UnimplementedError('Isar must be initialised before ProviderScope');
@@ -33,6 +35,7 @@ Future<Isar> openIsar() async {
       CachedOutletSchema,
       CachedFloorPlanSchema,
       CachedOrderSchema,
+      CachedPosConfigSchema,
       SyncJobSchema,
     ],
     name: 'gims_pos',

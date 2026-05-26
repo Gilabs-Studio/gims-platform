@@ -1,11 +1,9 @@
-
-
 import 'dart:convert';
 
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/database/models/cached_order.dart';
+import '../../../core/database/isar_provider.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/sync/sync_engine.dart';
@@ -15,6 +13,24 @@ import '../domain/models/catalog_item.dart';
 import '../domain/models/pos_customer.dart';
 import '../domain/models/pos_config.dart';
 import '../domain/models/pos_order.dart';
+
+class PosOfflineReadiness {
+  const PosOfflineReadiness({
+    required this.outletId,
+    required this.hasOutlet,
+    required this.hasConfig,
+    required this.hasCatalog,
+    required this.lastSyncedAt,
+  });
+
+  final String outletId;
+  final bool hasOutlet;
+  final bool hasConfig;
+  final bool hasCatalog;
+  final DateTime? lastSyncedAt;
+
+  bool get isReady => hasOutlet && hasConfig && hasCatalog;
+}
 
 /// Terminal service — catalog, config, orders, payments.
 class TerminalService {
@@ -47,7 +63,6 @@ class TerminalService {
 
   Future<void> _saveCachedOrder(PosOrder order, String syncStatus) async {
     final clientId = _extractClientId(order.id) ?? order.id;
-    final now = DateTime.now();
     await _isar.writeTxn(() async {
       final existing = await _isar.cachedOrders
           .filter()
@@ -59,17 +74,23 @@ class TerminalService {
         ..orderId = order.id.startsWith('local-') ? null : order.id
         ..outletId = order.outletId
         ..status = order.status.value
-        ..itemsJson = jsonEncode(order.items.map((item) => {
-          'id': item.id,
-          'product_id': item.productId,
-          'product_name': item.productName,
-          'product_code': item.productCode,
-          'quantity': item.quantity,
-          'unit_price': item.unitPrice,
-          'subtotal': item.subtotal,
-          'status': item.status,
-          if (item.notes != null) 'notes': item.notes,
-        }).toList())
+        ..itemsJson = jsonEncode(
+          order.items
+              .map(
+                (item) => {
+                  'id': item.id,
+                  'product_id': item.productId,
+                  'product_name': item.productName,
+                  'product_code': item.productCode,
+                  'quantity': item.quantity,
+                  'unit_price': item.unitPrice,
+                  'subtotal': item.subtotal,
+                  'status': item.status,
+                  if (item.notes != null) 'notes': item.notes,
+                },
+              )
+              .toList(),
+        )
         ..totalAmount = order.totalAmount
         ..syncStatus = syncStatus
         ..cachedAt = order.createdAt
@@ -93,7 +114,9 @@ class TerminalService {
     return PosOrder(
       id: cached.orderId ?? _newLocalOrderId(cached.clientId),
       orderNumber: cached.orderId != null
-          ? (cached.orderId!.length >= 8 ? cached.orderId!.substring(0, 8).toUpperCase() : cached.orderId!.toUpperCase())
+          ? (cached.orderId!.length >= 8
+                ? cached.orderId!.substring(0, 8).toUpperCase()
+                : cached.orderId!.toUpperCase())
           : 'LOCAL-${cached.clientId.length >= 8 ? cached.clientId.substring(0, 8).toUpperCase() : cached.clientId.toUpperCase()}',
       outletId: cached.outletId,
       status: PosOrderStatus.fromValue(cached.status),
@@ -131,8 +154,6 @@ class TerminalService {
       ..createdAt = DateTime.now();
     await _syncEngine.enqueue(job);
   }
-
-
 
   void _upsertOrderCache(PosOrder order) {
     _orderById[order.id] = order;
@@ -393,7 +414,15 @@ class TerminalService {
     );
   }
 
-  PosOrder _applyItemLocally(PosOrder source, CartLine line) {
+  double _normalizeRate(double rate) {
+    if (rate <= 0) return 0;
+    if (rate > 1) return rate / 100;
+    return rate;
+  }
+
+  double _roundCurrency(double value) => (value * 100).roundToDouble() / 100;
+
+  Future<PosOrder> _applyItemLocally(PosOrder source, CartLine line) async {
     final items = List<PosOrderItem>.from(source.items);
     final existingIndex = items.indexWhere(
       (item) => item.productId == line.product.productId,
@@ -428,7 +457,28 @@ class TerminalService {
         ),
       );
     }
-    final subtotal = items.fold<double>(0, (sum, item) => sum + item.subtotal);
+    final subtotal = _roundCurrency(
+      items.fold<double>(0, (sum, item) => sum + item.subtotal),
+    );
+    final config = await getConfig(source.outletId);
+    if (config == null) {
+      throw ApiException(
+        'Konfigurasi POS belum tersedia di cache offline. Jalankan Sync POS Offline Data saat online terlebih dahulu.',
+      );
+    }
+
+    final taxableBase = subtotal - source.discountAmount;
+    final safeTaxableBase = taxableBase < 0 ? 0.0 : taxableBase;
+    final taxAmount = _roundCurrency(
+      safeTaxableBase * _normalizeRate(config.taxRate),
+    );
+    final serviceCharge = _roundCurrency(
+      safeTaxableBase * _normalizeRate(config.serviceChargeRate),
+    );
+    final totalAmount = _roundCurrency(
+      safeTaxableBase + taxAmount + serviceCharge,
+    );
+
     return PosOrder(
       id: source.id,
       orderNumber: source.orderNumber,
@@ -436,10 +486,10 @@ class TerminalService {
       status: source.status,
       guestCount: source.guestCount,
       subtotal: subtotal,
-      taxAmount: source.taxAmount,
-      serviceCharge: source.serviceCharge,
+      taxAmount: taxAmount,
+      serviceCharge: serviceCharge,
       discountAmount: source.discountAmount,
-      totalAmount: subtotal + source.taxAmount + source.serviceCharge - source.discountAmount,
+      totalAmount: totalAmount,
       items: items,
       createdAt: source.createdAt,
       tableId: source.tableId,
@@ -464,12 +514,13 @@ class TerminalService {
     final baseOrder = await _findCachedOrder(orderId);
     if (baseOrder == null) return;
 
-    final nextStatus = {
-      PosOrderStatus.draft,
-      PosOrderStatus.inProgress,
-      PosOrderStatus.ready,
-      PosOrderStatus.waitingPayment,
-    }.contains(baseOrder.status)
+    final nextStatus =
+        {
+          PosOrderStatus.draft,
+          PosOrderStatus.inProgress,
+          PosOrderStatus.ready,
+          PosOrderStatus.waitingPayment,
+        }.contains(baseOrder.status)
         ? PosOrderStatus.paid
         : baseOrder.status;
 
@@ -514,13 +565,66 @@ class TerminalService {
             .map(CatalogItem.fromJson)
             .toList();
         _catalogByOutlet[outletId] = items;
+        await _cacheCatalog(outletId, items);
         return items;
       }
-    } catch (_) {
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
       final cached = _catalogByOutlet[outletId];
       if (cached != null) return cached;
     }
-    return const [];
+    final cached = await _getCachedCatalog(outletId);
+    if (cached.isNotEmpty) _catalogByOutlet[outletId] = cached;
+    return cached;
+  }
+
+  Future<void> _cacheCatalog(String outletId, List<CatalogItem> items) async {
+    final now = DateTime.now();
+    await _isar.writeTxn(() async {
+      final stale = await _isar.cachedCatalogItems
+          .filter()
+          .outletIdEqualTo(outletId)
+          .findAll();
+      await _isar.cachedCatalogItems.deleteAll(stale.map((e) => e.id).toList());
+
+      for (final item in items) {
+        final cached = CachedCatalogItem()
+          ..productId = item.productId
+          ..outletId = outletId
+          ..productCode = item.productCode
+          ..productName = item.productName
+          ..productKind = item.productKind
+          ..price = item.price
+          ..stock = item.stock.round()
+          ..isAvailable = item.isAvailable
+          ..imageUrl = item.imageUrl
+          ..category = item.category
+          ..cachedAt = now;
+        await _isar.cachedCatalogItems.put(cached);
+      }
+    });
+  }
+
+  Future<List<CatalogItem>> _getCachedCatalog(String outletId) async {
+    final cached = await _isar.cachedCatalogItems
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findAll();
+    return cached
+        .map(
+          (c) => CatalogItem(
+            productId: c.productId,
+            productCode: c.productCode,
+            productName: c.productName,
+            productKind: c.productKind,
+            price: c.price,
+            stock: c.stock.toDouble(),
+            isAvailable: c.isAvailable,
+            imageUrl: c.imageUrl,
+            category: c.category,
+          ),
+        )
+        .toList();
   }
 
   Future<PosConfig?> getConfig(String outletId) async {
@@ -532,10 +636,93 @@ class TerminalService {
       if (data.isEmpty) return _configByOutlet[outletId];
       final config = PosConfig.fromJson(data);
       _configByOutlet[outletId] = config;
+      await _cacheConfig(outletId, config);
       return config;
-    } catch (_) {
-      return _configByOutlet[outletId];
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
+      final memory = _configByOutlet[outletId];
+      if (memory != null) return memory;
+      final cached = await _getCachedConfig(outletId);
+      if (cached != null) _configByOutlet[outletId] = cached;
+      return cached;
     }
+  }
+
+  Future<void> _cacheConfig(String outletId, PosConfig config) async {
+    final existing = await _isar.cachedPosConfigs
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findFirst();
+    final cached = existing ?? CachedPosConfig();
+    cached
+      ..outletId = outletId
+      ..currency = config.currency
+      ..taxRate = config.taxRate
+      ..serviceChargeRate = config.serviceChargeRate
+      ..printReceiptAuto = config.printReceiptAuto
+      ..receiptFooter = config.receiptFooter
+      ..receiptWhatsAppTemplate = config.receiptWhatsAppTemplate
+      ..cachedAt = DateTime.now();
+    await _isar.writeTxn(() async {
+      await _isar.cachedPosConfigs.put(cached);
+    });
+  }
+
+  Future<PosConfig?> _getCachedConfig(String outletId) async {
+    final cached = await _isar.cachedPosConfigs
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findFirst();
+    if (cached == null) return null;
+    return PosConfig(
+      currency: cached.currency,
+      taxRate: cached.taxRate,
+      serviceChargeRate: cached.serviceChargeRate,
+      printReceiptAuto: cached.printReceiptAuto,
+      receiptFooter: cached.receiptFooter,
+      receiptWhatsAppTemplate: cached.receiptWhatsAppTemplate,
+    );
+  }
+
+  Future<PosOfflineReadiness> getOfflineReadiness(String outletId) async {
+    final outlet = await _isar.cachedOutlets
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findFirst();
+    final config = await _isar.cachedPosConfigs
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findFirst();
+    final catalog = await _isar.cachedCatalogItems
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findAll();
+
+    return PosOfflineReadiness(
+      outletId: outletId,
+      hasOutlet: outlet != null,
+      hasConfig: config != null,
+      hasCatalog: catalog.isNotEmpty,
+      lastSyncedAt: _oldestDate([
+        if (outlet != null) outlet.cachedAt,
+        if (config != null) config.cachedAt,
+        if (catalog.isNotEmpty)
+          _oldestDate(catalog.map((item) => item.cachedAt)),
+      ]),
+    );
+  }
+
+  Future<bool> isOfflineReady(String outletId) async {
+    return (await getOfflineReadiness(outletId)).isReady;
+  }
+
+  DateTime? _oldestDate(Iterable<DateTime?> dates) {
+    DateTime? oldest;
+    for (final date in dates) {
+      if (date == null) continue;
+      if (oldest == null || date.isBefore(oldest)) oldest = date;
+    }
+    return oldest;
   }
 
   Future<PosOrder> createOrder({
@@ -570,6 +757,11 @@ class TerminalService {
       return order;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
+      if (!await isOfflineReady(outletId)) {
+        throw ApiException(
+          'Offline mode belum siap untuk outlet ini. Sambungkan internet lalu jalankan Sync POS Offline Data terlebih dahulu.',
+        );
+      }
       final localOrder = PosOrder(
         id: _newLocalOrderId(clientId),
         orderNumber: 'LOCAL-${clientId.substring(0, 8).toUpperCase()}',
@@ -629,7 +821,7 @@ class TerminalService {
       if (baseOrder == null) {
         throw ApiException('Order tidak ditemukan di cache offline');
       }
-      final updated = _applyItemLocally(baseOrder, line);
+      final updated = await _applyItemLocally(baseOrder, line);
       _upsertOrderCache(updated);
       await _saveCachedOrder(updated, CachedOrderSyncStatus.local);
       // For local orders (id = 'local-{parentClientId}'), use the parent clientId
@@ -657,7 +849,9 @@ class TerminalService {
     }
     final targetOrderId = resolvedOrderId ?? orderId;
     try {
-      final response = await _api.get<Map<String, dynamic>>('/pos/orders/$targetOrderId');
+      final response = await _api.get<Map<String, dynamic>>(
+        '/pos/orders/$targetOrderId',
+      );
       final order = PosOrder.fromJson(_dataMap(response.data));
       _orderById[order.id] = order;
       await _saveCachedOrder(order, CachedOrderSyncStatus.synced);
@@ -802,10 +996,7 @@ class TerminalService {
     required String tableLabel,
   }) async {
     final bypassServer = await _isUnresolvedLocalOrder(orderId);
-    final data = {
-      'table_id': tableId,
-      'table_label': tableLabel,
-    };
+    final data = {'table_id': tableId, 'table_label': tableLabel};
     try {
       if (bypassServer) {
         throw _pendingSyncOrderException();
@@ -872,7 +1063,9 @@ class TerminalService {
     _orderById.remove(orderId);
     _orderById.remove(clientId);
     for (final entry in _ordersByOutlet.entries) {
-      final idx = entry.value.indexWhere((order) => order.id == orderId || order.id == clientId);
+      final idx = entry.value.indexWhere(
+        (order) => order.id == orderId || order.id == clientId,
+      );
       if (idx >= 0) {
         final next = List<PosOrder>.from(entry.value);
         next.removeAt(idx);
@@ -918,9 +1111,7 @@ class TerminalService {
         await _enqueueJob(
           jobClientId: _uuid.v4(),
           action: 'deleteOrder',
-          payload: {
-            'orderId': resolvedOrderId,
-          },
+          payload: {'orderId': resolvedOrderId},
         );
       }
     }
@@ -1085,17 +1276,23 @@ class TerminalService {
               ..orderId = order.id
               ..outletId = outletId
               ..status = order.status.value
-              ..itemsJson = jsonEncode(order.items.map((item) => {
-                'id': item.id,
-                'product_id': item.productId,
-                'product_name': item.productName,
-                'product_code': item.productCode,
-                'quantity': item.quantity,
-                'unit_price': item.unitPrice,
-                'subtotal': item.subtotal,
-                'status': item.status,
-                if (item.notes != null) 'notes': item.notes,
-              }).toList())
+              ..itemsJson = jsonEncode(
+                order.items
+                    .map(
+                      (item) => {
+                        'id': item.id,
+                        'product_id': item.productId,
+                        'product_name': item.productName,
+                        'product_code': item.productCode,
+                        'quantity': item.quantity,
+                        'unit_price': item.unitPrice,
+                        'subtotal': item.subtotal,
+                        'status': item.status,
+                        if (item.notes != null) 'notes': item.notes,
+                      },
+                    )
+                    .toList(),
+              )
               ..totalAmount = order.totalAmount
               ..syncStatus = CachedOrderSyncStatus.synced
               ..cachedAt = order.createdAt
@@ -1156,7 +1353,9 @@ class TerminalService {
           _orderById[order.id] = order;
         }
         if (status == null || status.isEmpty) return mergedOrders;
-        return mergedOrders.where((order) => order.status.value == status).toList();
+        return mergedOrders
+            .where((order) => order.status.value == status)
+            .toList();
       }
     } catch (_) {
       final localCached = await _isar.cachedOrders
@@ -1293,7 +1492,9 @@ class TerminalService {
   }
 
   Future<List<PosPayment>> getPaymentsByOrderId(String orderId) async {
-    final response = await _api.get<Map<String, dynamic>>('/pos/orders/$orderId/payments');
+    final response = await _api.get<Map<String, dynamic>>(
+      '/pos/orders/$orderId/payments',
+    );
     final raw = response.data?['data'];
     if (raw is List) {
       return raw
@@ -1305,7 +1506,9 @@ class TerminalService {
   }
 
   Future<XenditConnectionStatus> getXenditConnectionStatus() async {
-    final response = await _api.get<Map<String, dynamic>>('/pos/payment/status');
+    final response = await _api.get<Map<String, dynamic>>(
+      '/pos/payment/status',
+    );
     return XenditConnectionStatus.fromJson(_dataMap(response.data));
   }
 
@@ -1316,10 +1519,7 @@ class TerminalService {
     try {
       final response = await _api.get<Map<String, dynamic>>(
         '/customer/customers',
-        queryParameters: {
-          'per_page': perPage,
-          'search': search,
-        },
+        queryParameters: {'per_page': perPage, 'search': search},
       );
       final raw = response.data?['data'];
       if (raw is List) {
@@ -1352,10 +1552,7 @@ class TerminalService {
     String? phone,
     String? email,
   }) async {
-    final data = <String, dynamic>{
-      'name': name,
-      'is_active': true,
-    };
+    final data = <String, dynamic>{'name': name, 'is_active': true};
     if (phone != null && phone.isNotEmpty) {
       data['contact_person'] = phone;
     }
