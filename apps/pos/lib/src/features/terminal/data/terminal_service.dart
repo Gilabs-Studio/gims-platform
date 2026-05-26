@@ -67,36 +67,60 @@ class TerminalService {
       final existing = await _isar.cachedOrders
           .filter()
           .clientIdEqualTo(clientId)
+          .or()
+          .orderIdEqualTo(order.id)
           .findFirst();
       final entry = existing ?? CachedOrder();
+
+      var statusToSave = order.status.value;
+      var itemsJsonToSave = jsonEncode(order.items.map((item) => {
+        'id': item.id,
+        'product_id': item.productId,
+        'product_name': item.productName,
+        'product_code': item.productCode,
+        'quantity': item.quantity,
+        'unit_price': item.unitPrice,
+        'subtotal': item.subtotal,
+        'status': item.status,
+        if (item.notes != null) 'notes': item.notes,
+      }).toList());
+      var syncStatusToSave = syncStatus;
+      var totalAmountToSave = order.totalAmount;
+      var tableIdToSave = order.tableId;
+      var tableLabelToSave = order.tableLabel;
+      var customerNameToSave = order.customerName;
+
+      if (existing != null) {
+        final localStatus = PosOrderStatus.fromValue(existing.status);
+        final newStatus = order.status;
+        final hasLocalProgress = _orderStatusRank(localStatus) > _orderStatusRank(newStatus);
+
+        if (hasLocalProgress) {
+          statusToSave = existing.status;
+          itemsJsonToSave = existing.itemsJson;
+          totalAmountToSave = existing.totalAmount;
+          tableIdToSave = existing.tableId;
+          tableLabelToSave = existing.tableLabel;
+          customerNameToSave = existing.customerName;
+
+          if (syncStatus == CachedOrderSyncStatus.synced) {
+            syncStatusToSave = existing.syncStatus;
+          }
+        }
+      }
+
       entry
         ..clientId = clientId
         ..orderId = order.id.startsWith('local-') ? null : order.id
         ..outletId = order.outletId
-        ..status = order.status.value
-        ..itemsJson = jsonEncode(
-          order.items
-              .map(
-                (item) => {
-                  'id': item.id,
-                  'product_id': item.productId,
-                  'product_name': item.productName,
-                  'product_code': item.productCode,
-                  'quantity': item.quantity,
-                  'unit_price': item.unitPrice,
-                  'subtotal': item.subtotal,
-                  'status': item.status,
-                  if (item.notes != null) 'notes': item.notes,
-                },
-              )
-              .toList(),
-        )
-        ..totalAmount = order.totalAmount
-        ..syncStatus = syncStatus
+        ..status = statusToSave
+        ..itemsJson = itemsJsonToSave
+        ..totalAmount = totalAmountToSave
+        ..syncStatus = syncStatusToSave
         ..cachedAt = order.createdAt
-        ..tableId = order.tableId
-        ..tableLabel = order.tableLabel
-        ..customerName = order.customerName;
+        ..tableId = tableIdToSave
+        ..tableLabel = tableLabelToSave
+        ..customerName = customerNameToSave;
       await _isar.cachedOrders.put(entry);
     });
   }
@@ -181,6 +205,55 @@ class TerminalService {
       }
     }
     _upsertOrderCache(serverOrder);
+  }
+
+  /// Applies a server-side [PosOrder] (e.g. from a WebSocket event) to the
+  /// in-memory cache, correctly evicting any stale `local-xxx` ghost entries
+  /// that were previously created offline and have now been resolved by sync.
+  ///
+  /// Must be awaited so the Isar lookup can resolve the local ↔ server ID
+  /// mapping. Returns the canonical order to display in the UI.
+  Future<PosOrder> applyServerOrder(PosOrder serverOrder) async {
+    // 1. Find any `local-xxx` cached entry that resolved to this server ID.
+    final localEntry = await _isar.cachedOrders
+        .filter()
+        .orderIdEqualTo(serverOrder.id)
+        .findFirst();
+
+    if (localEntry != null) {
+      final localId = _newLocalOrderId(localEntry.clientId);
+
+      // Evict from in-memory maps.
+      _orderById.remove(localId);
+      for (final key in _ordersByOutlet.keys.toList()) {
+        _ordersByOutlet[key] =
+            _ordersByOutlet[key]!.where((o) => o.id != localId).toList();
+      }
+    }
+
+    // 2. Upsert the canonical server order.
+    _upsertOrderCache(serverOrder);
+    return serverOrder;
+  }
+
+  /// Returns the `local-xxx` order ID that maps to [serverOrderId] if one
+  /// still exists in the in-memory cache, or `null` if already reconciled.
+  /// Used by the UI to purge ghost entries from its own order list.
+  String? localIdForServerId(String serverOrderId) {
+    for (final orders in _ordersByOutlet.values) {
+      for (final o in orders) {
+        // A local-xxx order that has been upserted with the server ID during
+        // _reconcileLocalOrderId was already replaced in-memory. But if the
+        // WS event arrived before reconciliation, the local-xxx version may
+        // still be present alongside the server version.
+        if (o.id.startsWith('local-')) {
+          // We can't check the DB synchronously, but we can match by tableId.
+          // This is used only to clean up a UI list — a false-negative is safe.
+          if (o.tableId != null && o.tableId == serverOrderId) return o.id;
+        }
+      }
+    }
+    return null;
   }
 
   Future<PosOrder?> _findCachedOrder(String orderId) async {
@@ -280,9 +353,47 @@ class TerminalService {
 
   Future<bool> _isUnresolvedLocalOrder(String orderId) async {
     final clientId = _extractClientId(orderId);
-    if (clientId == null) return false;
-    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
-    return resolvedOrderId == null || resolvedOrderId.isEmpty;
+    final lookupId = clientId ?? orderId;
+
+    // Check 1: Check CachedOrder table syncStatus
+    final cached = await _isar.cachedOrders
+        .filter()
+        .clientIdEqualTo(lookupId)
+        .or()
+        .orderIdEqualTo(orderId)
+        .findFirst();
+    if (cached != null && cached.syncStatus != CachedOrderSyncStatus.synced) {
+      return true;
+    }
+
+    // Check 2: Check SyncJob table for pending/processing/failed jobs for this order
+    final resolvedServerId = cached?.orderId ?? (orderId.startsWith('local-') ? null : orderId);
+    
+    final activeJobsCount = await _isar.syncJobs.filter()
+        .group((q) => q
+            .statusEqualTo(SyncJobStatus.pending)
+            .or()
+            .statusEqualTo(SyncJobStatus.processing)
+            .or()
+            .statusEqualTo(SyncJobStatus.failed)
+            .or()
+            .statusEqualTo(SyncJobStatus.failedConflict)
+        )
+        .and()
+        .group((q) {
+          var res = q.clientIdEqualTo(lookupId);
+          if (resolvedServerId != null && resolvedServerId.isNotEmpty) {
+            res = res.or().resolvedOrderIdEqualTo(resolvedServerId);
+          }
+          return res;
+        })
+        .count();
+
+    if (activeJobsCount > 0) {
+      return true;
+    }
+
+    return false;
   }
 
   ApiException _pendingSyncOrderException() {
@@ -1121,7 +1232,8 @@ class TerminalService {
     final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
     final targetOrderId = resolvedOrderId ?? orderId;
     try {
-      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+      final bypassServer = await _isUnresolvedLocalOrder(orderId);
+      if (bypassServer) {
         throw _pendingSyncOrderException();
       }
       final response = await _api.post<Map<String, dynamic>>(
@@ -1159,7 +1271,8 @@ class TerminalService {
     final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
     final targetOrderId = resolvedOrderId ?? orderId;
     try {
-      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+      final bypassServer = await _isUnresolvedLocalOrder(orderId);
+      if (bypassServer) {
         throw _pendingSyncOrderException();
       }
       final response = await _api.post<Map<String, dynamic>>(
@@ -1197,7 +1310,8 @@ class TerminalService {
     final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
     final targetOrderId = resolvedOrderId ?? orderId;
     try {
-      if (orderId.startsWith('local-') && resolvedOrderId == null) {
+      final bypassServer = await _isUnresolvedLocalOrder(orderId);
+      if (bypassServer) {
         throw _pendingSyncOrderException();
       }
       final response = await _api.post<Map<String, dynamic>>(
@@ -1262,18 +1376,86 @@ class TerminalService {
             .map(PosOrder.fromJson)
             .toList();
 
+        // 1. Fetch local cache BEFORE modifying it with server data.
+        final localCached = await _isar.cachedOrders
+            .filter()
+            .outletIdEqualTo(outletId)
+            .findAll();
+        final localOrders = localCached.map(_cachedToOrder).toList();
+        final localById = <String, PosOrder>{
+          for (final order in localOrders) order.id: order,
+        };
+
+        // 2. Build the initial merged list starting from server orders.
+        final mergedOrders = List<PosOrder>.from(serverOrders);
+
+        // Merge local data into matching server orders.
+        for (var i = 0; i < mergedOrders.length; i++) {
+          final serverOrder = mergedOrders[i];
+          final local = localById[serverOrder.id];
+          if (local != null) {
+            mergedOrders[i] = _preferFurthestProgress(serverOrder, local);
+          }
+        }
+
+        // 3. Append offline active local-created orders.
+        for (final cachedOrder in localOrders) {
+          if (!cachedOrder.id.startsWith('local-')) continue;
+          if (!_isLocallyActiveStatus(cachedOrder.status)) continue;
+
+          final resolvedServerId = await _resolvedServerOrderIdForLocal(
+            cachedOrder.id,
+          );
+          if (resolvedServerId != null) {
+            final serverIdx = mergedOrders.indexWhere(
+              (order) => order.id == resolvedServerId,
+            );
+            if (serverIdx >= 0) {
+              // Server order exists — merge & reconcile.
+              final merged = _preferFurthestProgress(
+                mergedOrders[serverIdx],
+                cachedOrder,
+              );
+              mergedOrders[serverIdx] = merged;
+              _reconcileLocalOrderId(cachedOrder.id, merged);
+            }
+            // Server resolved this local order but it's no longer in the
+            // active list (e.g. already completed / cleared). Don't re-insert
+            // the stale local ghost — just skip it.
+            continue;
+          }
+
+          // No server ID yet (pure offline order); include only if not already present.
+          if (!mergedOrders.any((order) => order.id == cachedOrder.id)) {
+            mergedOrders.insert(0, cachedOrder);
+          }
+        }
+
+        // 4. Save merged states to local database (Isar).
         await _isar.writeTxn(() async {
-          for (final order in serverOrders) {
+          for (final order in mergedOrders) {
             final existing = await _isar.cachedOrders
                 .filter()
                 .orderIdEqualTo(order.id)
                 .or()
                 .clientIdEqualTo(order.id)
                 .findFirst();
+
+            var syncStatusToSave = CachedOrderSyncStatus.synced;
+            if (existing != null) {
+              final localOrder = _cachedToOrder(existing);
+              final hasLocalProgress = _orderStatusRank(localOrder.status) > _orderStatusRank(order.status);
+              if (hasLocalProgress || existing.syncStatus != CachedOrderSyncStatus.synced) {
+                syncStatusToSave = existing.syncStatus;
+              }
+            } else if (order.id.startsWith('local-')) {
+              syncStatusToSave = CachedOrderSyncStatus.local;
+            }
+
             final entry = existing ?? CachedOrder();
             entry
               ..clientId = existing?.clientId ?? order.id
-              ..orderId = order.id
+              ..orderId = order.id.startsWith('local-') ? null : order.id
               ..outletId = outletId
               ..status = order.status.value
               ..itemsJson = jsonEncode(
@@ -1294,7 +1476,7 @@ class TerminalService {
                     .toList(),
               )
               ..totalAmount = order.totalAmount
-              ..syncStatus = CachedOrderSyncStatus.synced
+              ..syncStatus = syncStatusToSave
               ..cachedAt = order.createdAt
               ..tableId = order.tableId
               ..tableLabel = order.tableLabel
@@ -1303,55 +1485,12 @@ class TerminalService {
           }
         });
 
-        final localCached = await _isar.cachedOrders
-            .filter()
-            .outletIdEqualTo(outletId)
-            .findAll();
-        final localOrders = localCached.map(_cachedToOrder).toList();
-
-        final mergedOrders = List<PosOrder>.from(serverOrders);
-        final previousOrders = localOrders;
-
-        final previousById = <String, PosOrder>{
-          for (final order in previousOrders) order.id: order,
-        };
-        for (var i = 0; i < mergedOrders.length; i++) {
-          final previous = previousById[mergedOrders[i].id];
-          if (previous == null) continue;
-          mergedOrders[i] = _preferFurthestProgress(mergedOrders[i], previous);
-        }
-
-        for (final cachedOrder in previousOrders) {
-          if (!cachedOrder.id.startsWith('local-')) continue;
-          if (!_isLocallyActiveStatus(cachedOrder.status)) continue;
-
-          final resolvedServerId = await _resolvedServerOrderIdForLocal(
-            cachedOrder.id,
-          );
-          if (resolvedServerId != null) {
-            final serverIdx = mergedOrders.indexWhere(
-              (order) => order.id == resolvedServerId,
-            );
-            if (serverIdx >= 0) {
-              final merged = _preferFurthestProgress(
-                mergedOrders[serverIdx],
-                cachedOrder,
-              );
-              mergedOrders[serverIdx] = merged;
-              _reconcileLocalOrderId(cachedOrder.id, merged);
-              continue;
-            }
-          }
-
-          if (!mergedOrders.any((order) => order.id == cachedOrder.id)) {
-            mergedOrders.insert(0, cachedOrder);
-          }
-        }
-
+        // 5. Update in-memory caches.
         _ordersByOutlet[outletId] = mergedOrders;
         for (final order in mergedOrders) {
           _orderById[order.id] = order;
         }
+
         if (status == null || status.isEmpty) return mergedOrders;
         return mergedOrders
             .where((order) => order.status.value == status)

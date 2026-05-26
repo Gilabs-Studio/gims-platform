@@ -172,7 +172,8 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       );
 
       const unpaidOrders = matchedOrders.filter((order) =>
-        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number])
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]) ||
+        order.status === "DRAFT"
       );
 
       const serviceFlowOrders = [...matchedOrders]

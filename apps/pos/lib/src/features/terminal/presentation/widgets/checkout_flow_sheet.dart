@@ -16,6 +16,7 @@ import '../../domain/models/pos_config.dart';
 import '../../domain/models/pos_customer.dart';
 import '../../domain/models/pos_order.dart';
 import '../../domain/models/table_selection.dart';
+import 'thermal_printer_settings_dialog.dart';
 
 class CheckoutResult {
   const CheckoutResult({
@@ -657,6 +658,29 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     await openExternal(url);
   }
 
+  Future<void> _handlePrint() async {
+    final printerService = ServiceLocator.instance.thermalPrinterService;
+    final isOffline = widget.order.id.startsWith('local-') || _receiptPreviewError;
+    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
+    final change =
+        _finalPayment?.changeAmount ??
+        ((tender - _totalAmount) < 0 ? 0 : (tender - _totalAmount));
+    
+    final success = await printerService.printReceipt(
+      context,
+      widget.order,
+      widget.config,
+      widget.outletName,
+      isOffline: isOffline,
+      tenderAmount: tender,
+      changeAmount: change,
+    );
+    
+    if (!success && mounted) {
+      ThermalPrinterSettingsDialog.show(context);
+    }
+  }
+
   Future<void> _sendWhatsApp() async {
     final phone = _resolvedCustomerPhone;
     if (phone == null || phone.isEmpty) {
@@ -795,6 +819,12 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             ],
           ),
         ),
+        IconButton(
+          tooltip: 'Pengaturan Printer',
+          onPressed: () => ThermalPrinterSettingsDialog.show(context),
+          icon: const Icon(Icons.print_outlined),
+        ),
+        const SizedBox(width: 8),
         IconButton(
           tooltip: 'Close',
           onPressed: _loading ? null : _confirmCancelCheckout,
@@ -1708,61 +1738,57 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       return [
         Card(
           elevation: 0,
-          color: const Color(0xFFFFF8E1),
+          color: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFFFD54F)),
+            side: const BorderSide(color: Color(0xFFE5E5EA)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.cloud_upload_outlined,
-                      color: Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Pembayaran Disimpan Offline',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          color: Color(0xFF92400E),
-                        ),
-                      ),
-                    ),
-                  ],
+                Container(
+                  height: 480,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(GimsRadius.medium),
+                    child: _buildOfflineReceiptPreview(),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Data order, pembayaran, dan invoice akan otomatis dikirim ke server saat koneksi internet pulih.',
-                  style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
-                ),
-                const Divider(height: 24, color: Color(0xFFFFD54F)),
-                _receiptRow('Order', widget.order.orderNumber),
-                _receiptRow('Metode', 'CASH'),
-                _receiptRow(
-                  'Total',
-                  formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
-                ),
-                if (_resolvedCustomerName.isNotEmpty)
-                  _receiptRow('Customer', _resolvedCustomerName),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: _finishCheckout,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-          child: const Text(
-            'Selesai',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _handlePrint,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                ),
+                icon: const Icon(Icons.print_outlined),
+                label: const Text(
+                  'Print Nota',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: _finishCheckout,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                ),
+                child: const Text(
+                  'Selesai',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ),
       ];
     }
@@ -1790,40 +1816,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(GimsRadius.medium),
                   child: _receiptPreviewError
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.receipt_long_outlined,
-                                  color: GimsColors.mutedForeground,
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Preview nota tidak dapat dimuat.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Buka nota di browser untuk melihat printable receipt.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: GimsColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _openReceipt,
-                                  icon: const Icon(Icons.open_in_new_outlined),
-                                  label: const Text('Buka Nota'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
+                      ? _buildOfflineReceiptPreview()
                       : WebViewWidget(controller: _receiptPreviewController!),
                 ),
               ),
@@ -1836,7 +1829,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: _openReceipt,
+              onPressed: _handlePrint,
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(64),
               ),
@@ -1907,6 +1900,100 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 fontSize: 13,
                 color: Color(0xFF78350F),
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineReceiptPreview() {
+    final printerService = ServiceLocator.instance.thermalPrinterService;
+    final isLocal = widget.order.id.startsWith('local-');
+    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
+    final change =
+        _finalPayment?.changeAmount ??
+        ((tender - _totalAmount) < 0 ? 0.0 : (tender - _totalAmount).toDouble());
+    final receiptText = printerService.generateReceiptText(
+      widget.order,
+      widget.config,
+      widget.outletName,
+      isOffline: isLocal,
+      tenderAmount: tender,
+      changeAmount: change,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        border: Border.all(color: GimsColors.border),
+        borderRadius: BorderRadius.circular(GimsRadius.medium),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLocal ? Icons.cloud_upload_outlined : Icons.receipt_long_outlined,
+                color: isLocal ? const Color(0xFFF59E0B) : GimsColors.primary,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isLocal ? 'Mode Offline - Preview Nota' : 'Preview Nota',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: isLocal ? const Color(0xFF92400E) : GimsColors.foreground,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isLocal
+                ? 'Order disimpan secara lokal dan akan disinkronkan saat online.'
+                : 'Menampilkan format printer thermal untuk order ini.',
+            style: const TextStyle(color: GimsColors.mutedForeground, fontSize: 12),
+          ),
+          const Divider(height: 24),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Center(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    width: printerService.paperSize == '80mm' ? 380 : 280,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(13),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      receiptText,
+                      softWrap: false,
+                      style: const TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 13,
+                        height: 1.2,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

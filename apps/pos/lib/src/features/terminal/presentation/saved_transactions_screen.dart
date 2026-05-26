@@ -75,12 +75,7 @@ class _SavedTransactionsScreenState extends State<SavedTransactionsScreen> {
     try {
       await ServiceLocator.instance.terminalService.deleteOrder(order.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Draft #${order.orderNumber} berhasil dihapus'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showNotification(context, 'Draft #${order.orderNumber} berhasil dihapus');
       }
       _loadDrafts();
     } catch (error) {

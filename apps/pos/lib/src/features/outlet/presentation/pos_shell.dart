@@ -15,6 +15,7 @@ import '../domain/models/outlet.dart';
 import 'widgets/home_grid.dart';
 import '../../terminal/presentation/unified_terminal_flow.dart';
 import '../../terminal/data/terminal_service.dart';
+import '../../terminal/presentation/widgets/thermal_printer_settings_dialog.dart';
 import '../../terminal/data/pos_ws_service.dart';
 import '../../terminal/data/push_notification_service.dart';
 import '../../floor_layout/presentation/floor_editor_screen.dart';
@@ -237,7 +238,11 @@ class _PosShellState extends ConsumerState<PosShell> {
                 case 'sync_offline':
                   await _syncOfflineData(showFeedback: true);
                   break;
-
+                case 'printer_settings':
+                  if (context.mounted) {
+                    ThermalPrinterSettingsDialog.show(context);
+                  }
+                  break;
                 case 'logout':
                   widget.onLogout();
                   break;
@@ -259,7 +264,10 @@ class _PosShellState extends ConsumerState<PosShell> {
                       : 'Sync POS Offline Data',
                 ),
               ),
-
+              const PopupMenuItem(
+                value: 'printer_settings',
+                child: Text('Pengaturan Printer'),
+              ),
               const PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
           ),

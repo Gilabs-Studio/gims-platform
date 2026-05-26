@@ -130,11 +130,6 @@ class SyncEngine {
   }
 
   Future<void> _processJob(SyncJob job) async {
-    await _isar.writeTxn(() async {
-      job.status = SyncJobStatus.processing;
-      await _isar.syncJobs.put(job);
-    });
-
     final payload = jsonDecode(job.payload) as Map<String, dynamic>;
 
     // Resolve downstream orderId reference if applicable.
@@ -145,8 +140,26 @@ class SyncEngine {
           .findFirst();
       if (ref?.orderId != null) {
         payload['orderId'] = ref!.orderId;
+        job.payload = jsonEncode(payload);
+        job.resolvedOrderId = ref.orderId;
+        await _isar.writeTxn(() async {
+          await _isar.syncJobs.put(job);
+        });
       }
     }
+
+    if (job.feature == 'terminal' && job.action != 'createOrder') {
+      final orderId = payload['orderId'] as String?;
+      if (orderId == null || orderId.isEmpty) {
+        // Skip processing for now; keep it pending.
+        return;
+      }
+    }
+
+    await _isar.writeTxn(() async {
+      job.status = SyncJobStatus.processing;
+      await _isar.syncJobs.put(job);
+    });
 
     try {
       _apiClient.setNextRequestHeader('X-Idempotency-Key', job.clientId);
@@ -270,7 +283,10 @@ class SyncEngine {
   ) async {
     final downstreamJobs = await _isar.syncJobs
         .filter()
-        .statusEqualTo(SyncJobStatus.pending)
+        .group((q) => q
+            .statusEqualTo(SyncJobStatus.pending)
+            .or()
+            .statusEqualTo(SyncJobStatus.failed))
         .findAll();
 
     final toUpdate = <SyncJob>[];
@@ -280,7 +296,10 @@ class SyncEngine {
         p['orderId'] = orderId;
         j
           ..payload = jsonEncode(p)
-          ..resolvedOrderId = orderId;
+          ..resolvedOrderId = orderId
+          ..status = SyncJobStatus.pending
+          ..attemptCount = 0
+          ..nextRetryAt = null;
         toUpdate.add(j);
       }
     }
@@ -807,7 +826,20 @@ class SyncEngine {
       if (j.feature != 'terminal' || j.action != 'processCash') continue;
       try {
         final p = jsonDecode(j.payload) as Map<String, dynamic>;
-        if (p['orderId'] != orderId) continue;
+        var matches = p['orderId'] == orderId;
+        if (!matches && (p['orderId'] == null || (p['orderId'] as String).isEmpty)) {
+          final jobClientId = p['clientId'] as String?;
+          if (jobClientId != null && jobClientId.isNotEmpty) {
+            final cachedOrder = await _isar.cachedOrders
+                .filter()
+                .clientIdEqualTo(jobClientId)
+                .findFirst();
+            if (cachedOrder != null && cachedOrder.orderId == orderId) {
+              matches = true;
+            }
+          }
+        }
+        if (!matches) continue;
         final currentAmount = (p['amount'] as num?)?.toDouble();
         if (currentAmount != null && currentAmount >= serverTotal) continue;
         // Offline amount is less than server total; align to server-confirmed total.

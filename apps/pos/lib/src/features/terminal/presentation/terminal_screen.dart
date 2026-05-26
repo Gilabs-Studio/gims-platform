@@ -215,12 +215,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
         _order = null;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaksi berhasil disimpan sebagai draft'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showNotification(context, 'Transaksi berhasil disimpan sebagai draft');
       }
       if (widget.hasFloorLayout && widget.onBackToLiveTable != null) {
         widget.onBackToLiveTable!();
@@ -259,12 +254,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _drafts = _drafts.where((d) => d.id != draft.id).toList();
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Melanjutkan transaksi #${draft.orderNumber}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showNotification(context, 'Melanjutkan transaksi #${draft.orderNumber}');
     }
   }
 
@@ -294,12 +284,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     try {
       await ServiceLocator.instance.terminalService.deleteOrder(draft.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Draft #${draft.orderNumber} berhasil dihapus'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showNotification(context, 'Draft #${draft.orderNumber} berhasil dihapus');
       }
       await _loadDrafts();
     } catch (error) {
@@ -327,25 +312,22 @@ class _TerminalScreenState extends State<TerminalScreen> {
         .where((l) => l.product.productId == product.productId)
         .fold<double>(0, (sum, l) => sum + l.quantity);
     if (product.stock >= 0 && totalInCart > product.stock) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.orange.shade700,
-          behavior: SnackBarBehavior.floating,
-          content: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Peringatan: stok tersedia ${product.stock.toStringAsFixed(0)} unit. '
-                  'Melanjutkan bisa menyebabkan konflik saat sinkronisasi.',
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                ),
+      showNotification(
+        context,
+        'Peringatan: stok tersedia ${product.stock.toStringAsFixed(0)} unit. Melanjutkan bisa menyebabkan konflik saat sinkronisasi.',
+        backgroundColor: Colors.orange.shade700,
+        customContent: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Peringatan: stok tersedia ${product.stock.toStringAsFixed(0)} unit. '
+                'Melanjutkan bisa menyebabkan konflik saat sinkronisasi.',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
-            ],
-          ),
-          duration: const Duration(seconds: 4),
+            ),
+          ],
         ),
       );
     }

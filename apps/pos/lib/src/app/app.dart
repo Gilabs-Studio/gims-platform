@@ -13,6 +13,7 @@ import '../features/floor_layout/data/floor_service.dart';
 import '../features/loyalty/data/loyalty_service.dart';
 import '../features/outlet/data/outlet_service.dart';
 import '../features/terminal/data/terminal_service.dart';
+import '../features/terminal/data/thermal_printer_service.dart';
 
 /// Top-level service locator (will be replaced by Riverpod in Phase 4).
 class ServiceLocator {
@@ -26,6 +27,7 @@ class ServiceLocator {
   late final FloorService floorService;
   late final LoyaltyService loyaltyService;
   late final FeedbackService feedbackService;
+  late final ThermalPrinterService thermalPrinterService;
   late final SyncEngine syncEngine;
 
   Future<void> init(ApiClient api, {Isar? isar}) async {
@@ -39,6 +41,7 @@ class ServiceLocator {
     floorService = FloorService(api, resolvedIsar);
     loyaltyService = LoyaltyService(api);
     feedbackService = FeedbackService(api);
+    thermalPrinterService = ThermalPrinterService.instance..init();
   }
 }
 
