@@ -1,5 +1,5 @@
 export const userFeedbackEn = {
-  feedback: {
+  userFeedback: {
     title: "Help & Feedback",
     description: "Report issues or share your suggestions to improve this platform.",
     writeCardTitle: "Write Feedback",

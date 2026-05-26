@@ -1,5 +1,5 @@
 export const userFeedbackId = {
-  feedback: {
+  userFeedback: {
     title: "Hubungi Kami / Masukan",
     description: "Laporkan masalah atau berikan saran untuk perbaikan platform ini.",
     writeCardTitle: "Tulis Masukan",
