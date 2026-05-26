@@ -126,6 +126,9 @@ class CheckoutFlowSheet extends StatefulWidget {
 }
 
 class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
+  PosOrder? _orderState;
+  PosOrder get _order => _orderState ?? widget.order;
+  set _order(PosOrder value) => _orderState = value;
   final _customerName = TextEditingController();
   final _customerPhone = TextEditingController();
   final _customerEmail = TextEditingController();
@@ -156,7 +159,8 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   @override
   void initState() {
     super.initState();
-    final initialName = (widget.order.customerName ?? '').trim();
+    _order = widget.order;
+    final initialName = (_order.customerName ?? '').trim();
     if (initialName.isNotEmpty) {
       _customerName.text = initialName;
       _lookupMemberByName(initialName);
@@ -173,13 +177,13 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
     // Local orders (created offline) do not have a server-side receipt yet.
     // Skip loading to avoid a failed network request on the WebView.
-    if (widget.order.id.startsWith('local-')) {
+    if (_order.id.startsWith('local-')) {
       _receiptPreviewError = true;
       return;
     }
     if (_receiptPreviewController != null) return;
     final url = ServiceLocator.instance.terminalService.receiptUrl(
-      widget.order.id,
+      _order.id,
     );
     try {
       final controller = WebViewController()
@@ -360,7 +364,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         outletId: widget.outletId,
         phone: _resolvedCustomerPhone,
         email: _resolvedCustomerEmail,
-        orderId: widget.order.id,
+        orderId: _order.id,
       );
       if (!mounted) return;
       setState(() {
@@ -469,6 +473,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
       if (!mounted) return;
       setState(() {
+        _order = _order.copyWith(status: PosOrderStatus.completed);
         _finalPayment = payment;
         _step = _CheckoutStep.receipt;
         _maxStepReached = _CheckoutStep.receipt;
@@ -491,7 +496,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     try {
       final payment = await ServiceLocator.instance.terminalService
           .initiateDigital(
-            widget.order.id,
+            _order.id,
             amount: _totalAmount,
             channelCode: channel.code,
             customerId: _resolvedCustomerId,
@@ -514,6 +519,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       if (payment.status == 'PAID') {
         if (!mounted) return;
         setState(() {
+          _order = _order.copyWith(status: PosOrderStatus.completed);
           _finalPayment = payment;
           _step = _CheckoutStep.receipt;
           _maxStepReached = _CheckoutStep.receipt;
@@ -537,7 +543,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     _paymentPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       try {
         final payments = await ServiceLocator.instance.terminalService
-            .getPaymentsByOrderId(widget.order.id);
+            .getPaymentsByOrderId(_order.id);
         if (!mounted) return;
         if (payments.isEmpty) return;
 
@@ -545,6 +551,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         if (latest.status == 'PAID') {
           _paymentPollTimer?.cancel();
           setState(() {
+            _order = _order.copyWith(status: PosOrderStatus.completed);
             _polling = false;
             _finalPayment = latest;
             _digitalPayment = latest;
@@ -660,7 +667,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
   Future<void> _handlePrint() async {
     final printerService = ServiceLocator.instance.thermalPrinterService;
-    final isOffline = widget.order.id.startsWith('local-') || _receiptPreviewError;
+    final isOffline = _order.id.startsWith('local-');
     final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
     final change =
         _finalPayment?.changeAmount ??
@@ -668,7 +675,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     
     final success = await printerService.printReceipt(
       context,
-      widget.order,
+      _order,
       widget.config,
       widget.outletName,
       isOffline: isOffline,
@@ -711,19 +718,19 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       'customer_name': _resolvedCustomerName.isEmpty
           ? '-'
           : _resolvedCustomerName,
-      'order_number': widget.order.orderNumber,
+      'order_number': _order.orderNumber,
       'outlet_name': widget.outletName,
-      'order_date': _formatDateTime(widget.order.createdAt),
+      'order_date': _formatDateTime(_order.createdAt),
       'subtotal': formatMoney(
-        widget.order.subtotal,
+        _order.subtotal,
         widget.config?.currency ?? 'IDR',
       ),
       'tax_amount': formatMoney(
-        widget.order.taxAmount,
+        _order.taxAmount,
         widget.config?.currency ?? 'IDR',
       ),
       'service_amount': formatMoney(
-        widget.order.serviceCharge,
+        _order.serviceCharge,
         widget.config?.currency ?? 'IDR',
       ),
       'discount_amount': formatMoney(
@@ -737,7 +744,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       'tender_amount': formatMoney(tender, widget.config?.currency ?? 'IDR'),
       'change_amount': formatMoney(change, widget.config?.currency ?? 'IDR'),
       'items_summary':
-          widget.order.items
+          _order.items
               .map(
                 (item) =>
                     '${item.productName} x${item.quantity.toStringAsFixed(0)}',
@@ -746,7 +753,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               .trim()
               .isEmpty
           ? '-'
-          : widget.order.items
+          : _order.items
                 .map(
                   (item) =>
                       '${item.productName} x${item.quantity.toStringAsFixed(0)}',
@@ -813,7 +820,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               ),
               const SizedBox(height: 2),
               Text(
-                widget.order.orderNumber,
+                _order.orderNumber,
                 style: const TextStyle(color: GimsColors.mutedForeground),
               ),
             ],
@@ -921,7 +928,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     child: Row(
                       children: [
                         Text(
-                          'Order #${widget.order.orderNumber}',
+                          'Order #${_order.orderNumber}',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 8),
@@ -960,7 +967,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.subtotal,
+                        _order.subtotal,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -977,7 +984,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.taxAmount,
+                        _order.taxAmount,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -994,7 +1001,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.serviceCharge,
+                        _order.serviceCharge,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -1877,46 +1884,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     ];
   }
 
-  Widget _receiptRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF92400E),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF78350F),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildOfflineReceiptPreview() {
     final printerService = ServiceLocator.instance.thermalPrinterService;
-    final isLocal = widget.order.id.startsWith('local-');
+    final isLocal = _order.id.startsWith('local-');
     final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
     final change =
         _finalPayment?.changeAmount ??
         ((tender - _totalAmount) < 0 ? 0.0 : (tender - _totalAmount).toDouble());
     final receiptText = printerService.generateReceiptText(
-      widget.order,
+      _order,
       widget.config,
       widget.outletName,
       isOffline: isLocal,

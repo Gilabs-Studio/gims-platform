@@ -150,6 +150,52 @@ class PosOrder {
       notes: json['notes'] as String?,
     );
   }
+
+  PosOrder copyWith({
+    String? id,
+    String? orderNumber,
+    String? outletId,
+    PosOrderStatus? status,
+    int? guestCount,
+    double? subtotal,
+    double? taxAmount,
+    double? serviceCharge,
+    double? discountAmount,
+    double? totalAmount,
+    List<PosOrderItem>? items,
+    DateTime? createdAt,
+    String? tableId,
+    String? tableLabel,
+    String? customerId,
+    String? customerName,
+    String? loyaltyMemberId,
+    String? loyaltyRewardId,
+    String? orderSource,
+    String? notes,
+  }) {
+    return PosOrder(
+      id: id ?? this.id,
+      orderNumber: orderNumber ?? this.orderNumber,
+      outletId: outletId ?? this.outletId,
+      status: status ?? this.status,
+      guestCount: guestCount ?? this.guestCount,
+      subtotal: subtotal ?? this.subtotal,
+      taxAmount: taxAmount ?? this.taxAmount,
+      serviceCharge: serviceCharge ?? this.serviceCharge,
+      discountAmount: discountAmount ?? this.discountAmount,
+      totalAmount: totalAmount ?? this.totalAmount,
+      items: items ?? this.items,
+      createdAt: createdAt ?? this.createdAt,
+      tableId: tableId ?? this.tableId,
+      tableLabel: tableLabel ?? this.tableLabel,
+      customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
+      loyaltyMemberId: loyaltyMemberId ?? this.loyaltyMemberId,
+      loyaltyRewardId: loyaltyRewardId ?? this.loyaltyRewardId,
+      orderSource: orderSource ?? this.orderSource,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 /// Payment result from cash or digital payment.

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:printing/printing.dart';
@@ -232,12 +231,17 @@ class ThermalPrinterService {
     if (connectionType == 'system') {
       try {
         final isLocalOrder = order.id.startsWith('local-');
+        bool isTrulyOffline = isOffline;
+
         if (!isLocalOrder) {
           try {
             final response = await ApiClient.instance.get<String>(
               '/pos/orders/${order.id}/receipt',
               options: Options(responseType: ResponseType.plain),
             ).timeout(const Duration(seconds: 5));
+            
+            isTrulyOffline = false;
+
             final htmlContent = response.data;
             if (htmlContent != null && htmlContent.isNotEmpty) {
               final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
@@ -254,6 +258,16 @@ class ThermalPrinterService {
             }
           } catch (htmlError) {
             debugPrint('Online HTML print failed, falling back to local PDF: $htmlError');
+            if (htmlError is DioException) {
+              final type = htmlError.type;
+              if (type == DioExceptionType.connectionTimeout ||
+                  type == DioExceptionType.sendTimeout ||
+                  type == DioExceptionType.receiveTimeout ||
+                  type == DioExceptionType.connectionError ||
+                  (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                isTrulyOffline = true;
+              }
+            }
           }
         }
 
@@ -261,7 +275,7 @@ class ThermalPrinterService {
           order,
           config,
           outletName,
-          isOffline,
+          isTrulyOffline,
           tenderAmount: tenderAmount,
           changeAmount: changeAmount,
         );
@@ -295,12 +309,35 @@ class ThermalPrinterService {
           }
         }
 
+        final isLocalOrder = order.id.startsWith('local-');
+        bool isTrulyOffline = isOffline;
+        if (!isLocalOrder) {
+          try {
+            await ApiClient.instance.get<String>(
+              '/pos/orders/${order.id}/receipt',
+              options: Options(responseType: ResponseType.plain),
+            ).timeout(const Duration(seconds: 3));
+            isTrulyOffline = false;
+          } catch (htmlError) {
+            if (htmlError is DioException) {
+              final type = htmlError.type;
+              if (type == DioExceptionType.connectionTimeout ||
+                  type == DioExceptionType.sendTimeout ||
+                  type == DioExceptionType.receiveTimeout ||
+                  type == DioExceptionType.connectionError ||
+                  (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                isTrulyOffline = true;
+              }
+            }
+          }
+        }
+
         // Send ESC/POS commands
         final text = generateReceiptText(
           order,
           config,
           outletName,
-          isOffline: isOffline,
+          isOffline: isTrulyOffline,
           tenderAmount: tenderAmount,
           changeAmount: changeAmount,
         );
