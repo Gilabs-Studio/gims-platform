@@ -362,8 +362,12 @@ func validatePostingCOA(coa *financeModels.ChartOfAccount) error {
 	return nil
 }
 
-func warnAbnormalPostingSide(coa *financeModels.ChartOfAccount, line dto.JournalLineRequest) {
-	if coa == nil {
+// warnAbnormalPostingSide logs a warning when an account is posted on its
+// non-normal side (e.g. credit on a debit-normal asset account). The warning
+// is intentionally suppressed for system-generated journals (e.g. SALES_PAYMENT)
+// where reversed-side posting is expected behaviour in double-entry accounting.
+func warnAbnormalPostingSide(coa *financeModels.ChartOfAccount, line dto.JournalLineRequest, isSystemGenerated bool) {
+	if coa == nil || isSystemGenerated {
 		return
 	}
 
@@ -429,7 +433,7 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 			if err := validatePostingCOA(coa); err != nil {
 				return err
 			}
-			warnAbnormalPostingSide(coa, ln)
+			warnAbnormalPostingSide(coa, ln, req.IsSystemGenerated)
 		}
 
 		refTypeNormalized := reference.NormalizePtr(req.ReferenceType)
@@ -632,7 +636,7 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 
 		for _, ln := range req.Lines {
 			memo := strings.TrimSpace(ln.Memo)
-			warnAbnormalPostingSide(coaByID[ln.ChartOfAccountID], ln)
+			warnAbnormalPostingSide(coaByID[ln.ChartOfAccountID], ln, false)
 			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + memo + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
 			if snap, ok := existingLineSnapshot[key]; ok && (snap.ChartOfAccountCodeSnapshot != "" || snap.ChartOfAccountNameSnapshot != "" || snap.ChartOfAccountTypeSnapshot != "") {
 				line := &financeModels.JournalLine{
@@ -863,7 +867,7 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 			if err := validatePostingCOA(coa); err != nil {
 				return err
 			}
-			warnAbnormalPostingSide(coa, dto.JournalLineRequest{ChartOfAccountID: ln.ChartOfAccountID, Debit: ln.Debit, Credit: ln.Credit, Memo: ln.Memo})
+			warnAbnormalPostingSide(coa, dto.JournalLineRequest{ChartOfAccountID: ln.ChartOfAccountID, Debit: ln.Debit, Credit: ln.Credit, Memo: ln.Memo}, entry.IsSystemGenerated)
 		}
 
 		if err := tx.Model(&financeModels.JournalEntry{}).
@@ -1101,7 +1105,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 				if err := validatePostingCOA(coa); err != nil {
 					return err
 				}
-				warnAbnormalPostingSide(coa, ln)
+				warnAbnormalPostingSide(coa, ln, req.IsSystemGenerated)
 				line := &financeModels.JournalLine{
 					JournalEntryID:             entryID,
 					ChartOfAccountID:           lineCOAID,
@@ -1182,7 +1186,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 				if err := validatePostingCOA(coa); err != nil {
 					return err
 				}
-				warnAbnormalPostingSide(coa, ln)
+				warnAbnormalPostingSide(coa, ln, req.IsSystemGenerated)
 				line := &financeModels.JournalLine{
 					JournalEntryID:             entryID,
 					ChartOfAccountID:           lineCOAID,

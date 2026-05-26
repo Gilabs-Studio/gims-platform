@@ -176,6 +176,32 @@ func SeedOrganization() error {
 			IsApproved: true,
 			IsActive:   true,
 		},
+		{
+			ID:         MieGacoanCompanyID,
+			Name:       "PT. Mie Gacoan",
+			Address:    "Jl. Sudirman No.10, Jakarta Selatan",
+			Email:      "contact@miegacoan.com",
+			Phone:      "021-2222-0001",
+			NPWP:       "01.234.567.8-013.000",
+			NIB:        "1234567890124",
+			Timezone:   "Asia/Jakarta",
+			Status:     models.CompanyStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
+		},
+		{
+			ID:         KimiaFarmaCompanyID,
+			Name:       "PT. Kimia Farma",
+			Address:    "Jl. Budi Kemuhardjo No.1, Jakarta Pusat",
+			Email:      "info@kimiafarma.co.id",
+			Phone:      "021-3847-000",
+			NPWP:       "01.000.001.0-001.000",
+			NIB:        "8120000000001",
+			Timezone:   "Asia/Jakarta",
+			Status:     models.CompanyStatusApproved,
+			IsApproved: true,
+			IsActive:   true,
+		},
 	}
 	for i := range companies {
 		companies[i].TenantID = DefaultTenantID

@@ -70,6 +70,7 @@ type FeedbackUsecase interface {
 }
 
 type feedbackUsecase struct {
+	db           *gorm.DB
 	formRepo     repositories.FeedbackFormRepository
 	tokenRepo    repositories.FeedbackTokenRepository
 	responseRepo repositories.FeedbackResponseRepository
@@ -82,13 +83,18 @@ func NewFeedbackUsecase(
 	tokenRepo repositories.FeedbackTokenRepository,
 	responseRepo repositories.FeedbackResponseRepository,
 	outletRepo orgRepos.OutletRepository,
+	db ...*gorm.DB,
 ) FeedbackUsecase {
-	return &feedbackUsecase{
+	uc := &feedbackUsecase{
 		formRepo:     formRepo,
 		tokenRepo:    tokenRepo,
 		responseRepo: responseRepo,
 		outletRepo:   outletRepo,
 	}
+	if len(db) > 0 {
+		uc.db = db[0]
+	}
+	return uc
 }
 
 // ─── Form Management ──────────────────────────────────────────────────────────
@@ -393,6 +399,7 @@ func (u *feedbackUsecase) GenerateToken(ctx context.Context, req *dto.GenerateTo
 }
 
 func (u *feedbackUsecase) ensureActiveFormForOutlet(ctx context.Context, outletID string) (*models.FeedbackForm, error) {
+	// Fast path: form already exists — no lock needed.
 	form, err := u.formRepo.FindActiveByOutletID(ctx, outletID)
 	if err == nil {
 		return form, nil
@@ -401,6 +408,48 @@ func (u *feedbackUsecase) ensureActiveFormForOutlet(ctx context.Context, outletI
 		return nil, err
 	}
 
+	// Slow path: no active form found — acquire per-outlet advisory lock inside a
+	// transaction to prevent concurrent requests from creating duplicate forms.
+	if u.db == nil {
+		// Fallback when db is not injected (should not happen in production).
+		return u.createDefaultFormForOutlet(ctx, outletID)
+	}
+
+	var createdForm *models.FeedbackForm
+	txErr := u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Acquire advisory lock scoped to this outlet so only one goroutine proceeds.
+		lockKey := fmt.Sprintf("feedback:ensure-form:%s", outletID)
+		if lockErr := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; lockErr != nil {
+			return lockErr
+		}
+
+		// Re-check after acquiring the lock — another goroutine may have created it.
+		txCtx := context.WithValue(ctx, "tx", tx)
+		existing, checkErr := u.formRepo.FindActiveByOutletID(txCtx, outletID)
+		if checkErr == nil {
+			createdForm = existing
+			return nil
+		}
+		if !errors.Is(checkErr, gorm.ErrRecordNotFound) {
+			return checkErr
+		}
+
+		// Still no form — create the default one within this locked transaction.
+		newForm, createErr := u.createDefaultFormForOutlet(txCtx, outletID)
+		if createErr != nil {
+			return createErr
+		}
+		createdForm = newForm
+		return nil
+	})
+	if txErr != nil {
+		return nil, txErr
+	}
+	return createdForm, nil
+}
+
+// createDefaultFormForOutlet builds and persists the standard 2-question feedback form.
+func (u *feedbackUsecase) createDefaultFormForOutlet(ctx context.Context, outletID string) (*models.FeedbackForm, error) {
 	defaultSchema := map[string]interface{}{
 		"questions": []map[string]interface{}{
 			{
