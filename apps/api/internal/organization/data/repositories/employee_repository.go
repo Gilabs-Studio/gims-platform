@@ -304,8 +304,8 @@ func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope 
 		Where("employees.is_active = ?", true).
 		Where("users.status = ?", "active").
 		Where("roles.status = ?", "active").
-		Where("(roles.data_scope = ? OR roles.name ILIKE ? OR roles.data_scope IN (?, ?, ?))",
-			dataScope, "%manager%", "OUTLET", "DIVISION", "AREA").
+		Where("(roles.data_scope = ? OR roles.name ILIKE ? OR roles.data_scope IN (?, ?, ?, ?))",
+			dataScope, "%manager%", "OUTLET", "DIVISION", "AREA", "ALL").
 		Order("CASE WHEN roles.name ILIKE '%manager%' THEN 0 ELSE 1 END, employees.name ASC").
 		Find(&employees).Error
 	if err != nil {

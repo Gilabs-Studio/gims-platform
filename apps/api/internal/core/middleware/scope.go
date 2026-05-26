@@ -114,13 +114,32 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 					sc.AreaIDs = areaIDs
 				}
 
-				// Resolve outlet IDs from employee_outlets
+				// Resolve outlet IDs from employee_outlets and direct manager assignment
 				var outletIDs []string
 				if err := db.WithContext(dbCtx).
 					Table("employee_outlets").
 					Where("employee_id = ? AND deleted_at IS NULL", emp.ID).
 					Pluck("outlet_id", &outletIDs).Error; err == nil {
 					sc.OutletIDs = outletIDs
+				}
+
+				var managedOutletIDs []string
+				if err := db.WithContext(dbCtx).
+					Table("outlets").
+					Where("manager_id = ? AND deleted_at IS NULL", emp.ID).
+					Pluck("id", &managedOutletIDs).Error; err == nil {
+					uniqueOutlets := make(map[string]bool)
+					for _, id := range sc.OutletIDs {
+						uniqueOutlets[id] = true
+					}
+					for _, id := range managedOutletIDs {
+						uniqueOutlets[id] = true
+					}
+					mergedOutletIDs := make([]string, 0, len(uniqueOutlets))
+					for id := range uniqueOutlets {
+						mergedOutletIDs = append(mergedOutletIDs, id)
+					}
+					sc.OutletIDs = mergedOutletIDs
 				}
 
 				// Resolve warehouse IDs from employee_warehouses

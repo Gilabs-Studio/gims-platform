@@ -382,13 +382,8 @@ function buildPermissionTree(
       let resourceToUse = "";
       let permsToUse: Permission[] = [];
 
-      // Case 1: nav item has permission field with matching permissions
-      if (navResource && selfPerms.length > 0) {
-        resourceToUse = navResource;
-        permsToUse = selfPerms;
-        markUsed(selfPerms);
-      } else if (normalizedUrl) {
-        // Case 2: derive permissions from permission.menu.url
+      // Try Case 2 first: derive permissions from permission.menu.url (most specific match)
+      if (normalizedUrl) {
         const menuMatchedPerms = getUnmatchedPermsByMenuUrl(normalizedUrl);
         if (menuMatchedPerms.length > 0) {
           const groupedByResource = new Map<string, Permission[]>();
@@ -414,6 +409,13 @@ function buildPermissionTree(
             markUsed(permsToUse);
           }
         }
+      }
+
+      // Case 1 fallback: nav item has permission field with matching permissions
+      if (!resourceToUse && navResource && selfPerms.length > 0) {
+        resourceToUse = navResource;
+        permsToUse = selfPerms;
+        markUsed(selfPerms);
       }
 
       // Case 3: no nav.permission and no menu.url permission match

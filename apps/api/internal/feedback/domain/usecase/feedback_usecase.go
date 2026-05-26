@@ -625,7 +625,16 @@ func (u *feedbackUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string,
 		return nil, nil
 	}
 
-	// For WAREHOUSE/OUTLET scope, resolve outlets from scope_warehouse_ids
+	// For OUTLET scope, resolve directly from scope_outlet_ids
+	if permissionScope == "OUTLET" {
+		outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+		if len(outletIDs) == 0 {
+			return nil, ErrFeedbackForbidden
+		}
+		return deduplicateStrings(outletIDs), nil
+	}
+
+	// For WAREHOUSE scope, resolve outlets from scope_warehouse_ids
 	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
 	if len(warehouseIDs) == 0 {
 		return nil, ErrFeedbackForbidden
