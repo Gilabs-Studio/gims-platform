@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../app/app.dart';
 import '../../../../core/network/api_exception.dart';
@@ -20,17 +18,21 @@ import 'thermal_printer_settings_dialog.dart';
 
 class CheckoutResult {
   const CheckoutResult({
-    required this.customerName,
+    required this.order,
+    this.customerName,
     this.customerPhone,
     this.tenderAmount,
+    this.finalPayment,
   });
 
+  final PosOrder order;
   final String? customerName;
   final String? customerPhone;
   final double? tenderAmount;
+  final PosPayment? finalPayment;
 }
 
-enum _CheckoutStep { customer, reward, payment, receipt }
+enum _CheckoutStep { customer, reward, payment }
 
 enum _CustomerMode { newCustomer, existing }
 
@@ -152,8 +154,6 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   PosPayment? _finalPayment;
   XenditConnectionStatus? _xenditStatus;
   Timer? _paymentPollTimer;
-  WebViewController? _receiptPreviewController;
-  bool _receiptPreviewError = false;
   bool _summaryExpanded = true;
 
   @override
@@ -165,43 +165,8 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       _customerName.text = initialName;
       _lookupMemberByName(initialName);
     }
-    _initReceiptPreview();
     _loadXenditStatus();
     _loadCustomers();
-  }
-
-  void _initReceiptPreview() {
-    if (kIsWeb) {
-      _receiptPreviewError = true;
-      return;
-    }
-    // Local orders (created offline) do not have a server-side receipt yet.
-    // Skip loading to avoid a failed network request on the WebView.
-    if (_order.id.startsWith('local-')) {
-      _receiptPreviewError = true;
-      return;
-    }
-    if (_receiptPreviewController != null) return;
-    final url = ServiceLocator.instance.terminalService.receiptUrl(
-      _order.id,
-    );
-    try {
-      final controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onWebResourceError: (_) {
-              if (!mounted) return;
-              setState(() => _receiptPreviewError = true);
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(url));
-      _receiptPreviewController = controller;
-    } catch (_) {
-      _receiptPreviewError = true;
-    }
   }
 
   @override
@@ -472,12 +437,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       );
 
       if (!mounted) return;
-      setState(() {
-        _order = _order.copyWith(status: PosOrderStatus.completed);
-        _finalPayment = payment;
-        _step = _CheckoutStep.receipt;
-        _maxStepReached = _CheckoutStep.receipt;
-      });
+      _order = _order.copyWith(status: PosOrderStatus.completed);
+      _finalPayment = payment;
+      Navigator.pop(context, CheckoutResult(
+        order: _order,
+        customerName: _resolvedCustomerName,
+        customerPhone: _resolvedCustomerPhone,
+        tenderAmount: payment.tenderAmount ?? _tenderAmount.toDouble(),
+        finalPayment: payment,
+      ));
     } catch (error) {
       if (!mounted) return;
       showError(context, error);
@@ -518,12 +486,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
       if (payment.status == 'PAID') {
         if (!mounted) return;
-        setState(() {
-          _order = _order.copyWith(status: PosOrderStatus.completed);
-          _finalPayment = payment;
-          _step = _CheckoutStep.receipt;
-          _maxStepReached = _CheckoutStep.receipt;
-        });
+        _order = _order.copyWith(status: PosOrderStatus.completed);
+        _finalPayment = payment;
+        Navigator.pop(context, CheckoutResult(
+          order: _order,
+          customerName: _resolvedCustomerName,
+          customerPhone: _resolvedCustomerPhone,
+          tenderAmount: payment.tenderAmount ?? _totalAmount,
+          finalPayment: payment,
+        ));
         return;
       }
 
@@ -550,14 +521,17 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         final latest = payments.first;
         if (latest.status == 'PAID') {
           _paymentPollTimer?.cancel();
-          setState(() {
-            _order = _order.copyWith(status: PosOrderStatus.completed);
-            _polling = false;
-            _finalPayment = latest;
-            _digitalPayment = latest;
-            _step = _CheckoutStep.receipt;
-            _maxStepReached = _CheckoutStep.receipt;
-          });
+          _order = _order.copyWith(status: PosOrderStatus.completed);
+          _polling = false;
+          _finalPayment = latest;
+          _digitalPayment = latest;
+          Navigator.pop(context, CheckoutResult(
+            order: _order,
+            customerName: _resolvedCustomerName,
+            customerPhone: _resolvedCustomerPhone,
+            tenderAmount: latest.tenderAmount ?? _totalAmount,
+            finalPayment: latest,
+          ));
         } else if (latest.status == 'FAILED' || latest.status == 'EXPIRED') {
           _paymentPollTimer?.cancel();
           setState(() {
@@ -579,21 +553,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     });
   }
 
-  void _finishCheckout() {
-    final tenderAmount =
-        _finalPayment?.tenderAmount ??
-        (_paymentTab == _PaymentTab.cash ? _tenderAmount.toDouble() : null);
 
-    Navigator.of(context).pop(
-      CheckoutResult(
-        customerName: _resolvedCustomerName.isEmpty
-            ? null
-            : _resolvedCustomerName,
-        customerPhone: _resolvedCustomerPhone,
-        tenderAmount: tenderAmount,
-      ),
-    );
-  }
 
   void _handleNumpadTap(String key) {
     if (key == '⌫') {
@@ -649,122 +609,11 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
   }
 
-  Future<void> _openReceipt() async {
-    if (widget.order.id.startsWith('local-')) {
-      showError(
-        context,
-        ApiException(
-          'Nota belum tersedia — pembayaran masih dalam antrian sync.',
-        ),
-      );
-      return;
-    }
-    final url = ServiceLocator.instance.terminalService.receiptUrl(
-      widget.order.id,
-    );
-    await openExternal(url);
-  }
 
-  Future<void> _handlePrint() async {
-    final printerService = ServiceLocator.instance.thermalPrinterService;
-    final isOffline = _order.id.startsWith('local-');
-    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
-    final change =
-        _finalPayment?.changeAmount ??
-        ((tender - _totalAmount) < 0 ? 0 : (tender - _totalAmount));
-    
-    final success = await printerService.printReceipt(
-      context,
-      _order,
-      widget.config,
-      widget.outletName,
-      isOffline: isOffline,
-      tenderAmount: tender,
-      changeAmount: change,
-    );
-    
-    if (!success && mounted) {
-      ThermalPrinterSettingsDialog.show(context);
-    }
-  }
 
-  Future<void> _sendWhatsApp() async {
-    final phone = _resolvedCustomerPhone;
-    if (phone == null || phone.isEmpty) {
-      showError(
-        context,
-        ApiException('Nomor WhatsApp customer belum tersedia'),
-      );
-      return;
-    }
-
-    final template = widget.config?.receiptWhatsAppTemplate ?? '';
-    final rendered = _renderWhatsAppTemplate(
-      template: template,
-      values: _buildTemplateValues(),
-    );
-
-    final waUrl = _formatWhatsAppLink(phone, rendered);
-    await openExternal(waUrl);
-  }
-
-  Map<String, String> _buildTemplateValues() {
-    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
-    final change =
-        _finalPayment?.changeAmount ??
-        ((tender - _totalAmount) < 0 ? 0 : (tender - _totalAmount));
-
-    return {
-      'customer_name': _resolvedCustomerName.isEmpty
-          ? '-'
-          : _resolvedCustomerName,
-      'order_number': _order.orderNumber,
-      'outlet_name': widget.outletName,
-      'order_date': _formatDateTime(_order.createdAt),
-      'subtotal': formatMoney(
-        _order.subtotal,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'tax_amount': formatMoney(
-        _order.taxAmount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'service_amount': formatMoney(
-        _order.serviceCharge,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'discount_amount': formatMoney(
-        _selectedRewardDiscount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'total_amount': formatMoney(
-        _totalAmount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'tender_amount': formatMoney(tender, widget.config?.currency ?? 'IDR'),
-      'change_amount': formatMoney(change, widget.config?.currency ?? 'IDR'),
-      'items_summary':
-          _order.items
-              .map(
-                (item) =>
-                    '${item.productName} x${item.quantity.toStringAsFixed(0)}',
-              )
-              .join(', ')
-              .trim()
-              .isEmpty
-          ? '-'
-          : _order.items
-                .map(
-                  (item) =>
-                      '${item.productName} x${item.quantity.toStringAsFixed(0)}',
-                )
-                .join(', '),
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
-    _initReceiptPreview();
     final screen = MediaQuery.of(context).size;
     final dialogWidth = screen.width > 980 ? 920.0 : screen.width * 0.94;
     final dialogHeight = screen.height * 0.9;
@@ -788,14 +637,11 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 12),
               _buildStepIndicator(),
               const SizedBox(height: 12),
-              if (_step != _CheckoutStep.receipt) ...[
-                _buildSummaryCard(),
-                const SizedBox(height: 12),
-              ],
+              _buildSummaryCard(),
+              const SizedBox(height: 12),
               if (_step == _CheckoutStep.customer) ..._buildCustomerStep(),
               if (_step == _CheckoutStep.reward) ..._buildRewardStep(),
               if (_step == _CheckoutStep.payment) ..._buildPaymentStep(),
-              if (_step == _CheckoutStep.receipt) ..._buildReceiptStep(),
             ],
           ),
         ),
@@ -857,11 +703,6 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         label: 'Payment',
         step: _CheckoutStep.payment,
         icon: Icons.payments_outlined,
-      ),
-      (
-        label: 'Receipt',
-        step: _CheckoutStep.receipt,
-        icon: Icons.receipt_long_outlined,
       ),
     ];
 
@@ -1734,249 +1575,6 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       ),
     );
   }
-
-  List<Widget> _buildReceiptStep() {
-    final payment = _finalPayment;
-    final isPendingSync = payment?.status == 'pending_sync';
-    final hasPhone = (_resolvedCustomerPhone ?? '').isNotEmpty;
-
-    // Offline cash payment: show a confirmation card instead of a server receipt.
-    if (isPendingSync) {
-      return [
-        Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE5E5EA)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  height: 480,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(GimsRadius.medium),
-                    child: _buildOfflineReceiptPreview(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _handlePrint,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                ),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text(
-                  'Print Nota',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _finishCheckout,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                ),
-                child: const Text(
-                  'Selesai',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ];
-    }
-
-    return [
-      Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFE5E5EA)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                height: 480,
-                decoration: BoxDecoration(
-                  border: Border.all(color: GimsColors.border),
-                  borderRadius: BorderRadius.circular(GimsRadius.medium),
-                  color: Colors.white,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(GimsRadius.medium),
-                  child: _receiptPreviewError
-                      ? _buildOfflineReceiptPreview()
-                      : WebViewWidget(controller: _receiptPreviewController!),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _handlePrint,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-              ),
-              icon: const Icon(Icons.print_outlined),
-              label: const Text(
-                'Print',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: hasPhone ? _sendWhatsApp : null,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-                backgroundColor: GimsColors.success,
-              ),
-              icon: SvgPicture.asset(
-                'assets/logo/whatsapp-svgrepo-com.svg',
-                width: 22,
-                height: 22,
-              ),
-              label: const Text(
-                'Kirim WA',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton(
-              onPressed: _finishCheckout,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-              ),
-              child: const Text(
-                'Done',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ];
-  }
-
-  Widget _buildOfflineReceiptPreview() {
-    final printerService = ServiceLocator.instance.thermalPrinterService;
-    final isLocal = _order.id.startsWith('local-');
-    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
-    final change =
-        _finalPayment?.changeAmount ??
-        ((tender - _totalAmount) < 0 ? 0.0 : (tender - _totalAmount).toDouble());
-    final receiptText = printerService.generateReceiptText(
-      _order,
-      widget.config,
-      widget.outletName,
-      isOffline: isLocal,
-      tenderAmount: tender,
-      changeAmount: change,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        border: Border.all(color: GimsColors.border),
-        borderRadius: BorderRadius.circular(GimsRadius.medium),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isLocal ? Icons.cloud_upload_outlined : Icons.receipt_long_outlined,
-                color: isLocal ? const Color(0xFFF59E0B) : GimsColors.primary,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  isLocal ? 'Mode Offline - Preview Nota' : 'Preview Nota',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: isLocal ? const Color(0xFF92400E) : GimsColors.foreground,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isLocal
-                ? 'Order disimpan secara lokal dan akan disinkronkan saat online.'
-                : 'Menampilkan format printer thermal untuk order ini.',
-            style: const TextStyle(color: GimsColors.mutedForeground, fontSize: 12),
-          ),
-          const Divider(height: 24),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Center(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    width: printerService.paperSize == '80mm' ? 380 : 280,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(13),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      receiptText,
-                      softWrap: false,
-                      style: const TextStyle(
-                        fontFamily: 'Courier',
-                        fontSize: 13,
-                        height: 1.2,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ChannelLogo extends StatelessWidget {
@@ -2088,50 +1686,7 @@ String _categoryLabel(String category) {
   }
 }
 
-String _formatDateTime(DateTime value) {
-  final local = value.toLocal();
-  final month = <int, String>{
-    1: 'Jan',
-    2: 'Feb',
-    3: 'Mar',
-    4: 'Apr',
-    5: 'May',
-    6: 'Jun',
-    7: 'Jul',
-    8: 'Aug',
-    9: 'Sep',
-    10: 'Oct',
-    11: 'Nov',
-    12: 'Dec',
-  };
 
-  return '${local.day} ${month[local.month]} ${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-}
-
-String _renderWhatsAppTemplate({
-  required String template,
-  required Map<String, String> values,
-}) {
-  final base = template.trim().isEmpty
-      ? 'Halo #customer_name, ini receipt order #order_number dari #outlet_name. Total #total_amount. Terima kasih.'
-      : template;
-
-  return base
-      .replaceAllMapped(RegExp(r'#([A-Za-z0-9_]+)'), (match) {
-        final tag = match.group(1) ?? '';
-        return values[tag] ?? match.group(0) ?? '';
-      })
-      .replaceAll('\u202f', ' ');
-}
-
-String _formatWhatsAppLink(String phone, String message) {
-  final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  final target = digits.isEmpty ? '' : digits;
-  if (target.isEmpty) {
-    return 'https://wa.me/?text=${Uri.encodeComponent(message)}';
-  }
-  return 'https://wa.me/$target?text=${Uri.encodeComponent(message)}';
-}
 
 double _normalizeRewardPercent(double value) {
   if (value <= 0) return 0;

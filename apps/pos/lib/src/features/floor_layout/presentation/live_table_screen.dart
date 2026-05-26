@@ -19,6 +19,7 @@ import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
 import '../../terminal/presentation/widgets/checkout_flow_sheet.dart';
 import '../../terminal/presentation/widgets/thermal_printer_settings_dialog.dart';
+import '../../terminal/presentation/widgets/receipt_dialog.dart';
 import '../domain/live_table_data.dart';
 import '../domain/models/floor_plan.dart';
 import 'widgets/floor_canvas.dart';
@@ -793,6 +794,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       if (!mounted) return;
       _load(silent: true);
     }
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: checkout.order,
+        config: _config,
+        outletName: widget.outlet.name,
+        finalPayment: checkout.finalPayment,
+      ),
+    );
   }
 
   Future<void> _cancelOrder(LiveTableData info) async {

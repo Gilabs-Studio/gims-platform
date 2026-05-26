@@ -16,6 +16,7 @@ import '../../outlet/domain/models/outlet.dart';
 import 'widgets/catalog_panel.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/checkout_flow_sheet.dart';
+import 'widgets/receipt_dialog.dart';
 
 /// The main terminal screen — catalog + cart + checkout.
 class TerminalScreen extends StatefulWidget {
@@ -393,6 +394,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
           checkoutResult.customerName,
           checkoutResult.tenderAmount,
         );
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (context) => ReceiptDialog(
+              order: checkoutResult.order,
+              config: _config,
+              outletName: widget.outlet.name,
+              finalPayment: checkoutResult.finalPayment,
+            ),
+          );
+        }
       } else {
         await _handleOrderCanceled(order, cartSnapshot);
       }
