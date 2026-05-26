@@ -50,15 +50,57 @@ class TerminalService {
     return error is ApiException && error.isOffline;
   }
 
+  String _normalizeClientId(String raw) {
+    var value = raw;
+    while (value.startsWith('local-')) {
+      value = value.substring(6);
+    }
+    return value;
+  }
+
   /// Creates a local order ID that encodes the clientId so it can be
   /// extracted later for SyncEngine job payloads.
-  String _newLocalOrderId(String clientId) => 'local-$clientId';
+  String _newLocalOrderId(String clientId) =>
+      'local-${_normalizeClientId(clientId)}';
 
   /// Extracts the original clientId from a local order ID, or returns null
   /// if the order ID belongs to a server-confirmed order.
   String? _extractClientId(String orderId) {
-    if (orderId.startsWith('local-')) return orderId.substring(6);
+    if (orderId.startsWith('local-')) {
+      return _normalizeClientId(orderId.substring(6));
+    }
     return null;
+  }
+
+  Future<void> _normalizeMalformedLocalCache(String outletId) async {
+    final cached = await _isar.cachedOrders
+        .filter()
+        .outletIdEqualTo(outletId)
+        .findAll();
+
+    final malformed = cached
+        .where((entry) => entry.clientId.startsWith('local-'))
+        .toList();
+    if (malformed.isEmpty) return;
+
+    await _isar.writeTxn(() async {
+      for (final entry in malformed) {
+        final normalizedClientId = _normalizeClientId(entry.clientId);
+        if (normalizedClientId == entry.clientId) continue;
+
+        final canonical = await _isar.cachedOrders
+            .filter()
+            .clientIdEqualTo(normalizedClientId)
+            .findFirst();
+        if (canonical != null && canonical.id != entry.id) {
+          await _isar.cachedOrders.delete(entry.id);
+          continue;
+        }
+
+        entry.clientId = normalizedClientId;
+        await _isar.cachedOrders.put(entry);
+      }
+    });
   }
 
   Future<void> _saveCachedOrder(PosOrder order, String syncStatus) async {
@@ -349,6 +391,69 @@ class TerminalService {
         .clientIdEqualTo(clientId)
         .findFirst();
     return cached?.orderId;
+  }
+
+  void _removeOrderFromMemory(Set<String> orderIds) {
+    final ids = orderIds.where((value) => value.isNotEmpty).toSet();
+    if (ids.isEmpty) return;
+
+    for (final id in ids) {
+      _orderById.remove(id);
+    }
+
+    for (final entry in _ordersByOutlet.entries) {
+      _ordersByOutlet[entry.key] = entry.value
+          .where((order) => !ids.contains(order.id))
+          .toList();
+    }
+  }
+
+  Future<List<SyncJob>> _findRelatedSyncJobs({
+    required String clientId,
+    required Set<String> orderIds,
+  }) async {
+    final relatedOrderIds = orderIds.where((value) => value.isNotEmpty).toSet();
+    final jobs = await _isar.syncJobs
+        .filter()
+        .group((q) => q
+            .statusEqualTo(SyncJobStatus.pending)
+            .or()
+            .statusEqualTo(SyncJobStatus.processing)
+            .or()
+            .statusEqualTo(SyncJobStatus.failed)
+            .or()
+            .statusEqualTo(SyncJobStatus.failedConflict))
+        .findAll();
+
+    final matches = <SyncJob>[];
+    for (final job in jobs) {
+      if (job.feature != 'terminal') continue;
+
+      if (job.clientId == clientId) {
+        matches.add(job);
+        continue;
+      }
+
+      final resolvedOrderId = job.resolvedOrderId;
+      if (resolvedOrderId != null && relatedOrderIds.contains(resolvedOrderId)) {
+        matches.add(job);
+        continue;
+      }
+
+      try {
+        final payload = jsonDecode(job.payload) as Map<String, dynamic>;
+        final payloadClientId = payload['clientId'] as String?;
+        final payloadOrderId = payload['orderId'] as String?;
+        if (payloadClientId == clientId ||
+            (payloadOrderId != null && relatedOrderIds.contains(payloadOrderId))) {
+          matches.add(job);
+        }
+      } catch (_) {
+        // Ignore malformed payloads during cleanup so deletion remains best-effort.
+      }
+    }
+
+    return matches;
   }
 
   Future<bool> _isUnresolvedLocalOrder(String orderId) async {
@@ -1170,59 +1275,60 @@ class TerminalService {
   Future<void> deleteOrder(String orderId) async {
     final bypassServer = await _isUnresolvedLocalOrder(orderId);
     final clientId = _extractClientId(orderId) ?? orderId;
+    final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
+    final relatedOrderIds = <String>{
+      orderId,
+      if (resolvedOrderId != null && resolvedOrderId.isNotEmpty) resolvedOrderId,
+    };
+    final resolvedCachedEntries = resolvedOrderId == null ||
+            resolvedOrderId.isEmpty ||
+            resolvedOrderId == orderId
+        ? const <CachedOrder>[]
+        : await _isar.cachedOrders
+            .filter()
+            .orderIdEqualTo(resolvedOrderId)
+            .findAll();
 
-    _orderById.remove(orderId);
-    _orderById.remove(clientId);
-    for (final entry in _ordersByOutlet.entries) {
-      final idx = entry.value.indexWhere(
-        (order) => order.id == orderId || order.id == clientId,
-      );
-      if (idx >= 0) {
-        final next = List<PosOrder>.from(entry.value);
-        next.removeAt(idx);
-        _ordersByOutlet[entry.key] = next;
-      }
-    }
+    _removeOrderFromMemory(relatedOrderIds);
+
+    final cachedEntries = <CachedOrder>[
+      ...await _isar.cachedOrders.filter().clientIdEqualTo(clientId).findAll(),
+      ...await _isar.cachedOrders.filter().orderIdEqualTo(orderId).findAll(),
+      ...resolvedCachedEntries,
+    ];
+    final relatedJobs = await _findRelatedSyncJobs(
+      clientId: clientId,
+      orderIds: relatedOrderIds,
+    );
 
     await _isar.writeTxn(() async {
-      final existing = await _isar.cachedOrders
-          .filter()
-          .clientIdEqualTo(clientId)
-          .or()
-          .orderIdEqualTo(orderId)
-          .findFirst();
-      if (existing != null) {
-        await _isar.cachedOrders.delete(existing.id);
+      final deletedCacheIds = <int>{};
+      for (final entry in cachedEntries) {
+        if (deletedCacheIds.add(entry.id)) {
+          await _isar.cachedOrders.delete(entry.id);
+        }
+      }
+
+      final deletedJobIds = <int>{};
+      for (final job in relatedJobs) {
+        if (deletedJobIds.add(job.id)) {
+          await _isar.syncJobs.delete(job.id);
+        }
       }
     });
 
     try {
       if (!bypassServer) {
-        final resolvedOrderId =
-            await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
-        await _api.delete('/pos/orders/$resolvedOrderId');
-      } else {
-        final jobs = await _isar.syncJobs
-            .filter()
-            .clientIdEqualTo(clientId)
-            .or()
-            .resolvedOrderIdEqualTo(orderId)
-            .findAll();
-        await _isar.writeTxn(() async {
-          for (final job in jobs) {
-            await _isar.syncJobs.delete(job.id);
-          }
-        });
+        final targetOrderId = resolvedOrderId ?? orderId;
+        await _api.delete('/pos/orders/$targetOrderId');
       }
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;
       if (!bypassServer) {
-        final resolvedOrderId =
-            await _resolvedServerOrderIdForLocal(orderId) ?? orderId;
         await _enqueueJob(
           jobClientId: _uuid.v4(),
           action: 'deleteOrder',
-          payload: {'orderId': resolvedOrderId},
+          payload: {'orderId': resolvedOrderId ?? orderId},
         );
       }
     }
@@ -1360,6 +1466,8 @@ class TerminalService {
     String? status,
     int perPage = 100,
   }) async {
+    await _normalizeMalformedLocalCache(outletId);
+
     try {
       final response = await _api.get<Map<String, dynamic>>(
         '/pos/orders',
@@ -1434,11 +1542,14 @@ class TerminalService {
         // 4. Save merged states to local database (Isar).
         await _isar.writeTxn(() async {
           for (final order in mergedOrders) {
+            final localClientId = _extractClientId(order.id);
+            final cacheLookupKey = localClientId ?? order.id;
+
             final existing = await _isar.cachedOrders
                 .filter()
                 .orderIdEqualTo(order.id)
                 .or()
-                .clientIdEqualTo(order.id)
+                .clientIdEqualTo(cacheLookupKey)
                 .findFirst();
 
             var syncStatusToSave = CachedOrderSyncStatus.synced;
@@ -1454,7 +1565,7 @@ class TerminalService {
 
             final entry = existing ?? CachedOrder();
             entry
-              ..clientId = existing?.clientId ?? order.id
+              ..clientId = existing?.clientId ?? cacheLookupKey
               ..orderId = order.id.startsWith('local-') ? null : order.id
               ..outletId = outletId
               ..status = order.status.value
