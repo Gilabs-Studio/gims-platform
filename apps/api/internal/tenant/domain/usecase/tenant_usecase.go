@@ -1,12 +1,18 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"html/template"
 	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
+	userUsecase "github.com/gilabs/gims/api/internal/user/domain/usecase"
 
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/tenant/data/repositories"
@@ -25,12 +31,16 @@ type TenantUsecase interface {
 }
 
 type tenantUsecase struct {
-	repo repositories.TenantRepository
+	repo         repositories.TenantRepository
+	resendClient *resend.Client
 }
 
 // NewTenantUsecase creates a new TenantUsecase
-func NewTenantUsecase(repo repositories.TenantRepository) TenantUsecase {
-	return &tenantUsecase{repo: repo}
+func NewTenantUsecase(repo repositories.TenantRepository, resendClient *resend.Client) TenantUsecase {
+	return &tenantUsecase{
+		repo:         repo,
+		resendClient: resendClient,
+	}
 }
 
 func toTenantDTO(t repositories.TenantWithCounts) dto.TenantListResponse {
@@ -157,6 +167,48 @@ func (u *tenantUsecase) RecoverTenantDeletion(ctx context.Context, id string) (*
 		Table("users").
 		Where("tenant_id = ? AND deleted_at IS NULL", tenant.ID).
 		Updates(map[string]interface{}{"status": "active", "updated_at": now}).Error
+
+	// Send recovery email to the owner
+	if tenant.OwnerUserID != nil && u.resendClient != nil {
+		var ownerUser struct {
+			Email string
+			Name  string
+		}
+		_ = database.DB.WithContext(ctx).
+			Table("users").
+			Select("email, name").
+			Where("id = ? AND deleted_at IS NULL", *tenant.OwnerUserID).
+			First(&ownerUser).Error
+
+		if ownerUser.Email != "" {
+			fromEmail := "Salesview <cs@gilabs.id>"
+			if config.AppConfig != nil && config.AppConfig.Resend.FromEmail != "" {
+				fromEmail = config.AppConfig.Resend.FromEmail
+			}
+
+			tmpl, err := template.New("deletion_recovered").Parse(userUsecase.DeletionRecoveredEmailTemplate)
+			if err == nil {
+				var body bytes.Buffer
+				err = tmpl.Execute(&body, struct {
+					Name  string
+					Email string
+					Year  int
+				}{
+					Name:  ownerUser.Name,
+					Email: ownerUser.Email,
+					Year:  time.Now().Year(),
+				})
+				if err == nil {
+					_, _ = u.resendClient.SendEmail(ctx, &resend.SendEmailRequest{
+						From:    fromEmail,
+						To:      []string{ownerUser.Email},
+						Subject: "[Salesview] Pemulihan Akun Berhasil",
+						HTML:    body.String(),
+					})
+				}
+			}
+		}
+	}
 
 	full, err := u.repo.FindByIDWithCounts(ctx, id)
 	if err != nil {

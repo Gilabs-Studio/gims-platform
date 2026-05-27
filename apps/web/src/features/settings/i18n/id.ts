@@ -50,6 +50,17 @@ export const settingsId: SettingsTranslations = {
       successToast: "Permintaan hapus akun berhasil. Tenant masuk masa pemulihan 30 hari.",
       successToastWithDate: "Permintaan hapus akun berhasil. Purge permanen dijadwalkan pada {date}.",
       errorToast: "Gagal mengajukan penghapusan akun. Silakan coba lagi.",
+      confirmPageTitle: "Konfirmasi Hapus Akun",
+      confirmPageDesc: "Memproses permintaan penonaktifan akun Salesview Anda",
+      tokenNotFound: "Token Tidak Ditemukan",
+      tokenNotFoundDesc: "Tautan konfirmasi tidak valid. Harap periksa kembali email Anda.",
+      verifying: "Memverifikasi Permintaan",
+      verifyingDesc: "Harap tunggu sementara kami memverifikasi token dan menonaktifkan akun Anda.",
+      successTitle: "Akun Berhasil Dinonaktifkan",
+      successDesc: "Akun Anda telah dinonaktifkan dan memasuki masa tenggang 30 hari. Anda akan segera dialihkan...",
+      failedTitle: "Konfirmasi Gagal",
+      failedDesc: "Token kedaluwarsa, tidak valid, atau sudah digunakan. Silakan ajukan permohonan baru dari pengaturan profil.",
+      backToLogin: "Kembali ke Login",
     },
     
     // Dashboard Metrics

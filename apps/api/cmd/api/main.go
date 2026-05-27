@@ -289,11 +289,11 @@ func main() {
 	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
 	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
 	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
+	resendCl := resendClient.NewClient(config.AppConfig.Resend.APIKey)
 	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository, permissionService)
-	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
+	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient(), resendCl)
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
-	resendCl := resendClient.NewClient(config.AppConfig.Resend.APIKey)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, resendCl, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
@@ -306,7 +306,7 @@ func main() {
 
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
-	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
+	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository, resendCl)
 	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
 
 	// Payment transaction usecase
@@ -342,7 +342,7 @@ func main() {
 	rtWorker.Start()
 
 	// Cleanup worker for tenants that passed 30-day deletion grace period.
-	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour)
+	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour, resendCl)
 	delWorker.Start()
 
 	// Setup Router

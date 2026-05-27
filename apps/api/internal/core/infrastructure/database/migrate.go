@@ -85,6 +85,8 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_by uuid`)
 	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_recovered_at timestamptz`)
 	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_previous_status varchar(20)`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_warning_sent boolean NOT NULL DEFAULT false`)
+	_ = DB.Exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_h1_sent boolean NOT NULL DEFAULT false`)
 	_ = DB.Exec(`ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS tenant_id uuid`)
 	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_tenant_id ON payment_transactions (tenant_id) WHERE tenant_id IS NOT NULL`)
 	_ = DB.Exec(`ALTER TABLE pos_orders ADD COLUMN IF NOT EXISTS order_source varchar(20) NOT NULL DEFAULT 'STAFF'`)

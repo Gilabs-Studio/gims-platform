@@ -42,8 +42,13 @@ export const profileService = {
     return response.data;
   },
 
-  requestAccountDeletion: async () => {
-    const response = await apiClient.post<TenantDeletionScheduleApiResponse>(`${PROFILE_URL}/delete-account`);
+  requestAccountDeletion: async (password: string) => {
+    const response = await apiClient.post<{ message: string }>(`${PROFILE_URL}/delete-account`, { password });
+    return response.data;
+  },
+
+  confirmAccountDeletion: async (token: string) => {
+    const response = await apiClient.post<TenantDeletionScheduleApiResponse>(`${PROFILE_URL}/delete-account/confirm`, { token });
     return response.data;
   },
 };

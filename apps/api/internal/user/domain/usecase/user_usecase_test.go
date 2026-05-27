@@ -148,7 +148,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.subscriptionRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
+			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.subscriptionRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)
@@ -190,7 +190,7 @@ func TestUserUsecaseGetLimit(t *testing.T) {
 	fieldsValue.userRepo.On("Count", mock.Anything).Return(int64(1), nil)
 	fieldsValue.tenantRepo.On("FindByID", mock.Anything, "").Return(&tenantModels.Tenant{MaxUsers: 0}, nil)
 
-	u := usecase.NewUserUsecase(fieldsValue.userRepo, mocks.NewRoleRepository(t), fieldsValue.tenantRepo, fieldsValue.subscriptionRepo, mocks.NewAuditService(t), mocks.NewEventPublisher(t), redis.NewClient(&redis.Options{Addr: "localhost:0"}))
+	u := usecase.NewUserUsecase(fieldsValue.userRepo, mocks.NewRoleRepository(t), fieldsValue.tenantRepo, fieldsValue.subscriptionRepo, mocks.NewAuditService(t), mocks.NewEventPublisher(t), redis.NewClient(&redis.Options{Addr: "localhost:0"}), nil)
 
 	limit, err := u.GetLimit(context.Background())
 
@@ -309,7 +309,7 @@ func TestUserUsecase_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.subscriptionRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis)
+			u := usecase.NewUserUsecase(tt.fields.userRepo, tt.fields.roleRepo, tt.fields.tenantRepo, tt.fields.subscriptionRepo, tt.fields.auditService, tt.fields.eventPublisher, tt.fields.redis, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

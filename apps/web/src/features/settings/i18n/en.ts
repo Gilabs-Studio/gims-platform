@@ -48,6 +48,17 @@ export const settingsEn = {
       successToast: "Account deletion requested. Your tenant is now in a 30-day recovery period.",
       successToastWithDate: "Account deletion requested. Permanent purge is scheduled for {date}.",
       errorToast: "Failed to request account deletion. Please try again.",
+      confirmPageTitle: "Confirm Account Deletion",
+      confirmPageDesc: "Processing your Salesview account deactivation request",
+      tokenNotFound: "Token Not Found",
+      tokenNotFoundDesc: "Confirmation link is invalid. Please double check your email.",
+      verifying: "Verifying Request",
+      verifyingDesc: "Please wait while we verify your token and deactivate your account.",
+      successTitle: "Account Successfully Deactivated",
+      successDesc: "Your account has been deactivated and entered a 30-day grace period. You will be redirected shortly...",
+      failedTitle: "Confirmation Failed",
+      failedDesc: "Token is expired, invalid, or has already been used. Please request a new one from your profile settings.",
+      backToLogin: "Back to Login",
     },
     
     // Dashboard Metrics
