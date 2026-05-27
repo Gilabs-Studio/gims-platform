@@ -21,6 +21,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
+	resendClient "github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	coreRouter "github.com/gilabs/gims/api/internal/core/infrastructure/router"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/ws"
@@ -268,6 +269,7 @@ func main() {
 	passwordResetRepository := passwordResetRepo.NewPasswordResetRequestRepository(database.DB)
 	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
+	_ = notificationRepository
 
 	// SaaS: System admin & tenant repositories
 	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
@@ -292,7 +294,8 @@ func main() {
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
-	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, tenantRepository, sysAdminRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
+	resendCl := resendClient.NewClient(config.AppConfig.Resend.APIKey)
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, resendCl, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
@@ -305,7 +308,7 @@ func main() {
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, passwordResetUC, permissionRepository, notificationWs.DefaultNotificationHub())
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
 
 	// Payment transaction usecase
 	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)

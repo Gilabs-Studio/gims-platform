@@ -19,10 +19,16 @@ type Config struct {
 	JWT           JWTConfig
 	Cerebras      CerebrasConfig
 	Xendit        XenditConfig
+	Resend        ResendConfig
 	Storage       StorageConfig
 	RateLimit     RateLimitConfig
 	HSTS          HSTSConfig
 	Redis         RedisConfig
+}
+
+type ResendConfig struct {
+	APIKey    string
+	FromEmail string
 }
 
 type StartupConfig struct {
@@ -242,6 +248,10 @@ func Load() error {
 			SecretKey:    getEnv("XENDIT_SECRET_KEY", ""),
 			WebhookToken: getEnv("XENDIT_WEBHOOK_TOKEN", ""),
 			BaseURL:      getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
+		},
+		Resend: ResendConfig{
+			APIKey:    getEnv("RESEND_API_KEY", getEnv("RESEND", "")),
+			FromEmail: getEnv("RESEND_FROM_EMAIL", getEnv("RESEND_FROM", "Salesview <cs@gilabs.id>")),
 		},
 		Storage: StorageConfig{
 			MaxUploadSize:     getEnvAsInt64("STORAGE_MAX_UPLOAD_SIZE", 10*1024*1024), // 10MB default
