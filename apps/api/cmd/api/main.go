@@ -40,7 +40,6 @@ import (
 	permissionRepo "github.com/gilabs/gims/api/internal/permission/data/repositories"
 	permissionUsecase "github.com/gilabs/gims/api/internal/permission/domain/usecase"
 	permissionHandler "github.com/gilabs/gims/api/internal/permission/presentation/handler"
-	permissionRouter "github.com/gilabs/gims/api/internal/permission/presentation/router"
 
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	refreshTokenWorker "github.com/gilabs/gims/api/internal/refresh_token/worker"
@@ -438,7 +437,6 @@ func main() {
 		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
-		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)
 		coreRouter.RegisterUploadRoutes(v1, jwtManager, permissionService)
 		notificationPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
