@@ -25,6 +25,7 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			protected.PATCH("/me/password", h.ChangePassword)
 			protected.POST("/sys-logout", h.Logout)
 			protected.GET("/system-dashboard", h.Dashboard)
+			protected.POST("/system-updates/email", h.SendSystemUpdateEmail)
 
 			// Tenant management
 			protected.GET("/tenants", h.ListTenants)

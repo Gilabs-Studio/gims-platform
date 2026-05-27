@@ -1159,3 +1159,23 @@ func (h *SystemAdminHandler) SyncPlanEntitlements(c *gin.Context) {
 	}
 	response.SuccessResponse(c, gin.H{"slug": slug, "menu_urls": body.MenuURLs}, nil)
 }
+
+// SendSystemUpdateEmail broadcasts a system/platform update email to all active users or tenant owners (system admin only).
+func (h *SystemAdminHandler) SendSystemUpdateEmail(c *gin.Context) {
+	var req dto.SendSystemUpdateEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.sysAdminUC.SendSystemUpdateEmail(c.Request.Context(), &req); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"message": "email broadcast initiated successfully"}, nil)
+}

@@ -35,3 +35,10 @@ type SystemAdminResponse struct {
 	Username string `json:"username"`
 	Status   string `json:"status"`
 }
+
+// SendSystemUpdateEmailRequest is the request body for sending system updates
+type SendSystemUpdateEmailRequest struct {
+	Subject       string `json:"subject" binding:"required,min=3"`
+	Content       string `json:"content" binding:"required,min=10"`
+	RecipientType string `json:"recipient_type" binding:"required,oneof=all_users tenant_owners"`
+}

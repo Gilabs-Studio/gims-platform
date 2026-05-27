@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	goerrors "errors"
 	"net/http"
 	"strings"
@@ -561,9 +562,18 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		return
 	}
 
-	result, err := h.authUC.RegisterTenant(c.Request.Context(), &req)
+	ctx := c.Request.Context()
+	ctx = context.WithValue(ctx, "client_ip", c.ClientIP())
+	ctx = context.WithValue(ctx, "user_agent", c.Request.UserAgent())
+
+	result, err := h.authUC.RegisterTenant(ctx, &req)
 	if err != nil {
 		switch err {
+		case usecase.ErrToSAgreementRequired:
+			errors.ErrorResponse(c, "TOS_AGREEMENT_REQUIRED", map[string]interface{}{
+				"field":   "agree_tos",
+				"message": "You must agree to the Terms of Service and Privacy Policy to register",
+			}, nil)
 		case usecase.ErrEmailAlreadyTaken:
 			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", map[string]interface{}{
 				"field": "email",

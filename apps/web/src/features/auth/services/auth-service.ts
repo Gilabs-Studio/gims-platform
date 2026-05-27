@@ -249,6 +249,8 @@ export const authService = {
       plan?: string;
       billing_period?: string;
       user_count?: number;
+      agree_tos: boolean;
+      agree_marketing: boolean;
     },
     csrfToken?: string | null,
   ): Promise<{ success: boolean; data: unknown }> {

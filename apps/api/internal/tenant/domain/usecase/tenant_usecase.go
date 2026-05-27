@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
+	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userUsecase "github.com/gilabs/gims/api/internal/user/domain/usecase"
 
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -126,6 +127,29 @@ func (u *tenantUsecase) GetTenantDetail(ctx context.Context, id string) (*dto.Te
 		return nil, err
 	}
 	resp := toTenantDTO(*tenant)
+
+	// Fetch consent logs for the owner user
+	if resp.OwnerUserID != "" {
+		var logs []userModels.ConsentLog
+		err := database.DB.WithContext(ctx).
+			Table("consent_logs").
+			Where("user_id = ?", resp.OwnerUserID).
+			Order("granted_at DESC").
+			Scan(&logs).Error
+		if err == nil {
+			resp.ConsentLogs = make([]dto.ConsentLogResponse, len(logs))
+			for i, log := range logs {
+				resp.ConsentLogs[i] = dto.ConsentLogResponse{
+					ConsentType: log.ConsentType,
+					Version:     log.Version,
+					GrantedAt:   log.GrantedAt.Format(time.RFC3339),
+					IPAddress:   log.IPAddress,
+					UserAgent:   log.UserAgent,
+				}
+			}
+		}
+	}
+
 	return &resp, nil
 }
 

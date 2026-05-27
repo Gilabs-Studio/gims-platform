@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/landing-header";
+import { LandingFooter } from "@/components/landing/landing-footer";
 import { buildLandingMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
@@ -87,6 +88,7 @@ export default function MarketingLayout({
       />
       <LandingHeader />
       {children}
+      <LandingFooter />
     </>
   );
 }

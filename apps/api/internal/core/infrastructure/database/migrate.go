@@ -111,6 +111,7 @@ func AutoMigrate() error {
 		&tenant.PaymentTransaction{},
 		&tenant.TenantPaymentMethod{},
 		&user.User{},
+		&user.ConsentLog{},
 		&user.UserWarehouse{},
 		&role.RolePermission{},
 		&role.RoleMenuAccess{},

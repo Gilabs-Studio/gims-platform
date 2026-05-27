@@ -71,6 +71,15 @@ export interface Tenant {
   deletion_requested_by?: string;
   deletion_previous_status?: string;
   created_at?: string;
+  consent_logs?: ConsentLog[];
+}
+
+export interface ConsentLog {
+  consent_type: string;
+  version: string;
+  granted_at: string;
+  ip_address: string;
+  user_agent: string;
 }
 
 export interface PaginationMeta {

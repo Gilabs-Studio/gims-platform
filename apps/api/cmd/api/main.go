@@ -305,7 +305,7 @@ func main() {
 	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
 
 	// SaaS: System admin usecases & handler
-	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
+	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager, resendCl, database.DB)
 	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository, resendCl)
 	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
 
