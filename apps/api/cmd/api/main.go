@@ -83,6 +83,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	crmWorker "github.com/gilabs/gims/api/internal/crm/worker"
 	feedbackPresentation "github.com/gilabs/gims/api/internal/feedback/presentation"
 	generalPresentation "github.com/gilabs/gims/api/internal/general/presentation"
 	loyaltyPresentation "github.com/gilabs/gims/api/internal/loyalty/presentation"
@@ -345,6 +346,10 @@ func main() {
 	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour, resendCl)
 	delWorker.Start()
 
+	// Cleanup worker for CRM soft-deleted records older than 30 days.
+	crmCleanupWorker := crmWorker.NewCrmCleanupWorker(database.DB, 24*time.Hour)
+	crmCleanupWorker.Start()
+
 	// Setup Router
 	r := coreRouter.NewEngine(jwtManager)
 
@@ -590,6 +595,7 @@ func main() {
 	// Stop background worker before shutting down server/resources
 	rtWorker.Stop()
 	delWorker.Stop()
+	crmCleanupWorker.Stop()
 	if autoAbsentWorker != nil {
 		autoAbsentWorker.Stop()
 	}

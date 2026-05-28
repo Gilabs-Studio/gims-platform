@@ -13,6 +13,7 @@ import {
   cityService,
 } from "@/features/master-data/geographic/services/geographic-service";
 import type { ListCitiesParams } from "@/features/master-data/geographic/types";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
 export interface UseLeadFormProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function useLeadForm({
   editingItem,
   onSuccess,
 }: UseLeadFormProps) {
+  const { user } = useAuthStore();
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
   const isConvertedLead = !!editingItem?.converted_at;
@@ -161,7 +163,7 @@ export function useLeadForm({
         need_description: "",
         time_confirmed: false,
         time_expected: "",
-        assigned_to: "",
+        assigned_to: user?.employee_id ?? "",
         notes: "",
         website: "",
         business_type_id: "",
@@ -300,7 +302,7 @@ export function useLeadForm({
           need_description: "",
           time_confirmed: false,
           time_expected: "",
-          assigned_to: "",
+          assigned_to: user?.employee_id ?? "",
           notes: "",
           website: "",
           business_type_id: "",

@@ -49,7 +49,7 @@ import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
 import { formatCurrency, formatDate, formatWhatsAppLink, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData, useLeadProductItems } from "../hooks/use-leads";
+import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData, useLeadProductItems, useRecoverLead } from "../hooks/use-leads";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
@@ -217,6 +217,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const authUser = useAuthStore((state) => state.user);
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
+  const recoverMutation = useRecoverLead();
+  const isAdmin = authUser?.role?.code === "admin" || authUser?.role?.code === "system_admin";
 
   const canUpdate = useUserPermission("crm_lead.update");
   const canDelete = useUserPermission("crm_lead.delete");
@@ -381,7 +383,31 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
   return (
     <PageMotion>
-      <div className="space-y-6">
+      {lead.is_deleted && (
+        <div className="mb-6 bg-destructive/10 text-destructive px-4 py-3 rounded-lg flex items-center justify-between border border-destructive/20">
+          <span className="text-sm font-medium">This lead is currently soft-deleted.</span>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/30 text-destructive hover:bg-destructive/20 cursor-pointer bg-transparent"
+              disabled={recoverMutation.isPending}
+              onClick={async () => {
+                try {
+                  await recoverMutation.mutateAsync(leadId);
+                  toast.success("Lead recovered successfully");
+                  refetch();
+                } catch {
+                  toast.error("Failed to recover lead");
+                }
+              }}
+            >
+              Recover Lead
+            </Button>
+          )}
+        </div>
+      )}
+      <div className={cn("space-y-6", lead.is_deleted && "opacity-50")}>
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
@@ -420,7 +446,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
             {/* Quick "next status" button styled with the next status's color */}
-            {canUpdate && !isConverted && nextStatus && nextStatus.id !== lostStatus?.id && nextStatus.id !== convertedStatus?.id && (
+            {canUpdate && !isConverted && !lead.is_deleted && nextStatus && nextStatus.id !== lostStatus?.id && nextStatus.id !== convertedStatus?.id && (
               <Button
                 variant="outline"
                 size="sm"
@@ -440,6 +466,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             {/* Mark as Lost */}
             {canUpdate &&
               !isConverted &&
+              !lead.is_deleted &&
               lostStatus &&
               lead.lead_status_id !== lostStatus.id && (
                 <Button
@@ -453,7 +480,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 </Button>
               )}
 
-            {canConvert && !isConverted && (
+            {canConvert && !isConverted && !lead.is_deleted && (
               <Button
                 variant="outline"
                 size="sm"
@@ -464,7 +491,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 {t("convertTitle")}
               </Button>
             )}
-            {canUpdate && !isConverted && (
+            {canUpdate && !isConverted && !lead.is_deleted && (
               <Button
                 variant="outline"
                 size="sm"
@@ -475,7 +502,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 {tCommon("edit")}
               </Button>
             )}
-            {canDelete && !isConverted && (
+            {canDelete && !isConverted && !lead.is_deleted && (
               <Button
                 variant="ghost"
                 size="sm"

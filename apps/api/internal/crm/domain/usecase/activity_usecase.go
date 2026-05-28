@@ -66,8 +66,11 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 		timestamp = t
 	}
 
+	tenantID, _ := ctx.Value("tenant_id").(string)
+
 	activity := &models.Activity{
 		ID:             uuid.New().String(),
+		TenantID:       tenantID,
 		Type:           req.Type,
 		ActivityTypeID: req.ActivityTypeID,
 		CustomerID:     req.CustomerID,
@@ -77,7 +80,7 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 		VisitReportID:  req.VisitReportID,
 		EmployeeID:     employeeID,
 		Description:    req.Description,
-		Timestamp: timestamp,
+		Timestamp:      timestamp,
 		Metadata: func() *string {
 			if len(req.Metadata) == 0 || string(req.Metadata) == "null" {
 				return nil

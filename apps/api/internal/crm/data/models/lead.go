@@ -102,6 +102,7 @@ type Lead struct {
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	DeletedBy        *string        `gorm:"type:uuid" json:"deleted_by"`
 
 	// Associations
 	Activities   []Activity        `gorm:"foreignKey:LeadID" json:"activities,omitempty"`

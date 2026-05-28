@@ -33,6 +33,8 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		TimeConfirmed:        deal.TimeConfirmed,
 		Notes:                deal.Notes,
 		CreatedBy:            deal.CreatedBy,
+		IsDeleted:            deal.DeletedAt.Valid,
+		DeletedBy:            deal.DeletedBy,
 		CreatedAt:            deal.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
 		UpdatedAt:            deal.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
 	}
@@ -51,6 +53,11 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 	if deal.ConvertedAt != nil {
 		t := deal.ConvertedAt.Format("2006-01-02T15:04:05+07:00")
 		resp.ConvertedAt = &t
+	}
+
+	if deal.DeletedAt.Valid {
+		t := deal.DeletedAt.Time.Format("2006-01-02T15:04:05+07:00")
+		resp.DeletedAt = &t
 	}
 
 	if deal.PipelineStage != nil {

@@ -58,6 +58,13 @@ export const dealService = {
     return response.data;
   },
 
+  recover: async (id: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.post<ApiResponse<null>>(
+      `${BASE_URL}/${id}/recover`
+    );
+    return response.data;
+  },
+
   listByStage: async (
     params: DealsByStageParams
   ): Promise<ApiResponse<Deal[]>> => {
