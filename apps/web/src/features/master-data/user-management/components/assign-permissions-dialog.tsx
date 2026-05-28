@@ -1295,17 +1295,38 @@ function PermissionsSelector({
 
   // Expand / collapse all
   const handleExpandAll = useCallback(() => {
-    const allIds = new Set<string>();
+    const allIds: string[] = [];
     function walk(nodes: PermissionTreeNode[]) {
       for (const n of nodes) {
         if (n.children) {
-          allIds.add(n.id);
+          allIds.push(n.id);
           walk(n.children);
         }
       }
     }
     walk(tree);
-    setExpanded(allIds);
+
+    // Batch expansion using requestAnimationFrame to prevent UI thread lock
+    const batchSize = 15;
+    let index = 0;
+
+    const expandBatch = () => {
+      if (index >= allIds.length) return;
+
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        const chunk = allIds.slice(index, index + batchSize);
+        for (const id of chunk) {
+          next.add(id);
+        }
+        return next;
+      });
+
+      index += batchSize;
+      requestAnimationFrame(expandBatch);
+    };
+
+    requestAnimationFrame(expandBatch);
   }, [tree]);
 
   const handleCollapseAll = useCallback(() => {

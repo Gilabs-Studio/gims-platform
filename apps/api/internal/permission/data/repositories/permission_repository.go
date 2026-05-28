@@ -157,8 +157,9 @@ func (r *permissionRepository) List(ctx context.Context) ([]models.Permission, e
 
 	var permissions []models.Permission
 	err := r.db.WithContext(ctx).
-		Preload("Menu").
-		Preload(preloadMenuParent).
+		Preload("Menu", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, name, icon, url")
+		}).
 		Order("updated_at DESC").
 		Find(&permissions).Error
 	if err != nil {

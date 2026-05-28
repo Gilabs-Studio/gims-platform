@@ -13,16 +13,16 @@ type PermissionResponse struct {
 
 // MenuResponse represents menu response DTO (with nested structure)
 type MenuResponse struct {
-	ID       string         `json:"id"`
+	ID       string         `json:"id,omitempty"`
 	Name     string         `json:"name"`
 	Icon     string         `json:"icon"`
 	URL      string         `json:"url"`
-	Access   bool           `json:"access"`
+	Access   bool           `json:"access,omitempty"`
 	ParentID *string        `json:"parent_id,omitempty"`
 	Parent   *MenuResponse  `json:"parent,omitempty"`
 	Children []MenuResponse `json:"children,omitempty"`
-	Order    int            `json:"order"`
-	Status   string         `json:"status"`
+	Order    int            `json:"order,omitempty"`
+	Status   string         `json:"status,omitempty"`
 }
 
 // ActionResponse represents action response DTO
