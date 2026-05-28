@@ -584,6 +584,12 @@ func AutoMigrate() error {
 		log.Printf("Warning: CRM deals tenant-scoped unique indexes migration failed (non-fatal): %v", err)
 	}
 
+	// Hard-fix: drop any old GORM-generated non-partial unique constraint and
+	// replace with soft-delete-aware partial indexes for crm_deals and crm_leads.
+	if err := migrations.FixCRMUniqueConstraints(DB); err != nil {
+		log.Printf("Warning: FixCRMUniqueConstraints migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureFixedAssetListIndexes(); err != nil {
 		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
 	}
@@ -946,6 +952,8 @@ func ensureCRMLeadsTenantScopedUniqueIndexes() error {
 	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_leads_code`).Error
 	_ = DB.Exec(`DROP INDEX IF EXISTS crm_leads_code_key`).Error
 	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_leads_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS uq_crm_leads_tenant_code`).Error
+	_ = DB.Exec(`ALTER TABLE crm_leads DROP CONSTRAINT IF EXISTS uq_crm_leads_tenant_code`).Error
 
 	return DB.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_leads_tenant_code_active
@@ -976,6 +984,8 @@ func ensureCRMDealsTenantScopedUniqueIndexes() error {
 	_ = DB.Exec(`DROP INDEX IF EXISTS public.idx_crm_deals_code`).Error
 	_ = DB.Exec(`DROP INDEX IF EXISTS crm_deals_code_key`).Error
 	_ = DB.Exec(`DROP INDEX IF EXISTS public.crm_deals_code_key`).Error
+	_ = DB.Exec(`DROP INDEX IF EXISTS uq_crm_deals_tenant_code`).Error
+	_ = DB.Exec(`ALTER TABLE crm_deals DROP CONSTRAINT IF EXISTS uq_crm_deals_tenant_code`).Error
 
 	return DB.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS uq_crm_deals_tenant_code_active

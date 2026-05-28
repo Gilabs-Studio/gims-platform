@@ -275,5 +275,17 @@ export const crmLeadEn = {
       unitPrice: "Unit Price",
       notes: "Notes",
     },
+
+    // Soft-delete banners
+    softDeleted: {
+      adminTitle: "This lead is soft-deleted",
+      adminDescription: "Deleted on {date}{by}. You can recover this lead to restore all operations.",
+      adminBy: " by {name}",
+      recoverButton: "Recover Lead",
+      recoverSuccess: "Lead recovered successfully",
+      recoverError: "Failed to recover lead",
+      staffTitle: "This lead has been deleted",
+      staffDescription: "Deleted on {date}. The data has been archived and is currently read-only. Please contact your system administrator to recover this lead if this was accidental.",
+    },
   },
 };

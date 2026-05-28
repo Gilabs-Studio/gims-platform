@@ -384,28 +384,55 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   return (
     <PageMotion>
       {lead.is_deleted && (
-        <div className="mb-6 bg-destructive/10 text-destructive px-4 py-3 rounded-lg flex items-center justify-between border border-destructive/20">
-          <span className="text-sm font-medium">This lead is currently soft-deleted.</span>
-          {isAdmin && (
+        isAdmin ? (
+          <div className="mb-6 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-destructive/20 text-destructive rounded-lg shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.adminTitle")}</h4>
+                <p className="text-xs text-destructive/80 mt-0.5">
+                  {t("softDeleted.adminDescription", {
+                    date: formatDate(lead.deleted_at),
+                    by: lead.deleted_by ? t("softDeleted.adminBy", { name: lead.deleted_by }) : "",
+                  })}
+                </p>
+              </div>
+            </div>
             <Button
               variant="outline"
               size="sm"
-              className="border-destructive/30 text-destructive hover:bg-destructive/20 cursor-pointer bg-transparent"
+              className="border-destructive/30 text-destructive hover:bg-destructive/20 cursor-pointer bg-transparent shrink-0 self-end sm:self-auto"
               disabled={recoverMutation.isPending}
               onClick={async () => {
                 try {
                   await recoverMutation.mutateAsync(leadId);
-                  toast.success("Lead recovered successfully");
+                  toast.success(t("softDeleted.recoverSuccess"));
                   refetch();
                 } catch {
-                  toast.error("Failed to recover lead");
+                  toast.error(t("softDeleted.recoverError"));
                 }
               }}
             >
-              Recover Lead
+              {t("softDeleted.recoverButton")}
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="mb-6 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-amber-500/20 text-amber-600 rounded-lg shrink-0">
+                <History className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.staffTitle")}</h4>
+                <p className="text-xs text-amber-600/80 mt-0.5">
+                  {t("softDeleted.staffDescription", { date: formatDate(lead.deleted_at) })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
       )}
       <div className={cn("space-y-6", lead.is_deleted && "opacity-50")}>
         {/* Header */}
