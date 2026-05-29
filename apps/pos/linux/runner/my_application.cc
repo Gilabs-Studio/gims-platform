@@ -7,6 +7,9 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+// Prototype for linux bluetooth plugin registration
+void linux_bluetooth_plugin_register_with_view(FlView* view);
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -74,6 +77,10 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+#if defined(LINUX_BLUETOOTH_PLUGIN_AVAILABLE)
+  // Register native Linux bluetooth plugin (RFCOMM-based) for agentless printing
+  linux_bluetooth_plugin_register_with_view(view);
+#endif
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

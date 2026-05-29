@@ -10,6 +10,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:dio/dio.dart';
 
+import 'escpos_renderer.dart';
+import 'network_printer.dart';
+import 'linux_usb_printer.dart';
+import 'usb_printer.dart';
+import 'linux_bluetooth_printer.dart';
+import 'receipt_layout.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/formatters.dart';
 import '../domain/models/pos_order.dart';
@@ -52,21 +59,24 @@ class ThermalPrinterService {
     required String? name,
     required String size,
   }) async {
+    final normalizedAddress = type == 'system' ? null : address;
+    final normalizedName = type == 'system' ? null : name;
+
     connectionType = type;
-    deviceAddress = address;
-    deviceName = name;
+    deviceAddress = normalizedAddress;
+    deviceName = normalizedName;
     paperSize = size;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyType, type);
-      if (address != null) {
-        await prefs.setString(_keyAddress, address);
+      if (normalizedAddress != null) {
+        await prefs.setString(_keyAddress, normalizedAddress);
       } else {
         await prefs.remove(_keyAddress);
       }
-      if (name != null) {
-        await prefs.setString(_keyName, name);
+      if (normalizedName != null) {
+        await prefs.setString(_keyName, normalizedName);
       } else {
         await prefs.remove(_keyName);
       }
@@ -95,123 +105,16 @@ class ThermalPrinterService {
     double? changeAmount,
   }) {
     final width = paperSize == '80mm' ? 48 : 32;
-    final buffer = StringBuffer();
-
-    String padCenter(String text) {
-      if (text.length >= width) return text.substring(0, width);
-      final spaces = (width - text.length) ~/ 2;
-      return ' ' * spaces + text;
-    }
-
-    String row(String left, String right) {
-      if (left.length + right.length >= width) {
-        final available = width - right.length - 1;
-        if (available > 0) {
-          return left.substring(0, available) + ' ' + right;
-        }
-        return left + '\n' + ' ' * (width - right.length) + right;
-      }
-      final spaces = width - left.length - right.length;
-      return left + ' ' * spaces + right;
-    }
-
-    // Header
-    buffer.writeln(padCenter(outletName));
-    buffer.writeln(padCenter('=== RECEIPT ==='));
-    buffer.writeln('-' * width);
-
-    // Meta Information
-    buffer.writeln(row('No. Order', '#${order.orderNumber}'));
-    if (isOffline) {
-      buffer.writeln(padCenter('** MODE OFFLINE - ANTRIAN SYNC **'));
-    }
-    buffer.writeln(row('Tanggal', _formatDate(order.createdAt)));
-    buffer.writeln(row('Jam', _formatTime(order.createdAt)));
-    if (order.tableLabel != null && order.tableLabel!.isNotEmpty) {
-      buffer.writeln(row('Meja', order.tableLabel!));
-    }
-    if (order.customerName != null && order.customerName!.isNotEmpty) {
-      buffer.writeln(row('Pelanggan', order.customerName!));
-    }
-
-    buffer.writeln('-' * width);
-
-    // Items Column Header
-    if (width == 32) {
-      buffer.writeln('Qty Item                Subtotal');
-    } else {
-      buffer.writeln('Qty  Item                               Subtotal');
-    }
-    buffer.writeln('-' * width);
-
-    // Items List
-    final currency = config?.currency ?? 'IDR';
-    for (final item in order.items) {
-      final qtyStr = '${item.quantity.toStringAsFixed(0)}x ';
-      final subtotalStr = formatMoney(item.subtotal, currency);
-      final unitPriceStr = '@ ${formatMoney(item.unitPrice, currency)}';
-
-      final nameAvailableWidth = width - qtyStr.length - subtotalStr.length - 1;
-      String nameLine = item.productName;
-      if (nameLine.length > nameAvailableWidth) {
-        nameLine = nameLine.substring(0, nameAvailableWidth);
-      }
-
-      buffer.writeln(row('$qtyStr$nameLine', subtotalStr));
-      buffer.writeln('     $unitPriceStr');
-      if (item.notes != null && item.notes!.isNotEmpty) {
-        buffer.writeln('     * ${item.notes}');
-      }
-    }
-
-    buffer.writeln('-' * width);
-
-    // Summary calculation
-    buffer.writeln(row('Subtotal', formatMoney(order.subtotal, currency)));
-    if (order.discountAmount > 0) {
-      buffer.writeln(row('Diskon', '- ${formatMoney(order.discountAmount, currency)}'));
-    }
-    if (order.taxAmount > 0) {
-      buffer.writeln(row('Pajak', formatMoney(order.taxAmount, currency)));
-    }
-    if (order.serviceCharge > 0) {
-      buffer.writeln(row('Service', formatMoney(order.serviceCharge, currency)));
-    }
-
-    buffer.writeln('=' * width);
-    buffer.writeln(row('TOTAL', formatMoney(order.totalAmount, currency)));
-    buffer.writeln('-' * width);
-
-    // Payment details
-    final paymentMethod = (order.status == PosOrderStatus.completed || order.status == PosOrderStatus.paid || order.status == PosOrderStatus.served) ? 'CASH' : 'CASH (OFFLINE)';
-    buffer.writeln(row('Pembayaran', paymentMethod));
-    
-    // Tender and change details
-    if (tenderAmount != null && tenderAmount > 0) {
-      buffer.writeln(row('Diterima', formatMoney(tenderAmount, currency)));
-      final change = changeAmount ?? (tenderAmount - order.totalAmount);
-      buffer.writeln(row('Kembalian', formatMoney(change < 0 ? 0 : change, currency)));
-    }
-
-    buffer.writeln('-' * width);
-
-    // Footer
-    final footer = config?.receiptFooter ?? 'Terima kasih atas kunjungan Anda!';
-    for (final line in footer.split('\n')) {
-      if (line.trim().isNotEmpty) {
-        buffer.writeln(padCenter(line.trim()));
-      }
-    }
-
-    if (isOffline) {
-      buffer.writeln('');
-      buffer.writeln(padCenter('* KONEKSI INTERNET OFFLINE *'));
-      buffer.writeln(padCenter('Beberapa informasi loyalty/'));
-      buffer.writeln(padCenter('feedback dinonaktifkan.'));
-    }
-
-    buffer.writeln('\n\n\n\n'); // Spacing to feed past cutter
-    return buffer.toString();
+    final lines = ReceiptLayout.buildLines(
+      order: order,
+      config: config,
+      outletName: outletName,
+      widthChars: width,
+      isOffline: isOffline,
+      tenderAmount: tenderAmount,
+      changeAmount: changeAmount,
+    );
+    return '${lines.join('\n')}\n\n\n\n';
   }
 
   /// Print receipt based on selected printer type
@@ -226,10 +129,88 @@ class ThermalPrinterService {
   }) async {
     await init();
 
+    final bool isDesktop = !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
+    // Allow overriding `system` route when a deviceAddress is configured
+    // and looks like a network host or bluetooth MAC. This helps when the
+    // operator saved a raw printer address but left the type as `system`.
+    String type = connectionType;
+    final addrProbe = deviceAddress ?? '';
+    if (type == 'system' && addrProbe.isNotEmpty) {
+      // host:port or ip.address -> treat as network (helps users who set
+      // a raw printer address but left the type as `system`)
+      final looksLikeIp = addrProbe.contains('.') || (addrProbe.contains(':') && addrProbe.split(':').length == 2 && int.tryParse(addrProbe.split(':').last) != null);
+      if (looksLikeIp) {
+        type = 'network';
+      }
+    }
 
-    if (connectionType == 'system') {
+    if (type == 'system') {
       try {
+        if (Platform.isLinux) {
+          final isLocalOrder = order.id.startsWith('local-');
+          bool isTrulyOffline = isOffline;
+
+          if (!isLocalOrder) {
+            try {
+              await ApiClient.instance.get<String>(
+                '/pos/orders/${order.id}/receipt',
+                options: Options(responseType: ResponseType.plain),
+              ).timeout(const Duration(seconds: 5));
+              isTrulyOffline = false;
+            } catch (htmlError) {
+              if (htmlError is DioException) {
+                final type = htmlError.type;
+                if (type == DioExceptionType.connectionTimeout ||
+                    type == DioExceptionType.sendTimeout ||
+                    type == DioExceptionType.receiveTimeout ||
+                    type == DioExceptionType.connectionError ||
+                    (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                  isTrulyOffline = true;
+                }
+              }
+            }
+          }
+
+          final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+          String? qrText;
+          if (!isTrulyOffline && !isLocalOrder) {
+            try {
+              final resp = await ApiClient.instance.get<String>(
+                '/pos/orders/${order.id}/receipt',
+                options: Options(responseType: ResponseType.plain),
+              ).timeout(const Duration(seconds: 3));
+              final html = resp.data ?? '';
+              qrText = _extractFeedbackUrlFromHtml(html);
+              if (qrText != null) {
+                debugPrint('ThermalPrinterService: extracted feedback QR text: $qrText');
+              }
+            } catch (_) {}
+          }
+
+          final bytes = renderer.generate(
+            order,
+            outletName: outletName,
+            footer: config?.receiptFooter,
+            feedbackQrText: qrText,
+            currency: config?.currency ?? 'IDR',
+          );
+
+          final printerIdentifier = (deviceAddress?.trim().isNotEmpty == true)
+              ? deviceAddress!.trim()
+              : deviceName?.trim();
+
+          final ok = await sendRawToLinuxUsbPrinter(
+            bytes,
+            printerName: printerIdentifier,
+          );
+          debugPrint('Thermal print (system->linux-raw) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok');
+          if (!ok && (printerIdentifier == null || printerIdentifier.isEmpty) && context.mounted) {
+            ThermalPrinterSettingsDialog.show(context);
+          }
+          return ok;
+        }
+
         final isLocalOrder = order.id.startsWith('local-');
         bool isTrulyOffline = isOffline;
 
@@ -239,22 +220,26 @@ class ThermalPrinterService {
               '/pos/orders/${order.id}/receipt',
               options: Options(responseType: ResponseType.plain),
             ).timeout(const Duration(seconds: 5));
-            
+
             isTrulyOffline = false;
 
             final htmlContent = response.data;
             if (htmlContent != null && htmlContent.isNotEmpty) {
-              final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
-              final pdfBytes = await Printing.convertHtml(
-                html: htmlContent,
-                format: format,
-              );
-              await Printing.layoutPdf(
-                onLayout: (PdfPageFormat _) async => pdfBytes,
-                format: format,
-                name: 'Receipt_${order.orderNumber}',
-              );
-              return true;
+              try {
+                final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
+                final pdfBytes = await Printing.convertHtml(
+                  html: htmlContent,
+                  format: format,
+                );
+                await Printing.layoutPdf(
+                  onLayout: (PdfPageFormat _) async => pdfBytes,
+                  format: format,
+                  name: 'Receipt_${order.orderNumber}',
+                );
+                return true;
+              } catch (_) {
+                // fallthrough to local PDF generation
+              }
             }
           } catch (htmlError) {
             debugPrint('Online HTML print failed, falling back to local PDF: $htmlError');
@@ -287,8 +272,7 @@ class ThermalPrinterService {
         return false;
       }
     }
-
-    if (connectionType == 'bluetooth') {
+    if (type == 'bluetooth') {
       final address = deviceAddress;
       if (address == null || address.isEmpty) {
         if (context.mounted) {
@@ -332,29 +316,175 @@ class ThermalPrinterService {
           }
         }
 
-        // Send ESC/POS commands
-        final text = generateReceiptText(
+        // Try to fetch HTML receipt to extract embedded QR (if any)
+        String? qrText;
+        if (!isTrulyOffline) {
+          try {
+            final resp = await ApiClient.instance.get<String>(
+              '/pos/orders/${order.id}/receipt',
+              options: Options(responseType: ResponseType.plain),
+            ).timeout(const Duration(seconds: 3));
+            final html = resp.data ?? '';
+            qrText = _extractFeedbackUrlFromHtml(html);
+          } catch (_) {}
+        }
+
+        // Build ESC/POS bytes via renderer
+        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final bytes = renderer.generate(
           order,
-          config,
-          outletName,
-          isOffline: isTrulyOffline,
+          outletName: outletName,
+          footer: config?.receiptFooter,
+          isOffline: isOffline,
           tenderAmount: tenderAmount,
           changeAmount: changeAmount,
+          feedbackQrText: qrText,
+          currency: config?.currency ?? 'IDR',
         );
-        
-        // Basic ESC/POS command array
-        final List<int> bytes = [];
-        // ESC @ (Initialize)
-        bytes.addAll([0x1B, 0x40]);
-        // Raw text bytes
-        bytes.addAll(utf8.encode(text));
-        // Cut paper command (GS V 66 0)
-        bytes.addAll([0x1D, 0x56, 0x42, 0x00]);
+        debugPrint('Thermal print (bluetooth) -> address=$address bytes=${bytes.length}');
+
+        // Desktop native bluetooth integration is not implemented here.
+        // For mobile use the plugin; on desktop show settings to instruct
+        // the operator to configure a network/driver-backed printer.
+        if (isDesktop) {
+          if (context.mounted) ThermalPrinterSettingsDialog.show(context);
+          return false;
+        }
+
+        // On Linux, use native RFCOMM plugin (agentless) if available
+        if (Platform.isLinux) {
+          try {
+            final addr = address; // from earlier
+            if (addr.isEmpty) {
+              if (context.mounted) ThermalPrinterSettingsDialog.show(context);
+              return false;
+            }
+            final ok = await LinuxBluetoothPrinter.printRaw(bytes, address: addr, channel: 1);
+            return ok;
+          } catch (_) {
+            return false;
+          }
+        }
 
         final printRes = await PrintBluetoothThermal.writeBytes(bytes);
         return printRes;
       } catch (e) {
         debugPrint('Bluetooth print error: $e');
+        return false;
+      }
+    }
+
+    if (type == 'network') {
+      final address = deviceAddress;
+      if (address == null || address.isEmpty) {
+        if (context.mounted) ThermalPrinterSettingsDialog.show(context);
+        return false;
+      }
+
+      // parse host:port
+      var host = address;
+      var port = 9100;
+      if (address.contains(':')) {
+        final parts = address.split(':');
+        host = parts[0];
+        try {
+          port = int.parse(parts[1]);
+        } catch (_) {}
+      }
+
+      try {
+        bool isTrulyOffline = isOffline;
+        String? qrText;
+        if (!order.id.startsWith('local-')) {
+          try {
+            final resp = await ApiClient.instance.get<String>(
+              '/pos/orders/${order.id}/receipt',
+              options: Options(responseType: ResponseType.plain),
+            ).timeout(const Duration(seconds: 3));
+            final html = resp.data ?? '';
+            qrText = _extractFeedbackUrlFromHtml(html);
+          } catch (_) {
+          }
+        }
+
+        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final bytes = renderer.generate(
+          order,
+          outletName: outletName,
+          footer: config?.receiptFooter,
+          isOffline: isTrulyOffline,
+          tenderAmount: tenderAmount,
+          changeAmount: changeAmount,
+          feedbackQrText: qrText,
+          currency: config?.currency ?? 'IDR',
+        );
+        debugPrint('Thermal print (network) -> host=$host port=$port bytes=${bytes.length}');
+
+        final sendRes = await sendRawToNetworkPrinter(host, port, bytes);
+        return sendRes;
+      } catch (e) {
+        debugPrint('Network print error: $e');
+        return false;
+      }
+    }
+
+    if (type == 'usb') {
+      try {
+        // Try to extract QR as earlier
+        String? qrText;
+        final isLocalOrder = order.id.startsWith('local-');
+        if (!isLocalOrder) {
+          try {
+            final resp = await ApiClient.instance.get<String>(
+              '/pos/orders/${order.id}/receipt',
+              options: Options(responseType: ResponseType.plain),
+            ).timeout(const Duration(seconds: 3));
+            final html = resp.data ?? '';
+            qrText = _extractFeedbackUrlFromHtml(html);
+          } catch (_) {}
+        }
+
+        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final bytes = renderer.generate(
+          order,
+          outletName: outletName,
+          footer: config?.receiptFooter,
+          isOffline: isOffline,
+          tenderAmount: tenderAmount,
+          changeAmount: changeAmount,
+          feedbackQrText: qrText,
+          currency: config?.currency ?? 'IDR',
+        );
+        final printerIdentifier = (deviceAddress?.trim().isNotEmpty == true)
+          ? deviceAddress!.trim()
+          : deviceName?.trim();
+
+        if (Platform.isLinux) {
+          final ok = await sendRawToLinuxUsbPrinter(
+            bytes,
+            printerName: printerIdentifier,
+          );
+          debugPrint('Thermal print (usb-linux) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok');
+          return ok;
+        }
+
+        // Fallback: Android/native path uses platform channel wrapper.
+        final address = printerIdentifier;
+        String? usbDeviceName = address;
+        int? vendorId;
+        int? productId;
+        if (address != null && address.contains(':')) {
+          final parts = address.split(':');
+          try {
+            vendorId = int.parse(parts[0]);
+            productId = int.parse(parts[1]);
+          } catch (_) {}
+        }
+
+        final ok = await UsbPrinter.printRaw(bytes, vendorId: vendorId, productId: productId, deviceName: usbDeviceName);
+        return ok;
+      } catch (e) {
+        debugPrint('USB print error: $e');
         return false;
       }
     }
@@ -686,5 +816,52 @@ class ThermalPrinterService {
   String _formatTime(DateTime dt) {
     final local = dt.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  String? _extractFeedbackUrlFromHtml(String html) {
+    try {
+      final attrReg = RegExp("data-feedback-url=[\"']([^\"']+)[\"']", dotAll: true);
+      final attrMatch = attrReg.firstMatch(html);
+      final attrUrl = attrMatch?.group(1)?.trim();
+      if (attrUrl != null && attrUrl.isNotEmpty) {
+        return _unescapeHtmlEntities(attrUrl);
+      }
+
+      final reg = RegExp(r'<!--\s*FEEDBACK_URL:\s*([^<\s]+)\s*-->', dotAll: true);
+      final m = reg.firstMatch(html);
+      final commentUrl = m?.group(1)?.trim();
+      if (commentUrl != null && commentUrl.isNotEmpty) {
+        return _unescapeHtmlEntities(commentUrl);
+      }
+
+      final genericReg = RegExp(
+        "(https?:\\/\\/[^\"'\\s<>]+\\/(?:[a-z]{2}\\/)?(?:f|feedback)\\/[^\"'\\s<>]+)",
+        dotAll: true,
+      );
+      final genericMatch = genericReg.firstMatch(html);
+      final genericUrl = genericMatch?.group(1)?.trim();
+      if (genericUrl != null && genericUrl.isNotEmpty) {
+        return _unescapeHtmlEntities(genericUrl);
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _unescapeHtmlEntities(String value) {
+    return value
+        .replaceAll('&amp;', '&')
+        .replaceAll('&#43;', '+')
+        .replaceAll('&plus;', '+')
+        .replaceAll('&#47;', '/')
+        .replaceAll('&sol;', '/')
+        .replaceAll('&#61;', '=')
+        .replaceAll('&equals;', '=')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
   }
 }

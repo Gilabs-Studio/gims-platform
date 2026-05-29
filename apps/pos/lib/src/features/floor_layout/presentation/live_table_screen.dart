@@ -18,7 +18,6 @@ import '../../terminal/domain/models/pos_order.dart';
 import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
 import '../../terminal/presentation/widgets/checkout_flow_sheet.dart';
-import '../../terminal/presentation/widgets/thermal_printer_settings_dialog.dart';
 import '../../terminal/presentation/widgets/receipt_dialog.dart';
 import '../domain/live_table_data.dart';
 import '../domain/models/floor_plan.dart';
@@ -332,19 +331,16 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     _now = DateTime.now();
   }
 
-  Future<void> _printReceipt(PosOrder order) async {
-    final printerService = ServiceLocator.instance.thermalPrinterService;
-    final isOffline = order.id.startsWith('local-');
-    final success = await printerService.printReceipt(
-      context,
-      order,
-      _config,
-      widget.outlet.name,
-      isOffline: isOffline,
+  Future<void> _viewOrder(PosOrder order) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: order,
+        config: _config,
+        outletName: widget.outlet.name,
+      ),
     );
-    if (!success && mounted) {
-      ThermalPrinterSettingsDialog.show(context);
-    }
   }
 
   /// Throttled fallback: reloads orders via HTTP when a WS event cannot be parsed.
@@ -963,7 +959,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     label: const Text('Selesai'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => _printReceipt(order),
+                    onPressed: () => _viewOrder(order),
                     icon: const Icon(Icons.receipt_long),
                     label: const Text('View Order'),
                   ),
@@ -1069,7 +1065,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                             }
                           }
                           if (target != null) {
-                            _printReceipt(target);
+                            _viewOrder(target);
                           }
                         },
                       ),

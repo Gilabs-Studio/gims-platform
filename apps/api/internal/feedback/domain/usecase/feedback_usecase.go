@@ -668,7 +668,7 @@ func (u *feedbackUsecase) GetResponse(ctx context.Context, id string) (*dto.Feed
 
 func (u *feedbackUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string, error) {
 	permissionScope, _ := ctx.Value("permission_scope").(string)
-	
+
 	// If not warehouse/outlet scoped, allow all outlets (admin access)
 	if permissionScope != "WAREHOUSE" && permissionScope != "OUTLET" {
 		return nil, nil

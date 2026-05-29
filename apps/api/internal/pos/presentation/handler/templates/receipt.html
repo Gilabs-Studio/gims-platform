@@ -120,9 +120,10 @@
   <div class="feedback-section">
     <div class="feedback-label bold">Nilai Pelayanan Kami</div>
     <div class="feedback-label">Scan QR untuk memberikan feedback</div>
-    <img src="{{.FeedbackQRBase64}}" alt="Feedback QR Code">
+    <img src="{{.FeedbackQRBase64}}" alt="Feedback QR Code" data-feedback-url="{{.FeedbackURL}}">
   </div>
   {{end}}
+  {{if .FeedbackURL}}<!-- FEEDBACK_URL: {{.FeedbackURL}} -->{{end}}
 
   {{if .ShowLoyaltySection}}
   <hr class="dash">

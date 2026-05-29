@@ -98,7 +98,10 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
         changeAmount: change,
       );
       if (!success && mounted) {
-        ThermalPrinterSettingsDialog.show(context);
+        showError(
+          context,
+          ApiException('Gagal mencetak nota. Periksa koneksi printer atau buka pengaturan printer dari ikon atas.'),
+        );
       }
     } catch (e) {
       if (mounted) showError(context, e);
@@ -231,7 +234,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   scrollDirection: Axis.horizontal,
                   child: Container(
                     width: printerService.paperSize == '80mm' ? 380 : 280,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
@@ -248,8 +251,8 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                       softWrap: false,
                       style: const TextStyle(
                         fontFamily: 'Courier',
-                        fontSize: 13,
-                        height: 1.2,
+                        fontSize: 11,
+                        height: 1.18,
                         color: Colors.black87,
                       ),
                     ),
@@ -310,7 +313,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                 IconButton(
                   tooltip: 'Pengaturan Printer',
                   onPressed: () => ThermalPrinterSettingsDialog.show(context),
-                  icon: const Icon(Icons.print_outlined),
+                  icon: const Icon(Icons.settings_outlined),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -319,20 +322,24 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
               ],
             ),
             const Divider(height: 24),
-            Container(
-              height: 460,
+            LayoutBuilder(builder: (context, constraints) {
+              final maxHeight = constraints.maxHeight;
+                final previewHeight = (maxHeight.isFinite ? (maxHeight * 0.75) : 460.0).clamp(220.0, 720.0);
+              return Container(
+              height: previewHeight,
               decoration: BoxDecoration(
                 border: Border.all(color: GimsColors.border),
                 borderRadius: BorderRadius.circular(GimsRadius.medium),
                 color: Colors.white,
               ),
-              child: ClipRRect(
+                child: ClipRRect(
                 borderRadius: BorderRadius.circular(GimsRadius.medium),
                 child: _receiptPreviewError
                     ? _buildOfflineReceiptPreview()
                     : WebViewWidget(controller: _receiptPreviewController!),
               ),
-            ),
+              );
+            }),
             const SizedBox(height: 24),
             Row(
               children: [

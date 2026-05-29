@@ -204,6 +204,8 @@ class _ThermalPrinterSettingsDialogState extends State<ThermalPrinterSettingsDia
                             onChanged: (val) {
                               setState(() {
                                 _selectedType = val!;
+                                _selectedAddress = null;
+                                _selectedName = null;
                               });
                             },
                           ),
@@ -218,6 +220,30 @@ class _ThermalPrinterSettingsDialogState extends State<ThermalPrinterSettingsDia
                                 _selectedType = val!;
                               });
                               _scanDevices();
+                            },
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<String>(
+                            title: const Text('Network/Printer (RAW ESC/POS)'),
+                            subtitle: const Text('Kirim raw ESC/POS ke printer melalui TCP (host:port, port default 9100)'),
+                            value: 'network',
+                            groupValue: _selectedType,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedType = val!;
+                              });
+                            },
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<String>(
+                            title: const Text('USB (ESC/POS)'),
+                            subtitle: const Text('Printer USB (butuh dukungan plugin/driver) — gunakan jika tersedia'),
+                            value: 'usb',
+                            groupValue: _selectedType,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedType = val!;
+                              });
                             },
                           ),
                         ],
@@ -323,6 +349,53 @@ class _ThermalPrinterSettingsDialogState extends State<ThermalPrinterSettingsDia
                                   );
                                 },
                               ),
+                      ),
+                    ],
+
+                    // Network settings
+                    if (_selectedType == 'network') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Alamat Printer Network',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: GimsColors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        initialValue: _selectedAddress ?? '',
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: 'Contoh: 192.168.1.100:9100',
+                        ),
+                        onChanged: (v) => setState(() => _selectedAddress = v.trim()),
+                      ),
+                    ],
+
+                    // USB settings
+                    if (_selectedType == 'usb') ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Nama printer USB / Queue CUPS',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: GimsColors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        initialValue: _selectedAddress ?? '',
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: 'Contoh: nama queue CUPS, mis. POS-THERMAL',
+                        ),
+                        onChanged: (v) => setState(() => _selectedAddress = v.trim()),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Catatan: di Linux, USB raw dikirim lewat queue CUPS menggunakan lp -o raw. Isi dengan nama printer yang muncul di CUPS/Print Settings. Untuk Android tetap memakai native bridge.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: GimsColors.mutedForeground),
                       ),
                     ],
 
