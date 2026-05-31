@@ -110,10 +110,11 @@ const PROFILE_THRESHOLDS = {
 	}),
 
 	"browser-dashboard": () => ({
-		// Browser metrics use different measurement (Web Vitals)
-		browser_web_vital_lcp: ["p(95)<2500"],
-		browser_web_vital_fid: ["p(95)<100"],
-		browser_web_vital_cls: ["p(95)<0.1"],
+		// Web Vitals are collected by the k6 browser module and read from the
+		// summary. We don't set startup thresholds on them because k6 validates
+		// threshold metric names at startup and browser vital metrics register
+		// lazily (and vary by version, e.g. FID -> INP). Gate on user checks.
+		checks: ["rate>=0.9"],
 	}),
 
 	profiler: (tiers) => ({
