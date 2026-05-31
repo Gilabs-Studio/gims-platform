@@ -35,18 +35,18 @@ func isHTTPS(c *gin.Context) bool {
 	return false
 }
 
-func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite, bool) {
+func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite) {
 	isSecure := isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
 	sameSite := http.SameSiteLaxMode
 	if isSecure {
 		sameSite = http.SameSiteNoneMode
 	}
 
-	return "", sameSite, isSecure
+	return "", sameSite
 }
 
 func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
-	domain, sameSite, secure := resolveSystemAdminCookieOptions(c)
+	domain, sameSite := resolveSystemAdminCookieOptions(c)
 
 	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
@@ -54,21 +54,16 @@ func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
 		Path:     "/internal",
 		Domain:   domain,
 		MaxAge:   maxAge,
-		Secure:   true, // Statically true for security checkers
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: sameSite,
-	}
-
-	// Override for local HTTP development if secure is false
-	if !secure {
-		cookie.Secure = false
 	}
 
 	http.SetCookie(c.Writer, cookie)
 }
 
 func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain string) {
-	_, sameSite, secure := resolveSystemAdminCookieOptions(c)
+	_, sameSite := resolveSystemAdminCookieOptions(c)
 
 	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
@@ -77,21 +72,16 @@ func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain stri
 		Domain:   domain,
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
-		Secure:   true, // Statically true for security checkers
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: sameSite,
-	}
-
-	// Override for local HTTP development if secure is false
-	if !secure {
-		cookie.Secure = false
 	}
 
 	http.SetCookie(c.Writer, cookie)
 }
 
 func clearSystemAdminAccessTokenCookies(c *gin.Context) {
-	domain, _, _ := resolveSystemAdminCookieOptions(c)
+	domain, _ := resolveSystemAdminCookieOptions(c)
 	paths := []string{"/internal", "/"}
 	domains := []string{"", domain}
 

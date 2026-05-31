@@ -207,14 +207,9 @@ func setCSRFCookie(c *gin.Context, token string) {
 		Path:     "/",
 		Domain:   domain,
 		MaxAge:   3600 * 24,
-		Secure:   true, // Statically true for security checkers
+		Secure:   true,
 		HttpOnly: false,
 		SameSite: sameSite,
-	}
-
-	// Override for local HTTP development if isSecure is false
-	if !isSecure {
-		cookie.Secure = false
 	}
 
 	http.SetCookie(c.Writer, cookie)

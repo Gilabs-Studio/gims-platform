@@ -151,9 +151,9 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 	// with the same cookie name but different path/domain.
 	clearAuthCookies(c)
 
-	secure, sameSite := getCookieSecureAndSameSite(c)
-	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, secure, sameSite)
-	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, secure, sameSite)
+	_, sameSite := getCookieSecureAndSameSite(c)
+	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, sameSite)
+	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, sameSite)
 }
 
 func clearAuthCookies(c *gin.Context) {
@@ -209,14 +209,9 @@ func clearAuthCookies(c *gin.Context) {
 					Path:     p,
 					MaxAge:   -1,
 					Domain:   domain,
-					Secure:   true, // Statically true for security checkers
+					Secure:   true,
 					HttpOnly: true,
 					SameSite: sameSite,
-				}
-
-				// Override for local HTTP development if secure is false
-				if !secure {
-					cookie.Secure = false
 				}
 
 				http.SetCookie(c.Writer, cookie)
@@ -258,7 +253,7 @@ func clearCSRFCookie(c *gin.Context) {
 	}
 }
 
-func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly, secure bool, sameSite http.SameSite) {
+func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly bool, sameSite http.SameSite) {
 	// KISS: Set the cookie ONCE on the configured domain.
 	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
 	// with the same name, which leads to conflicts and stale token evaluation.
@@ -269,14 +264,9 @@ func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int
 		Path:     path,
 		MaxAge:   maxAge,
 		Domain:   domain,
-		Secure:   true, // Statically true for security checkers
+		Secure:   true,
 		HttpOnly: httpOnly,
 		SameSite: sameSite,
-	}
-
-	// Override for local HTTP development if secure is false
-	if !secure {
-		cookie.Secure = false
 	}
 
 	http.SetCookie(c.Writer, cookie)
