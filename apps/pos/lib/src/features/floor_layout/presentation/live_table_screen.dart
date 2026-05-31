@@ -8,7 +8,7 @@ import '../../../app/app.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/utils/url_utils.dart';
+
 import '../../../shared/widgets/empty_state.dart';
 import '../../outlet/domain/models/outlet.dart';
 import '../../terminal/data/notification_sound_service.dart';
@@ -18,6 +18,7 @@ import '../../terminal/domain/models/pos_order.dart';
 import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
 import '../../terminal/presentation/widgets/checkout_flow_sheet.dart';
+import '../../terminal/presentation/widgets/receipt_dialog.dart';
 import '../domain/live_table_data.dart';
 import '../domain/models/floor_plan.dart';
 import 'widgets/floor_canvas.dart';
@@ -198,7 +199,13 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
             return;
           }
           NotificationSoundService.instance.play();
-          setState(() => _upsertOrder(order));
+          // Use applyServerOrder to evict any ghost local-xxx entry first.
+          ServiceLocator.instance.terminalService
+              .applyServerOrder(order)
+              .then((canonical) {
+            if (!mounted) return;
+            setState(() => _upsertOrder(canonical));
+          });
           break;
         case 'pos.order_status_changed':
         case 'pos.payment_confirmed':
@@ -208,12 +215,51 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
             _safeFallbackSync();
             return;
           }
-          setState(() {
-            if (_isTerminalCleared(order.status)) {
-              _orders = _orders.where((item) => item.id != order.id).toList();
-            } else {
-              _upsertOrder(order);
-            }
+          // Use applyServerOrder to evict ghost local-xxx entries.
+          ServiceLocator.instance.terminalService
+              .applyServerOrder(order)
+              .then((canonical) {
+            if (!mounted) return;
+            setState(() {
+              final localId = ServiceLocator.instance.terminalService
+                  .localIdForServerId(canonical.id);
+
+              if (_isTerminalCleared(canonical.status)) {
+                _orders = _orders.where((item) {
+                  if (item.id == canonical.id) return false;
+                  if (localId != null && item.id == localId) return false;
+                  if (item.id.startsWith('local-')) {
+                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                      return false;
+                    }
+                    if (canonical.tableId == null &&
+                        canonical.tableLabel != null &&
+                        item.tableLabel != null &&
+                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+              } else {
+                _orders = _orders.where((item) {
+                  if (localId != null && item.id == localId) return false;
+                  if (item.id.startsWith('local-')) {
+                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                      return false;
+                    }
+                    if (canonical.tableId == null &&
+                        canonical.tableLabel != null &&
+                        item.tableLabel != null &&
+                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+                _upsertOrder(canonical);
+              }
+            });
           });
           break;
       }
@@ -283,6 +329,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     }
     _orders = next;
     _now = DateTime.now();
+  }
+
+  Future<void> _viewOrder(PosOrder order) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: order,
+        config: _config,
+        outletName: widget.outlet.name,
+      ),
+    );
   }
 
   /// Throttled fallback: reloads orders via HTTP when a WS event cannot be parsed.
@@ -365,18 +423,14 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                                     color: Colors.red),
                                 onPressed: () async {
                                   final navigator = Navigator.of(ctx);
-                                  final messenger = ScaffoldMessenger.of(context);
                                   try {
                                     await ServiceLocator.instance.terminalService
                                         .deleteOrder(draft.id);
                                     navigator.pop();
                                     _load();
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            'Draft #${draft.orderNumber} berhasil dihapus'),
-                                      ),
-                                    );
+                                    if (context.mounted) {
+                                      showNotification(context, 'Draft #${draft.orderNumber} berhasil dihapus');
+                                    }
                                   } catch (error) {
                                     if (ctx.mounted) {
                                       showError(ctx, error);
@@ -425,7 +479,6 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                         child: ListTile(
                           onTap: () async {
                             final navigator = Navigator.of(ctx);
-                            final messenger = ScaffoldMessenger.of(context);
                             navigator.pop();
                             
                             setState(() => _loading = true);
@@ -436,12 +489,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                                 tableLabel: tableName,
                               );
                               _load();
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Draft #${draft.orderNumber} berhasil dipindahkan ke Meja $tableName'),
-                                ),
-                              );
+                              if (context.mounted) {
+                                showNotification(context, 'Draft #${draft.orderNumber} berhasil dipindahkan ke Meja $tableName');
+                              }
                             } catch (error) {
                               if (context.mounted) {
                                 showError(context, error);
@@ -740,6 +790,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       if (!mounted) return;
       _load(silent: true);
     }
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: checkout.order,
+        config: _config,
+        outletName: widget.outlet.name,
+        finalPayment: checkout.finalPayment,
+      ),
+    );
   }
 
   Future<void> _cancelOrder(LiveTableData info) async {
@@ -807,9 +869,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih meja dari flow Terminal.')),
-      );
+      showNotification(context, 'Pilih meja dari flow Terminal.');
       return;
     }
 
@@ -899,11 +959,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     label: const Text('Selesai'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => openExternal(
-                      ServiceLocator.instance.terminalService.receiptUrl(
-                        order.id,
-                      ),
-                    ),
+                    onPressed: () => _viewOrder(order),
                     icon: const Icon(Icons.receipt_long),
                     label: const Text('View Order'),
                   ),
@@ -1000,11 +1056,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                             );
                           }
                         },
-                        onOpenReceipt: (orderId) => openExternal(
-                          ServiceLocator.instance.terminalService.receiptUrl(
-                            orderId,
-                          ),
-                        ),
+                        onOpenReceipt: (orderId) {
+                          PosOrder? target;
+                          for (final o in _orders) {
+                            if (o.id == orderId) {
+                              target = o;
+                              break;
+                            }
+                          }
+                          if (target != null) {
+                            _viewOrder(target);
+                          }
+                        },
                       ),
                     ),
                   ],

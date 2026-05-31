@@ -86,7 +86,8 @@ type DealRepository interface {
 	List(ctx context.Context, params DealListParams) ([]models.Deal, int64, error)
 	ListByStage(ctx context.Context, params DealsByStageParams) ([]models.Deal, int64, error)
 	Update(ctx context.Context, deal *models.Deal) error
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string, deletedBy string) error
+	Recover(ctx context.Context, id string) error
 	CreateHistory(ctx context.Context, history *models.DealHistory) error
 	GetHistory(ctx context.Context, dealID string) ([]models.DealHistory, error)
 	GetPipelineSummary(ctx context.Context) (*PipelineSummaryData, error)
@@ -122,7 +123,7 @@ func (r *dealRepository) Create(ctx context.Context, deal *models.Deal) error {
 
 func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal, error) {
 	var deal models.Deal
-	err := database.GetDB(ctx, r.db).
+	err := database.GetDB(ctx, r.db).Unscoped().
 		Preload("PipelineStage").
 		Preload("Customer").
 		Preload("Contact").
@@ -142,7 +143,7 @@ func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal,
 }
 
 func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]models.Deal, int64, error) {
-	query := database.GetDB(ctx, r.db).Model(&models.Deal{})
+	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Unscoped()
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
@@ -210,7 +211,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 }
 
 func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStageParams) ([]models.Deal, int64, error) {
-	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where(dealQueryByPipelineStageID, params.StageID)
+	query := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where(dealQueryByPipelineStageID, params.StageID).Unscoped()
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
@@ -259,8 +260,24 @@ func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 		Save(deal).Error
 }
 
-func (r *dealRepository) Delete(ctx context.Context, id string) error {
+func (r *dealRepository) Delete(ctx context.Context, id string, deletedBy string) error {
+	// First update deleted_by
+	var deletedByPtr *string
+	if deletedBy != "" {
+		deletedByPtr = &deletedBy
+	}
+	if err := database.GetDB(ctx, r.db).Model(&models.Deal{}).Where("id = ?", id).Update("deleted_by", deletedByPtr).Error; err != nil {
+		return err
+	}
+	// Then soft delete
 	return database.GetDB(ctx, r.db).Where("id = ?", id).Delete(&models.Deal{}).Error
+}
+
+func (r *dealRepository) Recover(ctx context.Context, id string) error {
+	return database.GetDB(ctx, r.db).Model(&models.Deal{}).Unscoped().Where("id = ?", id).Updates(map[string]interface{}{
+		"deleted_at": nil,
+		"deleted_by": nil,
+	}).Error
 }
 
 func (r *dealRepository) CreateHistory(ctx context.Context, history *models.DealHistory) error {

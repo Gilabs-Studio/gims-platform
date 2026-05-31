@@ -67,7 +67,14 @@ func (s *outletRepoStub) Create(_ context.Context, _ *orgModels.Outlet) error {
 	return nil
 }
 
-func (s *outletRepoStub) GetByID(_ context.Context, id string) (*orgModels.Outlet, error) {
+func (s *outletRepoStub) GetByID(ctx context.Context, id string) (*orgModels.Outlet, error) {
+	if out, ok := s.byID[id]; ok {
+		return out, nil
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (s *outletRepoStub) GetByIDLight(ctx context.Context, id string) (*orgModels.Outlet, error) {
 	if out, ok := s.byID[id]; ok {
 		return out, nil
 	}

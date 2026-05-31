@@ -2,21 +2,19 @@ package usecase
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
-	notificationModels "github.com/gilabs/gims/api/internal/notification/data/models"
-	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	passwordResetModels "github.com/gilabs/gims/api/internal/password_reset/data/models"
-	passwordResetRepo "github.com/gilabs/gims/api/internal/password_reset/data/repositories"
 	resetDto "github.com/gilabs/gims/api/internal/password_reset/domain/dto"
 	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
-	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userDto "github.com/gilabs/gims/api/internal/user/domain/dto"
 )
@@ -40,14 +38,6 @@ func (f *fakePasswordResetRepo) FindByUserID(ctx context.Context, userID string)
 
 func (f *fakePasswordResetRepo) FindPendingByUserID(ctx context.Context, userID string) (*passwordResetModels.PasswordResetRequest, error) {
 	return nil, gorm.ErrRecordNotFound
-}
-
-func (f *fakePasswordResetRepo) ListPendingTenantOwner(ctx context.Context, search string, page, perPage int) ([]passwordResetRepo.TenantOwnerPendingRequest, int64, error) {
-	return nil, 0, nil
-}
-
-func (f *fakePasswordResetRepo) CountPendingTenantOwner(ctx context.Context) (int64, error) {
-	return 0, nil
 }
 
 func (f *fakePasswordResetRepo) Update(ctx context.Context, req *passwordResetModels.PasswordResetRequest) error {
@@ -80,15 +70,6 @@ func (f *fakeUserRepo) FindByEmail(ctx context.Context, email string) (*userMode
 }
 
 func (f *fakeUserRepo) List(ctx context.Context, req *userDto.ListUsersRequest) ([]userModels.User, int64, error) {
-	if req != nil && req.RoleID != "" {
-		filtered := make([]userModels.User, 0, len(f.users))
-		for _, item := range f.users {
-			if item.RoleID == req.RoleID {
-				filtered = append(filtered, item)
-			}
-		}
-		return filtered, int64(len(filtered)), nil
-	}
 	return f.users, int64(len(f.users)), nil
 }
 
@@ -164,50 +145,6 @@ func (f *fakeRoleRepo) CountAdmins(ctx context.Context) (int64, error) {
 	return 0, nil
 }
 
-type fakeNotificationRepo struct {
-	created []notificationModels.Notification
-}
-
-func (f *fakeNotificationRepo) List(ctx context.Context, params notificationRepo.ListParams) ([]notificationModels.Notification, int64, error) {
-	return nil, 0, nil
-}
-
-func (f *fakeNotificationRepo) CountUnread(ctx context.Context, userID string) (int64, error) {
-	return 0, nil
-}
-
-func (f *fakeNotificationRepo) MarkAsRead(ctx context.Context, userID, id string, readAt time.Time) (*notificationModels.Notification, error) {
-	return nil, nil
-}
-
-func (f *fakeNotificationRepo) MarkAllAsRead(ctx context.Context, userID string, readAt time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (f *fakeNotificationRepo) CreateBulk(ctx context.Context, notifications []notificationModels.Notification) error {
-	f.created = append(f.created, notifications...)
-	return nil
-}
-
-type fakeTenantRepo struct {
-	tenant *tenantModels.Tenant
-}
-
-func (f *fakeTenantRepo) FindByID(ctx context.Context, id string) (*tenantModels.Tenant, error) {
-	if f.tenant == nil || f.tenant.ID != id {
-		return nil, gorm.ErrRecordNotFound
-	}
-	return f.tenant, nil
-}
-
-type fakeSystemAdminRepo struct {
-	admins []tenantModels.SystemAdmin
-}
-
-func (f *fakeSystemAdminRepo) ListActive(ctx context.Context) ([]tenantModels.SystemAdmin, error) {
-	return f.admins, nil
-}
-
 type noopAuditService struct{}
 
 func (noopAuditService) Log(ctx context.Context, action string, targetID string, metadata map[string]interface{}) {
@@ -224,40 +161,39 @@ type noopEventPublisher struct{}
 func (noopEventPublisher) Publish(ctx context.Context, event infraEvents.Event) error { return nil }
 func (noopEventPublisher) PublishAsync(ctx context.Context, event infraEvents.Event)  {}
 
-func TestForgotPasswordSetsTenantIDOnNotifications(t *testing.T) {
+func TestForgotPasswordSendsEmailViaResend(t *testing.T) {
 	ctx := context.Background()
 	requestingUser := &userModels.User{
 		ID:       uuid.NewString(),
 		TenantID: uuid.NewString(),
-		Email:    "admin@example.com",
-		Name:     "Tenant Admin",
+		Email:    "test@example.com",
+		Name:     "Test User",
 		RoleID:   uuid.NewString(),
-	}
-	adminRole := &roleModels.Role{ID: uuid.NewString(), Code: "admin"}
-	adminUser := userModels.User{
-		ID:     uuid.NewString(),
-		Email:  "tenant-admin@example.com",
-		Name:   "Tenant Admin Recipient",
-		RoleID: adminRole.ID,
 	}
 
 	passwordResetRepo := &fakePasswordResetRepo{}
-	userRepo := &fakeUserRepo{user: requestingUser, users: []userModels.User{adminUser}}
-	roleRepo := &fakeRoleRepo{role: adminRole}
-	notificationRepo := &fakeNotificationRepo{}
-	tenantRepo := &fakeTenantRepo{tenant: &tenantModels.Tenant{ID: requestingUser.TenantID, OwnerUserID: func() *string {
-		notOwner := uuid.NewString()
-		return &notOwner
-	}()}}
-	systemAdminRepo := &fakeSystemAdminRepo{}
+	userRepo := &fakeUserRepo{user: requestingUser}
+	roleRepo := &fakeRoleRepo{}
+
+	// Setup a local test server to mock the Resend API call
+	serverCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serverCalled = true
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id": "resend-email-id-123"}`))
+	}))
+	defer server.Close()
+
+	// Use resend Client with custom mock server url
+	resendClient := resend.NewClient("test-api-key")
+	resendClient.SetBaseURL(server.URL)
 
 	uc := NewPasswordResetUsecase(
 		passwordResetRepo,
 		userRepo,
 		roleRepo,
-		tenantRepo,
-		systemAdminRepo,
-		notificationRepo,
+		resendClient,
 		noopAuditService{},
 		noopEventPublisher{},
 		(*redis.Client)(nil),
@@ -270,90 +206,19 @@ func TestForgotPasswordSetsTenantIDOnNotifications(t *testing.T) {
 	if resp == nil {
 		t.Fatal("expected response, got nil")
 	}
-	if len(notificationRepo.created) != 1 {
-		t.Fatalf("expected 1 notification, got %d", len(notificationRepo.created))
-	}
-	created := notificationRepo.created[0]
-	if created.TenantID != requestingUser.TenantID {
-		t.Fatalf("expected tenant_id %s, got %s", requestingUser.TenantID, created.TenantID)
-	}
-	if created.UserID != adminUser.ID {
-		t.Fatalf("expected admin recipient %s, got %s", adminUser.ID, created.UserID)
-	}
-	if created.EntityType != "password_reset_request" {
-		t.Fatalf("expected entity_type password_reset_request, got %s", created.EntityType)
-	}
-	if created.EntityID != requestingUser.ID {
-		t.Fatalf("expected entity_id %s, got %s", requestingUser.ID, created.EntityID)
-	}
-	if created.Message == "" {
-		t.Fatal("expected token-bearing message, got empty message")
-	}
+
 	if len(passwordResetRepo.created) != 1 {
 		t.Fatalf("expected 1 password reset record, got %d", len(passwordResetRepo.created))
 	}
-}
 
-func TestForgotPasswordTenantOwnerNotifiesSystemAdmins(t *testing.T) {
-	ctx := context.Background()
-	tenantID := uuid.NewString()
-	requestingUser := &userModels.User{
-		ID:       uuid.NewString(),
-		TenantID: tenantID,
-		Email:    "owner@example.com",
-		Name:     "Tenant Owner",
-		RoleID:   uuid.NewString(),
+	createdReq := passwordResetRepo.created[0]
+	if createdReq.UserID != requestingUser.ID {
+		t.Errorf("expected userID %s, got %s", requestingUser.ID, createdReq.UserID)
 	}
-	adminRole := &roleModels.Role{ID: uuid.NewString(), Code: "admin"}
-	tenantAdmin := userModels.User{
-		ID:     uuid.NewString(),
-		Email:  "tenant-admin@example.com",
-		Name:   "Tenant Admin Recipient",
-		RoleID: adminRole.ID,
+	if createdReq.Token == "" {
+		t.Error("expected generated reset token, got empty string")
 	}
-	sysAdminOne := tenantModels.SystemAdmin{ID: uuid.NewString(), Name: "System Admin 1", Status: "active"}
-	sysAdminTwo := tenantModels.SystemAdmin{ID: uuid.NewString(), Name: "System Admin 2", Status: "active"}
-
-	passwordResetRepo := &fakePasswordResetRepo{}
-	userRepo := &fakeUserRepo{user: requestingUser, users: []userModels.User{tenantAdmin}}
-	roleRepo := &fakeRoleRepo{role: adminRole}
-	notificationRepo := &fakeNotificationRepo{}
-	tenantRepo := &fakeTenantRepo{tenant: &tenantModels.Tenant{ID: tenantID, OwnerUserID: &requestingUser.ID}}
-	systemAdminRepo := &fakeSystemAdminRepo{admins: []tenantModels.SystemAdmin{sysAdminOne, sysAdminTwo}}
-
-	uc := NewPasswordResetUsecase(
-		passwordResetRepo,
-		userRepo,
-		roleRepo,
-		tenantRepo,
-		systemAdminRepo,
-		notificationRepo,
-		noopAuditService{},
-		noopEventPublisher{},
-		(*redis.Client)(nil),
-	)
-
-	_, err := uc.ForgotPassword(ctx, &resetDto.ForgotPasswordRequest{Email: requestingUser.Email})
-	if err != nil {
-		t.Fatalf("ForgotPassword returned error: %v", err)
-	}
-
-	if len(notificationRepo.created) != 2 {
-		t.Fatalf("expected 2 notifications for system admins, got %d", len(notificationRepo.created))
-	}
-
-	recipients := map[string]bool{}
-	for _, n := range notificationRepo.created {
-		recipients[n.UserID] = true
-		if n.TenantID != tenantID {
-			t.Fatalf("expected tenant_id %s, got %s", tenantID, n.TenantID)
-		}
-	}
-
-	if !recipients[sysAdminOne.ID] || !recipients[sysAdminTwo.ID] {
-		t.Fatalf("expected recipients to include system admins %s and %s", sysAdminOne.ID, sysAdminTwo.ID)
-	}
-	if recipients[tenantAdmin.ID] {
-		t.Fatalf("did not expect tenant admin recipient %s for tenant-owner request", tenantAdmin.ID)
+	if !serverCalled {
+		t.Error("expected Resend API server to be called, but it was not")
 	}
 }

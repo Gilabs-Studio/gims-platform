@@ -21,6 +21,8 @@ type Tenant struct {
 	DeletionRequestedBy    *string        `gorm:"type:uuid" json:"deletion_requested_by,omitempty"`
 	DeletionRecoveredAt    *time.Time     `gorm:"type:timestamptz" json:"deletion_recovered_at,omitempty"`
 	DeletionPreviousStatus *string        `gorm:"type:varchar(20)" json:"deletion_previous_status,omitempty"`
+	DeletionWarningSent    bool           `gorm:"type:boolean;not null;default:false" json:"deletion_warning_sent"`
+	DeletionH1Sent         bool           `gorm:"type:boolean;not null;default:false" json:"deletion_h1_sent"`
 	CreatedAt              time.Time      `json:"created_at"`
 	UpdatedAt              time.Time      `json:"updated_at"`
 	DeletedAt              gorm.DeletedAt `gorm:"index" json:"-"`

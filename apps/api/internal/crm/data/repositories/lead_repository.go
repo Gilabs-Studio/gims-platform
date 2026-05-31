@@ -38,7 +38,8 @@ type LeadRepository interface {
 	FindUnprocessed(ctx context.Context, limit int) ([]models.Lead, error)
 	List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error)
 	Update(ctx context.Context, lead *models.Lead) error
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string, deletedBy string) error
+	Recover(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string) (bool, error)
 	GetAnalytics(ctx context.Context) (*LeadAnalytics, error)
 	// Product items
@@ -83,7 +84,7 @@ func (r *leadRepository) Create(ctx context.Context, lead *models.Lead) error {
 
 func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead, error) {
 	var lead models.Lead
-	err := r.scopedLeadQuery(ctx).
+	err := r.scopedLeadQuery(ctx).Unscoped().
 		Preload("LeadSource").
 		Preload("LeadStatus").
 		Preload("ContactRole").
@@ -175,7 +176,7 @@ func (r *leadRepository) FindUnprocessed(ctx context.Context, limit int) ([]mode
 }
 
 func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error) {
-	query := r.scopedLeadQuery(ctx)
+	query := r.scopedLeadQuery(ctx).Unscoped()
 
 	// Search filter (prefix search for indexed columns)
 	if params.Search != "" {
@@ -279,8 +280,24 @@ func (r *leadRepository) Update(ctx context.Context, lead *models.Lead) error {
 	return database.GetDB(ctx, r.db).Save(lead).Error
 }
 
-func (r *leadRepository) Delete(ctx context.Context, id string) error {
+func (r *leadRepository) Delete(ctx context.Context, id string, deletedBy string) error {
+	// First update deleted_by
+	var deletedByPtr *string
+	if deletedBy != "" {
+		deletedByPtr = &deletedBy
+	}
+	if err := database.GetDB(ctx, r.db).Model(&models.Lead{}).Where("id = ?", id).Update("deleted_by", deletedByPtr).Error; err != nil {
+		return err
+	}
+	// Then soft delete
 	return r.scopedLeadQuery(ctx).Where("id = ?", id).Delete(&models.Lead{}).Error
+}
+
+func (r *leadRepository) Recover(ctx context.Context, id string) error {
+	return database.GetDB(ctx, r.db).Model(&models.Lead{}).Unscoped().Where("id = ?", id).Updates(map[string]interface{}{
+		"deleted_at": nil,
+		"deleted_by": nil,
+	}).Error
 }
 
 func (r *leadRepository) ExistsByCode(ctx context.Context, code string) (bool, error) {

@@ -30,6 +30,7 @@ func NewEngine(jwtManager *jwt.JWTManager) *gin.Engine {
 	}
 
 	// Global middlewares
+	r.Use(middleware.RequestCacheMiddleware())
 	r.Use(gin.Recovery())
 	r.Use(middleware.LoggerMiddleware())
 	r.Use(middleware.RequestIDMiddleware())

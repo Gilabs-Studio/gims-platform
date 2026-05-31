@@ -22,7 +22,7 @@ func CheckRecordScopeAccess(db *gorm.DB, ctx context.Context, model interface{},
 		return true
 	}
 
-	query := db.Model(model).Where("id = ?", recordID)
+	query := db.Unscoped().Model(model).Where("id = ?", recordID)
 	query = ApplyScopeFilter(query, ctx, opts)
 
 	var count int64

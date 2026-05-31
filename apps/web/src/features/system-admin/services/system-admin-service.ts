@@ -35,11 +35,6 @@ import type {
   PermissionListParams,
   CreatePermissionRequest,
   UpdatePermissionRequest,
-  TenantOwnerPasswordResetQueueParams,
-  TenantOwnerPasswordResetQueueResponse,
-  TenantOwnerPasswordResetPendingCountResponse,
-  SystemAdminResetTenantOwnerPasswordRequest,
-  SystemAdminResetTenantOwnerPasswordResponse,
   SupportFeedbackListResponse,
 } from "../types";
 
@@ -365,34 +360,6 @@ export const systemAdminService = {
     return data;
   },
 
-  // ── Tenant owner password reset queue ────────────────────────────────────
-
-  async getTenantOwnerPasswordResetQueue(
-    params?: TenantOwnerPasswordResetQueueParams,
-  ): Promise<TenantOwnerPasswordResetQueueResponse> {
-    const { data } = await sysAdminClient.get<TenantOwnerPasswordResetQueueResponse>(
-      "/system/tenants/owner-password-reset-requests",
-      { params },
-    );
-    return data;
-  },
-
-  async getTenantOwnerPasswordResetPendingCount(): Promise<TenantOwnerPasswordResetPendingCountResponse> {
-    const { data } = await sysAdminClient.get<TenantOwnerPasswordResetPendingCountResponse>(
-      "/system/tenants/owner-password-reset-requests/pending-count",
-    );
-    return data;
-  },
-
-  async resetTenantOwnerPassword(
-    payload: SystemAdminResetTenantOwnerPasswordRequest,
-  ): Promise<SystemAdminResetTenantOwnerPasswordResponse> {
-    const { data } = await sysAdminClient.post<SystemAdminResetTenantOwnerPasswordResponse>(
-      "/system/tenants/owner-password-reset-requests/reset",
-      payload,
-    );
-    return data;
-  },
 
   // ── Support Feedback Management ──────────────────────────────────────────
 

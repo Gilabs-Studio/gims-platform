@@ -58,6 +58,11 @@ import {
   createDealSchema,
   type CreateDealFormData,
 } from "../schemas/deal.schema";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useQueryClient } from "@tanstack/react-query";
+import { customerService } from "@/features/master-data/customer/services/customer-service";
+import { contactService } from "@/features/crm/contact/services/contact-service";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import type {
   Deal,
   DealPipelineStageOption,
@@ -81,6 +86,7 @@ export function DealFormDialog({
   onSuccess,
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
+  const { user } = useAuthStore();
   const { data: formData, isLoading: isFormLoading } = useDealFormData({
     enabled: open,
   });
@@ -98,7 +104,7 @@ export function DealFormDialog({
       expected_close_date: deal?.expected_close_date?.split("T")[0] ?? "",
       customer_id: deal?.customer_id ?? "",
       contact_id: deal?.contact_id ?? "",
-      assigned_to: deal?.assigned_to ?? "",
+      assigned_to: deal?.assigned_to ?? (isEdit ? "" : (user?.employee_id ?? "")),
       lead_id: deal?.lead_id ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
@@ -316,6 +322,77 @@ export function DealFormDialog({
       ) ?? [],
     [formData?.contacts, selectedCustomerId],
   );
+
+  const queryClient = useQueryClient();
+
+  const customerOptions = useMemo(() => {
+    return formData?.customers?.map((c) => ({
+      value: c.id,
+      label: `${c.name} (${c.code})`,
+    })) ?? [];
+  }, [formData?.customers]);
+
+  const contactOptions = useMemo(() => {
+    return filteredContacts.map((c) => ({
+      value: c.id,
+      label: c.name,
+    })) ?? [];
+  }, [filteredContacts]);
+
+  const handleCreateCustomer = useCallback(
+    async (name: string) => {
+      try {
+        const res = await customerService.create({ name });
+        if (res.success && res.data) {
+          toast.success("Customer created successfully");
+          await queryClient.invalidateQueries({
+            queryKey: ["crm-deals", "form-data"],
+          });
+          return res.data.id;
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to create customer");
+      }
+    },
+    [queryClient],
+  );
+
+  const handleCreateContact = useCallback(
+    async (name: string) => {
+      if (!selectedCustomerId) {
+        toast.error("Please select a customer first");
+        return;
+      }
+      try {
+        const res = await contactService.create({
+          customer_id: selectedCustomerId,
+          name,
+        });
+        if (res.success && res.data) {
+          toast.success("Contact created successfully");
+          await queryClient.invalidateQueries({
+            queryKey: ["crm-deals", "form-data"],
+          });
+          return res.data.id;
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to create contact");
+      }
+    },
+    [queryClient, selectedCustomerId],
+  );
+
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const contactVal = getValues("contact_id");
+      if (contactVal) {
+        const contactObj = formData?.contacts?.find((c) => c.id === contactVal);
+        if (contactObj && contactObj.customer_id !== selectedCustomerId) {
+          setValue("contact_id", "");
+        }
+      }
+    }
+  }, [selectedCustomerId, formData?.contacts, getValues, setValue]);
 
   const dealValue = watch("value");
 
@@ -688,27 +765,13 @@ export function DealFormDialog({
                           name="customer_id"
                           control={control}
                           render={({ field }) => (
-                            <Select
+                            <CreatableCombobox
+                              options={customerOptions}
                               value={field.value ?? ""}
                               onValueChange={field.onChange}
-                            >
-                              <SelectTrigger className="cursor-pointer">
-                                <SelectValue
-                                  placeholder={t("selectCustomer")}
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {formData?.customers?.map((c) => (
-                                  <SelectItem
-                                    key={c.id}
-                                    value={c.id}
-                                    className="cursor-pointer"
-                                  >
-                                    {c.name} ({c.code})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder={t("selectCustomer")}
+                              onCreateClick={handleCreateCustomer}
+                            />
                           )}
                         />
                       )}
@@ -741,25 +804,14 @@ export function DealFormDialog({
                           name="contact_id"
                           control={control}
                           render={({ field }) => (
-                            <Select
+                            <CreatableCombobox
+                              options={contactOptions}
                               value={field.value ?? ""}
                               onValueChange={field.onChange}
-                            >
-                              <SelectTrigger className="cursor-pointer">
-                                <SelectValue placeholder={t("selectContact")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {filteredContacts.map((c) => (
-                                  <SelectItem
-                                    key={c.id}
-                                    value={c.id}
-                                    className="cursor-pointer"
-                                  >
-                                    {c.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder={t("selectContact")}
+                              onCreateClick={handleCreateContact}
+                              disabled={!selectedCustomerId}
+                            />
                           )}
                         />
                       )}

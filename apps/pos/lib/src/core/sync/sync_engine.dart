@@ -15,9 +15,9 @@ class SyncEngine {
     required Isar isar,
     required ConnectivityService connectivity,
     required ApiClient apiClient,
-  })  : _isar = isar,
-        _connectivity = connectivity,
-        _apiClient = apiClient;
+  }) : _isar = isar,
+       _connectivity = connectivity,
+       _apiClient = apiClient;
 
   final Isar _isar;
   final ConnectivityService _connectivity;
@@ -74,13 +74,17 @@ class SyncEngine {
           .filter()
           .statusEqualTo(SyncJobStatus.pending)
           .or()
-          .group((q) => q
-              .statusEqualTo(SyncJobStatus.failed)
-              .nextRetryAtIsNull()
-              .or()
-              .group((q2) => q2
-                  .statusEqualTo(SyncJobStatus.failed)
-                  .nextRetryAtLessThan(now)))
+          .group(
+            (q) => q
+                .statusEqualTo(SyncJobStatus.failed)
+                .nextRetryAtIsNull()
+                .or()
+                .group(
+                  (q2) => q2
+                      .statusEqualTo(SyncJobStatus.failed)
+                      .nextRetryAtLessThan(now),
+                ),
+          )
           .sortByCreatedAt()
           .findAll();
 
@@ -98,7 +102,11 @@ class SyncEngine {
       for (final job in jobs) {
         // Skip dependent terminal jobs when their order's payment failed this batch.
         if (job.feature == 'terminal' &&
-            const {'serveItem', 'serveOrder', 'completeOrder'}.contains(job.action)) {
+            const {
+              'serveItem',
+              'serveOrder',
+              'completeOrder',
+            }.contains(job.action)) {
           final oid = _orderIdFromPayload(job.payload);
           if (oid != null && failedPaymentOrderIds.contains(oid)) {
             continue;
@@ -122,11 +130,6 @@ class SyncEngine {
   }
 
   Future<void> _processJob(SyncJob job) async {
-    await _isar.writeTxn(() async {
-      job.status = SyncJobStatus.processing;
-      await _isar.syncJobs.put(job);
-    });
-
     final payload = jsonDecode(job.payload) as Map<String, dynamic>;
 
     // Resolve downstream orderId reference if applicable.
@@ -137,12 +140,34 @@ class SyncEngine {
           .findFirst();
       if (ref?.orderId != null) {
         payload['orderId'] = ref!.orderId;
+        job.payload = jsonEncode(payload);
+        job.resolvedOrderId = ref.orderId;
+        await _isar.writeTxn(() async {
+          await _isar.syncJobs.put(job);
+        });
       }
     }
 
+    if (job.feature == 'terminal' && job.action != 'createOrder') {
+      final orderId = payload['orderId'] as String?;
+      if (orderId == null || orderId.isEmpty) {
+        // Skip processing for now; keep it pending.
+        return;
+      }
+    }
+
+    await _isar.writeTxn(() async {
+      job.status = SyncJobStatus.processing;
+      await _isar.syncJobs.put(job);
+    });
+
     try {
       _apiClient.setNextRequestHeader('X-Idempotency-Key', job.clientId);
-      final (statusCode, body) = await _dispatchJob(job.feature, job.action, payload);
+      final (statusCode, body) = await _dispatchJob(
+        job.feature,
+        job.action,
+        payload,
+      );
 
       if (statusCode >= 200 && statusCode < 300) {
         // For createOrder: capture the server-assigned orderId.
@@ -173,7 +198,10 @@ class SyncEngine {
           if (confirmedTotal != null &&
               confirmedOrderId != null &&
               confirmedOrderId.isNotEmpty) {
-            await _updatePendingCashPaymentAmount(confirmedOrderId, confirmedTotal);
+            await _updatePendingCashPaymentAmount(
+              confirmedOrderId,
+              confirmedTotal,
+            );
           }
         }
 
@@ -181,7 +209,12 @@ class SyncEngine {
           job.status = SyncJobStatus.done;
           await _isar.syncJobs.put(job);
         });
-      } else if (await _isIdempotentTerminalState(job, statusCode, body, payload)) {
+      } else if (await _isIdempotentTerminalState(
+        job,
+        statusCode,
+        body,
+        payload,
+      )) {
         await _isar.writeTxn(() async {
           job.status = SyncJobStatus.done;
           job.errorCode = null;
@@ -205,7 +238,12 @@ class SyncEngine {
         };
 
         if (statusCode != null &&
-            await _isIdempotentTerminalState(job, statusCode, errorBody, payload)) {
+            await _isIdempotentTerminalState(
+              job,
+              statusCode,
+              errorBody,
+              payload,
+            )) {
           await _isar.writeTxn(() async {
             job.status = SyncJobStatus.done;
             job.errorCode = null;
@@ -231,22 +269,24 @@ class SyncEngine {
       }
 
       final errorCode = e is _ApiError ? e.code : null;
-      final isConflict = errorCode == 'STOCK_INSUFFICIENT' ||
+      final isConflict =
+          errorCode == 'STOCK_INSUFFICIENT' ||
           errorCode == 'OUT_OF_STOCK' ||
           statusCodeFromError(e) == 409;
-      await _handleJobFailure(
-        job,
-        e.toString(),
-        isConflict ? errorCode : null,
-      );
+      await _handleJobFailure(job, e.toString(), isConflict ? errorCode : null);
     }
   }
 
   Future<void> _resolveDownstreamJobs(
-      String parentClientId, String orderId) async {
+    String parentClientId,
+    String orderId,
+  ) async {
     final downstreamJobs = await _isar.syncJobs
         .filter()
-        .statusEqualTo(SyncJobStatus.pending)
+        .group((q) => q
+            .statusEqualTo(SyncJobStatus.pending)
+            .or()
+            .statusEqualTo(SyncJobStatus.failed))
         .findAll();
 
     final toUpdate = <SyncJob>[];
@@ -256,7 +296,10 @@ class SyncEngine {
         p['orderId'] = orderId;
         j
           ..payload = jsonEncode(p)
-          ..resolvedOrderId = orderId;
+          ..resolvedOrderId = orderId
+          ..status = SyncJobStatus.pending
+          ..attemptCount = 0
+          ..nextRetryAt = null;
         toUpdate.add(j);
       }
     }
@@ -269,7 +312,10 @@ class SyncEngine {
   }
 
   Future<void> _handleJobFailure(
-      SyncJob job, String error, String? conflictCode) async {
+    SyncJob job,
+    String error,
+    String? conflictCode,
+  ) async {
     await _isar.writeTxn(() async {
       job.attemptCount += 1;
       job.errorMessage = error;
@@ -295,8 +341,7 @@ class SyncEngine {
       } else {
         job.status = SyncJobStatus.failed;
         final backoff = _backoffSeconds(job.attemptCount);
-        job.nextRetryAt =
-            DateTime.now().add(Duration(seconds: backoff));
+        job.nextRetryAt = DateTime.now().add(Duration(seconds: backoff));
       }
       await _isar.syncJobs.put(job);
     });
@@ -337,7 +382,10 @@ class SyncEngine {
   /// Dispatches a sync job to the correct API endpoint.
   /// Returns (httpStatusCode, responseBody).
   Future<(int, dynamic)> _dispatchJob(
-      String feature, String action, Map<String, dynamic> payload) async {
+    String feature,
+    String action,
+    Map<String, dynamic> payload,
+  ) async {
     final api = _apiClient;
     switch ('$feature.$action') {
       case 'terminal.createOrder':
@@ -345,18 +393,21 @@ class SyncEngine {
         return (res.statusCode ?? 200, res.data);
       case 'terminal.addItem':
         final orderId = payload['orderId'] as String;
-        final res =
-            await api.post('/pos/orders/$orderId/items', data: payload);
+        final res = await api.post('/pos/orders/$orderId/items', data: payload);
         return (res.statusCode ?? 200, res.data);
       case 'terminal.confirmOrder':
         final orderId = payload['orderId'] as String;
-        final res =
-            await api.post('/pos/orders/$orderId/confirm', data: payload);
+        final res = await api.post(
+          '/pos/orders/$orderId/confirm',
+          data: payload,
+        );
         return (res.statusCode ?? 200, res.data);
       case 'terminal.processCash':
         final orderId = payload['orderId'] as String;
-        final res =
-            await api.post('/pos/orders/$orderId/payments/cash', data: payload);
+        final res = await api.post(
+          '/pos/orders/$orderId/payments/cash',
+          data: payload,
+        );
         return (res.statusCode ?? 200, res.data);
       case 'terminal.serveOrder':
         final orderId = payload['orderId'] as String;
@@ -396,10 +447,26 @@ class SyncEngine {
           data: {'reason': reason},
         );
         return (res.statusCode ?? 200, res.data);
+      case 'terminal.updateOrderTable':
+        final orderId = payload['orderId'] as String;
+        final res = await api.put(
+          '/pos/orders/$orderId/table',
+          data: {
+            'table_id': payload['table_id'],
+            'table_label': payload['table_label'],
+          },
+        );
+        return (res.statusCode ?? 200, res.data);
+      case 'terminal.deleteOrder':
+        final orderId = payload['orderId'] as String;
+        final res = await api.delete('/pos/orders/$orderId');
+        return (res.statusCode ?? 200, res.data);
       case 'floor.saveLayout':
         final planId = payload['planId'] as String;
-        final res =
-            await api.put('/pos/floor-plans/$planId/layout', data: payload);
+        final res = await api.put(
+          '/pos/floor-plans/$planId/layout',
+          data: payload,
+        );
         return (res.statusCode ?? 200, res.data);
       case 'loyalty.enrollMember':
         final res = await api.post('/pos/loyalty/members', data: payload);
@@ -457,20 +524,24 @@ class SyncEngine {
     switch (job.action) {
       case 'createOrder':
         return 0;
-      case 'addItem':
+      case 'updateOrderTable':
         return 1;
-      case 'confirmOrder':
+      case 'addItem':
         return 2;
-      case 'processCash':
+      case 'confirmOrder':
         return 3;
-      case 'serveItem':
+      case 'processCash':
         return 4;
-      case 'serveOrder':
+      case 'serveItem':
         return 5;
-      case 'completeOrder':
+      case 'serveOrder':
         return 6;
-      case 'voidOrder':
+      case 'completeOrder':
         return 7;
+      case 'voidOrder':
+        return 8;
+      case 'deleteOrder':
+        return 9;
       default:
         return 100;
     }
@@ -483,8 +554,16 @@ class SyncEngine {
     Map<String, dynamic> payload,
   ) async {
     if (job.feature != 'terminal') return false;
-    if (!const {'serveOrder', 'serveItem', 'completeOrder', 'processCash'}
-        .contains(job.action)) {
+    if (job.action == 'deleteOrder') {
+      return statusCode == 404;
+    }
+    if (!const {
+      'serveOrder',
+      'serveItem',
+      'completeOrder',
+      'processCash',
+      'updateOrderTable',
+    }.contains(job.action)) {
       return false;
     }
     if (statusCode < 400 || statusCode >= 500) return false;
@@ -513,11 +592,18 @@ class SyncEngine {
     if (orderId == null || orderId.isEmpty) return false;
 
     try {
-      final res = await _apiClient.get<Map<String, dynamic>>('/pos/orders/$orderId');
+      final res = await _apiClient.get<Map<String, dynamic>>(
+        '/pos/orders/$orderId',
+      );
       final envelope = res.data;
       if (envelope == null) return false;
       final data = envelope['data'];
       if (data is! Map<String, dynamic>) return false;
+
+      if (action == 'updateOrderTable') {
+        final tableId = payload['table_id'] as String?;
+        return data['table_id'] == tableId;
+      }
 
       final orderStatus = (data['status'] as String? ?? '').toUpperCase();
 
@@ -535,7 +621,9 @@ class SyncEngine {
             if (raw is! Map<String, dynamic>) continue;
             final matchedById = itemId != null && raw['id'] == itemId;
             final matchedByProduct =
-                !matchedById && productId != null && raw['product_id'] == productId;
+                !matchedById &&
+                productId != null &&
+                raw['product_id'] == productId;
             if (!matchedById && !matchedByProduct) continue;
             final itemStatus = (raw['status'] as String? ?? '').toUpperCase();
             return itemStatus == 'SERVED' || itemStatus == 'CANCELLED';
@@ -656,12 +744,14 @@ class SyncEngine {
     }
 
     if (!_statusController.isClosed) {
-      _statusController.add(SyncStatusDetail(
-        status: status,
-        pendingCount: pending,
-        failedCount: failed,
-        lastError: lastFailedJob?.errorMessage,
-      ));
+      _statusController.add(
+        SyncStatusDetail(
+          status: status,
+          pendingCount: pending,
+          failedCount: failed,
+          lastError: lastFailedJob?.errorMessage,
+        ),
+      );
     }
   }
 
@@ -714,6 +804,7 @@ class SyncEngine {
       if (data is Map<String, dynamic>) {
         final v = data['total_amount'];
         if (v is num) return v.toDouble();
+        if (v is String) return double.tryParse(v);
       }
     }
     return null;
@@ -722,7 +813,9 @@ class SyncEngine {
   /// Updates the `amount` field of all pending `processCash` jobs for [orderId]
   /// to match [serverTotal], correcting offline tax-rate discrepancies before sync.
   Future<void> _updatePendingCashPaymentAmount(
-      String orderId, double serverTotal) async {
+    String orderId,
+    double serverTotal,
+  ) async {
     final jobs = await _isar.syncJobs
         .filter()
         .statusEqualTo(SyncJobStatus.pending)
@@ -733,7 +826,20 @@ class SyncEngine {
       if (j.feature != 'terminal' || j.action != 'processCash') continue;
       try {
         final p = jsonDecode(j.payload) as Map<String, dynamic>;
-        if (p['orderId'] != orderId) continue;
+        var matches = p['orderId'] == orderId;
+        if (!matches && (p['orderId'] == null || (p['orderId'] as String).isEmpty)) {
+          final jobClientId = p['clientId'] as String?;
+          if (jobClientId != null && jobClientId.isNotEmpty) {
+            final cachedOrder = await _isar.cachedOrders
+                .filter()
+                .clientIdEqualTo(jobClientId)
+                .findFirst();
+            if (cachedOrder != null && cachedOrder.orderId == orderId) {
+              matches = true;
+            }
+          }
+        }
+        if (!matches) continue;
         final currentAmount = (p['amount'] as num?)?.toDouble();
         if (currentAmount != null && currentAmount >= serverTotal) continue;
         // Offline amount is less than server total; align to server-confirmed total.
@@ -755,8 +861,7 @@ class SyncEngine {
   /// Marks all pending/failed `serveItem`, `serveOrder`, and `completeOrder` jobs
   /// for [orderId] as `failedConflict`, blocking them from dispatching against
   /// an order that cannot transition because payment failed.
-  Future<void> _cascadeFailDependentJobs(
-      String orderId, String reason) async {
+  Future<void> _cascadeFailDependentJobs(String orderId, String reason) async {
     const downstream = {'serveItem', 'serveOrder', 'completeOrder'};
 
     final jobs = await _isar.syncJobs

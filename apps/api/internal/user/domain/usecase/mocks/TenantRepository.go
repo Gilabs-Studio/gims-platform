@@ -98,6 +98,17 @@ func (_m *TenantRepository) FindByIDWithCounts(ctx context.Context, id string) (
 	return r0, r1
 }
 
+func (_m *TenantRepository) FindByIDWithOwner(ctx context.Context, id string) (*tenantRepositories.TenantWithOwner, error) {
+	ret := _m.Called(ctx, id)
+	var r0 *tenantRepositories.TenantWithOwner
+	var r1 error
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*tenantRepositories.TenantWithOwner)
+	}
+	r1 = ret.Error(1)
+	return r0, r1
+}
+
 func (_m *TenantRepository) CountActiveUsers(ctx context.Context, tenantID string) (int64, error) {
 	ret := _m.Called(ctx, tenantID)
 	var r0 int64

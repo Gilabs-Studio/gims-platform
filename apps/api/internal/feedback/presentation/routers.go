@@ -43,7 +43,7 @@ func RegisterRoutes(
 	sysAdminRepo := tenantRepos.NewSystemAdminRepository(db)
 
 	// ─── Usecase ─────────────────────────────────────────────────────────────
-	uc := feedbackUsecase.NewFeedbackUsecase(formRepo, tokenRepo, responseRepo, outletRepo)
+	uc := feedbackUsecase.NewFeedbackUsecase(formRepo, tokenRepo, responseRepo, outletRepo, db)
 	supportUC := feedbackUsecase.NewSupportFeedbackUsecase(supportRepo, userRepo, tenantRepo)
 
 	// ─── Handler ──────────────────────────────────────────────────────────────

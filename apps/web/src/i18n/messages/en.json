@@ -173,6 +173,8 @@
       "companyLabel": "Company name",
       "companyRequired": "Required",
       "companyPlaceholder": "Your company or business name",
+      "agreeToS": "I agree to the <tos>Terms of Service</tos> and <privacy>Privacy Policy</privacy>",
+      "agreeMarketing": "Send me product updates, tips, and occasional offers (Optional)",
       "back": "Back",
       "continue": "Continue",
       "planTitle": "Choose your plan",

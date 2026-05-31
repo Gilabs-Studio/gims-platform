@@ -16,7 +16,7 @@ type HolidayRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Holiday, error)
 	FindByDate(ctx context.Context, date time.Time) (*models.Holiday, error)
 	FindByDateRange(ctx context.Context, startDate, endDate time.Time) ([]models.Holiday, error)
-	FindByYear(ctx context.Context, year int) ([]models.Holiday, error)
+	FindByYear(ctx context.Context, year int, month int) ([]models.Holiday, error)
 	List(ctx context.Context, req *dto.ListHolidaysRequest) ([]models.Holiday, int64, error)
 	Create(ctx context.Context, h *models.Holiday) error
 	CreateBatch(ctx context.Context, holidays []models.Holiday) error
@@ -73,12 +73,15 @@ func (r *holidayRepository) FindByDateRange(ctx context.Context, startDate, endD
 	return holidays, nil
 }
 
-func (r *holidayRepository) FindByYear(ctx context.Context, year int) ([]models.Holiday, error) {
+func (r *holidayRepository) FindByYear(ctx context.Context, year int, month int) ([]models.Holiday, error) {
 	var holidays []models.Holiday
-	err := r.getDB(ctx).
-		Where("year = ? AND is_active = ?", year, true).
-		Order("date ASC").
-		Find(&holidays).Error
+	query := r.getDB(ctx).Where("year = ? AND is_active = ?", year, true)
+	if month >= 1 && month <= 12 {
+		startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+		endDate := startDate.AddDate(0, 1, 0).Add(-time.Nanosecond)
+		query = query.Where("date >= ? AND date <= ?", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	}
+	err := query.Order("date ASC").Find(&holidays).Error
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +103,17 @@ func (r *holidayRepository) List(ctx context.Context, req *dto.ListHolidaysReque
 	// Apply year filter
 	if req.Year > 0 {
 		query = query.Where("year = ?", req.Year)
+	}
+
+	// Apply month filter
+	if req.Month > 0 && req.Month <= 12 {
+		if req.Year > 0 {
+			startDate := time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, time.UTC)
+			endDate := startDate.AddDate(0, 1, 0).Add(-time.Nanosecond)
+			query = query.Where("date >= ? AND date <= ?", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+		} else {
+			query = query.Where("EXTRACT(MONTH FROM date) = ?", req.Month)
+		}
 	}
 
 	// Apply type filter

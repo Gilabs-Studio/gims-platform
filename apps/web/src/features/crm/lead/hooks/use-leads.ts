@@ -135,3 +135,13 @@ export function useBulkUpsertLeads() {
     },
   });
 }
+
+export function useRecoverLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => leadService.recover(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
+}

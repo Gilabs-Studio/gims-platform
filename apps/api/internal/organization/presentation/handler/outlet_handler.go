@@ -103,6 +103,10 @@ func (h *OutletHandler) List(c *gin.Context) {
 		params.IsActive = &val
 	}
 
+	if skipPreload := c.Query("skip_preload"); skipPreload == "true" {
+		params.SkipPreload = true
+	}
+
 	// Parse pagination
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))

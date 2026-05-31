@@ -31,6 +31,7 @@ func RegisterDealRoutes(r *gin.RouterGroup, h *handler.DealHandler) {
 	g.GET("/:id", middleware.RequirePermission(dealRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(dealUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(dealDelete), h.Delete)
+	g.POST("/:id/recover", middleware.RequirePermission(dealDelete), h.Recover)
 
 	// Special actions
 	g.POST("/:id/move-stage", middleware.RequirePermission(dealMoveStage), h.MoveStage)

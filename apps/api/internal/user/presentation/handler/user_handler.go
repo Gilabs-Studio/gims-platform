@@ -508,7 +508,17 @@ func (h *UserHandler) RequestAccountDeletion(c *gin.Context) {
 		return
 	}
 
-	schedule, err := h.userUC.RequestAccountDeletion(c.Request.Context(), id)
+	var req struct {
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.ErrorResponse(c, "INVALID_PASSWORD", map[string]interface{}{
+			"reason": "password is required",
+		}, nil)
+		return
+	}
+
+	err := h.userUC.RequestAccountDeletion(c.Request.Context(), id, req.Password)
 	if err != nil {
 		switch err {
 		case usecase.ErrUserNotFound:
@@ -516,6 +526,38 @@ func (h *UserHandler) RequestAccountDeletion(c *gin.Context) {
 		case usecase.ErrDeleteAccountForbidden:
 			errors.ErrorResponse(c, "FORBIDDEN", map[string]interface{}{
 				"reason": "only tenant owner can request account deletion",
+			}, nil)
+		case usecase.ErrInvalidPassword:
+			errors.ErrorResponse(c, "INVALID_PASSWORD", map[string]interface{}{
+				"reason": "password verification failed",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, err.Error())
+		}
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"message": "Email konfirmasi telah dikirim. Silakan periksa kotak masuk Anda."}, nil)
+}
+
+// ConfirmAccountDeletion performs the soft delete after user clicks the link from email.
+func (h *UserHandler) ConfirmAccountDeletion(c *gin.Context) {
+	var req struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.ErrorResponse(c, "INVALID_TOKEN", map[string]interface{}{
+			"reason": "token is required",
+		}, nil)
+		return
+	}
+
+	schedule, err := h.userUC.ConfirmAccountDeletion(c.Request.Context(), req.Token)
+	if err != nil {
+		switch err {
+		case usecase.ErrInvalidDeletionToken:
+			errors.ErrorResponse(c, "INVALID_TOKEN", map[string]interface{}{
+				"reason": "confirmation token is invalid or expired",
 			}, nil)
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())

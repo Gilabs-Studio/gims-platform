@@ -249,5 +249,17 @@ export const crmDealEn = {
       available: "Available",
       status: "Status",
     },
+
+    // Soft-delete banners
+    softDeleted: {
+      adminTitle: "This deal is soft-deleted",
+      adminDescription: "Deleted on {date}{by}. You can recover this deal to restore all operations.",
+      adminBy: " by {name}",
+      recoverButton: "Recover Deal",
+      recoverSuccess: "Deal recovered successfully",
+      recoverError: "Failed to recover deal",
+      staffTitle: "This deal has been deleted",
+      staffDescription: "Deleted on {date}. The data has been archived and is currently read-only. Please contact your system administrator to recover this deal if this was accidental.",
+    },
   },
 };

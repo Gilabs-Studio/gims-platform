@@ -30,6 +30,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 )
 
 var (
@@ -56,6 +57,7 @@ var (
 	ErrSubscriptionSuspended          = errors.New("subscription access is suspended")
 	ErrSubscriptionNotFound           = errors.New("no active subscription found")
 	ErrSubscriptionAlreadyCancelled   = errors.New("subscription is already cancelled")
+	ErrToSAgreementRequired           = errors.New("must agree to the Terms of Service and Privacy Policy")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -76,17 +78,21 @@ const masterDataMenuPrefix = "/master-data"
 
 // PendingRegistration is the Redis payload for a registration that awaits Xendit payment.
 type PendingRegistration struct {
-	Name          string `json:"name"`
-	Email         string `json:"email"`
-	HashedPwd     string `json:"hashed_pwd"`
-	CompanyName   string `json:"company_name"`
-	Plan          string `json:"plan"`
-	BillingPeriod string `json:"billing_period"`
-	UserCount     int    `json:"user_count"`
-	InvoiceID     string `json:"invoice_id"`
-	CouponCode    string `json:"coupon_code,omitempty"`
-	AmountPaid    int64  `json:"amount_paid"`
-	CreatedAt     string `json:"created_at"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	HashedPwd      string `json:"hashed_pwd"`
+	CompanyName    string `json:"company_name"`
+	Plan           string `json:"plan"`
+	BillingPeriod  string `json:"billing_period"`
+	UserCount      int    `json:"user_count"`
+	InvoiceID      string `json:"invoice_id"`
+	CouponCode     string `json:"coupon_code,omitempty"`
+	AmountPaid     int64  `json:"amount_paid"`
+	CreatedAt      string `json:"created_at"`
+	AgreeToS       bool   `json:"agree_tos"`
+	AgreeMarketing bool   `json:"agree_marketing"`
+	IPAddress      string `json:"ip_address"`
+	UserAgent      string `json:"user_agent"`
 }
 
 // RegisterTenantResult wraps the two possible outcomes of RegisterTenant:
@@ -139,6 +145,7 @@ type authUsecase struct {
 	planRepo         planRepo.SubscriptionPlanRepository
 	redis            *redis.Client
 	xendit           *xenditClient.Client
+	permissionService security.PermissionService
 }
 
 func NewAuthUsecase(
@@ -150,6 +157,7 @@ func NewAuthUsecase(
 	couponUC couponUC.CouponUsecase,
 	redisClient *redis.Client,
 	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
+	permissionService security.PermissionService,
 ) AuthUsecase {
 	var xc *xenditClient.Client
 	if config.AppConfig != nil {
@@ -168,6 +176,7 @@ func NewAuthUsecase(
 		planRepo:         subscriptionPlanRepo,
 		redis:            redisClient,
 		xendit:           xc,
+		permissionService: permissionService,
 	}
 }
 
@@ -214,21 +223,27 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 				roleDataScope = "ALL"
 			}
 
-			// Prefer RolePermissions (scope-aware) over legacy Permissions
-			if len(user.Role.RolePermissions) > 0 {
-				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission != nil && rp.Permission.Code != "" {
-						scope := rp.Scope
-						if scope == "" {
-							scope = "ALL"
-						}
-						permissions[rp.Permission.Code] = scope
-					}
+			if u.permissionService != nil {
+				if cachedPerms, err := u.permissionService.GetPermissionsWithScopeForTenant(roleCode, user.TenantID); err == nil {
+					permissions = cachedPerms
 				}
-			} else if user.Role.Permissions != nil {
-				// Backward compatibility fallback
-				for _, p := range user.Role.Permissions {
-					permissions[p.Code] = "ALL"
+			} else {
+				// Prefer RolePermissions (scope-aware) over legacy Permissions
+				if len(user.Role.RolePermissions) > 0 {
+					for _, rp := range user.Role.RolePermissions {
+						if rp.Permission != nil && rp.Permission.Code != "" {
+							scope := rp.Scope
+							if scope == "" {
+								scope = "ALL"
+							}
+							permissions[rp.Permission.Code] = scope
+						}
+					}
+				} else if user.Role.Permissions != nil {
+					// Backward compatibility fallback
+					for _, p := range user.Role.Permissions {
+						permissions[p.Code] = "ALL"
+					}
 				}
 			}
 		}
@@ -280,7 +295,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		tenantID := user.TenantID
 		var tenantName string
 		if tenantID != "" {
-			u.db.Table("tenants").Select("name").Where("id = ?", tenantID).Row().Scan(&tenantName)
+			u.db.Table("tenants").Select("name").Where("id = ? AND deleted_at IS NULL", tenantID).Row().Scan(&tenantName)
 		}
 
 		// Convert to auth response format
@@ -407,20 +422,26 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 				roleDataScope = "ALL"
 			}
 
-			// Prefer RolePermissions (scope-aware) over legacy Permissions
-			if len(user.Role.RolePermissions) > 0 {
-				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission != nil && rp.Permission.Code != "" {
-						scope := rp.Scope
-						if scope == "" {
-							scope = "ALL"
-						}
-						permissions[rp.Permission.Code] = scope
-					}
+			if u.permissionService != nil {
+				if cachedPerms, err := u.permissionService.GetPermissionsWithScopeForTenant(roleCode, user.TenantID); err == nil {
+					permissions = cachedPerms
 				}
-			} else if user.Role.Permissions != nil {
-				for _, p := range user.Role.Permissions {
-					permissions[p.Code] = "ALL"
+			} else {
+				// Prefer RolePermissions (scope-aware) over legacy Permissions
+				if len(user.Role.RolePermissions) > 0 {
+					for _, rp := range user.Role.RolePermissions {
+						if rp.Permission != nil && rp.Permission.Code != "" {
+							scope := rp.Scope
+							if scope == "" {
+								scope = "ALL"
+							}
+							permissions[rp.Permission.Code] = scope
+						}
+					}
+				} else if user.Role.Permissions != nil {
+					for _, p := range user.Role.Permissions {
+						permissions[p.Code] = "ALL"
+					}
 				}
 			}
 		}
@@ -585,6 +606,10 @@ func (u *authUsecase) CheckAvailability(ctx context.Context, email, companyName 
 //   - coupon: a promotional code that grants a trial TenantSubscription
 //   - plan + billing_period: a paid subscription handled via Xendit invoice
 func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
+	if !req.AgreeToS {
+		return nil, ErrToSAgreementRequired
+	}
+
 	couponCode := strings.TrimSpace(req.Coupon)
 	plan := strings.TrimSpace(req.Plan)
 	if req.UserCount < 1 {
@@ -714,18 +739,31 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	}
 
 	// Persist pending registration in Redis with a 24-hour TTL.
+	ipAddr := ""
+	if v := ctx.Value("client_ip"); v != nil {
+		ipAddr = v.(string)
+	}
+	ua := ""
+	if v := ctx.Value("user_agent"); v != nil {
+		ua = v.(string)
+	}
+
 	pending := PendingRegistration{
-		Name:          req.Name,
-		Email:         req.Email,
-		HashedPwd:     string(hashed),
-		CompanyName:   companyName,
-		Plan:          req.Plan,
-		BillingPeriod: billingPeriod,
-		UserCount:     userCount,
-		InvoiceID:     invoice.ID,
-		CouponCode:    couponCode,
-		AmountPaid:    finalAmount,
-		CreatedAt:     apptime.Now().Format(time.RFC3339),
+		Name:           req.Name,
+		Email:          req.Email,
+		HashedPwd:      string(hashed),
+		CompanyName:    companyName,
+		Plan:           req.Plan,
+		BillingPeriod:  billingPeriod,
+		UserCount:      userCount,
+		InvoiceID:      invoice.ID,
+		CouponCode:     couponCode,
+		AmountPaid:     finalAmount,
+		CreatedAt:      apptime.Now().Format(time.RFC3339),
+		AgreeToS:       req.AgreeToS,
+		AgreeMarketing: req.AgreeMarketing,
+		IPAddress:      ipAddr,
+		UserAgent:      ua,
 	}
 	pendingJSON, err := json.Marshal(pending)
 	if err != nil {
@@ -816,13 +854,22 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 
 	// Provision tenant using the stored data.
 	syntheticReq := &dto.RegisterTenantRequest{
-		Name:          pending.Name,
-		Email:         pending.Email,
-		Password:      "__pre-hashed__", // Signal to skip re-hashing
-		CompanyName:   pending.CompanyName,
-		Plan:          pending.Plan,
-		BillingPeriod: pending.BillingPeriod,
-		UserCount:     pending.UserCount,
+		Name:           pending.Name,
+		Email:          pending.Email,
+		Password:       "__pre-hashed__", // Signal to skip re-hashing
+		CompanyName:    pending.CompanyName,
+		Plan:           pending.Plan,
+		BillingPeriod:  pending.BillingPeriod,
+		UserCount:      pending.UserCount,
+		AgreeToS:       pending.AgreeToS,
+		AgreeMarketing: pending.AgreeMarketing,
+	}
+
+	if pending.IPAddress != "" {
+		ctx = context.WithValue(ctx, "client_ip", pending.IPAddress)
+	}
+	if pending.UserAgent != "" {
+		ctx = context.WithValue(ctx, "user_agent", pending.UserAgent)
 	}
 
 	loginResp, err := u.provisionTenantForPaidPlan(ctx, syntheticReq, pending.HashedPwd)
@@ -1244,6 +1291,45 @@ func (u *authUsecase) provisionTenantForPaidPlan(ctx context.Context, req *dto.R
 			}
 			return err
 		}
+
+		// Capture client IP and User-Agent from context to record in consent logs
+		ipAddress := ""
+		if v := ctx.Value("client_ip"); v != nil {
+			ipAddress = v.(string)
+		}
+		userAgent := ""
+		if v := ctx.Value("user_agent"); v != nil {
+			userAgent = v.(string)
+		}
+
+		// Record mandatory Terms of Service consent log
+		tosConsent := &userModels.ConsentLog{
+			UserID:      userID,
+			ConsentType: "tos",
+			Version:     "tos-2026-05",
+			GrantedAt:   apptime.Now(),
+			IPAddress:   ipAddress,
+			UserAgent:   userAgent,
+		}
+		if err := tx.Create(tosConsent).Error; err != nil {
+			return err
+		}
+
+		// Record optional marketing consent log if requested
+		if req.AgreeMarketing {
+			marketingConsent := &userModels.ConsentLog{
+				UserID:      userID,
+				ConsentType: "marketing",
+				Version:     "marketing-2026-05",
+				GrantedAt:   apptime.Now(),
+				IPAddress:   ipAddress,
+				UserAgent:   userAgent,
+			}
+			if err := tx.Create(marketingConsent).Error; err != nil {
+				return err
+			}
+		}
+
 		roleDataScope := "ALL"
 
 		accessToken, err := u.jwtManager.GenerateAccessToken(userID, req.Email, roleCode, tenantID)

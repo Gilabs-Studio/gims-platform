@@ -5,17 +5,27 @@ import (
 	"github.com/gilabs/gims/api/internal/permission/domain/dto"
 )
 
+// ToMenuResponseSlim converts Menu to MenuResponse without recursively loading parent and children
+func ToMenuResponseSlim(m *models.Menu) *dto.MenuResponse {
+	if m == nil {
+		return nil
+	}
+	return &dto.MenuResponse{
+		Name:     m.Name,
+		Icon:     m.Icon,
+		URL:      m.URL,
+	}
+}
+
 // ToPermissionResponse converts Permission to PermissionResponse (simplified)
 func ToPermissionResponse(p *models.Permission) *dto.PermissionResponse {
 	resp := &dto.PermissionResponse{
 		ID:     p.ID,
 		Name:   p.Name,
 		Code:   p.Code,
-		Action: p.Action,
-		MenuID: p.MenuID,
 	}
 	if p.Menu != nil {
-		resp.Menu = ToMenuResponse(p.Menu)
+		resp.Menu = ToMenuResponseSlim(p.Menu)
 	}
 	return resp
 }

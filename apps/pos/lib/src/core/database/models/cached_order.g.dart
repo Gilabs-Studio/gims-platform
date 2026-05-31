@@ -27,33 +27,48 @@ const CachedOrderSchema = CollectionSchema(
       name: r'clientId',
       type: IsarType.string,
     ),
-    r'itemsJson': PropertySchema(
+    r'customerName': PropertySchema(
       id: 2,
+      name: r'customerName',
+      type: IsarType.string,
+    ),
+    r'itemsJson': PropertySchema(
+      id: 3,
       name: r'itemsJson',
       type: IsarType.string,
     ),
     r'orderId': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'orderId',
       type: IsarType.string,
     ),
     r'outletId': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'outletId',
       type: IsarType.string,
     ),
     r'status': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'status',
       type: IsarType.string,
     ),
     r'syncStatus': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'syncStatus',
       type: IsarType.string,
     ),
+    r'tableId': PropertySchema(
+      id: 8,
+      name: r'tableId',
+      type: IsarType.string,
+    ),
+    r'tableLabel': PropertySchema(
+      id: 9,
+      name: r'tableLabel',
+      type: IsarType.string,
+    ),
     r'totalAmount': PropertySchema(
-      id: 7,
+      id: 10,
       name: r'totalAmount',
       type: IsarType.double,
     )
@@ -132,6 +147,12 @@ int _cachedOrderEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.clientId.length * 3;
+  {
+    final value = object.customerName;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.itemsJson.length * 3;
   {
     final value = object.orderId;
@@ -142,6 +163,18 @@ int _cachedOrderEstimateSize(
   bytesCount += 3 + object.outletId.length * 3;
   bytesCount += 3 + object.status.length * 3;
   bytesCount += 3 + object.syncStatus.length * 3;
+  {
+    final value = object.tableId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.tableLabel;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -153,12 +186,15 @@ void _cachedOrderSerialize(
 ) {
   writer.writeDateTime(offsets[0], object.cachedAt);
   writer.writeString(offsets[1], object.clientId);
-  writer.writeString(offsets[2], object.itemsJson);
-  writer.writeString(offsets[3], object.orderId);
-  writer.writeString(offsets[4], object.outletId);
-  writer.writeString(offsets[5], object.status);
-  writer.writeString(offsets[6], object.syncStatus);
-  writer.writeDouble(offsets[7], object.totalAmount);
+  writer.writeString(offsets[2], object.customerName);
+  writer.writeString(offsets[3], object.itemsJson);
+  writer.writeString(offsets[4], object.orderId);
+  writer.writeString(offsets[5], object.outletId);
+  writer.writeString(offsets[6], object.status);
+  writer.writeString(offsets[7], object.syncStatus);
+  writer.writeString(offsets[8], object.tableId);
+  writer.writeString(offsets[9], object.tableLabel);
+  writer.writeDouble(offsets[10], object.totalAmount);
 }
 
 CachedOrder _cachedOrderDeserialize(
@@ -170,13 +206,16 @@ CachedOrder _cachedOrderDeserialize(
   final object = CachedOrder();
   object.cachedAt = reader.readDateTime(offsets[0]);
   object.clientId = reader.readString(offsets[1]);
+  object.customerName = reader.readStringOrNull(offsets[2]);
   object.id = id;
-  object.itemsJson = reader.readString(offsets[2]);
-  object.orderId = reader.readStringOrNull(offsets[3]);
-  object.outletId = reader.readString(offsets[4]);
-  object.status = reader.readString(offsets[5]);
-  object.syncStatus = reader.readString(offsets[6]);
-  object.totalAmount = reader.readDouble(offsets[7]);
+  object.itemsJson = reader.readString(offsets[3]);
+  object.orderId = reader.readStringOrNull(offsets[4]);
+  object.outletId = reader.readString(offsets[5]);
+  object.status = reader.readString(offsets[6]);
+  object.syncStatus = reader.readString(offsets[7]);
+  object.tableId = reader.readStringOrNull(offsets[8]);
+  object.tableLabel = reader.readStringOrNull(offsets[9]);
+  object.totalAmount = reader.readDouble(offsets[10]);
   return object;
 }
 
@@ -192,16 +231,22 @@ P _cachedOrderDeserializeProp<P>(
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readString(offset)) as P;
-    case 3:
       return (reader.readStringOrNull(offset)) as P;
-    case 4:
+    case 3:
       return (reader.readString(offset)) as P;
+    case 4:
+      return (reader.readStringOrNull(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
       return (reader.readString(offset)) as P;
     case 7:
+      return (reader.readString(offset)) as P;
+    case 8:
+      return (reader.readStringOrNull(offset)) as P;
+    case 9:
+      return (reader.readStringOrNull(offset)) as P;
+    case 10:
       return (reader.readDouble(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -741,6 +786,160 @@ extension CachedOrderQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'clientId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'customerName',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'customerName',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'customerName',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'customerName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'customerName',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'customerName',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      customerNameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'customerName',
         value: '',
       ));
     });
@@ -1493,6 +1692,312 @@ extension CachedOrderQueryFilter
   }
 
   QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'tableId',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'tableId',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'tableId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'tableId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition> tableIdMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'tableId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'tableId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'tableId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'tableLabel',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'tableLabel',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'tableLabel',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'tableLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'tableLabel',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'tableLabel',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
+      tableLabelIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'tableLabel',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterFilterCondition>
       totalAmountEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1591,6 +2096,19 @@ extension CachedOrderQuerySortBy
     });
   }
 
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByCustomerName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'customerName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy>
+      sortByCustomerNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'customerName', Sort.desc);
+    });
+  }
+
   QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByItemsJson() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'itemsJson', Sort.asc);
@@ -1651,6 +2169,30 @@ extension CachedOrderQuerySortBy
     });
   }
 
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByTableId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByTableIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByTableLabel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableLabel', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByTableLabelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableLabel', Sort.desc);
+    });
+  }
+
   QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> sortByTotalAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalAmount', Sort.asc);
@@ -1687,6 +2229,19 @@ extension CachedOrderQuerySortThenBy
   QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByClientIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'clientId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByCustomerName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'customerName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy>
+      thenByCustomerNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'customerName', Sort.desc);
     });
   }
 
@@ -1762,6 +2317,30 @@ extension CachedOrderQuerySortThenBy
     });
   }
 
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByTableId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByTableIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByTableLabel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableLabel', Sort.asc);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByTableLabelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'tableLabel', Sort.desc);
+    });
+  }
+
   QueryBuilder<CachedOrder, CachedOrder, QAfterSortBy> thenByTotalAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalAmount', Sort.asc);
@@ -1787,6 +2366,13 @@ extension CachedOrderQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'clientId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QDistinct> distinctByCustomerName(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'customerName', caseSensitive: caseSensitive);
     });
   }
 
@@ -1825,6 +2411,20 @@ extension CachedOrderQueryWhereDistinct
     });
   }
 
+  QueryBuilder<CachedOrder, CachedOrder, QDistinct> distinctByTableId(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'tableId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<CachedOrder, CachedOrder, QDistinct> distinctByTableLabel(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'tableLabel', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<CachedOrder, CachedOrder, QDistinct> distinctByTotalAmount() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'totalAmount');
@@ -1849,6 +2449,12 @@ extension CachedOrderQueryProperty
   QueryBuilder<CachedOrder, String, QQueryOperations> clientIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'clientId');
+    });
+  }
+
+  QueryBuilder<CachedOrder, String?, QQueryOperations> customerNameProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'customerName');
     });
   }
 
@@ -1879,6 +2485,18 @@ extension CachedOrderQueryProperty
   QueryBuilder<CachedOrder, String, QQueryOperations> syncStatusProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'syncStatus');
+    });
+  }
+
+  QueryBuilder<CachedOrder, String?, QQueryOperations> tableIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'tableId');
+    });
+  }
+
+  QueryBuilder<CachedOrder, String?, QQueryOperations> tableLabelProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'tableLabel');
     });
   }
 

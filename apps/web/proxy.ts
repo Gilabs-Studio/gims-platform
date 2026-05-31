@@ -61,6 +61,9 @@ export function proxy(request: NextRequest) {
     pathname === "/register" ||
     pathname === "/register/success" ||
     pathname === "/profile" ||
+    pathname === "/reset-password" ||
+    pathname === "/forgot-password" ||
+    pathname === "/delete-account/confirm" ||
     isLegacySettingsPath;
   if (!hasLocalePrefix && isLocaleAgnosticAuthPath) {
     const normalizedPath = isLegacySettingsPath ? "/profile" : pathname;

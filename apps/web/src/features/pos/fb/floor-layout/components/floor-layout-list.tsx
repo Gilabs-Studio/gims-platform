@@ -30,16 +30,18 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useDebounce } from "@/hooks/use-debounce";
-import { useFloorLayouts, useFloorLayoutFormDataWithCompany, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
+import { useFloorLayouts, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
+import type { Outlet } from "@/features/master-data/outlet/types";
 import { CreateFloorPlanDialog } from "./create-floor-plan-dialog";
 import type { FloorPlan, LayoutObject } from "../types";
 
 interface FloorLayoutListProps {
   readonly onOpenEditor: (id: string) => void;
   readonly companyId?: string;
+  readonly outlets: Outlet[];
 }
 
-export function FloorLayoutList({ onOpenEditor, companyId }: FloorLayoutListProps) {
+export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayoutListProps) {
   const t = useTranslations("floorLayout");
   const [search, setSearch] = useState("");
   const [outletFilter, setOutletFilter] = useState<string>("all");
@@ -48,16 +50,13 @@ export function FloorLayoutList({ onOpenEditor, companyId }: FloorLayoutListProp
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: formData } = useFloorLayoutFormDataWithCompany(companyId, {
-    enabled: true,
-  });
-  const outlets = formData?.data?.outlets ?? [];
+
 
   const params = {
     search: debouncedSearch || undefined,
     outlet_id: outletFilter !== "all" ? outletFilter : undefined,
     company_id: companyId,
-    per_page: 50,
+    per_page: 10,
   };
   const { data, isPending, isError } = useFloorLayouts(params, {
     enabled: true,

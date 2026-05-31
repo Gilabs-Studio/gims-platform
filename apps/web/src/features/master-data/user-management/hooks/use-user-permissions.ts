@@ -38,6 +38,7 @@ export function useUserPermissions() {
     
     enabled: !!user?.id,
     retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Build menu tree with access flags based on user.permissions from login

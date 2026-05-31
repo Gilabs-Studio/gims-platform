@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useMemo } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   MoreHorizontal,
   Plus,
@@ -51,6 +51,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 export function HolidayList() {
   const t = useTranslations("hrd.holiday");
   const tCommon = useTranslations("common");
+  const tOvertime = useTranslations("hrd.overtime");
+  const locale = useLocale();
 
   const currentYear = new Date().getFullYear();
   const [search, setSearch] = useState("");
@@ -58,17 +60,29 @@ export function HolidayList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [yearFilter, setYearFilter] = useState<string>(String(currentYear));
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Holiday | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("calendar");
 
+  const monthOptions = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const monthNum = i + 1;
+      const monthName = new Intl.DateTimeFormat(locale, { month: "long" }).format(
+        new Date(2026, i, 1)
+      );
+      return { value: String(monthNum), label: monthName };
+    });
+  }, [locale]);
+
   const { data, isLoading, isError, refetch } = useHolidays({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
     year: yearFilter !== "all" ? Number(yearFilter) : undefined,
+    month: monthFilter !== "all" ? Number(monthFilter) : undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
   });
 
@@ -207,6 +221,31 @@ export function HolidayList() {
                     className="cursor-pointer"
                   >
                     {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={monthFilter}
+              onValueChange={(value) => {
+                setMonthFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[140px] cursor-pointer">
+                <SelectValue placeholder={tOvertime("filters.month")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="cursor-pointer">
+                  {tCommon("all")}
+                </SelectItem>
+                {monthOptions.map((opt) => (
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="cursor-pointer"
+                  >
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>

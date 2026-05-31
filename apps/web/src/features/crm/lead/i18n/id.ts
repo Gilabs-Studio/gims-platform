@@ -276,5 +276,17 @@ export const crmLeadId = {
       unitPrice: "Harga Satuan",
       notes: "Catatan",
     },
+
+    // Soft-delete banners
+    softDeleted: {
+      adminTitle: "Lead ini telah dihapus sementara",
+      adminDescription: "Dihapus pada {date}{by}. Anda dapat memulihkan lead ini untuk melanjutkan semua operasi.",
+      adminBy: " oleh {name}",
+      recoverButton: "Pulihkan Lead",
+      recoverSuccess: "Lead berhasil dipulihkan",
+      recoverError: "Gagal memulihkan lead",
+      staffTitle: "Lead ini telah dihapus",
+      staffDescription: "Dihapus pada {date}. Data telah diarsipkan dan bersifat read-only. Hubungi administrator sistem Anda untuk memulihkan lead ini jika terjadi kesalahan.",
+    },
   },
 };

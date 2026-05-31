@@ -7,7 +7,7 @@ import { ArrowLeftIcon, Store, ShieldOff } from "lucide-react";
 import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
-import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
 import { Link } from "@/i18n/routing";
 import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
@@ -23,10 +23,7 @@ export function FloorLayoutContainer() {
   const hasAutoNavigated = useRef(false);
 
   // Fetch user's assigned outlets
-  const { data: outletsData, isLoading: outletsLoading } = useOutlets({ 
-    is_active: true, 
-    per_page: 50 
-  });
+  const { data: outletsData, isLoading: outletsLoading } = usePOSOutlets();
   const assignedOutlets = useMemo(() => outletsData?.data ?? [], [outletsData?.data]);
   const companyId = useMemo(() => {
     const uniqueCompanyIDs = Array.from(
@@ -44,8 +41,8 @@ export function FloorLayoutContainer() {
   // For multiple companies or no company, fetch all layouts user can access
   const { data: layoutsData, isLoading: layoutsLoading, refetch: refetchLayouts } = useFloorLayouts(
     companyId 
-      ? { per_page: 100, company_id: companyId }
-      : { per_page: 100 },
+      ? { per_page: 10, company_id: companyId }
+      : { per_page: 10 },
     { 
       // Enable when outlets are loaded and (company is defined OR we have multiple outlets)
       enabled: assignedOutlets.length > 0 && (companyId !== undefined || assignedOutlets.length > 1)
@@ -169,7 +166,7 @@ export function FloorLayoutContainer() {
   return (
     <>
       <PageMotion>
-        <FloorLayoutList onOpenEditor={handleOpenEditor} companyId={companyId} />
+        <FloorLayoutList onOpenEditor={handleOpenEditor} companyId={companyId} outlets={assignedOutlets} />
       </PageMotion>
 
       {/* Create floor plan dialog for single outlet flow */}

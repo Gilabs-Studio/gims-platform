@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { useRouter, usePathname } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useValidateRole } from "../hooks/use-validate-role";
-import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
 interface PermissionGuardProps {
   readonly children: React.ReactNode;
@@ -26,7 +25,6 @@ export function PermissionGuard({
   fallbackUrl = "/block",
 }: PermissionGuardProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const { data: permissionsData, isLoading } = useUserPermissions();
   const hasPermission = useHasPermission(requiredPermission);
   
@@ -42,36 +40,13 @@ export function PermissionGuard({
     // If role is invalid, redirect to block page
     // Only redirect if we have explicit invalid result (not during initial load)
     if (isRoleValid === false) {
-      const locale = getLocaleFromPathname(pathname);
-      const blockPath = `/${locale}${fallbackUrl}`;
-
-      if (typeof window !== "undefined") {
-        window.location.href = blockPath;
-      } else {
-        router.replace(blockPath);
-      }
+      router.replace(fallbackUrl);
       return;
     }
 
     // If permissions loaded but user doesn't have permission, redirect
     if (permissionsData && !hasPermission) {
-      // Get current locale from pathname
-      const locale = getLocaleFromPathname(pathname);
-
-      // Ensure fallbackUrl is absolute (starts with /)
-      const absoluteBlockUrl = fallbackUrl.startsWith("/")
-        ? fallbackUrl
-        : `/${fallbackUrl}`;
-
-      // Construct absolute path with locale
-      const blockPath = `/${locale}${absoluteBlockUrl}`;
-
-      // Use window.location for absolute redirect to avoid routing issues
-      if (typeof window !== "undefined") {
-        window.location.href = blockPath;
-      } else {
-        router.replace(blockPath);
-      }
+      router.replace(fallbackUrl);
     }
   }, [
     hasPermission,
@@ -80,9 +55,7 @@ export function PermissionGuard({
     permissionsData,
     isRoleValid,
     router,
-    pathname,
     fallbackUrl,
-    requiredPermission,
   ]);
 
   // Show nothing while checking permissions or validating role

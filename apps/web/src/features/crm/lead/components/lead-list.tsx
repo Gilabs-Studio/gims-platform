@@ -17,12 +17,13 @@ import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LeadAnalytics } from "./lead-analytics";
 import { GenerateLeadsDialog } from "./generate-leads-dialog";
 import { useLeadList } from "../hooks/use-lead-list";
-import { useUpdateLead } from "../hooks/use-leads";
+import { useUpdateLead, useRecoverLead } from "../hooks/use-leads";
 import { useLeadSources } from "../../lead-source/hooks/use-lead-source";
 import { useLeadStatuses } from "../../lead-status/hooks/use-lead-status";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
 const LEAD_SOURCE_GOOGLE_MAPS_ID = "cb000001-0000-0000-0000-000000000006";
 const LEAD_SOURCE_LINKEDIN_ID = "cb000001-0000-0000-0000-000000000007";
@@ -33,6 +34,9 @@ export function LeadList() {
   const { t, tCommon } = translations;
   const router = useRouter();
   const updateMutation = useUpdateLead();
+  const recoverMutation = useRecoverLead();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role?.code === "admin" || user?.role?.code === "system_admin";
   const [generateOpen, setGenerateOpen] = useState(false);
   const [shouldLoadFilterOptions, setShouldLoadFilterOptions] = useState(false);
   const [shouldLoadStatusActionOptions, setShouldLoadStatusActionOptions] = useState(false);
@@ -242,10 +246,15 @@ export function LeadList() {
                   ? "bg-success/10 text-success border-success/30 cursor-pointer hover:border-primary hover:text-primary transition-colors"
                   : (item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : "");
 
+                const isDeleted = !!item.is_deleted;
+
                 return (
                   <TableRow
                     key={item.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50",
+                      isDeleted && "opacity-50"
+                    )}
                     onClick={() => router.push(`/crm/leads/${item.id}`)}
                   >
                     <TableCell className="font-mono text-sm">{item.code}</TableCell>
@@ -339,19 +348,19 @@ export function LeadList() {
                               <Eye className="mr-2 h-4 w-4" />
                               {t("detailTitle")}
                             </DropdownMenuItem>
-                            {permissions.canUpdate && !isConverted && (
+                            {permissions.canUpdate && !isConverted && !isDeleted && (
                               <DropdownMenuItem onClick={() => actions.handleEdit(item)} className="cursor-pointer">
                                 <Pencil className="mr-2 h-4 w-4" />
                                 {tCommon("edit")}
                               </DropdownMenuItem>
                             )}
-                            {permissions.canConvert && !isConverted && (
+                            {permissions.canConvert && !isConverted && !isDeleted && (
                               <DropdownMenuItem onClick={() => actions.handleConvert(item)} className="cursor-pointer">
                                 <ArrowRightLeft className="mr-2 h-4 w-4" />
                                 {t("convertTitle")}
                               </DropdownMenuItem>
                             )}
-                            {permissions.canUpdate && !isConverted && (isLeadStatusesLoading || leadStatuses.length > 0) && (
+                            {permissions.canUpdate && !isConverted && !isDeleted && (isLeadStatusesLoading || leadStatuses.length > 0) && (
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger className="cursor-pointer">
                                   <ChevronRight className="mr-2 h-4 w-4" />
@@ -398,16 +407,34 @@ export function LeadList() {
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
                             )}
-                            {(permissions.canUpdate || permissions.canConvert) && permissions.canDelete && !isConverted && (
+                            {(permissions.canUpdate || permissions.canConvert) && permissions.canDelete && !isConverted && !isDeleted && (
                               <DropdownMenuSeparator />
                             )}
-                            {permissions.canDelete && !isConverted && (
+                            {permissions.canDelete && !isConverted && !isDeleted && (
                               <DropdownMenuItem
                                 onClick={() => actions.setDeleteId(item.id)}
                                 className="cursor-pointer text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 {tCommon("delete")}
+                              </DropdownMenuItem>
+                            )}
+                            {isDeleted && isAdmin && (
+                              <DropdownMenuItem
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await recoverMutation.mutateAsync(item.id);
+                                    toast.success("Lead recovered successfully");
+                                  } catch {
+                                    toast.error("Failed to recover lead");
+                                  }
+                                }}
+                                className="cursor-pointer text-primary focus:text-primary"
+                                disabled={recoverMutation.isPending}
+                              >
+                                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                Recover
                               </DropdownMenuItem>
                             )}
                             {isConverted && (

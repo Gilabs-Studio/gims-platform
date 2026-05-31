@@ -189,6 +189,9 @@ type LeadResponse struct {
 	Deal        *LeadDealInfo     `json:"deal,omitempty"`
 	ConvertedAt *string           `json:"converted_at"`
 	ConvertedBy *string           `json:"converted_by"`
+	IsDeleted   bool              `json:"is_deleted"`
+	DeletedAt   *string           `json:"deleted_at"`
+	DeletedBy   *string           `json:"deleted_by"`
 	// Metadata
 	Notes     string  `json:"notes"`
 	NPWP      string  `json:"npwp"`

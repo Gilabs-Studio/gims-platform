@@ -85,6 +85,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		feedbackDataRepos.NewFeedbackTokenRepository(db),
 		feedbackDataRepos.NewFeedbackResponseRepository(db),
 		outletRepo,
+		db,
 	)
 	receiptH = receiptH.WithFeedbackUsecase(fbUC)
 	if loyaltyUC != nil {

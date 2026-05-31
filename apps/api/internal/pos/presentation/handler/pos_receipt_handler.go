@@ -227,7 +227,7 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	// Generate a one-time token so the customer can scan the QR code on the
 	// receipt and submit feedback without logging in. Public feedback is always
 	// available, regardless of loyalty member status.
-	frontendBaseURL := resolveFrontendBaseURL(c)
+	frontendBaseURL := strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
 	if h.feedbackUC != nil {
 		tokenReq := &feedbackDTO.GenerateTokenRequest{
 			OutletID:   orderResp.OutletID,

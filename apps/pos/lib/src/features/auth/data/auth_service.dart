@@ -29,6 +29,9 @@ class AuthService {
   Future<void> logout() async {
     try {
       await _api.post<Map<String, dynamic>>('/auth/logout');
+    } catch (_) {
+      // Swallowed: logout is a best-effort API call.
+      // We always clear local session regardless of server response.
     } finally {
       await _api.clearSession();
     }

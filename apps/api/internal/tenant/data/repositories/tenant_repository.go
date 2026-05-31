@@ -19,6 +19,13 @@ type TenantWithCounts struct {
 	WarehouseCount int64
 }
 
+// TenantWithOwner is a Tenant enriched with owner email and name (no heavy COUNT subqueries).
+type TenantWithOwner struct {
+	models.Tenant
+	OwnerName  string
+	OwnerEmail string
+}
+
 // TenantRepository provides access to the tenants table
 type TenantRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Tenant, error)
@@ -27,6 +34,7 @@ type TenantRepository interface {
 	FindPaginated(ctx context.Context, search string, page, perPage int) ([]models.Tenant, int64, error)
 	FindPaginatedWithCounts(ctx context.Context, search string, page, perPage int) ([]TenantWithCounts, int64, error)
 	FindByIDWithCounts(ctx context.Context, id string) (*TenantWithCounts, error)
+	FindByIDWithOwner(ctx context.Context, id string) (*TenantWithOwner, error)
 	CountActiveUsers(ctx context.Context, tenantID string) (int64, error)
 	Create(ctx context.Context, tenant *models.Tenant) error
 	Update(ctx context.Context, tenant *models.Tenant) error
@@ -106,6 +114,31 @@ func (r *tenantRepository) FindByIDWithCounts(ctx context.Context, id string) (*
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &rows[0], nil
+}
+
+func (r *tenantRepository) FindByIDWithOwner(ctx context.Context, id string) (*TenantWithOwner, error) {
+	var result struct {
+		models.Tenant
+		OwnerName  string `gorm:"column:owner_name"`
+		OwnerEmail string `gorm:"column:owner_email"`
+	}
+	err := r.db.WithContext(ctx).
+		Table("tenants").
+		Select("tenants.*, COALESCE(u.name, '') as owner_name, COALESCE(u.email, '') as owner_email").
+		Joins("LEFT JOIN users u ON u.id = tenants.owner_user_id AND u.deleted_at IS NULL").
+		Where("tenants.id = ? AND tenants.deleted_at IS NULL", id).
+		Scan(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	if result.Tenant.ID == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &TenantWithOwner{
+		Tenant:     result.Tenant,
+		OwnerName:  result.OwnerName,
+		OwnerEmail: result.OwnerEmail,
+	}, nil
 }
 
 func (r *tenantRepository) CountActiveUsers(ctx context.Context, tenantID string) (int64, error) {

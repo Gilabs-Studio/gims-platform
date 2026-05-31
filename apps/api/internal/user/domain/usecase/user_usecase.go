@@ -1,8 +1,10 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"html/template"
 	"net/url"
 
 	"encoding/json"
@@ -13,8 +15,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	roleRepositories "github.com/gilabs/gims/api/internal/role/data/repositories"
@@ -24,18 +28,21 @@ import (
 	"github.com/gilabs/gims/api/internal/user/data/repositories"
 	"github.com/gilabs/gims/api/internal/user/domain/dto"
 	"github.com/gilabs/gims/api/internal/user/domain/mapper"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 var (
-	ErrUserNotFound                = errors.New("user not found")
-	ErrUserAlreadyExists           = errors.New("user already exists")
-	ErrRoleNotFound                = errors.New("role not found")
-	ErrUserLimitReached            = errors.New("user limit reached")
+	ErrUserNotFound          = errors.New("user not found")
+	ErrUserAlreadyExists     = errors.New("user already exists")
+	ErrRoleNotFound          = errors.New("role not found")
+	ErrUserLimitReached      = errors.New("user limit reached")
 	ErrOwnerMutationForbidden = errors.New("owner user cannot be modified")
 	ErrDeleteAccountForbidden = errors.New("only tenant owner can request account deletion")
+	ErrInvalidPassword       = errors.New("invalid password")
+	ErrInvalidDeletionToken  = errors.New("invalid or expired confirmation token")
 )
 
 // UserLimitResponse carries the current and maximum allowed user count for a tenant.
@@ -61,7 +68,8 @@ type UserUsecase interface {
 	ChangePassword(ctx context.Context, id string, req *dto.ChangePasswordRequest) error
 	UpdateAvatar(ctx context.Context, id string, avatarURL string) error
 	Delete(ctx context.Context, id string) error
-	RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error)
+	RequestAccountDeletion(ctx context.Context, id string, password string) error
+	ConfirmAccountDeletion(ctx context.Context, token string) (*dto.TenantDeletionScheduleResponse, error)
 }
 
 type userUsecase struct {
@@ -72,6 +80,7 @@ type userUsecase struct {
 	auditService     audit.AuditService
 	eventPublisher   infraEvents.EventPublisher
 	redis            *redis.Client
+	resendClient     *resend.Client
 }
 
 func userCacheScope(ctx context.Context) string {
@@ -103,6 +112,7 @@ func NewUserUsecase(
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
 	redis *redis.Client,
+	resendClient *resend.Client,
 ) UserUsecase {
 	return &userUsecase{
 		userRepo:         userRepo,
@@ -112,6 +122,7 @@ func NewUserUsecase(
 		auditService:     auditService,
 		eventPublisher:   eventPublisher,
 		redis:            redis,
+		resendClient:     resendClient,
 	}
 }
 
@@ -515,43 +526,133 @@ func (u *userUsecase) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*dto.TenantDeletionScheduleResponse, error) {
+func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string, password string) error {
 	usr, err := u.userRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
+			return ErrUserNotFound
 		}
-		return nil, err
+		return err
 	}
 
 	if usr.Role == nil || !usr.Role.IsProtected {
-		return nil, ErrDeleteAccountForbidden
+		return ErrDeleteAccountForbidden
 	}
 
 	tenant, err := u.tenantRepo.FindByID(ctx, usr.TenantID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if tenant.OwnerUserID == nil || strings.TrimSpace(*tenant.OwnerUserID) != strings.TrimSpace(usr.ID) {
-		return nil, ErrDeleteAccountForbidden
+		return ErrDeleteAccountForbidden
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(password)); err != nil {
+		return ErrInvalidPassword
+	}
+
+	// Generate verification/confirmation token
+	token := uuid.New().String()
+
+	// Store token in Redis with 24 hours expiry
+	tokenData := map[string]string{
+		"tenant_id": tenant.ID,
+		"user_id":   usr.ID,
+	}
+	tokenBytes, err := json.Marshal(tokenData)
+	if err != nil {
+		return err
+	}
+
+	redisKey := fmt.Sprintf("tenant:deletion:token:%s", token)
+	if err := u.redis.Set(ctx, redisKey, tokenBytes, 24*time.Hour).Err(); err != nil {
+		return err
+	}
+
+	// Send verification/confirmation email to the owner
+	frontendBaseURL := ""
+	fromEmail := "Salesview <cs@gilabs.id>"
+	if config.AppConfig != nil {
+		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
+		if config.AppConfig.Resend.FromEmail != "" {
+			fromEmail = config.AppConfig.Resend.FromEmail
+		}
+	}
+	confirmLink := fmt.Sprintf("%s/delete-account/confirm?token=%s", strings.TrimRight(frontendBaseURL, "/"), token)
+
+	tmpl, err := template.New("deletion_request").Parse(DeletionRequestEmailTemplate)
+	if err != nil {
+		return err
+	}
+
+	var body bytes.Buffer
+	err = tmpl.Execute(&body, struct {
+		Name        string
+		Email       string
+		ConfirmLink string
+		Year        int
+	}{
+		Name:        usr.Name,
+		Email:       usr.Email,
+		ConfirmLink: confirmLink,
+		Year:        time.Now().Year(),
+	})
+	if err != nil {
+		return err
+	}
+
+	if u.resendClient != nil {
+		_, _ = u.resendClient.SendEmail(ctx, &resend.SendEmailRequest{
+			From:    fromEmail,
+			To:      []string{usr.Email},
+			Subject: "[Salesview] Konfirmasi Permintaan Penghapusan Akun",
+			HTML:    body.String(),
+		})
+	}
+
+	u.auditService.Log(ctx, "tenant.deletion.requested_link", tenant.ID, map[string]interface{}{
+		"requested_by": usr.ID,
+	})
+
+	return nil
+}
+
+func (u *userUsecase) ConfirmAccountDeletion(ctx context.Context, token string) (*dto.TenantDeletionScheduleResponse, error) {
+	redisKey := fmt.Sprintf("tenant:deletion:token:%s", token)
+	val, err := u.redis.Get(ctx, redisKey).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, ErrInvalidDeletionToken
+		}
+		return nil, err
+	}
+
+	var tokenData struct {
+		TenantID string `json:"tenant_id"`
+		UserID   string `json:"user_id"`
+	}
+	if err := json.Unmarshal([]byte(val), &tokenData); err != nil {
+		return nil, ErrInvalidDeletionToken
+	}
+
+	// Delete token from Redis to make it single-use
+	_ = u.redis.Del(ctx, redisKey)
+
+	// Now proceed with Phase 2: Soft Delete (Instant)
+	usr, err := u.userRepo.FindByID(ctx, tokenData.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	tenant, err := u.tenantRepo.FindByID(ctx, tokenData.TenantID)
+	if err != nil {
+		return nil, err
 	}
 
 	now := apptime.Now()
 	scheduledAt := now.AddDate(0, 0, 30)
-
-	if strings.EqualFold(strings.TrimSpace(tenant.Status), "pending_deletion") && tenant.DeletionScheduledAt != nil {
-		requestedAt := now
-		if tenant.DeletionRequestedAt != nil {
-			requestedAt = *tenant.DeletionRequestedAt
-		}
-		return &dto.TenantDeletionScheduleResponse{
-			TenantID:            tenant.ID,
-			DeletionRequestedAt: requestedAt.Format(time.RFC3339),
-			DeletionScheduledAt: tenant.DeletionScheduledAt.Format(time.RFC3339),
-			GracePeriodDays:     30,
-		}, nil
-	}
 
 	previousStatus := strings.TrimSpace(tenant.Status)
 	if previousStatus == "" {
@@ -564,12 +665,14 @@ func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*d
 	tenant.DeletionRequestedBy = &usr.ID
 	tenant.DeletionPreviousStatus = &previousStatus
 	tenant.DeletionRecoveredAt = nil
+	tenant.DeletionWarningSent = false
+	tenant.DeletionH1Sent = false
 
 	if err := u.tenantRepo.Update(ctx, tenant); err != nil {
 		return nil, err
 	}
 
-	// Immediately disable tenant users while retaining data during the grace period.
+	// Revoke sessions: Immediately disable tenant users while retaining data during the grace period.
 	_ = database.DB.WithContext(ctx).
 		Table("users").
 		Where("tenant_id = ? AND deleted_at IS NULL", tenant.ID).
@@ -581,10 +684,46 @@ func (u *userUsecase) RequestAccountDeletion(ctx context.Context, id string) (*d
 		Where("tenant_id = ? AND revoked = false", tenant.ID).
 		Updates(map[string]interface{}{"revoked": true, "updated_at": now}).Error
 
-	u.auditService.Log(ctx, "tenant.deletion.requested", tenant.ID, map[string]interface{}{
-		"requested_by": usr.ID,
+	// Cancel active subscription
+	_ = database.DB.WithContext(ctx).
+		Table("tenant_subscriptions").
+		Where("tenant_id = ? AND status = 'active'", tenant.ID).
+		Updates(map[string]interface{}{"status": "cancelled", "updated_at": now}).Error
+
+	u.auditService.Log(ctx, "tenant.deletion.confirmed", tenant.ID, map[string]interface{}{
+		"confirmed_by": usr.ID,
 		"scheduled_at": scheduledAt.Format(time.RFC3339),
 	})
+
+	// Send pending deletion confirmation email to the owner
+	fromEmail := "Salesview <cs@gilabs.id>"
+	if config.AppConfig != nil && config.AppConfig.Resend.FromEmail != "" {
+		fromEmail = config.AppConfig.Resend.FromEmail
+	}
+
+	tmpl, err := template.New("deletion_pending").Parse(DeletionPendingEmailTemplate)
+	if err == nil {
+		var body bytes.Buffer
+		err = tmpl.Execute(&body, struct {
+			Name          string
+			Email         string
+			ScheduledDate string
+			Year          int
+		}{
+			Name:          usr.Name,
+			Email:         usr.Email,
+			ScheduledDate: scheduledAt.Format("02 January 2006"),
+			Year:          time.Now().Year(),
+		})
+		if err == nil && u.resendClient != nil {
+			_, _ = u.resendClient.SendEmail(ctx, &resend.SendEmailRequest{
+				From:    fromEmail,
+				To:      []string{usr.Email},
+				Subject: "[Salesview] Akun Anda Telah Dinonaktifkan (Masa Tenggang 30 Hari)",
+				HTML:    body.String(),
+			})
+		}
+	}
 
 	return &dto.TenantDeletionScheduleResponse{
 		TenantID:            tenant.ID,

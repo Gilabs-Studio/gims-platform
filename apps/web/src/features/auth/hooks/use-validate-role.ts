@@ -2,11 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter, usePathname } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
 const ROLE_VALIDATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -18,49 +17,18 @@ const ROLE_VALIDATION_CACHE_TTL_MS = 5 * 60 * 1000;
  */
 export function useValidateRole() {
   const router = useRouter();
-  const pathname = usePathname();
   const { user } = useAuthStore();
   const t = useTranslations("auth");
   const lastValidatedRef = useRef<boolean | null>(null); // null = not yet validated, true = was valid, false = was invalid
 
-  const { data: validationData } = useQuery({
-    queryKey: ["validate-role", user?.id],
+  const { data: permissionsData, error } = useQuery({
+    queryKey: ["user-permissions", user?.id],
     queryFn: async () => {
       if (!user?.id) {
-        return { is_valid: false };
+        throw new Error("User not authenticated");
       }
-
-      // Validate by checking permissions endpoint
-      // If it returns 404 or 401, role is invalid
-      try {
-        const { userService } = await import("@/features/master-data/user-management/services/user-service");
-        await userService.getPermissions(user.id);
-        return { is_valid: true };
-      } catch (error: unknown) {
-        // Check if error is 404 or 401
-        const axiosError = error as { 
-          response?: { 
-            status?: number; 
-            data?: { error?: { code?: string; message?: string } } 
-          };
-          message?: string;
-          code?: string;
-        };
-
-        // Only treat as invalid if we have a clear auth error response
-        if (
-          axiosError.response?.status === 404 ||
-          axiosError.response?.status === 401 ||
-          axiosError.response?.data?.error?.code === "USER_NOT_FOUND" ||
-          axiosError.response?.data?.error?.code === "ROLE_NOT_FOUND"
-        ) {
-          return { is_valid: false };
-        }
-        
-        // For errors without response (network errors, CORS, etc.) or other errors, assume valid
-        // This prevents false positives from temporary API issues
-        return { is_valid: true };
-      }
+      const { userService } = await import("@/features/master-data/user-management/services/user-service");
+      return userService.getPermissions(user.id);
     },
     enabled: !!user?.id && !!user?.role,
     staleTime: ROLE_VALIDATION_CACHE_TTL_MS,
@@ -83,15 +51,30 @@ export function useValidateRole() {
       // Retry once for network errors
       return failureCount < 1;
     },
-    retryDelay: 2000, // Wait 2 seconds before retry
+    retryDelay: 2000,
   });
 
+  const isAuthError = error ? (() => {
+    const axiosError = error as { 
+      response?: { 
+        status?: number; 
+        data?: { error?: { code?: string; message?: string } } 
+      };
+      message?: string;
+      code?: string;
+    };
+    return (
+      axiosError.response?.status === 404 ||
+      axiosError.response?.status === 401 ||
+      axiosError.response?.data?.error?.code === "USER_NOT_FOUND" ||
+      axiosError.response?.data?.error?.code === "ROLE_NOT_FOUND"
+    );
+  })() : false;
+
   useEffect(() => {
-    // Don't redirect on initial load or if still loading.
     // Only redirect if we have a definitive invalid result AND we previously had a valid result.
     if (
-      validationData &&
-      !validationData.is_valid &&
+      isAuthError &&
       lastValidatedRef.current === true &&
       user?.role
     ) {
@@ -108,30 +91,21 @@ export function useValidateRole() {
         }
       );
 
-      const locale = getLocaleFromPathname(pathname);
-      const blockPath = `/${locale}/block`;
-
-      if (typeof window !== "undefined") {
-        window.location.href = blockPath;
-      } else {
-        router.replace(blockPath);
-      }
+      router.replace("/block");
       return;
     }
 
-    if (validationData?.is_valid) {
+    if (permissionsData) {
       lastValidatedRef.current = true;
     }
-  }, [validationData, pathname, router, t, user?.role]);
+  }, [permissionsData, isAuthError, router, t, user?.role]);
 
-  // Return isValid based on validationData
-  // If validationData is undefined (still loading), return true to prevent false positives
-  // Only return false if we have explicit invalid result
-  const isValid = validationData === undefined ? true : (validationData.is_valid ?? true);
+  // Return isValid: false only if we have an explicit auth error
+  const isValid = !isAuthError;
 
   return {
     isValid,
-    isLoading: !validationData,
+    isLoading: !permissionsData && !error,
   };
 }
 

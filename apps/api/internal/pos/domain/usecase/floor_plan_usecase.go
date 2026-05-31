@@ -387,9 +387,10 @@ func (u *floorPlanUsecase) GetFormData(ctx context.Context, userCompanyID string
 	var outlets []dto.OutletOption
 	isActive := true
 	params := orgRepo.OutletListParams{
-		IsActive: &isActive,
-		Limit:    100,
-		Offset:   0,
+		IsActive:    &isActive,
+		Limit:       100,
+		Offset:      0,
+		SkipPreload: true,
 	}
 	if !isOwner {
 		params.CompanyID = userCompanyID

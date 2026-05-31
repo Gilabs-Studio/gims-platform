@@ -17,6 +17,8 @@ import (
 type PermissionService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
+	GetPermissionsForTenant(roleCode string, tenantID string) ([]string, error)
+	GetPermissionsWithScopeForTenant(roleCode string, tenantID string) (map[string]string, error)
 	InvalidateCache(roleCode string) error
 }
 

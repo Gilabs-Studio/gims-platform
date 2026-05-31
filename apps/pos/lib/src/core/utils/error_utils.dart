@@ -3,6 +3,31 @@ import 'package:flutter/material.dart';
 import '../network/api_exception.dart';
 import '../theme/app_theme.dart';
 
+/// Show a toast/notification SnackBar at the top of the screen.
+void showNotification(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+  Color? backgroundColor,
+  Widget? customContent,
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      content: customContent ?? Text(message, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+      backgroundColor: backgroundColor ?? (isError ? GimsColors.destructive : Colors.green.shade600),
+      behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.only(
+        bottom: MediaQuery.of(context).size.height - 100,
+        left: 16,
+        right: 16,
+      ),
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
+
 /// Show a red error SnackBar at the top of the screen.
 void showError(BuildContext context, Object error) {
   final rawMessage = error is ApiException ? error.message : error.toString();
@@ -24,22 +49,7 @@ void showError(BuildContext context, Object error) {
     }
   }
 
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.clearSnackBars();
-  messenger.showSnackBar(
-    SnackBar(
-      content: Text(message, style: const TextStyle(color: Colors.white)),
-      backgroundColor: GimsColors.destructive,
-      behavior: SnackBarBehavior.floating,
-      // Push the floating snackbar to the top of the screen
-      margin: EdgeInsets.only(
-        bottom: MediaQuery.of(context).size.height - 130,
-        left: 16,
-        right: 16,
-      ),
-      duration: const Duration(seconds: 4),
-    ),
-  );
+  showNotification(context, message, isError: true);
 }
 
 /// Whether [error] is an auth-related API exception (401/token).

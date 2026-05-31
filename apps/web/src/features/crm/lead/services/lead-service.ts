@@ -44,6 +44,11 @@ export const leadService = {
     return response.data;
   },
 
+  recover: async (id: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.post<ApiResponse<null>>(`${BASE_URL}/${id}/recover`);
+    return response.data;
+  },
+
   convert: async (id: string, data: ConvertLeadData): Promise<ApiResponse<Lead>> => {
     const response = await apiClient.post<ApiResponse<Lead>>(`${BASE_URL}/${id}/convert`, data);
     return response.data;

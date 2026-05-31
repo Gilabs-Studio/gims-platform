@@ -7,6 +7,7 @@ import (
 	"time"
 
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
@@ -92,7 +93,9 @@ func (u *publicPOSUsecase) GetTableInfo(ctx context.Context, token string) (*dto
 		return nil, ErrPublicTokenInvalid
 	}
 
-	outlet, err := u.outletRepo.GetByID(ctx, qr.OutletID)
+	// Use the lightweight fetch — public path only needs Name/WarehouseID/TenantID/CompanyID;
+	// avoid the full preload chain (Company + Manager + geography = 5+ extra queries).
+	outlet, err := u.outletRepo.GetByIDLight(ctx, qr.OutletID)
 	if err != nil || outlet == nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -145,7 +148,8 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 	}
 
 	// Build context for unauthenticated customer operations (RBAC + tenant scoping).
-	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	// The outlet is also returned here to avoid a second GetByID call below.
+	orderCtx, tenantID, _, outlet, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -171,31 +175,31 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 	}
 
 	// Attach each item from the cart.
+	// Each AddItem call now returns the updated order in-memory (no DB re-fetch inside).
+	// We track the last returned value to use as the final order state.
+	var lastOrder *dto.POSOrderResponse = order
 	for _, item := range req.Items {
 		pid := item.ProductID
 		qty := item.Quantity
 		addReq := &dto.AddOrderItemRequest{ProductID: pid, Quantity: qty, Notes: item.Notes}
-		if _, err := u.orderUC.AddItem(orderCtx, order.ID, addReq); err != nil {
+		updated, err := u.orderUC.AddItem(orderCtx, order.ID, addReq)
+		if err != nil {
 			return nil, err
 		}
-	}
-
-	// Re-fetch to get updated totals after all items.
-	updated, err := u.orderUC.GetByID(orderCtx, order.ID)
-	if err != nil {
-		return nil, err
+		lastOrder = updated
 	}
 
 	// Broadcast WS event so staff dashboard refreshes instantly.
 	if u.hub != nil {
-		u.hub.Publish(tenantID, qr.OutletID, "pos.new_customer_order", posOrderRealtimePayload(updated, "WAITING_CASHIER", ""))
+		u.hub.Publish(tenantID, qr.OutletID, "pos.new_customer_order", posOrderRealtimePayload(lastOrder, "WAITING_CASHIER", ""))
 	}
-	u.pushNewOrderNotification(ctx, tenantID, qr.OutletID, updated)
+	u.pushNewOrderNotification(ctx, tenantID, qr.OutletID, lastOrder)
 
 	// Fan-out in-app notification to all staff with pos.order.read access for this outlet.
 	if u.db != nil {
+		// Re-use outlet already fetched in buildPublicOrderContext.
 		outletName := ""
-		if outlet, err := u.outletRepo.GetByID(ctx, qr.OutletID); err == nil && outlet != nil {
+		if outlet != nil {
 			outletName = outlet.Name
 		}
 		notifParams := notificationService.POSOrderNotificationParams{
@@ -203,14 +207,14 @@ func (u *publicPOSUsecase) CreateCustomerOrder(ctx context.Context, token string
 			OutletID:   qr.OutletID,
 			OutletName: outletName,
 			TableLabel: tableLabel,
-			OrderID:    updated.ID,
+			OrderID:    lastOrder.ID,
 		}
 		go func() {
 			_ = notificationService.CreatePOSOrderNotification(context.Background(), u.db, notifParams)
 		}()
 	}
 
-	return u.toCustomerOrderResponse(orderCtx, updated, tableLabel), nil
+	return u.toCustomerOrderResponse(orderCtx, lastOrder, tableLabel), nil
 }
 
 func (u *publicPOSUsecase) pushNewOrderNotification(ctx context.Context, tenantID, outletID string, order *dto.POSOrderResponse) {
@@ -244,7 +248,7 @@ func (u *publicPOSUsecase) GetOrderStatus(ctx context.Context, token, orderID st
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, _, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -275,7 +279,7 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, tenantID, companyID, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, companyID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -321,7 +325,7 @@ func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID 
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -374,7 +378,7 @@ func (u *publicPOSUsecase) CancelCustomerOrder(ctx context.Context, token, order
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -426,7 +430,7 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 		return nil, ErrPublicTokenInvalid
 	}
 
-	orderCtx, tenantID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	orderCtx, tenantID, _, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
 	if err != nil {
 		return nil, ErrPublicTokenInvalid
 	}
@@ -466,10 +470,12 @@ func (u *publicPOSUsecase) CancelDigitalPayment(ctx context.Context, token, orde
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID string) (context.Context, string, string, error) {
-	outlet, err := u.outletRepo.GetByID(ctx, outletID)
+func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID string) (context.Context, string, string, *orgModels.Outlet, error) {
+	// Use lightweight fetch to avoid 5+ unnecessary preload queries (Company, Manager, geography)
+	// on every public request — this path only needs TenantID, CompanyID, WarehouseID, Name.
+	outlet, err := u.outletRepo.GetByIDLight(ctx, outletID)
 	if err != nil || outlet == nil {
-		return nil, "", "", ErrPublicTokenInvalid
+		return nil, "", "", nil, ErrPublicTokenInvalid
 	}
 
 	publicCtx := context.WithValue(ctx, "permission_scope", "ALL")
@@ -480,7 +486,7 @@ func (u *publicPOSUsecase) buildPublicOrderContext(ctx context.Context, outletID
 		companyID = *outlet.CompanyID
 	}
 
-	return publicCtx, outlet.TenantID, companyID, nil
+	return publicCtx, outlet.TenantID, companyID, outlet, nil
 }
 
 func (u *publicPOSUsecase) toCustomerOrderResponse(ctx context.Context, order *dto.POSOrderResponse, tableLabel string) *dto.CustomerOrderResponse {

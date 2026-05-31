@@ -31,6 +31,9 @@ type RegisterTenantRequest struct {
 	UserCount int `json:"user_count" binding:"omitempty,min=1,max=999"`
 	// CompanyName is required because every registration must be tied to at least one company.
 	CompanyName string `json:"company_name" binding:"required,min=2,max=150"`
+	// Consent checkboxes
+	AgreeToS       bool `json:"agree_tos"`
+	AgreeMarketing bool `json:"agree_marketing"`
 }
 
 // RegisterInitResponse is returned when a paid plan is selected during registration.

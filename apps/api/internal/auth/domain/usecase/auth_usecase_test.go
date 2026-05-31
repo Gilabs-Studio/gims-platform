@@ -132,7 +132,7 @@ func TestAuthUsecase_Login(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// couponUC is not required for Login tests — pass nil (it is only used in RegisterTenant).
-		u := usecase.NewAuthUsecase(db, tt.fields.userRepo, tt.fields.refreshTokenRepo, jwtMgr, tt.fields.eventPublisher, nil, nil, nil)
+		u := usecase.NewAuthUsecase(db, tt.fields.userRepo, tt.fields.refreshTokenRepo, jwtMgr, tt.fields.eventPublisher, nil, nil, nil, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

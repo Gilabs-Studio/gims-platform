@@ -18,6 +18,11 @@ import (
 type OutletRepository interface {
 	Create(ctx context.Context, outlet *models.Outlet) error
 	GetByID(ctx context.Context, id string) (*models.Outlet, error)
+	// GetByIDLight retrieves an outlet by ID WITHOUT preloading relations.
+	// Use this on hot paths (e.g. public self-order) where only scalar fields
+	// (TenantID, CompanyID, WarehouseID, Name) are needed, to avoid the
+	// company/manager/geography join storm triggered by GetByID.
+	GetByIDLight(ctx context.Context, id string) (*models.Outlet, error)
 	GetByCode(ctx context.Context, code string) (*models.Outlet, error)
 	GetNextCode(ctx context.Context) (string, error)
 	List(ctx context.Context, params OutletListParams) ([]*models.Outlet, int64, error)
@@ -41,6 +46,7 @@ type OutletListParams struct {
 	CompanyID   string
 	WarehouseID string // Optional: filter outlets belonging to a specific warehouse
 	UserID      string // Optional: if set, filter by user-warehouse permissions (RBAC)
+	SkipPreload bool   // Optional: skip preloading relations for efficiency
 }
 
 type outletRepository struct {
@@ -67,6 +73,20 @@ func (r *outletRepository) GetByID(ctx context.Context, id string) (*models.Outl
 		Preload("Village.District.City.Province").
 		Preload("Manager").
 		Preload("Company").
+		First(&outlet, "outlets.id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &outlet, nil
+}
+
+// GetByIDLight retrieves an outlet by ID without preloading any relations.
+// Suitable for hot paths (e.g. public self-order) that only need scalar outlet fields
+// (TenantID, CompanyID, WarehouseID, Name) and must avoid the company/manager/geography
+// join storm triggered by GetByID.
+func (r *outletRepository) GetByIDLight(ctx context.Context, id string) (*models.Outlet, error) {
+	var outlet models.Outlet
+	err := database.GetDB(ctx, r.db).
 		First(&outlet, "outlets.id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -169,13 +189,15 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	}
 
 	// Preload relations
-	query = query.
-		Preload("Province").
-		Preload("City").
-		Preload("District").
-		Preload("Village.District.City.Province").
-		Preload("Manager").
-		Preload("Company")
+	if !params.SkipPreload {
+		query = query.
+			Preload("Province").
+			Preload("City").
+			Preload("District").
+			Preload("Village.District.City.Province").
+			Preload("Manager").
+			Preload("Company")
+	}
 
 	if err := query.Find(&outlets).Error; err != nil {
 		return nil, 0, err
