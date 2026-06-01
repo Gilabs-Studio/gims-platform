@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -97,6 +98,7 @@ type TenantSubscription struct {
 }
 
 // TableName specifies the table name for TenantSubscription.
+// BeforeCreate hook to generate UUID.
 func (TenantSubscription) TableName() string {
 	return "tenant_subscriptions"
 }
@@ -114,7 +116,7 @@ func (s *TenantSubscription) IsActive() bool {
 	if s.Status != SubscriptionActive && s.Status != SubscriptionTrial {
 		return false
 	}
-	if s.ExpiresAt != nil && time.Now().After(*s.ExpiresAt) {
+	if s.ExpiresAt != nil && apptime.Now().After(*s.ExpiresAt) {
 		return false
 	}
 	return true

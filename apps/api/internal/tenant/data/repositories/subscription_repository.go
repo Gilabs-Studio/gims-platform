@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm"
@@ -42,14 +43,12 @@ func (r *subscriptionRepository) Create(ctx context.Context, sub *models.TenantS
 
 func (r *subscriptionRepository) FindActiveByTenantID(ctx context.Context, tenantID string) (*models.TenantSubscription, error) {
 	var sub models.TenantSubscription
-	now := time.Now()
 	err := r.getDB(ctx).
 		Preload("Coupon").
 		Where(
-			"tenant_id = ? AND deleted_at IS NULL AND status IN ? AND (expires_at IS NULL OR expires_at > ?)",
+			"tenant_id = ? AND deleted_at IS NULL AND status IN ?",
 			tenantID,
-			[]string{"active", "trial", "past_due", "suspended", "cancelled"},
-			now,
+			[]string{"active", "trial", "past_due", "suspended", "cancelled", "expired"},
 		).
 		Order("starts_at DESC").
 		First(&sub).Error
@@ -90,7 +89,7 @@ func (r *subscriptionRepository) ListAll(ctx context.Context, page, perPage int)
 func (r *subscriptionRepository) ExpireOldSubscriptions(ctx context.Context) error {
 	return r.getDB(ctx).
 		Model(&models.TenantSubscription{}).
-		Where("status = ? AND expires_at IS NOT NULL AND expires_at < ?", models.SubscriptionActive, time.Now()).
+		Where("status = ? AND expires_at IS NOT NULL AND expires_at < ?", models.SubscriptionActive, apptime.Now()).
 		Update("status", models.SubscriptionExpired).Error
 }
 

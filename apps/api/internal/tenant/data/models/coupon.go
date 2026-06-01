@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -89,7 +90,7 @@ func (c *Coupon) IsUsable() bool {
 	if c.UsedCount >= c.MaxUses {
 		return false
 	}
-	if c.ExpiresAt != nil && time.Now().After(*c.ExpiresAt) {
+	if c.ExpiresAt != nil && apptime.Now().After(*c.ExpiresAt) {
 		return false
 	}
 	return true
