@@ -219,19 +219,58 @@ func (h *DealHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
+	deletedBy := ""
+	if userIDVal, exists := c.Get("user_id"); exists {
+		if uid, ok := userIDVal.(string); ok {
+			deletedBy = uid
+		}
+	}
+
+	if err := h.uc.Delete(c.Request.Context(), id, deletedBy); err != nil {
 		handleDealError(c, err)
 		return
 	}
 
 	meta := &response.Meta{}
-	if userIDVal, exists := c.Get("user_id"); exists {
-		if uid, ok := userIDVal.(string); ok {
-			meta.DeletedBy = uid
-		}
+	if deletedBy != "" {
+		meta.DeletedBy = deletedBy
 	}
 
 	response.SuccessResponseDeleted(c, "crm_deal", id, meta)
+}
+
+// Recover handles POST request to recover/restore a soft-deleted deal
+func (h *DealHandler) Recover(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "ID is required",
+		}, nil)
+		return
+	}
+
+	// Validate role: only admin can recover
+	userRole, exists := c.Get("user_role")
+	if !exists || userRole.(string) != "admin" {
+		errors.ErrorResponse(c, "UNAUTHORIZED", map[string]interface{}{
+			"message": "Only administrators can recover items",
+		}, nil)
+		return
+	}
+
+	recoveredBy := ""
+	if userIDVal, exists := c.Get("user_id"); exists {
+		if uid, ok := userIDVal.(string); ok {
+			recoveredBy = uid
+		}
+	}
+
+	if err := h.uc.Recover(c.Request.Context(), id, recoveredBy); err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, "Deal recovered successfully", nil)
 }
 
 // MoveStage handles POST request to move a deal to a different pipeline stage

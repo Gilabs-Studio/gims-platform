@@ -8,7 +8,7 @@ import '../../../app/app.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/utils/url_utils.dart';
+
 import '../../../shared/widgets/empty_state.dart';
 import '../../outlet/domain/models/outlet.dart';
 import '../../terminal/data/notification_sound_service.dart';
@@ -18,16 +18,23 @@ import '../../terminal/domain/models/pos_order.dart';
 import '../../terminal/domain/models/pos_config.dart';
 import '../../terminal/domain/models/table_selection.dart';
 import '../../terminal/presentation/widgets/checkout_flow_sheet.dart';
+import '../../terminal/presentation/widgets/receipt_dialog.dart';
 import '../domain/live_table_data.dart';
 import '../domain/models/floor_plan.dart';
 import 'widgets/floor_canvas.dart';
 import 'widgets/status_legend.dart';
 
 class LiveTableScreen extends StatefulWidget {
-  const LiveTableScreen({super.key, required this.outlet, this.onSelectTable});
+  const LiveTableScreen({
+    super.key,
+    required this.outlet,
+    this.onSelectTable,
+    this.onSelectDraft,
+  });
 
   final Outlet outlet;
   final ValueChanged<TableSelection>? onSelectTable;
+  final ValueChanged<PosOrder>? onSelectDraft;
 
   @override
   State<LiveTableScreen> createState() => _LiveTableScreenState();
@@ -192,7 +199,13 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
             return;
           }
           NotificationSoundService.instance.play();
-          setState(() => _upsertOrder(order));
+          // Use applyServerOrder to evict any ghost local-xxx entry first.
+          ServiceLocator.instance.terminalService
+              .applyServerOrder(order)
+              .then((canonical) {
+            if (!mounted) return;
+            setState(() => _upsertOrder(canonical));
+          });
           break;
         case 'pos.order_status_changed':
         case 'pos.payment_confirmed':
@@ -202,12 +215,51 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
             _safeFallbackSync();
             return;
           }
-          setState(() {
-            if (_isTerminalCleared(order.status)) {
-              _orders = _orders.where((item) => item.id != order.id).toList();
-            } else {
-              _upsertOrder(order);
-            }
+          // Use applyServerOrder to evict ghost local-xxx entries.
+          ServiceLocator.instance.terminalService
+              .applyServerOrder(order)
+              .then((canonical) {
+            if (!mounted) return;
+            setState(() {
+              final localId = ServiceLocator.instance.terminalService
+                  .localIdForServerId(canonical.id);
+
+              if (_isTerminalCleared(canonical.status)) {
+                _orders = _orders.where((item) {
+                  if (item.id == canonical.id) return false;
+                  if (localId != null && item.id == localId) return false;
+                  if (item.id.startsWith('local-')) {
+                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                      return false;
+                    }
+                    if (canonical.tableId == null &&
+                        canonical.tableLabel != null &&
+                        item.tableLabel != null &&
+                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+              } else {
+                _orders = _orders.where((item) {
+                  if (localId != null && item.id == localId) return false;
+                  if (item.id.startsWith('local-')) {
+                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                      return false;
+                    }
+                    if (canonical.tableId == null &&
+                        canonical.tableLabel != null &&
+                        item.tableLabel != null &&
+                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+                _upsertOrder(canonical);
+              }
+            });
           });
           break;
       }
@@ -279,6 +331,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     _now = DateTime.now();
   }
 
+  Future<void> _viewOrder(PosOrder order) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: order,
+        config: _config,
+        outletName: widget.outlet.name,
+      ),
+    );
+  }
+
   /// Throttled fallback: reloads orders via HTTP when a WS event cannot be parsed.
   /// Fires at most once per 10 s to avoid hammering the API.
   void _safeFallbackSync() {
@@ -289,6 +353,167 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     }
     _lastWsSyncAt = now;
     _load(silent: true);
+  }
+
+  List<PosOrder> get _drafts => _orders
+      .where((o) => o.status == PosOrderStatus.draft && o.tableId == null)
+      .toList();
+
+  void _showSavedTransactions() {
+    final drafts = _drafts;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Saved Transactions'),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+          content: drafts.isEmpty
+              ? const SizedBox(
+                  height: 100,
+                  child: Center(
+                    child: Text('Tidak ada transaksi tersimpan'),
+                  ),
+                )
+              : SizedBox(
+                  width: 400,
+                  height: 300,
+                  child: ListView.builder(
+                    itemCount: drafts.length,
+                    itemBuilder: (context, index) {
+                      final draft = drafts[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _selectTableForDraft(draft);
+                          },
+                          title: Text(
+                            '#${draft.orderNumber}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            draft.customerName != null &&
+                                    draft.customerName!.isNotEmpty
+                                ? draft.customerName!
+                                : 'Walk-in',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                formatMoney(draft.totalAmount, 'IDR'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: GimsColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red),
+                                onPressed: () async {
+                                  final navigator = Navigator.of(ctx);
+                                  try {
+                                    await ServiceLocator.instance.terminalService
+                                        .deleteOrder(draft.id);
+                                    navigator.pop();
+                                    _load();
+                                    if (context.mounted) {
+                                      showNotification(context, 'Draft #${draft.orderNumber} berhasil dihapus');
+                                    }
+                                  } catch (error) {
+                                    if (ctx.mounted) {
+                                      showError(ctx, error);
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        );
+      },
+    );
+  }
+
+  void _selectTableForDraft(PosOrder draft) {
+    final liveTables = _liveTables();
+    final availableTables = liveTables.where((t) => t.status == 'AVAILABLE').toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Pilih Meja untuk Draft #${draft.orderNumber}'),
+          content: availableTables.isEmpty
+              ? const SizedBox(
+                  height: 100,
+                  child: Center(
+                    child: Text('Tidak ada meja yang tersedia'),
+                  ),
+                )
+              : SizedBox(
+                  width: 400,
+                  height: 300,
+                  child: ListView.builder(
+                    itemCount: availableTables.length,
+                    itemBuilder: (context, index) {
+                      final info = availableTables[index];
+                      final tableName = info.table.label ?? info.table.tableNumber?.toString() ?? info.table.id;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          onTap: () async {
+                            final navigator = Navigator.of(ctx);
+                            navigator.pop();
+                            
+                            setState(() => _loading = true);
+                            try {
+                              await ServiceLocator.instance.terminalService.updateOrderTable(
+                                orderId: draft.id,
+                                tableId: info.table.id,
+                                tableLabel: tableName,
+                              );
+                              _load();
+                              if (context.mounted) {
+                                showNotification(context, 'Draft #${draft.orderNumber} berhasil dipindahkan ke Meja $tableName');
+                              }
+                            } catch (error) {
+                              if (context.mounted) {
+                                showError(context, error);
+                              }
+                            } finally {
+                              setState(() => _loading = false);
+                            }
+                          },
+                          title: Text(
+                            tableName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text('Kapasitas: ${info.seatCount} kursi'),
+                          trailing: const Icon(Icons.chevron_right),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        );
+      },
+    );
   }
 
   List<LiveTableData> _liveTables() {
@@ -565,6 +790,18 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       if (!mounted) return;
       _load(silent: true);
     }
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ReceiptDialog(
+        order: checkout.order,
+        config: _config,
+        outletName: widget.outlet.name,
+        finalPayment: checkout.finalPayment,
+      ),
+    );
   }
 
   Future<void> _cancelOrder(LiveTableData info) async {
@@ -632,9 +869,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih meja dari flow Terminal.')),
-      );
+      showNotification(context, 'Pilih meja dari flow Terminal.');
       return;
     }
 
@@ -675,6 +910,24 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     icon: const Icon(Icons.payments_outlined),
                     label: const Text('Pay Now'),
                   ),
+                  if (info.status == 'WAITING_PAYMENT')
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        final callback = widget.onSelectTable;
+                        if (callback != null) {
+                          callback(
+                            TableSelection(
+                              id: info.table.id,
+                              label: _tableLabel(info),
+                              seatCount: info.seatCount,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit'),
+                    ),
                   OutlinedButton.icon(
                     onPressed: info.status == 'WAITING_PAYMENT'
                         ? () async {
@@ -706,11 +959,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     label: const Text('Selesai'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => openExternal(
-                      ServiceLocator.instance.terminalService.receiptUrl(
-                        order.id,
-                      ),
-                    ),
+                    onPressed: () => _viewOrder(order),
                     icon: const Icon(Icons.receipt_long),
                     label: const Text('View Order'),
                   ),
@@ -745,7 +994,11 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          StatusLegend(onRefresh: _load),
+          StatusLegend(
+            onRefresh: _load,
+            draftsCount: _drafts.length,
+            onTapDrafts: _showSavedTransactions,
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: LayoutBuilder(
@@ -759,11 +1012,14 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     width: plan.width,
                     height: plan.height,
                     liveTables: liveTables,
-                    onSelect: (table) {
-                      final info = liveTables.firstWhere(
-                        (item) => item.table.id == table.id,
+                    onSelect: (object) {
+                      if (object.type != 'table') return;
+                      final matchingIndex = liveTables.indexWhere(
+                        (item) => item.table.id == object.id,
                       );
-                      _tapTable(info);
+                      if (matchingIndex != -1) {
+                        _tapTable(liveTables[matchingIndex]);
+                      }
                     },
                   ),
                 );
@@ -788,11 +1044,30 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                         onServeItem: _serveItem,
                         onPay: _payOrder,
                         onCancel: _cancelOrder,
-                        onOpenReceipt: (orderId) => openExternal(
-                          ServiceLocator.instance.terminalService.receiptUrl(
-                            orderId,
-                          ),
-                        ),
+                        onEdit: (info) {
+                          final callback = widget.onSelectTable;
+                          if (callback != null) {
+                            callback(
+                              TableSelection(
+                                id: info.table.id,
+                                label: _tableLabel(info),
+                                seatCount: info.seatCount,
+                              ),
+                            );
+                          }
+                        },
+                        onOpenReceipt: (orderId) {
+                          PosOrder? target;
+                          for (final o in _orders) {
+                            if (o.id == orderId) {
+                              target = o;
+                              break;
+                            }
+                          }
+                          if (target != null) {
+                            _viewOrder(target);
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -814,6 +1089,7 @@ class _ActiveTableSidebar extends StatelessWidget {
     required this.onServeItem,
     required this.onPay,
     required this.onCancel,
+    required this.onEdit,
     required this.onOpenReceipt,
     this.servingOrderId,
     this.completingOrderId,
@@ -829,6 +1105,7 @@ class _ActiveTableSidebar extends StatelessWidget {
   final Future<void> Function(String orderId, PosOrderItem item) onServeItem;
   final Future<void> Function(LiveTableData info) onPay;
   final Future<void> Function(LiveTableData info) onCancel;
+  final void Function(LiveTableData info) onEdit;
   final void Function(String orderId) onOpenReceipt;
 
   @override
@@ -1032,11 +1309,12 @@ class _ActiveTableSidebar extends StatelessWidget {
                                     Row(
                                       children: [
                                         Expanded(
-                                          flex: 3,
+                                          flex: 2,
                                           child: FilledButton(
                                             onPressed: () => onPay(info),
                                             style: FilledButton.styleFrom(
                                               minimumSize: const Size(0, 30),
+                                              padding: EdgeInsets.zero,
                                             ),
                                             child: const Text(
                                               'Pay Now',
@@ -1044,12 +1322,27 @@ class _ActiveTableSidebar extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () => onEdit(info),
+                                            style: OutlinedButton.styleFrom(
+                                              minimumSize: const Size(0, 30),
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            child: const Icon(
+                                              Icons.edit,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
                                         Expanded(
                                           child: OutlinedButton(
                                             onPressed: () => onCancel(info),
                                             style: OutlinedButton.styleFrom(
                                               minimumSize: const Size(0, 30),
+                                              padding: EdgeInsets.zero,
                                             ),
                                             child: const Icon(
                                               Icons.block,

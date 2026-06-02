@@ -71,6 +71,15 @@ export interface Tenant {
   deletion_requested_by?: string;
   deletion_previous_status?: string;
   created_at?: string;
+  consent_logs?: ConsentLog[];
+}
+
+export interface ConsentLog {
+  consent_type: string;
+  version: string;
+  granted_at: string;
+  ip_address: string;
+  user_agent: string;
 }
 
 export interface PaginationMeta {
@@ -445,52 +454,27 @@ export interface CreatePermissionRequest {
 
 export type UpdatePermissionRequest = CreatePermissionRequest;
 
-// ── Tenant Owner Password Reset Queue ──────────────────────────────────────
 
-export interface TenantOwnerPasswordResetQueueItem {
-  request_id: string;
+
+// ── Support Feedback ───────────────────────────────────────────────────────
+
+export interface SupportFeedback {
+  id: string;
   user_id: string;
   user_name: string;
   user_email: string;
   tenant_id: string;
   tenant_name: string;
-  status: string;
-  requested_at: string;
-  expires_at: string;
-  token?: string;
-  reset_token?: string;
+  message: string;
+  image_url?: string;
+  created_at: string;
 }
 
-export interface TenantOwnerPasswordResetQueueParams {
-  page?: number;
-  per_page?: number;
-  search?: string;
-}
-
-export interface TenantOwnerPasswordResetQueueResponse {
+export interface SupportFeedbackListResponse {
   success: boolean;
-  data: TenantOwnerPasswordResetQueueItem[];
+  data: SupportFeedback[];
   meta?: {
     pagination?: PaginationMeta;
   };
 }
 
-export interface TenantOwnerPasswordResetPendingCountResponse {
-  success: boolean;
-  data: {
-    pending_count: number;
-  };
-}
-
-export interface SystemAdminResetTenantOwnerPasswordRequest {
-  token: string;
-  new_password: string;
-  confirm_password: string;
-}
-
-export interface SystemAdminResetTenantOwnerPasswordResponse {
-  success: boolean;
-  data: {
-    message: string;
-  };
-}

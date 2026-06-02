@@ -46,12 +46,12 @@ class _FloorEditorScreenState extends State<FloorEditorScreen> {
 
   Future<void> _save() async {
     final plan = _plan; if (plan == null) return;
-    try { final saved = await ServiceLocator.instance.floorService.saveFloorLayout(plan); setState(() => _plan = saved); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Layout tersimpan'))); } catch (e) { if (mounted) showError(context, e); }
+    try { final saved = await ServiceLocator.instance.floorService.saveFloorLayout(plan); setState(() => _plan = saved); if (mounted) showNotification(context, 'Layout tersimpan'); } catch (e) { if (mounted) showError(context, e); }
   }
 
   Future<void> _publish() async {
     final plan = _plan; if (plan == null) return;
-    try { final saved = await ServiceLocator.instance.floorService.publishFloorPlan(plan.id); setState(() => _plan = saved); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Layout dipublish'))); } catch (e) { if (mounted) showError(context, e); }
+    try { final saved = await ServiceLocator.instance.floorService.publishFloorPlan(plan.id); setState(() => _plan = saved); if (mounted) showNotification(context, 'Layout dipublish'); } catch (e) { if (mounted) showError(context, e); }
   }
 
   @override

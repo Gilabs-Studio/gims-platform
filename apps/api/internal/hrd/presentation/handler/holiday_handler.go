@@ -95,7 +95,19 @@ func (h *HolidayHandler) GetByYear(c *gin.Context) {
 		return
 	}
 
-	holidays, err := h.holidayUC.GetByYear(c.Request.Context(), year)
+	monthStr := c.Query("month")
+	month := 0
+	if monthStr != "" {
+		month, err = strconv.Atoi(monthStr)
+		if err != nil || month < 1 || month > 12 {
+			errors.ErrorResponse(c, "INVALID_MONTH", map[string]interface{}{
+				"month": monthStr,
+			}, nil)
+			return
+		}
+	}
+
+	holidays, err := h.holidayUC.GetByYear(c.Request.Context(), year, month)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return

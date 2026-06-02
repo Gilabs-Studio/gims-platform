@@ -462,3 +462,15 @@ export function useDealProductItems(id: string, options?: { enabled?: boolean })
     staleTime: 2 * 1000,
   });
 }
+
+export function useRecoverDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => dealService.recover(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: dealKeys.byStage() });
+      qc.invalidateQueries({ queryKey: dealKeys.lists() });
+      qc.invalidateQueries({ queryKey: dealKeys.summary() });
+    },
+  });
+}

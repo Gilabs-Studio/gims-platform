@@ -32,7 +32,8 @@ type DealUsecase interface {
 	List(ctx context.Context, params repositories.DealListParams) ([]dto.DealResponse, int64, error)
 	ListByStage(ctx context.Context, params repositories.DealsByStageParams) ([]dto.DealResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateDealRequest) (dto.DealResponse, error)
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string, deletedBy string) error
+	Recover(ctx context.Context, id string, recoveredBy string) error
 	MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.MoveDealStageResponse, error)
 	GetHistory(ctx context.Context, dealID string) ([]dto.DealHistoryResponse, error)
 	GetFormData(ctx context.Context) (*dto.DealFormDataResponse, error)
@@ -220,6 +221,26 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 	created, err := u.dealRepo.FindByID(ctx, deal.ID)
 	if err != nil {
 		return dto.DealResponse{}, err
+	}
+
+	// Create activity log for deal creation
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, createdBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = createdBy
+	}
+
+	if employeeID != "" {
+		creationActivity := &models.Activity{
+			TenantID:    created.TenantID,
+			Type:        "deal_creation",
+			DealID:      &created.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Pipeline %s (%s) telah dibuat", created.Code, created.Title),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, creationActivity)
 	}
 
 	return mapper.ToDealResponse(created), nil
@@ -447,12 +468,72 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 	return mapper.ToDealResponse(updated), nil
 }
 
-func (u *dealUsecase) Delete(ctx context.Context, id string) error {
-	_, err := u.dealRepo.FindByID(ctx, id)
+func (u *dealUsecase) Delete(ctx context.Context, id string, deletedBy string) error {
+	deal, err := u.dealRepo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("deal not found")
 	}
-	return u.dealRepo.Delete(ctx, id)
+
+	// Look up employee from deletedBy (which is a User ID)
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, deletedBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = deletedBy
+	}
+
+	if err := u.dealRepo.Delete(ctx, id, employeeID); err != nil {
+		return err
+	}
+
+	// Log deletion activity
+	if employeeID != "" {
+		deleteActivity := &models.Activity{
+			TenantID:    deal.TenantID,
+			Type:        "deal_deletion",
+			DealID:      &deal.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Pipeline %s (%s) telah dihapus", deal.Code, deal.Title),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, deleteActivity)
+	}
+
+	return nil
+}
+
+func (u *dealUsecase) Recover(ctx context.Context, id string, recoveredBy string) error {
+	deal, err := u.dealRepo.FindByID(ctx, id)
+	if err != nil {
+		return errors.New("deal not found")
+	}
+
+	if err := u.dealRepo.Recover(ctx, id); err != nil {
+		return err
+	}
+
+	// Look up employee from recoveredBy (which is a User ID)
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, recoveredBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = recoveredBy
+	}
+
+	// Log recovery activity
+	if employeeID != "" {
+		recoveryActivity := &models.Activity{
+			TenantID:    deal.TenantID,
+			Type:        "deal_recovery",
+			DealID:      &deal.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Pipeline %s (%s) telah dipulihkan", deal.Code, deal.Title),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, recoveryActivity)
+	}
+
+	return nil
 }
 
 func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDealStageRequest, changedBy string) (dto.MoveDealStageResponse, error) {
@@ -592,6 +673,7 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 		activityEmployeeID = "system"
 	}
 	stageActivity := &models.Activity{
+		TenantID:       updated.TenantID,
 		Type:           "deal_stage_change",
 		ActivityTypeID: strPtr(activityTypeFollowUpID),
 		DealID:         &updated.ID,

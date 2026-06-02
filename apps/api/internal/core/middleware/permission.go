@@ -5,11 +5,79 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+var privilegeCache sync.Map
+
+type rolePrivilegeCacheEntry struct {
+	value      bool
+	expiration time.Time
+}
+
+func isPrivilegedRoleCached(ctx context.Context, roleCode string, requiredPermission string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(roleCode))
+	if normalized == "" {
+		return false
+	}
+
+	// 1. Owner payment bypass check
+	isOwnerRoleCode := strings.HasPrefix(normalized, "tenant_owner_") || normalized == "owner" || strings.HasSuffix(normalized, "_owner")
+	isOwnerPaymentBypass := requiredPermission == "pos.payment.manage" && isOwnerRoleCode
+	if isOwnerPaymentBypass {
+		return true
+	}
+
+	// 2. Check local sync.Map cache
+	tenantID := TenantFromContext(ctx)
+	cacheKey := fmt.Sprintf("%s:%s", tenantID, normalized)
+
+	now := time.Now()
+	if val, ok := privilegeCache.Load(cacheKey); ok {
+		if entry, ok := val.(rolePrivilegeCacheEntry); ok {
+			if now.Before(entry.expiration) {
+				return entry.value
+			}
+		}
+	}
+
+	// 3. Fallback logic during database bootstrap or seeding
+	isSeededPrivileged := normalized == "admin" || normalized == "superadmin" || isOwnerRoleCode
+
+	if database.DB == nil {
+		return isSeededPrivileged
+	}
+
+	// 4. Query DB scoped to current tenant via GetDB
+	db := database.GetDB(ctx, database.DB)
+	var count int64
+	err := db.Table("roles").
+		Where("code = ? AND is_protected = ? AND data_scope = ? AND deleted_at IS NULL", roleCode, true, "ALL").
+		Count(&count).Error
+
+	var isPrivileged bool
+	if err != nil {
+		log.Printf("[permission][cache] failed to query database for role %s: %v. Using fallback.", roleCode, err)
+		isPrivileged = isSeededPrivileged
+	} else {
+		isPrivileged = count > 0
+	}
+
+	// 5. Cache the result for 5 minutes
+	privilegeCache.Store(cacheKey, rolePrivilegeCacheEntry{
+		value:      isPrivileged,
+		expiration: now.Add(5 * time.Minute),
+	})
+
+	return isPrivileged
+}
+
 
 func RequireSystemAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -53,13 +121,10 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
-		// Admin/superadmin bypass strict permission map checks.
+		// Privileged role bypass of strict permission map checks.
 		if roleRaw, exists := c.Get("user_role"); exists {
 			if role, ok := roleRaw.(string); ok {
-				normalized := strings.ToLower(strings.TrimSpace(role))
-				isOwnerRoleCode := strings.HasPrefix(normalized, "tenant_owner_") || normalized == "owner" || strings.HasSuffix(normalized, "_owner")
-				isOwnerPaymentBypass := requiredPermission == "pos.payment.manage" && isOwnerRoleCode
-				if normalized == "admin" || normalized == "superadmin" || isOwnerPaymentBypass {
+				if isPrivilegedRoleCached(c.Request.Context(), role, requiredPermission) {
 					c.Set("permission_scope", "ALL")
 					reqCtx := c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "permission_scope", "ALL")
@@ -179,8 +244,8 @@ func RoleMiddleware(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		// Admin always has access
-		if roleStr == "admin" {
+		// Privileged roles always have access
+		if isPrivilegedRoleCached(c.Request.Context(), roleStr, "") {
 			c.Next()
 			return
 		}

@@ -37,6 +37,8 @@ interface POSCartPanelProps {
   onRemove: (productId: string) => void;
   onCheckout: () => void;
   isPending?: boolean;
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 interface CartItemRowProps {
@@ -169,6 +171,8 @@ export function POSCartPanel({
   onRemove,
   onCheckout,
   isPending,
+  onSaveDraft,
+  isSavingDraft,
 }: POSCartPanelProps) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
   const taxRate = normalizeRate(config?.tax_rate, 0.11);
@@ -261,14 +265,27 @@ export function POSCartPanel({
           <span>Total</span>
           <span className="text-primary tabular-nums">{formatCurrency(total)}</span>
         </div>
-        <Button
-          className="w-full cursor-pointer mt-1"
-          size="lg"
-          onClick={onCheckout}
-          disabled={isPending || items.length === 0}
-        >
-          {isPending ? "Processing…" : `Pay ${formatCurrency(total)}`}
-        </Button>
+        <div className="flex gap-2 w-full mt-1">
+          {onSaveDraft && (
+            <Button
+              variant="outline"
+              className="flex-1 cursor-pointer"
+              size="lg"
+              onClick={onSaveDraft}
+              disabled={isPending || isSavingDraft || items.length === 0}
+            >
+              {isSavingDraft ? "Saving…" : "Save Draft"}
+            </Button>
+          )}
+          <Button
+            className={`cursor-pointer ${onSaveDraft ? "flex-1" : "w-full"}`}
+            size="lg"
+            onClick={onCheckout}
+            disabled={isPending || isSavingDraft || items.length === 0}
+          >
+            {isPending ? "Processing…" : `Pay ${formatCurrency(total)}`}
+          </Button>
+        </div>
       </div>
     </div>
   );

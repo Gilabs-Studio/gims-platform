@@ -100,6 +100,7 @@ export interface OutletListParams {
   is_active?: boolean;
   company_id?: string;
   warehouse_id?: string;
+  skip_preload?: boolean;
 }
 
 export interface PaginationMeta {

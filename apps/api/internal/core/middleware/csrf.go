@@ -180,37 +180,68 @@ func CSRF() gin.HandlerFunc {
 }
 
 func isHTTPS(c *gin.Context) bool {
-	if config.AppConfig == nil || config.AppConfig.Server.Env != "production" {
-		return false
-	}
 	if c.Request.TLS != nil {
 		return true
 	}
-	if config.AppConfig.Security.ProxyHeadersEnabled {
-		xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
-		return xfp == "https"
+	xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if xfp == "https" {
+		return true
 	}
 	return false
 }
 
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
+	domain := getCookieDomain(c)
+	isSecure := isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
 	sameSite := http.SameSiteLaxMode
-	domain := ""
-
-	// In production/staging setups sharing same registrable domain (e.g. .gilabs.id),
-	// use config's RootDomain so cookie is shared across subdomains.
-	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
-		domain = config.AppConfig.Server.RootDomain
-	}
-
-	isSecure := isHTTPS(c)
-	if config.AppConfig != nil && strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env)) == "production" {
-		isSecure = true
+	if isSecure {
+		sameSite = http.SameSiteNoneMode
 	}
 
 	c.SetSameSite(sameSite)
 
-	// Note: HttpOnly is FALSE so JavaScript can read it and send in header (Double-Submit Cookie pattern)
-	c.SetCookie("gims_csrf_token", token, 3600*24, "/", domain, isSecure, false)
+	cookie := &http.Cookie{
+		Name:     "gims_csrf_token",
+		Value:    token,
+		Path:     "/",
+		Domain:   domain,
+		MaxAge:   3600 * 24,
+		Secure:   true,
+		HttpOnly: false,
+		SameSite: sameSite,
+	}
+
+	http.SetCookie(c.Writer, cookie)
+}
+
+func isCookieDomainValid(requestHost, cookieDomain string) bool {
+	if cookieDomain == "" {
+		return true
+	}
+
+	// Remove leading dot for comparison
+	cleanDomain := strings.TrimPrefix(cookieDomain, ".")
+	cleanHost := requestHost
+	// Remove port from host if present
+	if idx := strings.Index(requestHost, ":"); idx != -1 {
+		cleanHost = requestHost[:idx]
+	}
+
+	if cleanHost == cleanDomain {
+		return true
+	}
+
+	// Check if it's a subdomain
+	return strings.HasSuffix(cleanHost, "."+cleanDomain)
+}
+
+func getCookieDomain(c *gin.Context) string {
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		rootDomain := config.AppConfig.Server.RootDomain
+		if isCookieDomainValid(c.Request.Host, rootDomain) {
+			return rootDomain
+		}
+	}
+	return ""
 }

@@ -44,7 +44,8 @@ type LeadUsecase interface {
 	GetByID(ctx context.Context, id string) (dto.LeadResponse, error)
 	List(ctx context.Context, params repositories.LeadListParams) ([]dto.LeadResponse, int64, error)
 	Update(ctx context.Context, id string, req dto.UpdateLeadRequest, updatedBy string) (dto.LeadResponse, error)
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string, deletedBy string) error
+	Recover(ctx context.Context, id string, recoveredBy string) error
 	Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error)
 	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
 	GetUnprocessed(ctx context.Context, limit int) ([]dto.LeadResponse, error)
@@ -225,6 +226,26 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 	created, err := u.leadRepo.FindByID(ctx, lead.ID)
 	if err != nil {
 		return dto.LeadResponse{}, err
+	}
+
+	// Create activity log for lead creation
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, createdBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = createdBy
+	}
+
+	if employeeID != "" {
+		creationActivity := &models.Activity{
+			TenantID:    created.TenantID,
+			Type:        "lead_creation",
+			LeadID:      &created.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Lead %s (%s %s) telah dibuat", created.Code, created.FirstName, created.LastName),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, creationActivity)
 	}
 
 	return mapper.ToLeadResponse(created), nil
@@ -632,6 +653,7 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		}
 
 		activity := &models.Activity{
+			TenantID:       lead.TenantID,
 			Type:           activityType,
 			ActivityTypeID: strPtr(activityTypeFollowUpID),
 			LeadID:         &lead.ID,
@@ -651,7 +673,7 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	return mapper.ToLeadResponse(updated), nil
 }
 
-func (u *leadUsecase) Delete(ctx context.Context, id string) error {
+func (u *leadUsecase) Delete(ctx context.Context, id string, deletedBy string) error {
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("lead not found")
@@ -662,12 +684,82 @@ func (u *leadUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("cannot delete a converted lead")
 	}
 
+	// Look up employee from deletedBy (which is a User ID)
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, deletedBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = deletedBy
+	}
+
 	// Cascade soft-delete related deals
+	if employeeID != "" {
+		if err := database.DB.WithContext(ctx).Model(&models.Deal{}).Where("lead_id = ?", id).Update("deleted_by", employeeID).Error; err != nil {
+			return err
+		}
+	}
 	if err := database.DB.WithContext(ctx).Where("lead_id = ?", id).Delete(&models.Deal{}).Error; err != nil {
 		return err
 	}
 
-	return u.leadRepo.Delete(ctx, id)
+	if err := u.leadRepo.Delete(ctx, id, employeeID); err != nil {
+		return err
+	}
+
+	// Log deletion activity
+	if employeeID != "" {
+		deleteActivity := &models.Activity{
+			TenantID:    lead.TenantID,
+			Type:        "lead_deletion",
+			LeadID:      &lead.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Lead %s (%s %s) telah dihapus", lead.Code, lead.FirstName, lead.LastName),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, deleteActivity)
+	}
+
+	return nil
+}
+
+func (u *leadUsecase) Recover(ctx context.Context, id string, recoveredBy string) error {
+	lead, err := u.leadRepo.FindByID(ctx, id)
+	if err != nil {
+		return errors.New("lead not found")
+	}
+
+	if err := u.leadRepo.Recover(ctx, id); err != nil {
+		return err
+	}
+
+	// Unscoped recovery of deals linked to this lead
+	_ = database.DB.WithContext(ctx).Model(&models.Deal{}).Unscoped().Where("lead_id = ?", id).Updates(map[string]interface{}{
+		"deleted_at": nil,
+		"deleted_by": nil,
+	}).Error
+
+	// Look up employee from recoveredBy (which is a User ID)
+	var employeeID string
+	if emp, err := u.employeeRepo.FindByUserID(ctx, recoveredBy); err == nil && emp != nil {
+		employeeID = emp.ID
+	} else {
+		employeeID = recoveredBy
+	}
+
+	// Log recovery activity
+	if employeeID != "" {
+		recoveryActivity := &models.Activity{
+			TenantID:    lead.TenantID,
+			Type:        "lead_recovery",
+			LeadID:      &lead.ID,
+			EmployeeID:  employeeID,
+			Description: fmt.Sprintf("Lead %s (%s %s) telah dipulihkan", lead.Code, lead.FirstName, lead.LastName),
+			Timestamp:   apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, recoveryActivity)
+	}
+
+	return nil
 }
 
 // Convert transforms a lead into a deal in the pipeline, updating the lead's conversion fields
@@ -849,6 +941,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
 	if convertedBy != "" {
 		conversionActivity := &models.Activity{
+			TenantID:    lead.TenantID,
 			Type:        "conversion",
 			DealID:      &newDeal.ID,
 			LeadID:      &lead.ID,

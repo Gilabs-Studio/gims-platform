@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
@@ -43,6 +43,7 @@ type PosOrderRepository interface {
 	AddItem(ctx context.Context, item *models.PosOrderItem) error
 	UpdateItem(ctx context.Context, item *models.PosOrderItem) error
 	DeleteItem(ctx context.Context, itemID string) error
+	Delete(ctx context.Context, id string) error
 	GetItems(ctx context.Context, orderID string) ([]models.PosOrderItem, error)
 }
 
@@ -155,11 +156,12 @@ func (r *posOrderRepository) List(ctx context.Context, params PosOrderListParams
 
 func (r *posOrderRepository) GetNextOrderNumber(ctx context.Context, prefix string) (string, error) {
 	var sequence int
-	now := time.Now()
+	now := apptime.Now()
 	datePrefix := fmt.Sprintf("%s-%s-", prefix, now.Format("20060102"))
 
 	var last models.PosOrder
 	err := r.getDB(ctx).
+		Unscoped().
 		Where("order_number LIKE ?", datePrefix+"%").
 		Order("order_number DESC").
 		First(&last).Error
@@ -184,6 +186,15 @@ func (r *posOrderRepository) UpdateItem(ctx context.Context, item *models.PosOrd
 
 func (r *posOrderRepository) DeleteItem(ctx context.Context, itemID string) error {
 	return r.getDB(ctx).Delete(&models.PosOrderItem{}, "id = ?", itemID).Error
+}
+
+func (r *posOrderRepository) Delete(ctx context.Context, id string) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("pos_order_id = ?", id).Delete(&models.PosOrderItem{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.PosOrder{}, "id = ?", id).Error
+	})
 }
 
 func (r *posOrderRepository) GetItems(ctx context.Context, orderID string) ([]models.PosOrderItem, error) {

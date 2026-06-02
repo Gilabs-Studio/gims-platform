@@ -96,39 +96,34 @@ export function useUploadAvatar() {
 
 export function useRequestAccountDeletion() {
   const t = useTranslations("profile.deleteAccount");
-  const logout = useLogout();
-
-  const formatScheduledAt = (scheduledAt?: string) => {
-    if (!scheduledAt) {
-      return null;
-    }
-
-    const date = new Date(scheduledAt);
-    if (Number.isNaN(date.getTime())) {
-      return null;
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(date);
-  };
 
   return useMutation({
-    mutationFn: () => profileService.requestAccountDeletion(),
-    onSuccess: async (response: TenantDeletionScheduleApiResponse) => {
-      const scheduledAt = formatScheduledAt(response.data?.deletion_scheduled_at);
-      toast.success(
-        scheduledAt
-          ? t("successToastWithDate", { date: scheduledAt })
-          : t("successToast"),
-      );
-      await logout();
+    mutationFn: (password: string) => profileService.requestAccountDeletion(password),
+    onSuccess: (response: any) => {
+      const msg = response?.data?.message || "Email konfirmasi telah dikirim. Silakan periksa kotak masuk Anda.";
+      toast.success(msg);
     },
     onError: (error: unknown) => {
       console.error("Account deletion request failed", error);
       const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
       toast.error(message || t("errorToast"));
+    },
+  });
+}
+
+export function useConfirmAccountDeletion() {
+  const logout = useLogout();
+
+  return useMutation({
+    mutationFn: (token: string) => profileService.confirmAccountDeletion(token),
+    onSuccess: async () => {
+      toast.success("Akun berhasil dinonaktifkan. Sesi Anda akan dialihkan.");
+      await logout();
+    },
+    onError: (error: unknown) => {
+      console.error("Account deletion confirmation failed", error);
+      const message = (error as AxiosError<ApiErrorResponse>).response?.data?.message;
+      toast.error(message || "Gagal mengonfirmasi penghapusan akun. Silakan ajukan kembali.");
     },
   });
 }

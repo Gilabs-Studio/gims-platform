@@ -9,7 +9,7 @@ import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import type { Deal } from "../types";
 
@@ -51,7 +51,10 @@ export function DealCard({ deal, onClick }: DealCardProps) {
 
   return (
     <Card
-      className="cursor-pointer transition-shadow hover:shadow-md"
+      className={cn(
+        "cursor-pointer transition-shadow hover:shadow-md",
+        deal.is_deleted && "opacity-50"
+      )}
       onClick={() => onClick(deal)}
     >
       <CardContent className="p-3 space-y-2">

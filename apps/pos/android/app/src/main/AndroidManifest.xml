@@ -7,6 +7,9 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+
+        <!-- Declare USB host feature for direct USB access to printers -->
+        <uses-library android:name="android.hardware.usb.host" android:required="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -20,9 +20,10 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, rec
 	orders.POST("", middleware.IdempotentRequest(), h.Create)
 	orders.GET("", middleware.RequirePermission("pos.order.read"), h.List)
 	orders.GET("/:id", h.GetByID)
+	orders.DELETE("/:id", h.Delete)
 	orders.POST("/:id/confirm", middleware.IdempotentRequest(), h.Confirm)
 	orders.POST("/:id/void", h.Void)
-	orders.POST("/:id/assign-table", h.AssignTable)
+	orders.PUT("/:id/table", h.AssignTable)
 	orders.POST("/:id/serve", h.Serve)
 	orders.POST("/:id/complete", h.Complete)
 

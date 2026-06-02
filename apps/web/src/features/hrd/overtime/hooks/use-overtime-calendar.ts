@@ -34,9 +34,10 @@ export function useOvertimeCalendar() {
     per_page: 100, // Get all records for the month
   });
 
-  // Fetch holidays for the current calendar year
+  // Fetch holidays for the current month/year
   const currentYear = currentDate.getFullYear();
-  const { data: holidaysData } = useHolidaysByYear(currentYear);
+  const currentMonth = currentDate.getMonth() + 1;
+  const { data: holidaysData } = useHolidaysByYear(currentYear, currentMonth);
 
   // Build a Map<dateKey, { name, type }> for quick holiday lookup
   const holidays = useMemo(() => {

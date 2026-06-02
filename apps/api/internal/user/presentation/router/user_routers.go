@@ -39,4 +39,7 @@ func RegisterUserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, ph *permiss
 		p.POST("/avatar", h.UploadAvatar)
 		p.POST("/delete-account", h.RequestAccountDeletion)
 	}
+
+	// Public confirmation route for account deletion (accessed via email link)
+	rg.POST("/profile/delete-account/confirm", h.ConfirmAccountDeletion)
 }

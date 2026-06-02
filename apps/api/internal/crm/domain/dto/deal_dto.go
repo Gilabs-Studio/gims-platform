@@ -110,6 +110,9 @@ type DealResponse struct {
 	// Conversion tracking
 	ConvertedToQuotationID *string `json:"converted_to_quotation_id"`
 	ConvertedAt            *string `json:"converted_at"`
+	IsDeleted              bool    `json:"is_deleted"`
+	DeletedAt              *string `json:"deleted_at"`
+	DeletedBy              *string `json:"deleted_by"`
 	// Tasks (populated on detail)
 	Tasks []TaskSummaryResponse `json:"tasks,omitempty"`
 	// Metadata

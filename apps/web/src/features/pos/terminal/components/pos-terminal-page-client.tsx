@@ -289,7 +289,15 @@ export function POSTerminalPageClient() {
             variant="ghost"
             size="sm"
             className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={() => setSelectedOutletId(null)}
+            onClick={() => {
+              if (selectedOutlet.pos_mode === "LIVE_TABLE") {
+                const query = new URLSearchParams();
+                query.set("outlet_id", selectedOutlet.id);
+                router.push(`/pos/fb/live-table?${query.toString()}`);
+              } else {
+                setSelectedOutletId(null);
+              }
+            }}
           >
             <ArrowLeft className="h-4 w-4" />
             Change Outlet
@@ -304,6 +312,7 @@ export function POSTerminalPageClient() {
           initialTableId={tableIdFromQuery}
           initialTableLabel={tableLabelFromQuery}
           returnUrl={liveTableReturnUrl}
+          hasFloorLayout={selectedOutlet.pos_mode === "LIVE_TABLE"}
         />
       </div>
     </div>

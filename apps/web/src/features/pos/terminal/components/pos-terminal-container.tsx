@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
 import {
   useCreateOrder,
   usePOSOrder,
@@ -19,6 +20,10 @@ import {
   useRemoveOrderItem,
   useVoidOrder,
   usePOSConfig,
+  useUpdateOrderItem,
+  useDeleteOrder,
+  usePOSOrderList,
+  usePOSCatalog,
 } from "../hooks/use-pos";
 import { usePOSUIStore } from "../../stores/use-pos-ui-store";
 import { POSCatalogGrid } from "./pos-catalog-grid";
@@ -27,8 +32,28 @@ import { POSPaymentModal } from "./pos-payment-modal";
 import { POSReceiptDialog } from "./pos-receipt-dialog";
 import { VoidOrderDialog } from "./void-order-dialog";
 import { PosLoyaltyEnrollModal } from "@/features/loyalty/components/pos-loyalty-enroll-modal";
-import type { CartItem, POSCatalogItem, PosOrderStatus } from "../types";
+import type { CartItem, POSCatalogItem, PosOrderStatus, POSOrder } from "../types";
 import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
+import type { AxiosError } from "axios";
+
+/** Extract a human-readable message from an Axios API error or generic Error. */
+function extractApiError(err: unknown, fallback: string): { title: string; description?: string } {
+  if (err && typeof err === "object") {
+    const axiosErr = err as AxiosError<{ error?: { message?: string; code?: string } }>;
+    const serverMessage = axiosErr.response?.data?.error?.message;
+    const serverCode = axiosErr.response?.data?.error?.code;
+    if (serverMessage && serverCode !== "INTERNAL_SERVER_ERROR") {
+      return { title: fallback, description: serverMessage };
+    }
+    if (serverCode === "INTERNAL_SERVER_ERROR") {
+      return { title: fallback, description: "Server error — please try again in a moment." };
+    }
+    if (axiosErr.message) {
+      return { title: fallback, description: axiosErr.message };
+    }
+  }
+  return { title: fallback };
+}
 
 function mapLookupToMember(lookup: LoyaltyMemberLookup): LoyaltyMember | undefined {
   if (!lookup.member_id || !lookup.customer_name) {
@@ -59,6 +84,7 @@ interface POSTerminalContainerProps {
   initialTableLabel?: string;
   /** URL to navigate to after successful payment (e.g. live-table). If absent, stays on POS. */
   returnUrl?: string;
+  hasFloorLayout?: boolean;
 }
 
 export function POSTerminalContainer({
@@ -67,8 +93,10 @@ export function POSTerminalContainer({
   initialTableId,
   initialTableLabel,
   returnUrl,
+  hasFloorLayout = false,
 }: POSTerminalContainerProps) {
   const router = useRouter();
+  const t = useTranslations("posTerminal");
   const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
 
   // Register as full-screen so DashboardLayout hides the outer header/breadcrumb.
@@ -102,10 +130,115 @@ export function POSTerminalContainer({
     enabled: !!activeOrderId,
   });
 
+  const { data: catalogData } = usePOSCatalog(outletId, { enabled: !!outletId });
+  const catalogItems = useMemo(() => catalogData?.data ?? [], [catalogData]);
+
+  const { data: draftOrdersData, refetch: refetchDrafts } = usePOSOrderList(
+    {
+      outlet_id: outletId,
+    }
+  );
+
+  const drafts = useMemo(() => {
+    if (hasFloorLayout) return [];
+    return (draftOrdersData?.data ?? []).filter(
+      (order) => order.status === "DRAFT" && !order.table_id && order.id !== activeOrderId
+    );
+  }, [draftOrdersData, hasFloorLayout, activeOrderId]);
+
+  // When opening terminal for a specific table, automatically load any existing draft order for that table
+  useEffect(() => {
+    if (initialTableId && draftOrdersData?.data) {
+      const existingTableDraft = draftOrdersData.data.find(
+        (order) =>
+          order.table_id === initialTableId &&
+          (order.status === "DRAFT" ||
+            order.status === "IN_PROGRESS" ||
+            order.status === "READY" ||
+            order.status === "WAITING_PAYMENT")
+      );
+      if (existingTableDraft && existingTableDraft.id !== activeOrderId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveOrderId(existingTableDraft.id);
+        const mappedCart: CartItem[] = existingTableDraft.items.map((item) => {
+          const catalogItem = catalogItems.find((p) => p.product_id === item.product_id);
+          return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            product_code: item.product_code || "",
+            product_kind: catalogItem?.product_kind || "STOCK",
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            subtotal: item.subtotal,
+            notes: item.notes ?? undefined,
+          };
+        });
+        setCart(mappedCart);
+        if (existingTableDraft.customer_id) {
+          setLoyaltyLookup({
+            found: true,
+            member_id: existingTableDraft.customer_id,
+            customer_name: existingTableDraft.customer_name || "",
+          });
+        } else {
+          setLoyaltyLookup(undefined);
+        }
+      }
+    }
+  }, [initialTableId, draftOrdersData?.data, catalogItems, activeOrderId]);
+
+  const handleApplyDraft = useCallback(
+    async (draft: POSOrder) => {
+      const mappedCart: CartItem[] = draft.items.map((item) => {
+        const catalogItem = catalogItems.find((p) => p.product_id === item.product_id);
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_code: item.product_code || "",
+          product_kind: catalogItem?.product_kind || "STOCK",
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          subtotal: item.subtotal,
+          notes: item.notes ?? undefined,
+        };
+      });
+      setCart(mappedCart);
+      setActiveOrderId(draft.id);
+
+      if (draft.customer_id) {
+        setLoyaltyLookup({
+          found: true,
+          member_id: draft.customer_id,
+          customer_name: draft.customer_name || "",
+        });
+      } else {
+        setLoyaltyLookup(undefined);
+      }
+      toast.success(t("savedTransactions.applySuccess"));
+    },
+    [t, catalogItems]
+  );
+
   const createOrder = useCreateOrder();
   const addItem = useAddOrderItem();
   const removeItem = useRemoveOrderItem();
   const voidOrder = useVoidOrder();
+  const updateItem = useUpdateOrderItem();
+  const deleteOrder = useDeleteOrder();
+
+  const handleDeleteDraft = useCallback(
+    async (draftId: string) => {
+      try {
+        await deleteOrder.mutateAsync(draftId);
+        toast.success(t("savedTransactions.deleteSuccess"));
+        refetchDrafts();
+      } catch (err) {
+        const { title, description } = extractApiError(err, t("savedTransactions.deleteFailed"));
+        toast.error(title, { description });
+      }
+    },
+    [deleteOrder, refetchDrafts, t]
+  );
 
   const config = configData?.data ?? undefined;
   const activeOrder = orderData?.data ?? null;
@@ -155,8 +288,11 @@ export function POSTerminalContainer({
       setLoyaltyRewards([]);
       // Navigation happens only when the receipt is closed (see handleReceiptClose below),
       // so the receipt dialog remains visible over the live-table background.
+      if (!hasFloorLayout) {
+        refetchDrafts();
+      }
     },
-    [activeOrder],
+    [activeOrder, hasFloorLayout, refetchDrafts],
   );
 
   // If payment fails, auto-void the created order so no orphan draft remains.
@@ -201,7 +337,7 @@ export function POSTerminalContainer({
       return newOrderId;
     } catch {
       retryAfterRef.current = Date.now() + 5000;
-      toast.error("Unable to create order right now. Please retry in a moment.");
+      toast.error("Unable to create order right now.", { description: "Please retry in a moment." });
       return null;
     } finally {
       orderCreationInFlight.current = false;
@@ -248,6 +384,90 @@ export function POSTerminalContainer({
     }
   }
 
+  async function syncCartToBackend(orderId: string, currentCart: CartItem[], backendItems: POSOrder["items"]) {
+    // 1. Remove backend items not in cart
+    for (const bItem of backendItems) {
+      if (!currentCart.some((c) => c.product_id === bItem.product_id)) {
+        await removeItem.mutateAsync({ orderId, itemId: bItem.id });
+      }
+    }
+    // 2. Add or update items from cart
+    for (const cItem of currentCart) {
+      const bItem = backendItems.find((b) => b.product_id === cItem.product_id);
+      if (!bItem) {
+        await addItem.mutateAsync({
+          orderId,
+          data: { product_id: cItem.product_id, quantity: cItem.quantity },
+        });
+      } else if (bItem.quantity !== cItem.quantity) {
+        await updateItem.mutateAsync({
+          orderId,
+          itemId: bItem.id,
+          data: { quantity: cItem.quantity },
+        });
+      }
+    }
+  }
+
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  async function handleSaveDraft() {
+    if (cart.length === 0) return;
+    setIsSavingDraft(true);
+    try {
+      // Always create a new draft order at the outlet level (no table)
+      const result = await createOrder.mutateAsync({
+        outlet_id: outletId,
+        order_type: "DINE_IN",
+        guest_count: 1,
+      });
+      const newOrderId = (result as { data: { id: string } }).data.id;
+
+      // Add all cart items to the new order
+      for (const item of cart) {
+        await addItem.mutateAsync({
+          orderId: newOrderId,
+          data: { product_id: item.product_id, quantity: item.quantity },
+        });
+      }
+
+      // If there was an old active order, release it.
+      // DELETE only works on DRAFT orders — for WAITING_PAYMENT / IN_PROGRESS etc we must VOID.
+      if (activeOrderId) {
+        const currentStatus = activeOrder?.status;
+        try {
+          if (!currentStatus || currentStatus === "DRAFT") {
+            await deleteOrder.mutateAsync(activeOrderId);
+          } else {
+            await voidOrder.mutateAsync({
+              id: activeOrderId,
+              data: { reason: "Saved as outlet-level draft" },
+            });
+          }
+        } catch {
+          // Swallow — even if release fails the new draft is already saved
+        }
+      }
+
+      toast.success("Draft saved successfully.");
+      setCart([]);
+      setActiveOrderId(null);
+
+      if (hasFloorLayout) {
+        // Return to Live Table
+        const destination = returnUrl || `/pos/fb/live-table?outlet_id=${outletId}`;
+        router.push(destination);
+      } else {
+        refetchDrafts();
+      }
+    } catch (err) {
+      const { title, description } = extractApiError(err, "Failed to save draft order.");
+      toast.error(title, { description });
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
   async function handleCheckout() {
     if (cart.length === 0) return;
     setIsCheckingOut(true);
@@ -259,25 +479,12 @@ export function POSTerminalContainer({
         if (!orderId) return;
       }
 
-      // Always sync cart items to the backend before opening payment.
-      // This handles the retry case where a previous attempt created the order
-      // but failed to add items (e.g. network error), leaving the backend
-      // order with 0 items while activeOrderId is already set.
-      const existingProductIds = new Set(
-        (activeOrder?.items ?? []).map((i) => i.product_id)
-      );
-      for (const item of cart) {
-        if (!existingProductIds.has(item.product_id)) {
-          await addItem.mutateAsync({
-            orderId,
-            data: { product_id: item.product_id, quantity: item.quantity },
-          });
-        }
-      }
+      await syncCartToBackend(orderId, cart, activeOrder?.items ?? []);
 
       setPaymentOpen(true);
-    } catch {
-      toast.error("Failed to prepare order. Please try again.");
+    } catch (err) {
+      const { title, description } = extractApiError(err, "Failed to prepare order.");
+      toast.error(title, { description });
     } finally {
       setIsCheckingOut(false);
     }
@@ -363,8 +570,52 @@ export function POSTerminalContainer({
       {/* ── Body: catalog + cart ── */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Catalog — full width on mobile, 2/3 on desktop */}
-        <div className="flex-1 overflow-hidden">
-          <POSCatalogGrid outletId={outletId} onAddItem={handleAddItem} cartQuantities={cartQuantities} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {!hasFloorLayout && drafts.length > 0 && (
+            <div className="px-4 pt-3 pb-2 bg-muted/30 border-b flex flex-col gap-2 shrink-0">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("savedTransactions.directDraftsLabel")} ({drafts.length})
+                </span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+                {drafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="flex items-center gap-3 bg-card border rounded-lg px-3 py-2 text-xs shadow-sm hover:border-primary/50 transition-all duration-200 shrink-0"
+                  >
+                    <div
+                      className="cursor-pointer flex flex-col min-w-[75px]"
+                      onClick={() => handleApplyDraft(draft)}
+                    >
+                      <span className="font-semibold text-foreground">
+                        #{draft.order_number}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
+                        {draft.customer_name || t("savedTransactions.walkIn")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 border-l pl-3">
+                      <span className="font-bold text-primary">
+                        Rp {draft.total_amount.toLocaleString("id-ID")}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground shrink-0 cursor-pointer"
+                        onClick={() => handleDeleteDraft(draft.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex-1 overflow-hidden">
+            <POSCatalogGrid outletId={outletId} onAddItem={handleAddItem} cartQuantities={cartQuantities} />
+          </div>
         </div>
 
         {/* Cart — hidden on mobile, visible on md+ */}
@@ -393,6 +644,8 @@ export function POSTerminalContainer({
             onDecrement={handleDecrement}
             onRemove={handleRemove}
             onCheckout={handleCheckout}
+            onSaveDraft={handleSaveDraft}
+            isSavingDraft={isSavingDraft}
             isPending={isCheckingOut || createOrder.isPending || addItem.isPending}
           />
         </div>
@@ -453,6 +706,11 @@ export function POSTerminalContainer({
                 setMobileCartOpen(false);
                 await handleCheckout();
               }}
+              onSaveDraft={async () => {
+                setMobileCartOpen(false);
+                await handleSaveDraft();
+              }}
+              isSavingDraft={isSavingDraft}
               isPending={isCheckingOut || createOrder.isPending || addItem.isPending}
             />
           </div>

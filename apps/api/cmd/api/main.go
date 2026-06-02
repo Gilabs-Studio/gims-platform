@@ -21,6 +21,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
+	resendClient "github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	coreRouter "github.com/gilabs/gims/api/internal/core/infrastructure/router"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/ws"
@@ -83,6 +84,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	crmWorker "github.com/gilabs/gims/api/internal/crm/worker"
 	feedbackPresentation "github.com/gilabs/gims/api/internal/feedback/presentation"
 	generalPresentation "github.com/gilabs/gims/api/internal/general/presentation"
 	loyaltyPresentation "github.com/gilabs/gims/api/internal/loyalty/presentation"
@@ -268,6 +270,7 @@ func main() {
 	passwordResetRepository := passwordResetRepo.NewPasswordResetRequestRepository(database.DB)
 	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
+	_ = notificationRepository
 
 	// SaaS: System admin & tenant repositories
 	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
@@ -288,11 +291,12 @@ func main() {
 	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
 	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
 	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository)
-	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient())
+	resendCl := resendClient.NewClient(config.AppConfig.Resend.APIKey)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository, permissionService)
+	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient(), resendCl)
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
-	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, tenantRepository, sysAdminRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, resendCl, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
@@ -303,9 +307,9 @@ func main() {
 	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
 
 	// SaaS: System admin usecases & handler
-	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager)
-	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository)
-	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, passwordResetUC, permissionRepository, notificationWs.DefaultNotificationHub())
+	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager, resendCl, database.DB)
+	sysAdminTenantUC := tenantUsecase.NewTenantUsecase(tenantRepository, resendCl)
+	sysAdminH := tenantHandler.NewSystemAdminHandler(sysAdminUC, sysAdminTenantUC, couponUC, subUC, planUC, permissionRepository)
 
 	// Payment transaction usecase
 	paymentTxnRepository := tenantRepos.NewPaymentTransactionRepository(database.DB)
@@ -340,8 +344,12 @@ func main() {
 	rtWorker.Start()
 
 	// Cleanup worker for tenants that passed 30-day deletion grace period.
-	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour)
+	delWorker := tenantWorker.NewTenantDeletionWorker(database.DB, 12*time.Hour, resendCl)
 	delWorker.Start()
+
+	// Cleanup worker for CRM soft-deleted records older than 30 days.
+	crmCleanupWorker := crmWorker.NewCrmCleanupWorker(database.DB, 24*time.Hour)
+	crmCleanupWorker.Start()
 
 	// Setup Router
 	r := coreRouter.NewEngine(jwtManager)
@@ -589,6 +597,7 @@ func main() {
 	// Stop background worker before shutting down server/resources
 	rtWorker.Stop()
 	delWorker.Stop()
+	crmCleanupWorker.Stop()
 	if autoAbsentWorker != nil {
 		autoAbsentWorker.Stop()
 	}

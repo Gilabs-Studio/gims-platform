@@ -49,7 +49,7 @@ import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
 import { formatCurrency, formatDate, formatWhatsAppLink, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData, useLeadProductItems } from "../hooks/use-leads";
+import { useLeadById, useDeleteLead, useUpdateLead, useLeadFormData, useLeadProductItems, useRecoverLead } from "../hooks/use-leads";
 import { useActivityTypes } from "@/features/crm/activity-type/hooks/use-activity-type";
 import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
@@ -217,6 +217,8 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const authUser = useAuthStore((state) => state.user);
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
+  const recoverMutation = useRecoverLead();
+  const isAdmin = authUser?.role?.code === "admin" || authUser?.role?.code === "system_admin";
 
   const canUpdate = useUserPermission("crm_lead.update");
   const canDelete = useUserPermission("crm_lead.delete");
@@ -381,7 +383,58 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
   return (
     <PageMotion>
-      <div className="space-y-6">
+      {lead.is_deleted && (
+        isAdmin ? (
+          <div className="mb-6 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-destructive/20 text-destructive rounded-lg shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.adminTitle")}</h4>
+                <p className="text-xs text-destructive/80 mt-0.5">
+                  {t("softDeleted.adminDescription", {
+                    date: formatDate(lead.deleted_at),
+                    by: lead.deleted_by ? t("softDeleted.adminBy", { name: lead.deleted_by }) : "",
+                  })}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/30 text-destructive hover:bg-destructive/20 cursor-pointer bg-transparent shrink-0 self-end sm:self-auto"
+              disabled={recoverMutation.isPending}
+              onClick={async () => {
+                try {
+                  await recoverMutation.mutateAsync(leadId);
+                  toast.success(t("softDeleted.recoverSuccess"));
+                  refetch();
+                } catch {
+                  toast.error(t("softDeleted.recoverError"));
+                }
+              }}
+            >
+              {t("softDeleted.recoverButton")}
+            </Button>
+          </div>
+        ) : (
+          <div className="mb-6 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-amber-500/20 text-amber-600 rounded-lg shrink-0">
+                <History className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.staffTitle")}</h4>
+                <p className="text-xs text-amber-600/80 mt-0.5">
+                  {t("softDeleted.staffDescription", { date: formatDate(lead.deleted_at) })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      )}
+      <div className={cn("space-y-6", lead.is_deleted && "opacity-50")}>
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
@@ -420,7 +473,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
           {/* Action buttons */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
             {/* Quick "next status" button styled with the next status's color */}
-            {canUpdate && !isConverted && nextStatus && nextStatus.id !== lostStatus?.id && nextStatus.id !== convertedStatus?.id && (
+            {canUpdate && !isConverted && !lead.is_deleted && nextStatus && nextStatus.id !== lostStatus?.id && nextStatus.id !== convertedStatus?.id && (
               <Button
                 variant="outline"
                 size="sm"
@@ -440,6 +493,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             {/* Mark as Lost */}
             {canUpdate &&
               !isConverted &&
+              !lead.is_deleted &&
               lostStatus &&
               lead.lead_status_id !== lostStatus.id && (
                 <Button
@@ -453,7 +507,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 </Button>
               )}
 
-            {canConvert && !isConverted && (
+            {canConvert && !isConverted && !lead.is_deleted && (
               <Button
                 variant="outline"
                 size="sm"
@@ -464,7 +518,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 {t("convertTitle")}
               </Button>
             )}
-            {canUpdate && !isConverted && (
+            {canUpdate && !isConverted && !lead.is_deleted && (
               <Button
                 variant="outline"
                 size="sm"
@@ -475,7 +529,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 {tCommon("edit")}
               </Button>
             )}
-            {canDelete && !isConverted && (
+            {canDelete && !isConverted && !lead.is_deleted && (
               <Button
                 variant="ghost"
                 size="sm"

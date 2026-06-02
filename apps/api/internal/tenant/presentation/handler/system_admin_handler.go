@@ -14,9 +14,6 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
-	notificationWS "github.com/gilabs/gims/api/internal/notification/infrastructure/ws"
-	passwordResetDto "github.com/gilabs/gims/api/internal/password_reset/domain/dto"
-	passwordResetUsecase "github.com/gilabs/gims/api/internal/password_reset/domain/usecase"
 	permissionModels "github.com/gilabs/gims/api/internal/permission/data/models"
 	permissionRepos "github.com/gilabs/gims/api/internal/permission/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -24,56 +21,67 @@ import (
 	"github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
 
-func resolveSystemAdminCookieOptions() (string, http.SameSite, bool) {
-	if config.AppConfig == nil {
-		return "", http.SameSiteLaxMode, true
+func isHTTPS(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if xfp == "https" {
+		return true
+	}
+	return false
+}
+
+func resolveSystemAdminCookieOptions(c *gin.Context) (string, http.SameSite) {
+	isSecure := isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
+	sameSite := http.SameSiteLaxMode
+	if isSecure {
+		sameSite = http.SameSiteNoneMode
 	}
 
-	env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
-	if env == "production" || env == "prod" {
-		return config.AppConfig.Server.RootDomain, http.SameSiteNoneMode, true
-	}
-
-	return "", http.SameSiteLaxMode, true
+	return "", sameSite
 }
 
 func setSystemAdminAccessTokenCookie(c *gin.Context, token string, maxAge int) {
-	domain, sameSite, secure := resolveSystemAdminCookieOptions()
+	domain, sameSite := resolveSystemAdminCookieOptions(c)
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
 		Value:    token,
 		Path:     "/internal",
 		Domain:   domain,
 		MaxAge:   maxAge,
-		Secure:   secure,
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: sameSite,
-	})
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func expireSystemAdminAccessTokenCookie(c *gin.Context, path string, domain string) {
-	_, sameSite, secure := resolveSystemAdminCookieOptions()
+	_, sameSite := resolveSystemAdminCookieOptions(c)
 
-	http.SetCookie(c.Writer, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     "gims_sys_access_token",
 		Value:    "",
 		Path:     path,
 		Domain:   domain,
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
-		Secure:   secure,
+		Secure:   true,
 		HttpOnly: true,
 		SameSite: sameSite,
-	})
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func clearSystemAdminAccessTokenCookies(c *gin.Context) {
-	domain, _, _ := resolveSystemAdminCookieOptions()
+	domain, _ := resolveSystemAdminCookieOptions(c)
 	paths := []string{"/internal", "/"}
 	domains := []string{"", domain}
 
@@ -86,15 +94,12 @@ func clearSystemAdminAccessTokenCookies(c *gin.Context) {
 
 // SystemAdminHandler handles system admin HTTP requests.
 type SystemAdminHandler struct {
-	sysAdminUC      usecase.SystemAdminUsecase
-	tenantUC        usecase.TenantUsecase
-	couponUC        usecase.CouponUsecase
-	subUC           usecase.SubscriptionUsecase
-	planUC          usecase.SubscriptionPlanUsecase
-	passwordResetUC passwordResetUsecase.PasswordResetUsecase
-	permissionRepo  permissionRepos.PermissionRepository
-	notificationHub *notificationWS.NotificationHub
-	upgrader        websocket.Upgrader
+	sysAdminUC     usecase.SystemAdminUsecase
+	tenantUC       usecase.TenantUsecase
+	couponUC       usecase.CouponUsecase
+	subUC          usecase.SubscriptionUsecase
+	planUC         usecase.SubscriptionPlanUsecase
+	permissionRepo permissionRepos.PermissionRepository
 }
 
 type dashboardBusinessHealth struct {
@@ -174,24 +179,15 @@ func NewSystemAdminHandler(
 	couponUC usecase.CouponUsecase,
 	subUC usecase.SubscriptionUsecase,
 	planUC usecase.SubscriptionPlanUsecase,
-	passwordResetUC passwordResetUsecase.PasswordResetUsecase,
 	permissionRepo permissionRepos.PermissionRepository,
-	notificationHub *notificationWS.NotificationHub,
 ) *SystemAdminHandler {
 	return &SystemAdminHandler{
-		sysAdminUC:      sysAdminUC,
-		tenantUC:        tenantUC,
-		couponUC:        couponUC,
-		subUC:           subUC,
-		planUC:          planUC,
-		passwordResetUC: passwordResetUC,
-		permissionRepo:  permissionRepo,
-		notificationHub: notificationHub,
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
-		},
+		sysAdminUC:     sysAdminUC,
+		tenantUC:       tenantUC,
+		couponUC:       couponUC,
+		subUC:          subUC,
+		planUC:         planUC,
+		permissionRepo: permissionRepo,
 	}
 }
 
@@ -619,109 +615,6 @@ func (h *SystemAdminHandler) RecoverTenantDeletion(c *gin.Context) {
 	response.SuccessResponse(c, tenant, nil)
 }
 
-// SubscribeNotificationWS registers a system-admin websocket client for realtime notification events.
-func (h *SystemAdminHandler) SubscribeNotificationWS(c *gin.Context) {
-	userIDRaw, ok := c.Get("user_id")
-	if !ok {
-		errors.UnauthorizedResponse(c, "token missing")
-		return
-	}
-
-	userID, ok := userIDRaw.(string)
-	if !ok || strings.TrimSpace(userID) == "" {
-		errors.UnauthorizedResponse(c, "invalid user id")
-		return
-	}
-
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		errors.InternalServerErrorResponse(c, "failed to upgrade websocket")
-		return
-	}
-
-	clientID := h.notificationHub.Register(conn, "", userID)
-	defer h.notificationHub.Unregister(clientID)
-
-	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
-			break
-		}
-	}
-}
-
-// ListTenantOwnerPasswordResetRequests returns paginated pending password reset requests submitted by tenant owners.
-func (h *SystemAdminHandler) ListTenantOwnerPasswordResetRequests(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
-	search := strings.TrimSpace(c.Query("search"))
-
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 {
-		perPage = 20
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-
-	items, total, err := h.passwordResetUC.ListTenantOwnerRequests(c.Request.Context(), page, perPage, search)
-	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-
-	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
-	meta.Filters = map[string]interface{}{"search": search}
-	response.SuccessResponse(c, items, meta)
-}
-
-// GetTenantOwnerPasswordResetPendingCount returns pending queue count for system-admin menu badges.
-func (h *SystemAdminHandler) GetTenantOwnerPasswordResetPendingCount(c *gin.Context) {
-	res, err := h.passwordResetUC.GetTenantOwnerPendingCount(c.Request.Context())
-	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-
-	response.SuccessResponse(c, res, nil)
-}
-
-// SystemAdminResetTenantOwnerPassword resets tenant-owner password using reset token + new password.
-func (h *SystemAdminHandler) SystemAdminResetTenantOwnerPassword(c *gin.Context) {
-	var req passwordResetDto.ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
-		return
-	}
-
-	result, err := h.passwordResetUC.ResetPassword(c.Request.Context(), &req)
-	if err != nil {
-		switch err {
-		case passwordResetUsecase.ErrInvalidResetToken:
-			errors.ErrorResponse(c, "INVALID_RESET_TOKEN", map[string]interface{}{"reason": err.Error()}, nil)
-			return
-		case passwordResetUsecase.ErrResetTokenExpired:
-			errors.ErrorResponse(c, "RESET_TOKEN_EXPIRED", map[string]interface{}{"reason": err.Error()}, nil)
-			return
-		case passwordResetUsecase.ErrResetTokenAlreadyUsed:
-			errors.ErrorResponse(c, "RESET_TOKEN_ALREADY_USED", map[string]interface{}{"reason": err.Error()}, nil)
-			return
-		case passwordResetUsecase.ErrUserNotFound:
-			errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
-			return
-		default:
-			errors.InternalServerErrorResponse(c, err.Error())
-			return
-		}
-	}
-
-	response.SuccessResponse(c, result, nil)
-}
 
 // Dashboard returns system admin dashboard summary
 func (h *SystemAdminHandler) Dashboard(c *gin.Context) {
@@ -1255,4 +1148,24 @@ func (h *SystemAdminHandler) SyncPlanEntitlements(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, gin.H{"slug": slug, "menu_urls": body.MenuURLs}, nil)
+}
+
+// SendSystemUpdateEmail broadcasts a system/platform update email to all active users or tenant owners (system admin only).
+func (h *SystemAdminHandler) SendSystemUpdateEmail(c *gin.Context) {
+	var req dto.SendSystemUpdateEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	if err := h.sysAdminUC.SendSystemUpdateEmail(c.Request.Context(), &req); err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{"message": "email broadcast initiated successfully"}, nil)
 }

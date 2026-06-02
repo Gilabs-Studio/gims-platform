@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/requestcache"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -55,20 +56,39 @@ func (r *employeeRepository) Create(ctx context.Context, employee *models.Employ
 }
 
 func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.Employee, error) {
+	if cache := requestcache.Get(ctx); cache != nil {
+		cacheKey := "employee:id:" + id
+		if val, ok := cache.Get(cacheKey); ok {
+			if emp, ok := val.(*models.Employee); ok {
+				return emp, nil
+			}
+			if err, ok := val.(error); ok {
+				return nil, err
+			}
+		}
+	}
+
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		Preload("Village.District.City.Province").
 		Preload("User").
 		Preload("ReplacementFor").
 		Preload("Areas.Area").
 		Preload("Outlets.Outlet").
 		Preload("Warehouses.Warehouse").
-		First(&employee, "id = ?", id).Error
+		First(&employee, "employees.id = ?", id).Error
 	if err != nil {
+		if cache := requestcache.Get(ctx); cache != nil {
+			cache.Set("employee:id:"+id, err)
+		}
 		return nil, err
+	}
+
+	if cache := requestcache.Get(ctx); cache != nil {
+		cache.Set("employee:id:"+id, &employee)
 	}
 	return &employee, nil
 }
@@ -76,10 +96,10 @@ func (r *employeeRepository) FindByID(ctx context.Context, id string) (*models.E
 func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]models.Employee, error) {
 	var employees []models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
-		Where("id IN ?", ids).
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
+		Where("employees.id IN ?", ids).
 		Find(&employees).Error
 	if err != nil {
 		return nil, err
@@ -90,10 +110,10 @@ func (r *employeeRepository) FindByIDs(ctx context.Context, ids []string) ([]mod
 func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*models.Employee, error) {
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
-		First(&employee, "employee_code = ?", code).Error
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
+		First(&employee, "employees.employee_code = ?", code).Error
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +121,33 @@ func (r *employeeRepository) FindByCode(ctx context.Context, code string) (*mode
 }
 
 func (r *employeeRepository) FindByUserID(ctx context.Context, userID string) (*models.Employee, error) {
+	if cache := requestcache.Get(ctx); cache != nil {
+		cacheKey := "employee:user_id:" + userID
+		if val, ok := cache.Get(cacheKey); ok {
+			if emp, ok := val.(*models.Employee); ok {
+				return emp, nil
+			}
+			if err, ok := val.(error); ok {
+				return nil, err
+			}
+		}
+	}
+
 	var employee models.Employee
 	err := database.GetDB(ctx, r.db).
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
-		First(&employee, "user_id = ?", userID).Error
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
+		First(&employee, "employees.user_id = ?", userID).Error
 	if err != nil {
+		if cache := requestcache.Get(ctx); cache != nil {
+			cache.Set("employee:user_id:"+userID, err)
+		}
 		return nil, err
+	}
+
+	if cache := requestcache.Get(ctx); cache != nil {
+		cache.Set("employee:user_id:"+userID, &employee)
 	}
 	return &employee, nil
 }
@@ -138,34 +177,34 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	if searchTerm := strings.TrimSpace(params.Search); searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
-			"name ILIKE ? OR employee_code ILIKE ? OR email ILIKE ?",
+			"employees.name ILIKE ? OR employees.employee_code ILIKE ? OR employees.email ILIKE ?",
 			searchPattern, searchPattern, searchPattern,
 		)
 	}
 
 	// Apply division filter
 	if params.DivisionID != "" {
-		query = query.Where("division_id = ?", params.DivisionID)
+		query = query.Where("employees.division_id = ?", params.DivisionID)
 	}
 
 	// Apply job position filter
 	if params.JobPositionID != "" {
-		query = query.Where("job_position_id = ?", params.JobPositionID)
+		query = query.Where("employees.job_position_id = ?", params.JobPositionID)
 	}
 
 	// Apply company filter
 	if params.CompanyID != "" {
-		query = query.Where("company_id = ?", params.CompanyID)
+		query = query.Where("employees.company_id = ?", params.CompanyID)
 	}
 
 	// Apply status filter
 	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
+		query = query.Where("employees.status = ?", params.Status)
 	}
 
 	// Apply is_active filter
 	if params.IsActive != nil {
-		query = query.Where("is_active = ?", *params.IsActive)
+		query = query.Where("employees.is_active = ?", *params.IsActive)
 	}
 
 	// Apply area filter (via join)
@@ -189,9 +228,9 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 		sortDir = "desc"
 	}
 
-	query = query.Order("is_active DESC").
+	query = query.Order("employees.is_active DESC").
 		Order(clause.OrderByColumn{
-			Column: clause.Column{Name: sortBy},
+			Column: clause.Column{Table: "employees", Name: sortBy},
 			Desc:   sortDir == "desc",
 		})
 
@@ -206,9 +245,9 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 
 	// Preload relations
 	err := query.
-		Preload("Division").
-		Preload("JobPosition").
-		Preload("Company").
+		Joins("Division").
+		Joins("JobPosition").
+		Joins("Company").
 		Preload("Areas.Area").
 		Find(&employees).Error
 	if err != nil {
@@ -265,8 +304,8 @@ func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope 
 		Where("employees.is_active = ?", true).
 		Where("users.status = ?", "active").
 		Where("roles.status = ?", "active").
-		Where("(roles.data_scope = ? OR roles.name ILIKE ? OR roles.data_scope IN (?, ?, ?))",
-			dataScope, "%manager%", "OUTLET", "DIVISION", "AREA").
+		Where("(roles.data_scope = ? OR roles.name ILIKE ? OR roles.data_scope IN (?, ?, ?, ?))",
+			dataScope, "%manager%", "OUTLET", "DIVISION", "AREA", "ALL").
 		Order("CASE WHEN roles.name ILIKE '%manager%' THEN 0 ELSE 1 END, employees.name ASC").
 		Find(&employees).Error
 	if err != nil {

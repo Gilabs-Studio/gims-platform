@@ -76,10 +76,10 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 			Where("c.name ILIKE ? OR loyalty_members.member_code ILIKE ?", searchPattern, searchPattern)
 	}
 
-	// Outlet-scope filter: only members whose program belongs to the given outlets (or is global).
+	// Outlet-scope filter: only members whose program belongs to the given outlets, OR who enrolled at one of our outlets.
 	if len(params.ProgramOutletIDs) > 0 {
 		q = q.Joins("JOIN loyalty_programs lp ON lp.id = loyalty_members.program_id AND lp.deleted_at IS NULL").
-			Where("lp.outlet_id IS NULL OR lp.outlet_id IN ?", params.ProgramOutletIDs)
+			Where("lp.outlet_id IN ? OR loyalty_members.enrolled_outlet_id IN ?", params.ProgramOutletIDs, params.ProgramOutletIDs)
 	}
 
 	if params.Tier != "" {

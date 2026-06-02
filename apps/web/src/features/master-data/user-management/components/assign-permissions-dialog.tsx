@@ -382,13 +382,8 @@ function buildPermissionTree(
       let resourceToUse = "";
       let permsToUse: Permission[] = [];
 
-      // Case 1: nav item has permission field with matching permissions
-      if (navResource && selfPerms.length > 0) {
-        resourceToUse = navResource;
-        permsToUse = selfPerms;
-        markUsed(selfPerms);
-      } else if (normalizedUrl) {
-        // Case 2: derive permissions from permission.menu.url
+      // Try Case 2 first: derive permissions from permission.menu.url (most specific match)
+      if (normalizedUrl) {
         const menuMatchedPerms = getUnmatchedPermsByMenuUrl(normalizedUrl);
         if (menuMatchedPerms.length > 0) {
           const groupedByResource = new Map<string, Permission[]>();
@@ -414,6 +409,13 @@ function buildPermissionTree(
             markUsed(permsToUse);
           }
         }
+      }
+
+      // Case 1 fallback: nav item has permission field with matching permissions
+      if (!resourceToUse && navResource && selfPerms.length > 0) {
+        resourceToUse = navResource;
+        permsToUse = selfPerms;
+        markUsed(selfPerms);
       }
 
       // Case 3: no nav.permission and no menu.url permission match
@@ -1293,17 +1295,38 @@ function PermissionsSelector({
 
   // Expand / collapse all
   const handleExpandAll = useCallback(() => {
-    const allIds = new Set<string>();
+    const allIds: string[] = [];
     function walk(nodes: PermissionTreeNode[]) {
       for (const n of nodes) {
         if (n.children) {
-          allIds.add(n.id);
+          allIds.push(n.id);
           walk(n.children);
         }
       }
     }
     walk(tree);
-    setExpanded(allIds);
+
+    // Batch expansion using requestAnimationFrame to prevent UI thread lock
+    const batchSize = 15;
+    let index = 0;
+
+    const expandBatch = () => {
+      if (index >= allIds.length) return;
+
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        const chunk = allIds.slice(index, index + batchSize);
+        for (const id of chunk) {
+          next.add(id);
+        }
+        return next;
+      });
+
+      index += batchSize;
+      requestAnimationFrame(expandBatch);
+    };
+
+    requestAnimationFrame(expandBatch);
   }, [tree]);
 
   const handleCollapseAll = useCallback(() => {

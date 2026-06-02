@@ -41,6 +41,8 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		ContactID:            lead.ContactID,
 		DealID:               lead.DealID,
 		ConvertedBy:          lead.ConvertedBy,
+		IsDeleted:            lead.DeletedAt.Valid,
+		DeletedBy:            lead.DeletedBy,
 		Notes:                lead.Notes,
 		NPWP:                 lead.NPWP,
 		CreatedBy:            lead.CreatedBy,
@@ -71,6 +73,11 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 	if lead.ConvertedAt != nil {
 		t := lead.ConvertedAt.Format("2006-01-02T15:04:05+07:00")
 		resp.ConvertedAt = &t
+	}
+
+	if lead.DeletedAt.Valid {
+		t := lead.DeletedAt.Time.Format("2006-01-02T15:04:05+07:00")
+		resp.DeletedAt = &t
 	}
 
 	if lead.LeadSource != nil {

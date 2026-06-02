@@ -29,8 +29,16 @@ set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
 set(CMAKE_C_FLAGS_PROFILE "${CMAKE_C_FLAGS_RELEASE}")
 set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 
+# Map Profile config to Release for imported targets (e.g. Firebase SDK).
+# Without this, CMake picks Debug libraries in Profile mode, causing
+# CRT mismatch (Debug libs reference _calloc_dbg, _CrtDbgReport).
+set(CMAKE_MAP_IMPORTED_CONFIG_PROFILE "Release")
+
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
+
+# Suppress deprecated experimental coroutine errors from MSVC 14.51+
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
 
 # Compilation settings that should be applied to most targets.
 #
@@ -42,6 +50,7 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  target_compile_definitions(${TARGET} PRIVATE "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
 endfunction()
 

@@ -989,13 +989,31 @@ func marshalAndValidateConfig(cfg *dto.LoyaltyConfigJSON) ([]byte, error) {
 // Returns a non-empty slice for OUTLET/WAREHOUSE-scoped users.
 // Returns ErrLoyaltyForbidden when a scoped user has no warehouse IDs in context.
 func (u *loyaltyUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string, error) {
-	if !isOutletScopedScope(ctx) {
+	permissionScope, _ := ctx.Value("permission_scope").(string)
+	if permissionScope != "WAREHOUSE" && permissionScope != "OUTLET" {
 		return nil, nil
+	}
+
+	if permissionScope == "OUTLET" {
+		outletIDs, _ := ctx.Value("scope_outlet_ids").([]string)
+		if len(outletIDs) == 0 {
+			log.Printf("[loyalty] OUTLET-scoped user has no outlet assignments")
+			return []string{}, nil
+		}
+		uniqueIDs := make(map[string]bool)
+		for _, id := range outletIDs {
+			uniqueIDs[id] = true
+		}
+		deduped := make([]string, 0, len(uniqueIDs))
+		for id := range uniqueIDs {
+			deduped = append(deduped, id)
+		}
+		return deduped, nil
 	}
 
 	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
 	if len(warehouseIDs) == 0 {
-		log.Printf("[loyalty] scoped user has no warehouse assignments")
+		log.Printf("[loyalty] WAREHOUSE-scoped user has no warehouse assignments")
 		return []string{}, nil
 	}
 
@@ -1004,7 +1022,7 @@ func (u *loyaltyUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string, 
 		return nil, err
 	}
 	if len(outlets) == 0 {
-		log.Printf("[loyalty] OUTLET-scoped user has no outlets for warehouses %v", warehouseIDs)
+		log.Printf("[loyalty] WAREHOUSE-scoped user has no outlets for warehouses %v", warehouseIDs)
 		return []string{}, nil
 	}
 
@@ -1012,7 +1030,15 @@ func (u *loyaltyUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string, 
 	for _, o := range outlets {
 		ids = append(ids, o.ID)
 	}
-	return ids, nil
+	uniqueIDs := make(map[string]bool)
+	for _, id := range ids {
+		uniqueIDs[id] = true
+	}
+	deduped := make([]string, 0, len(uniqueIDs))
+	for id := range uniqueIDs {
+		deduped = append(deduped, id)
+	}
+	return deduped, nil
 }
 
 func isOutletScopedScope(ctx context.Context) bool {

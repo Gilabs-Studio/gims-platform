@@ -711,6 +711,15 @@ func (u *attendanceRecordUsecase) calculateDistance(lat1, lon1, lat2, lon2 float
 // Auth context may set only user_id; when the given id is a user_id (an employee exists with user_id = id),
 // we return that employee's ID so that the attendance record stores the real employee_id and list enrichment finds the employee.
 func (u *attendanceRecordUsecase) resolveEmployeeID(ctx context.Context, userIDOrEmployeeID string) string {
+	if scopeUserID, ok := ctx.Value("scope_user_id").(string); ok && scopeUserID == userIDOrEmployeeID {
+		if scopeEmpID, ok := ctx.Value("scope_employee_id").(string); ok && scopeEmpID != "" {
+			return scopeEmpID
+		}
+	}
+	if scopeEmpID, ok := ctx.Value("scope_employee_id").(string); ok && scopeEmpID == userIDOrEmployeeID {
+		return scopeEmpID
+	}
+
 	emp, err := u.employeeRepo.FindByUserID(ctx, userIDOrEmployeeID)
 	if err == nil && emp != nil {
 		return emp.ID

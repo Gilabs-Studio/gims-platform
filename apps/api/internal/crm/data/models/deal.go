@@ -25,7 +25,7 @@ const (
 type Deal struct {
 	ID          string     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	Code        string     `gorm:"type:varchar(50);not null;uniqueIndex:uq_crm_deals_tenant_code" json:"code"`
+	Code        string     `gorm:"type:varchar(50);not null;index" json:"code"`
 	Title       string     `gorm:"type:varchar(200);not null;index" json:"title"`
 	Description string     `gorm:"type:text" json:"description"`
 	Status      DealStatus `gorm:"type:varchar(20);default:'open';index" json:"status"`
@@ -70,6 +70,7 @@ type Deal struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	DeletedBy *string        `gorm:"type:uuid" json:"deleted_by"`
 
 	// Associations
 	Items   []DealProductItem `gorm:"foreignKey:DealID" json:"items,omitempty"`

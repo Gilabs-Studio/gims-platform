@@ -49,7 +49,7 @@ export function POSWhatsAppTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl gap-5">
+      <DialogContent size="lg" className="gap-5">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hash className="h-4 w-4" />

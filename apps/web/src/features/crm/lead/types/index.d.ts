@@ -44,6 +44,9 @@ export interface Lead {
   deal?: LeadDealInfo | null;
   converted_at?: string | null;
   converted_by?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
   // Metadata
   notes: string;
   npwp?: string | null;

@@ -47,6 +47,7 @@ export interface Role {
   /** True when this is the unique, protected tenant-owner role created at registration.
    *  Use this flag to gate owner-only UI (Billing, Payment) instead of string-matching on code. */
   is_owner?: boolean;
+  is_protected?: boolean;
 }
 
 export interface Menu {

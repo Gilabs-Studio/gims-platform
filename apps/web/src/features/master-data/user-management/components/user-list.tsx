@@ -40,10 +40,6 @@ import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.sch
 import { passwordResetService } from "@/features/auth/password-reset/services/password-reset-service";
 import type { ListUsersResponse } from "../types";
 import { canOwnerManageUser } from "@/features/auth/components/auth-guard";
-import {
-  clearPasswordResetTokenPrefill,
-  getPasswordResetTokenPrefill,
-} from "@/lib/password-reset-token-prefill";
 
 type ApiLikeError = {
   response?: {
@@ -139,13 +135,7 @@ export function UserList() {
   const [viewingUserId, setViewingUserId] = useState<string | null>(getInitialOpenUserFromURL);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(() => getInitialOpenUserFromURL() !== null);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  const [resetPasswordTarget, setResetPasswordTarget] = useState<User | null>(null);
-  const [resetToken, setResetToken] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isSubmittingReset, setIsSubmittingReset] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSendingResetLink, setIsSendingResetLink] = useState(false);
 
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
@@ -173,41 +163,7 @@ export function UserList() {
     window.history.replaceState(null, "", nextURL);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
 
-    const searchParams = new URLSearchParams(window.location.search);
-    const shouldOpenChangePassword = searchParams.get("open_change_password") === "1";
-    const resetUserId = searchParams.get("reset_user");
-
-    if (!shouldOpenChangePassword || !resetUserId || users.length === 0) {
-      return;
-    }
-
-    const targetUser = users.find((user) => user.id === resetUserId);
-    if (!targetUser) {
-      return;
-    }
-
-    const payload = getPasswordResetTokenPrefill();
-    startTransition(() => {
-      setResetPasswordTarget(targetUser);
-      setResetToken(payload?.userId === resetUserId ? payload.token : "");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowNewPassword(false);
-      setShowConfirmPassword(false);
-    });
-    clearPasswordResetTokenPrefill();
-
-    searchParams.delete("open_change_password");
-    searchParams.delete("reset_user");
-    const nextQuery = searchParams.toString();
-    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
-    window.history.replaceState(null, "", nextURL);
-  }, [users]);
 
   const getAvatarUrl = (user: User) => {
     if (user.avatar_url) {
@@ -232,127 +188,16 @@ export function UserList() {
     }
   };
 
-  const openResetPasswordDialog = (user: User) => {
-    setResetPasswordTarget(user);
-    setResetToken("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-  };
-
-  const closeResetPasswordDialog = () => {
-    setResetPasswordTarget(null);
-    setResetToken("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-    setIsSubmittingReset(false);
-  };
-
-  const handleSubmitResetPassword = async () => {
-    if (!resetPasswordTarget) {
-      return;
-    }
-
-    const normalizedToken = normalizeResetTokenInput(resetToken);
-
-    
-
-    if (!normalizedToken) {
-      toast.error(t("resetPasswordTokenRequired"));
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast.error(t("resetPasswordMinLength"));
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error(t("resetPasswordNotMatch"));
-      return;
-    }
-
+  const handleSendResetLink = async (user: User) => {
     try {
-      setIsSubmittingReset(true);
-
-      // Fail fast on invalid/expired/used token to avoid optimistic cache churn.
-      await passwordResetService.validateToken(normalizedToken);
-      
-
-      const cacheEntries = queryClient.getQueriesData<ListUsersResponse>({
-        queryKey: ["users"],
-      });
-      const previousDataMap = new Map();
-
-      await queryClient.cancelQueries({ queryKey: ["users"] });
-
-      // Optimistic update: remove password_reset_pending from all cache variants
-      // Update semua cache entries
-      cacheEntries.forEach(([key, cachedData]) => {
-        if (cachedData && Array.isArray(cachedData.data)) {
-          previousDataMap.set(key, cachedData);
-
-          const updatedData: ListUsersResponse = {
-            ...cachedData,
-            data: cachedData.data.map((user: User) =>
-              user.id === resetPasswordTarget.id
-                ? { ...user, password_reset_pending: false }
-                : user
-            ),
-          };
-
-          queryClient.setQueryData(key, updatedData);
-        }
-      });
-
-      await passwordResetService.resetPassword({
-        token: normalizedToken,
-        new_password: newPassword,
-        confirm_password: confirmPassword,
-      });
-      
-
-      // Keep cache in sync after success before background refetch.
-      queryClient.setQueriesData<ListUsersResponse>(
-        { queryKey: ["users"] },
-        (current) => {
-          if (!current || !Array.isArray(current.data)) {
-            return current;
-          }
-
-          return {
-            ...current,
-            data: current.data.map((user: User) =>
-              user.id === resetPasswordTarget.id
-                ? { ...user, password_reset_pending: false }
-                : user
-            ),
-          };
-        }
-      );
-
-      // Invalidate all user queries to ensure fresh data
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
-      
-      toast.success(t("resetPasswordSuccessWithName", { name: resetPasswordTarget.name }));
-      closeResetPasswordDialog();
+      setIsSendingResetLink(true);
+      await passwordResetService.forgotPassword({ email: user.email });
+      toast.success(t("resetPasswordSuccessWithName", { name: user.name }));
     } catch (error: unknown) {
-      const { code, message } = getApiErrorInfo(error);
-      
-
-      if (code === "INVALID_RESET_TOKEN" || code === "RESET_TOKEN_EXPIRED" || code === "RESET_TOKEN_ALREADY_USED") {
-        toast.error(message || t("resetPasswordFailed"));
-        return;
-      }
-
+      const { message } = getApiErrorInfo(error);
       toast.error(message || t("resetPasswordFailed"));
-      // Refetch to restore cache if API call failed
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
     } finally {
-      setIsSubmittingReset(false);
+      setIsSendingResetLink(false);
     }
   };
 
@@ -606,16 +451,17 @@ export function UserList() {
                                 Edit
                               </DropdownMenuItem>
                             )}
-                            {permissions.canUpdate && canManageRow && row.password_reset_pending && (
+                            {permissions.canUpdate && canManageRow && (
                               <DropdownMenuItem
-                                onClick={() => openResetPasswordDialog(row)}
-                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={() => handleSendResetLink(row)}
+                                disabled={isSendingResetLink}
+                                className="cursor-pointer"
                               >
                                 <KeyRound className="mr-2 h-4 w-4" />
                                 {t("resetPasswordAction")}
                               </DropdownMenuItem>
                             )}
-                            {permissions.canDelete && canManageRow && (permissions.canUpdate || row.password_reset_pending) && <DropdownMenuSeparator />}
+                            {permissions.canDelete && canManageRow && <DropdownMenuSeparator />}
                             {permissions.canDelete && canManageRow && (
                               <DropdownMenuItem
                                 onClick={() => handleDeleteClick(row.id)}
@@ -689,92 +535,7 @@ export function UserList() {
         </Dialog>
       )}
 
-      <Dialog open={!!resetPasswordTarget} onOpenChange={(open) => !open && closeResetPasswordDialog()}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t("resetPasswordDialogTitle")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t("resetPasswordDialogDescription", { name: resetPasswordTarget?.name ?? "-" })}
-            </p>
-            <div className="space-y-2">
-              <label htmlFor="reset-token" className="text-sm font-medium">
-                {t("resetPasswordTokenLabel")}
-              </label>
-              <Input
-                id="reset-token"
-                value={resetToken}
-                onChange={(e) => setResetToken(e.target.value)}
-                placeholder={t("resetPasswordTokenPlaceholder")}
-                disabled={isSubmittingReset}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="new-password" className="text-sm font-medium">
-                {t("resetPasswordNewLabel")}
-              </label>
-              <div className="relative">
-                <Input
-                  id="new-password"
-                  type={showNewPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder={t("resetPasswordNewPlaceholder")}
-                  disabled={isSubmittingReset}
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 cursor-pointer"
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  disabled={isSubmittingReset}
-                  aria-label={showNewPassword ? t("hidePassword") : t("showPassword")}
-                >
-                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="confirm-password" className="text-sm font-medium">
-                {t("resetPasswordConfirmLabel")}
-              </label>
-              <div className="relative">
-                <Input
-                  id="confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={t("resetPasswordConfirmPlaceholder")}
-                  disabled={isSubmittingReset}
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 cursor-pointer"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  disabled={isSubmittingReset}
-                  aria-label={showConfirmPassword ? t("hidePassword") : t("showPassword")}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={closeResetPasswordDialog} disabled={isSubmittingReset} className="cursor-pointer">
-                {t("cancelResetPassword")}
-              </Button>
-              <Button onClick={handleSubmitResetPassword} disabled={isSubmittingReset} className="cursor-pointer">
-                {isSubmittingReset ? t("resetPasswordSubmitting") : t("resetPasswordSubmit")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+
 
       <UserDetailModal
         userId={viewingUserId}

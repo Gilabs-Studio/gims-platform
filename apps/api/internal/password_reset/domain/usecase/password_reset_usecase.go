@@ -1,32 +1,35 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html/template"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
-	notificationModels "github.com/gilabs/gims/api/internal/notification/data/models"
-	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	passwordResetModels "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	"github.com/gilabs/gims/api/internal/password_reset/data/repositories"
 	resetDto "github.com/gilabs/gims/api/internal/password_reset/domain/dto"
 	"github.com/gilabs/gims/api/internal/password_reset/domain/mapper"
 	roleRepo "github.com/gilabs/gims/api/internal/role/data/repositories"
-	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
-	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
-	userDto "github.com/gilabs/gims/api/internal/user/domain/dto"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+//go:embed templates/password_reset.html
+var passwordResetTemplate string
 
 var (
 	ErrUserNotFound          = errors.New("user not found")
@@ -39,25 +42,13 @@ type PasswordResetUsecase interface {
 	ForgotPassword(ctx context.Context, req *resetDto.ForgotPasswordRequest) (*resetDto.ForgotPasswordResponse, error)
 	ResetPassword(ctx context.Context, req *resetDto.ResetPasswordRequest) (*resetDto.ResetPasswordResponse, error)
 	ValidateResetToken(ctx context.Context, token string) error
-	ListTenantOwnerRequests(ctx context.Context, page, perPage int, search string) ([]resetDto.TenantOwnerPasswordResetQueueItem, int64, error)
-	GetTenantOwnerPendingCount(ctx context.Context) (*resetDto.TenantOwnerPasswordResetPendingCountResponse, error)
-}
-
-type tenantLookupRepository interface {
-	FindByID(ctx context.Context, id string) (*tenantModels.Tenant, error)
-}
-
-type systemAdminLookupRepository interface {
-	ListActive(ctx context.Context) ([]tenantModels.SystemAdmin, error)
 }
 
 type passwordResetUsecase struct {
 	passwordResetRepo repositories.PasswordResetRequestRepository
 	userRepo          userRepo.UserRepository
 	roleRepo          roleRepo.RoleRepository
-	tenantRepo        tenantLookupRepository
-	systemAdminRepo   systemAdminLookupRepository
-	notificationRepo  notificationRepo.NotificationRepository
+	resendClient      *resend.Client
 	auditService      audit.AuditService
 	eventPublisher    infraEvents.EventPublisher
 	redis             *redis.Client
@@ -67,9 +58,7 @@ func NewPasswordResetUsecase(
 	passwordResetRepo repositories.PasswordResetRequestRepository,
 	userRepo userRepo.UserRepository,
 	roleRepo roleRepo.RoleRepository,
-	tenantRepo tenantLookupRepository,
-	systemAdminRepo systemAdminLookupRepository,
-	notificationRepo notificationRepo.NotificationRepository,
+	resendClient *resend.Client,
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
 	redisClient *redis.Client,
@@ -78,9 +67,7 @@ func NewPasswordResetUsecase(
 		passwordResetRepo: passwordResetRepo,
 		userRepo:          userRepo,
 		roleRepo:          roleRepo,
-		tenantRepo:        tenantRepo,
-		systemAdminRepo:   systemAdminRepo,
-		notificationRepo:  notificationRepo,
+		resendClient:      resendClient,
 		auditService:      auditService,
 		eventPublisher:    eventPublisher,
 		redis:             redisClient,
@@ -108,7 +95,7 @@ func (u *passwordResetUsecase) ForgotPassword(ctx context.Context, req *resetDto
 		UserID:    user.ID,
 		Token:     token,
 		Status:    passwordResetModels.PasswordResetStatusPending,
-		ExpiresAt: apptime.Now().Add(24 * time.Hour),
+		ExpiresAt: apptime.Now().Add(30 * time.Minute),
 	}
 	if err := u.passwordResetRepo.Create(ctx, resetReq); err != nil {
 		return nil, err
@@ -120,25 +107,59 @@ func (u *passwordResetUsecase) ForgotPassword(ctx context.Context, req *resetDto
 	}
 	u.invalidateUserCaches(ctx, user.ID)
 
-	isTenantOwner, ownerCheckErr := u.isTenantOwnerRequester(ctx, user)
-	if ownerCheckErr != nil {
-		u.auditService.Log(ctx, "password_reset.tenant_owner_check_failed", user.ID, map[string]interface{}{
-			"email": user.Email,
-			"error": ownerCheckErr.Error(),
+	// Send reset email via Resend
+	frontendBaseURL := ""
+	fromEmail := "Salesview <cs@gilabs.id>"
+	if config.AppConfig != nil {
+		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
+		if config.AppConfig.Resend.FromEmail != "" {
+			fromEmail = config.AppConfig.Resend.FromEmail
+		}
+	}
+	resetLink := fmt.Sprintf("%s/id/reset-password?token=%s", strings.TrimRight(frontendBaseURL, "/"), token)
+
+	tmpl, err := template.New("password_reset").Parse(passwordResetTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	var body bytes.Buffer
+	err = tmpl.Execute(&body, struct {
+		Name      string
+		Email     string
+		ResetLink string
+		Year      int
+	}{
+		Name:      user.Name,
+		Email:     user.Email,
+		ResetLink: resetLink,
+		Year:      apptime.Now().Year(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	emailHTML := body.String()
+
+	// Since GIMS is a SaaS, we try to send to user's email.
+	// In development/testing, if Resend returns sandboxed domain errors or is not set, we log it.
+	if u.resendClient != nil {
+		_, sendErr := u.resendClient.SendEmail(ctx, &resend.SendEmailRequest{
+			From:    fromEmail,
+			To:      []string{user.Email},
+			Subject: "Atur Ulang Kata Sandi Salesview",
+			HTML:    emailHTML,
 		})
-	}
 
-	var notifyErr error
-	if isTenantOwner {
-		notifyErr = u.notifySystemAdminPasswordResetRequest(ctx, user, token)
+		if sendErr != nil {
+			u.auditService.Log(ctx, "password_reset.send_email_failed", user.ID, map[string]interface{}{
+				"email": user.Email,
+				"error": sendErr.Error(),
+			})
+		}
 	} else {
-		notifyErr = u.notifyAdminPasswordResetRequest(ctx, user, token)
-	}
-
-	if notifyErr != nil {
-		u.auditService.Log(ctx, "password_reset.notify_admin_failed", user.ID, map[string]interface{}{
+		u.auditService.Log(ctx, "password_reset.send_email_skipped", user.ID, map[string]interface{}{
 			"email": user.Email,
-			"error": notifyErr.Error(),
+			"note":  "Resend client is not configured",
 		})
 	}
 
@@ -216,120 +237,6 @@ func (u *passwordResetUsecase) ValidateResetToken(ctx context.Context, token str
 	}
 
 	return nil
-}
-
-func (u *passwordResetUsecase) notifyAdminPasswordResetRequest(ctx context.Context, user *userModels.User, token string) error {
-	adminRole, err := u.roleRepo.FindByCode(ctx, "admin")
-	if err != nil {
-		return err
-	}
-
-	adminUsers, _, err := u.userRepo.List(ctx, &userDto.ListUsersRequest{
-		Page:    1,
-		PerPage: 100,
-		RoleID:  adminRole.ID,
-	})
-	if err != nil {
-		return err
-	}
-
-	notifications := make([]notificationModels.Notification, 0, len(adminUsers))
-	for _, admin := range adminUsers {
-		notifications = append(notifications, notificationModels.Notification{
-			UserID:     admin.ID,
-			TenantID:   user.TenantID,
-			Type:       notificationModels.NotificationTypeInfo,
-			Title:      fmt.Sprintf("Password Reset Request - %s", user.Name),
-			Message:    fmt.Sprintf("User %s (%s) has requested a password reset. Token: %s (expires in 24 hours)", user.Name, user.Email, token),
-			EntityType: "password_reset_request",
-			EntityID:   user.ID,
-			IsRead:     false,
-		})
-	}
-
-	if len(notifications) == 0 {
-		return nil
-	}
-
-	return u.notificationRepo.CreateBulk(ctx, notifications)
-}
-
-func (u *passwordResetUsecase) notifySystemAdminPasswordResetRequest(ctx context.Context, user *userModels.User, token string) error {
-	admins, err := u.systemAdminRepo.ListActive(ctx)
-	if err != nil {
-		return err
-	}
-
-	notifications := make([]notificationModels.Notification, 0, len(admins))
-	for _, admin := range admins {
-		notifications = append(notifications, notificationModels.Notification{
-			UserID:     admin.ID,
-			TenantID:   user.TenantID,
-			Type:       notificationModels.NotificationTypeInfo,
-			Title:      fmt.Sprintf("Tenant Owner Password Reset Request - %s", user.Name),
-			Message:    fmt.Sprintf("Tenant owner %s (%s) requested password reset. Token: %s (expires in 24 hours)", user.Name, user.Email, token),
-			EntityType: "password_reset_request",
-			EntityID:   user.ID,
-			IsRead:     false,
-		})
-	}
-
-	if len(notifications) == 0 {
-		return nil
-	}
-
-	return u.notificationRepo.CreateBulk(ctx, notifications)
-}
-
-func (u *passwordResetUsecase) isTenantOwnerRequester(ctx context.Context, user *userModels.User) (bool, error) {
-	if user == nil || strings.TrimSpace(user.TenantID) == "" {
-		return false, nil
-	}
-
-	tenant, err := u.tenantRepo.FindByID(ctx, user.TenantID)
-	if err != nil {
-		return false, err
-	}
-
-	if tenant.OwnerUserID == nil {
-		return false, nil
-	}
-
-	return strings.TrimSpace(*tenant.OwnerUserID) == strings.TrimSpace(user.ID), nil
-}
-
-func (u *passwordResetUsecase) ListTenantOwnerRequests(ctx context.Context, page, perPage int, search string) ([]resetDto.TenantOwnerPasswordResetQueueItem, int64, error) {
-	rows, total, err := u.passwordResetRepo.ListPendingTenantOwner(ctx, strings.TrimSpace(search), page, perPage)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	items := make([]resetDto.TenantOwnerPasswordResetQueueItem, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, resetDto.TenantOwnerPasswordResetQueueItem{
-			RequestID:   row.RequestID,
-			Token:       row.Token,
-			UserID:      row.UserID,
-			UserName:    row.UserName,
-			UserEmail:   row.UserEmail,
-			TenantID:    row.TenantID,
-			TenantName:  row.TenantName,
-			Status:      row.Status,
-			RequestedAt: row.RequestedAt,
-			ExpiresAt:   row.ExpiresAt,
-		})
-	}
-
-	return items, total, nil
-}
-
-func (u *passwordResetUsecase) GetTenantOwnerPendingCount(ctx context.Context) (*resetDto.TenantOwnerPasswordResetPendingCountResponse, error) {
-	total, err := u.passwordResetRepo.CountPendingTenantOwner(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &resetDto.TenantOwnerPasswordResetPendingCountResponse{PendingCount: total}, nil
 }
 
 func generateSecureToken(length int) (string, error) {

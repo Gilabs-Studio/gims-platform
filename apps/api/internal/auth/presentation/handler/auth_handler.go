@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	goerrors "errors"
 	"net/http"
 	"strings"
@@ -80,38 +81,69 @@ func (h *AuthHandler) CheckAvailability(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
-// isHTTPS returns true when the current request arrived over TLS, either
-// directly or via a trusted proxy that sets X-Forwarded-Proto.
 func isHTTPS(c *gin.Context) bool {
-	if config.AppConfig == nil || config.AppConfig.Server.Env != "production" {
-		return false
-	}
 	if c.Request.TLS != nil {
 		return true
 	}
-	if config.AppConfig.Security.ProxyHeadersEnabled {
-		xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
-		return xfp == "https"
+	xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if xfp == "https" {
+		return true
 	}
 	return false
 }
 
-func authCookieDomain() string {
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		return config.AppConfig.Server.RootDomain
+func isCookieDomainValid(requestHost, cookieDomain string) bool {
+	if cookieDomain == "" {
+		return true
+	}
+
+	// Remove leading dot for comparison
+	cleanDomain := strings.TrimPrefix(cookieDomain, ".")
+	cleanHost := requestHost
+	// Remove port from host if present
+	if idx := strings.Index(requestHost, ":"); idx != -1 {
+		cleanHost = requestHost[:idx]
+	}
+
+	if cleanHost == cleanDomain {
+		return true
+	}
+
+	// Check if it's a subdomain
+	return strings.HasSuffix(cleanHost, "."+cleanDomain)
+}
+
+func authCookieDomain(c *gin.Context) string {
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		rootDomain := config.AppConfig.Server.RootDomain
+		if isCookieDomainValid(c.Request.Host, rootDomain) {
+			return rootDomain
+		}
 	}
 	return ""
 }
 
 func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 	isSec := isHTTPS(c)
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		isSec = true
+	sameSite := http.SameSiteLaxMode
+
+	env := "development"
+	if config.AppConfig != nil {
+		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
 	}
-	// Use SameSite=Lax instead of SameSite=None to prevent cookies from being blocked
-	// as third-party cookies in incognito mode and Safari. Lax works perfectly for
-	// subdomains sharing the same registrable domain.
-	return isSec, http.SameSiteLaxMode
+
+	// Always use SameSite=None in production, or if the connection is secure 
+	// (which is required for cross-domain auth in dev/staging).
+	if env == "production" {
+		isSec = true
+		sameSite = http.SameSiteNoneMode
+	} else if isSec || c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://") {
+		// If origin is https, we must use secure cookies
+		isSec = true
+		sameSite = http.SameSiteNoneMode
+	}
+	
+	return isSec, sameSite
 }
 
 func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
@@ -119,63 +151,125 @@ func setAuthCookies(c *gin.Context, accessToken, refreshToken string) {
 	// with the same cookie name but different path/domain.
 	clearAuthCookies(c)
 
-	secure, sameSite := getCookieSecureAndSameSite(c)
-	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, secure, sameSite)
-	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, secure, sameSite)
+	_, sameSite := getCookieSecureAndSameSite(c)
+	setCookieAcrossDomains(c, "gims_access_token", accessToken, "/", config.AppConfig.JWT.AccessTokenTTL*3600, true, sameSite)
+	setCookieAcrossDomains(c, "gims_refresh_token", refreshToken, "/", config.AppConfig.JWT.RefreshTokenTTL*24*3600, true, sameSite)
 }
 
 func clearAuthCookies(c *gin.Context) {
 	// Clear current and legacy cookie paths and domains used by older deployments
 	// to prevent stale/duplicate cookies from causing auth failures.
 	paths := []string{"/"}
-	domains := []string{"", authCookieDomain()}
+	domains := []string{""}
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		domains = append(domains, config.AppConfig.Server.RootDomain)
+	}
 
-	// Clear with both Lax and None SameSite modes to ensure that legacy cookies
-	// (which were written with SameSite=None) are successfully deleted.
-	sameSites := []http.SameSite{http.SameSiteLaxMode, http.SameSiteNoneMode}
+	// Determine the correct SameSite and Secure settings.
+	// In production, cross-origin/cross-site cookies are required (SameSite=None, Secure=true).
+	// In development, we use SameSite=None if HTTPS is detected or Origin is HTTPS.
+	var sameSite http.SameSite
+	var secure bool
+	
+	env := "development"
+	if config.AppConfig != nil {
+		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+	}
 
-	for _, name := range []string{"gims_access_token", "gims_refresh_token", "gims_csrf_token"} {
+	if env == "production" {
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	} else {
+		secure = isHTTPS(c) || (c.GetHeader("Origin") != "" && strings.HasPrefix(c.GetHeader("Origin"), "https://"))
+		if secure {
+			sameSite = http.SameSiteNoneMode
+		} else {
+			sameSite = http.SameSiteLaxMode
+		}
+	}
+
+	requestHost := c.Request.Host
+
+	// Only clear auth tokens (access + refresh). The CSRF cookie is managed by
+	// the CSRF middleware and must NOT be cleared during token rotation, otherwise
+	// the CSRF middleware regenerates a brand-new token on the very next request.
+	// The browser then sees a Set-Cookie mutation on every navigation, causing a
+	// hard page reload. CSRF cookie is only cleared on explicit logout via clearCSRFCookie.
+	for _, name := range []string{"gims_access_token", "gims_refresh_token"} {
 		for _, domain := range domains {
+			// Skip domain if it's invalid for the current request host to avoid browser rejection
+			if !isCookieDomainValid(requestHost, domain) {
+				continue
+			}
+
 			for _, p := range paths {
-				for _, ss := range sameSites {
-					secure := true
-					if ss == http.SameSiteLaxMode {
-						secure = isHTTPS(c)
-						if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-							secure = true
-						}
-					}
-					http.SetCookie(c.Writer, &http.Cookie{
-						Name:     name,
-						Value:    "",
-						Path:     p,
-						MaxAge:   -1,
-						Domain:   domain,
-						Secure:   secure,
-						HttpOnly: name != "gims_csrf_token",
-						SameSite: ss,
-					})
+				cookie := &http.Cookie{
+					Name:     name,
+					Value:    "",
+					Path:     p,
+					MaxAge:   -1,
+					Domain:   domain,
+					Secure:   true,
+					HttpOnly: true,
+					SameSite: sameSite,
 				}
+
+				http.SetCookie(c.Writer, cookie)
 			}
 		}
 	}
 }
 
-func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly, secure bool, sameSite http.SameSite) {
+// clearCSRFCookie clears the CSRF cookie. Should only be called on explicit logout,
+// NOT during token rotation, to avoid the CSRF middleware regenerating a new token
+// (which would cause the browser to observe a cookie mutation and trigger a page reload).
+func clearCSRFCookie(c *gin.Context) {
+	paths := []string{"/"}
+	domains := []string{""}
+	if config.AppConfig != nil && config.AppConfig.Server.RootDomain != "" {
+		domains = append(domains, config.AppConfig.Server.RootDomain)
+	}
+
+	secure, sameSite := getCookieSecureAndSameSite(c)
+	requestHost := c.Request.Host
+
+	for _, domain := range domains {
+		if !isCookieDomainValid(requestHost, domain) {
+			continue
+		}
+		for _, p := range paths {
+			cookie := &http.Cookie{
+				Name:     "gims_csrf_token",
+				Value:    "",
+				Path:     p,
+				MaxAge:   -1,
+				Domain:   domain,
+				Secure:   secure,
+				HttpOnly: false,
+				SameSite: sameSite,
+			}
+			http.SetCookie(c.Writer, cookie)
+		}
+	}
+}
+
+func setCookieAcrossDomains(c *gin.Context, name, value, path string, maxAge int, httpOnly bool, sameSite http.SameSite) {
 	// KISS: Set the cookie ONCE on the configured domain.
 	// Setting it on both "" and the root domain causes the browser to store duplicate cookies
 	// with the same name, which leads to conflicts and stale token evaluation.
-	domain := authCookieDomain()
-	http.SetCookie(c.Writer, &http.Cookie{
+	domain := authCookieDomain(c)
+	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     path,
 		MaxAge:   maxAge,
 		Domain:   domain,
-		Secure:   secure,
+		Secure:   true,
 		HttpOnly: httpOnly,
 		SameSite: sameSite,
-	})
+	}
+
+	http.SetCookie(c.Writer, cookie)
 }
 
 func getCookieValues(c *gin.Context, name string) []string {
@@ -310,6 +404,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 			// Unknown refresh errors are treated as invalid to avoid leaking details.
 			clearAuthCookies(c)
+			clearCSRFCookie(c)
 			errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 			return
 		}
@@ -347,11 +442,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	if lastInvalidErr != nil {
 		clearAuthCookies(c)
+		clearCSRFCookie(c)
 		errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 		return
 	}
 
 	clearAuthCookies(c)
+	clearCSRFCookie(c)
 	errors.ErrorResponse(c, "REFRESH_TOKEN_INVALID", nil, nil)
 }
 
@@ -387,8 +484,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		_ = h.authUC.Logout(c.Request.Context(), token)
 	}
 
-	// ALWAYS Clear Cookies on Logout
+	// ALWAYS Clear Cookies on Logout — including the CSRF cookie since the session is terminated.
 	clearAuthCookies(c)
+	clearCSRFCookie(c)
 
 	response.SuccessResponse(c, gin.H{"message": "logged out"}, nil)
 }
@@ -454,9 +552,18 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 		return
 	}
 
-	result, err := h.authUC.RegisterTenant(c.Request.Context(), &req)
+	ctx := c.Request.Context()
+	ctx = context.WithValue(ctx, "client_ip", c.ClientIP())
+	ctx = context.WithValue(ctx, "user_agent", c.Request.UserAgent())
+
+	result, err := h.authUC.RegisterTenant(ctx, &req)
 	if err != nil {
 		switch err {
+		case usecase.ErrToSAgreementRequired:
+			errors.ErrorResponse(c, "TOS_AGREEMENT_REQUIRED", map[string]interface{}{
+				"field":   "agree_tos",
+				"message": "You must agree to the Terms of Service and Privacy Policy to register",
+			}, nil)
 		case usecase.ErrEmailAlreadyTaken:
 			errors.ErrorResponse(c, "EMAIL_ALREADY_TAKEN", map[string]interface{}{
 				"field": "email",

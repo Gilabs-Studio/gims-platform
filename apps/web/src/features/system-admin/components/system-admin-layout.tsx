@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
 import {
   LayoutDashboard,
@@ -12,18 +13,13 @@ import {
   Package,
   UserCircle,
   KeyRound,
-  ShieldAlert,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useSystemAdminStore } from "../stores/use-system-admin-store";
 import { systemAdminService } from "../services/system-admin-service";
 import { clearCSRFTokenMemory } from "@/lib/api-client";
-import {
-  useSystemAdminTenantOwnerResetRealtime,
-  useTenantOwnerPasswordResetPendingCount,
-} from "../hooks/use-tenants";
 
 interface SystemAdminLayoutProps {
   readonly children: ReactNode;
@@ -31,54 +27,52 @@ interface SystemAdminLayoutProps {
 
 const sidebarLinks = [
   {
-    label: "Dashboard",
+    key: "sidebar.dashboard" as const,
     href: "/system/dashboard",
     icon: LayoutDashboard,
   },
   {
-    label: "Tenants",
+    key: "sidebar.tenants" as const,
     href: "/system/tenants",
     icon: Building2,
   },
   {
-    label: "Reset Password Tenant",
-    href: "/system/tenants/owner-password-reset-requests",
-    icon: ShieldAlert,
-  },
-  {
-    label: "Coupons",
+    key: "sidebar.coupons" as const,
     href: "/system/coupons",
     icon: Ticket,
   },
   {
-    label: "Plans",
+    key: "sidebar.plans" as const,
     href: "/system/plans",
     icon: Package,
   },
   {
-    label: "Subscriptions",
+    key: "sidebar.subscriptions" as const,
     href: "/system/subscriptions",
     icon: CreditCard,
   },
   {
-    label: "Permissions",
+    key: "sidebar.permissions" as const,
     href: "/system/permissions",
     icon: KeyRound,
   },
   {
-    label: "Profile",
+    key: "sidebar.profile" as const,
     href: "/system/profile",
     icon: UserCircle,
+  },
+  {
+    key: "sidebar.feedback" as const,
+    href: "/system/feedback",
+    icon: HelpCircle,
   },
 ];
 
 export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
+  const t = useTranslations("systemAdmin");
   const pathname = usePathname();
   const router = useRouter();
   const { admin, logout: storeLogout } = useSystemAdminStore();
-  const { data: pendingResetCount = 0 } = useTenantOwnerPasswordResetPendingCount();
-
-  useSystemAdminTenantOwnerResetRealtime();
 
   const handleLogout = async () => {
     try {
@@ -125,12 +119,7 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
                 )}
               >
                 <link.icon className="h-4 w-4" />
-                <span className="flex-1">{link.label}</span>
-                {link.href === "/system/tenants/owner-password-reset-requests" && pendingResetCount > 0 && (
-                  <Badge variant="destructive" className="h-5 min-w-5 rounded-full px-1.5 text-[10px]">
-                    {pendingResetCount > 99 ? "99+" : pendingResetCount}
-                  </Badge>
-                )}
+                <span className="flex-1">{t(link.key)}</span>
               </Link>
             );
           })}
@@ -151,7 +140,7 @@ export function SystemAdminLayout({ children }: SystemAdminLayoutProps) {
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            {t("sidebar.signOut")}
           </Button>
         </div>
       </aside>

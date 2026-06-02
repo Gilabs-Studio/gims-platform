@@ -10,7 +10,7 @@ import type {
 const QUERY_KEYS = {
   holidays: (params?: unknown) => ["holidays", params],
   holiday: (id: string) => ["holidays", id],
-  holidaysByYear: (year: number) => ["holidays", "year", year],
+  holidaysByYear: (year: number, month?: number) => ["holidays", "year", year, month],
   calendar: (year: number) => ["holidays", "calendar", year],
   checkDate: (date: string) => ["holidays", "check", date],
 } as const;
@@ -20,6 +20,7 @@ export function useHolidays(params?: {
   per_page?: number;
   search?: string;
   year?: number;
+  month?: number;
   type?: string;
   is_active?: boolean;
   sort_by?: string;
@@ -40,10 +41,10 @@ export function useHoliday(id: string) {
   });
 }
 
-export function useHolidaysByYear(year: number) {
+export function useHolidaysByYear(year: number, month?: number) {
   return useQuery({
-    queryKey: QUERY_KEYS.holidaysByYear(year),
-    queryFn: () => holidayService.getByYear(year),
+    queryKey: QUERY_KEYS.holidaysByYear(year, month),
+    queryFn: () => holidayService.getByYear(year, month),
     staleTime: 1000 * 60 * 30, // 30 minutes
     enabled: year > 0,
   });

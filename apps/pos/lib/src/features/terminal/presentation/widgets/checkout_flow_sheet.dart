@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../app/app.dart';
 import '../../../../core/network/api_exception.dart';
@@ -16,20 +14,25 @@ import '../../domain/models/pos_config.dart';
 import '../../domain/models/pos_customer.dart';
 import '../../domain/models/pos_order.dart';
 import '../../domain/models/table_selection.dart';
+import 'thermal_printer_settings_dialog.dart';
 
 class CheckoutResult {
   const CheckoutResult({
-    required this.customerName,
+    required this.order,
+    this.customerName,
     this.customerPhone,
     this.tenderAmount,
+    this.finalPayment,
   });
 
+  final PosOrder order;
   final String? customerName;
   final String? customerPhone;
   final double? tenderAmount;
+  final PosPayment? finalPayment;
 }
 
-enum _CheckoutStep { customer, reward, payment, receipt }
+enum _CheckoutStep { customer, reward, payment }
 
 enum _CustomerMode { newCustomer, existing }
 
@@ -125,6 +128,9 @@ class CheckoutFlowSheet extends StatefulWidget {
 }
 
 class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
+  PosOrder? _orderState;
+  PosOrder get _order => _orderState ?? widget.order;
+  set _order(PosOrder value) => _orderState = value;
   final _customerName = TextEditingController();
   final _customerPhone = TextEditingController();
   final _customerEmail = TextEditingController();
@@ -148,55 +154,19 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   PosPayment? _finalPayment;
   XenditConnectionStatus? _xenditStatus;
   Timer? _paymentPollTimer;
-  WebViewController? _receiptPreviewController;
-  bool _receiptPreviewError = false;
   bool _summaryExpanded = true;
 
   @override
   void initState() {
     super.initState();
-    final initialName = (widget.order.customerName ?? '').trim();
+    _order = widget.order;
+    final initialName = (_order.customerName ?? '').trim();
     if (initialName.isNotEmpty) {
       _customerName.text = initialName;
       _lookupMemberByName(initialName);
     }
-    _initReceiptPreview();
     _loadXenditStatus();
     _loadCustomers();
-  }
-
-  void _initReceiptPreview() {
-    if (kIsWeb) {
-      _receiptPreviewError = true;
-      return;
-    }
-    // Local orders (created offline) do not have a server-side receipt yet.
-    // Skip loading to avoid a failed network request on the WebView.
-    if (widget.order.id.startsWith('local-')) {
-      _receiptPreviewError = true;
-      return;
-    }
-    if (_receiptPreviewController != null) return;
-    final url = ServiceLocator.instance.terminalService.receiptUrl(
-      widget.order.id,
-    );
-    try {
-      final controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onWebResourceError: (_) {
-              if (!mounted) return;
-              setState(() => _receiptPreviewError = true);
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(url));
-      _receiptPreviewController = controller;
-    } catch (_) {
-      _receiptPreviewError = true;
-    }
   }
 
   @override
@@ -210,10 +180,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     super.dispose();
   }
 
-  double get _amountBeforeReward =>
-      widget.order.subtotal +
-      widget.order.taxAmount +
-      widget.order.serviceCharge;
+  // Use order.totalAmount as the payable base. For offline orders this is
+  // calculated locally with cached POS tax/service config.
+  double get _amountBeforeReward => widget.order.totalAmount;
 
   double get _selectedRewardDiscount =>
       _calculateRewardDiscount(_amountBeforeReward, _selectedReward);
@@ -360,7 +329,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         outletId: widget.outletId,
         phone: _resolvedCustomerPhone,
         email: _resolvedCustomerEmail,
-        orderId: widget.order.id,
+        orderId: _order.id,
       );
       if (!mounted) return;
       setState(() {
@@ -432,7 +401,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     final hasRewardOptions =
         (_memberLookup?.availableRewards ?? const <LoyaltyReward>[]).isNotEmpty;
     setState(() {
-      final nextStep = hasRewardOptions ? _CheckoutStep.reward : _CheckoutStep.payment;
+      final nextStep = hasRewardOptions
+          ? _CheckoutStep.reward
+          : _CheckoutStep.payment;
       _step = nextStep;
       if (nextStep.index > _maxStepReached.index) _maxStepReached = nextStep;
       if (nextStep == _CheckoutStep.payment) {
@@ -447,11 +418,16 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       return;
     }
 
+    // When tender equals total (exact payment), send the precise double
+    // _totalAmount to avoid rounding mismatches with server-computed totals.
+    final isExact = (_tenderAmount.toDouble() - _totalAmount).abs() < 0.01;
+    final amount = isExact ? _totalAmount : _tenderAmount.toDouble();
+
     setState(() => _loading = true);
     try {
       final payment = await ServiceLocator.instance.terminalService.processCash(
         widget.order.id,
-        amount: _tenderAmount,
+        amount: amount,
         customerId: _resolvedCustomerId,
         customerName: _resolvedCustomerName,
         customerPhone: _resolvedCustomerPhone,
@@ -461,11 +437,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       );
 
       if (!mounted) return;
-      setState(() {
-        _finalPayment = payment;
-        _step = _CheckoutStep.receipt;
-        _maxStepReached = _CheckoutStep.receipt;
-      });
+      _order = _order.copyWith(status: PosOrderStatus.completed);
+      _finalPayment = payment;
+      Navigator.pop(context, CheckoutResult(
+        order: _order,
+        customerName: _resolvedCustomerName,
+        customerPhone: _resolvedCustomerPhone,
+        tenderAmount: payment.tenderAmount ?? _tenderAmount.toDouble(),
+        finalPayment: payment,
+      ));
     } catch (error) {
       if (!mounted) return;
       showError(context, error);
@@ -484,7 +464,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     try {
       final payment = await ServiceLocator.instance.terminalService
           .initiateDigital(
-            widget.order.id,
+            _order.id,
             amount: _totalAmount,
             channelCode: channel.code,
             customerId: _resolvedCustomerId,
@@ -506,11 +486,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
 
       if (payment.status == 'PAID') {
         if (!mounted) return;
-        setState(() {
-          _finalPayment = payment;
-          _step = _CheckoutStep.receipt;
-          _maxStepReached = _CheckoutStep.receipt;
-        });
+        _order = _order.copyWith(status: PosOrderStatus.completed);
+        _finalPayment = payment;
+        Navigator.pop(context, CheckoutResult(
+          order: _order,
+          customerName: _resolvedCustomerName,
+          customerPhone: _resolvedCustomerPhone,
+          tenderAmount: payment.tenderAmount ?? _totalAmount,
+          finalPayment: payment,
+        ));
         return;
       }
 
@@ -530,20 +514,24 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     _paymentPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       try {
         final payments = await ServiceLocator.instance.terminalService
-            .getPaymentsByOrderId(widget.order.id);
+            .getPaymentsByOrderId(_order.id);
         if (!mounted) return;
         if (payments.isEmpty) return;
 
         final latest = payments.first;
         if (latest.status == 'PAID') {
           _paymentPollTimer?.cancel();
-          setState(() {
-            _polling = false;
-            _finalPayment = latest;
-            _digitalPayment = latest;
-            _step = _CheckoutStep.receipt;
-            _maxStepReached = _CheckoutStep.receipt;
-          });
+          _order = _order.copyWith(status: PosOrderStatus.completed);
+          _polling = false;
+          _finalPayment = latest;
+          _digitalPayment = latest;
+          Navigator.pop(context, CheckoutResult(
+            order: _order,
+            customerName: _resolvedCustomerName,
+            customerPhone: _resolvedCustomerPhone,
+            tenderAmount: latest.tenderAmount ?? _totalAmount,
+            finalPayment: latest,
+          ));
         } else if (latest.status == 'FAILED' || latest.status == 'EXPIRED') {
           _paymentPollTimer?.cancel();
           setState(() {
@@ -565,21 +553,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     });
   }
 
-  void _finishCheckout() {
-    final tenderAmount =
-        _finalPayment?.tenderAmount ??
-        (_paymentTab == _PaymentTab.cash ? _tenderAmount.toDouble() : null);
 
-    Navigator.of(context).pop(
-      CheckoutResult(
-        customerName: _resolvedCustomerName.isEmpty
-            ? null
-            : _resolvedCustomerName,
-        customerPhone: _resolvedCustomerPhone,
-        tenderAmount: tenderAmount,
-      ),
-    );
-  }
 
   void _handleNumpadTap(String key) {
     if (key == '⌫') {
@@ -635,104 +609,21 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
   }
 
-  Future<void> _openReceipt() async {
-    if (widget.order.id.startsWith('local-')) {
-      showError(context, ApiException('Nota belum tersedia — pembayaran masih dalam antrian sync.'));
-      return;
-    }
-    final url = ServiceLocator.instance.terminalService.receiptUrl(
-      widget.order.id,
-    );
-    await openExternal(url);
-  }
 
-  Future<void> _sendWhatsApp() async {
-    final phone = _resolvedCustomerPhone;
-    if (phone == null || phone.isEmpty) {
-      showError(
-        context,
-        ApiException('Nomor WhatsApp customer belum tersedia'),
-      );
-      return;
-    }
 
-    final template = widget.config?.receiptWhatsAppTemplate ?? '';
-    final rendered = _renderWhatsAppTemplate(
-      template: template,
-      values: _buildTemplateValues(),
-    );
-
-    final waUrl = _formatWhatsAppLink(phone, rendered);
-    await openExternal(waUrl);
-  }
-
-  Map<String, String> _buildTemplateValues() {
-    final tender = _finalPayment?.tenderAmount ?? _tenderAmount.toDouble();
-    final change =
-        _finalPayment?.changeAmount ??
-        ((tender - _totalAmount) < 0 ? 0 : (tender - _totalAmount));
-
-    return {
-      'customer_name': _resolvedCustomerName.isEmpty
-          ? '-'
-          : _resolvedCustomerName,
-      'order_number': widget.order.orderNumber,
-      'outlet_name': widget.outletName,
-      'order_date': _formatDateTime(widget.order.createdAt),
-      'subtotal': formatMoney(
-        widget.order.subtotal,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'tax_amount': formatMoney(
-        widget.order.taxAmount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'service_amount': formatMoney(
-        widget.order.serviceCharge,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'discount_amount': formatMoney(
-        _selectedRewardDiscount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'total_amount': formatMoney(
-        _totalAmount,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'tender_amount': formatMoney(tender, widget.config?.currency ?? 'IDR'),
-      'change_amount': formatMoney(change, widget.config?.currency ?? 'IDR'),
-      'items_summary':
-          widget.order.items
-              .map(
-                (item) =>
-                    '${item.productName} x${item.quantity.toStringAsFixed(0)}',
-              )
-              .join(', ')
-              .trim()
-              .isEmpty
-          ? '-'
-          : widget.order.items
-                .map(
-                  (item) =>
-                      '${item.productName} x${item.quantity.toStringAsFixed(0)}',
-                )
-                .join(', '),
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
-    _initReceiptPreview();
     final screen = MediaQuery.of(context).size;
     final dialogWidth = screen.width > 980 ? 920.0 : screen.width * 0.94;
     final dialogHeight = screen.height * 0.9;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      backgroundColor: const Color(0xFFF2F2F7), // Apple's grouped background color
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      backgroundColor: const Color(
+        0xFFF2F2F7,
+      ), // Apple's grouped background color
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SizedBox(
         width: dialogWidth,
         height: dialogHeight,
@@ -746,14 +637,11 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               const SizedBox(height: 12),
               _buildStepIndicator(),
               const SizedBox(height: 12),
-              if (_step != _CheckoutStep.receipt) ...[
-                _buildSummaryCard(),
-                const SizedBox(height: 12),
-              ],
+              _buildSummaryCard(),
+              const SizedBox(height: 12),
               if (_step == _CheckoutStep.customer) ..._buildCustomerStep(),
               if (_step == _CheckoutStep.reward) ..._buildRewardStep(),
               if (_step == _CheckoutStep.payment) ..._buildPaymentStep(),
-              if (_step == _CheckoutStep.receipt) ..._buildReceiptStep(),
             ],
           ),
         ),
@@ -778,12 +666,18 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
               ),
               const SizedBox(height: 2),
               Text(
-                widget.order.orderNumber,
+                _order.orderNumber,
                 style: const TextStyle(color: GimsColors.mutedForeground),
               ),
             ],
           ),
         ),
+        IconButton(
+          tooltip: 'Pengaturan Printer',
+          onPressed: () => ThermalPrinterSettingsDialog.show(context),
+          icon: const Icon(Icons.print_outlined),
+        ),
+        const SizedBox(width: 8),
         IconButton(
           tooltip: 'Close',
           onPressed: _loading ? null : _confirmCancelCheckout,
@@ -810,17 +704,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         step: _CheckoutStep.payment,
         icon: Icons.payments_outlined,
       ),
-      (
-        label: 'Receipt',
-        step: _CheckoutStep.receipt,
-        icon: Icons.receipt_long_outlined,
-      ),
     ];
 
     return Card(
       elevation: 0,
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E5EA)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Row(
@@ -830,14 +722,17 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: GestureDetector(
-                    onTap: _loading || _finalPayment != null || step.step.index > _maxStepReached.index
+                    onTap:
+                        _loading ||
+                            _finalPayment != null ||
+                            step.step.index > _maxStepReached.index
                         ? null
                         : () => setState(() {
-                              _step = step.step;
-                              if (step.step == _CheckoutStep.payment) {
-                                _summaryExpanded = false;
-                              }
-                            }),
+                            _step = step.step;
+                            if (step.step == _CheckoutStep.payment) {
+                              _summaryExpanded = false;
+                            }
+                          }),
                     child: _StepChip(
                       label: step.label,
                       icon: step.icon,
@@ -874,12 +769,14 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     child: Row(
                       children: [
                         Text(
-                          'Order #${widget.order.orderNumber}',
+                          'Order #${_order.orderNumber}',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 8),
                         Icon(
-                          _summaryExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _summaryExpanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           size: 18,
                           color: GimsColors.mutedForeground,
                         ),
@@ -911,7 +808,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.subtotal,
+                        _order.subtotal,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -928,7 +825,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.taxAmount,
+                        _order.taxAmount,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -945,7 +842,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                     Text(
                       formatMoney(
-                        widget.order.serviceCharge,
+                        _order.serviceCharge,
                         widget.config?.currency ?? 'IDR',
                       ),
                       style: const TextStyle(color: GimsColors.mutedForeground),
@@ -957,7 +854,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Discount', style: TextStyle(color: Colors.green)),
+                      const Text(
+                        'Discount',
+                        style: TextStyle(color: Colors.green),
+                      ),
                       Text(
                         '-${formatMoney(_selectedRewardDiscount, widget.config?.currency ?? 'IDR')}',
                         style: const TextStyle(
@@ -995,7 +895,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Card(
         elevation: 0,
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE5E5EA)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1005,7 +908,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE5E5EA)),
+                  ),
                   child: ListTile(
                     leading: const Icon(Icons.verified_outlined),
                     title: Text(_memberLookup?.customerName ?? 'Member'),
@@ -1163,7 +1069,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Card(
         elevation: 0,
         color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE5E5EA)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1183,10 +1092,15 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE5E5EA)),
+                  ),
                   child: ListTile(
                     selected: _selectedReward == reward,
-                    selectedTileColor: GimsColors.primary.withValues(alpha: 0.08),
+                    selectedTileColor: GimsColors.primary.withValues(
+                      alpha: 0.08,
+                    ),
                     leading: Icon(
                       _selectedReward == reward
                           ? Icons.radio_button_checked
@@ -1231,12 +1145,13 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 onPressed: _loading
                     ? null
                     : () => setState(() {
-                          _step = _CheckoutStep.payment;
-                          if (_CheckoutStep.payment.index > _maxStepReached.index) {
-                            _maxStepReached = _CheckoutStep.payment;
-                          }
-                          _summaryExpanded = false;
-                        }),
+                        _step = _CheckoutStep.payment;
+                        if (_CheckoutStep.payment.index >
+                            _maxStepReached.index) {
+                          _maxStepReached = _CheckoutStep.payment;
+                        }
+                        _summaryExpanded = false;
+                      }),
                 child: const Text('Continue to Payment'),
               ),
             ),
@@ -1297,7 +1212,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                             ),
                           ),
                           Text(
-                            formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
+                            formatMoney(
+                              _totalAmount,
+                              widget.config?.currency ?? 'IDR',
+                            ),
                             style: const TextStyle(
                               color: GimsColors.foreground,
                               fontSize: 16,
@@ -1341,19 +1259,31 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _tenderAmount >= _totalAmount ? 'Change' : 'Remaining Due',
+                              _tenderAmount >= _totalAmount
+                                  ? 'Change'
+                                  : 'Remaining Due',
                               style: TextStyle(
-                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                color: _tenderAmount >= _totalAmount
+                                    ? Colors.green
+                                    : GimsColors.destructive,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               _tenderAmount >= _totalAmount
-                                  ? formatMoney((_tenderAmount - _totalAmount).toDouble(), widget.config?.currency ?? 'IDR')
-                                  : formatMoney((_totalAmount - _tenderAmount).toDouble(), widget.config?.currency ?? 'IDR'),
+                                  ? formatMoney(
+                                      (_tenderAmount - _totalAmount).toDouble(),
+                                      widget.config?.currency ?? 'IDR',
+                                    )
+                                  : formatMoney(
+                                      (_totalAmount - _tenderAmount).toDouble(),
+                                      widget.config?.currency ?? 'IDR',
+                                    ),
                               style: TextStyle(
-                                color: _tenderAmount >= _totalAmount ? Colors.green : GimsColors.destructive,
+                                color: _tenderAmount >= _totalAmount
+                                    ? Colors.green
+                                    : GimsColors.destructive,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1384,19 +1314,29 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         () => _tender.text = _totalAmount.toStringAsFixed(0),
                       ),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
-                      child: const Text('Exact', style: TextStyle(fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Exact',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     OutlinedButton(
                       onPressed: () => setState(() => _tender.clear()),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: GimsColors.destructive,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
-                      child: const Text('Reset', style: TextStyle(fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Reset',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
@@ -1425,9 +1365,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        side: const BorderSide(
-                          color: Color(0xFFE5E5EA),
-                        ),
+                        side: const BorderSide(color: Color(0xFFE5E5EA)),
                       ),
                       child: Text(
                         key,
@@ -1444,13 +1382,18 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                   onPressed: _loading ? null : _payCash,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(60),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   icon: _loading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.check_circle_outline),
                   label: const Text(
@@ -1563,7 +1506,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             Card(
               elevation: 0,
               color: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE5E5EA))),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE5E5EA)),
+              ),
               child: ListTile(
                 leading: _ChannelLogo(code: channel.code),
                 title: Text(channel.name),
@@ -1583,7 +1529,10 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     return Card(
       elevation: 0,
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E5EA)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -1623,217 +1572,6 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  List<Widget> _buildReceiptStep() {
-    final payment = _finalPayment;
-    final isPendingSync = payment?.status == 'pending_sync';
-    final hasPhone = (_resolvedCustomerPhone ?? '').isNotEmpty;
-
-    // Offline cash payment: show a confirmation card instead of a server receipt.
-    if (isPendingSync) {
-      return [
-        Card(
-          elevation: 0,
-          color: const Color(0xFFFFF8E1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFFFD54F)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.cloud_upload_outlined, color: Color(0xFFF59E0B)),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Pembayaran Disimpan Offline',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          color: Color(0xFF92400E),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Data order, pembayaran, dan invoice akan otomatis dikirim ke server saat koneksi internet pulih.',
-                  style: TextStyle(color: Color(0xFF92400E), fontSize: 13),
-                ),
-                const Divider(height: 24, color: Color(0xFFFFD54F)),
-                _receiptRow('Order', widget.order.orderNumber),
-                _receiptRow('Metode', 'CASH'),
-                _receiptRow(
-                  'Total',
-                  formatMoney(_totalAmount, widget.config?.currency ?? 'IDR'),
-                ),
-                if (_resolvedCustomerName.isNotEmpty)
-                  _receiptRow('Customer', _resolvedCustomerName),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: _finishCheckout,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-          child: const Text(
-            'Selesai',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ];
-    }
-
-    return [
-      Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E5EA))),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                height: 480,
-                decoration: BoxDecoration(
-                  border: Border.all(color: GimsColors.border),
-                  borderRadius: BorderRadius.circular(GimsRadius.medium),
-                  color: Colors.white,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(GimsRadius.medium),
-                  child: _receiptPreviewError
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.receipt_long_outlined,
-                                  color: GimsColors.mutedForeground,
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Preview nota tidak dapat dimuat.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Buka nota di browser untuk melihat printable receipt.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: GimsColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _openReceipt,
-                                  icon: const Icon(Icons.open_in_new_outlined),
-                                  label: const Text('Buka Nota'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : WebViewWidget(controller: _receiptPreviewController!),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _openReceipt,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-              ),
-              icon: const Icon(Icons.print_outlined),
-              label: const Text(
-                'Print',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: hasPhone ? _sendWhatsApp : null,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-                backgroundColor: GimsColors.success,
-              ),
-              icon: SvgPicture.asset(
-                'assets/logo/whatsapp-svgrepo-com.svg',
-                width: 22,
-                height: 22,
-              ),
-              label: const Text(
-                'Kirim WA',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton(
-              onPressed: _finishCheckout,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(64),
-              ),
-              child: const Text(
-                'Done',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ];
-  }
-
-  Widget _receiptRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF92400E),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF78350F),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1948,50 +1686,7 @@ String _categoryLabel(String category) {
   }
 }
 
-String _formatDateTime(DateTime value) {
-  final local = value.toLocal();
-  final month = <int, String>{
-    1: 'Jan',
-    2: 'Feb',
-    3: 'Mar',
-    4: 'Apr',
-    5: 'May',
-    6: 'Jun',
-    7: 'Jul',
-    8: 'Aug',
-    9: 'Sep',
-    10: 'Oct',
-    11: 'Nov',
-    12: 'Dec',
-  };
 
-  return '${local.day} ${month[local.month]} ${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-}
-
-String _renderWhatsAppTemplate({
-  required String template,
-  required Map<String, String> values,
-}) {
-  final base = template.trim().isEmpty
-      ? 'Halo #customer_name, ini receipt order #order_number dari #outlet_name. Total #total_amount. Terima kasih.'
-      : template;
-
-  return base
-      .replaceAllMapped(RegExp(r'#([A-Za-z0-9_]+)'), (match) {
-        final tag = match.group(1) ?? '';
-        return values[tag] ?? match.group(0) ?? '';
-      })
-      .replaceAll('\u202f', ' ');
-}
-
-String _formatWhatsAppLink(String phone, String message) {
-  final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-  final target = digits.isEmpty ? '' : digits;
-  if (target.isEmpty) {
-    return 'https://wa.me/?text=${Uri.encodeComponent(message)}';
-  }
-  return 'https://wa.me/$target?text=${Uri.encodeComponent(message)}';
-}
 
 double _normalizeRewardPercent(double value) {
   if (value <= 0) return 0;

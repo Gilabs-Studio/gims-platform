@@ -151,6 +151,29 @@ export function useVoidOrder() {
   });
 }
 
+export function useDeleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => posOrderService.delete(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: posKeys.orders() });
+
+      qc.setQueriesData<POSOrderListCache>({ queryKey: posKeys.orders() }, (current) => {
+        if (!current?.data?.length) return current;
+        return {
+          ...current,
+          data: current.data.filter((order) => order.id !== id),
+        };
+      });
+
+      qc.removeQueries({ queryKey: posKeys.order(id) });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+  });
+}
+
 export function useAddOrderItem() {
   const qc = useQueryClient();
   return useMutation({
@@ -196,8 +219,20 @@ export function useAssignTable() {
   return useMutation({
     mutationFn: ({ orderId, data }: { orderId: string; data: AssignTableRequest }) =>
       posOrderService.assignTable(orderId, data),
+    onMutate: async ({ orderId }) => {
+      await qc.cancelQueries({ queryKey: posKeys.orders() });
+
+      qc.setQueriesData<POSOrderListCache>({ queryKey: posKeys.orders() }, (current) => {
+        if (!current?.data?.length) return current;
+        return {
+          ...current,
+          data: current.data.filter((order) => order.id !== orderId),
+        };
+      });
+    },
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: posKeys.order(result.data.id) });
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
     },
   });
 }

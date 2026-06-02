@@ -20,12 +20,12 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 		protected := internal.Group("")
 		protected.Use(middleware.SystemAdminAuthMiddleware(jwtManager, sysAdminRepo))
 		{
-			protected.GET("/ws/notifications", h.SubscribeNotificationWS)
 			protected.GET("/me", h.Me)
 			protected.PATCH("/me", h.UpdateProfile)
 			protected.PATCH("/me/password", h.ChangePassword)
 			protected.POST("/sys-logout", h.Logout)
 			protected.GET("/system-dashboard", h.Dashboard)
+			protected.POST("/system-updates/email", h.SendSystemUpdateEmail)
 
 			// Tenant management
 			protected.GET("/tenants", h.ListTenants)
@@ -33,10 +33,6 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.SystemAdminHandler, jwt
 			protected.POST("/tenants/:id/recover-deletion", h.RecoverTenantDeletion)
 			protected.GET("/tenants/:id/subscription", h.GetTenantSubscription)
 
-			tenantMgt := protected.Group("/system/tenants")
-			tenantMgt.GET("/owner-password-reset-requests", h.ListTenantOwnerPasswordResetRequests)
-			tenantMgt.GET("/owner-password-reset-requests/pending-count", h.GetTenantOwnerPasswordResetPendingCount)
-			tenantMgt.POST("/owner-password-reset-requests/reset", h.SystemAdminResetTenantOwnerPassword)
 			// Coupon management
 			protected.POST("/coupons", h.CreateCoupon)
 			protected.GET("/coupons", h.ListCoupons)

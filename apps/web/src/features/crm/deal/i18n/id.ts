@@ -249,5 +249,17 @@ export const crmDealId = {
       available: "Tersedia",
       status: "Status",
     },
+
+    // Soft-delete banners
+    softDeleted: {
+      adminTitle: "Deal ini telah dihapus sementara",
+      adminDescription: "Dihapus pada {date}{by}. Anda dapat memulihkan deal ini untuk melanjutkan semua operasi.",
+      adminBy: " oleh {name}",
+      recoverButton: "Pulihkan Deal",
+      recoverSuccess: "Deal berhasil dipulihkan",
+      recoverError: "Gagal memulihkan deal",
+      staffTitle: "Deal ini telah dihapus",
+      staffDescription: "Dihapus pada {date}. Data telah diarsipkan dan bersifat read-only. Hubungi administrator sistem Anda untuk memulihkan deal ini jika terjadi kesalahan.",
+    },
   },
 };

@@ -42,9 +42,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
-import { useDealById, useDeleteDeal, useDealFormData, useDealProductItems } from "../hooks/use-deals";
+import { useDealById, useDeleteDeal, useDealFormData, useDealProductItems, useRecoverDeal } from "../hooks/use-deals";
 import { useLeadById, useUpdateLead } from "@/features/crm/lead/hooks/use-leads";
 import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { DealFormDialog } from "./deal-form-dialog";
@@ -94,6 +94,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
   const deleteMutation = useDeleteDeal();
+  const recoverMutation = useRecoverDeal();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showMoveStage, setShowMoveStage] = useState(false);
@@ -113,6 +114,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);
+  const isAdmin = authUser?.role?.code === "admin" || authUser?.role?.code === "system_admin";
 
   const canUpdate = useUserPermission("crm_deal.update");
   const canDelete = useUserPermission("crm_deal.delete");
@@ -203,13 +205,64 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
     );
   }
 
-  const isOpen = deal.status === "open";
+  const isOpen = deal.status === "open" && !deal.is_deleted;
   const bantCount = [deal.budget_confirmed, deal.auth_confirmed, deal.need_confirmed, deal.time_confirmed]
     .filter(Boolean).length;
 
   return (
     <PageMotion>
-      <div className="space-y-6">
+      {deal.is_deleted && (
+        isAdmin ? (
+          <div className="mb-6 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-destructive/20 text-destructive rounded-lg shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.adminTitle")}</h4>
+                <p className="text-xs text-destructive/80 mt-0.5">
+                  {t("softDeleted.adminDescription", {
+                    date: formatDate(deal.deleted_at),
+                    by: deal.deleted_by ? t("softDeleted.adminBy", { name: deal.deleted_by }) : "",
+                  })}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/30 text-destructive hover:bg-destructive/20 cursor-pointer bg-transparent shrink-0 self-end sm:self-auto"
+              disabled={recoverMutation.isPending}
+              onClick={async () => {
+                try {
+                  await recoverMutation.mutateAsync(dealId);
+                  toast.success(t("softDeleted.recoverSuccess"));
+                  refetch();
+                } catch {
+                  toast.error(t("softDeleted.recoverError"));
+                }
+              }}
+            >
+              {t("softDeleted.recoverButton")}
+            </Button>
+          </div>
+        ) : (
+          <div className="mb-6 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between shadow-sm">
+            <div className="flex gap-3 items-start sm:items-center">
+              <div className="p-2 bg-amber-500/20 text-amber-600 rounded-lg shrink-0">
+                <History className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">{t("softDeleted.staffTitle")}</h4>
+                <p className="text-xs text-amber-600/80 mt-0.5">
+                  {t("softDeleted.staffDescription", { date: formatDate(deal.deleted_at) })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      )}
+      <div className={cn("space-y-6", deal.is_deleted && "opacity-50")}>
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
@@ -303,7 +356,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 {t("edit")}
               </Button>
             )}
-            {canDelete && (
+            {canDelete && !deal.is_deleted && (
               <Button
                 variant="ghost"
                 size="sm"

@@ -1,15 +1,20 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"log"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/resend"
 	"github.com/gilabs/gims/api/internal/core/storage"
+	userUsecase "github.com/gilabs/gims/api/internal/user/domain/usecase"
 	"gorm.io/gorm"
 )
 
@@ -30,19 +35,21 @@ type tenantURLColumn struct {
 }
 
 type TenantDeletionWorker struct {
-	db       *gorm.DB
-	ticker   *time.Ticker
-	stopChan chan struct{}
+	db           *gorm.DB
+	ticker       *time.Ticker
+	stopChan     chan struct{}
+	resendClient *resend.Client
 }
 
-func NewTenantDeletionWorker(db *gorm.DB, interval time.Duration) *TenantDeletionWorker {
+func NewTenantDeletionWorker(db *gorm.DB, interval time.Duration, resendClient *resend.Client) *TenantDeletionWorker {
 	if interval <= 0 {
 		interval = 12 * time.Hour
 	}
 	return &TenantDeletionWorker{
-		db:       db,
-		ticker:   time.NewTicker(interval),
-		stopChan: make(chan struct{}),
+		db:           db,
+		ticker:       time.NewTicker(interval),
+		stopChan:     make(chan struct{}),
+		resendClient: resendClient,
 	}
 }
 
@@ -51,10 +58,12 @@ func (w *TenantDeletionWorker) Start() {
 
 	go func() {
 		w.processDueTenants()
+		w.sendWarningEmails()
 		for {
 			select {
 			case <-w.ticker.C:
 				w.processDueTenants()
+				w.sendWarningEmails()
 			case <-w.stopChan:
 				log.Println("Tenant deletion worker stopped")
 				return
@@ -257,4 +266,113 @@ func (w *TenantDeletionWorker) deleteTenantRows(ctx context.Context, tx *gorm.DB
 
 func quoteIdentifier(identifier string) string {
 	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
+}
+
+func (w *TenantDeletionWorker) sendWarningEmails() {
+	ctx := context.Background()
+	now := time.Now()
+
+	type pendingTenant struct {
+		ID                  string
+		OwnerUserID         *string
+		DeletionScheduledAt *time.Time
+		DeletionWarningSent bool
+		DeletionH1Sent      bool
+	}
+
+	var tenants []pendingTenant
+	err := w.db.WithContext(ctx).
+		Table("tenants").
+		Select("id, owner_user_id, deletion_scheduled_at, deletion_warning_sent, deletion_h1_sent").
+		Where("deleted_at IS NULL AND status = ?", "pending_deletion").
+		Find(&tenants).Error
+	if err != nil {
+		log.Printf("tenant deletion worker: failed to load pending tenants for warning emails: %v", err)
+		return
+	}
+
+	for _, tenant := range tenants {
+		if tenant.DeletionScheduledAt == nil || tenant.OwnerUserID == nil || *tenant.OwnerUserID == "" {
+			continue
+		}
+
+		remaining := tenant.DeletionScheduledAt.Sub(now)
+
+		// 1. Day 25 warning (5 days remaining)
+		if remaining <= 5*24*time.Hour && remaining > 24*time.Hour && !tenant.DeletionWarningSent {
+			w.dispatchWarningEmail(ctx, tenant.ID, *tenant.OwnerUserID, *tenant.DeletionScheduledAt, 5)
+			w.db.WithContext(ctx).
+				Table("tenants").
+				Where("id = ?", tenant.ID).
+				Update("deletion_warning_sent", true)
+		}
+
+		// 2. Day 29 / H-1 warning (1 day remaining)
+		if remaining <= 24*time.Hour && remaining > 0 && !tenant.DeletionH1Sent {
+			w.dispatchWarningEmail(ctx, tenant.ID, *tenant.OwnerUserID, *tenant.DeletionScheduledAt, 1)
+			w.db.WithContext(ctx).
+				Table("tenants").
+				Where("id = ?", tenant.ID).
+				Update("deletion_h1_sent", true)
+		}
+	}
+}
+
+func (w *TenantDeletionWorker) dispatchWarningEmail(ctx context.Context, tenantID string, ownerUserID string, scheduledAt time.Time, daysRemaining int) {
+	if w.resendClient == nil {
+		return
+	}
+
+	var ownerUser struct {
+		Email string
+		Name  string
+	}
+	err := w.db.WithContext(ctx).
+		Table("users").
+		Select("email, name").
+		Where("id = ? AND deleted_at IS NULL", ownerUserID).
+		First(&ownerUser).Error
+	if err != nil || ownerUser.Email == "" {
+		return
+	}
+
+	fromEmail := "Salesview <cs@gilabs.id>"
+	if config.AppConfig != nil && config.AppConfig.Resend.FromEmail != "" {
+		fromEmail = config.AppConfig.Resend.FromEmail
+	}
+
+	tmpl, err := template.New("deletion_warning").Parse(userUsecase.DeletionWarningEmailTemplate)
+	if err != nil {
+		return
+	}
+
+	var body bytes.Buffer
+	err = tmpl.Execute(&body, struct {
+		Name          string
+		Email         string
+		ScheduledDate string
+		DaysRemaining int
+		Year          int
+	}{
+		Name:          ownerUser.Name,
+		Email:         ownerUser.Email,
+		ScheduledDate: scheduledAt.Format("02 January 2006"),
+		DaysRemaining: daysRemaining,
+		Year:          time.Now().Year(),
+	})
+	if err != nil {
+		return
+	}
+
+	subject := fmt.Sprintf("[Salesview] PERINGATAN: Akun Anda Akan Dihapus Permanen dalam %d Hari", daysRemaining)
+	if daysRemaining == 1 {
+		subject = "[Salesview] PERINGATAN TERAKHIR: Akun Anda Akan Dihapus Permanen Besok"
+	}
+
+	_, _ = w.resendClient.SendEmail(ctx, &resend.SendEmailRequest{
+		From:    fromEmail,
+		To:      []string{ownerUser.Email},
+		Subject: subject,
+		HTML:    body.String(),
+	})
 }

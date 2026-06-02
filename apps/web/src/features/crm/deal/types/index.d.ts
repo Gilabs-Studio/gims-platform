@@ -37,6 +37,9 @@ export interface Deal {
   // Conversion tracking
   converted_to_quotation_id?: string | null;
   converted_at?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
   // Metadata
   notes: string;
   created_by?: string | null;

@@ -8,6 +8,7 @@ import {
   Mail,
   Store,
   Warehouse,
+  ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,7 +31,7 @@ interface TenantDetailDialogProps {
 }
 
 export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialogProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "business" | "owner">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "business" | "owner" | "compliance">("general");
   const { data: detail, isLoading } = useTenantDetail(open ? (tenant?.id ?? null) : null);
 
   const displayTenant = detail ?? tenant;
@@ -79,7 +80,7 @@ export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialog
           <Tabs
             value={activeTab}
             onValueChange={(v) =>
-              setActiveTab(v === "business" || v === "owner" ? v : "general")
+              setActiveTab(v as any)
             }
             className="w-full"
           >
@@ -87,6 +88,7 @@ export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialog
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="business">Business</TabsTrigger>
               <TabsTrigger value="owner">Owner</TabsTrigger>
+              <TabsTrigger value="compliance">Compliance</TabsTrigger>
             </TabsList>
 
             {/* ── General Tab ── */}
@@ -279,6 +281,63 @@ export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialog
                   <p className="text-sm text-muted-foreground">No owner assigned to this tenant</p>
                 </div>
               )}
+            </TabsContent>
+
+            {/* ── Compliance Tab ── */}
+            <TabsContent value="compliance" className="space-y-6 py-4">
+              <div>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  Legal Compliance & Consent History
+                </h3>
+                {displayTenant.consent_logs && displayTenant.consent_logs.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableBody>
+                        {displayTenant.consent_logs.map((log, index) => (
+                          <TableRow key={index} className="hover:bg-muted/30">
+                            <TableCell className="w-1/3 bg-muted/30 align-top">
+                              <div className="space-y-1">
+                                <p className="font-semibold text-sm capitalize">
+                                  {log.consent_type === "tos" ? "Terms of Service" : log.consent_type === "privacy" ? "Privacy Policy" : log.consent_type}
+                                </p>
+                                <p className="text-xs text-muted-foreground font-mono">
+                                  Version: {log.version}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground space-y-1">
+                              <p>
+                                <span className="font-semibold text-foreground">Granted:</span>{" "}
+                                {new Date(log.granted_at).toLocaleString("id-ID", {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                              <p>
+                                <span className="font-semibold text-foreground">IP Address:</span>{" "}
+                                <code className="bg-muted px-1 py-0.5 rounded font-mono">{log.ip_address}</code>
+                              </p>
+                              <p className="max-w-[450px] truncate" title={log.user_agent}>
+                                <span className="font-semibold text-foreground">User Agent:</span>{" "}
+                                {log.user_agent}
+                              </p>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border rounded-lg">
+                    <ShieldCheck className="h-10 w-10 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">No compliance consent records logged for this tenant's owner.</p>
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         ) : null}

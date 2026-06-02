@@ -5,6 +5,7 @@ import '../../../core/utils/error_utils.dart';
 import '../domain/models/table_selection.dart';
 import '../../floor_layout/presentation/live_table_screen.dart';
 import '../../outlet/domain/models/outlet.dart';
+import '../domain/models/pos_order.dart';
 import 'terminal_screen.dart';
 import 'widgets/new_order_notification_banner.dart';
 
@@ -14,10 +15,14 @@ class UnifiedTerminalFlow extends StatefulWidget {
     super.key,
     required this.outlet,
     this.onAuthError,
+    this.resumeOrder,
+    this.onClearResumedOrder,
   });
 
   final Outlet outlet;
   final void Function(Object error)? onAuthError;
+  final PosOrder? resumeOrder;
+  final VoidCallback? onClearResumedOrder;
 
   @override
   State<UnifiedTerminalFlow> createState() => _UnifiedTerminalFlowState();
@@ -27,6 +32,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
   bool _loading = true;
   bool _hasPublishedLayout = false;
   TableSelection? _selectedTable;
+  PosOrder? _resumedOrderFromLiveTable;
 
   @override
   void initState() {
@@ -39,6 +45,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.outlet.id != widget.outlet.id) {
       _selectedTable = null;
+      _resumedOrderFromLiveTable = null;
       _resolveOutletMode();
     }
   }
@@ -71,8 +78,24 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
     Widget screen;
     var wrapWithOrderBanner = true;
 
-    if (!_hasPublishedLayout) {
-      screen = TerminalScreen(outlet: widget.outlet);
+    final resume = widget.resumeOrder ?? _resumedOrderFromLiveTable;
+    if (resume != null) {
+      screen = TerminalScreen(
+        outlet: widget.outlet,
+        resumeOrder: resume,
+        onBackToLiveTable: () {
+          if (_resumedOrderFromLiveTable != null) {
+            setState(() => _resumedOrderFromLiveTable = null);
+          }
+          widget.onClearResumedOrder?.call();
+        },
+        hasFloorLayout: _hasPublishedLayout,
+      );
+    } else if (!_hasPublishedLayout) {
+      screen = TerminalScreen(
+        outlet: widget.outlet,
+        hasFloorLayout: _hasPublishedLayout,
+      );
     } else {
       final selectedTable = _selectedTable;
       if (selectedTable == null) {
@@ -81,6 +104,9 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
           onSelectTable: (table) {
             setState(() => _selectedTable = table);
           },
+          onSelectDraft: (draft) {
+            setState(() => _resumedOrderFromLiveTable = draft);
+          },
         );
         wrapWithOrderBanner = false;
       } else {
@@ -88,6 +114,7 @@ class _UnifiedTerminalFlowState extends State<UnifiedTerminalFlow> {
           outlet: widget.outlet,
           selectedTable: selectedTable,
           onBackToLiveTable: () => setState(() => _selectedTable = null),
+          hasFloorLayout: _hasPublishedLayout,
         );
       }
     }

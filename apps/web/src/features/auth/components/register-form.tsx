@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useRouter } from "@/i18n/routing";
 import { authService } from "../services/auth-service";
 import { useAuthStore } from "../stores/use-auth-store";
@@ -280,6 +281,8 @@ export default function RegisterForm() {
   });
   const [accountErrors, setAccountErrors] = useState<AccountErrors>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [agreeToS, setAgreeToS] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
 
   // ── Step 2: plan ─────────────────────────────────────────────────────────────
   const [planTab, setPlanTab] = useState<PlanTab>("bundle");
@@ -383,7 +386,7 @@ export default function RegisterForm() {
   };
 
   const handleContinue = async () => {
-    if (!validateAccount()) return;
+    if (!agreeToS || !validateAccount()) return;
 
     setIsLoading(true);
     setAccountErrors((p) => ({ ...p, general: undefined }));
@@ -502,6 +505,8 @@ export default function RegisterForm() {
         plan: couponState.targetPlanSlug ?? (planTab === "bundle" ? selectedBundle : selectedModular),
         billing_period: billing,
         user_count: userCount,
+        agree_tos: agreeToS,
+        agree_marketing: agreeMarketing,
         ...(isCouponValidatedForCurrentCode ? { coupon: validatedCouponCode } : {}),
       };
 
@@ -750,10 +755,54 @@ export default function RegisterForm() {
                   </div>
                 </div>
 
+                {/* Consent Checkboxes */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="agreeToS"
+                      checked={agreeToS}
+                      onCheckedChange={(checked) => setAgreeToS(!!checked)}
+                      className="mt-0.5 border-muted-foreground/30 focus-visible:ring-primary/20"
+                    />
+                    <label
+                      htmlFor="agreeToS"
+                      className="text-xs sm:text-sm text-muted-foreground leading-normal select-none cursor-pointer"
+                    >
+                      {t.rich("agreeToS", {
+                        tos: (chunks) => (
+                          <Link href="/terms" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                            {chunks}
+                          </Link>
+                        ),
+                        privacy: (chunks) => (
+                          <Link href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                            {chunks}
+                          </Link>
+                        ),
+                      })}
+                    </label>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
+                      id="agreeMarketing"
+                      checked={agreeMarketing}
+                      onCheckedChange={(checked) => setAgreeMarketing(!!checked)}
+                      className="mt-0.5 border-muted-foreground/30 focus-visible:ring-primary/20"
+                    />
+                    <label
+                      htmlFor="agreeMarketing"
+                      className="text-xs sm:text-sm text-muted-foreground leading-normal select-none cursor-pointer"
+                    >
+                      {t("agreeMarketing")}
+                    </label>
+                  </div>
+                </div>
+
                 <Button
                   type="button"
                   onClick={handleContinue}
-                  disabled={isLoading}
+                  disabled={isLoading || !agreeToS}
                   className="h-11 w-full font-medium"
                 >
                   {t("continue")}
