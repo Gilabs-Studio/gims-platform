@@ -40,14 +40,18 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   const returnedOrderId = searchParams.get("order_id")?.trim() ?? "";
   const returnedPaymentId = searchParams.get("payment_id")?.trim() ?? "";
   const returnedPaymentStatus = searchParams.get("payment_status")?.trim() ?? "";
-  const [step, setStep] = useState<Step>("menu");
+  const [step, setStep] = useState<Step>(() => (returnedOrderId ? "status" : "menu"));
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(() => returnedOrderId || null);
   const [pendingAction, setPendingAction] = useState<"digital" | "cashier" | null>(null);
   const pendingStorageKey = useMemo(() => `self-order:pending-cashier:${token}`, [token]);
   const [pendingCashierPayment, setPendingCashierPayment] = useState<PendingCashierPayment | null>(() => {
     if (typeof window === "undefined") return null;
+    if (returnedOrderId) {
+      window.localStorage.removeItem(`self-order:pending-cashier:${token}`);
+      return null;
+    }
     const raw = window.localStorage.getItem(`self-order:pending-cashier:${token}`);
     if (!raw) return null;
     try {
@@ -78,6 +82,26 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
     orderStatus?.status === "VOIDED";
 
   const visiblePendingCashierPayment = isTrackedPaymentSettled ? null : pendingCashierPayment;
+
+  const clearPaymentRedirectParams = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("order_id");
+    url.searchParams.delete("payment_id");
+    url.searchParams.delete("payment_status");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
+  const closeTrackedOrder = useCallback(() => {
+    setPendingCashierPayment(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(pendingStorageKey);
+    }
+    clearPaymentRedirectParams();
+    setOrderId(null);
+    setStep("menu");
+  }, [clearPaymentRedirectParams, pendingStorageKey]);
 
   const triggerConfetti = useCallback(() => {
     const fire = confettiRef.current?.fire;
@@ -113,17 +137,6 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       }, 130);
     }, 140);
   }, []);
-
-  useEffect(() => {
-    if (!returnedOrderId) return;
-
-    setOrderId(returnedOrderId);
-    setStep("status");
-    setPendingCashierPayment(null);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(pendingStorageKey);
-    }
-  }, [pendingStorageKey, returnedOrderId]);
 
   useEffect(() => {
     if (returnedPaymentStatus !== "success") return;
@@ -196,13 +209,26 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       return;
     }
 
-    setOrderId(pendingCashierPayment.orderId);
-    setStep("status");
-    setPendingCashierPayment(null);
-    if (typeof window !== "undefined") {
+    const timeout = window.setTimeout(() => {
+      setOrderId(pendingCashierPayment.orderId);
+      setStep("status");
+      setPendingCashierPayment(null);
       window.localStorage.removeItem(pendingStorageKey);
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [orderStatus, pendingCashierPayment, pendingStorageKey]);
+
+  useEffect(() => {
+    if (step !== "status") return;
+    if (orderStatus?.status !== "COMPLETED") return;
+
+    const timeout = window.setTimeout(() => {
+      closeTrackedOrder();
+    }, 2_800);
+
+    return () => window.clearTimeout(timeout);
+  }, [closeTrackedOrder, orderStatus?.status, step]);
 
   // ── Cart helpers ─────────────────────────────────────────────────────────────
 
@@ -430,14 +456,7 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
           currency={tableInfo.config.currency}
           onCancelOrder={handleCancelOrder}
           isCancelling={cancelOrder.isPending}
-          onOrderMore={() => {
-            setPendingCashierPayment(null);
-            if (typeof window !== "undefined") {
-              window.localStorage.removeItem(pendingStorageKey);
-            }
-            setOrderId(null);
-            setStep("menu");
-          }}
+          onOrderMore={closeTrackedOrder}
         />
       </>
     );

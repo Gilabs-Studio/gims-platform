@@ -376,9 +376,9 @@ func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID 
 		return nil, ErrPOSOrderCannotModify
 	}
 
-	// Move draft orders into active kitchen/cashier workflow.
+	// Move draft self-orders into cashier payment workflow without starting service yet.
 	if order.Status == string(posModels.PosOrderStatusDraft) {
-		if _, err := u.orderUC.Confirm(orderCtx, orderID, &dto.ConfirmOrderRequest{}, "customer"); err != nil {
+		if _, err := u.orderUC.ConfirmWaitingPayment(orderCtx, orderID, "customer"); err != nil {
 			return nil, err
 		}
 	}
