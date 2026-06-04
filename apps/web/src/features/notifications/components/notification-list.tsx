@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   useMarkAsRead,
+  useMarkAllAsRead,
   useNotifications,
 } from "../hooks/use-notifications";
 import type { Notification } from "../types";
@@ -34,12 +35,15 @@ export function NotificationList() {
   });
 
   const markAsRead = useMarkAsRead();
+  const markAllAsRead = useMarkAllAsRead();
   const notifications = response?.data ?? [];
   const pagination = response?.meta?.pagination;
 
   const handleMarkAsRead = async (id: string) => {
     await markAsRead.mutateAsync(id);
   };
+
+  const hasUnread = notifications.some((notification) => !notification.is_read);
 
   const resolveEntityLink = (notification: Notification): string | null => {
     if (notification.entity_link) {
@@ -176,6 +180,20 @@ export function NotificationList() {
 
   return (
     <div className="space-y-4">
+      {hasUnread && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => markAllAsRead.mutate()}
+            disabled={markAllAsRead.isPending}
+            className="text-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            {t("markAllAsRead")}
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {notifications.map((notification) => (
