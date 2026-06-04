@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, startTransition } from "react";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, SlidersHorizontal, KeyRound, EyeOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, SlidersHorizontal, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +37,6 @@ import { UserListMobileFilters } from "./user-list-mobile-filters";
 import { UserAddonDialog } from "./user-addon-dialog";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import { passwordResetService } from "@/features/auth/password-reset/services/password-reset-service";
-import type { ListUsersResponse } from "../types";
 import { canOwnerManageUser } from "@/features/auth/components/auth-guard";
 
 type ApiLikeError = {
@@ -58,25 +56,6 @@ function getApiErrorInfo(error: unknown): { code?: string; message?: string } {
     code: apiError?.code,
     message: apiError?.message,
   };
-}
-
-function normalizeResetTokenInput(rawToken: string): string {
-  const trimmed = rawToken.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
-  if (!trimmed) return "";
-
-  // Support pasting full notification text, e.g. "Token: abc..." or URL query "?token=abc...".
-  const namedMatch = trimmed.match(/(?:token\s*[:=]\s*|token=)([A-Za-z0-9._-]+)/i);
-  if (namedMatch?.[1]) {
-    return namedMatch[1];
-  }
-
-  // Fallback: choose first token-like segment (32+ chars) to tolerate extra prose around token.
-  const longSegment = trimmed.match(/[A-Za-z0-9._-]{32,}/);
-  if (longSegment?.[0]) {
-    return longSegment[0];
-  }
-
-  return trimmed;
 }
 
 function getInitialOpenUserFromURL(): string | null {
@@ -139,7 +118,6 @@ export function UserList() {
 
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
-  const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
 
   const canManageTargetUser = (targetUser: User) => canOwnerManageUser(currentUser, targetUser);

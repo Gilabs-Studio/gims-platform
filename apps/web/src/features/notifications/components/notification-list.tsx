@@ -250,7 +250,6 @@ interface NotificationItemProps {
 function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationItemProps) {
   const t = useTranslations("notifications");
   const markAsRead = useMarkAsRead();
-  const router = useRouter();
   const timeAgo = formatDistanceToNow(new Date(notification.created_at), {
     addSuffix: true,
   });

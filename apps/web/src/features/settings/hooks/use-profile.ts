@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { profileService } from "../services/profile-service";
 import type { UpdateProfileRequest, ChangePasswordRequest } from "../types";
-import type { TenantDeletionScheduleApiResponse } from "../types";
 import type { User } from "@/features/auth/types";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useLogout } from "@/features/auth/hooks/use-logout";
@@ -99,8 +98,8 @@ export function useRequestAccountDeletion() {
 
   return useMutation({
     mutationFn: (password: string) => profileService.requestAccountDeletion(password),
-    onSuccess: (response: any) => {
-      const msg = response?.data?.message || "Email konfirmasi telah dikirim. Silakan periksa kotak masuk Anda.";
+    onSuccess: (response) => {
+      const msg = response.message || "Email konfirmasi telah dikirim. Silakan periksa kotak masuk Anda.";
       toast.success(msg);
     },
     onError: (error: unknown) => {

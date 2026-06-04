@@ -8,7 +8,7 @@ import { notificationQueryKeys } from "./use-notifications";
 import { useNotificationStore } from "../stores/use-notification-store";
 import { playNotificationSound } from "@/lib/notification-sound";
 import type { ListUsersResponse, User } from "@/features/master-data/user-management/types";
-import type { WebSocketMessage, Notification } from "../types";
+import type { Notification } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 const WS_URL = API_BASE_URL.replace(/^http/, "ws");
