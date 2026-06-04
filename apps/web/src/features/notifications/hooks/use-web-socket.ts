@@ -83,7 +83,21 @@ export function useWebSocket() {
     // Store message handler for reuse
     const messageHandler = (event: MessageEvent) => {
       try {
-        const message: WebSocketMessage = JSON.parse(event.data);
+        const message = JSON.parse(event.data);
+
+        // Check if this is the unread count push event
+        if (
+          message.success === true &&
+          message.data &&
+          typeof message.data.unread_count === "number"
+        ) {
+          queryClientRef.current.setQueryData<number>(
+            notificationQueryKeys.unreadCount,
+            message.data.unread_count
+          );
+          return;
+        }
+
         const eventType = message.type ?? message.event;
 
         switch (eventType) {
