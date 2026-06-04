@@ -3,6 +3,10 @@ export const marketingApps = [
     category: { en: "POS", id: "POS" },
     items: [
       { name: { en: "Point of Sale", id: "POS Toko" }, href: "/pos" },
+      { name: { en: "Floor Layout", id: "Layout Meja" }, href: "/pos/floor-layout" },
+      { name: { en: "Self Order", id: "Self Order" }, href: "/pos/self-order" },
+      { name: { en: "QR Review", id: "Review QR" }, href: "/pos/qr-review" },
+      { name: { en: "Offline Support", id: "Mode Offline" }, href: "/pos/offline-support" },
     ]
   },
   {
