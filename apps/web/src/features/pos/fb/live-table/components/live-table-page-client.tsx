@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
@@ -52,6 +52,7 @@ import {
   useDeleteOrder,
   useAssignTable,
   usePOSOrderList,
+  posKeys,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -316,9 +317,11 @@ interface SessionOrderRowProps {
 }
 
   function SessionOrderRow({ order, onOpenReceipt, onEditOrder }: SessionOrderRowProps) {
-    const t = useTranslations("posTerminal.liveTable");
+  const t = useTranslations("posTerminal.liveTable");
   const { data: paymentsData } = usePOSPayments(order.id, {
     enabled: !!order.id,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   const payments = (paymentsData?.data ?? []) as POSPayment[];
@@ -522,14 +525,16 @@ interface ActiveTableCancelDialogProps {
 
 function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps) {
   const t = useTranslations("posTerminal.liveTable.payNow");
-  const cancelPayment = useCancelPendingPOSPayment();
-  const voidOrder = useVoidOrder();
+  const cancelPayment = useCancelPendingPOSPayment({ invalidateOnSuccess: false });
+  const voidOrder = useVoidOrder({ invalidateOnSuccess: false });
   const [reason, setReason] = useState("");
   const order = info?.unpaidOrder ?? null;
   const tableLabel = info ? (info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`) : "";
 
   const { data: paymentsData } = usePOSPayments(order?.id ?? "", {
     enabled: !!order?.id,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   const payments = (paymentsData?.data ?? []) as POSPayment[];
@@ -1343,9 +1348,9 @@ export function LiveTablePageClient() {
     now,
   });
 
-  const serveOrder = useServeOrder();
-  const completeOrder = useCompleteOrder();
-  const serveOrderItem = useServeOrderItem();
+  const serveOrder = useServeOrder({ invalidateOnSuccess: false });
+  const completeOrder = useCompleteOrder({ invalidateOnSuccess: false });
+  const serveOrderItem = useServeOrderItem({ invalidateOnSuccess: false });
   const [servingId, setServingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [servingItemId, setServingItemId] = useState<string | null>(null);
@@ -1358,11 +1363,35 @@ export function LiveTablePageClient() {
   const [receiptTenderAmount, setReceiptTenderAmount] = useState<number | undefined>();
 
   const queryClient = useQueryClient();
+  const ordersInvalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleOrdersInvalidate = useCallback(() => {
+    if (ordersInvalidateTimerRef.current) {
+      clearTimeout(ordersInvalidateTimerRef.current);
+    }
+    ordersInvalidateTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: posKeys.orders() });
+      ordersInvalidateTimerRef.current = null;
+    }, 800);
+  }, [queryClient]);
+
+  useEffect(() => {
+    return () => {
+      if (ordersInvalidateTimerRef.current) {
+        clearTimeout(ordersInvalidateTimerRef.current);
+      }
+    };
+  }, []);
 
   const { data: draftOrdersResponse } = usePOSOrderList(
     {
       outlet_id: outletId,
       status: "DRAFT",
+    },
+    {
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
     }
   );
 
@@ -1370,8 +1399,8 @@ export function LiveTablePageClient() {
     return (draftOrdersResponse?.data ?? []).filter((order) => !order.table_id);
   }, [draftOrdersResponse]);
 
-  const deleteOrder = useDeleteOrder();
-  const assignTable = useAssignTable();
+  const deleteOrder = useDeleteOrder({ invalidateOnSuccess: false });
+  const assignTable = useAssignTable({ invalidateOnSuccess: false });
   const [applyingDraft, setApplyingDraft] = useState<POSOrder | null>(null);
 
   const handleDropDraftOnTable = useCallback(
@@ -1420,6 +1449,7 @@ export function LiveTablePageClient() {
     table_label?: string;
     order_id?: string;
     order_number?: string;
+    order?: POSOrder;
   } | undefined) => {
     if (eventType === "pos.payment_confirmed") {
       setPaymentNotice({
@@ -1431,14 +1461,17 @@ export function LiveTablePageClient() {
     }
 
     if (
-      eventType === "pos.order_deleted" ||
-      eventType === "pos.order_created" ||
-      eventType === "pos.order_status_changed" ||
-      eventType === "pos.new_customer_order"
+      !payload?.order &&
+      (
+        eventType === "pos.order_deleted" ||
+        eventType === "pos.order_created" ||
+        eventType === "pos.order_status_changed" ||
+        eventType === "pos.new_customer_order"
+      )
     ) {
-      queryClient.invalidateQueries({ queryKey: ["pos", "orders"] });
+      scheduleOrdersInvalidate();
     }
-  }, [queryClient]);
+  }, [scheduleOrdersInvalidate]);
 
   // Real-time staff notifications and payment confirmation state in Active Tables.
   usePosWs(outletId, { onEvent: handleWsEvent, suppressToastEvents: suppressedToastEvents });
