@@ -68,6 +68,7 @@ export const posSelflOrderEn = {
       networkErrorDescription:
         "There was a network or server issue. Please refresh and try again shortly.",
       failedOrder: "Failed to create order. Try again.",
+      paymentConfirmFailed: "Payment was redirected successfully, but the status could not be confirmed yet. Please wait a moment.",
       orderCannotModify: "The previous order can no longer be modified. Please start a new order.",
     },
   },

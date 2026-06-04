@@ -121,11 +121,29 @@ func (h *POSPaymentHandler) XenditWebhook(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.ConfirmXenditWebhook(c.Request.Context(), &payload); err != nil {
-		coreErrors.InternalServerErrorResponse(c, "")
+	callbackToken := c.GetHeader("x-callback-token")
+	if callbackToken == "" {
+		callbackToken = c.GetHeader("X-CALLBACK-TOKEN")
+	}
+
+	if err := h.uc.ConfirmXenditWebhook(c.Request.Context(), &payload, callbackToken); err != nil {
+		handlePOSPaymentWebhookError(c, err)
 		return
 	}
 	response.SuccessResponse(c, gin.H{"status": "ok"}, nil)
+}
+
+func handlePOSPaymentWebhookError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, usecase.ErrPOSPaymentNotFound):
+		coreErrors.NotFoundResponse(c, "pos_payment", "")
+	case strings.HasPrefix(err.Error(), "XENDIT_WEBHOOK_INVALID:"):
+		coreErrors.ForbiddenResponse(c, "valid_xendit_callback_token", nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_WEBHOOK_UNKNOWN_EVENT:"):
+		coreErrors.ErrorResponse(c, "INVALID_REQUEST_BODY", map[string]interface{}{"reason": err.Error()}, nil)
+	default:
+		coreErrors.InternalServerErrorResponse(c, "")
+	}
 }
 
 func handlePOSPaymentError(c *gin.Context, err error) {

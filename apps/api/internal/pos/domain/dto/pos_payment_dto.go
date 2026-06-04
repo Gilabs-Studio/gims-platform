@@ -23,7 +23,9 @@ type ProcessPaymentRequest struct {
 	// atomically when payment is finalized.
 	LoyaltyRewardID *string `json:"loyalty_reward_id"`
 	// ChannelCode specifies the Xendit payment channel (e.g. QRIS, BCA, DANA, OVO)
-	ChannelCode *string `json:"channel_code"`
+	ChannelCode        *string `json:"channel_code"`
+	SuccessRedirectURL *string `json:"success_redirect_url,omitempty"`
+	FailureRedirectURL *string `json:"failure_redirect_url,omitempty"`
 }
 
 // CancelPendingPaymentRequest carries an optional cashier reason when cancelling

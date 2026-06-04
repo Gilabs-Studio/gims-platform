@@ -68,6 +68,7 @@ export const posSelflOrderId = {
       networkErrorDescription:
         "Terjadi gangguan koneksi atau server. Silakan refresh halaman beberapa saat lagi.",
       failedOrder: "Gagal membuat pesanan. Coba lagi.",
+      paymentConfirmFailed: "Pembayaran berhasil diarahkan, tetapi status belum bisa dikonfirmasi. Silakan tunggu beberapa saat.",
       orderCannotModify: "Pesanan sebelumnya sudah tidak bisa diubah. Silakan mulai pesanan baru.",
     },
   },

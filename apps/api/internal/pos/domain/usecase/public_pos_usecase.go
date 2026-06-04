@@ -30,6 +30,8 @@ type PublicPOSUsecase interface {
 	GetOrderStatus(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
 	// InitiateDigitalPayment creates a Xendit payment invoice for a customer order.
 	InitiateDigitalPayment(ctx context.Context, token, orderID string, req *dto.InitiateCustomerPaymentRequest) (*dto.POSPaymentResponse, error)
+	// ConfirmDigitalPaymentRedirect verifies a Xendit redirect by fetching invoice status server-side.
+	ConfirmDigitalPaymentRedirect(ctx context.Context, token, orderID, paymentID string) (*dto.POSPaymentResponse, error)
 	// MarkPayAtCashier marks the order as waiting cashier payment and broadcasts status updates.
 	MarkPayAtCashier(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error)
 	// CancelCustomerOrder cancels a self-order if it is not yet processed.
@@ -295,9 +297,11 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 	}
 
 	payReq := &dto.ProcessPaymentRequest{
-		Method:      req.Method,
-		Amount:      req.Amount,
-		ChannelCode: req.ChannelCode,
+		Method:             req.Method,
+		Amount:             req.Amount,
+		ChannelCode:        req.ChannelCode,
+		SuccessRedirectURL: req.SuccessRedirectURL,
+		FailureRedirectURL: req.FailureRedirectURL,
 	}
 
 	// Use a stable public actor label; payment usecase normalizes this into a valid UUID.
@@ -307,16 +311,42 @@ func (u *publicPOSUsecase) InitiateDigitalPayment(ctx context.Context, token, or
 	}
 
 	if u.hub != nil {
+		updatedOrder, getErr := u.orderUC.GetByID(orderCtx, orderID)
+		if getErr == nil && updatedOrder != nil {
+			order = updatedOrder
+		}
 		tableLabel := qr.TableLabel
 		if order.TableLabel != nil {
 			tableLabel = *order.TableLabel
 		}
-		payload := posOrderRealtimePayload(order, "WAITING_DIGITAL", "")
+		payload := posOrderRealtimePayload(order, "PENDING", "")
 		payload["table_label"] = tableLabel
 		u.hub.Publish(tenantID, qr.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return payment, nil
+}
+
+func (u *publicPOSUsecase) ConfirmDigitalPaymentRedirect(ctx context.Context, token, orderID, paymentID string) (*dto.POSPaymentResponse, error) {
+	qr, err := u.qrTokenRepo.FindByToken(ctx, token)
+	if err != nil || qr == nil || !qr.IsActive {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	orderCtx, _, companyID, _, err := u.buildPublicOrderContext(ctx, qr.OutletID)
+	if err != nil {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	order, err := u.orderUC.GetByID(orderCtx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.OutletID != qr.OutletID {
+		return nil, ErrPublicTokenInvalid
+	}
+
+	return u.paymentUC.SyncXenditPayment(orderCtx, orderID, paymentID, companyID)
 }
 
 func (u *publicPOSUsecase) MarkPayAtCashier(ctx context.Context, token, orderID string) (*dto.CustomerOrderResponse, error) {

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
@@ -26,6 +28,7 @@ import (
 	salesUsecase "github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ErrPOSPaymentNotFound is returned when the requested payment record does not exist.
@@ -37,8 +40,10 @@ type POSPaymentUsecase interface {
 	ProcessCash(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID string) (*dto.POSPaymentResponse, error)
 	// InitiateDigitalPayment creates a Xendit invoice and returns payment details (QR / URL)
 	InitiateDigitalPayment(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID, companyID string) (*dto.POSPaymentResponse, error)
-	// ConfirmXenditWebhook processes a Xendit server-to-server invoice notification
-	ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error
+	// ConfirmXenditWebhook processes a verified Xendit server-to-server invoice notification.
+	ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload, callbackToken string) error
+	// SyncXenditPayment refreshes a pending payment from Xendit after browser redirect.
+	SyncXenditPayment(ctx context.Context, orderID, paymentID, companyID string) (*dto.POSPaymentResponse, error)
 	// GetByOrderID returns all payments for an order
 	GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error)
 	// CancelPendingPayment cancels a pending digital payment and keeps order open for cashier payment.
@@ -256,8 +261,19 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 	if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
 		return nil, ErrPOSOrderAlreadyPaid
 	}
+	if req == nil || req.Amount <= 0 {
+		return nil, fmt.Errorf("%w: amount must be greater than zero", ErrPOSInvalidPayment)
+	}
+
+	channelCode, err := normalizeXenditInvoiceChannel(req)
+	if err != nil {
+		return nil, err
+	}
 
 	// Fetch the merchant's Xendit account config; payment requires an active connection
+	if strings.TrimSpace(companyID) == "" {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
+	}
 	xenditCfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -284,70 +300,136 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
-	// Build a unique external order ID for Xendit invoice tracking
-	externalOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
-
-	description := buildXenditOrderDescription(order)
-
-	// Build Xendit invoice request with optional channel filtering
-	invoiceReq := provider.InvoiceRequest{
-		ExternalID:  externalOrderID,
-		Amount:      order.TotalAmount,
-		Description: description,
-		Currency:    "IDR",
+	if math.Abs(req.Amount-order.TotalAmount) > 0.01 {
+		return nil, fmt.Errorf("%w: amount %.2f does not match order total %.2f", ErrPOSInvalidPayment, req.Amount, order.TotalAmount)
+	}
+	if order.TotalAmount <= 0 {
+		return nil, fmt.Errorf("%w: order total must be greater than zero", ErrPOSInvalidPayment)
 	}
 
-	// Restrict to a specific payment channel when provided by the cashier
-	if req.ChannelCode != nil && *req.ChannelCode != "" {
-		invoiceReq.PaymentMethods = []string{*req.ChannelCode}
-	}
+	var result *dto.POSPaymentResponse
+	var updatedOrderForPublish *dto.POSOrderResponse
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
 
-	// Create Xendit invoice routed to the merchant's sub-account
-	xenditProvider := provider.NewXenditProvider(decryptedSecretKey, xenditCfg.XenditAccountID)
-	invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
+		lockKey := fmt.Sprintf("pos:digital-payment:%s", orderID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+			return fmt.Errorf("failed to acquire payment lock: %w", err)
+		}
+
+		lockedOrder, err := u.orderRepo.GetByID(txCtx, orderID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSOrderNotFound
+			}
+			return err
+		}
+		if lockedOrder.Status == models.PosOrderStatusPaid || lockedOrder.Status == models.PosOrderStatusCompleted {
+			return ErrPOSOrderAlreadyPaid
+		}
+
+		now := apptime.Now()
+		existingPayments, err := u.paymentRepo.FindByOrderID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		for i := range existingPayments {
+			pending := &existingPayments[i]
+			if pending.Status != models.POSPaymentStatusPending {
+				continue
+			}
+			if pending.ExpiresAt == nil || pending.ExpiresAt.After(now) {
+				if lockedOrder.Status != models.PosOrderStatusWaitingPayment {
+					lockedOrder.Status = models.PosOrderStatusWaitingPayment
+					if err := u.orderRepo.Update(txCtx, lockedOrder); err != nil {
+						return err
+					}
+				}
+				result = mapper.ToPOSPaymentResponse(pending)
+				updatedOrderForPublish = mapper.ToPOSOrderResponse(lockedOrder)
+				return nil
+			}
+			pending.Status = models.POSPaymentStatusExpired
+			if err := u.paymentRepo.Update(txCtx, pending); err != nil {
+				return err
+			}
+		}
+
+		// Build a unique external order ID for Xendit invoice tracking.
+		paymentID := uuid.New().String()
+		externalOrderID := fmt.Sprintf("%s-%d", lockedOrder.OrderNumber, now.UnixMilli())
+		invoiceReq := provider.InvoiceRequest{
+			ExternalID:         externalOrderID,
+			Amount:             lockedOrder.TotalAmount,
+			Description:        buildXenditOrderDescription(lockedOrder),
+			Currency:           "IDR",
+			SuccessRedirectURL: appendPaymentRedirectParam(req.SuccessRedirectURL, paymentID),
+			FailureRedirectURL: appendPaymentRedirectParam(req.FailureRedirectURL, paymentID),
+		}
+		// Match registration billing: omit payment_methods so Xendit's hosted invoice
+		// shows every active method configured on the merchant account.
+
+		// Create Xendit invoice routed to the merchant's sub-account.
+		xenditProvider := provider.NewXenditProvider(decryptedSecretKey, xenditCfg.XenditAccountID)
+		invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
+		if err != nil {
+			return fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
+		}
+		if strings.TrimSpace(invoice.ID) == "" || strings.TrimSpace(invoice.InvoiceURL) == "" {
+			return fmt.Errorf("XENDIT_INVOICE_FAILED: incomplete invoice response from Xendit")
+		}
+
+		expiresAt := resolveXenditInvoiceExpiry(invoice.ExpiryDate, now)
+		actorID := normalizedActorID(cashierID)
+
+		payment := &models.POSPayment{
+			ID:              paymentID,
+			OrderID:         orderID,
+			Method:          models.POSPaymentMethodDigital,
+			Status:          models.POSPaymentStatusPending,
+			Amount:          lockedOrder.TotalAmount,
+			TenderAmount:    lockedOrder.TotalAmount,
+			ChangeAmount:    0,
+			ReferenceNumber: req.ReferenceNumber,
+			Notes:           req.Notes,
+			ExternalOrderID: &externalOrderID,
+			XenditInvoiceID: &invoice.ID,
+			PaymentURL:      &invoice.InvoiceURL,
+			ExpiresAt:       &expiresAt,
+			CreatedBy:       actorID,
+		}
+
+		if channelCode != "" {
+			payment.PaymentType = &channelCode
+		}
+		if invoice.QRCode != "" {
+			payment.QrCode = &invoice.QRCode
+		}
+		if len(invoice.AvailableBanks) > 0 {
+			payment.VaNumber = &invoice.AvailableBanks[0].BankAccountNumber
+		}
+
+		if err := u.paymentRepo.Create(txCtx, payment); err != nil {
+			return err
+		}
+
+		lockedOrder.Status = models.PosOrderStatusWaitingPayment
+		if err := u.orderRepo.Update(txCtx, lockedOrder); err != nil {
+			return err
+		}
+
+		result = mapper.ToPOSPaymentResponse(payment)
+		updatedOrderForPublish = mapper.ToPOSOrderResponse(lockedOrder)
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
-	}
-
-	now := apptime.Now()
-	expiresAt := now.Add(24 * 60 * 60 * 1_000_000_000) // 24-hour default expiry
-	actorID := normalizedActorID(cashierID)
-
-	payment := &models.POSPayment{
-		OrderID:         orderID,
-		Method:          models.POSPaymentMethodDigital,
-		Status:          models.POSPaymentStatusPending,
-		Amount:          order.TotalAmount,
-		TenderAmount:    order.TotalAmount,
-		ChangeAmount:    0,
-		ReferenceNumber: req.ReferenceNumber,
-		Notes:           req.Notes,
-		ExternalOrderID: &externalOrderID,
-		XenditInvoiceID: &invoice.ID,
-		PaymentURL:      &invoice.InvoiceURL,
-		ExpiresAt:       &expiresAt,
-		CreatedBy:       actorID,
-	}
-
-	// Store the requested channel code for tracking
-	if req.ChannelCode != nil && *req.ChannelCode != "" {
-		payment.PaymentType = req.ChannelCode
-	}
-
-	// Store QR code string if Xendit returned one (QRIS-enabled invoices)
-	if invoice.QRCode != "" {
-		payment.QrCode = &invoice.QRCode
-	}
-
-	// Store VA number if Xendit returned bank transfer details
-	if len(invoice.AvailableBanks) > 0 {
-		payment.VaNumber = &invoice.AvailableBanks[0].BankAccountNumber
-	}
-
-	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
 	}
-	return mapper.ToPOSPaymentResponse(payment), nil
+	if u.hub != nil && updatedOrderForPublish != nil {
+		payload := posOrderRealtimePayload(updatedOrderForPublish, "PENDING", "")
+		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.order_status_changed", payload)
+	}
+	return result, nil
 }
 
 func applyCustomerInfoToOrder(order *models.PosOrder, req *dto.ProcessPaymentRequest) bool {
@@ -567,56 +649,316 @@ func formatOrderItemQuantity(quantity float64) string {
 	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", quantity), "0"), ".")
 }
 
-func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error {
+var supportedXenditInvoiceChannels = map[string]struct{}{
+	"QRIS":        {},
+	"DANA":        {},
+	"GOPAY":       {},
+	"OVO":         {},
+	"SHOPEEPAY":   {},
+	"LINKAJA":     {},
+	"ASTRAPAY":    {},
+	"JENIUSPAY":   {},
+	"BCA":         {},
+	"BNI":         {},
+	"BRI":         {},
+	"MANDIRI":     {},
+	"PERMATA":     {},
+	"CIMB":        {},
+	"BSI":         {},
+	"CREDIT_CARD": {},
+}
+
+func normalizeXenditInvoiceChannel(req *dto.ProcessPaymentRequest) (string, error) {
+	method := strings.ToUpper(strings.TrimSpace(req.Method))
+	channel := ""
+	if req.ChannelCode != nil {
+		channel = strings.ToUpper(strings.TrimSpace(*req.ChannelCode))
+	}
+
+	switch method {
+	case string(models.POSPaymentMethodDigital):
+		// Empty channel is valid: Xendit's hosted invoice can show all active methods.
+	case string(models.POSPaymentMethodQris):
+		if channel == "" {
+			channel = "QRIS"
+		}
+	default:
+		return "", fmt.Errorf("%w: unsupported digital payment method %s", ErrPOSInvalidPayment, req.Method)
+	}
+
+	if channel == "" {
+		return "", nil
+	}
+	if _, ok := supportedXenditInvoiceChannels[channel]; !ok {
+		return "", fmt.Errorf("%w: unsupported Xendit channel %s", ErrPOSInvalidPayment, channel)
+	}
+	return channel, nil
+}
+
+func resolveXenditInvoiceExpiry(expiryDate string, fallback time.Time) time.Time {
+	trimmed := strings.TrimSpace(expiryDate)
+	if trimmed == "" {
+		return fallback.Add(24 * time.Hour)
+	}
+
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02 15:04:05",
+	}
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed
+		}
+	}
+
+	return fallback.Add(24 * time.Hour)
+}
+
+func appendPaymentRedirectParam(value *string, paymentID string) string {
+	if value == nil || strings.TrimSpace(*value) == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(strings.TrimSpace(*value))
+	if err != nil {
+		return strings.TrimSpace(*value)
+	}
+	query := parsed.Query()
+	if strings.TrimSpace(paymentID) != "" {
+		query.Set("payment_id", paymentID)
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
+}
+
+func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload, callbackToken string) error {
+	if payload == nil {
+		return errors.New("missing Xendit webhook payload")
+	}
 	if payload.ExternalID == "" {
 		return errors.New("missing external_id in Xendit webhook payload")
 	}
-
-	payment, err := u.paymentRepo.FindByExternalOrderID(ctx, payload.ExternalID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrPOSPaymentNotFound
-		}
-		return err
-	}
-	if payment.Status != models.POSPaymentStatusPending {
-		return nil // idempotent — already processed
+	if strings.TrimSpace(callbackToken) == "" {
+		return errors.New("missing Xendit callback token")
 	}
 
-	var newStatus models.POSPaymentStatus
-	switch strings.ToUpper(payload.Status) {
-	case "PAID", "SETTLED":
-		newStatus = models.POSPaymentStatusPaid
-	case "EXPIRED":
-		newStatus = models.POSPaymentStatusExpired
-	default:
-		newStatus = models.POSPaymentStatusFailed
-	}
+	var finalizedPayment *models.POSPayment
+	var finalizedOrder *models.PosOrder
 
-	payment.Status = newStatus
-	if payload.PaymentMethod != "" {
-		payment.PaymentType = &payload.PaymentMethod
-	}
-	if payload.PaymentChannel != "" {
-		ch := payload.PaymentChannel
-		payment.TransactionID = &ch
-	}
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
 
-	switch newStatus {
-	case models.POSPaymentStatusPaid:
-		now := apptime.Now()
-		payment.PaidAt = &now
-		if err := u.paymentRepo.Update(ctx, payment); err != nil {
+		var payment models.POSPayment
+		err := tx.WithContext(ctx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("external_order_id = ?", payload.ExternalID).
+			First(&payment).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSPaymentNotFound
+			}
 			return err
 		}
-		order, err := u.orderRepo.GetByID(ctx, payment.OrderID)
+
+		if payload.ID != "" && payment.XenditInvoiceID != nil && *payment.XenditInvoiceID != "" && payload.ID != *payment.XenditInvoiceID {
+			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: invoice id does not match payment")
+		}
+
+		var order models.PosOrder
+		err = tx.WithContext(ctx).
+			Preload("Items").
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&order, "id = ?", payment.OrderID).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSOrderNotFound
+			}
+			return err
+		}
+
+		var companyID string
+		err = tx.WithContext(ctx).
+			Table("outlets").
+			Select("company_id").
+			Where("id = ? AND deleted_at IS NULL", order.OutletID).
+			Scan(&companyID).Error
 		if err != nil {
 			return err
 		}
-		return u.finalizeOrder(ctx, order, "", payment)
-	default:
-		return u.paymentRepo.Update(ctx, payment)
+		if strings.TrimSpace(companyID) == "" {
+			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: outlet company is missing")
+		}
+
+		cfg, err := u.xenditRepo.FindByCompanyID(txCtx, companyID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("XENDIT_WEBHOOK_INVALID: payment gateway config not found")
+			}
+			return err
+		}
+		expectedToken, err := u.cipher.Decrypt(cfg.WebhookToken)
+		if err != nil {
+			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: invalid webhook token configuration")
+		}
+		if strings.TrimSpace(expectedToken) == "" || strings.TrimSpace(callbackToken) != strings.TrimSpace(expectedToken) {
+			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: callback token mismatch")
+		}
+
+		if payment.Status != models.POSPaymentStatusPending {
+			return nil // idempotent: already processed by an earlier callback/retry.
+		}
+
+		newStatus, terminal, err := mapXenditInvoiceStatus(payload.Status)
+		if err != nil {
+			return err
+		}
+		if !terminal {
+			return nil
+		}
+
+		if newStatus == models.POSPaymentStatusPaid && payload.PaidAmount > 0 && math.Abs(payload.PaidAmount-payment.Amount) > 0.01 {
+			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: paid amount %.2f does not match payment amount %.2f", payload.PaidAmount, payment.Amount)
+		}
+
+		payment.Status = newStatus
+		if payload.PaymentMethod != "" {
+			method := strings.ToUpper(strings.TrimSpace(payload.PaymentMethod))
+			payment.PaymentType = &method
+		}
+		if payload.PaymentChannel != "" {
+			ch := strings.TrimSpace(payload.PaymentChannel)
+			payment.TransactionID = &ch
+		}
+
+		if newStatus == models.POSPaymentStatusPaid {
+			paidAt := parseXenditPaidAt(payload.PaidAt)
+			payment.PaidAt = &paidAt
+			finalizedPayment = &payment
+			finalizedOrder = &order
+		}
+
+		return u.paymentRepo.Update(txCtx, &payment)
+	})
+	if err != nil {
+		return err
 	}
+
+	if finalizedPayment == nil || finalizedOrder == nil {
+		return nil
+	}
+
+	finalizeCtx := ctx
+	if strings.TrimSpace(finalizedOrder.TenantID) != "" {
+		finalizeCtx = context.WithValue(finalizeCtx, "tenant_id", finalizedOrder.TenantID)
+		finalizeCtx = context.WithValue(finalizeCtx, "permission_scope", "ALL")
+	}
+	return u.finalizeOrder(finalizeCtx, finalizedOrder, "", finalizedPayment)
+}
+
+func mapXenditInvoiceStatus(status string) (models.POSPaymentStatus, bool, error) {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "PENDING":
+		return models.POSPaymentStatusPending, false, nil
+	case "PAID", "SETTLED":
+		return models.POSPaymentStatusPaid, true, nil
+	case "EXPIRED":
+		return models.POSPaymentStatusExpired, true, nil
+	case "FAILED":
+		return models.POSPaymentStatusFailed, true, nil
+	case "CANCELLED", "CANCELED", "VOIDED":
+		return models.POSPaymentStatusCancelled, true, nil
+	default:
+		return "", false, fmt.Errorf("XENDIT_WEBHOOK_UNKNOWN_EVENT: unknown invoice status %s", status)
+	}
+}
+
+func parseXenditPaidAt(value string) time.Time {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return apptime.Now()
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05Z",
+	}
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed
+		}
+	}
+	return apptime.Now()
+}
+
+func (u *posPaymentUsecase) SyncXenditPayment(ctx context.Context, orderID, paymentID, companyID string) (*dto.POSPaymentResponse, error) {
+	if strings.TrimSpace(companyID) == "" {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
+	}
+
+	payment, err := u.paymentRepo.FindByID(ctx, paymentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPOSPaymentNotFound
+		}
+		return nil, err
+	}
+	if payment.OrderID != orderID {
+		return nil, ErrPOSPaymentNotFound
+	}
+	if payment.XenditInvoiceID == nil || strings.TrimSpace(*payment.XenditInvoiceID) == "" {
+		return nil, fmt.Errorf("%w: payment has no Xendit invoice", ErrPOSInvalidPayment)
+	}
+	if payment.ExternalOrderID == nil || strings.TrimSpace(*payment.ExternalOrderID) == "" {
+		return nil, fmt.Errorf("%w: payment has no Xendit external id", ErrPOSInvalidPayment)
+	}
+
+	cfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured for this company")
+		}
+		return nil, err
+	}
+	if !cfg.IsConnected() {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
+	}
+
+	secretKey, err := u.cipher.Decrypt(cfg.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
+	}
+	callbackToken, err := u.cipher.Decrypt(cfg.WebhookToken)
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_WEBHOOK_INVALID: invalid webhook token configuration")
+	}
+
+	xenditProvider := provider.NewXenditProvider(secretKey, cfg.XenditAccountID)
+	invoice, err := xenditProvider.GetInvoice(ctx, *payment.XenditInvoiceID)
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
+	}
+
+	payload := &dto.XenditWebhookPayload{
+		ExternalID: strings.TrimSpace(*payment.ExternalOrderID),
+		Status:     invoice.Status,
+		ID:         invoice.ID,
+		PaidAmount: invoice.Amount,
+	}
+	if err := u.ConfirmXenditWebhook(ctx, payload, callbackToken); err != nil {
+		return nil, err
+	}
+
+	updated, err := u.paymentRepo.FindByID(ctx, paymentID)
+	if err != nil {
+		return nil, err
+	}
+	return mapper.ToPOSPaymentResponse(updated), nil
 }
 
 func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error) {

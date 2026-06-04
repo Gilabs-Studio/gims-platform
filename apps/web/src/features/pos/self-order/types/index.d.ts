@@ -73,10 +73,13 @@ export interface InitiatePaymentRequest {
   method: "QRIS" | "DIGITAL";
   amount: number;
   channel_code?: string;
+  success_redirect_url?: string;
+  failure_redirect_url?: string;
 }
 
 export interface InitiatePaymentResponse {
-  payment_id: string;
+  id?: string;
+  payment_id?: string;
   method: string;
   qr_string?: string;
   qr_image_url?: string;

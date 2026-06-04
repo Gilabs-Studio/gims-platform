@@ -3,8 +3,11 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
@@ -73,8 +76,26 @@ func (h *PublicPOSHandler) InitiateDigitalPayment(c *gin.Context) {
 		coreErrors.HandleValidationError(c, err)
 		return
 	}
+	successRedirect, failureRedirect := buildSelfOrderPaymentRedirectURLs(c, token, orderID, req.SuccessRedirectURL, req.FailureRedirectURL)
+	req.SuccessRedirectURL = &successRedirect
+	req.FailureRedirectURL = &failureRedirect
 
 	result, err := h.uc.InitiateDigitalPayment(c.Request.Context(), token, orderID, &req)
+	if err != nil {
+		handlePublicPOSError(c, err)
+		return
+	}
+	response.SuccessResponse(c, result, nil)
+}
+
+// ConfirmDigitalPaymentRedirect verifies payment status after Xendit redirects the browser
+// back to self-order. This mirrors register success confirmation and covers delayed webhooks.
+func (h *PublicPOSHandler) ConfirmDigitalPaymentRedirect(c *gin.Context) {
+	token := c.Param("token")
+	orderID := c.Param("orderId")
+	paymentID := c.Param("paymentId")
+
+	result, err := h.uc.ConfirmDigitalPaymentRedirect(c.Request.Context(), token, orderID, paymentID)
 	if err != nil {
 		handlePublicPOSError(c, err)
 		return
@@ -134,6 +155,43 @@ func (h *PublicPOSHandler) CancelDigitalPayment(c *gin.Context) {
 	}, nil)
 }
 
+func buildSelfOrderPaymentRedirectURLs(c *gin.Context, token, orderID string, requestedSuccess, requestedFailure *string) (string, string) {
+	if requestedSuccess != nil && strings.TrimSpace(*requestedSuccess) != "" {
+		success := withSelfOrderPaymentQuery(strings.TrimSpace(*requestedSuccess), orderID, "success")
+		failedBase := success
+		if requestedFailure != nil && strings.TrimSpace(*requestedFailure) != "" {
+			failedBase = strings.TrimSpace(*requestedFailure)
+		}
+		return success, withSelfOrderPaymentQuery(failedBase, orderID, "failed")
+	}
+
+	base := strings.TrimSpace(c.GetHeader("Referer"))
+	if base == "" {
+		origin := strings.TrimSpace(c.GetHeader("Origin"))
+		if origin == "" && config.AppConfig != nil {
+			origin = strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
+		}
+		base = strings.TrimRight(origin, "/") + "/id/pos/" + url.PathEscape(token)
+	}
+
+	success := withSelfOrderPaymentQuery(base, orderID, "success")
+	failed := withSelfOrderPaymentQuery(base, orderID, "failed")
+	return success, failed
+}
+
+func withSelfOrderPaymentQuery(base, orderID, status string) string {
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return base
+	}
+	query := parsed.Query()
+	query.Set("order_id", orderID)
+	query.Set("payment_status", status)
+	parsed.RawQuery = query.Encode()
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
 // handlePublicPOSError maps public-facing errors to HTTP responses.
 func handlePublicPOSError(c *gin.Context, err error) {
 	switch {
@@ -153,6 +211,12 @@ func handlePublicPOSError(c *gin.Context, err error) {
 		coreErrors.ErrorResponse(c, "POS_PRODUCT_NOT_AVAILABLE", nil, nil)
 	case errors.Is(err, usecase.ErrPOSInsufficientStock):
 		coreErrors.ErrorResponse(c, "INSUFFICIENT_STOCK", nil, nil)
+	case errors.Is(err, usecase.ErrPOSInvalidPayment):
+		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
+		coreErrors.ErrorResponse(c, "XENDIT_NOT_CONNECTED", map[string]interface{}{"reason": "Payment gateway is not available"}, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"):
+		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": "Failed to create digital payment invoice"}, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}
