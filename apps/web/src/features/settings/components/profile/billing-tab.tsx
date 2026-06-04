@@ -539,7 +539,7 @@ export function BillingTab() {
   });
   const { data: outletLimit } = useOutletLimit();
 
-  const isSubscriptionSuspended = subscription?.status === "suspended";
+  const isSubscriptionSuspended = subscription?.status === "suspended" || subscription?.status === "expired";
 
   const {
     data: pendingXenditPayments,
@@ -651,7 +651,7 @@ export function BillingTab() {
   }, [subscription, apiPlans]);
 
   // The Ultimate Suite is the highest plan — no upgrade path beyond it (only enterprise contact)
-  const isOnMaxPlan = subscription?.plan === "ultimate_suite" || subscription?.plan === "full_access";
+  const isOnMaxPlan = subscription?.plan === "ultimate_suite";
 
   const currentSeatLimit = subscription?.seat_limit ?? subscription?.user_count ?? 1;
   const currentOutletLimit = Math.max(1, subscription?.outlet_limit ?? outletLimit?.max ?? 1);

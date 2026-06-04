@@ -115,6 +115,14 @@ func (r *notificationRepository) MarkAsRead(ctx context.Context, userID, id stri
 	if err != nil {
 		return nil, err
 	}
+
+	// Trigger WebSocket push for updated unread count
+	go func() {
+		if count, err := r.CountUnread(context.Background(), userID); err == nil {
+			notificationWS.DefaultNotificationHub().PublishUnreadCount(item.TenantID, userID, count)
+		}
+	}()
+
 	return &item, nil
 }
 
@@ -134,6 +142,11 @@ func (r *notificationRepository) MarkAllAsRead(ctx context.Context, userID strin
 		return 0, result.Error
 	}
 
+	// Trigger WebSocket push for updated unread count (it will be 0)
+	go func() {
+		notificationWS.DefaultNotificationHub().PublishUnreadCount("", userID, 0)
+	}()
+
 	return result.RowsAffected, nil
 }
 
@@ -149,9 +162,20 @@ func (r *notificationRepository) CreateBulk(ctx context.Context, notifications [
 		return err
 	}
 
+	usersToUpdate := make(map[string]string) // userID -> tenantID
+
 	for _, notification := range notifications {
 		notificationWS.DefaultNotificationHub().PublishCreated(notification)
+		usersToUpdate[notification.UserID] = notification.TenantID
 	}
+
+	go func() {
+		for userID, tenantID := range usersToUpdate {
+			if count, err := r.CountUnread(context.Background(), userID); err == nil {
+				notificationWS.DefaultNotificationHub().PublishUnreadCount(tenantID, userID, count)
+			}
+		}
+	}()
 
 	return nil
 }

@@ -54,6 +54,8 @@ interface POSPaymentModalProps {
   };
   /** Prefill selected reward for payment-only mode. */
   prefillReward?: RewardConfig | null;
+  /** Keep POS order-list queries untouched when parent already updates cache via realtime/optimistic state. */
+  invalidateOrderListOnSuccess?: boolean;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -177,6 +179,7 @@ export function POSPaymentModal({
   paymentOnly = false,
   prefillCustomer,
   prefillReward = null,
+  invalidateOrderListOnSuccess = true,
 }: POSPaymentModalProps) {
   // Multi-step flow: customer-select → reward (if loyalty) → payment
   const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "reward" | "payment">(
@@ -319,8 +322,8 @@ export function POSPaymentModal({
     enabled: pollingEnabled,
   });
   const { data: xenditStatusData, isLoading: xenditStatusLoading } = useXenditConnectionStatus();
-  const processCash = useProcessCashPayment();
-  const initiateDigital = useInitiateDigitalPayment();
+  const processCash = useProcessCashPayment({ invalidateOnSuccess: invalidateOrderListOnSuccess });
+  const initiateDigital = useInitiateDigitalPayment({ invalidateOnSuccess: invalidateOrderListOnSuccess });
 
   const isXenditConnected = xenditStatusData?.data?.is_connected === true;
 

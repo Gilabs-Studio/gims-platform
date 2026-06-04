@@ -81,6 +81,7 @@ func (r *posOrderRepository) FindActiveByOutletAndTable(ctx context.Context, out
 		Where("outlet_id = ? AND table_id = ? AND status IN ?", outletID, tableID, []models.PosOrderStatus{
 			models.PosOrderStatusDraft,
 			models.PosOrderStatusInProgress,
+			models.PosOrderStatusWaitingPayment,
 			models.PosOrderStatusReady,
 		}).
 		Order("updated_at DESC").
@@ -99,6 +100,7 @@ func (r *posOrderRepository) FindActiveByOutletAndTableLabel(ctx context.Context
 		Where("outlet_id = ? AND lower(trim(table_label)) = lower(trim(?)) AND status IN ?", outletID, normalizedLabel, []models.PosOrderStatus{
 			models.PosOrderStatusDraft,
 			models.PosOrderStatusInProgress,
+			models.PosOrderStatusWaitingPayment,
 			models.PosOrderStatusReady,
 		}).
 		Order("updated_at DESC").

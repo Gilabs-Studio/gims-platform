@@ -24,6 +24,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTenantDetail } from "../hooks/use-tenants";
 import type { Tenant } from "../types";
 
+type TenantDetailTab = "general" | "business" | "owner" | "compliance";
+
 interface TenantDetailDialogProps {
   readonly tenant: Tenant | null;
   readonly open: boolean;
@@ -31,7 +33,7 @@ interface TenantDetailDialogProps {
 }
 
 export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialogProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "business" | "owner" | "compliance">("general");
+  const [activeTab, setActiveTab] = useState<TenantDetailTab>("general");
   const { data: detail, isLoading } = useTenantDetail(open ? (tenant?.id ?? null) : null);
 
   const displayTenant = detail ?? tenant;
@@ -80,7 +82,7 @@ export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialog
           <Tabs
             value={activeTab}
             onValueChange={(v) =>
-              setActiveTab(v as any)
+              setActiveTab(v as TenantDetailTab)
             }
             className="w-full"
           >
@@ -334,7 +336,7 @@ export function TenantDetailDialog({ tenant, open, onClose }: TenantDetailDialog
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center gap-3 border rounded-lg">
                     <ShieldCheck className="h-10 w-10 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">No compliance consent records logged for this tenant's owner.</p>
+                    <p className="text-sm text-muted-foreground">No compliance consent records logged for this tenant&apos;s owner.</p>
                   </div>
                 )}
               </div>

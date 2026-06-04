@@ -56,7 +56,7 @@ func (h *NotificationHandler) SubscribeWS(c *gin.Context) {
 	}
 
 	clientID := h.hub.Register(conn, tenantID, userID)
-	defer h.hub.Unregister(clientID)
+	defer h.hub.Unregister(userID, clientID)
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {

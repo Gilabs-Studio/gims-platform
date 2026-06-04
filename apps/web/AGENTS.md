@@ -2,6 +2,7 @@
 
 **Location:** `apps/web/`
 **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui
+**Coding Standards:** See [standart.md](./standart.md) for official development guidelines, styling rules, and best practices.
 
 ## Architecture
 

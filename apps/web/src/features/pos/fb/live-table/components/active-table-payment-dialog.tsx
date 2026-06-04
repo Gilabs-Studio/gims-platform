@@ -102,8 +102,10 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
   const order = info?.unpaidOrder ?? info?.order ?? null;
   const { data: paymentsData } = usePOSPayments(order?.id ?? "", {
     enabled: !!order?.id,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
-  const cancelPendingPayment = useCancelPendingPOSPayment();
+  const cancelPendingPayment = useCancelPendingPOSPayment({ invalidateOnSuccess: false });
   const tableLabel = info ? (info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`) : "";
   const customerName = order?.customer_name?.trim() ?? "";
   const lookupMemberQuery = useLookupLoyaltyMember(customerName.length >= 2 ? customerName : "", order?.outlet_id ?? "");
@@ -370,6 +372,7 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
           prefillReward={selectedReward}
           loyaltyMember={selectedMember ?? undefined}
           loyaltyRewards={availableRewards}
+          invalidateOrderListOnSuccess={false}
           onSuccess={handlePaymentSuccess}
           onPaymentError={() => {
             toast.error(t("paymentFailed"));

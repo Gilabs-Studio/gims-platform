@@ -13,8 +13,12 @@ import (
 )
 
 type notificationPubSubEnvelope struct {
-	Origin string            `json:"origin"`
-	Event  NotificationEvent `json:"event"`
+	Origin   string             `json:"origin"`
+	Type     string             `json:"type"` // "notification" or "unread_count"
+	Event    *NotificationEvent `json:"event,omitempty"`
+	TenantID string             `json:"tenant_id,omitempty"`
+	UserID   string             `json:"user_id,omitempty"`
+	Payload  json.RawMessage    `json:"payload,omitempty"`
 }
 
 type NotificationPubSub struct {
@@ -71,8 +75,11 @@ func publishNotificationToRedis(event NotificationEvent) {
 	}
 
 	env := notificationPubSubEnvelope{
-		Origin: defaultNotificationPubSub.instanceID,
-		Event:  event,
+		Origin:   defaultNotificationPubSub.instanceID,
+		Type:     "notification",
+		Event:    &event,
+		TenantID: event.TenantID,
+		UserID:   event.UserID,
 	}
 	payload, err := json.Marshal(env)
 	if err != nil {
@@ -82,6 +89,37 @@ func publishNotificationToRedis(event NotificationEvent) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = client.Publish(ctx, notificationChannelName(event.TenantID, event.UserID), payload).Err()
+}
+
+func publishRawToRedis(tenantID, userID string, rawPayload interface{}) {
+	if defaultNotificationPubSub == nil {
+		return
+	}
+	client := redis.GetClient()
+	if client == nil {
+		return
+	}
+
+	rawBytes, err := json.Marshal(rawPayload)
+	if err != nil {
+		return
+	}
+
+	env := notificationPubSubEnvelope{
+		Origin:   defaultNotificationPubSub.instanceID,
+		Type:     "unread_count",
+		TenantID: tenantID,
+		UserID:   userID,
+		Payload:  rawBytes,
+	}
+	payload, err := json.Marshal(env)
+	if err != nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = client.Publish(ctx, notificationChannelName(tenantID, userID), payload).Err()
 }
 
 func (ps *NotificationPubSub) subscribe(ctx context.Context, client *goredis.Client) {
@@ -110,8 +148,21 @@ func (ps *NotificationPubSub) handleMessage(payload string) {
 	if env.Origin == ps.instanceID {
 		return
 	}
-	if env.Event.UserID == "" || env.Event.Type == "" {
+	if env.UserID == "" {
 		return
 	}
-	ps.hub.deliver(env.Event)
+
+	switch env.Type {
+	case "notification":
+		if env.Event != nil {
+			ps.hub.deliver(*env.Event)
+		}
+	case "unread_count":
+		if len(env.Payload) > 0 {
+			var raw interface{}
+			if err := json.Unmarshal(env.Payload, &raw); err == nil {
+				ps.hub.deliverRaw(env.TenantID, env.UserID, raw)
+			}
+		}
+	}
 }

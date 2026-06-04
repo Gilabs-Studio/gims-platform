@@ -54,7 +54,9 @@ type CustomerOrderResponse struct {
 // POST /public/pos/tables/:token/orders/:orderId/pay/digital.
 type InitiateCustomerPaymentRequest struct {
 	// Method must be QRIS or DIGITAL.
-	Method      string  `json:"method" binding:"required,oneof=QRIS DIGITAL"`
-	Amount      float64 `json:"amount" binding:"required,gt=0"`
-	ChannelCode *string `json:"channel_code"`
+	Method             string  `json:"method" binding:"required,oneof=QRIS DIGITAL"`
+	Amount             float64 `json:"amount" binding:"required,gt=0"`
+	ChannelCode        *string `json:"channel_code"`
+	SuccessRedirectURL *string `json:"success_redirect_url"`
+	FailureRedirectURL *string `json:"failure_redirect_url"`
 }

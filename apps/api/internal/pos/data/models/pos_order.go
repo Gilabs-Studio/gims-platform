@@ -20,14 +20,15 @@ const (
 type PosOrderStatus string
 
 const (
-	PosOrderStatusDraft         PosOrderStatus = "DRAFT"
-	PosOrderStatusInProgress    PosOrderStatus = "IN_PROGRESS"
-	PosOrderStatusReady         PosOrderStatus = "READY"
-	PosOrderStatusPartialServed PosOrderStatus = "PARTIAL_SERVED"
-	PosOrderStatusServed        PosOrderStatus = "SERVED"
-	PosOrderStatusPaid          PosOrderStatus = "PAID"
-	PosOrderStatusCompleted     PosOrderStatus = "COMPLETED"
-	PosOrderStatusVoided        PosOrderStatus = "VOIDED"
+	PosOrderStatusDraft          PosOrderStatus = "DRAFT"
+	PosOrderStatusInProgress     PosOrderStatus = "IN_PROGRESS"
+	PosOrderStatusWaitingPayment PosOrderStatus = "WAITING_PAYMENT"
+	PosOrderStatusReady          PosOrderStatus = "READY"
+	PosOrderStatusPartialServed  PosOrderStatus = "PARTIAL_SERVED"
+	PosOrderStatusServed         PosOrderStatus = "SERVED"
+	PosOrderStatusPaid           PosOrderStatus = "PAID"
+	PosOrderStatusCompleted      PosOrderStatus = "COMPLETED"
+	PosOrderStatusVoided         PosOrderStatus = "VOIDED"
 )
 
 // PosOrderType represents the service type of the order
@@ -52,7 +53,7 @@ const (
 // PosOrder represents a customer order within a POS session
 type PosOrder struct {
 	ID                string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	TenantID          string         `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OrderNumber       string         `gorm:"type:varchar(50);uniqueIndex;not null" json:"order_number"`
 	SessionID         *string        `gorm:"type:uuid;index" json:"session_id,omitempty"`
 	OutletID          string         `gorm:"type:uuid;not null;index" json:"outlet_id"`
@@ -79,11 +80,11 @@ type PosOrder struct {
 	LoyaltyMemberID *string `gorm:"type:uuid;index" json:"loyalty_member_id,omitempty"`
 	LoyaltyRewardID *string `gorm:"type:varchar(100)" json:"loyalty_reward_id,omitempty"`
 	// OrderSource distinguishes self-service customer orders from staff-created orders.
-	OrderSource string `gorm:"type:varchar(20);not null;default:'STAFF'" json:"order_source"`
-	CreatedBy   string `gorm:"type:uuid;not null;index" json:"created_by"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+	OrderSource string         `gorm:"type:varchar(20);not null;default:'STAFF'" json:"order_source"`
+	CreatedBy   string         `gorm:"type:uuid;not null;index" json:"created_by"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
 	Items []PosOrderItem `gorm:"foreignKey:PosOrderID" json:"items,omitempty"`
 }
@@ -101,9 +102,9 @@ func (o *PosOrder) BeforeCreate(tx *gorm.DB) error {
 
 // PosOrderItem represents a single product line within a POS order
 type PosOrderItem struct {
-	ID         string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TenantID   string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
-	PosOrderID string `gorm:"type:uuid;not null;index" json:"pos_order_id"`
+	ID          string        `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID    string        `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
+	PosOrderID  string        `gorm:"type:uuid;not null;index" json:"pos_order_id"`
 	ProductID   string        `gorm:"type:uuid;not null;index" json:"product_id"`
 	ProductName string        `gorm:"type:varchar(255);not null" json:"product_name"`
 	ProductCode string        `gorm:"type:varchar(100)" json:"product_code"`

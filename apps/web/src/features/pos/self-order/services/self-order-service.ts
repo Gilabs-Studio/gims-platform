@@ -92,6 +92,17 @@ export const selfOrderService = {
     );
   },
 
+  confirmPayment(
+    token: string,
+    orderId: string,
+    paymentId: string
+  ): Promise<ApiResponse<InitiatePaymentResponse>> {
+    return request<InitiatePaymentResponse>(
+      `${BASE}/${token}/orders/${orderId}/payments/${paymentId}/confirm`,
+      { method: "POST" }
+    );
+  },
+
   markPayAtCashier(
     token: string,
     orderId: string

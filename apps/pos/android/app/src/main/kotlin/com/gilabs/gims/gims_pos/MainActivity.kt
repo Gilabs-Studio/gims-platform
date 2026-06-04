@@ -102,7 +102,7 @@ class MainActivity : FlutterActivity() {
 			val devices: HashMap<String, UsbDevice> = usbManager.deviceList
 			val target: UsbDevice? = devices.values.find { dev ->
 				when {
-					deviceName != null && deviceName.isNotEmpty() -> dev.productName != null && dev.productName.contains(deviceName)
+					deviceName != null && deviceName.isNotEmpty() -> dev.productName?.contains(deviceName) == true
 					vendorId != null && productId != null -> dev.vendorId == vendorId && dev.productId == productId
 					else -> false
 				}
@@ -124,7 +124,7 @@ class MainActivity : FlutterActivity() {
 
 			val target: UsbDevice? = devices.values.find { dev ->
 				when {
-					deviceName != null && deviceName.isNotEmpty() -> dev.productName != null && dev.productName.contains(deviceName)
+					deviceName != null && deviceName.isNotEmpty() -> dev.productName?.contains(deviceName) == true
 					vendorId != null && productId != null -> dev.vendorId == vendorId && dev.productId == productId
 					else -> false
 				}

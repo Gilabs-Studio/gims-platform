@@ -102,7 +102,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	publicPOSUC := usecase.NewPublicPOSUsecase(qrTokenRepo, orderUC, paymentUC, configRepo, outletRepo, productRepo, posHub, deviceTokenRepo, provider.NewMultiPlatformPushNotifier(), db)
 	publicPOSH := handler.NewPublicPOSHandler(publicPOSUC)
-	posWSH := handler.NewPOSWSHandler(posHub, outletRepo)
+	posWSH := handler.NewPOSWSHandler(posHub, outletRepo, qrTokenRepo)
 
 	// ─── Route group ─────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	group.GET("/ws", middleware.RequirePermission("pos.order.read"), posWSH.Subscribe)
 
 	// Public self-order routes — unauthenticated, rate-limited
-	router.RegisterPublicPOSRoutes(r, publicPOSH)
+	router.RegisterPublicPOSRoutes(r, publicPOSH, posWSH)
 
 	// Xendit webhook is unauthenticated (token verified inside the handler by Xendit signature)
 	r.POST("/api/v1/pos/payments/xendit/webhook", paymentH.XenditWebhook)

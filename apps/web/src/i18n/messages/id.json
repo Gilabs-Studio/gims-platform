@@ -110,7 +110,7 @@
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
     "posDownloadLabel": "POS APK",
-    "posDownloadTooltip": "Unduh aplikasi POS terbaru",
+    "posDownloadTooltip": "Unduh aplikasi POS terbaru (v{version})",
     "posDownloadUnavailable": "Link unduhan POS belum dikonfigurasi",
     "posDownloadDropdownLabel": "Pilih platform",
     "posDownloadWindows": "Windows",
