@@ -110,7 +110,7 @@
     "validationError": "Please check the form for errors",
     "myActivities": "My Activities",
     "posDownloadLabel": "POS APK",
-    "posDownloadTooltip": "Download the latest POS app",
+    "posDownloadTooltip": "Download the latest POS app (v{version})",
     "posDownloadUnavailable": "POS download is not configured yet",
     "posDownloadDropdownLabel": "Choose platform",
     "posDownloadWindows": "Windows",

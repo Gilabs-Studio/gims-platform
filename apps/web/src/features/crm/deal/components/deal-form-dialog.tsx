@@ -68,6 +68,10 @@ import type {
   DealPipelineStageOption,
   DealProductOption,
 } from "../types";
+
+function getErrorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
+}
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 interface DealFormDialogProps {
@@ -87,6 +91,7 @@ export function DealFormDialog({
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
   const { user } = useAuthStore();
+  const employeeId = user?.employee_id;
   const { data: formData, isLoading: isFormLoading } = useDealFormData({
     enabled: open,
   });
@@ -104,7 +109,7 @@ export function DealFormDialog({
       expected_close_date: deal?.expected_close_date?.split("T")[0] ?? "",
       customer_id: deal?.customer_id ?? "",
       contact_id: deal?.contact_id ?? "",
-      assigned_to: deal?.assigned_to ?? (isEdit ? "" : (user?.employee_id ?? "")),
+      assigned_to: deal?.assigned_to ?? (isEdit ? "" : (employeeId ?? "")),
       lead_id: deal?.lead_id ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
@@ -126,7 +131,7 @@ export function DealFormDialog({
           notes: item.notes ?? "",
         })) ?? [],
     }),
-    [deal, defaultStageId],
+    [deal, defaultStageId, employeeId, isEdit],
   );
 
   const {
@@ -350,8 +355,8 @@ export function DealFormDialog({
           });
           return res.data.id;
         }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to create customer");
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err) || "Failed to create customer");
       }
     },
     [queryClient],
@@ -375,8 +380,8 @@ export function DealFormDialog({
           });
           return res.data.id;
         }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to create contact");
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err) || "Failed to create contact");
       }
     },
     [queryClient, selectedCustomerId],

@@ -163,8 +163,14 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var sub models.TenantSubscription
-		if err := tx.Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", pending.TenantID, []string{string(models.SubscriptionActive), string(models.SubscriptionTrial)}).
-			Order("starts_at DESC").First(&sub).Error; err != nil {
+		if err := tx.Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", pending.TenantID, []string{
+			string(models.SubscriptionActive),
+			string(models.SubscriptionTrial),
+			string(models.SubscriptionPastDue),
+			string(models.SubscriptionSuspended),
+			string(models.SubscriptionExpired),
+			string(models.SubscriptionCancelled),
+		}).Order("starts_at DESC").First(&sub).Error; err != nil {
 			return err
 		}
 
@@ -184,6 +190,19 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 		}
 		if pending.CouponID != "" {
 			updates["coupon_id"] = pending.CouponID
+		}
+
+		// Update status to active and calculate new cycle dates if subscription is currently expired, suspended, or its expires_at has passed.
+		now := apptime.Now()
+		updates["status"] = models.SubscriptionActive
+		if sub.ExpiresAt != nil && (sub.ExpiresAt.Before(now) || sub.Status == models.SubscriptionExpired || sub.Status == models.SubscriptionSuspended) {
+			nextBilling := now.AddDate(0, 1, 0)
+			if sub.BillingPeriod == models.BillingYearly {
+				nextBilling = now.AddDate(1, 0, 0)
+			}
+			updates["starts_at"] = now
+			updates["expires_at"] = nextBilling
+			updates["next_billing_at"] = nextBilling
 		}
 
 		if err := tx.Model(&models.TenantSubscription{}).Where("id = ?", sub.ID).Updates(updates).Error; err != nil {
@@ -308,7 +327,14 @@ func (u *authUsecase) loadBillingChangeSnapshot(ctx context.Context, req *tenant
 	var sub models.TenantSubscription
 	if err := u.db.WithContext(ctx).
 		Preload("Coupon").
-		Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", tenantID, []string{string(models.SubscriptionActive), string(models.SubscriptionTrial)}).
+		Where("tenant_id = ? AND status IN ? AND deleted_at IS NULL", tenantID, []string{
+			string(models.SubscriptionActive),
+			string(models.SubscriptionTrial),
+			string(models.SubscriptionPastDue),
+			string(models.SubscriptionSuspended),
+			string(models.SubscriptionExpired),
+			string(models.SubscriptionCancelled),
+		}).
 		Order("starts_at DESC").
 		First(&sub).Error; err != nil {
 		return nil, ErrPendingBillingChangeNotFound

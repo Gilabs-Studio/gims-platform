@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/user_session.dart';
@@ -72,6 +73,28 @@ class HomeGrid extends StatelessWidget {
                   feature: feature,
                   onTap: () => onSelected(feature),
                 );
+              },
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  final info = snapshot.data!;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      'Versi ${info.version}+${info.buildNumber}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: GimsColors.mutedForeground,
+                        fontSize: 12,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
               },
             ),
           ),

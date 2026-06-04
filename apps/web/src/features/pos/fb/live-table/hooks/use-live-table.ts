@@ -137,7 +137,12 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     data: ordersData,
     isLoading: ordersLoading,
   } = usePOSOrderList(
-    { outlet_id: outletId, per_page: 100 }
+    { outlet_id: outletId, per_page: 100 },
+    {
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+    }
   );
 
   const orders = useMemo(() => ordersData?.data ?? [], [ordersData?.data]);

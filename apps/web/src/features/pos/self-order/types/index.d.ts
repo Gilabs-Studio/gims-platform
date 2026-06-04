@@ -47,12 +47,16 @@ export interface CreateCustomerOrderRequest {
 }
 
 export interface CustomerOrderItemResponse {
+  id: string;
   product_id: string;
   product_name: string;
+  product_code?: string;
   quantity: number;
   unit_price: number;
+  discount?: number;
   subtotal: number;
   notes?: string;
+  status?: "PENDING" | "PREPARING" | "DONE" | "READY" | "SERVED" | "CANCELLED" | string;
 }
 
 export interface CustomerOrderResponse {
@@ -73,10 +77,13 @@ export interface InitiatePaymentRequest {
   method: "QRIS" | "DIGITAL";
   amount: number;
   channel_code?: string;
+  success_redirect_url?: string;
+  failure_redirect_url?: string;
 }
 
 export interface InitiatePaymentResponse {
-  payment_id: string;
+  id?: string;
+  payment_id?: string;
   method: string;
   qr_string?: string;
   qr_image_url?: string;

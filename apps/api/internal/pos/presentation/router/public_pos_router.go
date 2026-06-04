@@ -11,14 +11,18 @@ import (
 // They are mounted directly on the root gin.Engine (not under the auth group).
 //
 // Route pattern: /api/v1/public/pos/tables/:token
-func RegisterPublicPOSRoutes(r *gin.Engine, h *handler.PublicPOSHandler) {
+func RegisterPublicPOSRoutes(r *gin.Engine, h *handler.PublicPOSHandler, wsH *handler.POSWSHandler) {
 	rg := r.Group("/api/v1/public/pos/tables/:token")
 	rg.Use(middleware.RateLimitMiddleware("public"))
 
 	rg.GET("", h.GetTableInfo)
+	if wsH != nil {
+		rg.GET("/ws", wsH.SubscribePublicTable)
+	}
 	rg.POST("/orders", h.CreateCustomerOrder)
 	rg.GET("/orders/:orderId", h.GetOrderStatus)
 	rg.POST("/orders/:orderId/pay/digital", h.InitiateDigitalPayment)
+	rg.POST("/orders/:orderId/payments/:paymentId/confirm", h.ConfirmDigitalPaymentRedirect)
 	rg.POST("/orders/:orderId/pay/cashier", h.MarkPayAtCashier)
 	rg.POST("/orders/:orderId/cancel", h.CancelCustomerOrder)
 	// Staff can use this state to switch a customer from pending digital to cashier flow.

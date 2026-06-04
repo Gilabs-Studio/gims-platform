@@ -11,9 +11,14 @@ const WORKFLOW_TAGS = { endpoint: "e2e:attendance-checkin", module: "hrd", tier:
 
 export function attendanceCheckinCycle(auth, data) {
 	const now = new Date();
-	// Use a unique past date per call to avoid duplicate conflicts (same employee + same date)
-	const randomDaysBack = Math.floor(Math.random() * 365) + 30; // 30-395 days in the past
-	const uniqueDate = new Date(now.getTime() - randomDaysBack * 86400000);
+	// Guarantee a unique date per (VU, iteration) to avoid duplicate attendance conflicts
+	// for the same employee. Using __VU and __ITER makes collisions impossible within a run.
+	// Spread across a wide past window: base 30 days back, then offset by a unique counter.
+	const vu = typeof __VU === "number" ? __VU : 1;
+	const iter = typeof __ITER === "number" ? __ITER : 0;
+	const uniqueCounter = vu * 1000 + iter; // unique per VU/iteration combination
+	const daysBack = 30 + (uniqueCounter % 3000); // 30..3029 days back, no repeats within a run
+	const uniqueDate = new Date(now.getTime() - daysBack * 86400000);
 	const today = isoDate(uniqueDate);
 
 	// STEP 1: Create manual attendance entry (admin endpoint — avoids GPS radius check)

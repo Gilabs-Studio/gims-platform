@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, User, CreditCard, Wallet } from "lucide-react";
+import { ArrowLeft, User, CreditCard, Loader2, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface SelfOrderCheckoutProps {
   onCreateOrder: (customerName: string) => void;
   onPayAtCashier: (customerName: string) => void;
   isPending: boolean;
+  pendingAction?: "digital" | "cashier" | null;
 }
 
 function formatCurrency(amount: number, currency: string) {
@@ -35,6 +36,7 @@ export function SelfOrderCheckout({
   onCreateOrder,
   onPayAtCashier,
   isPending,
+  pendingAction,
 }: SelfOrderCheckoutProps) {
   const t = useTranslations("selfOrder");
   const [name, setName] = useState("");
@@ -140,7 +142,11 @@ export function SelfOrderCheckout({
             onClick={() => validate() && onPayAtCashier(name.trim())}
           >
             <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-              <Wallet className="h-4 w-4" />
+              {pendingAction === "cashier" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wallet className="h-4 w-4" />
+              )}
             </div>
             <span className="text-xs font-semibold">{t("checkout.payAtCashier")}</span>
           </Button>
@@ -150,7 +156,11 @@ export function SelfOrderCheckout({
             onClick={() => validate() && onCreateOrder(name.trim())}
           >
             <div className="h-8 w-8 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-              <CreditCard className="h-4 w-4 text-primary-foreground" />
+              {pendingAction === "digital" ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+              ) : (
+                <CreditCard className="h-4 w-4 text-primary-foreground" />
+              )}
             </div>
             <span className="text-xs font-semibold">{t("checkout.payNow")}</span>
           </Button>

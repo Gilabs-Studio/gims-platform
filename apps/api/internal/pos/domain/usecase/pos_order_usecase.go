@@ -53,6 +53,7 @@ type POSOrderUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.POSOrderResponse, error)
 	List(ctx context.Context, params repositories.POSOrderListParams) ([]dto.POSOrderResponse, int64, error)
 	Confirm(ctx context.Context, id string, req *dto.ConfirmOrderRequest, userID string) (*dto.POSOrderResponse, error)
+	ConfirmWaitingPayment(ctx context.Context, id string, userID string) (*dto.POSOrderResponse, error)
 	Void(ctx context.Context, id string, req *dto.VoidOrderRequest, userID string) (*dto.POSOrderResponse, error)
 	AddItem(ctx context.Context, orderID string, req *dto.AddOrderItemRequest) (*dto.POSOrderResponse, error)
 	UpdateItem(ctx context.Context, orderID, itemID string, req *dto.UpdateOrderItemRequest) (*dto.POSOrderResponse, error)
@@ -300,6 +301,15 @@ func (u *posOrderUsecase) List(ctx context.Context, params repositories.POSOrder
 
 // Confirm transitions an order to IN_PROGRESS after validating stock availability.
 func (u *posOrderUsecase) Confirm(ctx context.Context, id string, req *dto.ConfirmOrderRequest, userID string) (*dto.POSOrderResponse, error) {
+	return u.confirmWithStatus(ctx, id, posModels.PosOrderStatusInProgress)
+}
+
+// ConfirmWaitingPayment validates a self-order and keeps it blocked at cashier payment.
+func (u *posOrderUsecase) ConfirmWaitingPayment(ctx context.Context, id string, userID string) (*dto.POSOrderResponse, error) {
+	return u.confirmWithStatus(ctx, id, posModels.PosOrderStatusWaitingPayment)
+}
+
+func (u *posOrderUsecase) confirmWithStatus(ctx context.Context, id string, status posModels.PosOrderStatus) (*dto.POSOrderResponse, error) {
 	order, err := u.orderRepo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -331,7 +341,7 @@ func (u *posOrderUsecase) Confirm(ctx context.Context, id string, req *dto.Confi
 		return nil, err
 	}
 
-	order.Status = posModels.PosOrderStatusInProgress
+	order.Status = status
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
 	}
@@ -863,6 +873,17 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 		order.Status != posModels.PosOrderStatusPartialServed {
 		return nil, ErrPOSOrderCannotModify
 	}
+
+	for i := range order.Items {
+		if order.Items[i].Status == posModels.PosItemStatusServed {
+			continue
+		}
+		order.Items[i].Status = posModels.PosItemStatusServed
+		if err := u.orderRepo.UpdateItem(ctx, &order.Items[i]); err != nil {
+			return nil, err
+		}
+	}
+
 	order.Status = posModels.PosOrderStatusServed
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return nil, err

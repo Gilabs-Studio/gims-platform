@@ -132,6 +132,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   const canViewPipelinePerm = useHasPermission("crm_deal.read");
   const canViewActivities = canViewActivityPerm || canViewPipelinePerm;
   const posDownloadUrls = getPOSDownloadUrlMap();
+  const posVersion = process.env.NEXT_PUBLIC_POS_VERSION ?? "1.0.0";
   const posDownloadLinksRaw: POSDownloadLink[] = [
     {
       platform: "windows",
@@ -324,7 +325,7 @@ export const DashboardHeader = memo(function DashboardHeader({
                   {posDownloadOpen && (
                     <div className="ml-4 flex flex-col gap-1 border-l border-muted pl-2">
                       <div className="px-2 py-1 text-xs text-muted-foreground">
-                        {t("posDownloadTooltip")}
+                        {t("posDownloadTooltip", { version: posVersion })}
                       </div>
                       <div className="flex flex-col gap-1">
                         {posDownloadLinks.map((item) => {

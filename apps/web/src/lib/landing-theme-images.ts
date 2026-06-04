@@ -36,6 +36,21 @@ export type LandingScreenshotKey =
   | "posTerminalFlow"
   | "posLiveTable"
   | "posFloorLayout"
+  | "posFloorLayoutHero"
+  | "posFloorLayoutCanvasEditor"
+  | "posFloorLayoutVersionPublish"
+  | "posFloorLayoutTableQr"
+  | "posSelfOrderHero"
+  | "posSelfOrderTableToken"
+  | "posSelfOrderMenuCart"
+  | "posSelfOrderPaymentStatus"
+  | "posQrReviewHero"
+  | "posQrReviewPublicForm"
+  | "posQrReviewFormBuilder"
+  | "posQrReviewResponseList"
+  | "posOfflineSupportHero"
+  | "posOfflineSupportOfflineBanner"
+  | "posOfflineSupportQueuedOrders"
   // Sales Orders
   | "salesOrderHero"
   | "salesOrderEntryFlow"
@@ -242,7 +257,66 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
     light: "/screenshot/pos/pos-floor-layout.webp",
     dark: "/screenshot/pos/pos-floor-layout-dark.webp",
   },
-  // Sales Orders
+  posFloorLayoutHero: {
+    light: "/screenshot/pos/floor-layout/pos-floor-layout-hero.webp",
+    dark: "/screenshot/pos/floor-layout/pos-floor-layout-hero-dark.webp",
+  },
+  posFloorLayoutCanvasEditor: {
+    light: "/screenshot/pos/floor-layout/pos-floor-layout-canvas-editor.webp",
+    dark: "/screenshot/pos/floor-layout/pos-floor-layout-canvas-editor-dark.webp",
+  },
+  posFloorLayoutVersionPublish: {
+    light: "/screenshot/pos/floor-layout/pos-floor-layout-version-publish.webp",
+    dark: "/screenshot/pos/floor-layout/pos-floor-layout-version-publish-dark.webp",
+  },
+  posFloorLayoutTableQr: {
+    light: "/screenshot/pos/floor-layout/pos-floor-layout-table-qr.webp",
+    dark: "/screenshot/pos/floor-layout/pos-floor-layout-table-qr-dark.webp",
+  },
+  posSelfOrderHero: {
+    light: "/screenshot/pos/self-order/pos-self-order-hero.webp",
+    dark: "/screenshot/pos/self-order/pos-self-order-hero-dark.webp",
+  },
+  posSelfOrderTableToken: {
+    light: "/screenshot/pos/self-order/pos-self-order-table-token.webp",
+    dark: "/screenshot/pos/self-order/pos-self-order-table-token-dark.webp",
+  },
+  posSelfOrderMenuCart: {
+    light: "/screenshot/pos/self-order/pos-self-order-menu-cart.webp",
+    dark: "/screenshot/pos/self-order/pos-self-order-menu-cart-dark.webp",
+  },
+  posSelfOrderPaymentStatus: {
+    light: "/screenshot/pos/self-order/pos-self-order-payment-status.webp",
+    dark: "/screenshot/pos/self-order/pos-self-order-payment-status-dark.webp",
+  },
+  posQrReviewHero: {
+    light: "/screenshot/pos/qr-review/pos-qr-review-hero.webp",
+    dark: "/screenshot/pos/qr-review/pos-qr-review-hero-dark.webp",
+  },
+  posQrReviewPublicForm: {
+    light: "/screenshot/pos/qr-review/pos-qr-review-public-form.webp",
+    dark: "/screenshot/pos/qr-review/pos-qr-review-public-form-dark.webp",
+  },
+  posQrReviewFormBuilder: {
+    light: "/screenshot/pos/qr-review/pos-qr-review-form-builder.webp",
+    dark: "/screenshot/pos/qr-review/pos-qr-review-form-builder-dark.webp",
+  },
+  posQrReviewResponseList: {
+    light: "/screenshot/pos/qr-review/pos-qr-review-response-list.webp",
+    dark: "/screenshot/pos/qr-review/pos-qr-review-response-list-dark.webp",
+  },
+  posOfflineSupportHero: {
+    light: "/screenshot/pos/offline-support/pos-offline-support-hero.webp",
+    dark: "/screenshot/pos/offline-support/pos-offline-support-hero.webp",
+  },
+  posOfflineSupportOfflineBanner: {
+    light: "/screenshot/pos/offline-support/pos-offline-support-offline-banner.webp",
+    dark: "/screenshot/pos/offline-support/pos-offline-support-offline-banner.webp",
+  },
+  posOfflineSupportQueuedOrders: {
+    light: "/screenshot/pos/offline-support/pos-offline-support-queued-orders.webp",
+    dark: "/screenshot/pos/offline-support/pos-offline-support-queued-orders.webp",
+  },  // Sales Orders
   // Quotations
   quotationsHero: {
     light: "/screenshot/quotations/quotations-list.webp",
@@ -430,4 +504,8 @@ export const LANDING_THEME_IMAGES_BY_FEATURE: Record<LandingScreenshotKey, Theme
     dark: "/screenshot/evaluation/evaluation-group-dark.webp",
   },
 } as const;
+
+
+
+
 

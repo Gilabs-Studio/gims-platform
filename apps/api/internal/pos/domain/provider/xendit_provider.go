@@ -17,20 +17,23 @@ const (
 
 // InvoiceRequest represents the payload sent to Xendit's invoice API
 type InvoiceRequest struct {
-	ExternalID  string  `json:"external_id"`
-	Amount      float64 `json:"amount"`
-	Description string  `json:"description"`
-	Currency    string  `json:"currency"`
+	ExternalID         string  `json:"external_id"`
+	Amount             float64 `json:"amount"`
+	Description        string  `json:"description"`
+	Currency           string  `json:"currency"`
+	SuccessRedirectURL string  `json:"success_redirect_url,omitempty"`
+	FailureRedirectURL string  `json:"failure_redirect_url,omitempty"`
 	// PaymentMethods restricts which channels appear on the invoice (e.g. ["QRIS","BCA"])
 	PaymentMethods []string `json:"payment_methods,omitempty"`
 }
 
 // InvoiceResponse is the relevant subset of the Xendit invoice creation response
 type InvoiceResponse struct {
-	ID         string `json:"id"`
-	ExternalID string `json:"external_id"`
-	Status     string `json:"status"`
-	InvoiceURL string `json:"invoice_url"`
+	ID         string  `json:"id"`
+	ExternalID string  `json:"external_id"`
+	Status     string  `json:"status"`
+	InvoiceURL string  `json:"invoice_url"`
+	Amount     float64 `json:"amount"`
 	// QR code details — populated for QRIS-enabled invoices
 	QRCode         string          `json:"qr_string"`
 	ExpiryDate     string          `json:"expiry_date"`
@@ -52,6 +55,8 @@ type AvailableBank struct {
 type PaymentProvider interface {
 	// CreateInvoice creates a payment invoice and returns the checkout URL and QR code
 	CreateInvoice(ctx context.Context, req InvoiceRequest) (*InvoiceResponse, error)
+	// GetInvoice fetches the latest invoice state from Xendit.
+	GetInvoice(ctx context.Context, invoiceID string) (*InvoiceResponse, error)
 	// TestConnection validates API credentials against Xendit
 	TestConnection(ctx context.Context) error
 }
@@ -148,10 +153,58 @@ func (p *XenditProvider) CreateInvoice(ctx context.Context, req InvoiceRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("xendit: failed to read response body: %w", err)
 	}
-	_ = respBody
-
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("xendit: API error (status %d)", resp.StatusCode)
+		detail := strings.TrimSpace(string(respBody))
+		if detail == "" {
+			return nil, fmt.Errorf("xendit: API error (status %d)", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("xendit: API error (status %d): %s", resp.StatusCode, detail)
+	}
+
+	var invoice InvoiceResponse
+	if err := json.Unmarshal(respBody, &invoice); err != nil {
+		return nil, fmt.Errorf("xendit: failed to parse invoice response: %w", err)
+	}
+
+	return &invoice, nil
+}
+
+// GetInvoice calls GET /v2/invoices/:id to verify the latest server-side status
+// after a browser redirect or webhook retry.
+func (p *XenditProvider) GetInvoice(ctx context.Context, invoiceID string) (*InvoiceResponse, error) {
+	invoiceID = strings.TrimSpace(invoiceID)
+	if invoiceID == "" {
+		return nil, fmt.Errorf("xendit: invoice id is required")
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, xenditBaseURL+"/v2/invoices/"+invoiceID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: failed to create http request: %w", err)
+	}
+
+	credentials := base64.StdEncoding.EncodeToString([]byte(p.secretKey + ":"))
+	httpReq.Header.Set("Authorization", "Basic "+credentials)
+
+	if p.xenditAcctID != "" {
+		httpReq.Header.Set("for-user-id", p.xenditAcctID)
+	}
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: failed to read response body: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		detail := strings.TrimSpace(string(respBody))
+		if detail == "" {
+			return nil, fmt.Errorf("xendit: API error (status %d)", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("xendit: API error (status %d): %s", resp.StatusCode, detail)
 	}
 
 	var invoice InvoiceResponse

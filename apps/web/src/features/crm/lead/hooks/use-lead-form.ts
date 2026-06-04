@@ -29,6 +29,7 @@ export function useLeadForm({
   onSuccess,
 }: UseLeadFormProps) {
   const { user } = useAuthStore();
+  const employeeId = user?.employee_id;
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
   const isConvertedLead = !!editingItem?.converted_at;
@@ -302,7 +303,7 @@ export function useLeadForm({
           need_description: "",
           time_confirmed: false,
           time_expected: "",
-          assigned_to: user?.employee_id ?? "",
+          assigned_to: employeeId ?? "",
           notes: "",
           website: "",
           business_type_id: "",
@@ -311,7 +312,7 @@ export function useLeadForm({
         });
       }
     }
-  }, [editingItem, form, open, isConvertedLead]);
+  }, [editingItem, employeeId, form, open, isConvertedLead]);
 
   const onSubmit: SubmitHandler<LeadFormValues> = async (data) => {
     try {

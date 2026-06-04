@@ -57,10 +57,13 @@ apps/erp-front-end/
 CLAUDE.md
 .CLAUDE/
 .pi*/
-.leann
+.kiro*/
 
 # Generated profiler output
 k6/reports/*.json
+
+# Generated seed state (environment-specific, not committed)
+k6/data/generated/seed-state.json
 
 
 # Database backups (production/local)

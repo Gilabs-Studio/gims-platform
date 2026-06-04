@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
@@ -19,12 +20,30 @@ class _LoginScreenState extends State<LoginScreen> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
 
   @override
   void dispose() {
     _username.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _login() async {
@@ -113,6 +132,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Icon(Icons.login),
                     label: const Text('Masuk', style: TextStyle(fontSize: 16)),
                   ),
+                  if (_appVersion.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Versi $_appVersion',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: GimsColors.mutedForeground,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

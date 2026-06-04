@@ -8,7 +8,7 @@ import { notificationQueryKeys } from "./use-notifications";
 import { useNotificationStore } from "../stores/use-notification-store";
 import { playNotificationSound } from "@/lib/notification-sound";
 import type { ListUsersResponse, User } from "@/features/master-data/user-management/types";
-import type { WebSocketMessage, Notification } from "../types";
+import type { Notification } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 const WS_URL = API_BASE_URL.replace(/^http/, "ws");
@@ -83,7 +83,21 @@ export function useWebSocket() {
     // Store message handler for reuse
     const messageHandler = (event: MessageEvent) => {
       try {
-        const message: WebSocketMessage = JSON.parse(event.data);
+        const message = JSON.parse(event.data);
+
+        // Check if this is the unread count push event
+        if (
+          message.success === true &&
+          message.data &&
+          typeof message.data.unread_count === "number"
+        ) {
+          queryClientRef.current.setQueryData<number>(
+            notificationQueryKeys.unreadCount,
+            message.data.unread_count
+          );
+          return;
+        }
+
         const eventType = message.type ?? message.event;
 
         switch (eventType) {

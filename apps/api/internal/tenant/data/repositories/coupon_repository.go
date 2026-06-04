@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"strings"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm"
@@ -113,7 +113,7 @@ func (r *couponRepository) RecordCouponUsage(tx interface{ Create(value interfac
 	usage := &models.CouponUsage{
 		CouponID: couponID,
 		Email:    strings.ToLower(strings.TrimSpace(email)),
-		UsedAt:   time.Now().UTC(),
+		UsedAt:   apptime.Now(),
 	}
 	return tx.Create(usage).Error
 }
