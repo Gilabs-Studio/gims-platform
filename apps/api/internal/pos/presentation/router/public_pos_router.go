@@ -11,11 +11,14 @@ import (
 // They are mounted directly on the root gin.Engine (not under the auth group).
 //
 // Route pattern: /api/v1/public/pos/tables/:token
-func RegisterPublicPOSRoutes(r *gin.Engine, h *handler.PublicPOSHandler) {
+func RegisterPublicPOSRoutes(r *gin.Engine, h *handler.PublicPOSHandler, wsH *handler.POSWSHandler) {
 	rg := r.Group("/api/v1/public/pos/tables/:token")
 	rg.Use(middleware.RateLimitMiddleware("public"))
 
 	rg.GET("", h.GetTableInfo)
+	if wsH != nil {
+		rg.GET("/ws", wsH.SubscribePublicTable)
+	}
 	rg.POST("/orders", h.CreateCustomerOrder)
 	rg.GET("/orders/:orderId", h.GetOrderStatus)
 	rg.POST("/orders/:orderId/pay/digital", h.InitiateDigitalPayment)

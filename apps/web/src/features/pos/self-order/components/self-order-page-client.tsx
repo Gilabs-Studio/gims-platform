@@ -14,7 +14,7 @@ import { SelfOrderMenu } from "./self-order-menu";
 import { SelfOrderCart } from "./self-order-cart";
 import { SelfOrderCheckout } from "./self-order-checkout";
 import { SelfOrderStatus } from "./self-order-status";
-import { selfOrderKeys, useTableInfo, useCreateOrder, useOrderStatus, useCancelOrder } from "../hooks/use-self-order";
+import { selfOrderKeys, useTableInfo, useCreateOrder, useOrderStatus, useCancelOrder, useSelfOrderRealtime } from "../hooks/use-self-order";
 import { SelfOrderApiError, selfOrderService } from "../services/self-order-service";
 import type { POSCatalogItem, CartItem } from "../types";
 
@@ -66,15 +66,18 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
     token,
     trackedOrderId
   );
+  useSelfOrderRealtime(token, trackedOrderId);
   const cancelOrder = useCancelOrder(token, trackedOrderId);
 
-  const isTrackedOrderTerminal =
+  const isTrackedPaymentSettled =
     orderStatus?.status === "PAID" ||
+    orderStatus?.status === "PARTIAL_SERVED" ||
+    orderStatus?.status === "SERVED" ||
     orderStatus?.status === "COMPLETED" ||
     orderStatus?.status === "CANCELLED" ||
     orderStatus?.status === "VOIDED";
 
-  const visiblePendingCashierPayment = isTrackedOrderTerminal ? null : pendingCashierPayment;
+  const visiblePendingCashierPayment = isTrackedPaymentSettled ? null : pendingCashierPayment;
 
   const triggerConfetti = useCallback(() => {
     const fire = confettiRef.current?.fire;
@@ -171,7 +174,6 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
   }, [queryClient, returnedOrderId, returnedPaymentId, returnedPaymentStatus, t, token]);
 
   useEffect(() => {
-    if (returnedPaymentStatus !== "success") return;
     if (orderStatus?.status !== "PAID") return;
     if (confettiFiredRef.current) return;
 
@@ -180,7 +182,27 @@ export function SelfOrderPageClient({ token }: SelfOrderPageClientProps) {
       triggerConfetti();
     });
     return () => window.cancelAnimationFrame(id);
-  }, [orderStatus?.status, returnedPaymentStatus, triggerConfetti]);
+  }, [orderStatus?.status, triggerConfetti]);
+
+  useEffect(() => {
+    if (!pendingCashierPayment) return;
+    if (!orderStatus) return;
+    if (
+      orderStatus.status !== "PAID" &&
+      orderStatus.status !== "PARTIAL_SERVED" &&
+      orderStatus.status !== "SERVED" &&
+      orderStatus.status !== "COMPLETED"
+    ) {
+      return;
+    }
+
+    setOrderId(pendingCashierPayment.orderId);
+    setStep("status");
+    setPendingCashierPayment(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(pendingStorageKey);
+    }
+  }, [orderStatus, pendingCashierPayment, pendingStorageKey]);
 
   // ── Cart helpers ─────────────────────────────────────────────────────────────
 

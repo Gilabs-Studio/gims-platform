@@ -7,6 +7,7 @@ import (
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	posRepos "github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	posWS "github.com/gilabs/gims/api/internal/pos/infrastructure/ws"
 	"github.com/gin-gonic/gin"
@@ -17,21 +18,59 @@ import (
 // POSWSHandler upgrades HTTP connections to WebSocket for real-time POS events.
 // The staff client must supply ?outlet_id=<uuid> to subscribe to outlet-specific events.
 type POSWSHandler struct {
-	hub      *posWS.PosHub
-	outletRepo orgRepo.OutletRepository
-	upgrader websocket.Upgrader
+	hub         *posWS.PosHub
+	outletRepo  orgRepo.OutletRepository
+	qrTokenRepo posRepos.TableQRTokenRepository
+	upgrader    websocket.Upgrader
 }
 
 // NewPOSWSHandler creates a POSWSHandler backed by the given hub.
-func NewPOSWSHandler(hub *posWS.PosHub, outletRepo orgRepo.OutletRepository) *POSWSHandler {
+func NewPOSWSHandler(hub *posWS.PosHub, outletRepo orgRepo.OutletRepository, qrTokenRepo posRepos.TableQRTokenRepository) *POSWSHandler {
 	return &POSWSHandler{
-		hub:        hub,
-		outletRepo: outletRepo,
+		hub:         hub,
+		outletRepo:  outletRepo,
+		qrTokenRepo: qrTokenRepo,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
 		},
+	}
+}
+
+// SubscribePublicTable upgrades a customer-facing self-order connection.
+// The QR token itself scopes the subscriber to the table's tenant/outlet channel.
+func (h *POSWSHandler) SubscribePublicTable(c *gin.Context) {
+	if h.qrTokenRepo == nil {
+		coreErrors.InternalServerErrorResponse(c, "")
+		return
+	}
+
+	token := c.Param("token")
+	if token == "" {
+		coreErrors.HandleValidationError(c, nil)
+		return
+	}
+
+	qr, err := h.qrTokenRepo.FindByToken(c.Request.Context(), token)
+	if err != nil || qr == nil || !qr.IsActive {
+		coreErrors.NotFoundResponse(c, "public POS table token", "")
+		return
+	}
+
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, "")
+		return
+	}
+
+	clientID := h.hub.Register(conn, qr.TenantID, qr.OutletID)
+	defer h.hub.Unregister(clientID)
+
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			break
+		}
 	}
 }
 

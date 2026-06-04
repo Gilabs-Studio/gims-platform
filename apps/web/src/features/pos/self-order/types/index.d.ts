@@ -47,12 +47,16 @@ export interface CreateCustomerOrderRequest {
 }
 
 export interface CustomerOrderItemResponse {
+  id: string;
   product_id: string;
   product_name: string;
+  product_code?: string;
   quantity: number;
   unit_price: number;
+  discount?: number;
   subtotal: number;
   notes?: string;
+  status?: "PENDING" | "PREPARING" | "DONE" | "READY" | "SERVED" | "CANCELLED" | string;
 }
 
 export interface CustomerOrderResponse {
