@@ -22,6 +22,8 @@ const args = process.argv.slice(2);
 let jsonFile = args.find((a) => !a.startsWith("--"));
 const thresholdsArg = args.find((a) => a.startsWith("--thresholds="));
 const capacityMode = args.includes("--capacity");
+const profileArg = args.find((a) => a.startsWith("--profile="));
+const profileName = profileArg ? profileArg.replace("--profile=", "") : null;
 const capacityMultiplier = parseFloat((args.find((a) => a.startsWith("--multiplier=")) || "").replace("--multiplier=", "")) || 3.0;
 const realUserThinkTime = parseFloat((args.find((a) => a.startsWith("--think-time=")) || "").replace("--think-time=", "")) || 15; // seconds between real user actions
 
@@ -238,6 +240,9 @@ rl.on("close", () => {
 			duration: `${duration}s`,
 			totalEndpoints: results.length,
 			thresholds,
+			profile: profileName || "profiler",
+			environment: detectEnvironment(jsonFile),
+			generatedAt: new Date().toISOString(),
 		},
 		endpoints: results,
 		moduleSummary: Object.fromEntries(
@@ -249,6 +254,14 @@ rl.on("close", () => {
 				},
 			])
 		),
+		summary: {
+			totalRequests: results.reduce((sum, r) => sum + r.total, 0),
+			avgErrorRate: results.length > 0 ? (results.reduce((sum, r) => sum + parseFloat(r.errorRate), 0) / results.length).toFixed(2) : "0.00",
+			greenCount: results.filter(r => r.flag === 'green').length,
+			yellowCount: results.filter(r => r.flag === 'yellow').length,
+			redCount: results.filter(r => r.flag === 'red').length,
+			passed: results.filter(r => r.flag === 'red').length === 0,
+		},
 	};
 
 	fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -574,4 +587,12 @@ function formatMs(ms) {
 	if (ms >= 60000) return (ms / 60000).toFixed(1) + "m";
 	if (ms >= 1000) return (ms / 1000).toFixed(1) + "s";
 	return ms + "ms";
+}
+
+// ── Environment Detection from filename/path ──────────────────────────────────
+function detectEnvironment(filePath) {
+	const lower = filePath.toLowerCase();
+	if (lower.includes("prod")) return "production";
+	if (lower.includes("staging") || lower.includes("stg")) return "staging";
+	return "local";
 }

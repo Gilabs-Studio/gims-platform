@@ -3,6 +3,48 @@
 
 import http from "k6/http";
 import { authGet, authPost } from "../auth-helper.js";
+import { API_V1 } from "../config.js";
+
+/**
+ * Resolve the current user's identity WITHOUT calling /users/me.
+ *
+ * IMPORTANT: GIMS has NO /users/me endpoint. The login response already
+ * contains the full user object (id, email, employee_id, role, tenant_id).
+ * auth-helper.js captures this into auth.user at login time.
+ *
+ * company_id is NOT part of the user object, so it is resolved from
+ * GET /organization/companies (first company for the tenant).
+ *
+ * Returns: { userId, employeeId, tenantId, companyId }
+ */
+export function resolveIdentity(auth) {
+	const user = (auth && auth.user) || {};
+
+	const identity = {
+		userId: user.id || null,
+		employeeId: user.employee_id || user.employeeId || null,
+		tenantId: user.tenant_id || user.tenantId || null,
+		companyId: null,
+	};
+
+	// Resolve company from the organization endpoint (tenant -> company is 1:1 in GIMS)
+	try {
+		const compRes = authGet(`${API_V1}/organization/companies`, auth, {
+			tags: { name: "identity:companies", endpoint: "org:companies:list", module: "organization", tier: "list" },
+		});
+		const body = parseBody(compRes);
+		if (body && body.data) {
+			const items = Array.isArray(body.data) ? body.data : body.data.items || [];
+			if (items.length > 0) {
+				identity.companyId = items[0].id;
+			}
+		}
+	} catch (_) {
+		// company stays null; caller decides whether that's fatal
+	}
+
+	return identity;
+}
 
 /**
  * Parse JSON response body, returning null on failure.

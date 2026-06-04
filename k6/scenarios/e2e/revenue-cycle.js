@@ -120,10 +120,10 @@ export function revenueCycle(auth, data, options = {}) {
 	if (invId) {
 		const payPayload = {
 			invoice_id: invId,
-			amount: 55000,
+			amount: 50000,
 			payment_date: quotationDate,
 			bank_account_id: data.bankAccountId,
-			method: "bank_transfer",
+			method: "BANK",
 		};
 		const payRes = authPost(`${API_V1}/sales/payments`, payPayload, auth, {
 			tags: { name: "sales:payments:create", ...WORKFLOW_TAGS },

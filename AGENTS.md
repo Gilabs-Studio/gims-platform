@@ -87,6 +87,26 @@ pnpm dev
 pnpm build
 pnpm lint
 pnpm check-types
+
+# k6 Performance & Security Testing (root)
+pnpm k6:seed              # Seed test data via k6
+pnpm k6:seed:dry          # Dry-run seed (no writes)
+pnpm k6:smoke             # Smoke test (local)
+pnpm k6:smoke:staging     # Smoke test (staging)
+pnpm k6:smoke:prod        # Smoke test (production)
+pnpm k6:load              # Load test
+pnpm k6:load:staging      # Load test (staging)
+pnpm k6:stress            # Stress test
+pnpm k6:spike             # Spike test
+pnpm k6:soak              # Soak test
+pnpm k6:breakpoint        # Breakpoint test
+pnpm k6:security          # Security negative tests
+pnpm k6:concurrency       # Domain concurrency tests
+pnpm k6:browser           # Browser-based dashboard test
+pnpm k6:profiler          # Endpoint profiler (JSON report)
+pnpm k6:profiler:local    # Profiler with relaxed thresholds
+pnpm k6:analyze           # Analyze profiler report
+pnpm k6:validate          # Validate all k6 test scripts
 ```
 
 ## Child Knowledge Bases
@@ -103,3 +123,4 @@ pnpm check-types
 - Security: `.cursor/rules/security.mdc`
 - Standards: `.cursor/rules/standart.mdc`
 - Timezone deep-dive: `docs/features/core/apptime-timezone-support.md`
+- k6 CI/Release Gates: `k6/docs/CI_RELEASE_GATES.md`

@@ -12,6 +12,7 @@
 | [Workflows](./WORKFLOWS.md) | E2E business workflow documentation |
 | [Configuration](./CONFIGURATION.md) | Config, credentials, environment variables |
 | [Reporting](./REPORTING.md) | Analyzer, report format, interpreting results |
+| [CI/Release Gates](./CI_RELEASE_GATES.md) | CI triggers, gate matrix, threshold tiers |
 | [Capacity Planning](./CAPACITY_PLANNING.md) | Sweet spot analysis, VPS sizing workflow |
 | [System Requirements](./SYSTEM_REQUIREMENTS.md) | Infrastructure specs, cost, scaling triggers |
 | [Optimization Solutions](./OPTIMIZATION_SOLUTIONS.md) | Performance fixes for slow endpoints |
