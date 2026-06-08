@@ -1,0 +1,89 @@
+meta:
+  name: Sales Referral
+  type: collection
+  scope: api
+  description: Sales referral admin and public validation endpoints.
+
+vars:
+  base_url: http://localhost:8080/api/v1
+  token: ""
+  csrf_token: ""
+
+requests:
+  - name: Validate Registration Code
+    method: GET
+    url: "{{base_url}}/auth/registration-codes/validate?code=BUDI-JAN&email=buyer@example.com"
+    headers:
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Register Tenant With Referral
+    method: POST
+    url: "{{base_url}}/auth/register"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      name: Alice Demo
+      email: alice@example.com
+      password: Password123!
+      company_name: Alice Demo Inc
+      agree_tos: true
+      agree_marketing: false
+      registration_code: BUDI-JAN
+
+  - name: List Referral Accounts
+    method: GET
+    url: "{{base_url}}/internal/referrals/accounts?page=1&per_page=20"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Create Referral Account
+    method: POST
+    url: "{{base_url}}/internal/referrals/accounts"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      email: sales@example.com
+      name: Sales Team
+      is_active: true
+
+  - name: List Referral Codes
+    method: GET
+    url: "{{base_url}}/internal/referrals/codes?page=1&per_page=20"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Create Referral Code
+    method: POST
+    url: "{{base_url}}/internal/referrals/codes"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      sales_referral_account_id: "{{sales_referral_account_id}}"
+      coupon_id: "{{coupon_id}}"
+      code: BUDI-JAN
+      max_uses: 100
+      max_uses_per_email: 1
+
+  - name: Referral Stats
+    method: GET
+    url: "{{base_url}}/internal/referrals/stats"
+    auth:
+      type: bearer
+      token: "{{token}}"

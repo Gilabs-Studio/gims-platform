@@ -141,3 +141,38 @@ This feature must ship safely in a live production system. Implementation should
 - hide new admin UI behind permission checks and backend authorization
 - preserve historical data via soft delete/deactivate rather than hard delete
 - verify rollout with production-safe tests and gradual enablement if needed
+
+## Backend/API Implementation Notes
+
+Implemented backend surface:
+
+- `GET /api/v1/auth/registration-codes/validate?code=...&email=...`
+- `GET /api/v1/auth/coupons/validate?code=...&email=...` remains compatible and now resolves referral-first when referral service is wired.
+- `POST /api/v1/auth/register` accepts `registration_code` and legacy `coupon`.
+- `GET /api/v1/internal/referrals/stats`
+- `GET /api/v1/internal/referrals/accounts`
+- `POST /api/v1/internal/referrals/accounts`
+- `PUT /api/v1/internal/referrals/accounts/:id`
+- `DELETE /api/v1/internal/referrals/accounts/:id`
+- `GET /api/v1/internal/referrals/codes`
+- `POST /api/v1/internal/referrals/codes`
+- `PUT /api/v1/internal/referrals/codes/:id`
+- `PATCH /api/v1/internal/referrals/codes/:id/status`
+- `DELETE /api/v1/internal/referrals/codes/:id`
+
+Implemented DB entities:
+
+- `sales_referral_accounts`
+- `sales_referral_codes`
+- `sales_referral_leads`
+- `sales_referral_conversions`
+
+Implemented seed entries:
+
+- menu: `Sales Referrals` at `/master-data/sales-referrals`
+- permissions: `sales_referral.read`, `sales_referral.create`, `sales_referral.update`, `sales_referral.delete`, `sales_referral.manage`
+
+API collections:
+
+- Postman: `docs/postman/postman.json`
+- Bruno YAML: `docs/bruno/sales-referral.yaml`

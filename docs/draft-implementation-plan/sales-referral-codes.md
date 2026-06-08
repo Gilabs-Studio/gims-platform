@@ -320,3 +320,28 @@ Guardrails:
 4. frontend admin UI
 5. tests and docs
 6. staged production rollout
+
+## 15. Backend implementation status
+
+Completed backend/db items:
+
+- created `apps/api/internal/referral` vertical slice
+- added referral models and AutoMigrate registration
+- added production-safe referral indexes in `migrate.go`
+- added public registration-code resolver
+- wired `registration_code` into tenant registration
+- kept legacy `coupon` alias intact
+- added lead creation on valid referral registration submit
+- added conversion tracking on tenant creation and paid confirmation
+- added idempotent conversion guard by referral code + tenant
+- added System Admin referral CRUD routes
+- added stats route and aggregate query
+- added permission and menu seed entries
+- added Bruno YAML collection at `docs/bruno/sales-referral.yaml`
+- updated Postman collection at `docs/postman/postman.json`
+
+Remaining outside backend/db scope:
+
+- frontend System Admin pages
+- frontend registration form label/update
+- frontend permission-based menu display

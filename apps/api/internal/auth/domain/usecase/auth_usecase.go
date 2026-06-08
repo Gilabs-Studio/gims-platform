@@ -17,7 +17,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	jwtManager "github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
+	referralUC "github.com/gilabs/gims/api/internal/referral/domain/usecase"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -30,7 +32,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 )
 
 var (
@@ -87,6 +88,7 @@ type PendingRegistration struct {
 	UserCount      int    `json:"user_count"`
 	InvoiceID      string `json:"invoice_id"`
 	CouponCode     string `json:"coupon_code,omitempty"`
+	ReferralCode   string `json:"referral_code,omitempty"`
 	AmountPaid     int64  `json:"amount_paid"`
 	CreatedAt      string `json:"created_at"`
 	AgreeToS       bool   `json:"agree_tos"`
@@ -136,15 +138,16 @@ type AuthUsecase interface {
 }
 
 type authUsecase struct {
-	db               *gorm.DB
-	userRepo         userRepo.UserRepository
-	refreshTokenRepo refreshTokenRepo.RefreshTokenRepository
-	jwtManager       *jwtManager.JWTManager
-	eventPublisher   infraEvents.EventPublisher
-	couponUC         couponUC.CouponUsecase
-	planRepo         planRepo.SubscriptionPlanRepository
-	redis            *redis.Client
-	xendit           *xenditClient.Client
+	db                *gorm.DB
+	userRepo          userRepo.UserRepository
+	refreshTokenRepo  refreshTokenRepo.RefreshTokenRepository
+	jwtManager        *jwtManager.JWTManager
+	eventPublisher    infraEvents.EventPublisher
+	couponUC          couponUC.CouponUsecase
+	referralUC        referralUC.ReferralUsecase
+	planRepo          planRepo.SubscriptionPlanRepository
+	redis             *redis.Client
+	xendit            *xenditClient.Client
 	permissionService security.PermissionService
 }
 
@@ -155,6 +158,7 @@ func NewAuthUsecase(
 	jwtManager *jwtManager.JWTManager,
 	eventPublisher infraEvents.EventPublisher,
 	couponUC couponUC.CouponUsecase,
+	refUC referralUC.ReferralUsecase,
 	redisClient *redis.Client,
 	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
 	permissionService security.PermissionService,
@@ -167,15 +171,16 @@ func NewAuthUsecase(
 		)
 	}
 	return &authUsecase{
-		db:               db,
-		userRepo:         userRepo,
-		refreshTokenRepo: refreshTokenRepo,
-		jwtManager:       jwtManager,
-		eventPublisher:   eventPublisher,
-		couponUC:         couponUC,
-		planRepo:         subscriptionPlanRepo,
-		redis:            redisClient,
-		xendit:           xc,
+		db:                db,
+		userRepo:          userRepo,
+		refreshTokenRepo:  refreshTokenRepo,
+		jwtManager:        jwtManager,
+		eventPublisher:    eventPublisher,
+		couponUC:          couponUC,
+		referralUC:        refUC,
+		planRepo:          subscriptionPlanRepo,
+		redis:             redisClient,
+		xendit:            xc,
 		permissionService: permissionService,
 	}
 }
@@ -300,22 +305,22 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:               user.ID,
-			Email:            user.Email,
-			Name:             user.Name,
-			AvatarURL:        user.AvatarURL,
-			EmployeeID:       employeeID,
-			Role:             roleCode,
-			RoleName:         roleName,
-			RoleDataScope:    roleDataScope,
-			IsOwner:          isOwner,
-			Permissions:      permissions,
-			Status:           user.Status,
-			CreatedAt:        user.CreatedAt,
-			UpdatedAt:        user.UpdatedAt,
-			TenantID:         tenantID,
-			TenantName:       tenantName,
-			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			ID:                 user.ID,
+			Email:              user.Email,
+			Name:               user.Name,
+			AvatarURL:          user.AvatarURL,
+			EmployeeID:         employeeID,
+			Role:               roleCode,
+			RoleName:           roleName,
+			RoleDataScope:      roleDataScope,
+			IsOwner:            isOwner,
+			Permissions:        permissions,
+			Status:             user.Status,
+			CreatedAt:          user.CreatedAt,
+			UpdatedAt:          user.UpdatedAt,
+			TenantID:           tenantID,
+			TenantName:         tenantName,
+			SubscriptionPlan:   activePlanForTenant(u.db, tenantID),
 			SubscriptionAccess: subscriptionAccess,
 		}
 
@@ -503,22 +508,22 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:               user.ID,
-			Email:            user.Email,
-			Name:             user.Name,
-			AvatarURL:        user.AvatarURL,
-			EmployeeID:       employeeID,
-			Role:             roleCode,
-			RoleName:         roleName,
-			RoleDataScope:    roleDataScope,
-			IsOwner:          refreshIsOwner,
-			Permissions:      permissions,
-			Status:           user.Status,
-			CreatedAt:        user.CreatedAt,
-			UpdatedAt:        user.UpdatedAt,
-			TenantID:         tenantID,
-			TenantName:       tenantName,
-			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			ID:                 user.ID,
+			Email:              user.Email,
+			Name:               user.Name,
+			AvatarURL:          user.AvatarURL,
+			EmployeeID:         employeeID,
+			Role:               roleCode,
+			RoleName:           roleName,
+			RoleDataScope:      roleDataScope,
+			IsOwner:            refreshIsOwner,
+			Permissions:        permissions,
+			Status:             user.Status,
+			CreatedAt:          user.CreatedAt,
+			UpdatedAt:          user.UpdatedAt,
+			TenantID:           tenantID,
+			TenantName:         tenantName,
+			SubscriptionPlan:   activePlanForTenant(u.db, tenantID),
 			SubscriptionAccess: subscriptionAccess,
 		}
 
@@ -653,6 +658,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		if err != nil {
 			return nil, err
 		}
+		u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, loginResp.User.TenantID, "", 0)
 		return &RegisterTenantResult{LoginResponse: loginResp}, nil
 	}
 
@@ -758,6 +764,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		UserCount:      userCount,
 		InvoiceID:      invoice.ID,
 		CouponCode:     couponCode,
+		ReferralCode:   req.ReferralCode,
 		AmountPaid:     finalAmount,
 		CreatedAt:      apptime.Now().Format(time.RFC3339),
 		AgreeToS:       req.AgreeToS,
@@ -813,6 +820,7 @@ func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, re
 	}
 	// Redeem coupon usage after provisioning.
 	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount)
+	u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, resp.User.TenantID, "", 0)
 	return &RegisterTenantResult{LoginResponse: resp}, nil
 }
 
@@ -1001,6 +1009,8 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		return nil, fmt.Errorf("failed to persist payment transaction: %w", err)
 	}
 
+	u.markReferralConvertedBestEffort(ctx, pending.ReferralCode, pending.Email, tenantID, sub.ID, pending.AmountPaid)
+
 	doneKey := pendingRegDoneKeyPrefix + token
 	if err := u.redis.Set(ctx, doneKey, strings.ToLower(strings.TrimSpace(pending.Email)), pendingRegTTL).Err(); err != nil {
 		return nil, fmt.Errorf("failed to persist completed registration marker: %w", err)
@@ -1012,6 +1022,13 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	}
 
 	return loginResp, nil
+}
+
+func (u *authUsecase) markReferralConvertedBestEffort(ctx context.Context, referralCode, email, tenantID, subscriptionID string, amountPaid int64) {
+	if u.referralUC == nil || strings.TrimSpace(referralCode) == "" || strings.TrimSpace(tenantID) == "" {
+		return
+	}
+	_ = u.referralUC.MarkConverted(ctx, referralCode, email, tenantID, subscriptionID, amountPaid)
 }
 
 // buildLoginRespForExistingUser looks up a user by email and generates fresh auth tokens.
