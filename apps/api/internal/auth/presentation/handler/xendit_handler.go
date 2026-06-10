@@ -64,6 +64,16 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 		return
 	}
 
+	if payload.Status == "REFUNDED" || payload.Status == "CHARGEBACK" {
+		if payload.ID != "" {
+			if err := h.authUC.HandlePaymentRefund(c.Request.Context(), payload.ID, payload.Status); err != nil {
+				log.Printf("[xendit] failed refund adjustment invoice_id=%s status=%s: %v", payload.ID, payload.Status, err)
+			}
+		}
+		response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
+		return
+	}
+
 	// Only act on PAID / SETTLED events — ignore EXPIRED and others.
 	if payload.Status != "PAID" && payload.Status != "SETTLED" {
 		response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)

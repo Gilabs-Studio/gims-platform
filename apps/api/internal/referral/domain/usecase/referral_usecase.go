@@ -43,6 +43,7 @@ type ReferralUsecase interface {
 	DeleteCode(ctx context.Context, id string) error
 	GetStats(ctx context.Context, params dto.ReferralStatsParams) (*dto.ReferralStatsResponse, error)
 	CreateCommissionForPayment(ctx context.Context, paymentTransactionID string) error
+	CreateNegativeAdjustmentForPayment(ctx context.Context, paymentTransactionID, reason string) error
 	GetCommissionConfig(ctx context.Context) (*dto.CommissionConfigResponse, error)
 	UpdateCommissionConfig(ctx context.Context, req *dto.CommissionConfigRequest) (*dto.CommissionConfigResponse, error)
 	ListCommissions(ctx context.Context, params dto.CommissionListParams) ([]*dto.CommissionResponse, *response.PaginationMeta, error)
@@ -449,6 +450,29 @@ func (u *referralUsecase) CreateCommissionForPayment(ctx context.Context, paymen
 		EarnedAt:                  apptime.Now(),
 	}
 	return u.repo.CreateCommissionIfNotExists(ctx, commission)
+}
+
+func (u *referralUsecase) CreateNegativeAdjustmentForPayment(ctx context.Context, paymentTransactionID, reason string) error {
+	paid, err := u.repo.FindPaidCommissionByPaymentTransactionID(ctx, paymentTransactionID)
+	if err != nil || paid == nil {
+		return err
+	}
+	adjustment := &models.ReferralCommission{
+		SalesReferralAccountID:    paid.SalesReferralAccountID,
+		SalesReferralCodeID:       paid.SalesReferralCodeID,
+		SalesReferralConversionID: paid.SalesReferralConversionID,
+		TenantID:                  paid.TenantID,
+		SubscriptionID:            paid.SubscriptionID,
+		PaymentTransactionID:      paid.PaymentTransactionID,
+		CommissionType:            models.CommissionTypeAdjustment,
+		Status:                    models.CommissionStatusPending,
+		SourceNetAmountIDR:        -paid.SourceNetAmountIDR,
+		CommissionBps:             paid.CommissionBps,
+		CommissionAmountIDR:       -paid.CommissionAmountIDR,
+		EarnedAt:                  apptime.Now(),
+		VoidReason:                nullableString(strings.TrimSpace(reason)),
+	}
+	return u.repo.CreateCommissionIfNotExists(ctx, adjustment)
 }
 
 func (u *referralUsecase) GetCommissionConfig(ctx context.Context) (*dto.CommissionConfigResponse, error) {

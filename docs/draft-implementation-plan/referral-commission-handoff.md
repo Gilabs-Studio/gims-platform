@@ -44,15 +44,16 @@ Issue: #459
 - Commission handlers need stronger validation and friendlier errors before UI use.
 - `CreatePayoutWithItems` now locks selected commission rows with `FOR UPDATE`.
 - `ApproveCommission` now enforces `pending -> approved` only.
-- `VoidCommission` now blocks paid rows; negative adjustment for already-paid refunds still not implemented.
+- `VoidCommission` now blocks paid rows; Xendit `REFUNDED` / `CHARGEBACK` callbacks create pending negative adjustment rows for paid commissions.
 - Billing-change idempotency path should be reviewed to look up existing payment row on webhook retry before commission creation.
-- Focused commission usecase tests added for close commission, zero amount skip, approval state, duplicate payout IDs.
+- Focused commission usecase tests added for close commission, zero amount skip, approval state, duplicate payout IDs, and negative adjustments.
 - Postman and Bruno include commission config, commission approval/void, and payout endpoints.
 - Frontend not implemented yet.
 
 ## Core rules implemented in MVP
 - Commission source is `PaymentTransaction`.
 - Trial / zero amount payment creates no commission.
+- Paid refund/chargeback creates pending negative adjustment when source commission was already paid.
 - First paid transaction for referred tenant creates `close` commission.
 - Later paid transactions create `recurring` commission.
 - Rates use basis points.
@@ -81,5 +82,5 @@ Issue: #459
 ## Suggested next steps
 1. Harden state transitions and validation.
 2. Implement recurring renewal payment transaction creation from webhook amount.
-3. Add integration tests for paid registration, trial-to-paid upgrade, webhook renewal, and payout persistence.
+3. Add integration tests for paid registration, trial-to-paid upgrade, webhook renewal, refund callback, and payout persistence.
 4. Polish frontend commission/payout UI.

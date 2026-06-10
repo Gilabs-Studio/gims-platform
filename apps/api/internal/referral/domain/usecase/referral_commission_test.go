@@ -98,6 +98,9 @@ func (f *fakeReferralRepo) ListCommissions(context.Context, int, int, string, st
 func (f *fakeReferralRepo) FindCommissionByID(context.Context, string) (*models.ReferralCommission, error) {
 	return f.commission, nil
 }
+func (f *fakeReferralRepo) FindPaidCommissionByPaymentTransactionID(context.Context, string) (*models.ReferralCommission, error) {
+	return f.commission, nil
+}
 func (f *fakeReferralRepo) UpdateCommission(_ context.Context, _ string, updates map[string]interface{}) error {
 	f.lastUpdates = updates
 	return nil
@@ -160,5 +163,33 @@ func TestCreatePayoutRejectsDuplicateCommissionIDs(t *testing.T) {
 	_, err := u.CreatePayout(context.Background(), &dto.CreatePayoutRequest{SalesReferralAccountID: "acc-1", CommissionIDs: []string{"c-1", "c-1"}}, "admin-1")
 	if err != ErrCommissionInvalidState {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestCreateNegativeAdjustmentForPaymentMirrorsPaidCommission(t *testing.T) {
+	repo := &fakeReferralRepo{commission: &models.ReferralCommission{
+		ID:                     "c-1",
+		SalesReferralAccountID: "acc-1",
+		SalesReferralCodeID:    "code-1",
+		TenantID:               "tenant-1",
+		PaymentTransactionID:   "pay-1",
+		CommissionType:         models.CommissionTypeClose,
+		Status:                 models.CommissionStatusPaid,
+		SourceNetAmountIDR:     100000,
+		CommissionBps:          1000,
+		CommissionAmountIDR:    10000,
+	}}
+	u := NewReferralUsecase(repo, nil)
+	if err := u.CreateNegativeAdjustmentForPayment(context.Background(), "pay-1", "REFUNDED"); err != nil {
+		t.Fatalf("CreateNegativeAdjustmentForPayment error: %v", err)
+	}
+	if repo.created == nil {
+		t.Fatal("adjustment not created")
+	}
+	if repo.created.CommissionType != models.CommissionTypeAdjustment {
+		t.Fatalf("type = %s", repo.created.CommissionType)
+	}
+	if repo.created.CommissionAmountIDR != -10000 {
+		t.Fatalf("amount = %d", repo.created.CommissionAmountIDR)
 	}
 }

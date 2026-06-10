@@ -124,6 +124,7 @@ type AuthUsecase interface {
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
 	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error
+	HandlePaymentRefund(ctx context.Context, xenditInvoiceID, reason string) error
 	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
 	// stores the pending mutation until the payment webhook confirms it.
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
@@ -1186,6 +1187,19 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 	}
 	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
 	return nil
+}
+
+func (u *authUsecase) HandlePaymentRefund(ctx context.Context, xenditInvoiceID, reason string) error {
+	if u.referralUC == nil || strings.TrimSpace(xenditInvoiceID) == "" {
+		return nil
+	}
+	var txn tenantModels.PaymentTransaction
+	if err := u.db.WithContext(ctx).
+		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, xenditInvoiceID).
+		First(&txn).Error; err != nil {
+		return err
+	}
+	return u.referralUC.CreateNegativeAdjustmentForPayment(ctx, txn.ID, reason)
 }
 
 // provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.

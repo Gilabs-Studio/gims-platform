@@ -46,6 +46,7 @@ type ReferralRepository interface {
 	CreateCommissionIfNotExists(ctx context.Context, commission *models.ReferralCommission) error
 	ListCommissions(ctx context.Context, page, perPage int, accountID, status, commissionType string) ([]*models.ReferralCommission, int64, error)
 	FindCommissionByID(ctx context.Context, id string) (*models.ReferralCommission, error)
+	FindPaidCommissionByPaymentTransactionID(ctx context.Context, paymentTransactionID string) (*models.ReferralCommission, error)
 	UpdateCommission(ctx context.Context, id string, updates map[string]interface{}) error
 	CreatePayoutWithItems(ctx context.Context, payout *models.ReferralCommissionPayout, commissionIDs []string) error
 	ListPayouts(ctx context.Context, page, perPage int, accountID string) ([]*models.ReferralCommissionPayout, int64, error)
@@ -331,6 +332,14 @@ func (r *referralRepository) ListCommissions(ctx context.Context, page, perPage 
 func (r *referralRepository) FindCommissionByID(ctx context.Context, id string) (*models.ReferralCommission, error) {
 	var item models.ReferralCommission
 	err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&item).Error
+	return &item, err
+}
+
+func (r *referralRepository) FindPaidCommissionByPaymentTransactionID(ctx context.Context, paymentTransactionID string) (*models.ReferralCommission, error) {
+	var item models.ReferralCommission
+	err := r.getDB(ctx).
+		Where("payment_transaction_id = ? AND status = ? AND commission_type IN ? AND deleted_at IS NULL", paymentTransactionID, models.CommissionStatusPaid, []models.ReferralCommissionType{models.CommissionTypeClose, models.CommissionTypeRecurring}).
+		First(&item).Error
 	return &item, err
 }
 
