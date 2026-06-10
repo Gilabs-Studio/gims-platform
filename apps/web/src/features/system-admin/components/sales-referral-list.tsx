@@ -223,40 +223,50 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ref-code-account">Sales account</Label>
-              <select
-                id="ref-code-account"
-                required
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={form.salesReferralAccountID}
-                onChange={(event) => setForm((prev) => ({ ...prev, salesReferralAccountID: event.target.value }))}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, salesReferralAccountID: value }))}
               >
-                <option value="">Select account</option>
+                <SelectTrigger id="ref-code-account">
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>
+                    Select account
+                  </SelectItem>
                 {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>{account.name || account.email}</option>
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name || account.email}
+                  </SelectItem>
                 ))}
-              </select>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ref-code-coupon">Wrapped coupon</Label>
-              <select
-                id="ref-code-coupon"
-                required
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={form.couponID}
-                onChange={(event) => setForm((prev) => ({ ...prev, couponID: event.target.value }))}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, couponID: value }))}
               >
-                <option value="">Select coupon</option>
+                <SelectTrigger id="ref-code-coupon">
+                  <SelectValue placeholder="Select coupon" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>
+                    Select coupon
+                  </SelectItem>
                 {coupons.map((coupon) => (
-                  <option key={coupon.id} value={coupon.id}>
+                  <SelectItem key={coupon.id} value={coupon.id}>
                     {coupon.code} · {coupon.description || coupon.coupon_type}
-                  </option>
+                  </SelectItem>
                 ))}
                 {code && !coupons.some((coupon) => coupon.id === code.coupon_id) && (
-                  <option value={code.coupon_id}>
+                  <SelectItem value={code.coupon_id}>
                     {code.coupon_id} · current linked coupon
-                  </option>
+                  </SelectItem>
                 )}
-              </select>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">Referral code inherits discount/trial rules from selected coupon.</p>
             </div>
           </div>
@@ -391,7 +401,7 @@ export function SalesReferralList() {
           ].map(([label, value]) => (
             <Card key={label} className="py-1.5">
               <CardHeader className="pb-1 pt-3">
-                <CardTitle className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground">{label}</CardTitle>
               </CardHeader>
               <CardContent className="pb-3">
                 <div className="text-3xl font-semibold leading-none">{stats.isLoading ? <Skeleton className="h-9 w-24" /> : value}</div>
