@@ -244,7 +244,7 @@ func (u *referralUsecase) UpdateAccount(ctx context.Context, id string, req *dto
 	}
 	account.Email = normalizeEmail(req.Email)
 	account.Name = req.Name
-	account.IsActive = req.IsActive
+	account.IsActive = *req.IsActive
 	if err := u.repo.UpdateAccount(ctx, account); err != nil {
 		return nil, err
 	}
@@ -294,8 +294,7 @@ func (u *referralUsecase) UpdateCode(ctx context.Context, id string, req *dto.Up
 	if hasUsage && (code.SalesReferralAccountID != req.SalesReferralAccountID || code.CouponID != req.CouponID) {
 		return nil, ErrReferralImmutable
 	}
-	active := req.IsActive
-	built, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, &active, req.MaxUses, req.MaxUsesPerEmail, req.ExpiresAt)
+	built, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, req.IsActive, req.MaxUses, req.MaxUsesPerEmail, req.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}

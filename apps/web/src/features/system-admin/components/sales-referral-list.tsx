@@ -66,6 +66,19 @@ type CodeFormState = {
 
 type ReferralFilter = "all" | "active" | "inactive";
 
+function RequiredMark() {
+  return <span className="ml-0.5 text-destructive">*</span>;
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="text-xs text-destructive">{message}</p>;
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 function formatIDR(value: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -129,13 +142,21 @@ interface AccountDialogProps {
 
 function AccountDialog({ open, account, onClose, onSubmit, isSaving }: AccountDialogProps) {
   const [form, setForm] = useState<AccountFormState>(() => accountForm(account));
+  const [errors, setErrors] = useState<Partial<Record<keyof AccountFormState, string>>>({});
   const isEdit = Boolean(account);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const nextErrors: Partial<Record<keyof AccountFormState, string>> = {};
+    if (!form.email.trim()) nextErrors.email = "Email is required.";
+    else if (!isValidEmail(form.email)) nextErrors.email = "Enter a valid email address.";
+    if (!form.name.trim()) nextErrors.name = "Name is required.";
+    if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     onSubmit({
       email: form.email.trim().toLowerCase(),
-      name: form.name.trim() || null,
+      name: form.name.trim(),
       is_active: form.isActive,
     });
   };
@@ -148,31 +169,44 @@ function AccountDialog({ open, account, onClose, onSubmit, isSaving }: AccountDi
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-1.5">
-            <Label htmlFor="ref-account-email">Email</Label>
+            <Label htmlFor="ref-account-email">Email<RequiredMark /></Label>
             <Input
               id="ref-account-email"
               type="email"
-              required
               value={form.email}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              aria-invalid={Boolean(errors.email)}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, email: event.target.value }));
+                setErrors((prev) => ({ ...prev, email: undefined }));
+              }}
             />
+            <FieldError message={errors.email} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ref-account-name">Name</Label>
+            <Label htmlFor="ref-account-name">Name<RequiredMark /></Label>
             <Input
               id="ref-account-name"
               value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              aria-invalid={Boolean(errors.name)}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, name: event.target.value }));
+                setErrors((prev) => ({ ...prev, name: undefined }));
+              }}
             />
+            <FieldError message={errors.name} />
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
-            <Label htmlFor="ref-account-active">Active</Label>
+            <Label htmlFor="ref-account-active">Active<RequiredMark /></Label>
             <Switch
               id="ref-account-active"
               checked={form.isActive}
-              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, isActive: checked }))}
+              onCheckedChange={(checked) => {
+                setForm((prev) => ({ ...prev, isActive: checked }));
+                setErrors((prev) => ({ ...prev, isActive: undefined }));
+              }}
             />
           </div>
+          <FieldError message={errors.isActive} />
           <DialogFooter>
             <Button type="button" variant="outline" className="cursor-pointer" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="cursor-pointer" disabled={isSaving}>{isSaving ? "Saving..." : "Save account"}</Button>
@@ -195,10 +229,22 @@ interface CodeDialogProps {
 
 function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving }: CodeDialogProps) {
   const [form, setForm] = useState<CodeFormState>(() => codeForm(code));
+  const [errors, setErrors] = useState<Partial<Record<keyof CodeFormState, string>>>({});
   const isEdit = Boolean(code);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const nextErrors: Partial<Record<keyof CodeFormState, string>> = {};
+    if (!form.salesReferralAccountID) nextErrors.salesReferralAccountID = "Sales account is required.";
+    if (!form.couponID) nextErrors.couponID = "Wrapped coupon is required.";
+    if (!form.code.trim()) nextErrors.code = "Public code is required.";
+    else if (form.code.trim().length < 4) nextErrors.code = "Public code must be at least 4 characters.";
+    else if (!/^[A-Z0-9_-]+$/.test(form.code.trim().toUpperCase())) nextErrors.code = "Use only letters, numbers, underscores, or hyphens.";
+    if (!Number.isInteger(form.maxUses) || form.maxUses < 1) nextErrors.maxUses = "Max uses must be at least 1.";
+    if (!Number.isInteger(form.maxUsesPerEmail) || form.maxUsesPerEmail < 1) nextErrors.maxUsesPerEmail = "Max uses per email must be at least 1.";
+    if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     const expiresAt = form.expiresAt ? new Date(`${form.expiresAt}T23:59:59Z`).toISOString() : null;
     onSubmit({
       sales_referral_account_id: form.salesReferralAccountID,
@@ -222,10 +268,13 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ref-code-account">Sales account</Label>
+              <Label htmlFor="ref-code-account">Sales account<RequiredMark /></Label>
               <Select
                 value={form.salesReferralAccountID}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, salesReferralAccountID: value }))}
+                onValueChange={(value) => {
+                  setForm((prev) => ({ ...prev, salesReferralAccountID: value }));
+                  setErrors((prev) => ({ ...prev, salesReferralAccountID: undefined }));
+                }}
               >
                 <SelectTrigger id="ref-code-account">
                   <SelectValue placeholder="Select account" />
@@ -241,12 +290,16 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
                 ))}
                 </SelectContent>
               </Select>
+              <FieldError message={errors.salesReferralAccountID} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ref-code-coupon">Wrapped coupon</Label>
+              <Label htmlFor="ref-code-coupon">Wrapped coupon<RequiredMark /></Label>
               <Select
                 value={form.couponID}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, couponID: value }))}
+                onValueChange={(value) => {
+                  setForm((prev) => ({ ...prev, couponID: value }));
+                  setErrors((prev) => ({ ...prev, couponID: undefined }));
+                }}
               >
                 <SelectTrigger id="ref-code-coupon">
                   <SelectValue placeholder="Select coupon" />
@@ -267,18 +320,23 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
                 )}
                 </SelectContent>
               </Select>
+              <FieldError message={errors.couponID} />
               <p className="text-xs text-muted-foreground">Referral code inherits discount/trial rules from selected coupon.</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="ref-code-code">Public code</Label>
+              <Label htmlFor="ref-code-code">Public code<RequiredMark /></Label>
               <Input
                 id="ref-code-code"
-                required
                 value={form.code}
-                onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
+                aria-invalid={Boolean(errors.code)}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, code: event.target.value.toUpperCase() }));
+                  setErrors((prev) => ({ ...prev, code: undefined }));
+                }}
               />
+              <FieldError message={errors.code} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ref-code-campaign">Campaign name</Label>
@@ -300,24 +358,34 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1.5">
-              <Label htmlFor="ref-code-max">Max uses</Label>
+              <Label htmlFor="ref-code-max">Max uses<RequiredMark /></Label>
               <Input
                 id="ref-code-max"
                 type="number"
                 min={1}
                 value={form.maxUses}
-                onChange={(event) => setForm((prev) => ({ ...prev, maxUses: Number(event.target.value) }))}
+                aria-invalid={Boolean(errors.maxUses)}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, maxUses: Number(event.target.value) }));
+                  setErrors((prev) => ({ ...prev, maxUses: undefined }));
+                }}
               />
+              <FieldError message={errors.maxUses} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ref-code-max-email">Max uses / email</Label>
+              <Label htmlFor="ref-code-max-email">Max uses / email<RequiredMark /></Label>
               <Input
                 id="ref-code-max-email"
                 type="number"
                 min={1}
                 value={form.maxUsesPerEmail}
-                onChange={(event) => setForm((prev) => ({ ...prev, maxUsesPerEmail: Number(event.target.value) }))}
+                aria-invalid={Boolean(errors.maxUsesPerEmail)}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, maxUsesPerEmail: Number(event.target.value) }));
+                  setErrors((prev) => ({ ...prev, maxUsesPerEmail: undefined }));
+                }}
               />
+              <FieldError message={errors.maxUsesPerEmail} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ref-code-expiry">Expires at</Label>
@@ -330,13 +398,17 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
             </div>
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
-            <Label htmlFor="ref-code-active">Active</Label>
+            <Label htmlFor="ref-code-active">Active<RequiredMark /></Label>
             <Switch
               id="ref-code-active"
               checked={form.isActive}
-              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, isActive: checked }))}
+              onCheckedChange={(checked) => {
+                setForm((prev) => ({ ...prev, isActive: checked }));
+                setErrors((prev) => ({ ...prev, isActive: undefined }));
+              }}
             />
           </div>
+          <FieldError message={errors.isActive} />
           <DialogFooter>
             <Button type="button" variant="outline" className="cursor-pointer" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="cursor-pointer" disabled={isSaving}>{isSaving ? "Saving..." : "Save code"}</Button>

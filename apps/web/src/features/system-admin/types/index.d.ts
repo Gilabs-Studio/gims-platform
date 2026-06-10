@@ -530,8 +530,8 @@ export interface SalesReferralStatsParams {
 
 export interface CreateSalesReferralAccountRequest {
   email: string;
-  name?: string | null;
-  is_active?: boolean;
+  name: string;
+  is_active: boolean;
 }
 
 export interface UpdateSalesReferralAccountRequest {
@@ -546,9 +546,9 @@ export interface CreateSalesReferralCodeRequest {
   code: string;
   campaign_name?: string | null;
   description?: string | null;
-  is_active?: boolean;
+  is_active: boolean;
   max_uses: number;
-  max_uses_per_email?: number;
+  max_uses_per_email: number;
   expires_at?: string | null;
 }
 

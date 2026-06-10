@@ -32,15 +32,15 @@ type RegistrationCodeResponse struct {
 }
 
 type CreateSalesReferralAccountRequest struct {
-	Email    string  `json:"email" binding:"required,email"`
-	Name     *string `json:"name" binding:"omitempty,max=255"`
+	Email    string  `json:"email"`
+	Name     *string `json:"name"`
 	IsActive *bool   `json:"is_active"`
 }
 
 type UpdateSalesReferralAccountRequest struct {
-	Email    string  `json:"email" binding:"required,email"`
-	Name     *string `json:"name" binding:"omitempty,max=255"`
-	IsActive bool    `json:"is_active"`
+	Email    string  `json:"email"`
+	Name     *string `json:"name"`
+	IsActive *bool   `json:"is_active"`
 }
 
 type SalesReferralAccountResponse struct {
@@ -53,26 +53,26 @@ type SalesReferralAccountResponse struct {
 }
 
 type CreateSalesReferralCodeRequest struct {
-	SalesReferralAccountID string     `json:"sales_referral_account_id" binding:"required,uuid"`
-	CouponID               string     `json:"coupon_id" binding:"required,uuid"`
-	Code                   string     `json:"code" binding:"required,min=4,max=64"`
-	CampaignName           *string    `json:"campaign_name" binding:"omitempty,max=255"`
-	Description            *string    `json:"description" binding:"omitempty,max=2000"`
+	SalesReferralAccountID string     `json:"sales_referral_account_id"`
+	CouponID               string     `json:"coupon_id"`
+	Code                   string     `json:"code"`
+	CampaignName           *string    `json:"campaign_name"`
+	Description            *string    `json:"description"`
 	IsActive               *bool      `json:"is_active"`
-	MaxUses                int        `json:"max_uses" binding:"required,min=1"`
-	MaxUsesPerEmail        int        `json:"max_uses_per_email" binding:"omitempty,min=1"`
+	MaxUses                int        `json:"max_uses"`
+	MaxUsesPerEmail        int        `json:"max_uses_per_email"`
 	ExpiresAt              *time.Time `json:"expires_at"`
 }
 
 type UpdateSalesReferralCodeRequest struct {
-	SalesReferralAccountID string     `json:"sales_referral_account_id" binding:"required,uuid"`
-	CouponID               string     `json:"coupon_id" binding:"required,uuid"`
-	Code                   string     `json:"code" binding:"required,min=4,max=64"`
-	CampaignName           *string    `json:"campaign_name" binding:"omitempty,max=255"`
-	Description            *string    `json:"description" binding:"omitempty,max=2000"`
-	IsActive               bool       `json:"is_active"`
-	MaxUses                int        `json:"max_uses" binding:"required,min=1"`
-	MaxUsesPerEmail        int        `json:"max_uses_per_email" binding:"omitempty,min=1"`
+	SalesReferralAccountID string     `json:"sales_referral_account_id"`
+	CouponID               string     `json:"coupon_id"`
+	Code                   string     `json:"code"`
+	CampaignName           *string    `json:"campaign_name"`
+	Description            *string    `json:"description"`
+	IsActive               *bool      `json:"is_active"`
+	MaxUses                int        `json:"max_uses"`
+	MaxUsesPerEmail        int        `json:"max_uses_per_email"`
 	ExpiresAt              *time.Time `json:"expires_at"`
 }
 
