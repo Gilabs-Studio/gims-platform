@@ -48,6 +48,7 @@ Issue: #459
 - Billing-change idempotency path should be reviewed to look up existing payment row on webhook retry before commission creation.
 - Focused commission usecase tests added for close commission, zero amount skip, approval state, duplicate payout IDs, and negative adjustments.
 - Xendit refund callback handler test added for `REFUNDED` adjustment path.
+- DB-backed commission integration test added for close commission, approval, payout, and refund negative adjustment.
 - Postman and Bruno include commission config, commission approval/void, and payout endpoints.
 - Frontend not implemented yet.
 
@@ -72,6 +73,7 @@ Issue: #459
 - `apps/api/internal/referral/domain/dto/referral_dto.go`
 - `apps/api/internal/referral/domain/usecase/referral_usecase.go`
 - `apps/api/internal/referral/domain/usecase/referral_commission_test.go`
+- `apps/api/internal/referral/domain/usecase/referral_commission_integration_test.go`
 - `apps/api/internal/referral/presentation/handler/referral_handler.go`
 - `apps/api/internal/referral/presentation/router/referral_router.go`
 - `apps/api/internal/auth/domain/usecase/auth_usecase.go`
@@ -84,5 +86,5 @@ Issue: #459
 ## Suggested next steps
 1. Harden state transitions and validation.
 2. Implement recurring renewal payment transaction creation from webhook amount.
-3. Add deeper DB-backed integration tests for paid registration, trial-to-paid upgrade, webhook renewal, and payout persistence when CGO/test DB is available.
+3. Optional future coverage: full paid registration and webhook renewal tests with production-like Postgres/testcontainers.
 4. Polish frontend commission/payout UI.
